@@ -1719,12 +1719,20 @@ function Storage( onlyLocalStorage ) {
 this._onlyLocalStoarge = onlyLocalStorage;
 }
 
-Storage.includes({
+Storage.Includes({
 	setData: function( key, value ){
-	window.localStorage[ key ] = value;
+		try { 
+		window.localStorage.setItem( key, JSON.stringify( value ) );
+		}
+		catch(err){}
 	return value;
 	},
 	getData: function( key ) {
-	return window.localStorage[ key ] || null;
+	var r;
+		try{
+		r = JSON.parse( window.localStorage.getItem( key ) );
+		}
+		catch(err){}
+	return r
 	}
 });

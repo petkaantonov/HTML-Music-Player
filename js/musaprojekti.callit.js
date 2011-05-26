@@ -27,7 +27,10 @@ var TAB_SEARCH = 0,
 	QUEUE_CHANGES_START = "57px",
 	QUEUE_POSITIVE_END =  "17px",
 	QUEUE_NEGATIVE_END = "97px",
-		
+	
+	TEST_PASS = "<span style=\"color:#00BD00;\">"+String.fromCharCode(10004)+"</span>",
+	TEST_FAIL = "<span style=\"font-weight: bold;color: #8B0000;\">"+String.fromCharCode(10005)+"</span>",
+	
 	MAP_MAIN_INTERFACES = {},
 	
 	SEARCH_HISTORY_TYPE = {
@@ -47,8 +50,25 @@ var TAB_SEARCH = 0,
 
 // TODO: if missing features, warn
 function informFeatures( features, missing ) {
+var str = "";
+	if( missing > 0 && !shortStorage.getData( "featuresInformed") ) {
+	str = "Some features aren't supported by your browser, perhaps it's time to try " +
+		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome?</a>";
+	}else {
+	return;
+	}
 
-
+shortStorage.setData( "featuresInformed", "true" );
+popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\"app-feature-table\"></div><div style=\"margin-top:20px;font-size:11px;\">"+str+"</div>" );
+var table = new Table( "app-feature-table", nodecache, {
+		classPrefix: "app-feature",
+		captions: { 
+			name: "Feature",
+			desc: "Description",
+			enabled: "Supported"
+		}
+	}
+).addData( features );
 }
 
 function createSorter( targetArray, sortFunc ) {
@@ -160,6 +180,21 @@ $( tabs.getTab() ).delegate( "li", "click", function(){
 scrolls.calculate( tabs.activeTab );
 tabs.selectTab( this );
 });
+
+var shortStorage = new Storage( true );
+
+var popup = new Popup( 500, 300, { closer: ".app-popup-closer", addClass: "app-popup-container" } );
+
+popup.onclose = function(){
+	if( !this._popups.length ) {
+	$( "#app-container" ).fadeTo( 0, 1 );
+	}
+}
+popup.onopen = function(){
+	if( this._popups.length < 2 ) {
+	$( "#app-container").fadeTo(0, 0.3 );
+	}
+}
 
 scrolls = new Scrolls( (function(){var r = {};
 			r[ TAB_SEARCH ] = "#app-result-container";
@@ -538,7 +573,7 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 (function(){
 var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
-	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = {};
+	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [];
 	
 features.mp3 = false;
 features.wav = false;
@@ -588,25 +623,15 @@ features.dragFiles = false;
 		features.ogg = !!( audio.canPlayType( "audio/wav" ).replace( /no/gi, "" ) );	
 	}
 	
-featureDescriptions["mp3"] = { desc: "Play MP3 files located on your computer", name: "Local MP3" };
-featureDescriptions["ogg"] = { desc: "Play OGG files located on your computer", name: "Local Ogg Vorbis" };
-featureDescriptions["wav"] = { desc: "Play WAV files located on your computer", name: "Local WAVE" };
-featureDescriptions["readFiles"] = { desc: "Read local binary files", name: "File reader" };
-featureDescriptions["dragFiles"] = { desc: "Drag &amp; Drop local audio files", name: "Drag &amp; Drop files" };
-featureDescriptions["localStorage"] = { desc: "Save and load playlists", name: "Local storage" };
-featureDescriptions["directories"] = { desc: "Add entire directories of local files at once", name: "Directories" };
-featureDescriptions["graphics"] = { desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics" };
+featureDescriptions.push({ desc: "Play MP3 files located on your computer", name: "Local MP3", enabled: ( !features.mp3 && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
+			{ desc: "Play OGG files located on your computer", name: "Local Ogg Vorbis", enabled: ( !features.ogg && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
+			{ desc: "Play WAV files located on your computer", name: "Local WAVE", enabled: ( !features.wav && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Read local binary files", name: "File reader", enabled: ( !features.readFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Drag &amp; Drop local audio files", name: "Drag &amp; Drop files", enabled: ( !features.dragFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Save and load playlists", name: "Local storage", enabled: ( !features.localStorage && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
-	for( key in features ) {
-		if( !features[key] ) {
-		featureDescriptions[ key ].enabled = false;
-		missingFeatures++;
-		}
-		else {
-		featureDescriptions[ key ].enabled = true;
-		}
-	}
-	
 informFeatures( featureDescriptions, missingFeatures );
 })()
 
@@ -634,3 +659,6 @@ $( "#app-loader").remove();
 $( "#app-container" ).show();
 tabs.selectTab( tabs.getTab( TAB_PLAYLIST ) );
 
+
+
+//<input class=\"app-popup-close\" type=\"button\" value=\"close\"/>" );

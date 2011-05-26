@@ -572,10 +572,6 @@ background-color: #FFFFFF;
 filter: alpha('opacity=83');
 }
 
-::-webkit-selection{background-color:#D4D4D4;}
-::-moz-selection{background-color:#D4D4D4;}
-::selection{background-color:#D4D4D4;}
-
 #suggestionswrapper{
 position: absolute;
 top: 24px;
@@ -796,6 +792,60 @@ color: #000;
 border-bottom: 1px solid #E0E5FF;
 background-color: #F0F2FF;
 color: #000;
+}
+
+.app-header-2 {
+font-family: georgia;
+color: #343434;
+font-size: 19px;
+}
+
+.app-popup-closer {
+background-image: url('../images/popup-close.png');
+width: 12px;
+height: 12px;
+background-position: 0px -12px;
+cursor:pointer;
+position:absolute;
+top:8px;
+right: 8px;
+}
+
+.app-popup-closer:hover{
+background-position: 0px 0px;
+}
+
+.app-popup-container {
+background-color: #FFFFFF;
+padding: 20px 30px;
+border: 1px solid #A5ABD5;
+box-shadow: 0px 0px 10px #A5ABD5;
+}
+
+.app-feature-table {
+border-collapse: collapse;
+border-spacing: 0px 0px;
+border-color: transparent;
+width: 100%;
+}
+
+.app-feature-thead-tr > th {
+text-align: left;
+padding: 0px;
+}
+
+.app-feature-thead-tr {
+height: 30px;
+}
+
+.app-feature-tbody {
+margin-top: 8px;
+font-family: tahoma;
+font-size: 11px;
+}
+
+.app-feature-tbody-td {
+height: 16px;
 }
 
 
