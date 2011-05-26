@@ -1,0 +1,25 @@
+{
+  "name": "html-music-player",
+  "version": "1.0.0",
+  "description": "HTML music player",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petkaantonov/HTML-Music-Player.git"
+  },
+  "author": "Petka Antonov <petka_antonov@hotmail.com> (https://github.com/petkaantonov)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/petkaantonov/HTML-Music-Player/issues"
+  },
+  "homepage": "https://github.com/petkaantonov/HTML-Music-Player#readme",
+  "dependencies": {
+    "bluebird": "^3.0.0",
+    "glob": "^5.0.15",
+    "js-beautify": "^1.5.10",
+    "uglify-js": "^2.5.0"
+  }
+}

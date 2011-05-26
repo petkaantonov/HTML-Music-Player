@@ -1,0 +1,2 @@
+hotkeyManager.enableHotkeys();
+hotkeyManager.enablePersistentHotkeys()
