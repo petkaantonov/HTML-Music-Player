@@ -1466,6 +1466,9 @@ this._idBase = +(new Date);
 this._popups = [];
 this._width = width;
 this._height = height;
+this._stacks = opts && !!opts.stacks || true;
+this._stackOffsetX = opts && opts.stackOffsetX || 15;
+this._stackOffsetY = opts && opts.stackOffsetY || 15;
 this._closer = opts && opts.closer || "null";
 
 	if( this._closer != "null" ) {
@@ -1509,20 +1512,45 @@ Popup.Includes({
 
 	return this;
 	},
-	open: function( html ) {
+	open: function( html, width, height ) {
 	var div = document.createElement( "div"), id, top, left,
 		winWidth = $(window).width(), winHeight = $(window).height(),
-		width = this._width, height = this._height;	
+		width = width || this._width, height = height || this._height,
+		offset = this._stacks ? this._popups.length - 1 : 0;
+		
 	this._popups.push( ( id = "popup"+ ( ++this._idBase ) ) );
-	left = ( ( winWidth - width ) / 2 ) >> 0;
-	top = ( ( winHeight - height ) / 2 ) >> 0;
+	left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * this._stackOffsetX;
+	top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * this._stackOffsetY;
 	div.id = id;
 	div.innerHTML = "<div class=\""+this._closer.substr(1)+"\"></div>"+html;
 	div.className = this._className;
-	div.setAttribute( "style", "width:"+width+"px;height:"+height+"px;position:absolute;top:"+top+"px;left:"+left+"px;z-index:100000;display:block;" );
+	div.setAttribute( "style", "width:"+width+"px;height:"+height+"px;position:absolute;top:"+top+"px;left:"+left+"px;z-index:"+(100000+offset)+";display:block;" );
 	$( div ).prependTo( "body" );
 	this.onopen.call( this );
 	return this;
+	}
+});
+
+function BlockingPopup(){
+Popup.apply( this, Array.prototype.slice.call( arguments, 0) );
+this._blockerId = "blocker-"+(+new Date);
+}
+
+BlockingPopup.Inherits( Popup ).Includes({
+	open: function( html, width, height ){
+	this.__super__( "open", html, width, height );
+	
+		if( this._popups.length < 2 ) {
+		$("<div id=\""+this._blockerId+"\"style=\"background-color:transparent;position:absolute;" +
+			"top:0px;left:0px;z-index:99999;display:block;width:"+$(window).width()+"px;" +
+			"height:"+$(window).height()+"px;\"></div>").prependTo( "body" );
+		}
+	},
+	close: function(){
+	this.__super__( "close" );
+		if( !this._popups.length ) {
+		$( "#"+this._blockerId).remove();
+		}
 	}
 });
 
