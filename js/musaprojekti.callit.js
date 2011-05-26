@@ -1,5 +1,5 @@
-var nodecache = new NodeCache(), tabs, playlist = {}, search = {}, queue = {}, scrolls, features = {},
-	featureDescriptions = {};
+var nodecache = new NodeCache(), tabs, playlist = {}, search = {}, queue = {}, scrolls, features = {};
+
 
 var TAB_SEARCH = 0,
 	TAB_PLAYLIST = 1,
@@ -44,7 +44,12 @@ var TAB_SEARCH = 0,
 	},
 	
 	SORT_NUMBER_ASC = function(a,b){return a-b;};
-	
+
+// TODO: if missing features, warn
+function informFeatures( features, missing ) {
+
+
+}
 
 function createSorter( targetArray, sortFunc ) {
 var args = Array.prototype.slice.call( arguments, 2 ) || [];
@@ -533,7 +538,7 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 (function(){
 var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
-	c
+	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = {};
 	
 features.mp3 = false;
 features.wav = false;
@@ -569,21 +574,40 @@ features.dragFiles = false;
 	features.graphics = false;
 	}
 	
-	if( audio && typeof audio.canPlayType == "function" ) {
-	features.mp3 = !!( audio.canPlayType( "mp3" ).replace( /no/gi, "" ) );
-	features.wav = !!( audio.canPlayType( "ogg" ).replace( /no/gi, "" ) );
-	features.ogg = !!( audio.canPlayType( "wav" ).replace( /no/gi, "" ) );	
-	}
-	
 	if( typeof FileReader == "function" && new FileReader().readAsBinaryString ) {
 	features.readFiles = true;
 	}
 	
-	if ( "files" in input && document.createEvent && "dataTransfer" in document.createEvent( "MouseEvents" ) ) {
+	if ( "files" in input && ( "ondrop" in input || ( !input.setAttribute("ondrop", "") && typeof input["ondrop"] == "function" ) ) ) {
 	features.dragFiles = true;
 	}
+	
+	if( audio && typeof audio.canPlayType == "function" && localfile && features.readFiles ) {
+		features.mp3 = !!( audio.canPlayType( "audio/mp3" ).replace( /no/gi, "" ) );
+		features.wav = !!( audio.canPlayType( "audio/ogg" ).replace( /no/gi, "" ) );
+		features.ogg = !!( audio.canPlayType( "audio/wav" ).replace( /no/gi, "" ) );	
+	}
+	
+featureDescriptions["mp3"] = { desc: "Play MP3 files located on your computer", name: "Local MP3" };
+featureDescriptions["ogg"] = { desc: "Play OGG files located on your computer", name: "Local Ogg Vorbis" };
+featureDescriptions["wav"] = { desc: "Play WAV files located on your computer", name: "Local WAVE" };
+featureDescriptions["readFiles"] = { desc: "Read local binary files", name: "File reader" };
+featureDescriptions["dragFiles"] = { desc: "Drag &amp; Drop local audio files", name: "Drag &amp; Drop files" };
+featureDescriptions["localStorage"] = { desc: "Save and load playlists", name: "Local storage" };
+featureDescriptions["directories"] = { desc: "Add entire directories of local files at once", name: "Directories" };
+featureDescriptions["graphics"] = { desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics" };
 
-
+	for( key in features ) {
+		if( !features[key] ) {
+		featureDescriptions[ key ].enabled = false;
+		missingFeatures++;
+		}
+		else {
+		featureDescriptions[ key ].enabled = true;
+		}
+	}
+	
+informFeatures( featureDescriptions, missingFeatures );
 })()
 
 playlist.main.render();
