@@ -1461,26 +1461,33 @@ Scrolls.Includes({
 });
 
 function Popup( width, height, opts ) {
+var self = this;
 this._idBase = +(new Date);
 this._popups = [];
 this._width = width;
 this._height = height;
+this._closer = opts && opts.closer || "null";
+
+	if( this._closer != "null" ) {
+		$( document ).delegate( this._closer, "click" , function(){
+		self.close( this );
+		});
+	}
 this._className = opts && opts.addClass || "popup-main";
 }
 
 Popup.Includes({
+	onclose: function(){},
+	onopen: function(){},
 	close: function( elm ) {
 	var node = elm, popup, idx, className = this._className;
 	
 		if( !elm ) {
 		node = $( "#"+this._popups.pop() );
 		
-			if( typeof this.onclose == "function" ) {
-			this.onclose.call( this, node[0] );
-			}
-			else {
-			$( node ).remove();			
-			}
+	
+		this.onclose.call( this );
+		$( node ).remove();			
 		return this;
 		}
 	
@@ -1493,15 +1500,13 @@ Popup.Includes({
 		node = node.parentNode;
 		}
 
-		if( popup && ( idx = this._popups.indexOf( node.id ) ) > -1 ) {
+		if( popup && ( idx = this._popups.indexOf( popup.id ) ) > -1 ) {
 		this._popups.splice( idx, 1 );
-			if( typeof this.onclose == "function" ) {
-			this.onclose.call( this, node );
-			}
-			else {
-			$( node ).remove();			
-			}
+		$( node ).remove();
+		this.onclose.call( this );
 		}
+		
+
 	return this;
 	},
 	open: function( html ) {
@@ -1512,10 +1517,11 @@ Popup.Includes({
 	left = ( ( winWidth - width ) / 2 ) >> 0;
 	top = ( ( winHeight - height ) / 2 ) >> 0;
 	div.id = id;
-	div.innerHTML = html;
+	div.innerHTML = "<div class=\""+this._closer.substr(1)+"\"></div>"+html;
 	div.className = this._className;
 	div.setAttribute( "style", "width:"+width+"px;height:"+height+"px;position:absolute;top:"+top+"px;left:"+left+"px;z-index:100000;display:block;" );
 	$( div ).prependTo( "body" );
+	this.onopen.call( this );
 	return this;
 	}
 });
@@ -1706,4 +1712,19 @@ Table.Includes({
 	}
 
 
+});
+
+//TODO: add cookie support
+function Storage( onlyLocalStorage ) {
+this._onlyLocalStoarge = onlyLocalStorage;
+}
+
+Storage.includes({
+	setData: function( key, value ){
+	window.localStorage[ key ] = value;
+	return value;
+	},
+	getData: function( key ) {
+	return window.localStorage[ key ] || null;
+	}
 });
