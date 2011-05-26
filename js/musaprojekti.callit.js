@@ -530,12 +530,17 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 	}
 });
 
-// TODO: Full out feature checking and inform
-// TODO: Audio filu tyypit
-// TODO: File Reader
 (function(){
 var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement("input"),
-	div = document.createElement("div"), styles = div.style;
+	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
+	c
+	
+features.mp3 = false;
+features.wav = false;
+features.ogg = false;
+features.readFiles = false;
+features.dragFiles = false;
+
 	if ( window.localStorage ) {
 	features.localStorage = true;
 	
@@ -563,6 +568,21 @@ var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement(
 	else {
 	features.graphics = false;
 	}
+	
+	if( audio && typeof audio.canPlayType == "function" ) {
+	features.mp3 = !!( audio.canPlayType( "mp3" ).replace( /no/gi, "" ) );
+	features.wav = !!( audio.canPlayType( "ogg" ).replace( /no/gi, "" ) );
+	features.ogg = !!( audio.canPlayType( "wav" ).replace( /no/gi, "" ) );	
+	}
+	
+	if( typeof FileReader == "function" && new FileReader().readAsBinaryString ) {
+	features.readFiles = true;
+	}
+	
+	if ( "files" in input && document.createEvent && "dataTransfer" in document.createEvent( "MouseEvents" ) ) {
+	features.dragFiles = true;
+	}
+
 
 })()
 
