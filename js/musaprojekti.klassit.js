@@ -1469,13 +1469,13 @@ this._height = height;
 this._stacks = opts && !!opts.stacks || true;
 this._stackOffsetX = opts && opts.stackOffsetX || 15;
 this._stackOffsetY = opts && opts.stackOffsetY || 15;
-this._closer = opts && opts.closer || "null";
+this._closer = opts && opts.closer || ".popup-closer-class";
 
-	if( this._closer != "null" ) {
-		$( document ).delegate( this._closer, "click" , function(){
-		self.close( this );
-		});
-	}
+
+	$( document ).delegate( this._closer, "click" , function(){
+	self.close( this );
+	});
+
 this._className = opts && opts.addClass || "popup-main";
 }
 
@@ -1516,7 +1516,7 @@ Popup.Includes({
 	var div = document.createElement( "div"), id, top, left,
 		winWidth = $(window).width(), winHeight = $(window).height(),
 		width = width || this._width, height = height || this._height,
-		offset = this._stacks ? this._popups.length - 1 : 0;
+		offset = this._stacks ? this._popups.length : 0;
 		
 	this._popups.push( ( id = "popup"+ ( ++this._idBase ) ) );
 	left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * this._stackOffsetX;
@@ -1688,23 +1688,22 @@ Table.Includes({
 
 	addData: function( opts, cb ) {
 	var i, l, tr, data, frag = document.createDocumentFragment();
-
-		if( typeof opts == "object" && opts instanceof Array && opts.length ) {
-
-			if( !this._names.length ) 
-			return this;
-		
-		
-			for( i = 0, l = opts.length; i < l; ++i ) {
-			tr = this._generateRow( opts[i], cb  );
-			data = this._nodecache._getData( tr );
-			data.nth = this.length;
-			data.rowdata = opts[i];
-			frag.appendChild ( tr );
-			this.length++;
-			}
+		if( opts.constructor !== Array ) {
+		opts = [opts]
 		}
 
+		if( !this._names.length ) 
+		return this;
+
+		for( i = 0, l = opts.length; i < l; ++i ) {
+		tr = this._generateRow( opts[i], cb  );
+		data = this._nodecache._getData( tr );
+		data.nth = this.length;
+		data.rowdata = opts[i];
+		frag.appendChild ( tr );
+		this.length++;
+		}
+		
 	this.getElement("tbody").appendChild( frag );
 	return this;
 	},
@@ -1742,25 +1741,106 @@ Table.Includes({
 
 });
 
-//TODO: add cookie support
-function Storage( onlyLocalStorage ) {
-this._onlyLocalStoarge = onlyLocalStorage;
-}
+function Storage( stringify, parse) {
+	var undef;
+	var hasLocalStorage = "localStorage" in window,
+		__set, __get, __remove;
+		
 
-Storage.Includes({
-	setData: function( key, value ){
-		try { 
-		window.localStorage.setItem( key, JSON.stringify( value ) );
-		}
-		catch(err){}
-	return value;
+	stringify = stringify || JSON.stringify;
+	parse = parse || JSON.parse;
+	
+	var __toString = function( obj ) {
+	return typeof obj == "string" ? obj : stringify( obj );
 	},
-	getData: function( key ) {
+	
+	__toObj = function( str ) {
 	var r;
-		try{
-		r = JSON.parse( window.localStorage.getItem( key ) );
+		try {
+		r = parse( str );
 		}
-		catch(err){}
-	return r
-	}
-});
+		catch(e){
+		return str;
+		}
+	return r;
+	};
+	
+		if( hasLocalStorage ) {
+			__set = function( name, value ) {
+			window.localStorage.setItem( name, value );
+			};
+
+			__get = function( name ) {
+			return window.localStorage.getItem( name );
+			};
+
+			__remove = function( name ) {
+			return window.localStorage.removeItem( name );
+			};
+		}
+		else {
+			__set = function( name, value, exp ) {
+			exp = exp || 1;
+			var date = new Date();
+			date.setTime( +date + ( exp * 31536000000 ) );
+			document.cookie = name + "=" + value + "; expires=" + date.toGMTString() + "; path=/";
+			};
+
+			__get = function( name ) {
+			var cookies = document.cookie.split( ";" ),
+				cookieN, i, l = cookies.length, key = name + "=";
+				
+				for( i = 0; i < l; ++i ) {
+				cookieN = cookies[i];
+					while ( cookieN.charAt( 0 ) == " " ) {
+					cookieN = cookieN.substring( 1, cookieN.length );
+					}
+					
+					if( cookieN.indexOf( key ) === 0 ) {
+					return cookieN.substring( key.length, cookieN.length );
+					}
+				
+				}
+			return null;
+			};
+
+			__remove = function( name ) {
+			return __set( name, "", -1 );
+			};		
+		}
+
+	return {
+		"update": function( obj, name, value ){
+		var objk = __toObj( __get( obj ) ), upd;
+			if( !objk ) {
+			var upd = {};
+			upd[name] = value;
+			return this.set( obj, __toString( upd ) );
+			}
+		objk[name] = value;
+		return this.set( obj, __toString( objk ) );
+		},
+		"get": function( name ) {
+		return __toObj( __get( name ) );
+		},
+		"set": function( name, value ) {
+		var key;
+			if( typeof name == "object" ) {
+
+				for( key in name ) {
+				value = name[key];
+				__set( key, __toString( name[key] ) );
+				}
+			}
+			else {
+			__set( name, __toString( value ) );
+			}
+			
+		return this;
+		},
+		"remove": function( name ) {
+		return __remove( name );
+		}
+
+	};
+}

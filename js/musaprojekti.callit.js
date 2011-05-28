@@ -48,29 +48,6 @@ var TAB_SEARCH = 0,
 	
 	SORT_NUMBER_ASC = function(a,b){return a-b;};
 
-// TODO: if missing features, warn
-function informFeatures( features, missing ) {
-var str = "";
-	if( missing > 0 && !shortStorage.getData( "featuresInformed") ) {
-	str = "Some features aren't supported by your browser, perhaps it's time to try " +
-		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome?</a>";
-	}else {
-	return;
-	}
-
-shortStorage.setData( "featuresInformed", "true" );
-popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\"app-feature-table\"></div><div style=\"margin-top:20px;font-size:11px;\">"+str+"</div>" );
-var table = new Table( "app-feature-table", nodecache, {
-		classPrefix: "app-feature",
-		captions: { 
-			name: "Feature",
-			desc: "Description",
-			enabled: "Supported"
-		}
-	}
-).addData( features );
-}
-
 function createSorter( targetArray, sortFunc ) {
 var args = Array.prototype.slice.call( arguments, 2 ) || [];
 	return function( songs ) {
@@ -107,10 +84,6 @@ return (t==0) ? b : c * Math.pow(2, 10 * (t/d - 1)) + b;
 $.easing.easeInQuart = function (x, t, b, c, d) {
 return c*(t/=d)*t*t*t + b;
 };
-
-function saveScrolls(){
-
-}
 
 function switchInterface( menuId ){
 var key, n, menu, elms = $( ".menul-select-all" ).add( ".menul-invert" );
@@ -181,9 +154,9 @@ scrolls.calculate( tabs.activeTab );
 tabs.selectTab( this );
 });
 
-var shortStorage = new Storage( true );
+var storage = Storage();
 
-var popup = new Popup( 500, 300, { closer: ".app-popup-closer", addClass: "app-popup-container" } );
+var popup = new BlockingPopup( 500, 300, { closer: ".app-popup-closer", addClass: "app-popup-container" } );
 
 popup.onclose = function(){
 	if( !this._popups.length ) {
@@ -573,7 +546,7 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 (function(){
 var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
-	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [];
+	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved;
 	
 features.mp3 = false;
 features.wav = false;
@@ -632,7 +605,30 @@ featureDescriptions.push({ desc: "Play MP3 files located on your computer", name
 			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
-informFeatures( featureDescriptions, missingFeatures );
+saved = storage.get( "appData" );
+saved = saved && saved.lowFeatures;
+
+	if( missingFeatures === 0 || saved ) {
+	return;
+	}
+
+storage.update( "appData", "lowFeatures", true );
+popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\"" +
+		"app-feature-table\"></div><div style=\"margin-top:20px;font-size:11px;\">"+
+		"Some features aren't supported by your browser, perhaps it's time to try " +
+		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome?</a>"+
+		"</div>" );
+	
+var table = new Table( "app-feature-table", nodecache, {
+		classPrefix: "app-feature",
+		captions: { 
+			name: "Feature",
+			desc: "Description",
+			enabled: "Supported"
+		}
+	}
+).addData( featureDescriptions );
+
 })()
 
 playlist.main.render();
