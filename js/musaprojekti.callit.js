@@ -1,4 +1,6 @@
-var nodecache = new NodeCache(), tabs, playlist = {}, search = {}, queue = {}, scrolls, features = {};
+var nodecache = new NodeCache(), tabs, playlist = {}, search = {}, queue = {}, scrolls, features = {},
+	storage = Storage();
+
 
 
 var TAB_SEARCH = 0,
@@ -15,6 +17,8 @@ var TAB_SEARCH = 0,
 	QUERY_PLACEHOLDER = "Enter search term";
 	POSITIVE = "#3DFF3D",
 	NEGATIVE = "#FF8095",
+	
+	APPLICATION_DATA = storage.get( "appData" ) || ( storage.set( "appData", {} ) && storage.get( "appData" ) ),
 	
 	PLAYLIST_CHANGES_START = "20px",
 	PLAYLIST_POSITIVE_END = "-20px",
@@ -154,7 +158,7 @@ scrolls.calculate( tabs.activeTab );
 tabs.selectTab( this );
 });
 
-var storage = Storage();
+
 
 var popup = new BlockingPopup( 500, 300, { closer: ".app-popup-closer", addClass: "app-popup-container" } );
 
@@ -605,10 +609,8 @@ featureDescriptions.push({ desc: "Play MP3 files located on your computer", name
 			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
-saved = storage.get( "appData" );
-saved = saved && saved.lowFeatures;
 
-	if( missingFeatures === 0 || saved ) {
+	if( missingFeatures === 0 || APPLICATION_DATA.lowFeatures ) {
 	return;
 	}
 
@@ -619,7 +621,7 @@ popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\
 		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome?</a>"+
 		"</div>" );
 	
-var table = new Table( "app-feature-table", nodecache, {
+new Table( "app-feature-table", nodecache, {
 		classPrefix: "app-feature",
 		captions: { 
 			name: "Feature",
