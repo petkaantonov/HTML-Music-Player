@@ -449,6 +449,22 @@ Playlist.Includes({
 		break;
 		}
 	},
+	clear: function(){
+	this._hashList = [];
+	this._songList = {};
+	this._currentSong = null;
+	this._songHistory = [];
+	this._queue = [];
+	this.render();
+	},
+	toArray: function(){
+	var r = [], i, l = this._hashList.length;
+	
+		for( i = 0; i < l; ++i ) {
+		r.push( this._songList[ this._hashList[i] ] );
+		}
+	return r;
+	},
 	_getHash: function() {
 	var curhash = this._hashBase;
 	this._hashBase = curhash + ( ( Math.random() * 30 + 3 ) >> 0 );
@@ -1747,8 +1763,8 @@ function Storage( stringify, parse) {
 		__set, __get, __remove;
 		
 
-	stringify = stringify || JSON.stringify;
-	parse = parse || JSON.parse;
+	stringify = stringify || window.JSON.stringify;
+	parse = parse || window.JSON.parse;
 	
 	var __toString = function( obj ) {
 	return typeof obj == "string" ? obj : stringify( obj );
@@ -1844,3 +1860,67 @@ function Storage( stringify, parse) {
 
 	};
 }
+
+function Saver( identifier, storage, opts ){
+this._validNames = /[\/:*?"<>|\s]/g;
+this._storage = storage;
+this._identifier = identifier.replace( this._validNames, "" );
+this._exportURL = opts && opts.exportURL || null;
+}
+
+Saver.Includes({
+	onexport: function( response ) {
+	
+	
+	},
+	export: function( name ) {
+		if( this._exportURL == null ) {
+		this.onexport.call( this, {error: true} );
+		return this;
+		}
+	var data = this._storage.get( this._identifier ), self = this;
+	
+		if( !data || !data[name] ) {
+		return this;
+		}
+	
+		$.ajax({
+		"data": {"filename": name, "data": JSON.stringify( data[name] )},
+		"datatype": "json",
+		"type": "POST",
+		"url": this._exportURL,
+			"success": function( obj ) {
+			self.onexport.call( self, obj );
+			},
+			"error": function() {
+			self.onexport.call( self, {error: true} );
+			}
+		});
+	
+	},
+	onsave: function( obj ){},
+	onoverwrite: function( obj ){},
+	save: function( name, json ){
+	saveobj = {error: "Invalid Name", name: name, data: json};
+		if( !name ) {
+		this.onsave.call( this, saveobj );
+		return this;
+		}
+		
+	name = name.replace( this._validNames, "" );
+	var data = this._storage.get( this._identifier );
+	
+		if( data != null && name in data && this.onoverwrite.call( this, saveobj ) === false ) {
+		saveobj.error = "Overwrite denied";
+		this.onsave.call( this, saveobj );
+		return this;
+		}
+		
+	data = data || {};
+	data[name] = json;
+	this._storage.set( this._identifier, data );
+	delete saveobj.error;
+	this.onsave.call( this, saveobj );
+	return this;
+	}
+});
