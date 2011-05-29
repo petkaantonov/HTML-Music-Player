@@ -352,6 +352,8 @@ Playlist.Modes = {
 };
 
 Playlist.Includes({
+	onadd: function(count){},
+	onremove: function(count){},
 	getContainer: function(){
 	return this._hashList;
 	},
@@ -380,6 +382,7 @@ Playlist.Includes({
 		}
 	this.length = this._hashList.length;
 	this.onupdate.call( this, this._songList, this._hashList, this._currentSong, this._selectable._selection );
+	this.onremove.call( this, arr.length );
 	return this;
 	},
 	add: function( arr ) {
@@ -395,6 +398,7 @@ Playlist.Includes({
 		}
 	this.length = this._hashList.length;
 	this.onupdate.call( this, this._songList, this._hashList, this._currentSong, this._selectable._selection );
+	this.onadd.call( this, arr.length );
 	return this;
 	},
 	
@@ -1861,18 +1865,77 @@ function Storage( stringify, parse) {
 	};
 }
 
+function Loader( identifier, storage, jsonparser ) {
+this._validNames = /[\/:*?"<>|\s]/g;
+this._storage = storage;
+this._identifier = identifier.replace( this._validNames, "" );
+this._jsonparser = jsonparser || window.JSON.parse;
+}
+
+Loader.Includes({
+	list: function(){
+	var r = [], key, data = this._storage.get( this._identifier );
+	
+		if( data ) {
+			for( key in data ) {
+			r.push({name: key, length: data[key].length});
+			}
+		}
+	return r;
+	},
+	import: function( file ) {
+	var loadobj = {error: "FileReader not supported by browser", name: ( file && file.name || "default" ), data: ""}, reader, self = this;
+	
+		if( !( "FileReader" in window ) ) {
+		this.onload.call( this, loadobj );
+		return this;
+		}
+	reader = new window.FileReader();
+	
+		reader.onloadend = function(e){
+
+			try {
+			loadobj.data = self._jsonparser( e.target.result );			
+			}
+			catch(e) {
+			loadobj.data = {};
+			}
+		delete loadobj.error;
+		self.onload.call( self, loadobj );
+		};
+	
+	reader.readAsText( file );
+	return this;
+	},
+	load: function( name ) {
+	var data, loadobj = {error: "Can't find playlist named " +name, name: name, data: ""};
+	
+	var data = this._storage.get( this._identifier );
+	
+		if( !name || !data || !data[name] ) {
+		this.onload.call( this, loadobj );
+		return this;
+		}
+		
+	delete loadobj.error;
+	loadobj.data = data[name];
+	this.onload.call( this, loadobj );
+	return this;
+	},
+	onload: function( loadobj ){}
+
+});
+
 function Saver( identifier, storage, opts ){
 this._validNames = /[\/:*?"<>|\s]/g;
 this._storage = storage;
 this._identifier = identifier.replace( this._validNames, "" );
 this._exportURL = opts && opts.exportURL || null;
+this._jsonstringify = opts && opts.jsonstringify || window.JSON.stringify;
 }
 
 Saver.Includes({
-	onexport: function( response ) {
-	
-	
-	},
+	onexport: function( response ) {},
 	export: function( name ) {
 		if( this._exportURL == null ) {
 		this.onexport.call( this, {error: true} );
@@ -1885,7 +1948,7 @@ Saver.Includes({
 		}
 	
 		$.ajax({
-		"data": {"filename": name, "data": JSON.stringify( data[name] )},
+		"data": {"filename": name, "data": self._jsonstringify( data[name] )},
 		"datatype": "json",
 		"type": "POST",
 		"url": this._exportURL,
@@ -1893,7 +1956,7 @@ Saver.Includes({
 			self.onexport.call( self, obj );
 			},
 			"error": function() {
-			self.onexport.call( self, {error: true} );
+			self.onexport.call( self, {error: "Communication failed with server, try again later"} );
 			}
 		});
 	

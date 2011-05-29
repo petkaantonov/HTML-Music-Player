@@ -12,6 +12,8 @@ header('Content-Type: text/html; charset=iso-8859-1');
 <meta name="robots" content="noindex, nofollow" />
 <title>Musaprojekti</title>
 <script type="text/javascript" src="js/jquery.js"></script>
+<script type="text/javascript" src="js/jsonschema.js"></script>
+<script type="text/javascript" src="js/playlist-schema.js"></script>
 <script type="text/javascript" src="js/musaprojekti.util.js"></script>
 <script type="text/javascript" src="js/musaprojekti.klassit.js"></script>
 
@@ -189,7 +191,8 @@ header('Content-Type: text/html; charset=iso-8859-1');
 		</div>
 		<div class="clear"></div>
 		</div>
-
+		
+		
 </div>
 <script type="text/javascript" src="js/musaprojekti.callit.js"></script>
 </body>

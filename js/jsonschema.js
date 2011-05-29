@@ -1,0 +1,22 @@
+/** 
+ * JSONSchema Validator - Validates JavaScript objects using JSON Schemas 
+ *	(http://www.json.com/json-schema-proposal/)
+ *
+ * Copyright (c) 2007 Kris Zyp SitePen (www.sitepen.com)
+ * Licensed under the MIT (MIT-LICENSE.txt) license.
+To use the validator call JSONSchema.validate with an instance object and an optional schema object.
+If a schema is provided, it will be used to validate. If the instance object refers to a schema (self-validating), 
+that schema will be used to validate and the schema parameter is not necessary (if both exist, 
+both validations will occur). 
+The validate method will return an array of validation errors. If there are no errors, then an 
+empty list will be returned. A validation error will have two properties: 
+"property" which indicates which property had the error
+"message" which indicates what the error was
+ */
+JSONSchema={validate:function(e,h){return this._validate(e,h,!1)},checkPropertyChange:function(e,h,j){return this._validate(e,h,j||"property")},_validate:function(e,h,j){function i(b,a,g,d){function c(a){f.push({property:g,message:a})}function k(a,b){if(a){if(typeof a=="string"&&a!="any"&&(a=="null"?b!==null:typeof b!=a)&&!(b instanceof Array&&a=="array")&&!(a=="integer"&&b%1===0))return[{property:g,message:typeof b+" value found, but a "+a+" is required"}];if(a instanceof Array){for(var c=[],d=0;d<
+a.length;d++)if(!(c=k(a[d],b)).length)break;if(c.length)return c}else if(typeof a=="object")return c=f,f=[],i(b,a,g),d=f,f=c,d}return[]}var e;g+=g?typeof d=="number"?"["+d+"]":typeof d=="undefined"?"":"."+d:d;if((typeof a!="object"||a instanceof Array)&&(g||typeof a!="function"))return typeof a=="function"?b instanceof a||c("is not an instance of the class/constructor "+a.name):a&&c("Invalid schema/property definition "+a),null;j&&a.readonly&&c("is a readonly field, it can not be changed");a["extends"]&&
+i(b,a["extends"],g,d);if(b===void 0)a.optional||c("is missing and it is not optional");else if(f=f.concat(k(a.type,b)),a.disallow&&!k(a.disallow,b).length&&c(" disallowed value was matched"),b!==null){if(b instanceof Array){if(a.items)if(a.items instanceof Array){d=0;for(e=b.length;d<e;d++)f.concat(i(b[d],a.items[d],g,d))}else{d=0;for(e=b.length;d<e;d++)f.concat(i(b[d],a.items,g,d))}a.minItems&&b.length<a.minItems&&c("There must be a minimum of "+a.minItems+" in the array");a.maxItems&&b.length>a.maxItems&&
+c("There must be a maximum of "+a.maxItems+" in the array")}else a.properties&&f.concat(m(b,a.properties,g,a.additionalProperties));a.pattern&&typeof b=="string"&&!b.match(a.pattern)&&c("does not match the regex pattern "+a.pattern);a.maxLength&&typeof b=="string"&&b.length>a.maxLength&&c("may only be "+a.maxLength+" characters long");a.minLength&&typeof b=="string"&&b.length<a.minLength&&c("must be at least "+a.minLength+" characters long");typeof a.minimum!==void 0&&typeof b==typeof a.minimum&&
+a.minimum>b&&c("must have a minimum value of "+a.minimum);typeof a.maximum!==void 0&&typeof b==typeof a.maximum&&a.maximum<b&&c("must have a maximum value of "+a.maximum);if(a["enum"]){d=a["enum"];e=d.length;for(var h,l=0;l<e;l++)if(d[l]===b){h=1;break}h||c("does not have a value in the enumeration "+d.join(", "))}typeof a.maxDecimal=="number"&&b.toString().match(RegExp("\\.[0-9]{"+(a.maxDecimal+1)+",}"))&&c("may only have "+a.maxDecimal+" digits of decimal places")}return null}function m(b,a,g,d){if(typeof a==
+"object"){(typeof b!="object"||b instanceof Array)&&f.push({property:g,message:"an object is required"});for(var c in a)if(a.hasOwnProperty(c)&&!(c.charAt(0)=="_"&&c.charAt(1)=="_")){var e=b[c];i(e,a[c],g,c)}}for(c in b)b.hasOwnProperty(c)&&!(c.charAt(0)=="_"&&c.charAt(1)=="_")&&a&&!a[c]&&d===!1&&f.push({property:g,message:typeof e+"The property "+c+" is not defined in the schema and the schema does not allow additional properties"}),(e=a&&a[c]&&a[c].requires)&&!(e in b)&&f.push({property:g,message:"the presence of the property "+
+c+" requires that "+e+" also be present"}),e=b[c],a&&typeof a=="object"&&!(c in a)&&i(e,d,g,c),!j&&e&&e.$schema&&(f=f.concat(i(e,e.$schema,g,c)));return f}var f=[];h&&i(e,h,"",j||"");!j&&e&&e.$schema&&i(e,e.$schema,"","");return{valid:!f.length,errors:f}}};

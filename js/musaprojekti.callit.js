@@ -201,7 +201,6 @@ search.menu = new ActionMenu( "search-action-menu", {
 search.menu.orderedActions = {
 	"0":	function( songs ) {
 		var $l = songs.length;
-		playlist.animateChangesPos( "+"+$l );
 		playlist.main.add( songs ).changeSong( playlist.main.getHashByIndex( playlist.main.length - $l ) );
 		},
 	"1":	function( songs ) {
@@ -209,14 +208,11 @@ search.menu.orderedActions = {
 		},
 	"2":	function( songs ) {
 		playlist.main.add( songs );
-		playlist.animateChangesPos( "+"+songs.length );
 		},
 	"3":	function( songs ) {
 		var $l = songs.length;	
 		playlist.main.add( songs )
 		queue.main.add( songs );
-		playlist.animateChangesPos( "+"+$l );
-		queue.animateChangesPos( "+"+$l );
 		}
 };
 
@@ -228,11 +224,43 @@ playlist.main = new Playlist( playlist.selections, {songList: [{name: "Lorem ips
 playlist.dragging = new DraggableSelection( "playlist", playlist.selections, playlist.main, PLAYLIST_ITEM_HEIGHT, ".app-song-container" );
 
 saver = new Saver( "PlaylistJSON", storage, {exportURL: "ajax/exportJSON.php" });
+loader = new Loader( "PlaylistJSON", storage );
+
+loader.onload = function( resp ) {
+var valid, key, name = resp && resp.name || "";
+	if( resp && typeof resp.data == "object" && resp.data.constructor !== Array ) {
+	 	for( key in resp.data ) {
+	 	name = key;
+	 	resp.data = resp.data[key];
+	 	}
+	
+	}
+
+	if( !resp.error ) {
+	valid = JSONSchema.validate( resp.data, SCHEMA_PLAYLIST );
+		if( valid.valid ) {
+		return playlist.main.add( resp.data );
+		} else {
+		resp.error = "Invalid playlist format";
+		}
+	}
+// Error handler
+}
 
 saver.onexport = function( resp ) {
-	if( resp.error === false ) {
+	if( !resp.error) {
 	window.document.location = resp.url;
+	return;
 	}
+// Error handler
+};
+
+saver.onsave = function( resp ) {
+	if( !resp.error ) {
+	
+	return;
+	}
+// Error handler
 };
 
 playlist.menu.orderedActions = {
@@ -244,11 +272,9 @@ playlist.menu.orderedActions = {
 	},
 	"2":	function( songs ) {
 		queue.main.add( songs );
-		queue.animateChangesPos( "+"+songs.length );
 	},
 	"3":	function( songs ) {
 		playlist.main.remove( songs );
-		playlist.animateChangesNeg( "-"+songs.length );
 	},
 	
 	"4":	createSorter( playlist.main._hashList, "reverse" ),
@@ -259,12 +285,12 @@ playlist.menu.orderedActions = {
 		
 };
 
-playlist.animateChangesPos = function( count ) {
-animateChanges({color: POSITIVE, count: count, start: PLAYLIST_CHANGES_START, end: PLAYLIST_POSITIVE_END});
+playlist.main.onadd =function( count ) {
+animateChanges({color: POSITIVE, count: "+"+count, start: PLAYLIST_CHANGES_START, end: PLAYLIST_POSITIVE_END});
 };
 
-playlist.animateChangesNeg = function( count ) {
-animateChanges({color: NEGATIVE, count: count, start: PLAYLIST_CHANGES_START, end: PLAYLIST_NEGATIVE_END});
+playlist.main.onremove = function( count ) {
+animateChanges({color: NEGATIVE, count: "-"+count, start: PLAYLIST_CHANGES_START, end: PLAYLIST_NEGATIVE_END});
 };
 
 
@@ -479,7 +505,7 @@ search.main.addType( "mp3",
 		$.ajax({
 		data: {query: query},
 		datatype: "json",
-		url: "ajaxsearch.php",
+		url: "ajax/search.php",
 		method: "GET",
 		success: function( feed ) {
 		var results = [], feed, title = query,
