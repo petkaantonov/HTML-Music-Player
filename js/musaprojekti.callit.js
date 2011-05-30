@@ -1,5 +1,5 @@
 var nodecache = new NodeCache(), tabs, playlist = {}, search = {}, queue = {}, scrolls, features = {},
-	storage = Storage(), popup, saver, loader;
+	storage = Storage(), popup, flier = new FlyingMessage( "app-popup-message" );
 
 var appData = storage.get( "appData" ) || ( storage.set( "appData", {} ) && storage.get( "appData" ) ),
 	appSetData = function( key, value ) {
@@ -67,6 +67,8 @@ var args = Array.prototype.slice.call( arguments, 2 ) || [];
 		}
 	};
 }
+
+
 
 function updateSelection( count ) {
 var plural = count === 1 ? "" : "s";
@@ -222,11 +224,21 @@ playlist.songDisplay = new SongDisplay( "app-song-display" );
 playlist.selections = new Selectable( "playlist", ".app-song", {activeClass: "app-song-active"} );
 playlist.main = new Playlist( playlist.selections, {songList: [{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 320},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com", pTime: 179},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"},{name: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis iaculis elit imperdiet dolor mollis ultricies pharetra orci commodo. Sed non ante ligula, vel tincidunt urna. Nulla sit amet metus urna, euismod ultrices nulla. Nunc eu nisi elit. Vivamus odio nunc, eleifend ut sagittis eu, imperdiet quis turpis. Phasellus placerat tortor non odio metus.", url: "to.com"}]} );
 playlist.dragging = new DraggableSelection( "playlist", playlist.selections, playlist.main, PLAYLIST_ITEM_HEIGHT, ".app-song-container" );
+playlist.ip = __IP_GET__();
 
-saver = new Saver( "PlaylistJSON", storage, {exportURL: "ajax/exportJSON.php" });
-loader = new Loader( "PlaylistJSON", storage );
+playlist.getTotalTime = function( arr ){
+var tTime = 0, i, l = arr.length, time;
 
-loader.onload = function( resp ) {
+	for( i = 0; i < l; ++i ) {
+	time = arr[i].pTime || 0;
+	tTime += time;
+	}
+return tTime && util.toTimeString( tTime ) || "N/A";
+}
+playlist.saver = new Saver( "PlaylistJSON", storage, {exportURL: "ajax/exportJSON.php" });
+playlist.loader = new Loader( "PlaylistJSON", storage );
+
+playlist.loader.onload = function( resp ) {
 var valid, key, name = resp && resp.name || "";
 	if( resp && typeof resp.data == "object" && resp.data.constructor !== Array ) {
 	 	for( key in resp.data ) {
@@ -239,28 +251,41 @@ var valid, key, name = resp && resp.name || "";
 	if( !resp.error ) {
 	valid = JSONSchema.validate( resp.data, SCHEMA_PLAYLIST );
 		if( valid.valid ) {
-		return playlist.main.add( resp.data );
+			$( popup.html( '<h2 style="margin-top: 25%;"class="app-header-2 centered">Loading</h2>') ).fadeOut( 700, function(){
+			popup.close();
+			playlist.main.add( resp.data );
+			});
+		return true;
 		} else {
 		resp.error = "Invalid playlist format";
 		}
 	}
-// Error handler
+popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
 }
 
-saver.onexport = function( resp ) {
+playlist.saver.onexport = function( resp ) {
+appSetData( "playlistName", resp.name );
+appSetData( "saveMethod", "file" );
 	if( !resp.error) {
 	window.document.location = resp.url;
+	popup.close();
 	return;
 	}
-// Error handler
+popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
 };
 
-saver.onsave = function( resp ) {
+playlist.saver.onsave = function( resp ) {
+appSetData( "playlistName", resp.name );
+appSetData( "saveMethod", "mem" );
+
 	if( !resp.error ) {
-	
+		$( popup.html( '<h2 style="margin-top: 25%;"class="app-header-2 centered">Saved</h2>') ).fadeOut( 1200, function(){
+		popup.close();
+		});
 	return;
 	}
-// Error handler
+
+popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
 };
 
 playlist.menu.orderedActions = {
@@ -489,6 +514,8 @@ search.main.addType( "youtube",
 				},
 
 				params: {
+					"restriction": playlist.ip,
+					"format": 5,
 					"q": query,
 					"orderby": "relevance",
 					"max-results": "50",
@@ -583,7 +610,7 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 });
 
 (function(){
-var $elms = $( ".menu-save").add( ".menu-load"), input = document.createElement("input"),
+var $elms = $( ".menul-save").add( ".menul-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
 	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved;
 	
@@ -595,6 +622,73 @@ features.dragFiles = false;
 
 	if ( window.localStorage ) {
 	features.localStorage = true;
+	
+	$( ".menul-load" ).bind( "click" , function(){
+	var playlists = storage.get( "PlaylistJSON" ) || {}, key, data = [], playl, $l;
+	
+		for( key in playlists ) {
+		data.push( {time: playlist.getTotalTime( playlists[key] ), name: key, length: playlists[key].length, load: "<span class=\"app-clickable menul-load\" onclick=\"playlist.loader.load('"+key.addSlashes("'")+"');\">Load</span>"});
+		}
+	
+	$l = data.length;
+	playl = $l === 1 ? "playlist" : "playlists";
+
+	popup.open( 	"<h2 class=\"app-header-2\">Load playlist</h2>" +
+			"<div id=\"app-playlists-table\"></div>" +
+			"<div style=\"float:left;font-size:11px;\">Listing "+$l+ " "+ playl+" found in browser memory</div>" +
+			"<div class=\"app-popup-solution\">" +
+			"<div style=\"position:relative;width:114px;height:30px;\">" +
+			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
+			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
+			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
+			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader.import( this.files[0] );\" />" +
+			"</div></div>" );	
+	
+	new Table( "app-playlists-table", nodecache, {
+			classPrefix: "app-feature",
+			captions: { 
+				name: "Name",
+				length: "Track amount",
+				time: "Total playtime",
+				load: ""
+			}
+		}
+	).addData( data );
+	
+	});
+	
+	$( ".menul-save" ).bind( "click", function(){
+	var appData = storage.get("appData") || {};
+	
+	popup.open( "<h2 class=\"app-header-2\">Save playlist</h2>" +
+		 	"<div class=\"app-bread-text app-form-container\">" +
+		 	"<input type=\"text\" id=\"playlist-name\" spellcheck=\"false\" autocomplete=\"off\"" +
+		 	" value=\""+(appData.playlistName || "Playlist Name")+"\" class=\"app-bread-" +
+		 	"text app-popup-input\"></div>" +
+		 	"<div style=\"margin-top: 7px\"><input "+(appData.saveMethod == "file" ? "checked ":"")+"type=\"radio\" name=\"savetype\" id=\"app-save-file\">" +
+			"<label for=\"app-save-file\">Save as file</label>" +
+			"<input type=\"radio\" "+(appData.saveMethod == "mem" || !appData.saveMethod ? "checked ":"")+"name=\"savetype\" id=\"app-save-memory\">" +
+			"<label for=\"app-save-memory\">Save in browser memory</label></div>" +
+			"<div class=\"notextflow\" id=\"app-popup-message\"></div> " +
+			"<div class=\"app-popup-solution\"><div id=\"app-proceed-save\" class=\"app-popup-button\">Save Playlist</div></div>" );
+	});
+	
+	$( "#app-proceed-save" ).live( "click", function(){
+	var name = $( "#playlist-name"), nam;
+		if( !( nam = name[0].value ) ) {
+		name.focus();
+		return this;
+		}
+		if( $( "#app-save-file")[0].checked  ) {
+		playlist.saver.export( nam, playlist.main.toArray() );
+		}
+		else {
+		playlist.saver.save( nam, playlist.main.toArray() );
+		}
+	});
+	
+	
+	
 	
 	} else {
 	features.localStorage = false;
@@ -656,6 +750,8 @@ popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\
 		"Some features aren't supported by your browser, perhaps it's time to try " +
 		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome?</a>"+
 		"</div>" );
+		
+		
 	
 new Table( "app-feature-table", nodecache, {
 		classPrefix: "app-feature",

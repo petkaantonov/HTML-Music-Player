@@ -1491,7 +1491,29 @@ this._stackOffsetX = opts && opts.stackOffsetX || 15;
 this._stackOffsetY = opts && opts.stackOffsetY || 15;
 this._closer = opts && opts.closer || ".popup-closer-class";
 
-
+	$(window).bind( "resize", function(){
+	var i, l = self._popups.length, left,
+		top, width, height, winWidth = $(window).width(),
+		winHeight = $(window).height(), popup, offset, id;
+		
+		if( l ) {
+			for( i = 0; i < l; ++i ) {
+			popup = document.getElementById( self._popups[i] );
+			width = parseInt( popup.style.width, 10 );
+			height = parseInt( popup.style.height, 10 );
+			id = popup.id;
+			offset = parseInt( id.substring( id.indexOf( "-" ) + 1, id.lastIndexOf( "-" ) ), 10 );
+			left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * self._stackOffsetX;
+			top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * self._stackOffsetY;
+			left = left < 0 ? 0 : left;
+			top = top < 0 ? 0 : top;
+			popup.style.left = left + "px";
+			popup.style.top = top + "px";
+			}
+		}
+	
+	});
+	
 	$( document ).delegate( this._closer, "click" , function(){
 	self.close( this );
 	});
@@ -1538,9 +1560,11 @@ Popup.Includes({
 		width = width || this._width, height = height || this._height,
 		offset = this._stacks ? this._popups.length : 0;
 		
-	this._popups.push( ( id = "popup"+ ( ++this._idBase ) ) );
+	this._popups.push( ( id = "popup-"+offset+"-"+ ( ++this._idBase ) ) );
 	left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * this._stackOffsetX;
 	top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * this._stackOffsetY;
+	left = left < 0 ? 0 : left;
+	top = top < 0 ? 0 : top;
 	div.id = id;
 	div.innerHTML = "<div class=\""+this._closer.substr(1)+"\"></div>"+html;
 	div.className = this._className;
@@ -1548,6 +1572,14 @@ Popup.Includes({
 	$( div ).prependTo( "body" );
 	this.onopen.call( this );
 	return this;
+	},
+	html: function( html, elm ) {
+	elm = elm || document.getElementById(this._popups[this._popups.length-1]);
+		if( !elm ) {
+		return null;
+		}
+	elm.innerHTML = html;
+	return elm;
 	}
 });
 
@@ -1936,19 +1968,19 @@ this._jsonstringify = opts && opts.jsonstringify || window.JSON.stringify;
 
 Saver.Includes({
 	onexport: function( response ) {},
-	export: function( name ) {
+	export: function( name, data ) {
 		if( this._exportURL == null ) {
 		this.onexport.call( this, {error: true} );
 		return this;
 		}
-	var data = this._storage.get( this._identifier ), self = this;
+	var self = this;
 	
-		if( !data || !data[name] ) {
+		if( !data ) {
 		return this;
 		}
 	
 		$.ajax({
-		"data": {"filename": name, "data": self._jsonstringify( data[name] )},
+		"data": {"filename": name, "data": self._jsonstringify( data ) },
 		"datatype": "json",
 		"type": "POST",
 		"url": this._exportURL,
@@ -1987,3 +2019,83 @@ Saver.Includes({
 	return this;
 	}
 });
+
+function FlyingMessage( target, opts ){
+var $target = target;
+
+target = ( target.nodeName && ( target.id || ( target.id = "fly-through-"+( +new Date ) ) ) && target.id ) || target;
+this._removeAfter = opts && opts.removeAfter || 5000;
+this._from = "left";
+this._animateFor = opts && opts.animateFor || 300;
+this._ifTaken = opts && opts.ifTaken || "remove";
+this._curMsgId = "";
+this._flying = [];
+this._target = target;
+this._curTimer = 0;
+}
+
+FlyingMessage.Includes({
+	onafter: function( elem ){
+	},
+	createMsg: function( msg, className, from ){
+	var id = "fly-through-span"+(+new Date ),
+		span = document.createElement("span"), width,
+		parWidth, startWidth, endWidth, target = document.getElementById( this._target ), self = this,
+		from = from || this._from || "left", animate;
+		
+		if( target == null ) {
+		return this;
+		}
+		
+		if( this._flying.length ) {
+		
+			switch( this._ifTaken ) {
+			case "cancel":
+			return this;
+			case "remove":
+			window.clearTimeout( self._curTimer );
+			$( document.getElementById( this._flying.pop() ) ).stop( true, false ).remove();
+			break;
+			case "nothing":
+			break;
+			
+			default:
+			window.clearTimeout( self._curTimer );
+			$( document.getElementById( this._flying.pop() ) ).stop( true, false ).remove();
+			}
+		}
+	span.className = className || "";
+	span.appendChild( document.createTextNode( msg ) );
+	span.style.visibility = "hidden";
+	document.body.appendChild( span );
+	width = span.offsetWidth;
+	parWidth = target.offsetWidth;
+	document.body.removeChild( span );
+	span.style.visibility = "";
+	span.style.position = "absolute";
+	span.style[from] = "-100000px";
+	endWidth = parWidth / 2 - width / 2;
+	startWidth = 0 - width - 25;
+	span.id = id;
+	this._flying.push( id );
+	
+	animate = (function(endWidth){var r = {}; r[from] = endWidth+"px"; return r;})(endWidth);
+		
+		$( span ).css( from, ( ""+startWidth )+"px" ).appendTo( target ).animate(
+			animate,
+			this._animateFor,
+			function() {
+			var $this = this;
+			self._curTimer=	window.setTimeout( function(){
+				self.onafter.call( self, $this.parentNode.removeChild( $this ) );
+				self._flying.pop();
+				
+				}, self._removeAfter );
+			}
+		);
+
+	return this;
+	}
+});
+
+

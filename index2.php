@@ -11,6 +11,7 @@ header('Content-Type: text/html; charset=iso-8859-1');
 <meta name="description" content="noindex, no follow" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Musaprojekti</title>
+<script type="text/javascript">var __IP_GET__ = (function(){var __IP_ADDRESS__ = "<?php echo $_SERVER['REMOTE_ADDR']; ?>";return function(){return __IP_ADDRESS__;};})();</script>
 <script type="text/javascript" src="js/jquery.js"></script>
 <script type="text/javascript" src="js/jsonschema.js"></script>
 <script type="text/javascript" src="js/playlist-schema.js"></script>
