@@ -185,7 +185,7 @@ ul.className = this._classPrefix+"-tabs-container";
 	for( i = 0; i < l; ++i ) {
 	node = t[i];
 	
-		if( node.className == cclass ) {
+		if( ( " " + node.className + " " ).indexOf( " " + cclass + " " ) > -1 ) {
 		node.style.display = "none";
 		li = document.createElement("li");
 		data = getData.call( nodecache, li );
@@ -1946,7 +1946,7 @@ Loader.Includes({
 		}
 	return r;
 	},
-	import: function( file ) {
+	"import": function( file ) {
 	var loadobj = {error: "FileReader not supported by browser", name: ( file && file.name || "default" ), data: ""}, reader, self = this;
 	
 		if( !( "FileReader" in window ) ) {
@@ -1999,7 +1999,7 @@ this._jsonstringify = opts && opts.jsonstringify || window.JSON.stringify;
 
 Saver.Includes({
 	onexport: function( response ) {},
-	export: function( name, data ) {
+	"export": function( name, data ) {
 		if( this._exportURL == null ) {
 		this.onexport.call( this, {error: true} );
 		return this;

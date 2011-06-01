@@ -144,7 +144,7 @@ header('Content-Type: text/html; charset=iso-8859-1');
 			</div>
 			<div id="app-content-holder">
 
-				<div class="content" id="app-search-wrapper">
+				<div class="content" id="app-search-wrapper" style="height:475px;">
 					<div id="app-search-container">
 						<div id="app-search-modes">
 							Search from <input id="app-youtube-mode" type="radio" name="smode" checked /> <label for="app-youtube-mode">Youtube</label>
@@ -166,14 +166,14 @@ header('Content-Type: text/html; charset=iso-8859-1');
 							<div id="app-recent-searches-header">Recent Searches</div>
 						</div>
 						<div id="app-search-left">
-							<div id="app-result-container">							
+							<div id="app-result-container" class="songs-list-container">							
 							</div>
 						</div>
 
 			
 					</div>
 				</div>
-				<div class="content" id="playlist"></div>
+				<div class="content songs-list-container" id="playlist" style="height:475px;"></div>
 				<div class="content" id="video"></div>
 				<div class="content" id="queue"></div>
 				<div class="content" id="filter"></div>

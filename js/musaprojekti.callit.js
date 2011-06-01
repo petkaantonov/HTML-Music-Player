@@ -688,7 +688,7 @@ features.dragFiles = false;
 			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
 			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
 			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
-			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader.import( this.files[0] );\" />" +
+			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader[\"import\"]( this.files[0] );\" />" +
 			"</div></div>" );	
 
 	new Table( "app-playlists-table", nodecache, {
@@ -730,7 +730,7 @@ features.dragFiles = false;
 		return this;
 		}
 		if( $( "#app-save-file")[0].checked  ) {
-		playlist.saver.export( nam, playlist.main.toArray() );
+		playlist.saver["export"]( nam, playlist.main.toArray() );
 		}
 		else {
 			if( window.localStorage ) {

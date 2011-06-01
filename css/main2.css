@@ -195,19 +195,53 @@ opacity:0.72;
 filter: alpha(opacity='72');
 -moz-opacity:0.72;
 }
+
+
+.app-result-active {
+background-color: #CEDCE7;
+}
+
+.app-result {
+color:#777777;
+font-size:11px;
+height:15px;
+width:100%;
+}
+
 .app-song{
-background-color:#FFFFFF;
-color:#111111;
+color:#777777;
 font-size:11px;
 height:15px;
 width:100%;
 }
 .app-song-active{
-background-color:#9F9F9F;
-color:#FFD700;
+background-color: #CEDCE7;
 }
 .app-playing{
-font-weight:bold;
+color: #31505E;
+}
+
+.songs-list-container {
+background: rgb(255,255,255); /* Old browsers */
+background: -moz-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(229,229,229,1) 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(255,255,255,1)), color-stop(100%,rgba(229,229,229,1))); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#e5e5e5',GradientType=0 ); /* IE6-9 */
+background: linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* W3C */
+border-bottom: 1px dotted #000000;
+padding-bottom: 8px;
+}
+
+#playlist{
+height:400px;
+position:relative;
+overflow-x:hidden;
+overflow-y:auto;
+width:100%;
+z-index:100;
+
 }
 
 .showvidact{
@@ -258,15 +292,9 @@ right: 0px;
 }
 
 
-#playlist{
-height:400px;
-position:relative;
-background-color:#FFFFFFF;
-overflow-x:hidden;
-overflow-y:auto;
-width:100%;
-z-index:100;
-}
+
+
+
 #playlistcontainer{
 padding:15px 10px;
 overflow:hidden;
@@ -284,9 +312,14 @@ position:relative;
 color:#FFFFFF;
 font-weight: bold;
 font-size: 11px;
-background-color:#D4D4D4;
-border:1px solid transparent;
-letter-spacing:0px;
+background: rgb(206,220,231); /* Old browsers */
+background: -moz-linear-gradient(left, rgba(206,220,231,1) 0%, rgba(89,106,114,1) 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(206,220,231,1)), color-stop(100%,rgba(89,106,114,1))); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(left, rgba(206,220,231,1) 0%,rgba(89,106,114,1) 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(left, rgba(206,220,231,1) 0%,rgba(89,106,114,1) 100%); /* Opera11.10+ */
+background: -ms-linear-gradient(left, rgba(206,220,231,1) 0%,rgba(89,106,114,1) 100%); /* IE10+ */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#cedce7', endColorstr='#596a72',GradientType=1 ); /* IE6-9 */
+background: linear-gradient(left, rgba(206,220,231,1) 0%,rgba(89,106,114,1) 100%); /* W3C */
 height:20px;
 margin: 0px auto 0px auto;
 padding:0px 5px 0px 5px;
@@ -569,7 +602,8 @@ margin: 0px 7px;
 
 
 
-#app-song-display-container{z-index:5;position:relative;height:20px;overflow:hidden;white-space:nowrap;background-color:transparent;width:95%;}
+#app-song-display-container{z-index:5;position:relative;height:20px;overflow:hidden;white-space:nowrap;background-color:transparent;width: 97%;
+margin: 0px auto;}
 #app-song-display{margin-top:3px;width:100%;}
 
 .popmsg{height:20px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;margin:3px 0px 3px 0px;position:absolute;}
@@ -658,9 +692,9 @@ padding: 0px 15px;
 }
 
 #app-header-main {
-height: 55px;
-margin-top: 10px;
-padding: 10px;
+height: 45px;
+padding-bottom: 15px;
+border-bottom: 1px solid #CBCBCB;
 }
 
 #app-loader {
@@ -731,9 +765,6 @@ position: relative;
 height: 380px;
 overflow-x: hidden;
 overflow-y: auto;
-border-radius: 35px;
-background-color: #EEE;
-padding: 10px;
 }
 
 #app-search-suggestions-container {
@@ -814,14 +845,6 @@ margin: 10px 10px 10px 70px;
 font-family: "Trebuchet MS", tahoma, verdana;
 font-size: 13px;;
 }
-
-.app-result {
-height: 15px;
-padding: 0px 6px;
-width: 100%;
-color: #444;
-}
-
 
 
 .app-action-tab {
@@ -1023,11 +1046,6 @@ box-shadow: 0px 0px 4px #999;
 border-radius: 6px;
 margin-top: 20px;
 
-}
-
-.app-result-active {
-background-color: #DBE1FF;
-font-weight:bold;
 }
 
 .content{
