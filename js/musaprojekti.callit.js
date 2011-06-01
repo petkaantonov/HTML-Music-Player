@@ -638,6 +638,9 @@ features.dragFiles = false;
 		"directory" in input ||
 		"mozdirectory" in input ) {
 	
+		$(function(){
+		$('.menul-folder').fileInput( {style: {cursor: "pointer"},webkitdirectory: true, directory: true, mozdirectory: true}, "app-action-tab-selected" );
+		});
 	features.directories = true;
 	}
 	else {
@@ -688,9 +691,9 @@ features.dragFiles = false;
 			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
 			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
 			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
-			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader[\"import\"]( this.files[0] );\" />" +
-			"</div></div>" );	
-
+			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader['import']( this.files[0] );\" />" +
+			"</div></div>" );
+			
 	new Table( "app-playlists-table", nodecache, {
 			classPrefix: "app-feature",
 			captions: { 

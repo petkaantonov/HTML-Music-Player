@@ -2130,3 +2130,52 @@ FlyingMessage.Includes({
 });
 
 
+$.fn.fileInput = function( atts, hoverClass ){
+atts = atts || {};
+hoverClass = hoverClass || null;
+	return this.each( function(){
+	var input = document.createElement("input"), key,
+		container = document.createElement("div"),
+		width = this.offsetWidth, height = this.offsetHeight, obj, kk, stylestr = "";
+		
+		for( key in atts ) {
+			if( key == "style" ) {
+			obj = atts[key];
+				for( kk in obj ) {
+				stylestr += ( kk +":"+obj[kk]+";" );			
+				}
+			continue;
+			}
+		input[key] = atts[key];
+		}
+
+	container.setAttribute( "style", "position:relative;width:"+width+"px;height:"+height+"px" );
+	input["type"] = "file";
+	input.setAttribute("style", "position:absolute;top:0px;left:0px;width:"+width +
+		"px;height:"+height+"px;z-index:100000;opacity:0;-moz-opacity:0;" +
+		"filter: alpha('opacity=0');"+stylestr);
+
+	this.style.position = "absolute";
+	this.style.left = "0px";
+	this.style.top = "0px";
+	this.style.zIndex = "1";
+	this.style.width = width+"px";
+	this.style.height = height+"px";
+	this.parentNode.insertBefore( container, this );
+	container.appendChild( this.parentNode.removeChild( this ) );
+	container.appendChild( input );
+	
+		if( hoverClass != null ) {
+			$(input).bind( "mouseover mouseout", function(e){
+				if( e.type == "mouseover" ) {
+				$(this.previousSibling).addClass( hoverClass );
+				}
+				else {
+				$(this.previousSibling).removeClass( hoverClass );
+				}
+			});
+		}
+	});
+};
+
+
