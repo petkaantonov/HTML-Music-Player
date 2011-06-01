@@ -27,6 +27,11 @@ position:relative;
 height:15px;
 }
 
+.vert-center {
+display: table-cell;
+vertical-align: middle;
+}
+
 .app-popup-button {
 border: 1px solid #402F75;
 box-shadow: 0px 0px 4px #6879EE;

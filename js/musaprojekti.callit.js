@@ -166,12 +166,13 @@ tabs.selectTab( this );
 popup = new BlockingPopup( 500, 300, { closer: ".app-popup-closer", addClass: "app-popup-container" } );
 
 popup.onclose = function(){
-	if( !this._popups.length ) {
+console.log( this.length );
+	if( !this.length ) {
 	$( "#app-container" ).fadeTo( 0, 1 );
 	}
 }
 popup.onopen = function(){
-	if( this._popups.length < 2 ) {
+	if( this.length < 2 ) {
 	$( "#app-container").fadeTo(0, 0.3 );
 	}
 }
@@ -251,8 +252,8 @@ var valid, key, name = resp && resp.name || "";
 	if( !resp.error ) {
 	valid = JSONSchema.validate( resp.data, SCHEMA_PLAYLIST );
 		if( valid.valid ) {
-			$( popup.html( '<h2 style="margin-top: 25%;"class="app-header-2 centered">Loading</h2>') ).fadeOut( 700, function(){
-			popup.close();
+			$( popup.html( '<table style="height:90%;"><tbody><tr><td><h2 class="app-header-2 centered">Loading</h2></td></tr></tbody></table>') ).fadeOut( 700, function(){
+			popup.closeAll();
 			playlist.main.add( resp.data );
 			});
 		return true;
@@ -260,7 +261,7 @@ var valid, key, name = resp && resp.name || "";
 		resp.error = "Invalid playlist format";
 		}
 	}
-popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
+popup.open( '<h2 style="font-size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>', 500, 50 );
 }
 
 playlist.saver.onexport = function( resp ) {
@@ -268,10 +269,10 @@ appSetData( "playlistName", resp.name );
 appSetData( "saveMethod", "file" );
 	if( !resp.error) {
 	window.document.location = resp.url;
-	popup.close();
+	popup.closeAll();
 	return;
 	}
-popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
+popup.open( '<h2 style="font-size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>', 500, 50 );
 };
 
 playlist.saver.onsave = function( resp ) {
@@ -279,13 +280,14 @@ appSetData( "playlistName", resp.name );
 appSetData( "saveMethod", "mem" );
 
 	if( !resp.error ) {
-		$( popup.html( '<h2 style="margin-top: 25%;"class="app-header-2 centered">Saved</h2>') ).fadeOut( 1200, function(){
-		popup.close();
+		$( popup.html( '<table style="height:90%;"><tbody><tr><td>'+
+				'<h2 class="app-header-2 centered">Saved</h2></td></tr></tbody></table>') ).fadeOut( 1200, function(){
+		popup.closeAll();
 		});
 	return;
 	}
 
-popup.open( '<h2 style="margin-top: 25%;size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>' );
+popup.open( '<h2 style="font-size:14px;" class="app-error app-header-2 centered">'+resp.error+'</h2>', 500, 50 );
 };
 
 playlist.menu.orderedActions = {
@@ -612,7 +614,9 @@ var curInterface = MAP_MAIN_INTERFACES[ tabs.activeTab ];
 (function(){
 var $elms = $( ".menul-save").add( ".menul-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
-	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved;
+	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved,
+	classn = " app-action-disabled", disabled = " disabled=\"disabled\"", appDataSave = {};
+	
 	
 features.mp3 = false;
 features.wav = false;
@@ -621,78 +625,13 @@ features.readFiles = false;
 features.dragFiles = false;
 
 	if ( window.localStorage ) {
+	appDataSave = storage.get("appData") || {};
+	classN = "";
+	disabled = "";
 	features.localStorage = true;
-	
-	$( ".menul-load" ).bind( "click" , function(){
-	var playlists = storage.get( "PlaylistJSON" ) || {}, key, data = [], playl, $l;
-	
-		for( key in playlists ) {
-		data.push( {time: playlist.getTotalTime( playlists[key] ), name: key, length: playlists[key].length, load: "<span class=\"app-clickable menul-load\" onclick=\"playlist.loader.load('"+key.addSlashes("'")+"');\">Load</span>"});
-		}
-	
-	$l = data.length;
-	playl = $l === 1 ? "playlist" : "playlists";
-
-	popup.open( 	"<h2 class=\"app-header-2\">Load playlist</h2>" +
-			"<div id=\"app-playlists-table\"></div>" +
-			"<div style=\"float:left;font-size:11px;\">Listing "+$l+ " "+ playl+" found in browser memory</div>" +
-			"<div class=\"app-popup-solution\">" +
-			"<div style=\"position:relative;width:114px;height:30px;\">" +
-			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
-			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
-			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
-			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader.import( this.files[0] );\" />" +
-			"</div></div>" );	
-	
-	new Table( "app-playlists-table", nodecache, {
-			classPrefix: "app-feature",
-			captions: { 
-				name: "Name",
-				length: "Track amount",
-				time: "Total playtime",
-				load: ""
-			}
-		}
-	).addData( data );
-	
-	});
-	
-	$( ".menul-save" ).bind( "click", function(){
-	var appData = storage.get("appData") || {};
-	
-	popup.open( "<h2 class=\"app-header-2\">Save playlist</h2>" +
-		 	"<div class=\"app-bread-text app-form-container\">" +
-		 	"<input type=\"text\" id=\"playlist-name\" spellcheck=\"false\" autocomplete=\"off\"" +
-		 	" value=\""+(appData.playlistName || "Playlist Name")+"\" class=\"app-bread-" +
-		 	"text app-popup-input\"></div>" +
-		 	"<div style=\"margin-top: 7px\"><input "+(appData.saveMethod == "file" ? "checked ":"")+"type=\"radio\" name=\"savetype\" id=\"app-save-file\">" +
-			"<label for=\"app-save-file\">Save as file</label>" +
-			"<input type=\"radio\" "+(appData.saveMethod == "mem" || !appData.saveMethod ? "checked ":"")+"name=\"savetype\" id=\"app-save-memory\">" +
-			"<label for=\"app-save-memory\">Save in browser memory</label></div>" +
-			"<div class=\"notextflow\" id=\"app-popup-message\"></div> " +
-			"<div class=\"app-popup-solution\"><div id=\"app-proceed-save\" class=\"app-popup-button\">Save Playlist</div></div>" );
-	});
-	
-	$( "#app-proceed-save" ).live( "click", function(){
-	var name = $( "#playlist-name"), nam;
-		if( !( nam = name[0].value ) ) {
-		name.focus();
-		return this;
-		}
-		if( $( "#app-save-file")[0].checked  ) {
-		playlist.saver.export( nam, playlist.main.toArray() );
-		}
-		else {
-		playlist.saver.save( nam, playlist.main.toArray() );
-		}
-	});
-	
-	
-	
-	
+			
 	} else {
 	features.localStorage = false;
-	$elms.addClass( "app-action-disabled" );
 	}
 	
 	if( "webkitdirectory" in input ||
@@ -729,7 +668,78 @@ features.dragFiles = false;
 		features.ogg = !!( audio.canPlayType( "audio/wav" ).replace( /no/gi, "" ) );	
 	}
 	
-featureDescriptions.push({ desc: "Play MP3 files located on your computer", name: "Local MP3", enabled: ( !features.mp3 && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
+	
+	$( ".menul-load" ).bind( "click" , function(){
+	var playlists = window.localStorage && storage.get( "PlaylistJSON" ) || {}, key, data = [], playl, $l;
+
+		for( key in playlists ) {
+		data.push( {time: playlist.getTotalTime( playlists[key] ), name: key, length: playlists[key].length, load: "<span class=\"app-clickable menul-load\" onclick=\"playlist.loader.load('"+key.addSlashes("'")+"');\">Load</span>"});
+		}
+
+	$l = data.length;
+	playl = $l === 1 ? "playlist" : "playlists";
+
+	popup.open( 	"<h2 class=\"app-header-2\">Load playlist</h2>" +
+			"<div id=\"app-playlists-table\"></div>" +
+			"<div style=\"float:left;font-size:11px;\">"+( window.localStorage ? "Listing "+$l+ " "+ playl+" found in browser memory</div>" :
+			"No access to browser memory") +
+			"<div class=\"app-popup-solution\">" +
+			"<div style=\"position:relative;width:114px;height:30px;\">" +
+			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
+			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
+			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
+			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader.import( this.files[0] );\" />" +
+			"</div></div>" );	
+
+	new Table( "app-playlists-table", nodecache, {
+			classPrefix: "app-feature",
+			captions: { 
+				name: "Name",
+				length: "Track amount",
+				time: "Total playtime",
+				load: ""
+			}
+		}
+	).addData( data );
+
+});
+
+	$( ".menul-save" ).bind( "click", function(){
+
+
+	popup.open( "<h2 class=\"app-header-2\">Save playlist</h2>" +
+			"<div class=\"app-bread-text app-form-container\">" +
+			"<input type=\"text\" id=\"playlist-name\" spellcheck=\"false\" autocomplete=\"off\"" +
+			" value=\""+(appDataSave.playlistName || "Playlist Name")+"\" class=\"app-bread-" +
+			"text app-popup-input\"></div>" +
+			"<div style=\"margin-top: 7px\"><input "+(!window.localStorage || appDataSave.saveMethod == "file" ? "checked ":"")+"type=\"radio\" name=\"savetype\" id=\"app-save-file\">" +
+			"<label for=\"app-save-file\">Save as file</label>" +
+			"<input type=\"radio\""+disabled+" "+(window.localStorage && ( appDataSave.saveMethod == "mem" || !appDataSave.saveMethod ? "checked ":"" ))+
+			"name=\"savetype\" id=\"app-save-memory\">" +
+			"<label for=\"app-save-memory"+classN+"\">Save in browser memory</label></div>" +
+			"<div class=\"notextflow\" id=\"app-popup-message\"></div> " +
+			"<div class=\"app-popup-solution\"><div id=\"app-proceed-save\" class=\"app-popup-button\">Save Playlist</div></div>",
+			400,
+			155 );
+	});
+
+	$( "#app-proceed-save" ).live( "click", function(){
+	var name = $( "#playlist-name"), nam;
+		if( !( nam = name[0].value ) ) {
+		name.focus();
+		return this;
+		}
+		if( $( "#app-save-file")[0].checked  ) {
+		playlist.saver.export( nam, playlist.main.toArray() );
+		}
+		else {
+			if( window.localStorage ) {
+			playlist.saver.save( nam, playlist.main.toArray() );
+			}
+		}
+	});
+	
+	featureDescriptions.push({ desc: "Play MP3 files located on your computer", name: "Local MP3", enabled: ( !features.mp3 && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
 			{ desc: "Play OGG files located on your computer", name: "Local Ogg Vorbis", enabled: ( !features.ogg && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
 			{ desc: "Play WAV files located on your computer", name: "Local WAVE", enabled: ( !features.wav && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Read local binary files", name: "File reader", enabled: ( !features.readFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
@@ -762,6 +772,8 @@ new Table( "app-feature-table", nodecache, {
 		}
 	}
 ).addData( featureDescriptions );
+
+
 
 })()
 
