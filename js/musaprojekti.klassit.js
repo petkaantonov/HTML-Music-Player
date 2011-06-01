@@ -728,7 +728,7 @@ Selectable.Includes({
 });
 
 function DraggableSelection( target, selectable, playlist, itemHeight, selector ) {
-var self = this, tar;
+var self = this, tar, tgt;
 
 this._songList = playlist._hashList;
 this._selection = selectable._selection;
@@ -746,17 +746,17 @@ this._listHeight = 0;
 this._itemHeight = itemHeight;
 
 tar = $( this._target );
-
+tgt = this._target;
 	tar.bind( "selectstart", function(){
 	return false;
 	});
 
-	tar.bind( "mousedown", function( evt ) {
+	tar.delegate( selector, "mousedown", function( evt ) {
 		if( evt.which !== 1 ) {
 		return true;
 		}
-	self._listOffset = this.offsetTop;
-	self._listHeight = this.offsetHeight;
+	self._listOffset = tgt.offsetTop;
+	self._listHeight = tgt.offsetHeight;
 	self._proximity = self._selectable._selection.mapProximity();
 	self._nodes = $( self._selector ).toArray();
 
@@ -2129,6 +2129,51 @@ FlyingMessage.Includes({
 	}
 });
 
+$.fn.removeFiles = function(){
+	return this.each( function(){
+	var key, atts, hover,
+		input = document.createElement("input"),
+		self = $(this), obj, kk, stylestr = "",
+		width = this.offsetWidth, height = this.offsetHeight, jqInput;
+		
+	atts = self.data( "atts" );
+	hoverClass = self.data( "hoverClass" );
+	
+		for( key in atts ) {
+			if( key == "style" ) {
+			obj = atts[key];
+				for( kk in obj ) {
+				stylestr += ( kk +":"+obj[kk]+";" );			
+				}
+			continue;
+			}
+		input[key] = atts[key];
+		}
+		
+	input["type"] = "file";
+	input.setAttribute("style", "position:absolute;top:0px;left:0px;width:"+width +
+			"px;height:"+height+"px;z-index:100000;opacity:0;-moz-opacity:0;" +
+		"filter: alpha('opacity=0');"+stylestr);
+		
+	jqInput = $(input);
+	jqInput.data( "atts", atts);
+	jqInput.data( "hoverClass", hoverClass );
+	
+		if( hoverClass != null ) {
+			jqInput.bind( "mouseover mouseout", function(e){
+				if( e.type == "mouseover" ) {
+				$(this.previousSibling).addClass( hoverClass );
+				}
+				else {
+				$(this.previousSibling).removeClass( hoverClass );
+				}
+			});
+		}
+
+	this.parentNode.appendChild( input );
+	self.remove();
+	});
+};
 
 $.fn.fileInput = function( atts, hoverClass ){
 atts = atts || {};
@@ -2136,7 +2181,7 @@ hoverClass = hoverClass || null;
 	return this.each( function(){
 	var input = document.createElement("input"), key,
 		container = document.createElement("div"),
-		width = this.offsetWidth, height = this.offsetHeight, obj, kk, stylestr = "";
+		width = this.offsetWidth, height = this.offsetHeight, obj, kk, stylestr = "", jqInput;
 		
 		for( key in atts ) {
 			if( key == "style" ) {
@@ -2155,6 +2200,9 @@ hoverClass = hoverClass || null;
 		"px;height:"+height+"px;z-index:100000;opacity:0;-moz-opacity:0;" +
 		"filter: alpha('opacity=0');"+stylestr);
 
+	jqInput = $(input);
+	jqInput.data( "atts", atts);
+	jqInput.data( "hoverClass", hoverClass );
 	this.style.position = "absolute";
 	this.style.left = "0px";
 	this.style.top = "0px";
@@ -2166,7 +2214,7 @@ hoverClass = hoverClass || null;
 	container.appendChild( input );
 	
 		if( hoverClass != null ) {
-			$(input).bind( "mouseover mouseout", function(e){
+			jqInput.bind( "mouseover mouseout", function(e){
 				if( e.type == "mouseover" ) {
 				$(this.previousSibling).addClass( hoverClass );
 				}
@@ -2179,3 +2227,31 @@ hoverClass = hoverClass || null;
 };
 
 
+function LocalFiles( allowtypes ){
+this._allowed = allowtypes && allowtypes.join( " " ) || "";
+this._allowed = " " + this._allowed + " ";
+}
+
+LocalFiles.Includes({
+	onhandle: function( filtered ){},
+	handle: function( files ){
+	var l = files && files.length, i, name, type, handle, r = [], testStr = this._allowed,
+		file;
+	
+		if( !l ) {
+		return this;
+		}
+		
+		for( i = 0; i < l; ++i ) {
+		file = files[i];
+		type = file.type;
+		
+			if( testStr.indexOf( " " + type + " " ) > -1 ) {
+			r.push( {name: file.name, url: file });
+			}
+	
+		}
+	this.onhandle.call( this, r );
+	return this;
+	}
+});
