@@ -1483,7 +1483,9 @@ Scrolls.Includes({
 function Popup( width, height, opts ) {
 var self = this;
 this._idBase = +(new Date);
-this._popups = [];
+this._popups = {};
+this._lastAdd = null;
+this.length = 0;
 this._width = width;
 this._height = height;
 this._stacks = opts && !!opts.stacks || true;
@@ -1492,26 +1494,23 @@ this._stackOffsetY = opts && opts.stackOffsetY || 15;
 this._closer = opts && opts.closer || ".popup-closer-class";
 
 	$(window).bind( "resize", function(){
-	var i, l = self._popups.length, left,
+	var key, popups = self._popups, left,
 		top, width, height, winWidth = $(window).width(),
 		winHeight = $(window).height(), popup, offset, id;
-		
-		if( l ) {
-			for( i = 0; i < l; ++i ) {
-			popup = document.getElementById( self._popups[i] );
-			width = parseInt( popup.style.width, 10 );
-			height = parseInt( popup.style.height, 10 );
-			id = popup.id;
-			offset = parseInt( id.substring( id.indexOf( "-" ) + 1, id.lastIndexOf( "-" ) ), 10 );
-			left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * self._stackOffsetX;
-			top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * self._stackOffsetY;
-			left = left < 0 ? 0 : left;
-			top = top < 0 ? 0 : top;
-			popup.style.left = left + "px";
-			popup.style.top = top + "px";
-			}
-		}
 	
+		for( key in popups ) {
+		
+		popup = document.getElementById( key );
+		width = parseInt( popup.style.width, 10 );
+		height = parseInt( popup.style.height, 10 );
+		offset = popups[key].offset;
+		left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * self._stackOffsetX;
+		top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * self._stackOffsetY;
+		left = left < 0 ? 0 : left;
+		top = top < 0 ? 0 : top;
+		popup.style.left = left + "px";
+		popup.style.top = top + "px";		
+		}	
 	});
 	
 	$( document ).delegate( this._closer, "click" , function(){
@@ -1525,14 +1524,18 @@ Popup.Includes({
 	onclose: function(){},
 	onopen: function(){},
 	close: function( elm ) {
-	var node = elm, popup, idx, className = this._className;
+	var node = elm, popup, className = this._className, popups = this._popups,
+		l = popups.length, id, obj;
 	
-		if( !elm ) {
-		node = $( "#"+this._popups.pop() );
+		if( !elm && this._lastAdd !== null ) {
+		node = $( "#"+( this._lastAdd ) );
 		
-	
 		this.onclose.call( this );
-		$( node ).remove();			
+		$( node ).remove();
+		this.length--;
+			if( !this.length ) {
+			this._lastAdd = null;
+			}
 		return this;
 		}
 	
@@ -1545,22 +1548,21 @@ Popup.Includes({
 		node = node.parentNode;
 		}
 
-		if( popup && ( idx = this._popups.indexOf( popup.id ) ) > -1 ) {
-		this._popups.splice( idx, 1 );
+		if( popup && ( obj = popups[popup.id] ) ) {
 		$( node ).remove();
+		delete popups[popup.id];
+		this.length--;
 		this.onclose.call( this );
 		}
-		
-
 	return this;
 	},
 	open: function( html, width, height ) {
 	var div = document.createElement( "div"), id, top, left,
 		winWidth = $(window).width(), winHeight = $(window).height(),
 		width = width || this._width, height = height || this._height,
-		offset = this._stacks ? this._popups.length : 0;
-		
-	this._popups.push( ( id = "popup-"+offset+"-"+ ( ++this._idBase ) ) );
+		offset = this._stacks ? this.length : 0;
+	
+	id = "popup-"+ ( ++this._idBase );
 	left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * this._stackOffsetX;
 	top = ( ( ( winHeight - height ) / 2 ) >> 0 ) + offset * this._stackOffsetY;
 	left = left < 0 ? 0 : left;
@@ -1570,6 +1572,11 @@ Popup.Includes({
 	div.className = this._className;
 	div.setAttribute( "style", "width:"+width+"px;height:"+height+"px;position:absolute;top:"+top+"px;left:"+left+"px;z-index:"+(100000+offset)+";display:block;" );
 	$( div ).prependTo( "body" );
+	
+	
+	this._popups[id] = { width: width, height: height, offset: offset};
+	this._lastAdd = id;
+	this.length++;
 	this.onopen.call( this );
 	return this;
 	},
