@@ -14,13 +14,16 @@ header('Content-Type: text/html; charset=iso-8859-1');
 <script type="text/javascript">var __IP_GET__ = (function(){var __IP_ADDRESS__ = "<?php echo $_SERVER['REMOTE_ADDR']; ?>";return function(){return __IP_ADDRESS__;};})();</script>
 <script type="text/javascript" src="js/jquery.js"></script>
 <script type="text/javascript" src="js/jsonschema.js"></script>
-<script type="text/javascript" src="js/playlist-schema.js"></script>
 <script type="text/javascript" src="js/musaprojekti.util.js"></script>
 <script type="text/javascript" src="js/musaprojekti.klassit.js"></script>
 
 </head>
 <body class="unselectable" >
-
+<!--
+<div id="apm" style="position:absolute;z-index:100000;opacity:1;top:0px;left:15px;width:200px;height:75px;text-shadow:1px 1px 3px #333333;color:#FFFFFF;font-size:25px;">
+APM: <span id="apm-total">00.00</span>
+</div>
+-->
 <div id="wrapper">
 
 <div id="app-loader">
@@ -49,6 +52,7 @@ header('Content-Type: text/html; charset=iso-8859-1');
 					 	</div>
 					</div>
 					<li class="menul-sub-title">Action</li>
+					<li class="app-action-tab menul-hotkeys">Hotkey setup</li>
 					<li class="app-action-tab menul-save">Save playlist</li>
 					<li class="app-action-tab menul-load">Load playlist</li>
 					<li class="app-action-tab menul-folder">Add a folder</li>
@@ -60,23 +64,16 @@ header('Content-Type: text/html; charset=iso-8859-1');
 						<li class="app-action-tab menul-play">Play</li>
 						<li class="app-action-tab menul-download">Download</li>
 						<li class="app-action-tab menul-playlist-add">Add to playlist</li>
-						<li class="app-action-tab menul-queue-add">Add to queue</li>
 					</ul>
 					<ul class="app-action-tabs-container" id="playlist-action-menu">
 						<li class="app-action-tab menul-play">Play</li>
 						<li class="app-action-tab menul-download">Download</li>
-						<li class="app-action-tab menul-queue-add">Add to queue</li>
 						<li class="app-action-tab menul-playlist-delete">Delete</li>
+						<li class="app-action-tab menul-clone">Clone</li>
 						<li class="app-action-tab menul-reverse">Sort by reverse</li>
 						<li class="app-action-tab menul-alpha">Sort by name</li>
 						<li class="app-action-tab menul-shuffle">Sort by random</li>
 
-					</ul>
-					<ul class="app-action-tabs-container" id="queue-action-menu">
-						<li class="app-action-tab menul-queue-remove">Remove</li>
-						<li class="app-action-tab menul-reverse">Sort by reverse</li>
-						<li class="app-action-tab menul-alpha">Sort by name</li>
-						<li class="app-action-tab menul-shuffle">Sort by random</li>
 					</ul>
 				</ul>
 			</div>
@@ -102,8 +99,8 @@ header('Content-Type: text/html; charset=iso-8859-1');
 				<div id="shuffle" title="Shuffle" class="modediv shuffleinactive"></div>
 				<div id="normal" title="Normal" class="modediv normalinactive"></div>
 				</div>
-				<br class="clear" />
-				<br class="clear" />
+				<br>
+				<br>
 				<div id="seektopointer" class="unselectable"></div>
 				<div id="app-headercontrols">
 					<div id="app-songinfo">
@@ -175,9 +172,6 @@ header('Content-Type: text/html; charset=iso-8859-1');
 				</div>
 				<div class="content songs-list-container" id="playlist" style="height:475px;"></div>
 				<div class="content" id="video"></div>
-				<div class="content" id="queue"></div>
-				<div class="content" id="filter"></div>
-				<div class="content" id="settings"></div>
 			</div>
 			<div id="containplayers">
 				<div class="disable-youtube-watch"></div>
@@ -196,5 +190,12 @@ header('Content-Type: text/html; charset=iso-8859-1');
 		
 </div>
 <script type="text/javascript" src="js/musaprojekti.callit.js"></script>
+<script type="text/javascript" src="js/musaprojekti.search.js"></script>
+<script type="text/javascript" src="js/musaprojekti.playlist.js"></script>
+<script type="text/javascript" src="js/musaprojekti.filter.js"></script>
+<script type="text/javascript" src="js/musaprojekti.features.js"></script>
+<script type="text/javascript" src="js/musaprojekti.tabs.js"></script>
+<script type="text/javascript" src="js/musaprojekti.hotkeys.js"></script>
+
 </body>
 </html>

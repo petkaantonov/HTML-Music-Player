@@ -212,6 +212,7 @@ target.insertBefore( frag, target.firstChild );
 Tabs.Includes({
 	length: 0,
 	activeTab: 0,
+	onbeforetabselect: function(){},
 	ontabselect: function(){},
 
 	_accessControl: function( elem, disabled ) {
@@ -290,12 +291,16 @@ Tabs.Includes({
 		if( data.disabled == true || elem == this._selected ) {
 		return this;
 		}
+		
+	this.onbeforetabselect.call( this, this.activeTab, this._selected );
 
 		if( this._selected != null ) {
 		data2 = getData.call( cache, this._selected );
 		data2.elem.style.display = "none";
 		$( this._selected ).removeClass( this._classPrefix+"-tab-selected" );
 		}
+		
+
 	data.elem.style.display = "block";
 	this._selected = elem;
 	this.activeTab = data.nth;
@@ -357,6 +362,23 @@ Playlist.Includes({
 	getContainer: function(){
 	return this._hashList;
 	},
+	getPositionByHash: function( hash ) {
+	return this._hashList.indexOf( hash );
+	},
+	getSongByHash: function( hash ) {
+	var i, l, r = [];
+		if( hash.constructor !== Array ) {
+		return this._songList[hash];
+		}
+	
+	l = hash.length;
+		
+		for( i = 0; i < l; ++i ) {
+		r.push( this._songList[hash[i]] );
+		}
+	
+	return r;	
+	},
 	getHashByIndex: function( index ) {
 	return this._hashList[index] || -1;
 	},
@@ -385,17 +407,31 @@ Playlist.Includes({
 	this.onremove.call( this, arr.length );
 	return this;
 	},
-	add: function( arr ) {
-	var i, l, curhash;
+	add: function( arr, offset ) {
+	var i, l, curhash, upper, lower, middle, ref = this._hashList;
+	
 		if( arr.constructor !== Array ) {
 		arr = [arr];
 		}
 	l = arr.length;
+	
+		if( offset && offset >= 0 && offset < this._hashList.length ) {
+		lower = this._hashList.slice( 0, offset );
+		upper = this._hashList.slice( offset );
+		middle = [];
+		ref = middle;
+		}
+
 		for( i = 0; i < l; ++i ) {
 		curhash = this._getHash();
 		this._songList[ curhash ] = arr[ i ];
-		this._hashList.push( curhash );
+		ref.push( curhash );
 		}
+		
+		if( middle && lower && upper ) {
+		this._hashList = lower.concat( ref, upper );
+		}
+		
 	this.length = this._hashList.length;
 	this.onupdate.call( this, this._songList, this._hashList, this._currentSong, this._selectable._selection );
 	this.onadd.call( this, arr.length );
@@ -461,11 +497,16 @@ Playlist.Includes({
 	this._queue = [];
 	this.render();
 	},
-	toArray: function(){
-	var r = [], i, l = this._hashList.length;
+	toArray: function( hashes ){
+	var r = [], i, l = this._hashList.length, elm, hash;
 	
 		for( i = 0; i < l; ++i ) {
-		r.push( this._songList[ this._hashList[i] ] );
+		hash = this._hashList[i];
+		elm = this._songList[ hash ];
+			if( hashes ) {
+			elm.hash = hash;
+			}
+		r.push( elm );
 		}
 	return r;
 	},
@@ -481,6 +522,8 @@ Playlist.Includes({
 	onupdate: function( songList, hashList, curSong, selections ){},
 	onchange: function( songObj, curSong ){}
 });
+
+
 
 function Selectable( target, selector, opts ) {
 var self = this;
@@ -681,8 +724,13 @@ Selectable.Includes({
 	return this._selection;
 	},
 	applyTo: function( arr, callback ) {
-	var selection = this._selection, r = [], i, l = selection.length, $l;
-	
+	var selection = this._selection;
+		if( selection.constructor !== Array ) {
+		selection = [selection];
+		}
+		
+	 var r = [], i, l = selection.length, $l;
+	 
 		if( arr.constructor !== Array ) {
 		throw new TypeError( "Expecting Array, instead got " + typeof arr );
 		}
@@ -727,6 +775,87 @@ Selectable.Includes({
 	}
 });
 
+function SingleSelectable( target, selector, opts ) {
+var self = this;
+this._target = typeof target == "string" ? document.getElementById( target ) : target;
+this._selector = selector;
+this._activeClass = opts && opts.activeClass || "select-active";
+this._selection = null;
+
+	$( this._target ).delegate( selector, "click", function( e ) {
+	var target = e.target, idx = +( this.id.substr( this.id.lastIndexOf("-") + 1 ) );
+	
+		if( idx !== self._selection ) {
+		self._addSelection( idx );
+		}
+		
+	return true;
+	});
+
+}
+
+SingleSelectable.Inherits( Selectable ).Includes({
+		_addSelection: function( idx ) {
+		this._selection = idx;
+		this._render();
+		},
+		clear: function(){
+		this._clearSelection();
+		},
+		_clearSelection: function() {
+		this._selection = null;
+		this._render();
+		},
+		_render: function() {
+		$( "."+this._activeClass ).removeClass( this._activeClass );
+			if( this._selection === null ) {
+			return this.onselect.call( this, this._selection );
+			}
+		var i, l, all = $( this._selector, this._target );
+		$( all[this._selection] ).addClass( this._activeClass );
+		
+		this.onselect.call( this, this._selection );
+		}		
+}).Destroy( [ "all", "invert", "_removeSelection", "_appendingShiftSelection", "_shiftSelection" ] );
+
+function TraversableSingleSelectable( target, selector, opts ) {
+SingleSelectable.call( this, target, selector, opts );
+this.length = 0;
+this._selection = -1;
+}
+
+TraversableSingleSelectable.Inherits( SingleSelectable ).Includes({
+	onscroll: function( idx) {},
+	reset: function(){
+	this._clearSelection();
+	this._selection = -1;
+	},
+	setMax: function( max ) {
+	this.length = max;
+	},
+	next: function(){
+		if( !this.length ) {
+		return false;
+		}
+	this._selection++;
+		if( this._selection >= this.length ) {
+		this._selection = this.length - 1;
+		}
+	this.onscroll.call( this, this._selection );
+	this._render();
+	},
+	prev: function(){
+		if( !this.length ) {
+		return false;
+		}
+	this._selection--;
+		if( this._selection < 0 ) {
+		this._selection = 0;
+		}
+	this.onscroll.call( this, this._selection );
+	this._render();
+	}
+});
 function DraggableSelection( target, selectable, playlist, itemHeight, selector ) {
 var self = this, tar, tgt;
 
@@ -1299,6 +1428,47 @@ Search.Includes({
 
 });
 
+function ClientsideSearcher( arr, prop ) {
+this._searchFrom = arr;
+this._matchProperty = prop || null;
+this._results = [];
+}
+
+ClientsideSearcher.Includes({
+	onbeforesearch: function(){},
+	onaftersearch: function( res ){},
+	getResultByIndex: function( idx ){
+		if( idx >= this._results.length ) {
+		return null;
+		}
+	return this._results[idx];
+	},
+	search: function( query ) {
+	this._results = [];
+	this.onbeforesearch.call( this );
+	var i, l = this._searchFrom.length, prop = this._matchProperty,
+		arr = this._searchFrom, query = query.split(" "),
+		$l = query.length, reg = "", elm;
+		
+		for( i = 0; i < $l; ++i ) {
+			if( query[i] ) {
+			reg += "(?=.*" + query[i] + ")";
+			}
+		}
+		
+	reg = new RegExp ( reg, "i" );
+	
+		for( i = 0; i < l; ++i ) {
+		elm = arr[i];
+			if( reg.test( elm[prop] ) ) {
+			this._results.push( elm );
+			}
+		}
+	this.onaftersearch.call( this, this._results );
+	}
+
+
+});
 
 function History( max ){
 this._container = [];
@@ -1492,7 +1662,7 @@ this._stacks = opts && !!opts.stacks || true;
 this._stackOffsetX = opts && opts.stackOffsetX || 15;
 this._stackOffsetY = opts && opts.stackOffsetY || 15;
 this._closer = opts && opts.closer || ".popup-closer-class";
-
+this._closeEvents = {};
 	$(window).bind( "resize", function(){
 	var key, popups = self._popups, left,
 		top, width, height, winWidth = $(window).width(),
@@ -1522,8 +1692,16 @@ this._className = opts && opts.addClass || "popup-main";
 
 Popup.Includes({
 	onclose: function(){},
+	onbeforeopen: function( id ){return 0;},
 	onopen: function(){},
+	closeEvent: function( fn, id ){
+	id = id || this._lastAdd;
+	this._closeEvents[id] = fn;
+	},
 	closeAll: function(){
+		if( !this.length ){
+		return false;
+		}
 	var key, popups = this._popups;
 		for( key in popups ) {
 		$("#"+key ).remove();
@@ -1531,6 +1709,10 @@ Popup.Includes({
 	this._popups = {};
 	this._lastAdd = null;
 	this.length = 0;
+		for( key in this._closeEvents ) {
+		this._closeEvents[key]();
+		delete this._closeEvents[key];
+		}
 	this.onclose.call( this );
 	return this;
 	},
@@ -1544,7 +1726,12 @@ Popup.Includes({
 		delete popups[ this._lastAdd ];
 		$( node ).remove();
 		this.length--;
+			if( typeof this._closeEvents[this._lastAdd] == "function" ) {
+			this._closeEvents[this._lastAdd]();
+			delete this._closeEvents[this._lastAdd];
+			}
 		this.onclose.call( this );
+		
 		}
 		else {
 			while( node ) {
@@ -1561,6 +1748,10 @@ Popup.Includes({
 			$(popup).remove();
 			delete popups[popup.id];
 			this.length--;
+				if( typeof this._closeEvents[popup.id] == "function" ) {
+				this._closeEvents[popup.id]();
+				delete this._closeEvents[popup.id];
+				}
 			this.onclose.call( this );
 			}
 		}
@@ -1577,7 +1768,8 @@ Popup.Includes({
 	var div = document.createElement( "div"), id, top, left,
 		winWidth = $(window).width(), winHeight = $(window).height(),
 		width = width || this._width, height = height || this._height,
-		offset = this._stacks ? this.length : 0;
+		offset = this._stacks ? this.length : 0, closerDiv = document.createElement("div"),
+		contentDelay, self = this, $div;
 	
 	id = "popup-"+ ( ++this._idBase );
 	left = ( ( ( winWidth - width ) / 2 ) >> 0 ) + offset * this._stackOffsetX;
@@ -1585,16 +1777,18 @@ Popup.Includes({
 	left = left < 0 ? 0 : left;
 	top = top < 0 ? 0 : top;
 	div.id = id;
-	div.innerHTML = "<div class=\""+this._closer.substr(1)+"\"></div>"+html;
+	closerDiv.className = this._closer.substr(1);
+	div.appendChild( closerDiv );
 	div.className = this._className;
 	div.setAttribute( "style", "width:"+width+"px;height:"+height+"px;position:absolute;top:"+top+"px;left:"+left+"px;z-index:"+(100000+offset)+";display:block;" );
-	$( div ).appendTo( "body" );
-	
-	
+	$div = $( div );
+	$div.appendTo( "body" );
+	this.onbeforeopen.call( this, id );
 	this._popups[id] = { width: width, height: height, offset: offset};
 	this._lastAdd = id;
 	this.length++;
-	this.onopen.call( this );
+	$div.append( html );
+	this.onopen.call( self );
 	return this;
 	},
 	html: function( html, elm ) {
@@ -1614,7 +1808,9 @@ this._blockerId = "blocker-"+(+new Date);
 
 BlockingPopup.Inherits( Popup ).Includes({
 	closeAll: function(){
-	this.__super__( "closeAll" );
+		if( !this.__super__( "closeAll" ) ) {
+		return false;
+		}
 	$( "#"+this._blockerId).remove();
 	return this;
 	},

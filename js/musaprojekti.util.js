@@ -9,7 +9,6 @@ function f(){}
 			for( var key in parent.prototype)
 			o[key] = parent.prototype[key];
 		}
-
 f.prototype = o;
 f.prototype.constructor = f;
 this.prototype = new f;
@@ -54,6 +53,24 @@ var timeridto = 0;
 		timeridto = setTimeout( function(){callback.apply( $this, args ); }, delay );
 	};
 }
+
+Function.prototype.Destroy = function( arr ){
+ if( arr.constructor !== Array ) {
+ arr = [arr];
+ }
+var i, l = arr.length, curProto = this.prototype, elm;
+
+	while( curProto ) {
+		for( i = 0; i < l; ++i ) {
+		elm = arr[i];
+
+			if( elm in curProto ) {
+			delete curProto[elm];
+			}	
+		}
+	curProto = curProto.__proto__ || curProto.prototype || null;
+	}
+};
 
 Function.prototype.Implements = function() {
 var UNDEF, args = Array.prototype.slice.call( arguments, 0 );
@@ -298,6 +315,20 @@ if (!Array.prototype.indexOf)
     return -1;
   };
 }
+
+Object.uniqueValues = function( obj ){
+var r = {}, key, check = {};
+
+	for( key in obj ) {
+		if( (obj[key].toString() ) in check ) {
+		r[key] = "";
+		continue;
+		}
+	check[ obj[key] ] = true;
+	r[key] = obj[key];
+	}
+return r;
+};
 
 function g(a){var b=typeof a;if(b=="object")if(a){if(a instanceof Array)return"array";else if(a instanceof Object)return b;var c=Object.prototype.toString.call(a);if(c=="[object Window]")return"object";if(c=="[object Array]"||typeof a.length=="number"&&typeof a.splice!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("splice"))return"array";if(c=="[object Function]"||typeof a.call!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("call"))return"function"}else return"null";
 else if(b=="function"&&typeof a.call=="undefined")return"object";return b};function h(a){var a=String(a),b;b=/^\s*$/.test(a)?!1:/^[\],:{}\s\u2028\u2029]*$/.test(a.replace(/\\["\\\/bfnrtu]/g,"@").replace(/"[^"\\\n\r\u2028\u2029\x00-\x08\x10-\x1f\x80-\x9f]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:[\s\u2028\u2029]*\[)+/g,""));if(b)try{return eval("("+a+")")}catch(c){}throw Error("Invalid JSON string: "+a);}function i(a){var b=[];j(new k,a,b);return b.join("")}function k(){}

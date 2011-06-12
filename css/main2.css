@@ -33,18 +33,20 @@ vertical-align: middle;
 }
 
 .app-popup-button {
-border: 1px solid #402F75;
-box-shadow: 0px 0px 4px #6879EE;
+border: 1px solid #E2F7FE;
+box-shadow: 0px 0px 4px #A8B7FF;
+-moz-box-shadow: 0px 0px 4px #A8B7FF;
+-webkit-box-shadow: 0px 0px 4px #A8B7FF;
 display: block;
 text-align: center;
-color: #424280;
+color: #333333;
 border-radius: 5px;
-padding: 6px 15px;
+padding: 2px 16px;
 background-repeat: repeat-x;
 font-family: "Trebuchet MS", arial, helvetica, sans-serif;
 font-weight: bold;
 font-size: 11px;
-background-image: url('../images/popupbutton-bg.png');
+background-image: url('../images/btngradu.png');
 opacity: 0.8;
 -moz-opacity: 0.8;
 filter: alpha('opacity=80');
@@ -53,14 +55,14 @@ margin-left: 5px;
 }
 
 .app-popup-button:hover {
-color: #25259D;
+color: #000000;
 opacity: 1;
 filter: alpha('opacity=100');
 -moz-opacity: 1;
 }
 
 .app-popup-button-active{
-color: #25259D;
+color: #000000;
 opacity: 1;
 filter: alpha('opacity=100');
 -moz-opacity: 1;
@@ -135,7 +137,7 @@ margin:0;
 padding:0;
 width:100%;
 background-color:#FFFFFF;
-background-image: url('../images/yleistausta.png');
+background-image: url('../images/yleistausta2.png');
 background-repeat:repeat-x;
 }
 
@@ -209,7 +211,7 @@ width:100%;
 }
 
 .app-song{
-color:#777777;
+color:#323232;
 font-size:11px;
 height:15px;
 width:100%;
@@ -218,19 +220,11 @@ width:100%;
 background-color: #CEDCE7;
 }
 .app-playing{
-color: #31505E;
+color: #1A90FF;
 }
 
 .songs-list-container {
-background: rgb(255,255,255); /* Old browsers */
-background: -moz-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(229,229,229,1) 100%); /* FF3.6+ */
-background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(255,255,255,1)), color-stop(100%,rgba(229,229,229,1))); /* Chrome,Safari4+ */
-background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* Chrome10+,Safari5.1+ */
-background: -o-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* Opera11.10+ */
-background: -ms-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* IE10+ */
-filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#e5e5e5',GradientType=0 ); /* IE6-9 */
-background: linear-gradient(top, rgba(255,255,255,1) 0%,rgba(229,229,229,1) 100%); /* W3C */
-border-bottom: 1px dotted #000000;
+background-color: transparent;
 padding-bottom: 8px;
 }
 
@@ -512,6 +506,18 @@ text-shadow: 1px 1px 1px #333;
 margin-bottom:5px;
 }
 
+.app-hotkey-category {
+border-bottom: 1px solid #4B6C91;
+margin-bottom: 5px;
+font-size: 11px;
+font-family: tahoma;
+color: #4B6C91;
+padding-bottom: 0px;
+letter-spacing: 2px;
+}
+
+.menul-clone		{background-image:url('../images/menu_clone.png');}
+.menul-hotkeys		{background-image:url('../images/menu_hotkeys_setup.png');}
 .menul-search		{background-image:url('../images/menu_search.png');}
 .menul-save		{background-image:url('../images/menu_playlist_save.png');}
 .menul-playlist		{background-image:url('../images/menu_playlist.png');}
@@ -623,7 +629,7 @@ margin: 0px auto;}
 .menuitemcon{height:24px;margin: 0px 3px;clear:both;}
 .menutitle{color:#191975;}
 .menuitemconact{color:#000000;border:1px solid transparent;}
-.menuitemconact:hover{border:1px solid #a2dcf4;border-radius:3px;-moz-border-radius:3px;background-color:#EEFFFF;}
+.menuitemconact:hover{border:1px solid #a2dcf4;border-radius:3px;-moz-border-radius:3px;}
 .menuitemconinact{color:#6D6D6D;border:1px solid transparent;}
 .menuitemconinact:hover{border:1px solid #ABABAB;border-radius:3px;-moz-border-radius:3px;}
 .menuleft{float:left;width:22px;height:24px;border-right:1px solid #E2E3E3;}
@@ -690,6 +696,8 @@ padding: 1px 6px;
 height:70px;
 padding: 0px 15px;
 }
+
+
 
 #app-header-main {
 height: 45px;
@@ -863,20 +871,18 @@ background-repeat: no-repeat;
 
 .app-action-disabled {
 border: 1px solid transparent !important;
-background-color: #FFFFFF !important;
+background-color: transparent !important;
 color: #A5A5A5 !important;
 cursor: default;
 }
 
 .app-action-tab:hover {
 border-bottom: 1px solid #E0E5FF;
-background-color: #F0F2FF;
 color: #000;
 }
 
 .app-action-tab-selected {
 border-bottom: 1px solid #E0E5FF;
-background-color: #F0F2FF;
 color: #000;
 }
 
@@ -884,6 +890,7 @@ color: #000;
 font-family: georgia;
 color: #343434;
 font-size: 19px;
+letter-spacing: 3px;
 }
 
 .app-bread-text {
@@ -902,13 +909,15 @@ padding: 2px 6px;
 outline: none;
 margin: 0;
 width: 180px;
-border: 1px solid transparent;
-background-color: #E3E5F2;
-color: #434E93;
-font-family: helvetica;
-box-shadow: 0px 0px 5px #434E93;
--webkit-box-shadow: 0px 0px 5px #434E93;
--moz-box-shadow: 0px 0px 5px #434E93;
+border: 1px solid #E3F5FD;
+background-color: #F5FBFF;
+color: black;
+font-family: tahoma;
+box-shadow: 0px 0px 5px #F0F2FF;
+-webkit-box-shadow: 0px 0px 5px #F0F2FF;
+-moz-box-shadow: 0px 0px 5px #F0F2FF;
+height: 12px;
+font-size: 12px;
 }
 
 .app-popup-closer {
@@ -927,10 +936,12 @@ background-position: 0px 0px;
 }
 
 .app-popup-container {
+border: 1px solid #CCCCCC;
+box-shadow: 0px 0px 4px #767676;
+-moz-box-shadow: 0px 0px 4px #767676;
+-webkit-box-shadow: 0px 0px 6px #767676;
 background-color: #FFFFFF;
 padding: 20px 30px;
-border: 1px solid #A5ABD5;
-box-shadow: 0px 0px 10px #A5ABD5;
 }
 
 #app-playlists-table {
@@ -958,6 +969,29 @@ top: 0px;
 left: 0px;
 z-index: 50;
 cursor: default;
+}
+
+
+#app-filter-results {
+height: 340px;
+overflow-x: hidden;
+overflow-y: auto;
+margin-top: 10px;
+position: relative;
+}
+
+.app-filter-result {
+width: 100%;
+height: 15px;
+font-size: 11px;
+cursor: pointer;
+color: #444444;
+}
+
+.app-filter-result-selected {
+background-color: #F5FCFF;
+color: black;
+
 }
 
 
@@ -1222,6 +1256,74 @@ cursor: default;
 display: none;
 }
 
+.app-hotkey-header{
+font-family: 'Trebuchet MS', tahoma, arial;
+font-weight: bold;
+color: #000000;
+}
+
+.app-hotkey-selected {
+border-bottom: 1px solid #E0E5FF !important;
+background-color: #F5FCFF;
+color: #000000;
+}
+
+#app-hotkeys-wrapper{
+width:290px;
+height:300px;
+float:left;
+color: #444444;
+}
+
+#app-describe-action {
+font-size: 11px;
+font-family: verdana;
+padding-top: 15px;
+}
+
+#app-hotkeys-container {
+height: 272px;
+margin-top:8px;
+overflow-x:hidden;
+overflow-y:scroll;
+}
+
+.app-hotkey-container {
+height:15px;
+margin: 3px 0px;
+width: 270px;
+font-size: 11px;
+cursor: pointer;
+border-bottom: 1px solid transparent;
+}
+
+#app-hotkey-bind-container {
+height: 30px;
+padding: 10px;
+width: 550px;
+margin: 10px auto 0px auto;
+display: none;
+}
+
+.app-hotkey-container:hover{
+color:black;
+}
+
+.app-hotkey-name {
+float:left;
+width:130px;
+padding-left: 5px;
+}
+
+.app-hotkey-binding {
+float:left;
+width:130px;
+text-align: left;
+}
+
+.clear{
+clear:both;
+}
 #goback:hover {
 color: #272727 !important;
 }
