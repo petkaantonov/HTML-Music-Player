@@ -136,7 +136,7 @@ HotkeyManager.Includes({
 					}
 
 				fn(e);
-				return false;
+				return true;
 				}
 			};
 		},
@@ -171,7 +171,7 @@ HotkeyManager.Includes({
 					node = node.parentNode;
 					}
 				fn(e);
-				return false;
+				return true;
 				}
 			};
 		}
@@ -344,24 +344,60 @@ hotkeys.defaults = {
 
 $.extend( hotkeys.defaults, storage.get( "hotkeys" ) );
 
+(function(){
+var timeoutid = 0, changesBegun = false;
+
+hotkeys.volumeUp = function(){
+		if( !changesBegun ) {
+		player.slider.onslidebegin.call( player.slider );
+		}
+	window.clearTimeout( timeoutid );
+	
+	timeoutid = window.setTimeout( 
+		function(){
+		changesBegun = false;
+		player.slider.onslideend.call( player.slider );
+		},
+		800
+	);
+	
+	changesBegun = true;
+	var curVol = player.main.getVolume() / 100 + 0.03;
+	curVol = curVol > 1 ? 1 : curVol;
+	player.slider.onslide( curVol );
+};
+hotkeys.volumeDown = function(){
+		if( !changesBegun ) {
+		player.slider.onslidebegin.call( player.slider );
+		}
+	window.clearTimeout( timeoutid );
+	
+	timeoutid = window.setTimeout( 
+		function(){
+		changesBegun = false;
+		player.slider.onslideend.call( player.slider );
+		},
+		800
+	);
+	changesBegun = true;
+	var curVol = player.main.getVolume() / 100 - 0.03;
+	curVol = curVol < 0 ? 0 : curVol;
+	player.slider.onslide( curVol );
+};
+
+
+})();
+
 hotkeys.descriptorMap = [{
 code: "VUP",
 action: "Volume up",
 description: "Increases volume by 3%.",
-	handler: function(){
-	var curVol = player.main.getVolume() / 100 + 0.03;
-	curVol = curVol > 1 ? 1 : curVol;
-	player.slider.onslide( curVol );
-	}
+	handler: hotkeys.volumeUp
 }, {
 code: "VDN",
 action: "Volume down",
 description: "Decreases volume by 3%.",
-	handler: function(){
-	var curVol = player.main.getVolume() / 100 - 0.03;
-	curVol = curVol < 0 ? 0 : curVol;
-	player.slider.onslide( curVol );	
-	}
+	handler: hotkeys.volumeDown
 }, {
 code: "PRV",
 action: "Previous track",
@@ -505,7 +541,11 @@ description: "Shuffles the selected tracks. Select all before this action to shu
 }, {
 code: "JSR",
 action: "Search",
-description: "Shortcut for activating search."
+description: "Shortcut for activating search.",
+	handler: function(){
+	$( "#app-search-box")[0].focus();
+	return false;
+	}
 }, {
 code: "JFL",
 action: "Filter",

@@ -60,6 +60,10 @@ var key, n, menu, elms = $( ".menul-select-all" ).add( ".menul-invert" );
 		menu.hide();
 		}
 	}
+	
+	if( menuId !== tabs.search ) {
+	$( "#app-search-info").html("");
+	}
 // Restore the scrolled value for this tab
 $( "#app-current-tab").html( tabs.captions[ menuId ] );
 scrolls.restore( menuId );

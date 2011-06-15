@@ -168,14 +168,31 @@ features.dragFiles = false;
 			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
-playlist.localFiles = new LocalFiles( allowtypes );
+playlist.localFiles = new LocalFiles( allowtypes, ["json"] );
+
+playlist.localFiles.container = [];
+
+playlist.localFiles.onvalidfile = function( file, mime, ext ) {
+	if( ext != "json" ) {
+	playlist.localFiles.container.push( {name: file.name, url: file} );
+	}
+	else {
+	playlist.loader["import"]( file );
+	}
+};
+
+playlist.localFiles.oncomplete = function( length ) {
+$("#file-folder-input").removeFiles();
+	if( playlist.localFiles.container.length ) {
+	playlist.main.add( playlist.localFiles.container );
+	}
+playlist.localFiles.container = [];
+};
+
+
 playlist.localFiles.onhandle = function(files){
 
-$("#file-folder-input").removeFiles();
 
-	if( files.length ) {
-	playlist.main.add( files );
-	}
 };
 
 	

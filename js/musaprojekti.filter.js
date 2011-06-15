@@ -1,29 +1,13 @@
 var filter = filter || {};
 
 
-filter.scrollIntoView = function( node, parentNode ) {
-	if( !node || !parentNode ) {
-	return;
-	}
-var nodeOffset = node.offsetTop, parentHeight = parentNode.offsetHeight,
-	parentScrollTop = parentNode.scrollTop, dif, mid;
-	
-dif = nodeOffset - ( parentHeight / 2 );
-
-	if( dif < 0 ) {
-	dif = 0;
-	}
-parentNode.scrollTop = dif;
-	
-};
-
 filter.applySelection = function(){
 obj = filter.searcher.getResultByIndex( filter.selected );
 		if( obj) {
 		playlist.main.changeSong( obj.hash );
 		popup.closeAll();
 		elm = document.getElementById( "app-song-"+playlist.main.getPositionByHash( obj.hash ) ).parentNode;
-		filter.scrollIntoView( elm, elm.parentNode );
+		util.scrollIntoView.alignMiddle( elm, elm.parentNode );
 		}		
 };
 
@@ -94,38 +78,52 @@ selections.onscroll = function( idx ){
 var node;
 	if( idx != null ) {
 	node = document.getElementById( "filter-result-"+idx);
-	filter.scrollIntoView( node, node.parentNode );
+	util.scrollIntoView.alignMiddle( node, node.parentNode );
 
 	}
 };
 
 $(document).bind("keydown", traveler);
 
-$( "#app-filter-input" ).bind( "keydown", function(e) {
-var obj;
-e.stopPropagation();
-	switch( e.which ) {
-	case 39:
-	case 37:
-	return true;
-	case 38:
-	selections.prev();
-	return false;
-	case 40:
-	selections.next();
-	return false;
-	case 27:
-	this.value = "";
-	this.blur();
-	popup.closeAll();
-	return true;
-	case 13:
-	filter.applySelection();
-	return true;
-	}
-	
-filter.searcher.search( this.value );
-})[0].focus();
+(function(){
+var searchApply = false;
+	$( "#app-filter-input" ).bind( "keydown", 
+		function(e) {
+		var obj, keyCode = e.which;
+		e.stopPropagation();
+			switch( keyCode) {
+			case 39:
+			case 37:
+			return true;
+			case 38:
+			selections.prev();
+			return false;
+			case 40:
+			selections.next();
+			return false;
+			case 27:
+			this.value = "";
+			this.blur();
+			popup.closeAll();
+			return true;
+			case 13:
+			filter.applySelection();
+			return true;
+			}
+
+		searchApply = true;
+		}
+	).bind("keyup",
+		function(e){
+			if( searchApply == true ) {
+			filter.searcher.search( this.value );	
+			}
+		searchApply = false;
+		}
+	)[0].focus();
+})();
+
+
 
 popup.closeEvent( function(){ 
 $(document).unbind("keydown", traveler );

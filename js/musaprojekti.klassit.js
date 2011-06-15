@@ -716,7 +716,7 @@ Selectable.Includes({
 		this._selection = [(++cur >= this.max ? this.max-1 : cur )];
 		}
 		else {
-		this._selection = [this.max - 1];
+		this._selection = [0];
 		}
 	this._render( false );
 	},
@@ -888,13 +888,19 @@ TraversableSingleSelectable.Inherits( SingleSelectable ).Includes({
 	}
 });
 function DraggableSelection( target, selectable, playlist, itemHeight, selector ) {
-var self = this, tar, tgt;
+var self = this;
 
+target = typeof target == "string" ? document.getElementById( target ) : target;
+
+	if( !target.id ) {
+	target.id = "draggable-container-"+(+new Date );
+	}
+	
+this._target = target.id;
 this._songList = playlist._hashList;
 this._selection = selectable._selection;
 this._selectable = selectable;
 this._playlist = playlist;
-this._target = typeof target == "string" ? document.getElementById( target ) : target;
 this._proximity = [];
 this._selector = selector;
 this._itemHeight = itemHeight;
@@ -904,75 +910,92 @@ this._prevTotalOffset = null;
 this._listOffset = 0;
 this._listHeight = 0;
 this._itemHeight = itemHeight;
-
-tar = $( this._target );
-tgt = this._target;
-	tar.bind( "selectstart", function(){
-	return false;
-	});
-
-	tar.delegate( selector, "mousedown", function( evt ) {
-		if( evt.which !== 1 ) {
-		return true;
-		}
-	self._listOffset = tgt.offsetTop;
-	self._listHeight = tgt.offsetHeight;
-	self._proximity = self._selectable._selection.mapProximity();
-	self._nodes = $( self._selector ).toArray();
-
-		tar.bind("scroll", function( e ){
-		tar.trigger("moving", [e] );
-		});
-
-		$( document ).bind("mousemove", function( e ){	
-		tar.trigger("moving", [e] );
-		});
-	});
-	
-	$( document ).bind( "mouseup", function(){
-	tar.unbind( "scroll" );
-	$( document ).unbind( "mousemove" );
-	self._prevTotalOffset = null;
-		if( self._posChanged ) {
-		self._posChanged = false;
-		self._playlist.render();
-		
-		}
-	
-	});
-	
-	tar.bind( "moving", function( evt, evtreal ) {
-	var coordsY = evtreal.pageY, curTotalOffset = coordsY + this.scrollTop,
-		direction, treshold, selection = self._selectable._selection, target,
-		lastSong = self._playlist._hashList.length - 1, prevTotalOffset = self._prevTotalOffset,
-		listOffset = self._listOffset, listHeight = self._listHeight, itemHeight = self._itemHeight;
-	
-		if( prevTotalOffset == null || prevTotalOffset === curTotalOffset) {
-		self._prevTotalOffset = curTotalOffset;
-		return true;
-		}
-		
-	coordsY = coordsY - listOffset > listHeight ? listHeight + listOffset : coordsY;
-	coordsY = coordsY - listOffset < 0 ? listOffset : coordsY;
-	direction = curTotalOffset > prevTotalOffset ? "down" : "up";
-	
-	treshold = ( ( prevTotalOffset - listOffset ) / itemHeight ) >> 0;
-	self._prevTotalOffset = curTotalOffset;
-	target = ( ( curTotalOffset - listOffset ) / itemHeight ) >> 0;
-
-		if( target !== treshold ) {
-		
-			if( 	( selection.bSearch( 0 ) > -1 && direction == "up" ) ||
-				( selection.bSearch( lastSong ) > -1 && direction === "down" ) ){
-			return true;
-			}
-		
-		self._multiSwap[ direction ].call( self, target );
-		}
-	});	
+this._lastCoord = 0;
+this._init();
 }
 
 DraggableSelection.Includes({
+	_mouseup: $.noop,
+	_trigger: $.noop,
+	_createMouseRelease: function(){
+	var self = this;
+		return function(){
+			$( "#"+self._target ).unbind( "scroll", self._trigger );
+			$( document ).unbind( "mousemove", self._trigger ).unbind("mouseup", self._mouseup);
+			self._prevTotalOffset = null;
+				if( self._posChanged ) {
+				self._posChanged = false;
+				self._playlist.render();
+				}
+		};
+	},
+	_createTriggerer: function(){
+	var self = this;
+		return function(e){
+		$( "#"+self._target).trigger( "moving", [e] );
+		};
+	},
+	_init: function(){
+	var self = this;
+	this._trigger = this._createTriggerer();
+	this._mouseup = this._createMouseRelease();
+		$("#"+this._target).bind( "selectstart", 
+			function(){
+			return false;
+			}
+		).delegate( this._selector, "mousedown",
+			function( evt ) {
+			var parent;
+				if( evt.which !== 1 ) {
+				return true;
+				}
+			parent = document.getElementById( self._target );	
+			self._listOffset = parent.offsetTop;
+			self._listHeight = parent.offsetHeight;
+			self._proximity = self._selectable._selection.mapProximity();
+			self._nodes = $( self._selector ).toArray();
+			$( parent ).bind("scroll", self._trigger );
+			$( document ).bind("mousemove", self._trigger ).bind( "mouseup", self._mouseup );
+			}
+		).bind( "moving",
+			function( evt, evtreal ) {
+			var undef;
+				if( evtreal.pageY === undef ) {
+				evtreal.pageY = self._lastCoord;
+				}
+				else {
+				self._lastCoord = evtreal.pageY;
+				}
+			var coordsY = evtreal.pageY, curTotalOffset = coordsY + this.scrollTop,
+				direction, treshold, selection = self._selectable._selection, target,
+				lastSong = self._playlist._hashList.length - 1, prevTotalOffset = self._prevTotalOffset,
+				listOffset = self._listOffset, listHeight = self._listHeight, itemHeight = self._itemHeight;
+
+				if( prevTotalOffset == null || prevTotalOffset === curTotalOffset) {
+				self._prevTotalOffset = curTotalOffset;
+				return true;
+				}
+
+			coordsY = coordsY - listOffset > listHeight ? listHeight + listOffset : coordsY;
+			coordsY = coordsY - listOffset < 0 ? listOffset : coordsY;
+			direction = curTotalOffset > prevTotalOffset ? "down" : "up";
+
+			treshold = ( ( prevTotalOffset - listOffset ) / itemHeight ) >> 0;
+			self._prevTotalOffset = curTotalOffset;
+			target = ( ( curTotalOffset - listOffset ) / itemHeight ) >> 0;
+
+				if( target !== treshold ) {
+
+					if( 	( selection.bSearch( 0 ) > -1 && direction == "up" ) ||
+						( selection.bSearch( lastSong ) > -1 && direction === "down" ) ){
+					return true;
+					}
+
+				self._multiSwap[ direction ].call( self, target );
+				}
+			}
+		);	
+	},
 	_multiSwap: {
 			up : function( calledTarget ){
 			var pMap = this._proximity, selection = this._selectable._selection,
@@ -1244,60 +1267,84 @@ this._suggestAction = opts && opts.suggestAction || function( value, index ){};
 this._suggestions = [];
 this._hasSuggestions = false;
 this._activeSuggestion = -1;
+this._init();
 
-	$( "#"+this._target ).delegate( this._suggestClass, "mousedown", function(e){
-	var id = this.id, index = +( id.substr( id.lastIndexOf( "-" ) + 1 ) );
-	
-		if( e.which === 1 ) {
-		self.hide();
-		self._suggestAction.call( self, self._suggestions[ index ], index  );
-		}
-	
-	}).hide();
 
-	$( document ).bind( "mouseup", function(){
-	self.hide();
-	});
-	
-	$( document ).bind( "keyup", function(e){
-	var suggestLength, idvar = self._activeSuggestion;
-	
-		if( !self._hasSuggestions ) {
-		return true;
-		}
-	
-	suggestLength = self._suggestions.length;
-	
-		if( e.which == 27 ) {
-		return self.hide();
-		}
-
-		else if ( e.which == 13 ) {
-
-			if( self._activeSuggestion > -1 ) {
-			self._suggestAction.call( self, self._suggestions[ self._activeSuggestion ], self._activeSuggestion  );
-			self.hide();
-			}
-
-		}
-		else if( self._browsekeys[ e.which ]  ) {
-		$( "." + self._activeClass ).removeClass( self._activeClass );
-		idvar += self._browsekeys[ e.which ];
-		idvar = idvar > suggestLength - 1 ? 0 : idvar;
-		idvar = idvar < 0 ? suggestLength - 1 : idvar;
-		self._activeSuggestion = idvar;
-		$( "#suggestion-"+idvar).addClass( self._activeClass );
-
-		}
-	});
 
 }
 
 SearchSuggestions.Includes( {
+	onsuggest: $.noop,
+	_mouseup: $.noop,
+	_mousedown: $.noop,
+	_createKeyUp: function(){
+	var self = this;
+		return  function(e){
+		var suggestLength, idvar = self._activeSuggestion;
+		
+			if( !self._hasSuggestions ) {
+			return true;
+			}
+		
+		suggestLength = self._suggestions.length;
+		
+			if( e.which == 27 ) {
+			return self.hide();
+			}
+	
+			else if ( e.which == 13 ) {
+	
+				if( self._activeSuggestion > -1 ) {
+				self._suggestAction.call( self, self._suggestions[ self._activeSuggestion ], self._activeSuggestion  );
+				self.hide();
+				}
+	
+			}
+			else if( self._browsekeys[ e.which ]  ) {
+			$( "." + self._activeClass ).removeClass( self._activeClass );
+			idvar += self._browsekeys[ e.which ];
+			idvar = idvar > suggestLength - 1 ? 0 : idvar;
+			idvar = idvar < 0 ? suggestLength - 1 : idvar;
+			self._activeSuggestion = idvar;
+			$( "#suggestion-"+idvar).addClass( self._activeClass );
+	
+			}
+		};
+	},
+	_createMouseUp: function(){
+	var self = this;
+		return function(e){
+			if( e.which !== 1 ) {
+			return true;
+			}
+		self.hide();
+		}
+	},
+	_init: function(){
+	var self = this;
+	
+	this._mouseup = this._createMouseUp();
+	this._keyup = this._createKeyUp();
+	
+		$( "#"+this._target ).delegate( this._suggestClass, "mousedown", function(e){
+		
+		var id = this.id, index = +( id.substr( id.lastIndexOf( "-" ) + 1 ) );
+		
+			if( e.which === 1 ) {
+			self.hide();
+			self._suggestAction.call( self, self._suggestions[ index ], index  );
+			}
+		
+		}).hide();	
+	},
 	getActiveSuggestion: function(){
 	return this._activeSuggestion > -1 ? this._suggestions[ this._activeSuggestion ] : null;
 	},
-
+	
+	replaceBold: function( str ){
+	return "<b>" + str + "</b>";
+	},
+	
 	_browsekeys: {
 		37:-1,
 		38:-1,
@@ -1305,26 +1352,29 @@ SearchSuggestions.Includes( {
 		40:1
 	},
 	
-	newSuggestions: function( arr ) {
+	newSuggestions: function( arr, query ) {
 	this.hide();
 	var i, l = arr.length, elm = document.getElementById( this._target ),
-		div, txt, frag = document.createDocumentFragment();
+		div, txt, frag = document.createDocumentFragment(), matchAgainst, str;
 	this._suggestions = arr;
 	
 		if( !l ) {
 		return;
 		}
-	
+		
+	$( document ).bind( "mouseup", this._mouseup ).bind( "keyup", this._keyup );
+	matchAgainst = new RegExp("(" + query.split(" ").join("|") + ")", "gi");
+		
 		for( i = 0; i < l; ++i ) {
-		txt = document.createTextNode( arr[i] );
 		div = document.createElement("div");
 		div.id = "suggestion-"+i;
 		div.className = this._className;
-		div.appendChild( txt );		
+		div.innerHTML = arr[i].replace( matchAgainst, this.replaceBold );
 		frag.appendChild( div );
 		}
 	elm.appendChild( frag );
 	elm.style.display = "block";
+	this.onsuggest.call( this, elm );
 	this._hasSuggestions = true;	
 	return this;
 	},
@@ -1332,6 +1382,7 @@ SearchSuggestions.Includes( {
 	this._activeSuggestion = -1;
 	this._hasSuggestions = false;
 	$( "#"+this._target ).empty().hide();
+	$( document ).unbind( "mouseup", this._mouseup ).unbind( "keyup", this._keyup );
 	return this;
 	}
 	
@@ -1406,8 +1457,9 @@ Search.Includes({
 	getContainer: function(){
 	return this._results;
 	},
-	onbeforesearch: function( query, type ){},
-	onaftersearch: function( query, type, results ){},
+	onsearchresults: $.noop,
+	onbeforesearch: $.noop,
+	onaftersearch: $.noop,
 	addType: function( name, fn, callback ) {
 	this._searchTypes[ name ] = fn;
 	return this;
@@ -1428,29 +1480,14 @@ Search.Includes({
 	addResults: function( arr, query, type ) {
 	this.onaftersearch( query, type, arr.length );
 	this._searching = false;
-	var i, l = arr.length, div, frag = document.createDocumentFragment(), txt;
-	
+	var i, l = arr.length;
 
-	
 		if( !l) {
-		
 		return this;
 		}
 	
 	this._results = arr;
-	
-		for( i = 0; i < l; ++i ) {
-		txt = document.createTextNode( arr[i].name );
-		div = document.createElement( "div" );
-		div.className = this._className;
-		div.id = "result-"+i;
-		div.appendChild( txt );
-		frag.appendChild( div );
-	
-		}
-	
-	document.getElementById( this._target ).appendChild( frag );
-
+	this.onsearchresults.call( this, arr, query );
 	return this;
 	}
 
@@ -2005,6 +2042,7 @@ Table.Includes({
 
 		for( i = 0, l = opts.length; i < l; ++i ) {
 		tr = this._generateRow( opts[i], cb  );
+		tr.id = this._className + "-" +this.length;
 		data = this._nodecache._getData( tr );
 		data.nth = this.length;
 		data.rowdata = opts[i];
@@ -2454,16 +2492,25 @@ hoverClass = hoverClass || null;
 };
 
 
-function LocalFiles( allowtypes ){
-this._allowed = allowtypes && allowtypes.join( " " ) || "";
-this._allowed = " " + this._allowed + " ";
+function LocalFiles( allowMime, allowExt ){
+var i, l;
+this._mimes = {};
+this._extensions = {};
+	for( i = 0, l = allowMime && allowMime.length || 0; i < l; ++i ) {
+	this._mimes[allowMime[i]] = true;
+	}
+	for( i = 0, l = allowExt && allowExt.length || 0; i < l; ++i ) {
+	this._extensions[allowExt[i]] = true;
+	}
+	
 }
 
 LocalFiles.Includes({
-	onhandle: function( filtered ){},
+	oncomplete: $.noop,
+	onvalidfile: $.noop,
 	handle: function( files ){
 	var l = files && files.length, i, name, type, handle, r = [], testStr = this._allowed,
-		file;
+		file, ext, exts = this._extensions, mimes = this._mimes, c = 0;
 	
 		if( !l ) {
 		return this;
@@ -2471,14 +2518,15 @@ LocalFiles.Includes({
 		
 		for( i = 0; i < l; ++i ) {
 		file = files[i];
+		ext = file.name.substr( file.name.lastIndexOf( "." ) + 1 );
 		type = file.type;
 		
-			if( testStr.indexOf( " " + type + " " ) > -1 ) {
-			r.push( {name: file.name, url: file });
+			if( ext in exts || type in mimes ) {
+			c++;
+			this.onvalidfile.call( this, file, type, ext );
 			}
-	
 		}
-	this.onhandle.call( this, r );
+	this.oncomplete.call( this, c );
 	return this;
 	}
 });
@@ -2560,9 +2608,26 @@ Slider.Includes({
 
 function Player(){
 this.__volume = 0;
+this.__mutedVolume = 0;
+this.__isMuted = false;
 }
 
 Player.Includes({
+	isMuted: function(){
+	return this.__isMuted;
+	},
+	toggleMute: function(){
+	this.__isMuted = this.__isMuted ? false : true;
+		if( this.__isMuted ) {
+		this.__mutedVolume = this.__volume;
+		this.setVolume( 0 );
+		return 0;
+		}
+		else {
+		this.setVolume( this.__mutedVolume );
+		return this.__volume;
+		}
+	},
 	getVolume: function(){
 	return this.__volume;
 	},

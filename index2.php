@@ -26,7 +26,7 @@ APM: <span id="apm-total">00.00</span>
 </div>
 -->
 <div id="wrapper">
-
+<div id="app-search-suggestions-container"></div>
 <div id="app-loader">
 	<div id="app-loading-container">
 		<span id="app-load-text">
@@ -86,6 +86,9 @@ APM: <span id="apm-total">00.00</span>
 		</div>
 		<div id="app-right">
 			<div id="app-menu-right">
+				<ul class="app-action-tabs-container">
+					<li class="menul-sub-title" id="app-recent-searches-header">Recent searches</li>
+				</ul>
 			</div>
 		
 		</div>
@@ -136,6 +139,7 @@ APM: <span id="apm-total">00.00</span>
 							<div title="Skip / Next" class="fwpic blbuttonhov unselectable" id="skipbut"></div>
 						</div>
 						<div id="app-volume-controls">
+							<div id="app-volume-percentage"></div>
 							<div id="app-volume-mute"></div>
 							<div id="app-volume-slider-clickarea">
 								<div id="app-volume-slider-wrap">
@@ -147,42 +151,28 @@ APM: <span id="apm-total">00.00</span>
 					</div>
 				</div>
 				<div id="app-header-main">
+					<div id="app-search-box-container">
+						<img id="app-search-submit" src="images/magnifier.png">
+						<input id="app-search-box" autocomplete="off" spellcheck="false" />
+					</div>
+					<div id="app-search-modes-container">
+						<span style="display:inline-block; margin-right: 5px;">From: </span>
+						<input id="app-youtube-mode" type="radio" name="smode" checked="">
+						<label id="app-mode-youtube-label" class="app-mode-label app-mode-label-selected" for="app-youtube-mode">Youtube</label>
+						<input id="app-mp3-mode" type="radio" name="smode">
+						<label id="app-mode-mp3-label" class="app-mode-label" for="app-mp3-mode">MP3</label>
+					</div>
 				</div>
 			</div>
 			<div id="app-content-holder">
 
 				<div class="content" id="app-search-wrapper" style="height:475px;">
-					<div id="app-search-container">
-						<div id="app-search-modes">
-							Search from <input id="app-youtube-mode" type="radio" name="smode" checked /> <label for="app-youtube-mode">Youtube</label>
-							<input id="app-mp3-mode" type="radio" name="smode"/> <label for="app-mp3-mode">MP3</label>
-						</div>
-					
-						<div id="app-search-box-container">
-							<div id="app-search-suggestions-container">
-							</div>
-							<img id="app-search-submit" src="images/magnifier.png">
-							<input id="app-search-box" autocomplete="off" spellcheck="false" />		
-						</div>
-						<div id="app-search-info">
-							
-						</div>
-					</div>
-					<div id="app-search-content">
-						<div id="app-search-right">
-							<div id="app-recent-searches-header">Recent Searches</div>
-						</div>
-						<div id="app-search-left">
-							<div id="app-result-container" class="songs-list-container">							
-							</div>
-						</div>
-
-			
-					</div>
+					<div id="app-result-container" class="songs-list-container"></div>
 				</div>
 				<div class="content songs-list-container" id="playlist" style="height:475px;"></div>
 				<div class="content" id="video"></div>
 			</div>
+			<div id="app-search-info"></div>
 			<div id="containplayers">
 				<div class="disable-youtube-watch"></div>
 				<div id="sinatuubi" class="youtubehide"></div>
@@ -207,6 +197,7 @@ APM: <span id="apm-total">00.00</span>
 <script type="text/javascript" src="js/musaprojekti.features.js"></script>
 <script type="text/javascript" src="js/musaprojekti.tabs.js"></script>
 <script type="text/javascript" src="js/musaprojekti.hotkeys.js"></script>
+
 
 </body>
 </html>

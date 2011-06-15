@@ -1,3 +1,40 @@
+var util = util || {};
+
+util.toTimeString = function( secs ) {
+var days, hours, minutes, seconds;
+
+	if( secs == null )
+	return "";
+	
+days = ( secs / 86400 ) >> 0;
+hours = ( secs % 86400 / 3600 ) >> 0;
+minutes = ( secs % 3600 / 60 ) >> 0;
+seconds = ( secs % 60 );	
+seconds = seconds < 10 ? "0" + seconds : seconds;
+minutes = minutes < 10 ? "0" + minutes : minutes;
+hours = hours && hours < 10 ? "0" + hours : hours;
+
+return "" + ( days ? days+" - " : "" ) + ( hours ? hours+":" : "" ) + minutes + ":" + seconds;		
+};
+
+util.scrollIntoView = {
+	alignMiddle: function( node, parentNode ){
+		if( !node || !parentNode ) {
+		return;
+		}
+	var nodeOffset = node.offsetTop, parentHeight = parentNode.offsetHeight,
+		parentScrollTop = parentNode.scrollTop, dif, mid;
+		
+	dif = nodeOffset - ( parentHeight / 2 );
+	
+		if( dif < 0 ) {
+		dif = 0;
+		}
+	parentNode.scrollTop = dif;	
+	}
+};
+
+
 Function.prototype.Inherits = function() {
 var args = Array.prototype.slice.call( arguments, 0 );
 var parent;
@@ -135,24 +172,6 @@ var funstr = this.name ? this.name.toString() : this.toString().match( /function
 return this;
 };
 
-var util = {};
-
-util.toTimeString = function( secs ) {
-var days, hours, minutes, seconds;
-
-	if( secs == null )
-	return "";
-	
-days = ( secs / 86400 ) >> 0;
-hours = ( secs % 86400 / 3600 ) >> 0;
-minutes = ( secs % 3600 / 60 ) >> 0;
-seconds = ( secs % 60 );	
-seconds = seconds < 10 ? "0" + seconds : seconds;
-minutes = minutes < 10 ? "0" + minutes : minutes;
-hours = hours && hours < 10 ? "0" + hours : hours;
-
-return "" + ( days ? days+" - " : "" ) + ( hours ? hours+":" : "" ) + minutes + ":" + seconds;		
-};
 
 String.prototype.htmlDecode = function(){
 return this
@@ -329,6 +348,8 @@ var r = {}, key, check = {};
 	}
 return r;
 };
+
+
 
 function g(a){var b=typeof a;if(b=="object")if(a){if(a instanceof Array)return"array";else if(a instanceof Object)return b;var c=Object.prototype.toString.call(a);if(c=="[object Window]")return"object";if(c=="[object Array]"||typeof a.length=="number"&&typeof a.splice!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("splice"))return"array";if(c=="[object Function]"||typeof a.call!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("call"))return"function"}else return"null";
 else if(b=="function"&&typeof a.call=="undefined")return"object";return b};function h(a){var a=String(a),b;b=/^\s*$/.test(a)?!1:/^[\],:{}\s\u2028\u2029]*$/.test(a.replace(/\\["\\\/bfnrtu]/g,"@").replace(/"[^"\\\n\r\u2028\u2029\x00-\x08\x10-\x1f\x80-\x9f]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:[\s\u2028\u2029]*\[)+/g,""));if(b)try{return eval("("+a+")")}catch(c){}throw Error("Invalid JSON string: "+a);}function i(a){var b=[];j(new k,a,b);return b.join("")}function k(){}
