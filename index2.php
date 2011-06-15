@@ -14,6 +14,7 @@ header('Content-Type: text/html; charset=iso-8859-1');
 <script type="text/javascript">var __IP_GET__ = (function(){var __IP_ADDRESS__ = "<?php echo $_SERVER['REMOTE_ADDR']; ?>";return function(){return __IP_ADDRESS__;};})();</script>
 <script type="text/javascript" src="js/jquery.js"></script>
 <script type="text/javascript" src="js/jsonschema.js"></script>
+<script type="text/javascript" src="js/musaprojekti.debug.js"></script>
 <script type="text/javascript" src="js/musaprojekti.util.js"></script>
 <script type="text/javascript" src="js/musaprojekti.klassit.js"></script>
 
@@ -45,21 +46,26 @@ APM: <span id="apm-total">00.00</span>
 		<div id="app-left">
 			<div id="app-menu-left">
 				<ul class="app-action-tabs-container" style="margin-left:12px;">
-					<li class="menul-sub-title">View</li>
+					<li class="menul-sub-title">View <div class="app-sub-title-addon" id="app-current-tab">Playlist</div></li>
 					<div id="app-tabs-container">
 					 	<div id="app-changes-container">
 
 					 	</div>
 					</div>
-					<li class="menul-sub-title">Action</li>
-					<li class="app-action-tab menul-hotkeys">Hotkey setup</li>
-					<li class="app-action-tab menul-save">Save playlist</li>
-					<li class="app-action-tab menul-load">Load playlist</li>
+					<li class="menul-sub-title">Tracks</li>
+
+					<li class="app-action-tab menul-save">Save</li>
+					<li class="app-action-tab menul-load">Load</li>
 					<li class="app-action-tab menul-folder">Add a folder</li>
 					<li class="app-action-tab menul-select-all">Select all</li>
 					<li class="app-action-tab menul-invert">Invert selection</li>
+					<li class="app-action-tab menul-filter">Filter</li>
 					
-					<li class="menul-sub-title">Selection <div id="app-selection-count">0 items</div></li>
+					<li class="menul-sub-title">Settings</li>
+					<li class="app-action-tab menul-hotkeys">Hotkey setup</li>
+					<li class="app-action-tab menul-features">Feature test</li>
+					
+					<li class="menul-sub-title">Selection <div class="app-sub-title-addon" id="app-selection-count">0 items</div></li>
 					<ul class="app-action-tabs-container" id="search-action-menu">
 						<li class="app-action-tab menul-play">Play</li>
 						<li class="app-action-tab menul-download">Download</li>
@@ -121,7 +127,7 @@ APM: <span id="apm-total">00.00</span>
 						<div id="app-song-display"></div>
 						</div>
 					</div>
-					<div id="playercontrols">
+					<div id="app-player-controls">
 						<div style="float:left;width:115px;">
 							<div title="Reset / Previous" class="bwpic blbuttonhov unselectable" id="prevbut"></div>
 							<div title="Play / Begin" class="playpic blbuttonhov unselectable" id="playbut"></div>
@@ -129,9 +135,13 @@ APM: <span id="apm-total">00.00</span>
 							<div title="Stop" class="stoppic blbuttonhov unselectable" id="stopbut"></div>
 							<div title="Skip / Next" class="fwpic blbuttonhov unselectable" id="skipbut"></div>
 						</div>
-						<div style="float:right;width: 143px; padding-top: 3px;">
-							<span id="volcontrol"></span><div class="unselectable" id="volumewrap">
-								<div id="volumeindex" class="unselectable" style="left: -100%; "></div>
+						<div id="app-volume-controls">
+							<div id="app-volume-mute"></div>
+							<div id="app-volume-slider-clickarea">
+								<div id="app-volume-slider-wrap">
+									<div id="app-volume-slider-knob"></div>
+									<div id="app-volume-slider-bg"></div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -192,6 +202,7 @@ APM: <span id="apm-total">00.00</span>
 <script type="text/javascript" src="js/musaprojekti.callit.js"></script>
 <script type="text/javascript" src="js/musaprojekti.search.js"></script>
 <script type="text/javascript" src="js/musaprojekti.playlist.js"></script>
+<script type="text/javascript" src="js/musaprojekti.player.js"></script>
 <script type="text/javascript" src="js/musaprojekti.filter.js"></script>
 <script type="text/javascript" src="js/musaprojekti.features.js"></script>
 <script type="text/javascript" src="js/musaprojekti.tabs.js"></script>

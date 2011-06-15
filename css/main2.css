@@ -32,6 +32,8 @@ display: table-cell;
 vertical-align: middle;
 }
 
+
+
 .app-popup-button {
 border: 1px solid #E2F7FE;
 box-shadow: 0px 0px 4px #A8B7FF;
@@ -362,7 +364,7 @@ background-color:#CBDFED;
 
 
 .muted {cursor:pointer;background-image: url('../images/sound_mute2.png') !important;background-color:transparent !important;background-position:-4px 0px;background-repeat:no-repeat;}
-#volcontrol{background-image: url('../images/sound2.png');  display: inline-block; width: 16px; height: 16px; background-color: #E1EDF5;cursor:pointer;}
+
 #cancelimg{background-image:url('../images/plimages.png');background-position:-37px 0;width:14px;height:14px;cursor:pointer;margin-top:3px;}
 .problem{background-image:url('../images/plimages.png');background-position:-284px 0px;width:14px;height:14px;}
 .addtoplaylist{background-image:url('../images/plimages.png');background-position: 0px 0px;width:16px;height:16px;}
@@ -497,13 +499,69 @@ padding: 0;
 margin: 0;
 }
 
-.menul-sub-title{
+.menul-sub-title {
 font-size: 13px;
-letter-spacing: 1px;
+letter-spacing: 2px;
 font-weight: bold;
-color: #000070;
-text-shadow: 1px 1px 1px #333;
-margin-bottom:5px;
+color: #4B6C91;
+margin-bottom: 5px;
+border-bottom: 1px solid #4B6C91;
+line-height: 15px;
+}
+
+#app-volume-mute{
+background-image: url('../images/sound2.png');
+display: inline-block;
+width: 16px;
+height: 16px;
+background-color: #E1EDF5;
+cursor:pointer;
+}
+
+#app-volume-controls {
+float:right;
+width: 143px;
+padding-top: 3px;
+position:relative;
+}
+
+#app-volume-slider-knob {
+width: 18px;
+height: 13px;
+background-image: url('../images/volume_slider_knob.png');
+background-repeat: no-repeat;
+position: absolute;
+top: -5px;
+left: -5px;
+z-index:10;
+}
+
+#app-volume-slider-clickarea {
+position: absolute;
+right: 5px;
+top: 0px;
+width: 112px;
+height: 26px;
+}
+
+#app-volume-slider-wrap {
+width: 110px;
+height: 3px;
+background: white;
+position: relative;
+z-index: 1;
+border: 1px solid #E2F7FE;
+-webkit-box-shadow: 0px 0px 3px #A8B7FF;
+box-shadow: 0px 0px 3px #A8B7FF;
+-moz-box-shadow: 0px 0px 3px #A8B7FF;
+top: 9px;
+}
+
+#app-volume-slider-bg {
+height: 3px;
+width: 0px;
+background: url('../images/volume_slider_bg.png');
+background-repeat: repeat-x;
 }
 
 .app-hotkey-category {
@@ -516,6 +574,7 @@ padding-bottom: 0px;
 letter-spacing: 2px;
 }
 
+.menul-features		{background-image:url('../images/menu_features.png');}
 .menul-clone		{background-image:url('../images/menu_clone.png');}
 .menul-hotkeys		{background-image:url('../images/menu_hotkeys_setup.png');}
 .menul-search		{background-image:url('../images/menu_search.png');}
@@ -539,7 +598,7 @@ letter-spacing: 2px;
 .menul-queue-remove	{background-image:url('../images/menu_queue_remove.png');}
 .menul-load		{background-image:url('../images/menu_playlist_load.png');}
 
-#app-selection-count {
+.app-sub-title-addon {
 font-size: 10px;
 letter-spacing: 0px;
 font-weight: normal;
@@ -595,7 +654,10 @@ margin: 0px 7px;
 }
 
 #wrapper{width:100%;margin:0;display:block;}
-#playercontrols{height:20px;margin-top:5px;}
+#app-player-controls{
+height:25px;
+margin-top:5px;
+}
 .unselectable{cursor:default;-moz-user-select: none;-khtml-user-select: none;user-select: none;}
 .volumecontainer{width:36px;height:100px;position:absolute;right:10px;bottom:10px;}
 .searchwrapper{height:20px;width:264px;position:relative;z-index:1000;margin-left:auto;margin-right:auto;top:5px;}
@@ -773,6 +835,7 @@ position: relative;
 height: 380px;
 overflow-x: hidden;
 overflow-y: auto;
+position: relative;
 }
 
 #app-search-suggestions-container {
@@ -859,9 +922,8 @@ font-size: 13px;;
 font-family: "Trebuchet MS", arial, verdana, sans-serif;
 font-size: 11px;
 font-weight: bold;
-color: #323232;
+color: #434343;
 cursor: pointer;
-border: 1px solid transparent;
 margin-left: 10px;
 margin-bottom: 3px;
 padding-left: 20px;
@@ -877,13 +939,13 @@ cursor: default;
 }
 
 .app-action-tab:hover {
-border-bottom: 1px solid #E0E5FF;
-color: #000;
+background-color: #F2F5F8;
+color: #000000;
 }
 
-.app-action-tab-selected {
-border-bottom: 1px solid #E0E5FF;
-color: #000;
+.app-action-tab-hover {
+background-color: #F2F5F8;
+color: #000000;
 }
 
 .app-header-2 {
@@ -953,23 +1015,6 @@ overflow: auto;
 color: #8B0000;
 }
 
-#app-proceed-load {
-position: absolute;
-top: 0px;
-left: 0px;
-z-index: 1;
-}
-
-.hidden-file-input-hack {
-opacity: 0;
--moz-opacity: 0;
-filter: alpha('opacity=0');
-position: absolute;
-top: 0px;
-left: 0px;
-z-index: 50;
-cursor: default;
-}
 
 
 #app-filter-results {

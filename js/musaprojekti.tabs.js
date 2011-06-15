@@ -1,20 +1,20 @@
-var tabs, scrolls;
+var tabs = tabs || {}, scrolls, captions;
+
+captions = [ "Search", "Playlist", "Video" ];
 
 tabs = new Tabs( "app-tabs-container", nodecache, {
 		holderClass: "content",
 		contentHolder: "app-content-holder",
 		classPrefix: "app-action",
-		captions: [
-			"Search",
-			"Playlist",
-			"Video"
-		]
+		captions: captions
 	}
 );
 
 tabs.search = 0;
 tabs.playlist = 1;
 tabs.video = 2;
+
+tabs.captions = captions;
 
 tabs.playlistScroll = 0;
 tabs.searchScroll = 0;
@@ -38,8 +38,6 @@ scrolls.calculate( oldTab );
 
 tabs.ontabselect = function switchInterface( menuId ){
 var key, n, menu, elms = $( ".menul-select-all" ).add( ".menul-invert" );
-search.selections.clearSelection();
-playlist.selections.clearSelection();
 
 	if( tabs.interfaceMap[ menuId ].selections ) {
 
@@ -63,6 +61,7 @@ playlist.selections.clearSelection();
 		}
 	}
 // Restore the scrolled value for this tab
+$( "#app-current-tab").html( tabs.captions[ menuId ] );
 scrolls.restore( menuId );
 };
 

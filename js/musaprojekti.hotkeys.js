@@ -1,5 +1,5 @@
 (function(d){function h(g){if(typeof g.data==="string"){var h=g.handler,i=g.data.toLowerCase().split(" ");g.handler=function(a){if(!(this!==a.target&&(/textarea|select/i.test(a.target.nodeName)||a.target.type==="text"))){var b=a.type!=="keypress"&&d.hotkeys.specialKeys[a.which],e=String.fromCharCode(a.which).toLowerCase(),c="",f={};a.ctrlKey&&b!=="ctrl"&&(c+="ctrl+");a.altKey&&b!=="alt"&&(c+="alt+");a.metaKey&&!a.ctrlKey&&b!=="meta"&&(c+="meta+");a.shiftKey&&b!=="shift"&&(c+="shift+");b?f[c+b]=!0:
-(f[c+e]=!0,f[c+d.hotkeys.shiftNums[e]]=!0,c==="shift+"&&(f[d.hotkeys.shiftNums[e]]=!0));b=0;for(e=i.length;b<e;b++)if(f[i[b]])return h.apply(this,arguments)}}}}d.hotkeys={version:"0.8",specialKeys:{8:"backspace",9:"tab",13:"return",16:"shift",17:"ctrl",18:"alt",19:"pause",20:"capslock",27:"esc",32:"space",33:"pageup",34:"pagedown",35:"end",36:"home",37:"left",38:"up",39:"right",40:"down",45:"insert",46:"del",96:"0",97:"1",98:"2",99:"3",100:"4",101:"5",102:"6",103:"7",104:"8",105:"9",106:"*",107:"+",
+(f[c+e]=!0,f[c+d.hotkeys.shiftNums[e]]=!0,c==="shift+"&&(f[d.hotkeys.shiftNums[e]]=!0));b=0;for(e=i.length;b<e;b++)if(f[i[b]])return h.apply(this,arguments)}}}}d.hotkeys={version:"0.8",specialKeys:{8:"backspace",9:"tab",13:"enter",16:"shift",17:"ctrl",18:"alt",19:"pause",20:"capslock",27:"esc",32:"space",33:"pageup",34:"pagedown",35:"end",36:"home",37:"left",38:"up",39:"right",40:"down",45:"insert",46:"del",96:"0",97:"1",98:"2",99:"3",100:"4",101:"5",102:"6",103:"7",104:"8",105:"9",106:"*",107:"+",
 109:"-",110:".",111:"/",112:"f1",113:"f2",114:"f3",115:"f4",116:"f5",117:"f6",118:"f7",119:"f8",120:"f9",121:"f10",122:"f11",123:"f12",144:"numlock",145:"scroll",191:"/",224:"meta"},shiftNums:{"`":"~",1:"!",2:"@",3:"#",4:"$",5:"%",6:"^",7:"&",8:"*",9:"(",0:")","-":"_","=":"+",";":": ","'":'"',",":"<",".":">","/":"?","\\":"|"}};d.each(["keydown","keyup","keypress"],function(){d.event.special[this]={add:h}})})(jQuery);
 
 (function(f){function c(a){var b=a||window.event,d=[].slice.call(arguments,1),e=0,c=0,g=0,a=f.event.fix(b);a.type="mousewheel";a.wheelDelta&&(e=a.wheelDelta/120);a.detail&&(e=-a.detail/3);g=e;b.axis!==void 0&&b.axis===b.HORIZONTAL_AXIS&&(g=0,c=-1*e);b.wheelDeltaY!==void 0&&(g=b.wheelDeltaY/120);b.wheelDeltaX!==void 0&&(c=-1*b.wheelDeltaX/120);d.unshift(a,e,c,g);return f.event.handle.apply(this,d)}var d=["DOMMouseScroll","mousewheel"];f.event.special.mousewheel={setup:function(){if(this.addEventListener)for(var a=
@@ -11,9 +11,10 @@ this._boundMap = boundMap || {};
 this._bindings = bindings || {};
 this._descriptorMap = descriptorMap || [];
 this._handlers = {};
+this._specialHandlers = {};
 this._descriptions = {};
 this._encodeMap = {};
-this._specialBinds = {};
+this._persistentHandlers = {};
 	for( i = 0, l = this._descriptorMap.length; i < l; ++i ) {
 	elm = this._descriptorMap[i];
 	this._handlers[ elm.code ] = elm.handler || HotkeyManager.returnFalse;
@@ -28,45 +29,52 @@ this.HTML = HTMLFn || this.HTML;
 this.enable();
 }
 
-HotkeyManager.returnFalse = function(){
-return false;
-};
-
-HotkeyManager.decodeMap = {
+HotkeyManager.Includes({
+	STATIC__decodeMap: {
 	"c":"Ctrl",
 	"C":"Ctrl",
 	"a":"Alt",
 	"A":"Alt",
 	"s":"Shift",
-	"S":"Shift"
-	};
-
-HotkeyManager.encodeMap = {
+	"S":"Shift"	
+	},
+	
+	STATIC__encodeMap: {
 	"Ctrl":"c",
 	"ctrl":"c",
 	"alt":"a",
 	"Alt":"a",
 	"Shift":"s",
 	"shift":"s"
-	};
-		
-HotkeyManager.Includes({
+	},
+	
+	STATIC__returnFalse: function(){
+	return false;
+	},
+	
+	getCurrentBinds: function(){
+	return this._bindings;
+	},
+	
 	addException: function( val ) {
-	this._specialBinds[val] = this._handlers[val];
+	this._persistentHandlers[val] = this._handlers[val];
 	},
 	
 	exceptionUnBind: function(){
 	var doc = $(document), key;
 	
-		for( key in this._specialBinds )  {
-		doc.unbind( "keydown mousewheel", this._specialBinds[key] );
+		for( key in this._persistentHandlers )  {
+		doc.unbind( "keydown", this._persistentHandlers[key] );
+			if( key in this._specialHandlers ) {
+			doc.unbind("mousewheel", this._specialHandlers[key] );
+			}
 		}
 	
 	},
 	exceptionBind: function(){
 	var doc = $(document), key, mods, comb, mKey;
 	
-		for( key in this._specialBinds )  {
+		for( key in this._persistentHandlers )  {
 		comb = this._bindings[key];
 		
 			if( !comb ) {
@@ -77,11 +85,14 @@ HotkeyManager.Includes({
 		mKey = mods.pop();
 		
 			if( typeof this.special[ mKey ] == "function" ) {
-			doc.bind("mousewheel", this.special[ mKey ].call( this, this._specialBinds[key], mods ) );
+				if( !this._specialHandlers[key] ) {
+				this._specialHandlers[key] = this.special[ mKey ].call( this, this._persistentHandlers[key], mods );
+				}
+			doc.bind("mousewheel", this._specialHandlers[key] );
 			}
 			else {
 			comb = this.__decode(comb).toLowerCase();		
-			doc.bind("keydown", comb, this._specialBinds[key] );
+			doc.bind("keydown", comb, this._persistentHandlers[key] );
 			}		
 		}	
 	},
@@ -170,7 +181,7 @@ HotkeyManager.Includes({
 		for( key in this._bindings ) {
 		comb = this._bindings[key];
 			
-			if( !comb || ( key in this._specialBinds ) ) {
+			if( !comb || ( key in this._persistentHandlers ) ) {
 			continue;
 			}
 			
@@ -178,7 +189,10 @@ HotkeyManager.Includes({
 		mKey = mods.pop();
 		
 			if( typeof this.special[ mKey ] == "function" ) {
-			doc.bind("mousewheel", this.special[ mKey ].call( this, this._handlers[key], mods ) );
+				if( !this._specialHandlers[key] ) {
+				this._specialHandlers[key] = this.special[ mKey ].call( this, this._handlers[key], mods );
+				}
+			doc.bind("mousewheel", this._specialHandlers[key] );
 			continue;
 			}
 			
@@ -189,8 +203,11 @@ HotkeyManager.Includes({
 	disable: function(){
 	var key, doc = $(document);
 		for( key in this._handlers ) {
-			if( ! ( key in this._specialBinds ) ) {
-			doc.unbind( "keydown mousewheel", this._handlers[key] );
+			if( ! ( key in this._persistentHandlers ) ) {
+			doc.unbind( "keydown", this._handlers[key] );
+				if( key in this._specialHandlers ) {
+				doc.unbind( "mousewheel", this._specialHandlers[key] );
+				}
 			}
 		}
 	},
@@ -198,22 +215,27 @@ HotkeyManager.Includes({
 	return this._descriptions[id] || null;
 	},
 	unBind: function( id ) {
-	
+	var doc = $(document);
 		if( id in this._bindings ) {
 		this._bindings[id] = "";
 		}
 		
-		if( id in this._specialBinds ) {
-		$(document).unbind( "keydown mousewheel", this._specialBinds[id] );
+		if( id in this._persistentHandlers ) {
+		doc.unbind( "keydown", this._persistentHandlers[id] );
+				if( id in this._specialHandlers ) {
+				doc.unbind( "mousewheel", this._specialHandlers[id] );
+				}
 		}
-		
 	return this;
 	},
 	setBind: function( id, comb ) {
-	var key, lookup = this.__encode(comb), doc, mods, mKey;
+	var key, lookup = this.__encode(comb), doc, mods, mKey, doc = $(document);
 	
-		if( id in this._specialBinds ) {
-		$(document).unbind( "keydown mousewheel", this._specialBinds[id] );
+		if( id in this._persistentHandlers ) {
+		doc.unbind( "keydown", this._persistentHandlers[id] );
+			if( id in this._specialHandlers ) {
+			doc.unbind( "mousewheel", this._specialHandlers[id] );
+			}
 		}
 		
 		for( key in this._bindings ) {
@@ -221,7 +243,6 @@ HotkeyManager.Includes({
 			this._bindings[key] = "";
 			}
 		}
-		
 		
 	this._bindings[id] = lookup;
 	},
@@ -271,16 +292,23 @@ HotkeyManager.Includes({
 
 var hotkeys = hotkeys || {};
 
+hotkeys.categories = {
+	"0": "Music player",
+	"9": "Playlist management",
+	"17": "General actions",
+	"22": "Saving & loading"
+};
 hotkeys.currentBind = "";
 
 hotkeys.codeMap = {
-	mwup: "Mousewheel up",
-	mwdn: "Mousewheel down",
-	up: "Up",
-	down: "Down",
-	left: "Left",
-	right: "Right",
-	del: "Del"
+	"mwup": "Mousewheel up",
+	"mwdn": "Mousewheel down",
+	"up": "Up",
+	"down": "Down",
+	"left": "Left",
+	"right": "Right",
+	"del": "Del",
+	"enter": "Enter"
 };
 
 hotkeys.defaults = {
@@ -292,6 +320,9 @@ hotkeys.defaults = {
 	"JFL": "j",
 	"JSR": "s",
 	"NXT": "b",
+	"MPL": "enter",
+	"PLP": "up",
+	"PLN": "down",
 	"PLY": "x",
 	"PRV": "z",
 	"PSE": "c",
@@ -311,14 +342,26 @@ hotkeys.defaults = {
 	"VUP": "mwup"
 };
 
+$.extend( hotkeys.defaults, storage.get( "hotkeys" ) );
+
 hotkeys.descriptorMap = [{
 code: "VUP",
 action: "Volume up",
-description: "Increases volume by 5%."
+description: "Increases volume by 3%.",
+	handler: function(){
+	var curVol = player.main.getVolume() / 100 + 0.03;
+	curVol = curVol > 1 ? 1 : curVol;
+	player.slider.onslide( curVol );
+	}
 }, {
 code: "VDN",
 action: "Volume down",
-description: "Decreases volume by 5%."
+description: "Decreases volume by 3%.",
+	handler: function(){
+	var curVol = player.main.getVolume() / 100 - 0.03;
+	curVol = curVol < 0 ? 0 : curVol;
+	player.slider.onslide( curVol );	
+	}
 }, {
 code: "PRV",
 action: "Previous track",
@@ -355,6 +398,51 @@ description: "Seeks back by 1%."
 code: "SF1",
 action: "Seek forward",
 description: "Seeks forward by 1%."
+}, {
+code: "MPL",
+action: "Play selected",
+description: "Starts playing the selected track. If multiple tracks are selected, the first track of the selection is played." +
+		"If search tab is active, all selected tracks are first added to playlist.",
+	handler: function(){
+		if( tabs.activeTab == tabs.playlist ) {
+			playlist.selections.applyTo( playlist.main.getContainer(), function(songs){
+			playlist.main.changeSong( songs[0] );
+			});				
+		}
+		else if ( tabs.activeTab == tabs.search ) {	
+			search.selections.applyTo( search.main.getContainer(), function(songs){
+			var $l = songs.length;
+			playlist.main.add( songs ).changeSong( playlist.main.getHashByIndex( playlist.main.length - $l ) );
+			});			
+		}
+	return false;
+	}
+}, {
+code: "PLP",
+action: "Move previous",
+description: "Move to previous track playlist or search results.",
+	handler: function(){
+		if( tabs.activeTab == tabs.playlist ) {
+		playlist.selections.prev();			
+		}
+		else if ( tabs.activeTab == tabs.search ) {	
+		search.selections.prev();		
+		}
+	return false;
+	}
+}, {
+code: "PLN",
+action: "Move next",
+description: "Move to next track playlist or search results.",
+	handler: function(){
+		if( tabs.activeTab == tabs.playlist ) {
+		playlist.selections.next();					
+		}
+		else if ( tabs.activeTab == tabs.search ) {	
+		search.selections.next();			
+		}
+	return false;
+	}
 }, {
 code: "RMV",
 action: "Remove",
@@ -483,12 +571,6 @@ description: "Loads the most recently saved playlist from browser memory. Quickl
 
 hotkeys.mouseWheel = false;
 
-hotkeys.categories = {
-	"0": "Music player",
-	"9": "Playlist management",
-	"14": "General actions",
-	"19": "Saving & loading"
-};
 
 hotkeys.manager = new HotkeyManager( hotkeys.codeMap, hotkeys.defaults, hotkeys.descriptorMap, function( action, boundto, code, index ){
 var r = '<div class="clear app-hotkey-container" id="'+code+'-'+index+'">' +
@@ -599,6 +681,8 @@ popup.open( "<h2 class=\"app-header-2\">Hotkey setup</h2>" +
 		450 );
 	
 popup.closeEvent( function() {
+
+	storage.set( "hotkeys", hotkeys.manager.getCurrentBinds() );
 	$(document).unbind("keydown keyup mousewheel", hotkeys.listenUserHotkeys );
 	}
 );
@@ -623,15 +707,15 @@ var selections = new SingleSelectable( "app-hotkeys-container", ".app-hotkey-con
 		hotkeys.manager.exceptionUnBind();
 	};
 
-	$( "#app-hotkeys-container" ).delegate( ".app-hotkey-container", "mouseover",
+	$( "#app-hotkeys-container" ).delegate( ".app-hotkey-container", "mouseenter",
 		function(e){
 			if( selections.getSelection() !== null ) {
 			return true;
 			}
-
+			
 		var id = this.id.substr(0, 3), desc;
 		desc = hotkeys.manager.getDescription( id );
-		$( "#app-describe-action" ).hide().html(desc).fadeIn(150);
+		$( "#app-describe-action" ).hide().html(desc).fadeIn(150);	
 		}
 	);
 

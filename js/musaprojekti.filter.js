@@ -81,6 +81,9 @@ selections.length = l;
 	r.push( "<div class=\"app-filter-result notextflow\" id=\"filter-result-"+i+"\">"+res[i].name+"</div>");
 	}
 $( "#app-filter-results" )[0].innerHTML = r.join("");
+	if( l ) {
+	selections._addSelection( 0 );
+	}
 };
 
 selections.onselect = function( idx ){
@@ -105,13 +108,12 @@ e.stopPropagation();
 	case 39:
 	case 37:
 	return true;
-	
 	case 38:
 	selections.prev();
-	return true;
+	return false;
 	case 40:
 	selections.next();
-	return true;
+	return false;
 	case 27:
 	this.value = "";
 	this.blur();
@@ -131,4 +133,6 @@ $(document).unbind("keydown", traveler );
 
 return false;
 };
+
+$( ".menul-filter").bind( "click", filter.show );
 

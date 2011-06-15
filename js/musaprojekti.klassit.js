@@ -405,6 +405,7 @@ Playlist.Includes({
 	this.length = this._hashList.length;
 	this.onupdate.call( this, this._songList, this._hashList, this._currentSong, this._selectable._selection );
 	this.onremove.call( this, arr.length );
+	this._selectable.max = this._hashList.length;
 	return this;
 	},
 	add: function( arr, offset ) {
@@ -435,6 +436,7 @@ Playlist.Includes({
 	this.length = this._hashList.length;
 	this.onupdate.call( this, this._songList, this._hashList, this._currentSong, this._selectable._selection );
 	this.onadd.call( this, arr.length );
+	this._selectable.max = this._hashList.length;
 	return this;
 	},
 	
@@ -527,6 +529,7 @@ Playlist.Includes({
 
 function Selectable( target, selector, opts ) {
 var self = this;
+this._max = 0;
 this._target = typeof target == "string" ? document.getElementById( target ) : target;
 this._selector = selector;
 this._activeClass = opts && opts.activeClass || "select-active";
@@ -541,10 +544,7 @@ this._selection = [];
 	
 		if( e.type == "click" ) {
 			if( !e.ctrlKey && !e.shiftKey) {
-			self._selectionPointer = null;
-			self._lastEnd = null;
-			self._lastIdx = null;
-			self._lastStart = null;
+			self._resetPointers();
 			self._selection = [];
 			self._addSelection( idx );
 			}
@@ -585,10 +585,7 @@ this._selection = [];
 			self._selectionPointer = idx;
 			return true;
 			}
-		self._selectionPointer = null;
-		self._lastEnd = null;
-		self._lastIdx = null;
-		self._lastStart = null;
+		self._resetPointers();
 		self._selection = [];
 		self._addSelection( idx );
 		}
@@ -695,28 +692,62 @@ Selectable.Includes({
 	_addSelection: function( idx ) {
 	this._selection.push(idx);
 	this._render();
+	},
+	onscroll: function(){},
 	
+	prev: function(){
+	this._resetPointers();
+	var cur;
+		if( this._selection.length ) {
+		cur = this._selection[0];
+		this._selection = [(--cur < 0 ? 0 : cur )];
+		}
+		else {
+		this._selection = [0];
+		}
+	this._render( true );
 	},
 	
-	_render: function() {
-	var i, l, all = $( this._selector, this._target );
+	next: function(){
+	this._resetPointers();
+	var cur, l = this._selection.length;
+		if( l ) {
+		cur = this._selection[l-1];
+		this._selection = [(++cur >= this.max ? this.max-1 : cur )];
+		}
+		else {
+		this._selection = [this.max - 1];
+		}
+	this._render( false );
+	},
+	
+	_render: function( scroll ) {
+	var undef, i, l, all = $( this._selector, this._target );
 
 	$( "."+this._activeClass ).removeClass( this._activeClass );
 	this._selection = this._selection.unique();
 	this._selection.sort(function(a, b){return (a - b);});
 	l = this._selection.length;
-	
+
 		for( i = 0; i < l; ++i) {
 		$( all[ this._selection[i] ] ).addClass( this._activeClass );
+		}
+		
+		if( scroll != undef && l ) {
+		this.onscroll.call( this, all[ this._selection[0] ], scroll );
 		}
 	this.onselect.call( this, this._selection );
 	},
 	
-	clearSelection: function(){
+	_resetPointers: function(){
 	this._selectionPointer = null;
 	this._lastEnd = null;
 	this._lastIdx = null;
-	this._lastStart = null;
+	this._lastStart = null;	
+	},
+	
+	clearSelection: function(){
+	this._resetPointers();
 	this._selection = [];
 	this._render();
 	},
@@ -1419,9 +1450,7 @@ Search.Includes({
 		}
 	
 	document.getElementById( this._target ).appendChild( frag );
-		
 
-	
 	return this;
 	}
 
@@ -2377,7 +2406,9 @@ hoverClass = hoverClass || null;
 	return this.each( function(){
 	var input = document.createElement("input"), key,
 		container = document.createElement("div"),
-		width = this.offsetWidth, height = this.offsetHeight, obj, kk, stylestr = "", jqInput;
+		width = this.offsetWidth, height = this.offsetHeight, obj, kk, stylestr = "", jqInput,
+		$elm = $(this), minWidth = $elm.width(), minHeight = $elm.height(), maxHeight = $elm.outerHeight(true),
+		maxWidth = $elm.outerWidth( true );
 		
 		for( key in atts ) {
 			if( key == "style" ) {
@@ -2390,10 +2421,10 @@ hoverClass = hoverClass || null;
 		input[key] = atts[key];
 		}
 
-	container.setAttribute( "style", "position:relative;width:"+width+"px;height:"+height+"px" );
+	container.setAttribute( "style", "position:relative;width:"+maxWidth+"px;height:"+maxHeight+"px" );
 	input["type"] = "file";
-	input.setAttribute("style", "position:absolute;top:0px;left:0px;width:"+width +
-		"px;height:"+height+"px;z-index:100000;opacity:0;-moz-opacity:0;" +
+	input.setAttribute("style", "position:absolute;top:0px;left:0px;width:"+maxWidth +
+		"px;height:"+maxHeight+"px;z-index:100000;opacity:0;-moz-opacity:0;" +
 		"filter: alpha('opacity=0');"+stylestr);
 
 	jqInput = $(input);
@@ -2403,8 +2434,8 @@ hoverClass = hoverClass || null;
 	this.style.left = "0px";
 	this.style.top = "0px";
 	this.style.zIndex = "1";
-	this.style.width = width+"px";
-	this.style.height = height+"px";
+	this.style.width = minWidth+"px";
+	this.style.height = minHeight+"px";
 	this.parentNode.insertBefore( container, this );
 	container.appendChild( this.parentNode.removeChild( this ) );
 	container.appendChild( input );
@@ -2448,6 +2479,97 @@ LocalFiles.Includes({
 	
 		}
 	this.onhandle.call( this, r );
+	return this;
+	}
+});
+
+function Slider( target, opts ){
+target = typeof target == "string" ? document.getElementById( target ) : target;
+
+	if( target.id == null ) {
+	target.id = "slider-" + ( +new Date );
+	}
+
+this._direction = opts && opts.direction || "horizontal";
+
+	if( this._direction == "vertical" ) {
+	this._pageDirection = "pageY";
+	this._offsetDirection = "top";
+	this._offsetDimension = "offsetHeight";	
+	} else {
+	this._pageDirection = "pageX";
+	this._offsetDirection = "left";
+	this._offsetDimension = "offsetWidth";	
+	}
+
+this._clickMove = opts && opts.clickMove || true;
+this._target = target.id;
+this._offset = 0;
+this._dimension = 0;
+this._init();
+}
+
+Slider.Includes({
+	__percentage: function( e ) {
+	var r = ( e[this._pageDirection] - this._offset ) / this._dimension;
+	r = r > 1 ? 1 : r;
+	r = r < 0 ? 0 : r;
+	return r;
+	},
+	__createMouseUp: function(){
+	var self = this;
+		return function(e){
+		self.onslideend.call( self, e );
+		$(document).unbind( "mousemove", self.__onmousemove ).unbind( "mouseup", self.__onmouseup );
+		}
+	},
+	__createMouseMover: function() {
+	var self = this;
+		return function(e){
+		self.onslide.call( self, self.__percentage( e ) );
+		};
+	},
+	onslidebegin: $.noop,
+	onslideend: $.noop,
+	onslide: $.noop,
+	_init: function(){
+	var self = this;
+	this.__onmouseup = this.__createMouseUp();
+	this.__onmousemove = this.__createMouseMover();
+		$( "#"+this._target ).bind( "mousedown",
+			function(e){
+				if( e.which !== 1 ) {
+				return true;
+				}
+			self._dimension = this[self._offsetDimension];
+			self._offset = $(this).offset()[self._offsetDirection];
+			self.onslidebegin.call( self, e );
+			
+				if( self._clickMove ) {
+				self.onslide.call( self, self.__percentage( e ) );
+				}
+				
+			$(document).bind( "mousemove", self.__onmousemove ).bind( "mouseup", self.__onmouseup );
+			
+			}
+
+		);
+
+	}
+});
+
+function Player(){
+this.__volume = 0;
+}
+
+Player.Includes({
+	getVolume: function(){
+	return this.__volume;
+	},
+	setVolume: function( val ) {	
+	val = val < 0 ? 0 : val;
+	val = val > 100 ? 100 : val;
+	this.__volume = val;
 	return this;
 	}
 });

@@ -191,6 +191,10 @@ updateSelection( selection && selection.length || 0 );
 	}
 };
 
+playlist.selections.onscroll = function( node ) {
+filter.scrollIntoView( node.parentNode, node.parentNode.parentNode );
+};
+
 playlist.main.onupdate = function( songList, hashList, curSongHash, selections ){
 var song, i, songTimeFormatted,
 	l = hashList.length, str = [], hash, curh = 0, songIdx = -1, songObj;

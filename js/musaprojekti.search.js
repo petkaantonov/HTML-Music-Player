@@ -41,6 +41,10 @@ search.menu.orderedActions = {
 
 search.selections = new Selectable( "app-result-container", ".app-result", {activeClass: "app-result-active"} );
 
+search.selections.onscroll = function( node ){
+filter.scrollIntoView( node, node.parentNode );
+};
+
 search.suggestions = new SearchSuggestions( "app-search-suggestions-container", {
 			activeClass: "app-search-suggest-active",
 			suggestClass: ".app-search-suggestion",
@@ -63,7 +67,6 @@ search.main = new Search( "app-result-container", {addClass: "notextflow app-res
 
 search.menu.onmenuclick = function( menuID ) {
 search.selections.applyTo( search.main.getContainer(), search.menu.orderedActions[ menuID ] );
-search.selections.clearSelection();
 };
 
 search.history.onremoveentry = function(){
@@ -93,12 +96,13 @@ search.suggestions.hide();
 search.main.onaftersearch = function( query, type, results ){
 $('#app-search-submit')[0].src = "images/magnifier.png";
 $('#app-search-box').val( "" ).focus().blur();
-
+search.selections.max = results;
 search.history.add( {
 	query: query,
 	type: type,
 	results: results
 	});
+
 };
 
 search.selections.onselect = function( selection ) {

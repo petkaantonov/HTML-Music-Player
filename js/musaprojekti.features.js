@@ -44,7 +44,7 @@ features.dragFiles = false;
 			directory: true,
 			mozdirectory: true
 			},
-			"app-action-tab-selected" );
+			"app-action-tab-hover" );
 		});
 	features.directories = true;
 	}
@@ -98,13 +98,16 @@ features.dragFiles = false;
 			"<div style=\"float:left;font-size:11px;\">"+( window.localStorage ? "Listing "+$l+ " "+ playl+" found in browser memory</div>" :
 			"No access to browser memory") +
 			"<div class=\"app-popup-solution\">" +
-			"<div style=\"position:relative;width:128px;height:30px;\">" +
 			"<div id=\"app-proceed-load\" class=\"app-popup-button right\">Load from File</div>" +
-			"<input type=\"file\" onmouseover=\"$(this.previousSibling).addClass('app-popup-button-active');\""+
-			" onmouseout=\"$(this.previousSibling).removeClass('app-popup-button-active');\" style=\"width:114px;height:30px;\"" +
-			" class=\"hidden-file-input-hack\" onchange=\"playlist.loader['import']( this.files[0] );\" />" +
 			"</div></div>" );
-			
+	
+	$( "#app-proceed-load").fileInput( {
+			onchange: function(){playlist.loader["import"]( this.files[0] );
+			}
+		},
+		"app-popup-button-active"
+	);
+
 	new Table( "app-playlists-table", nodecache, {
 			classPrefix: "app-feature",
 			captions: { 
@@ -159,9 +162,9 @@ features.dragFiles = false;
 	featureDescriptions.push({ desc: "Play MP3 files located on your computer", name: "Local MP3", enabled: ( !features.mp3 && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
 			{ desc: "Play OGG files located on your computer", name: "Local Ogg Vorbis", enabled: ( !features.ogg && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS ) },
 			{ desc: "Play WAV files located on your computer", name: "Local WAVE", enabled: ( !features.wav && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
-			{ desc: "Read local binary files", name: "File reader", enabled: ( !features.readFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
-			{ desc: "Drag &amp; Drop local audio files", name: "Drag &amp; Drop files", enabled: ( !features.dragFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
-			{ desc: "Save and load playlists", name: "Local storage", enabled: ( !features.localStorage && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Read local files", name: "File reader", enabled: ( !features.readFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Drag &amp; Drop local files", name: "Drag &amp; Drop files", enabled: ( !features.dragFiles && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
+			{ desc: "Save and load playlists using browser memory", name: "Local storage", enabled: ( !features.localStorage && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
@@ -175,29 +178,25 @@ $("#file-folder-input").removeFiles();
 	}
 };
 
-	if( missingFeatures === 0 || appData.lowFeatures ) {
-	return;
-	}
-
-appSetData( "lowFeatures", true );
-
-popup.open( "<h2 class=\"app-header-2\">Browsers features missing:</h2><div id=\"" +
-		"app-feature-table\"></div><div style=\"margin-top:20px;font-size:11px;\">"+
-		"Some features aren't supported by your browser, perhaps it's time to try " +
-		"<a href=\"http://www.google.com/chrome/\" target=\"_blank\">Google Chrome</a>?"+
-		"</div>" );
-		
-		
 	
-new Table( "app-feature-table", nodecache, {
-		classPrefix: "app-feature",
-		captions: { 
-			name: "Feature",
-			desc: "Description",
-			enabled: "Supported"
-		}
-	}
-).addData( featureDescriptions );
+	$( ".menul-features" ).bind( "click", function(e){
+		popup.open( "<h2 class=\"app-header-2\">Browser features</h2>" +
+				"<div class=\"app-bread-text\">" +
+				"Features that are supported by your browser: " +
+				"</div><div style=\"margin-top:9px;\" id=\"app-feature-table\"></div>" +
+				"</div>" );
+
+		new Table( "app-feature-table", nodecache, {
+				classPrefix: "app-feature",
+				captions: { 
+					name: "Feature",
+					desc: "Description",
+					enabled: "Supported"
+				}
+			}
+		).addData( featureDescriptions );
+	});
+
 
 
 
