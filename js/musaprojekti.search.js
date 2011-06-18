@@ -1,5 +1,6 @@
 var search = search || {};
 
+search.infoText = "No search results";
 search.ip = __IP_GET__();
 search.placeholder = "Search for tracks";
 
@@ -24,7 +25,7 @@ search.menu = new ActionMenu( "search-action-menu", {
 	selector: ".app-action-tab",
 	disabledClass: "app-action-disabled",
 	name: "search"
-}).disable( "all" );
+}).activate( "none" );
 
 search.menu.orderedActions = {
 	"0":	function( songs ) {
@@ -106,12 +107,12 @@ elm.fadeIn( 2100 );
 };
 
 search.main.onbeforesearch = function( query, type){
-document.getElementById( "app-search-info" ).innerHTML = "";
 $('#app-search-submit')[0].src = "images/search-ajax2.gif";
 search.suggestions.hide();
 	if( tabs.activeTab !== tabs.search ) {
 	tabs.selectTab( tabs.getTab( tabs.search ) );
 	}
+document.getElementById( "app-search-info" ).innerHTML = "Loading...";
 };
 
 search.main.onaftersearch = function( query, type, results ){
@@ -123,7 +124,7 @@ search.history.add( {
 	type: type,
 	results: results
 	});
-
+search.suggestions.hide();
 };
 
 
@@ -174,10 +175,13 @@ search.main.addType( "youtube",
 							pTimeFmt: util.toTimeString( feed[i].media$group.yt$duration.seconds )
 							});
 						}
+					search.infoText = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching MP3";
+					} else {
+					search.infoText = "No search results";
 					}
 
 
-				document.getElementById( "app-search-info" ).innerHTML = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching youtube" ;
+				document.getElementById( "app-search-info" ).innerHTML = search.infoText;
 				self.addResults.call( self, results, query, "youtube" );
 				},
 
@@ -215,25 +219,29 @@ search.main.addType( "mp3",
 					name: feed[i].title
 					});
 				}
+			search.infoText = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching MP3";
+			} else {
+			search.infoText = "No search results";
 			}
-
-		document.getElementById( "app-search-info" ).innerHTML = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching MP3" ;
+		
+		document.getElementById( "app-search-info" ).innerHTML = search.infoText;
 		self.addResults.call( self, results, query, "mp3" );
 		},
 
 		error: function(){
-		document.getElementById( "app-search-info" ).innerHTML = "Found 0 results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching MP3" ;
+		document.getElementById( "app-search-info" ).innerHTML = search.infoText = "No search results" ;
 		self.addResults.call( self, [] );
 		}
 	});
 });
 
 search.selections.onselect = function( selection ) {
-updateSelection( selection && selection.length || 0 );
+
 var context = document.getElementById( "app-result-container" ),
 	$elms = $( ".app-result-hover", context ),
-	l = selection && selection.length || null, idx;
-	
+	l = selection && selection.length || 0, idx;
+
+updateSelection( l );
 $elms.removeClass( "app-result-hover" );
 $( ".app-hover", context ).css("visibility", "hidden");
 
@@ -242,10 +250,10 @@ $( ".app-hover", context ).css("visibility", "hidden");
 		for( i = 0; i < l; ++i ) {
 		$( ".app-hover", document.getElementById( "app-result-"+selection[i]) ).css("visibility", "visible");
 		}
-	search.menu.enable( "all" );
+	search.menu.activate( "all" );
 	}
 	else {
-	search.menu.disable( "all" );
+	search.menu.activate( "none" );
 	}
 
 };

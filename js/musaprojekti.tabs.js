@@ -1,6 +1,6 @@
 var tabs = tabs || {}, scrolls, captions;
 
-captions = [ "Search", "Playlist", "Video" ];
+captions = [ "Search results", "Playlist" ];
 
 tabs = new Tabs( "app-tabs-container", nodecache, {
 		holderClass: "content",
@@ -27,7 +27,7 @@ tabs.interfaceMap[ tabs.video ] = {};
 // Keeps track of the scroll values of given elements.
 scrolls = new Scrolls( (function(){var r = {};
 			r[ tabs.search] = "#app-result-container";
-			r[ tabs.playlist] = "#playlist";
+			r[ tabs.playlist] = "#app-playlist-container";
 			return r;
 			})());
 
@@ -63,6 +63,8 @@ var key, n, menu, elms = $( ".menul-select-all" ).add( ".menul-invert" );
 	
 	if( menuId !== tabs.search ) {
 	$( "#app-search-info").html("");
+	}else {
+	$( "#app-search-info").html( search.infoText );	
 	}
 // Restore the scrolled value for this tab
 $( "#app-current-tab").html( tabs.captions[ menuId ] );
@@ -98,7 +100,3 @@ return false;
 
 $( ".menul-select-all" ).click( tabs.selectAllFromCurrent );
 $( ".menul-invert" ).click( tabs.selectInverseFromCurrent );
-
-$( "#app-loader").remove();
-$( "#app-container" ).show();
-tabs.selectTab( tabs.getTab( tabs.playlist ) );

@@ -349,6 +349,14 @@ var r = {}, key, check = {};
 return r;
 };
 
+Array.prototype.toKeysObj = function(){
+var i = 0, l = this.length, ret = {};
+	for( i = 0; i < l; ++i ) {
+	ret[this[i]] = null;
+	}
+return ret;
+};
+
 
 
 function g(a){var b=typeof a;if(b=="object")if(a){if(a instanceof Array)return"array";else if(a instanceof Object)return b;var c=Object.prototype.toString.call(a);if(c=="[object Window]")return"object";if(c=="[object Array]"||typeof a.length=="number"&&typeof a.splice!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("splice"))return"array";if(c=="[object Function]"||typeof a.call!="undefined"&&typeof a.propertyIsEnumerable!="undefined"&&!a.propertyIsEnumerable("call"))return"function"}else return"null";

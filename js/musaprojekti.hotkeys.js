@@ -296,7 +296,7 @@ hotkeys.categories = {
 	"0": "Music player",
 	"9": "Playlist management",
 	"17": "General actions",
-	"22": "Saving & loading"
+	"23": "Saving & loading"
 };
 hotkeys.currentBind = "";
 
@@ -335,6 +335,7 @@ hotkeys.defaults = {
 	"SB1": "a+mwdn",
 	"SF1": "a+mwup",
 	"STP": "v",
+	"TOG": "tab",
 	"VDN": "mwdn",
 	"VHD": "",
 	"VLD": "",
@@ -566,10 +567,24 @@ code: "CLS",
 action: "Close popup",
 description: "Closes all active popups.",
 	handler: function(){
-	popup.closeAll();
+		if( popup.length ) {
+		popup.closeAll();
+		}
 	return false;
 	}
 }, {
+code: "TOG",
+action: "Toggle view",
+description: "Toggles view between playlist and search result",
+	handler: function(){
+		if( tabs.activeTab == tabs.search ) {
+		tabs.selectTab( tabs.getTab( tabs.playlist ) );
+		} else {
+		tabs.selectTab( tabs.getTab( tabs.search ) );		
+		}
+	return false;
+	}
+},  {
 code: "QSM",
 action: "Quicksave memory",
 description: "Saves the current playlist in browser memory. Name of the last saved playlist will be used.",

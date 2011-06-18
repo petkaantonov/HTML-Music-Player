@@ -1,12 +1,12 @@
 <?php
 header('Content-Type: text/html; charset=iso-8859-1');
-require( "scripts.dev.php" );
+require( "scripts.public.php" );
 ?>
 <!DOCTYPE HTML>
 <html>
 <head>
 <link rel="shortcut icon" href="kivakuva3.png" />
-<link rel="stylesheet" href="css/app-css-developement.css?v=0.34" />
+<link rel="stylesheet" href="css/app-css-public.css" />
 <meta http-equiv="X-UA-Compatible" content="chrome=1" />
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 <meta name="description" content="noindex, no follow" />
@@ -40,7 +40,7 @@ APM: <span id="apm-total">00.00</span>
 		<div id="app-left">
 			<div id="app-menu-left">
 				<ul class="app-action-tabs-container" style="margin-left:12px;">
-					<li class="menul-sub-title"><span id="tooltip-view">View</span> <div class="app-sub-title-addon" id="app-current-tab">Playlist</div></li>
+					<li class="menul-sub-title">View <div class="app-sub-title-addon" id="app-current-tab">Playlist</div></li>
 					<div id="app-tabs-container">
 					 	<div id="app-changes-container">
 
@@ -59,7 +59,7 @@ APM: <span id="apm-total">00.00</span>
 					<li class="app-action-tab menul-hotkeys">Hotkey setup</li>
 					<li class="app-action-tab menul-features">Feature test</li>
 					
-					<li class="menul-sub-title"><span id="tooltip-selection">Selection</span> <div class="app-sub-title-addon" id="app-selection-count">0 items</div></li>
+					<li class="menul-sub-title">Selection <div class="app-sub-title-addon" id="app-selection-count">0 items</div></li>
 					<ul class="app-action-tabs-container" id="search-action-menu">
 						<li class="app-action-tab menul-play">Play</li>
 						<li class="app-action-tab menul-download">Download</li>
@@ -98,9 +98,9 @@ APM: <span id="apm-total">00.00</span>
 					</div>
 				</div>
 				<div id="app-playlist-modes-container">
-				<div id="app-mode-repeat" class="app-playlist-mode"></div>
-				<div id="app-mode-shuffle" class="app-playlist-mode"></div>
-				<div id="app-mode-normal" class="app-playlist-mode"></div>
+				<div id="app-mode-repeat" title="Repeat" class="app-playlist-mode"></div>
+				<div id="app-mode-shuffle" title="Shuffle" class="app-playlist-mode"></div>
+				<div id="app-mode-normal" title="Normal" class="app-playlist-mode"></div>
 				</div>
 				<br>
 				<br>
@@ -155,12 +155,12 @@ APM: <span id="apm-total">00.00</span>
 					</div>
 				</div>
 			</div>
-			<div id="app-content-holder" style="background-color: #ffffff;">
+			<div id="app-content-holder">
 
-				<div class="content" id="app-search-wrapper">
+				<div class="content" id="app-search-wrapper" style="height:475px;">
 					<div id="app-result-container" class="songs-list-container"></div>
 				</div>
-				<div class="content songs-list-container" id="app-playlist-container"></div>
+				<div class="content songs-list-container" id="app-playlist-container" style="height:475px;"></div>
 			</div>
 			<div id="app-search-info"></div>
 			<div id="containplayers">
@@ -181,11 +181,10 @@ APM: <span id="apm-total">00.00</span>
 </div>
 <script type="text/javascript">
 var __IP_GET__ = (function(){var __IP_ADDRESS__ = "<?php echo $_SERVER['REMOTE_ADDR']; ?>";return function(){return __IP_ADDRESS__;};})();
+var script = document.createElement("script");
+script.type = "text/javascript";
+script.src = "<?php echo $script ?>";
+document.getElementsByTagName("head")[0].appendChild(script);
 </script>
-<?php
-foreach( $scripts as $value ) {
-echo $value;
-}
-?>
 </body>
 </html>
