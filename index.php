@@ -20,6 +20,14 @@ APM: <span id="apm-total">00.00</span>
 </div>
 -->
 <div id="wrapper">
+	<div id="app-youtube-audio-0" class="app-youtube-audio hidden"></div>
+	<div id="app-youtube-audio-1" class="app-youtube-audio hidden"></div>
+	<div id="app-players-container">
+		<div id="jplaycon"></div>
+		<div id="jplayconres"></div>
+		<div id="app-html5-audio-0"></div>
+		<div id="app-html5-audio-1"></div>		
+	</div>	
 <div id="app-search-suggestions-container"></div>
 <div id="app-loader">
 	<div id="app-loading-container">
@@ -40,7 +48,7 @@ APM: <span id="apm-total">00.00</span>
 		<div id="app-left">
 			<div id="app-menu-left">
 				<ul class="app-action-tabs-container" style="margin-left:12px;">
-					<li class="menul-sub-title">View <div class="app-sub-title-addon" id="app-current-tab">Playlist</div></li>
+					<li class="menul-sub-title"><span id="tooltip-view">View</span> <div class="app-sub-title-addon" id="app-current-tab">Playlist</div></li>
 					<div id="app-tabs-container">
 					 	<div id="app-changes-container">
 
@@ -58,8 +66,9 @@ APM: <span id="apm-total">00.00</span>
 					<li class="menul-sub-title">Settings</li>
 					<li class="app-action-tab menul-hotkeys">Hotkey setup</li>
 					<li class="app-action-tab menul-features">Feature test</li>
+					<li class="app-action-tab menul-crossfade">Crossfading</li>
 					
-					<li class="menul-sub-title">Selection <div class="app-sub-title-addon" id="app-selection-count">0 items</div></li>
+					<li class="menul-sub-title"><span id="tooltip-selection">Selection</span> <div class="app-sub-title-addon" id="app-selection-count">0 items</div></li>
 					<ul class="app-action-tabs-container" id="search-action-menu">
 						<li class="app-action-tab menul-play">Play</li>
 						<li class="app-action-tab menul-download">Download</li>
@@ -82,6 +91,12 @@ APM: <span id="apm-total">00.00</span>
 			<div id="app-menu-right">
 				<ul class="app-action-tabs-container">
 					<li class="menul-sub-title" id="app-recent-searches-header">Recent searches</li>
+					<li class="menul-sub-title" style="margin-top: 15px;">Video</li>
+					<div id="app-video-container" style="height: 150px;position:relative;">
+					<div id="app-video-overlay" style="height: 1px; width: 150px; position:absolute;top:0px;left:0px;background-color:#FFFFFF;z-index:2000;"></div>
+					</div>
+					
+					<li class="app-action-tab menur-fullscreen" id="app-fullscreen" style="display:none;width: 60px;margin: 10px auto;">Fullscreen</li>
 				</ul>
 			</div>
 		
@@ -89,27 +104,12 @@ APM: <span id="apm-total">00.00</span>
 		<div id="app-middle">
 		   <div id="app-inner">			
 			<div id="app-player-panel-container">
-				<div id="cfadecon" class="crossfadeinact">
-				<div id="crossfadetoggle" title="Toggle Crossfading" style="float:left;">crossfade</div>
-					<div class="cfadeseconds" title="Crossfade time between tracks in seconds">
-						<span id="lesscross">&#x25C0;</span> 
-						<span id="crossfadeval"></span> 
-						<span id="morecross">&#x25B6;</span>
-					</div>
-				</div>
-				<div id="app-playlist-modes-container">
-				<div id="app-mode-repeat" title="Repeat" class="app-playlist-mode"></div>
-				<div id="app-mode-shuffle" title="Shuffle" class="app-playlist-mode"></div>
-				<div id="app-mode-normal" title="Normal" class="app-playlist-mode"></div>
-				</div>
-				<br>
-				<br>
 				<div id="app-headercontrols">
 					<div id="app-songinfo">
 						<span id="curplaycontainer">
-							<span id="curplaytime">00:00</span>
+							<span id="app-current-playtime">00:00</span>
 							<span style="font-weight:bold;font-size:13px;margin:0px 1px">/</span>
-							<span id="totplaytime">00:00</span>
+							<span id="app-total-playtime">00:00</span>
 						</span>
 						<span id="songstatuscontainer">
 						<span id="songstatus"></span>
@@ -122,12 +122,12 @@ APM: <span id="apm-total">00.00</span>
 						</div>
 					</div>
 					<div id="app-player-panel-controls">
-						<div style="float:left;width:115px;">
-							<div title="Reset / Previous" class="app-panel-control" id="app-panel-previous"></div>
-							<div title="Play / Begin" class="app-panel-control" id="app-panel-play"></div>
-							<div title="Pause" class="app-panel-control" id="app-panel-pause"></div>
-							<div title="Stop" class="app-panel-control" id="app-panel-stop"></div>
-							<div title="Skip / Next" class="app-panel-control" id="app-panel-next"></div>
+						<div style="float:left;width:250px;margin-top:8px;">
+							<div class="app-panel-control" id="app-panel-play"></div>
+							<div class="app-panel-control" id="app-panel-pause"></div>
+							<div class="app-panel-control" id="app-panel-previous"></div>
+							<div class="app-panel-control active" id="app-panel-stop"></div>
+							<div class="app-panel-control" id="app-panel-next"></div>
 						</div>
 						<div id="app-volume-controls">
 							<div id="app-volume-percentage"></div>
@@ -148,38 +148,33 @@ APM: <span id="apm-total">00.00</span>
 					</div>
 					<div id="app-search-modes-container">
 						<span style="display:inline-block; margin-right: 5px;">From: </span>
-						<input id="app-youtube-mode" type="radio" name="smode" checked="">
+						<input id="app-youtube-mode" type="radio" name="smode" checked>
 						<label id="app-mode-youtube-label" class="app-mode-label app-mode-label-selected" for="app-youtube-mode">Youtube</label>
 						<input id="app-mp3-mode" type="radio" name="smode">
 						<label id="app-mode-mp3-label" class="app-mode-label" for="app-mp3-mode">MP3</label>
 					</div>
+	
 				</div>
 			</div>
-			<div id="app-content-holder">
+			<div id="app-content-holder" style="background-color: #ffffff;">
 
-				<div class="content" id="app-search-wrapper" style="height:475px;">
+				<div class="content" id="app-search-wrapper">
 					<div id="app-result-container" class="songs-list-container"></div>
 				</div>
-				<div class="content songs-list-container" id="app-playlist-container" style="height:475px;"></div>
+				<div class="content songs-list-container" id="app-playlist-container"></div>
 			</div>
+
 			<div id="app-search-info"></div>
-			<div id="containplayers">
-				<div class="disable-youtube-watch"></div>
-				<div id="sinatuubi" class="youtubehide"></div>
-				<div id="sinatuubires" class="youtubehideres"></div>
-				<div id="jplaycon"></div>
-				<div id="jplayconres"></div>
-				<div id="html5audio"></div>
-				<div id="html5audiores"></div>		
-			</div>
+
 		   </div>
 		</div>
 		<div class="clear"></div>
 		</div>
-		
+	
 		
 </div>
 <script type="text/javascript">
+var __PROJECT__TITLE = (function(){var t = "<?php echo $PROJECT_TITLE; ?>"; return function(){return t;};})();
 var __IP_GET__ = (function(){var __IP_ADDRESS__ = "<?php echo $_SERVER['REMOTE_ADDR']; ?>";return function(){return __IP_ADDRESS__;};})();
 var script = document.createElement("script");
 script.type = "text/javascript";

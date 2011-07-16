@@ -105,6 +105,7 @@ tooltip.emptyPlaylist = new Tooltip({
 
 tooltip.emptyPlaylist.message = "You can add tracks to playlist by:<ul class=\"menulist app-empty-playlist-ul\">" +
 				"<li class=\"app-empty-playlist-suggest\">- Searching</li> " +
+				"<li class=\"app-empty-playlist-suggest\">- Pressing ctrl+v ( copy paste ), if you happen to have a youtube url in clipboard </li> " +
 				"<li class=\"app-empty-playlist-suggest" +
 				( !features.localStorage && !features.readFiles ? " app-feature-disabled" : "" ) +
 				"\">- Loading a playlist</li>" +

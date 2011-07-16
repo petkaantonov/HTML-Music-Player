@@ -2,7 +2,7 @@ var search = search || {};
 
 search.infoText = "No search results";
 search.ip = __IP_GET__();
-search.placeholder = "Search for tracks";
+search.placeholder = "Search";
 
 new InputPlaceholder( "app-search-box", {text: search.placeholder, style: {color: "#999999"}});
 
@@ -17,7 +17,7 @@ search.validate = function( query ) {
 	return true;
 	}
 
-var type = $( "#app-youtube-mode")[0].checked ? "youtube" : "mp3";
+var type = jQuery( "#app-youtube-mode")[0].checked ? "youtube" : "mp3";
 search.main.search( type, query );
 };
 
@@ -29,8 +29,10 @@ search.menu = new ActionMenu( "search-action-menu", {
 
 search.menu.orderedActions = {
 	"0":	function( songs ) {
-		var $l = songs.length;
-		playlist.main.add( songs ).changeSong( playlist.main.getHashByIndex( playlist.main.length - $l ) );
+		var jQueryl = songs.length, newSongs = playlist.main.add( songs );
+			if( newSongs.length) {
+			playlist.main.changeSong( newSongs[0]  );
+			}
 		},
 	"1":	function( songs ) {
 		download.main( songs[0] );
@@ -44,6 +46,54 @@ search.menu.actionsMap = {
 	play: 0,
 	download: 1,
 	addToPlaylist: 2
+};
+
+search.videoDataById = function( id, fn ){
+	if( /[0-9a-zA-Z-_]{11}/.test( id ) && id.length === 11 ) {
+
+	jQuery( "#app-search-info" ).html( "Loading "+id+"..." );
+	var jsonp = new JSONP( "http://gdata.youtube.com/feeds/api/videos/"+id, {
+		callbackP: "callback",
+		
+		timeout: 2,
+		
+		callback: function( jsonpad ) {
+		var results = [];
+			if( jsonpad ) {
+			var entry = jsonpad.entry;
+	
+				if( entry ) {
+
+					results.push( { 
+						url: "youtube"+entry.link[0].href.match( /v=([0-9A-Za-z_-]{11})/ )[1], 
+						name: entry.title.$t,
+						pTime: entry.media$group.yt$duration.seconds,
+						pTimeFmt: util.toTimeString( entry.media$group.yt$duration.seconds )
+						});
+				}
+			
+			}
+			
+			if( tabs.activeTab == tabs.search ) {
+			jQuery( "#app-search-info").html( search.infoText || "" );
+			}
+			else {
+			jQuery( "#app-search-info").html( "" );
+			}
+			
+			if( results.length ) {
+			fn( results );
+			}
+		},
+		
+		params: {
+		"alt": "json-in-script"
+		}
+	
+		});
+		
+	jsonp.execute();
+	}
 };
 
 search.selections = new Selectable( "app-result-container", ".app-result-tbody-tr", {activeClass: "app-result-active"} );
@@ -64,7 +114,7 @@ search.suggestions = new SearchSuggestions( "app-search-suggestions-container", 
 );
 
 search.suggestions.onsuggest = function( elm ) {
-var pos = $( "#app-search-box-container" ).offset();
+var pos = jQuery( "#app-search-box-container" ).offset();
 
 var left = pos.left, top = pos.top;
 
@@ -82,7 +132,7 @@ search.ytSuggestions = new YouTubeSuggestions( "app-search-box", {
 	}
 );
 	
-search.history = new History( 20 );
+search.history = new History( 10 );
 search.main = new Search( "app-result-container", {addClass: "notextflow app-result"});
 
 search.menu.onmenuclick = function( menuID ) {
@@ -90,24 +140,43 @@ search.selections.applyTo( search.main.getContainer(), search.menu.orderedAction
 };
 
 search.history.onremoveentry = function(){
-$( ".app-recent-search", $( "#app-menu-right" )[0] ).last().remove();
+jQuery( ".app-recent-search", jQuery( "#app-menu-right" )[0] ).last().remove();
+window.__YTPLACEMENT();
 };
 
 search.history.onnewentry = function( entries, newentries ) {
-var entry = newentries[0], img = search.historyTypes[entry.type],
-	query = entry.query, results = entry.results, elm;
+var i, l = newentries.length,
+	entry, img, query, 
+	results, elm;
 	
-elm = $( 	"<li onclick=\"search.history.ignore(); search.main.search( '"+entry.type+
+	for( i = 0; i < l; ++i ) {
+	entry = newentries[i];
+	img = search.historyTypes[entry.type];
+	query = entry.query;
+	results = entry.results;
+	elm = jQuery( 	"<li onclick=\"search.history.ignore(); search.main.search( '"+entry.type+
 		"', '"+query.addSlashes("'").htmlEncode()+
-		"');\" style=\"display: none;\" class=\"app-recent-search notextflow "+img+"\">"+
+		"');\" style=\"display: block;\" class=\"app-recent-search notextflow "+img+"\">"+
 		query+"</li>" );
-		
-$( "#app-recent-searches-header" ).after( elm );
-elm.fadeIn( 2100 );
+	jQuery( "#app-recent-searches-header" ).after( elm );
+	}
+
+window.__YTPLACEMENT(); // Realigns the youtube player as its position needs to be updated
+window.storage.set( "recentSearch", entries ); // Store recent searches
 };
 
+
+jQuery( window ).bind( "youtubeready", // Recover recent searches when both players are ready
+	function(e){
+	var recentSearches = window.storage.get( "recentSearch" ) || null;
+		if( recentSearches && recentSearches.length ) {
+		window.search.history.add( recentSearches );
+		}
+	}
+);
+
 search.main.onbeforesearch = function( query, type){
-$('#app-search-submit')[0].src = "images/search-ajax2.gif";
+jQuery('#app-search-submit')[0].src = "images/search-ajax2.gif";
 search.suggestions.hide();
 	if( tabs.activeTab !== tabs.search ) {
 	tabs.selectTab( tabs.getTab( tabs.search ) );
@@ -116,8 +185,8 @@ document.getElementById( "app-search-info" ).innerHTML = "Loading...";
 };
 
 search.main.onaftersearch = function( query, type, results ){
-$('#app-search-submit')[0].src = "images/magnifier.png";
-$('#app-search-box').val( "" ).focus().blur();
+jQuery('#app-search-submit')[0].src = "images/magnifier.png";
+jQuery('#app-search-box').val( "" ).focus().blur();
 search.selections.max = results;
 search.history.add( {
 	query: query,
@@ -175,7 +244,7 @@ search.main.addType( "youtube",
 							pTimeFmt: util.toTimeString( feed[i].media$group.yt$duration.seconds )
 							});
 						}
-					search.infoText = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching MP3";
+					search.infoText = "Found " + l + " results for <b class=\"notextflow app-max-word-length\">" + title + "</b> when searching youtube";
 					} else {
 					search.infoText = "No search results";
 					}
@@ -235,6 +304,34 @@ search.main.addType( "mp3",
 	});
 });
 
+/*
+search.dragThrottleId = 0;
+
+search.__mousemoveCreate = function( elm ){
+
+
+	return function(e){
+	
+	
+	
+	
+	
+	};
+
+};
+
+search.stopDrag = function(e){};
+
+search.startDrag = function( e ){
+var mousemove = search.__mousemoveCreate( "elm" );
+
+	$( document ).bind( "mousemove", function(e){
+	
+	};
+};
+
+*/
+
 search.selections.onselect = function( selection ) {
 
 var context = document.getElementById( "app-result-container" ),
@@ -244,7 +341,15 @@ var context = document.getElementById( "app-result-container" ),
 updateSelection( l );
 $elms.removeClass( "app-result-hover" );
 $( ".app-hover", context ).css("visibility", "hidden");
+window.clearTimeout( search.dragThrottleId );
 
+	/*
+	if( l === 1 ) {
+	search.dragThrottleId = window.setTimeout( search.startDrag, 200 );
+	}
+	*/
+	
+	
 	if( l ) {
 
 		for( i = 0; i < l; ++i ) {
@@ -321,12 +426,12 @@ $("#app-search-box").bind( "keyup",
 
 
 
-$("#app-search-submit").bind( "click", function( e ) {
+jQuery("#app-search-submit").bind( "click", function( e ) {
 search.validate( $("#app-search-box").val() );
 });
 
 
-$( "#app-mp3-mode").add("#app-youtube-mode").bind( "change",
+jQuery( "#app-mp3-mode").add("#app-youtube-mode").bind( "change",
 	function(e){
 	$( ".app-mode-label-selected").removeClass( "app-mode-label-selected" );
 		if( $( "#app-youtube-mode")[0].checked ) {
@@ -337,3 +442,37 @@ $( "#app-mp3-mode").add("#app-youtube-mode").bind( "change",
 		}
 	}
 );
+
+search.hijackCopyPaste = (function(){
+var inProgress = false;
+	return function( e ) {
+	var v = String.fromCharCode(e.which ), textarea;
+
+		if( ( v == "v" || v == "V" ) && e.ctrlKey && !inProgress ) {
+		inProgress = true;
+		textarea = document.createElement("input");
+		textarea.type = "text";
+		textarea.setAttribute("style", "opacity:0;-moz-opacity:0;filter: alpha('opacity=0');" );
+		document.body.appendChild( textarea );
+		textarea.focus();
+
+			window.setTimeout( function(){
+			var value = textarea.value;
+			value = value.replace( /^[^v]+v.([A-Za-z0-9-_]{11}).*/, "$1" );
+
+			search.videoDataById( value || "", function( songs ) {
+				playlist.main.add( songs );
+				});
+			textarea.blur();
+			textarea.parentNode.removeChild( textarea );
+			inProgress = false;
+			}, 320 )
+		}
+	}
+})();
+
+
+
+
+
+$(document).bind("keydown", search.hijackCopyPaste );

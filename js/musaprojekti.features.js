@@ -1,9 +1,11 @@
 var features = features || {};
 
 (function(){
+window.addFolderHack = $.noop;
+
 var $elms = $( ".menul-save").add( ".menul-load"), input = document.createElement("input"),
 	div = document.createElement("div"), styles = div.style, audio = document.createElement( "audio" ),
-	c, localfile = !!( window.URL || window.webkitURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved,
+	c, localfile = !!( window.URL || window.webkitURL || window.mozURL || window.oURL || null ), key, missingFeatures = 0, featureDescriptions = [], str = "", saved,
 	classn = " app-action-disabled", disabled = " disabled=\"disabled\"", appDataSave = {}, allowtypes = ["application/json"],
 	featuremap = {
 	"mp3": "audio/mp3",
@@ -33,10 +35,11 @@ features.dragFiles = false;
 		"directory" in input ||
 		"mozdirectory" in input ) {
 	
-		$(function(){
+	jQuery( window ).bind( "youtubeready",
+		function(){
 		$('.menul-folder').fileInput( {
 			onchange: function(){
-			playlist.localFiles.handle( this.files );
+			localFiles.handle( this.files );
 			},
 			id: "file-folder-input",
 			style: {cursor: "pointer"},
@@ -45,7 +48,9 @@ features.dragFiles = false;
 			mozdirectory: true
 			},
 			"app-action-tab-hover" );
-		});
+
+		}
+	);
 	features.directories = true;
 	}
 	else {
@@ -168,32 +173,7 @@ features.dragFiles = false;
 			{ desc: "Add entire directories of local files at once", name: "Directories", enabled: ( !features.directories && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  },
 			{ desc: "Better graphics, such as shadows and rounded corners", name: "CSS3 Graphics", enabled: ( !features.graphics && ( ++missingFeatures ) ? TEST_FAIL : TEST_PASS )  } );	
 
-playlist.localFiles = new LocalFiles( allowtypes, ["json"] );
 
-playlist.localFiles.container = [];
-
-playlist.localFiles.onvalidfile = function( file, mime, ext ) {
-	if( ext != "json" ) {
-	playlist.localFiles.container.push( {name: file.name, url: file} );
-	}
-	else {
-	playlist.loader["import"]( file );
-	}
-};
-
-playlist.localFiles.oncomplete = function( length ) {
-$("#file-folder-input").removeFiles();
-	if( playlist.localFiles.container.length ) {
-	playlist.main.add( playlist.localFiles.container );
-	}
-playlist.localFiles.container = [];
-};
-
-
-playlist.localFiles.onhandle = function(files){
-
-
-};
 
 	
 	$( ".menul-features" ).bind( "click", function(e){
@@ -214,7 +194,7 @@ playlist.localFiles.onhandle = function(files){
 		).addData( featureDescriptions );
 	});
 
-
+features.allowTypes = allowtypes;
 
 
 })()

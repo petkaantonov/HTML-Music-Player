@@ -62,8 +62,10 @@ var key, n, menu, elms = $( ".menul-select-all" ).add( ".menul-invert" );
 	}
 	
 	if( menuId !== tabs.search ) {
+	updateSelection( playlist.selections._selection.length);
 	$( "#app-search-info").html("");
 	}else {
+	updateSelection( search.selections._selection.length);
 	$( "#app-search-info").html( search.infoText );	
 	}
 // Restore the scrolled value for this tab
@@ -100,3 +102,9 @@ return false;
 
 $( ".menul-select-all" ).click( tabs.selectAllFromCurrent );
 $( ".menul-invert" ).click( tabs.selectInverseFromCurrent );
+
+jQuery( window ).bind( "youtubeready",
+	function(){
+	window.tabs.selectTab( tabs.getTab( tabs.playlist ) );
+	}
+);

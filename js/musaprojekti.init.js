@@ -1,3 +1,7 @@
-$( "#app-loader").remove();
-$( "#app-container" ).show();
-tabs.selectTab( tabs.getTab( tabs.playlist ) );
+jQuery( window ).bind( "youtubeready",
+	function(){
+	jQuery( "#app-loader").remove();
+	jQuery( "#app-container" ).show();
+	}
+);
+	

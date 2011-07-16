@@ -1,0 +1,4 @@
+php_flag magic_quotes_gpc          Off
+php_flag magic_quotes_sybase       Off
+php_flag magic_quotes_runtime      Off
+options -indexes

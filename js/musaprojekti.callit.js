@@ -78,16 +78,20 @@ hotkeys.manager.disable();
 $(document).bind('dragenter', function(ev) {
 	return false;
     })
-    .bind('dragleave', function(ev) {
+    .bind( "dragleave", function(ev) {
     return false;
     })
-    .bind('dragover', function(ev) {
+    .bind( "dragover", function(ev) {
     return false;
     })
-    .bind('drop', function(ev) {
-    playlist.localFiles.handle( ev.originalEvent.dataTransfer.files );
+    .bind( "drop", function(ev) {
+    
+    localFiles.handle( ev.originalEvent.dataTransfer.files );
+    ev.preventDefault();
+    ev.stopPropagation();
+    return false;
     })
-    .bind("selectstart", function(){
+    .bind( "selectstart", function(){
     return false;
     });
     

@@ -295,8 +295,9 @@ var hotkeys = hotkeys || {};
 hotkeys.categories = {
 	"0": "Music player",
 	"9": "Playlist management",
-	"17": "General actions",
-	"23": "Saving & loading"
+	"17": "Search results management",
+	"18": "General actions",
+	"24": "Saving & loading"
 };
 hotkeys.currentBind = "";
 
@@ -312,6 +313,7 @@ hotkeys.codeMap = {
 };
 
 hotkeys.defaults = {
+	"ADD": "a",
 	"ALL": "c+a",
 	"ALP": "",
 	"CLS": "esc",
@@ -319,13 +321,13 @@ hotkeys.defaults = {
 	"INV": "a+a",
 	"JFL": "j",
 	"JSR": "s",
-	"NXT": "b",
+	"NXT": "right",
 	"MPL": "enter",
 	"PLP": "up",
 	"PLN": "down",
-	"PLY": "x",
-	"PRV": "z",
-	"PSE": "c",
+	"PLY": "z",
+	"PRV": "left",
+	"PSE": "x",
 	"QLD": "c+d",
 	"QSF": "c+a+s",
 	"QSM": "c+s",
@@ -334,7 +336,7 @@ hotkeys.defaults = {
 	"RND": "",
 	"SB1": "a+mwdn",
 	"SF1": "a+mwup",
-	"STP": "v",
+	"STP": "c",
 	"TOG": "tab",
 	"VDN": "mwdn",
 	"VHD": "",
@@ -350,14 +352,14 @@ var timeoutid = 0, changesBegun = false;
 
 hotkeys.volumeUp = function(){
 		if( !changesBegun ) {
-		player.slider.onslidebegin.call( player.slider );
+		player.volumeSlider.onslidebegin.call( player.slider );
 		}
 	window.clearTimeout( timeoutid );
 	
 	timeoutid = window.setTimeout( 
 		function(){
 		changesBegun = false;
-		player.slider.onslideend.call( player.slider );
+		player.volumeSlider.onslideend.call( player.slider );
 		},
 		800
 	);
@@ -365,25 +367,25 @@ hotkeys.volumeUp = function(){
 	changesBegun = true;
 	var curVol = player.main.getVolume() / 100 + 0.03;
 	curVol = curVol > 1 ? 1 : curVol;
-	player.slider.onslide( curVol );
+	player.volumeSlider.onslide( curVol );
 };
 hotkeys.volumeDown = function(){
 		if( !changesBegun ) {
-		player.slider.onslidebegin.call( player.slider );
+		player.volumeSlider.onslidebegin.call( player.slider );
 		}
 	window.clearTimeout( timeoutid );
 	
 	timeoutid = window.setTimeout( 
 		function(){
 		changesBegun = false;
-		player.slider.onslideend.call( player.slider );
+		player.volumeSlider.onslideend.call( player.slider );
 		},
 		800
 	);
 	changesBegun = true;
 	var curVol = player.main.getVolume() / 100 - 0.03;
 	curVol = curVol < 0 ? 0 : curVol;
-	player.slider.onslide( curVol );
+	player.volumeSlider.onslide( curVol );
 };
 
 
@@ -403,30 +405,27 @@ description: "Decreases volume by 3%.",
 code: "PRV",
 action: "Previous track",
 description: "Jumps to the previous track or, if no previous track is available, to the first track in the current playlist.",
-	handler: function(){
-	playlist.main.prev();
-	return false;
-	}
+	handler: throttle( player.methodPrev, 200 )
 }, {
 code: "NXT",
 action: "Next track",
 description: "Jumps to the next track.",
-	handler: function(){
-	playlist.main.next();
-	return false;
-	}
+	handler: throttle( player.methodNext, 200 )
 }, {
 code: "PLY",
 action: "Play",
-description: "Start playback."
+description: "Start playback.",
+	handler: player.methodPlay
 }, {
 code: "PSE",
 action: "Pause",
-description: "Pauses playback."
+description: "Pauses playback.",
+	handler: player.methodPause
 }, {
 code: "STP",
 action: "Stop",
-description: "Stops playback."
+description: "Stops playback.",
+	handler: player.methodStop
 }, {
 code: "SB1",
 action: "Seek back",
@@ -448,8 +447,12 @@ description: "Starts playing the selected track. If multiple tracks are selected
 		}
 		else if ( tabs.activeTab == tabs.search ) {	
 			search.selections.applyTo( search.main.getContainer(), function(songs){
-			var $l = songs.length;
-			playlist.main.add( songs ).changeSong( playlist.main.getHashByIndex( playlist.main.length - $l ) );
+			var newSongs = playlist.main.add( songs );
+			
+				if( newSongs.length ) {
+				playlist.main.changeSong( newSongs[0] );
+				}
+
 			});			
 		}
 	return false;
@@ -537,6 +540,20 @@ description: "Shuffles the selected tracks. Select all before this action to shu
 		playlist.createSorter( playlist.main._hashList, "shuffle", [], false, playlist.selections )
 	);
 	playlist.main.render();
+	return false;
+	}
+}, {
+code: "ADD",
+action: "Add to playlist",
+description: "Adds the selected search results to playlist",
+	handler: function(){
+		if( tabs.activeTab == tabs.search  ) {
+			search.selections.applyTo( search.main.getContainer(),
+				function(songs ) {
+				playlist.main.add( songs );
+				}
+			);
+		}
 	return false;
 	}
 }, {
