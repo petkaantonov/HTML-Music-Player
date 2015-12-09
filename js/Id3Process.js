@@ -226,7 +226,7 @@ ID3Process.prototype.loadNext = function() {
             }
             return tagData;
         })
-        .catch(AudioError, function(e) {
+        .catch(AudioError, FileError, function(e) {
             self.playlist.removeTrack(track);
         })
         .catch(function(e) {

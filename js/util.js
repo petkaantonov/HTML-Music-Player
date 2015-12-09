@@ -533,7 +533,9 @@ util.readAsBinaryString = function(file) {
         util.once(reader, "load", function(e) {
             resolve(e.target.result);
         });
-        util.once(reader, "error", reject);
+        util.once(reader, "error", function() {
+            reject(new FileError(this.error));
+        });
         reader.readAsBinaryString(file);
     });
 };

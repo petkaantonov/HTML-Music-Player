@@ -19,6 +19,14 @@ function ReplayGainTrackProcessor(replayGainProcessor, audioBuffer) {
     this.worker.on("transferList", this._onTransferList);
 }
 
+ReplayGainTrackProcessor.prototype._getBuffer = function(index) {
+    var value = this._buffers[index];
+    if (!value) {
+        value = this._buffers[index] = new Float32Array(PREALLOCATION_SIZE);
+    }
+    return value;
+};
+
 ReplayGainTrackProcessor.prototype._onTransferList = function(transferList) {
     for (var i = 0; i < transferList.length; ++i) {
         this.replayGainProcessor._buffers[i] = this._buffers[i] = new Float32Array(transferList[i]);
@@ -37,16 +45,15 @@ ReplayGainTrackProcessor.prototype.start = function(track) {
         sampleRate: self.audioBuffer.sampleRate
     }]).then(function loop() {
         var frameCount = Math.min(length - index, PREALLOCATION_SIZE);
-        var buffers = self._buffers;
 
         for (var i = 0; i < channels; ++i) {
-            var buffer = buffers[i];
+            var buffer = self._getBuffer(i);
             self.audioBuffer.copyFromChannel(buffer, i, index);
         }
         index += frameCount;
         return self.worker.invokeInWorkerThread("addFrames", [{
             length: frameCount
-        }], buffers.map(function(v) {
+        }], self._buffers.map(function(v) {
             return v.buffer;
         })).then(function() {
             if (index < length) {
@@ -68,13 +75,8 @@ ReplayGainTrackProcessor.prototype.start = function(track) {
 
 function ReplayGainProcessor(workerPool) {
     this._worker = workerPool.reserveWorker();
-    this._buffers = [
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE)
-    ];
+    this._buffers = new Array(5);
+    this._buffers.length = 0;
 }
 
 ReplayGainProcessor.prototype._createDecoder = function(channels, sampleRate) {

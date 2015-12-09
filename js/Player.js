@@ -120,7 +120,7 @@ function AudioManager(player, track, implicitlyLoaded) {
         this.url = URL.createObjectURL(track.getFile());
         this.mediaElement = mediaElementPool.alloc();
         this.mediaElementRequiresLoading = true;
-        this.image = new ImageWrapper(track.getImageUrl());
+        this.image = track.getImage();
     }
 
     this.mediaElement.autoplay = false;
@@ -441,7 +441,6 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    this.image.destroy();
     this.image = null;
     equalizer.removeListener("equalizerChange", this.equalizerChanged);
     crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
@@ -924,18 +923,15 @@ function PreloadedMediaElement(track) {
     this.errored = this.errored.bind(this);
     this.tagDateUpated = this.tagDateUpated.bind(this);
 
-    if (tagData && tagData.hasPicture()) {
-        this.image = new ImageWrapper(track.getImageUrl());
-    } else {
-        if (!tagData) {
-            this.track.once("tagDataUpdate", this.tagDateUpated);
-        }
-        this.image = ImageWrapper.EMPTY;
+    this.image = track.getImage();
+
+    if (!tagData || !tagData.hasPicture()) {
+        this.track.once("tagDataUpdate", this.tagDateUpated);
     }
 }
 
 PreloadedMediaElement.prototype.tagDateUpated = function() {
-    this.image = new ImageWrapper(this.track.getImageUrl());
+    this.image = this.track.getImage();
 };
 
 PreloadedMediaElement.prototype.errored = function() {
@@ -976,7 +972,7 @@ PreloadedMediaElement.prototype.destroy = function() {
         mediaElementPool.free(this.mediaElement);
         URL.revokeObjectURL(this.url);
         this.track = this.url = this.mediaElement = null;
-        this.image.destroy();
+        this.image = null;
     }
 };
 

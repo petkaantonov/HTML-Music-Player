@@ -154,7 +154,7 @@ Tooltip.prototype.position = function() {
             if (direction === "up") {
                 top = baseY + gap + 21;
             } else {
-                top = baseY - gap * 2;
+                top = baseY - gap - 21 - box.height;
             }
         } else {
             if (align === "begin") {
@@ -168,7 +168,7 @@ Tooltip.prototype.position = function() {
             if (direction === "left") {
                 left = baseX + gap + 21;
             } else {
-                left = baseX - gap * 2;
+                left = baseX - gap - 21 - box.width;
             }
         }
 

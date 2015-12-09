@@ -242,9 +242,19 @@ Track.prototype.setRatingStars = function(ratingValue) {
     }
 };
 
+Track.prototype.getImage = function() {
+    var ret;
+    if (this.tagData) ret = this.tagData.getImage();
+
+    if (!ret) {
+        ret = new Image();
+        ret.src = DEFAULT_IMAGE_URL;
+    }
+    return ret;
+};
+
 Track.prototype.getImageUrl = function() {
-    if (!this.tagData) return DEFAULT_IMAGE_URL;
-    return this.tagData.getImageUrl() || DEFAULT_IMAGE_URL;
+    return this.getImage().src;
 };
 
 Track.prototype.isDetachedFromPlaylist = function() {
@@ -395,7 +405,8 @@ Track.prototype.setAnalysisStatus = function() {
         preferredAlign: "middle",
         container: $("body"),
         target: this.$trackStatus().find(".track-analysis-status"),
-        classPrefix: "app-tooltip",
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        arrow: false,
         content: ANALYSIS_TOOLTIP_MESSAGE
     });
 };

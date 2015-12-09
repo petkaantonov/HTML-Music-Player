@@ -24,7 +24,7 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, picture) {
 
     this._formattedTime = null;
     this._formattedName = null;
-    this._imageUrl = null;
+    this._image = null;
 
     this.beginSilenceLength = this.basicInfo.encoderDelay || 0;
     this.endSilenceLength = this.basicInfo.encoderPadding || 0;
@@ -113,24 +113,29 @@ TagData.prototype.hasPicture = function() {
     return !!this.picture;
 };
 
-TagData.prototype.getImageUrl = function() {
+TagData.prototype.getImage = function() {
     if (!this.picture) return null;
-    if (this._imageUrl) {
-        URL.revokeObjectURL(this._imageUrl);
-        this._imageUrl = null;
-        return this.getImageUrl();
-    }
+    if (this._image) return this._image.cloneNode();
+
     var blob = this.track.getFile().slice(this.picture.start,
                                           this.picture.start + this.picture.length,
                                           this.picture.type);
-    this._imageUrl = URL.createObjectURL(blob);
-    return this._imageUrl;
+    var url = URL.createObjectURL(blob);
+    this._image = new Image();
+    this._image.src = url;
+    return this._image.cloneNode();
+};
+
+TagData.prototype.getImageUrl = function() {
+    var ret = this.getImage();
+    if (!ret) return null;
+    return ret.src;
 };
 
 TagData.prototype.destroy = function() {
-    if (this._imageUrl) {
-        URL.revokeObjectURL(this._imageUrl);
-        this._imageUrl = null;
+    if (this._image) {
+        URL.revokeObjectURL(this._image.src);
+        this._image = null;
     }
 };
 
