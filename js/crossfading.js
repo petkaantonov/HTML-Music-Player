@@ -184,7 +184,7 @@ const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-co
                 <div class='checkbox-container'>                                             \
                     <label class='checkbox-label'>                                           \
                         <input type='checkbox' class='album-crossfade-preference checkbox'>  \
-                        Don't crossfade between tracks of the same album                     \
+                        Don't crossfade between consecutive tracks of the same album         \
                     </label>                                                                 \
                     <div class='cross-fade-preset-container'>                                \
                         <label>Preset:</label>                                               \

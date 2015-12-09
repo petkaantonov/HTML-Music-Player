@@ -12,12 +12,9 @@ function LocalFiles(playlist, allowMime, allowExt) {
 }
 
 (function() {
+    const rext = /\.([A-Z_a-z0-9-]+)$/;
     function getExtension(name) {
-        try {
-            return name.substr(name.lastIndexOf(".") + 1).toLowerCase();
-        } catch (e) {
-            return null;
-        }
+        return name.match(rext);
     }
 
     LocalFiles.prototype.isMimeTypeSupported = function(mime) {
@@ -35,10 +32,16 @@ function LocalFiles(playlist, allowMime, allowExt) {
             var file = files[i];
             var ext = getExtension(file.name);
 
+            if (ext) {
+                ext = ext[1].toLowerCase();
+            } else {
+                ext = "";
+            }
+
             if (this.isExtensionSupported(ext) ||
                 this.isMimeTypeSupported(file.type)) {
                 tracks.push(new Track(file));
-            } else if ((!ext || ext.length < 3 || ext.length > 4) && !file.type) {
+            } else if (!ext && !file.type) {
                 tracks.push(new Track(file));
             }
         }

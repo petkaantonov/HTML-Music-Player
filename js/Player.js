@@ -399,11 +399,11 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     var fadeOutSamples = crossFadePreferences.getOutCurveSamples();
 
     if (!crossFadePreferences.getShouldAlbumCrossFade()) {
-        if (this.track.isFromSameAlbumAs(this.player.playlist.getPreviousTrack())) {
+        if (this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
             fadeInEnabled = false;
         }
 
-        if (this.track.isFromSameAlbumAs(this.player.playlist.getNextTrack())) {
+        if (this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
             fadeOutEnabled = false;
         }
     }

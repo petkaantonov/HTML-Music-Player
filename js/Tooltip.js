@@ -19,50 +19,6 @@ const getArrowAlign = function(value) {
 
 const NULL = $(null);
 
-const offsetsFrom = function(child, parent) {
-    var top = 0;
-    var left = 0;
-    var offsetParent = child;
-    do {
-        top += offsetParent.offsetTop;
-        left += offsetParent.offsetLeft;
-        offsetParent = offsetParent.offsetParent;
-    } while (offsetParent && offsetParent !== parent);
-
-    return {
-        top: top,
-        left: left
-    };
-};
-
-const isFullyVisible = (function() {
-    const contains = function(parent, child) {
-        while (parent && child) {
-            if (parent === child) return true;
-            child = child.parentNode;
-        }
-        return false;
-    };
-
-    return function isFullyVisible(elem) {
-        var rect = elem.getBoundingClientRect();
-        var x1 = Math.ceil(rect.left);
-        if (x1 === rect.left) x1++;
-        var x2 = Math.floor(rect.right);
-        if (x2 === rect.right) x2--;
-        var y1 = Math.ceil(rect.top);
-        if (y1 === rect.top) y1++;
-        var y2 = Math.floor(rect.bottom);
-        if (y2 === rect.bottom) y2--;
-
-        return contains(elem, document.elementFromPoint(x1 + 2, y1 + 2)) &&
-               contains(elem, document.elementFromPoint(x1 + 2, y2 - 2)) &&
-               contains(elem, document.elementFromPoint(x2 - 2, y1 + 2)) &&
-               contains(elem, document.elementFromPoint(x2 - 2, y2 - 2) /*bug*/);
-    };
-})();
-
-
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     var arrowAligns, directions;
 
@@ -110,18 +66,28 @@ function Tooltip(opts) {
     this._shown = false;
     this._tooltip = NULL;
     this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
-    this._gap = parseInt(opts.gap, 10) || 7;
+    this._gap = parseInt(opts.gap, 10) || 0;
+    this._arrow = !!opts.arrow;
+    this._x = 0;
+    this._y = 0;
+    this._maxX = 0;
+    this._maxY = 0;
 
     this._show = this._show.bind(this);
     this.mouseLeft = this.mouseLeft.bind(this);
     this.mouseEntered = this.mouseEntered.bind(this);
-    this.clicked = this.clicked.bind(this);
+    this.hide = this.hide.bind(this);
+    this.mousemoved = this.mousemoved.bind(this);
+    this.position = this.position.bind(this);
+    this.hide = this.hide.bind(this);
 
     this._target.on("mouseenter", this.mouseEntered);
     this._target.on("mouseleave", this.mouseLeft);
-    this._target.on("click", this.clicked);
+    this._target.on("click", this.hide);
+    $(window).on("resize", this.position);
+    $(window).on("blur", this.hide);
+    util.documentHidden.on("change", this.hide);
 }
-
 
 Tooltip.prototype._clearDelay = function() {
     if (this._delayTimeoutId !== -1) {
@@ -144,36 +110,28 @@ Tooltip.prototype._createTooltipNode = function(message) {
     return $($.parseHTML(html)[0]);
 };
 
-Tooltip.prototype._show = function(noTransition) {
-    this._clearDelay();
-    if (this._shown) return;
-    var content = this._onContent();
-    if (content === false) return;
-    this._shown = true;
-    content = content + "";
+Tooltip.prototype.position = function() {
+    if (!this._shown) return;
+    var $node = this._tooltip;
+    var baseX = this._x;
+    var baseY = this._y;
+    var maxX = $(window).width();
+    var maxY = $(window).height();
+    var box = $node[0].getBoundingClientRect();
 
-    var $target = this._target;
-    var $parent = this.$();
-    var $node = this._createTooltipNode(content);
+    if (maxX !== this._maxX || maxY !== this._maxY) {
+        baseX = baseX * (maxX / this._maxX);
+        this._x = baseX;
 
-    this._tooltip = $node;
-    $parent.append($node);
-    $node.css({left: -9999, top: -9999});
+        baseY = baseY * (maxY / this._maxY);
+        this._y = baseY;
 
-    var nodeWidth = $node.outerWidth();
-    var nodeHeight = $node.outerHeight();
+        this._maxX = maxX;
+        this._maxY = maxY;
+    }
 
-    var targetOffsets = offsetsFrom($target[0], $parent[0]);
-    var targetx1 = targetOffsets.left;
-    var targetx2 = targetOffsets.left + $target.outerWidth();
-    var targety1 = targetOffsets.top;
-    var targety2 = targetOffsets.top + $target.outerHeight();
-    var targetHalfWidth = (targetx2 - targetx1) / 2;
-    var targetHalfHeight = (targety2 - targety1) / 2;
     var gap = this._gap;
     var configurations = getConfigurationsToTryInOrder(this._preferredDirection, this._preferredArrowAlign);
-
-    $node.css({left: "auto", top: "auto"});
     var direction, align;
 
     // Keep trying configurations in preferred order until it is fully visible.
@@ -186,42 +144,67 @@ Tooltip.prototype._show = function(noTransition) {
 
         if (direction === "up" || direction === "down") {
             if (align === "begin") {
-                left = targetx1 + targetHalfWidth - gap * 2;
+                left = baseX - gap;
             } else if (align === "middle") {
-                left = targetx1 + targetHalfWidth - (nodeWidth / 2);
+                left = baseX - box.width / 2;
             } else if (align === "end") {
-                left = targetx1 + targetHalfWidth - nodeWidth + gap * 2;
+                left = baseX - box.width + gap;
             }
 
             if (direction === "up") {
-                top = targety2 + gap * 2;
+                top = baseY + gap + 21;
             } else {
-                top = targety1 - nodeHeight - gap * 2;
+                top = baseY - gap * 2;
             }
         } else {
             if (align === "begin") {
-                top = targety1 + targetHalfHeight - gap * 2;
+                top = baseY - gap;
             } else if (align === "middle") {
-                top = targety1 + targetHalfHeight - (nodeHeight / 2);
+                top = baseY - box.height / 2;
             } else if (align === "end") {
-                top = targety1 + targetHalfHeight - nodeHeight + gap * 2;
+                top = baseY - box.height + gap;
             }
 
             if (direction === "left") {
-                left = targetx2 + gap * 2;
+                left = baseX + gap + 21;
             } else {
-                left = targetx1 - nodeWidth - gap * 2;
+                left = baseX - gap * 2;
             }
         }
 
-        $node.css({left: left, top: top});
-
-        if (isFullyVisible($node[0])) {
+        if (left >= 0 && left + box.width <= maxX &&
+            top >= 0 && top + box.height <= maxY) {
+            $node.css({left: left, top: top});
             break;
         }
     }
 
-    this.renderArrow($node, direction, align);
+    if (this._arrow) {
+        $node.find(".tooltip-arrow-rendering").remove();
+        this.renderArrow($node, direction, align);
+    }
+};
+
+Tooltip.prototype._show = function(noTransition) {
+    this._target.off("mousemove", this.mousemoved);
+    this._clearDelay();
+    if (this._shown) return;
+    this._maxX = $(window).width();
+    this._maxY = $(window).height();
+    var content = this._onContent();
+    if (content === false) return;
+    this._shown = true;
+    content = content + "";
+
+    var $target = this._target;
+    var $parent = $("body");
+    var $node = this._createTooltipNode(content);
+
+    this._tooltip = $node;
+    $parent.append($node);
+    $node.css({position: "absolute", left: -9999, top: -9999, zIndex: 1000});
+
+    this.position();
 
     if (this._transitionClass) {
         if (noTransition) {
@@ -337,7 +320,7 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
         borderArrowLeft = left + borderWidth;
     }
 
-    var backgroundArrow = $("<div>").css({
+    var backgroundArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
         position: "absolute",
         top: top,
         left: left,
@@ -356,7 +339,7 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
     backgroundArrow.appendTo($node);
 
     if (borderWidth !== 0) {
-        var borderArrow = $("<div>").css({
+        var borderArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
             position: "absolute",
             top: borderArrowTop,
             left: borderArrowLeft,
@@ -377,31 +360,55 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
 };
 
 Tooltip.prototype.hide = function() {
+    this._target.off("mousemove", this.mousemoved);
     this._clearDelay();
     if (!this._shown) return;
     this._shown = false;
-    this._tooltip.remove();
-    this._tooltip = NULL;
+    if (this._transitionClass) {
+        var $node = this._tooltip;
+        var $parent = $node.parent();
+        $node.detach();
+        $node.addClass(this._transitionClass).removeClass("initial");
+        $node.appendTo($parent);
+        $node[0].offsetHeight;
+        $node.addClass("initial");
+        var duration = util.getLongestTransitionDuration($node);
+        var self = this;
+        this._delayTimeoutId = setTimeout(function() {
+            self._tooltip.remove();
+            self._tooltip = NULL;
+        }, duration);
+    } else {
+        this._tooltip.remove();
+        this._tooltip = NULL;
+    }
 };
 
-Tooltip.prototype.mouseEntered = function() {
+Tooltip.prototype.mousemoved = function(e) {
     this._clearDelay();
+    this._x = e.clientX;
+    this._y = e.clientY;
     this._delayTimeoutId = setTimeout(this._show, this._delay);
+};
+
+Tooltip.prototype.mouseEntered = function(e) {
+    this._target.on("mousemove", this.mousemoved);
+    this.mousemoved(e);
 };
 
 Tooltip.prototype.mouseLeft = function(e) {
     this.hide();
 };
 
-Tooltip.prototype.clicked = function() {
-    this.hide();
-};
-
 Tooltip.prototype.destroy = function() {
+    $(window).off("resize", this.position);
+    $(window).off("blur", this.hide);
+    util.documentHidden.removeListener("change", this.hide);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
+        this._target.off("click", this.hide);
         this._target = this._domNode = null;
     }
 };

@@ -5,10 +5,11 @@ var ret = {};
 
 ret.makeTooltip = function(target, content) {
     return new Tooltip({
-        transitionClass: "fade-scale-in",
+        transitionClass: "fade-in",
         preferredDirection: "up",
-        preferredAlign: "middle",
+        preferredAlign: "begin",
         container: $("body"),
+        arrow: false,
         target: target,
         delay: 600,
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",

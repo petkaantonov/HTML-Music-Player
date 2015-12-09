@@ -839,6 +839,15 @@ util.unicode.decodeUtf8EncodedBinaryString = function(str) {
     return codePoints.join("");
 };
 
+util.getLongestTransitionDuration = function(node) {
+    var $node = $(node);
+    var prop = $node.css("transitionDuration");
+    if (+!prop) return 0;
+    return prop.split(",").reduce(function(max, cur) {
+        return Math.max(max, parseFloat(cur));
+    }, 0) * 1000;
+};
+
 util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
@@ -866,7 +875,7 @@ util.documentHidden = (function() {
     var eventName = prefix.slice(0, -1) + "visibilitychange";
 
     var ret = new EventEmitter();
-
+    ret.setMaxListeners(255);
     ret.value = function() {
         return document[prop];
     };

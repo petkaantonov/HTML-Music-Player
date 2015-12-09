@@ -54,11 +54,28 @@ PlaylistModeManager.prototype.$repeat = function() {
 };
 
 PlaylistModeManager.prototype.shuffleClicked = function() {
+    this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
+
+    if (this.getMode() !== SHUFFLE) {
+        this.$shuffle().addClass("just-deactivated");
+    }
+    this.$shuffle().one("mouseleave", function() {
+        $(this).removeClass("just-deactivated");
+    });
 };
 
 PlaylistModeManager.prototype.repeatClicked = function() {
+    this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
+
+    if (this.getMode() !== REPEAT) {
+        this.$repeat().addClass("just-deactivated");
+    }
+
+    this.$repeat().one("mouseleave", function() {
+        $(this).removeClass("just-deactivated");
+    });
 };
 
 PlaylistModeManager.prototype.getMode = function() {

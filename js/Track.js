@@ -266,11 +266,7 @@ Track.prototype.setIndex = function(index) {
 };
 
 Track.prototype.doubleClicked = function(event) {
-    if (this === playlist.main.getCurrentTrack()) {
-        player.main.resume();
-    } else {
-        playlist.main.changeTrackExplicitly(this);
-    }
+    playlist.main.changeTrackExplicitly(this);
 };
 
 Track.prototype.selected = function() {
@@ -437,6 +433,16 @@ Track.prototype.getTotalSilenceLength = function() {
 Track.prototype.getBeginSilenceLength = function() {
     if (!this.tagData) return 0;
     return this.tagData.getBeginSilenceLength();
+};
+
+Track.prototype.comesBeforeInSameAlbum = function(otherTrack) {
+    return this.isFromSameAlbumAs(otherTrack) &&
+        this.tagData.albumIndex === otherTrack.tagData.albumIndex - 1;
+};
+
+Track.prototype.comesAfterInSameAlbum = function(otherTrack) {
+    return this.isFromSameAlbumAs(otherTrack) &&
+        this.tagData.albumIndex === otherTrack.tagData.albumIndex + 1;
 };
 
 Track.prototype.isFromSameAlbumAs = function(otherTrack) {
