@@ -23585,7 +23585,9 @@ util.readAsBinaryString = function(file) {
         util.once(reader, "load", function(e) {
             resolve(e.target.result);
         });
-        util.once(reader, "error", reject);
+        util.once(reader, "error", function() {
+            reject(new FileError(this.error));
+        });
         reader.readAsBinaryString(file);
     });
 };
@@ -23891,6 +23893,15 @@ util.unicode.decodeUtf8EncodedBinaryString = function(str) {
     return codePoints.join("");
 };
 
+util.getLongestTransitionDuration = function(node) {
+    var $node = $(node);
+    var prop = $node.css("transitionDuration");
+    if (+!prop) return 0;
+    return prop.split(",").reduce(function(max, cur) {
+        return Math.max(max, parseFloat(cur));
+    }, 0) * 1000;
+};
+
 util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
@@ -23918,7 +23929,7 @@ util.documentHidden = (function() {
     var eventName = prefix.slice(0, -1) + "visibilitychange";
 
     var ret = new EventEmitter();
-
+    ret.setMaxListeners(255);
     ret.value = function() {
         return document[prop];
     };
@@ -24067,50 +24078,6 @@ const getArrowAlign = function(value) {
 
 const NULL = $(null);
 
-const offsetsFrom = function(child, parent) {
-    var top = 0;
-    var left = 0;
-    var offsetParent = child;
-    do {
-        top += offsetParent.offsetTop;
-        left += offsetParent.offsetLeft;
-        offsetParent = offsetParent.offsetParent;
-    } while (offsetParent && offsetParent !== parent);
-
-    return {
-        top: top,
-        left: left
-    };
-};
-
-const isFullyVisible = (function() {
-    const contains = function(parent, child) {
-        while (parent && child) {
-            if (parent === child) return true;
-            child = child.parentNode;
-        }
-        return false;
-    };
-
-    return function isFullyVisible(elem) {
-        var rect = elem.getBoundingClientRect();
-        var x1 = Math.ceil(rect.left);
-        if (x1 === rect.left) x1++;
-        var x2 = Math.floor(rect.right);
-        if (x2 === rect.right) x2--;
-        var y1 = Math.ceil(rect.top);
-        if (y1 === rect.top) y1++;
-        var y2 = Math.floor(rect.bottom);
-        if (y2 === rect.bottom) y2--;
-
-        return contains(elem, document.elementFromPoint(x1 + 2, y1 + 2)) &&
-               contains(elem, document.elementFromPoint(x1 + 2, y2 - 2)) &&
-               contains(elem, document.elementFromPoint(x2 - 2, y1 + 2)) &&
-               contains(elem, document.elementFromPoint(x2 - 2, y2 - 2) /*bug*/);
-    };
-})();
-
-
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     var arrowAligns, directions;
 
@@ -24158,18 +24125,28 @@ function Tooltip(opts) {
     this._shown = false;
     this._tooltip = NULL;
     this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
-    this._gap = parseInt(opts.gap, 10) || 7;
+    this._gap = parseInt(opts.gap, 10) || 0;
+    this._arrow = !!opts.arrow;
+    this._x = 0;
+    this._y = 0;
+    this._maxX = 0;
+    this._maxY = 0;
 
     this._show = this._show.bind(this);
     this.mouseLeft = this.mouseLeft.bind(this);
     this.mouseEntered = this.mouseEntered.bind(this);
-    this.clicked = this.clicked.bind(this);
+    this.hide = this.hide.bind(this);
+    this.mousemoved = this.mousemoved.bind(this);
+    this.position = this.position.bind(this);
+    this.hide = this.hide.bind(this);
 
     this._target.on("mouseenter", this.mouseEntered);
     this._target.on("mouseleave", this.mouseLeft);
-    this._target.on("click", this.clicked);
+    this._target.on("click", this.hide);
+    $(window).on("resize", this.position);
+    $(window).on("blur", this.hide);
+    util.documentHidden.on("change", this.hide);
 }
-
 
 Tooltip.prototype._clearDelay = function() {
     if (this._delayTimeoutId !== -1) {
@@ -24192,36 +24169,28 @@ Tooltip.prototype._createTooltipNode = function(message) {
     return $($.parseHTML(html)[0]);
 };
 
-Tooltip.prototype._show = function(noTransition) {
-    this._clearDelay();
-    if (this._shown) return;
-    var content = this._onContent();
-    if (content === false) return;
-    this._shown = true;
-    content = content + "";
+Tooltip.prototype.position = function() {
+    if (!this._shown) return;
+    var $node = this._tooltip;
+    var baseX = this._x;
+    var baseY = this._y;
+    var maxX = $(window).width();
+    var maxY = $(window).height();
+    var box = $node[0].getBoundingClientRect();
 
-    var $target = this._target;
-    var $parent = this.$();
-    var $node = this._createTooltipNode(content);
+    if (maxX !== this._maxX || maxY !== this._maxY) {
+        baseX = baseX * (maxX / this._maxX);
+        this._x = baseX;
 
-    this._tooltip = $node;
-    $parent.append($node);
-    $node.css({left: -9999, top: -9999});
+        baseY = baseY * (maxY / this._maxY);
+        this._y = baseY;
 
-    var nodeWidth = $node.outerWidth();
-    var nodeHeight = $node.outerHeight();
+        this._maxX = maxX;
+        this._maxY = maxY;
+    }
 
-    var targetOffsets = offsetsFrom($target[0], $parent[0]);
-    var targetx1 = targetOffsets.left;
-    var targetx2 = targetOffsets.left + $target.outerWidth();
-    var targety1 = targetOffsets.top;
-    var targety2 = targetOffsets.top + $target.outerHeight();
-    var targetHalfWidth = (targetx2 - targetx1) / 2;
-    var targetHalfHeight = (targety2 - targety1) / 2;
     var gap = this._gap;
     var configurations = getConfigurationsToTryInOrder(this._preferredDirection, this._preferredArrowAlign);
-
-    $node.css({left: "auto", top: "auto"});
     var direction, align;
 
     // Keep trying configurations in preferred order until it is fully visible.
@@ -24234,42 +24203,67 @@ Tooltip.prototype._show = function(noTransition) {
 
         if (direction === "up" || direction === "down") {
             if (align === "begin") {
-                left = targetx1 + targetHalfWidth - gap * 2;
+                left = baseX - gap;
             } else if (align === "middle") {
-                left = targetx1 + targetHalfWidth - (nodeWidth / 2);
+                left = baseX - box.width / 2;
             } else if (align === "end") {
-                left = targetx1 + targetHalfWidth - nodeWidth + gap * 2;
+                left = baseX - box.width + gap;
             }
 
             if (direction === "up") {
-                top = targety2 + gap * 2;
+                top = baseY + gap + 21;
             } else {
-                top = targety1 - nodeHeight - gap * 2;
+                top = baseY - gap - 21 - box.height;
             }
         } else {
             if (align === "begin") {
-                top = targety1 + targetHalfHeight - gap * 2;
+                top = baseY - gap;
             } else if (align === "middle") {
-                top = targety1 + targetHalfHeight - (nodeHeight / 2);
+                top = baseY - box.height / 2;
             } else if (align === "end") {
-                top = targety1 + targetHalfHeight - nodeHeight + gap * 2;
+                top = baseY - box.height + gap;
             }
 
             if (direction === "left") {
-                left = targetx2 + gap * 2;
+                left = baseX + gap + 21;
             } else {
-                left = targetx1 - nodeWidth - gap * 2;
+                left = baseX - gap - 21 - box.width;
             }
         }
 
-        $node.css({left: left, top: top});
-
-        if (isFullyVisible($node[0])) {
+        if (left >= 0 && left + box.width <= maxX &&
+            top >= 0 && top + box.height <= maxY) {
+            $node.css({left: left, top: top});
             break;
         }
     }
 
-    this.renderArrow($node, direction, align);
+    if (this._arrow) {
+        $node.find(".tooltip-arrow-rendering").remove();
+        this.renderArrow($node, direction, align);
+    }
+};
+
+Tooltip.prototype._show = function(noTransition) {
+    this._target.off("mousemove", this.mousemoved);
+    this._clearDelay();
+    if (this._shown) return;
+    this._maxX = $(window).width();
+    this._maxY = $(window).height();
+    var content = this._onContent();
+    if (content === false) return;
+    this._shown = true;
+    content = content + "";
+
+    var $target = this._target;
+    var $parent = $("body");
+    var $node = this._createTooltipNode(content);
+
+    this._tooltip = $node;
+    $parent.append($node);
+    $node.css({position: "absolute", left: -9999, top: -9999, zIndex: 1000});
+
+    this.position();
 
     if (this._transitionClass) {
         if (noTransition) {
@@ -24385,7 +24379,7 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
         borderArrowLeft = left + borderWidth;
     }
 
-    var backgroundArrow = $("<div>").css({
+    var backgroundArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
         position: "absolute",
         top: top,
         left: left,
@@ -24404,7 +24398,7 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
     backgroundArrow.appendTo($node);
 
     if (borderWidth !== 0) {
-        var borderArrow = $("<div>").css({
+        var borderArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
             position: "absolute",
             top: borderArrowTop,
             left: borderArrowLeft,
@@ -24425,31 +24419,55 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
 };
 
 Tooltip.prototype.hide = function() {
+    this._target.off("mousemove", this.mousemoved);
     this._clearDelay();
     if (!this._shown) return;
     this._shown = false;
-    this._tooltip.remove();
-    this._tooltip = NULL;
+    if (this._transitionClass) {
+        var $node = this._tooltip;
+        var $parent = $node.parent();
+        $node.detach();
+        $node.addClass(this._transitionClass).removeClass("initial");
+        $node.appendTo($parent);
+        $node[0].offsetHeight;
+        $node.addClass("initial");
+        var duration = util.getLongestTransitionDuration($node);
+        var self = this;
+        this._delayTimeoutId = setTimeout(function() {
+            self._tooltip.remove();
+            self._tooltip = NULL;
+        }, duration);
+    } else {
+        this._tooltip.remove();
+        this._tooltip = NULL;
+    }
 };
 
-Tooltip.prototype.mouseEntered = function() {
+Tooltip.prototype.mousemoved = function(e) {
     this._clearDelay();
+    this._x = e.clientX;
+    this._y = e.clientY;
     this._delayTimeoutId = setTimeout(this._show, this._delay);
+};
+
+Tooltip.prototype.mouseEntered = function(e) {
+    this._target.on("mousemove", this.mousemoved);
+    this.mousemoved(e);
 };
 
 Tooltip.prototype.mouseLeft = function(e) {
     this.hide();
 };
 
-Tooltip.prototype.clicked = function() {
-    this.hide();
-};
-
 Tooltip.prototype.destroy = function() {
+    $(window).off("resize", this.position);
+    $(window).off("blur", this.hide);
+    util.documentHidden.removeListener("change", this.hide);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
+        this._target.off("click", this.hide);
         this._target = this._domNode = null;
     }
 };
@@ -24469,10 +24487,11 @@ var ret = {};
 
 ret.makeTooltip = function(target, content) {
     return new Tooltip({
-        transitionClass: "fade-scale-in",
+        transitionClass: "fade-in",
         preferredDirection: "up",
-        preferredAlign: "middle",
+        preferredAlign: "begin",
         container: $("body"),
+        arrow: false,
         target: target,
         delay: 600,
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
@@ -24778,8 +24797,8 @@ function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
-    this.currentPictureLoad = null;
     this.favicon = $(null);
+    this.image = null;
 
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
 
@@ -24791,33 +24810,26 @@ PlayerPictureManager.prototype.$ = function() {
 };
 
 PlayerPictureManager.prototype.newTrackLoaded = function() {
+    $(this.image).remove();
     const self = this;
 
-    if (self.currentPictureLoad) {
-        self.currentPictureLoad.cancel();
-        self.currentPictureLoad = null;
-    }
-
-
-    self.$().find("img").remove();
+    this.$().find("img").remove();
     $("favicon").remove();
-    self.favicon.remove();
-    var image = self.player.getImage();
+    this.favicon.remove();
+    var image = this.player.getImage();
     if (!image) return;
 
-    self.currentPictureLoad = image.getElementAsync().then(function(img) {
-        if (img === null) return;
-        img.width = 128;
-        img.height = 128;
-        $(img).addClass("fade-in initial").appendTo(self.$());
-        img.offsetWidth;
-        $(img).removeClass("initial").addClass("end");
-        self.favicon = $("<link>", {rel: "shortcut icon", href: img.src}).appendTo($("head"));
+    this.image = image;
+    image.width = image.height = 128;
 
-    }).catch(function(e) {})
-    .finally(function() {
-        self.currentPictureLoad = null;
+    $(image).one("error", function() {
+        $(this).addClass("erroneous-image");
     });
+
+    $(image).addClass("fade-in initial").appendTo(this.$());
+    image.offsetWidth;
+    $(image).removeClass("initial").addClass("end");
+    this.favicon = $("<link>", {rel: "shortcut icon", href: image.src}).appendTo($("head"));
 };
 
 
@@ -24881,11 +24893,28 @@ PlaylistModeManager.prototype.$repeat = function() {
 };
 
 PlaylistModeManager.prototype.shuffleClicked = function() {
+    this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
+
+    if (this.getMode() !== SHUFFLE) {
+        this.$shuffle().addClass("just-deactivated");
+    }
+    this.$shuffle().one("mouseleave", function() {
+        $(this).removeClass("just-deactivated");
+    });
 };
 
 PlaylistModeManager.prototype.repeatClicked = function() {
+    this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
+
+    if (this.getMode() !== REPEAT) {
+        this.$repeat().addClass("just-deactivated");
+    }
+
+    this.$repeat().one("mouseleave", function() {
+        $(this).removeClass("just-deactivated");
+    });
 };
 
 PlaylistModeManager.prototype.getMode = function() {
@@ -25113,56 +25142,6 @@ PlaylistNotifications.prototype.requestPermission = function() {
 
 return PlaylistNotifications;
 })();
-
-;
-;
-const ImageWrapper = (function() {
-
-const EMPTY = {};
-
-function ImageWrapper(url) {
-    var self = this;
-    this.url = url;
-    this.img = null;
-    this.elementPromise = new Promise(function(resolve, reject) {
-        var img = $('<img>', {src: self.url})
-                        .on("error", function() {
-                            reject(new Error("invalid image"));
-                        })
-                        .on("load", function() {
-                            resolve(img[0]);
-                        });
-        self.img = img;
-        if (img.complete) {
-            resolve(img[0]);
-        }
-    }).catch(function(e) {
-        self.destroy();
-        throw e;
-    }).finally(function() {
-        $(self.img).off("error load");
-    });
-    this.elementPromise.catch(function(){});
-}
-
-ImageWrapper.prototype.destroy = function() {
-    if (this.url) {
-        URL.revokeObjectURL(this.url);
-        this.url = this.img = null;
-    }
-};
-
-ImageWrapper.prototype.getElementAsync = function() {
-    return this.elementPromise;
-};
-
-ImageWrapper.prototype.getUrl = function() {
-    return this.url;
-};
-
-ImageWrapper.EMPTY = new ImageWrapper("/dist/images/icon.png");
-
-return ImageWrapper; })();
 
 ;
 ;
@@ -25469,6 +25448,13 @@ var TrackWasRemovedError = util.subClassError("TrackWasRemovedError");
 
 ;
 ;
+var FileError = util.subClassError("FileError", function(fileError) {
+    this.message = fileError.message;
+    this.name = fileError.name;
+});
+
+;
+;
 var AudioError = util.subClassError("AudioError", function(code) {
     this.code = code;
     var audioCodeString;
@@ -25729,9 +25715,19 @@ Track.prototype.setRatingStars = function(ratingValue) {
     }
 };
 
+Track.prototype.getImage = function() {
+    var ret;
+    if (this.tagData) ret = this.tagData.getImage();
+
+    if (!ret) {
+        ret = new Image();
+        ret.src = DEFAULT_IMAGE_URL;
+    }
+    return ret;
+};
+
 Track.prototype.getImageUrl = function() {
-    if (!this.tagData) return DEFAULT_IMAGE_URL;
-    return this.tagData.getImageUrl() || DEFAULT_IMAGE_URL;
+    return this.getImage().src;
 };
 
 Track.prototype.isDetachedFromPlaylist = function() {
@@ -25753,11 +25749,7 @@ Track.prototype.setIndex = function(index) {
 };
 
 Track.prototype.doubleClicked = function(event) {
-    if (this === playlist.main.getCurrentTrack()) {
-        player.main.resume();
-    } else {
-        playlist.main.changeTrackExplicitly(this);
-    }
+    playlist.main.changeTrackExplicitly(this);
 };
 
 Track.prototype.selected = function() {
@@ -25886,7 +25878,8 @@ Track.prototype.setAnalysisStatus = function() {
         preferredAlign: "middle",
         container: $("body"),
         target: this.$trackStatus().find(".track-analysis-status"),
-        classPrefix: "app-tooltip",
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        arrow: false,
         content: ANALYSIS_TOOLTIP_MESSAGE
     });
 };
@@ -25924,6 +25917,16 @@ Track.prototype.getTotalSilenceLength = function() {
 Track.prototype.getBeginSilenceLength = function() {
     if (!this.tagData) return 0;
     return this.tagData.getBeginSilenceLength();
+};
+
+Track.prototype.comesBeforeInSameAlbum = function(otherTrack) {
+    return this.isFromSameAlbumAs(otherTrack) &&
+        this.tagData.albumIndex === otherTrack.tagData.albumIndex - 1;
+};
+
+Track.prototype.comesAfterInSameAlbum = function(otherTrack) {
+    return this.isFromSameAlbumAs(otherTrack) &&
+        this.tagData.albumIndex === otherTrack.tagData.albumIndex + 1;
 };
 
 Track.prototype.isFromSameAlbumAs = function(otherTrack) {
@@ -27653,7 +27656,6 @@ function ActionMenuItem(root, spec, children, level) {
         this.$().on("mouseleave", this.itemMouseLeft);
         this.$container().on("mouseenter", this.containerMouseEntered);
         this.$container().on("mouseleave", this.containerMouseLeft);
-        $(window).on("relayout", this.positionSubMenu);
     }
 
     if (!this.divider) {
@@ -27665,7 +27667,6 @@ ActionMenuItem.prototype.destroy = function() {
     this._clearDelayTimer();
     this.$().remove();
     this.$container().remove();
-    $(window).off("relayout", this.positionSubMenu);
 };
 
 ActionMenuItem.prototype._clearDelayTimer = function() {
@@ -28090,6 +28091,8 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this._targetDom = $(dom);
     this._x = 0;
     this._y = 0;
+    this._xMax = 0;
+    this._yMax = 0;
 
     this.documentClicked = this.documentClicked.bind(this);
     this.hide = this.hide.bind(this);
@@ -28141,15 +28144,36 @@ ActionMenu.ContextMenu.prototype.position = function() {
     var xMax = $(window).width();
     var yMax = $(window).height();
 
+    var positionChanged = false;
+    if (xMax !== this._xMax || yMax !== this._yMax) {
+        x = x * (xMax / this._xMax);
+        y = y * (yMax / this._yMax);
+        this._x = x;
+        this._y = y;
+        this._xMax = xMax;
+        this._yMax = yMax;
+        positionChanged = true;
+    }
+
     if (x + box.width > xMax) {
+        positionChanged = true;
         x = Math.max(0, xMax - box.width);
     }
 
     if (y + box.height > yMax) {
+        positionChanged = true;
         y = Math.max(0, yMax - box.height);
     }
 
     this.$().css({left: x, top: y});
+
+    if (positionChanged) {
+        this._menu.forEach(function(child) {
+            if (child.children) {
+                child.positionSubMenu();
+            }
+        });
+    }
 };
 
 ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
@@ -28159,6 +28183,8 @@ ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
         e.preventDefault();
         this._x = e.clientX;
         this._y = e.clientY;
+        this._xMax = $(window).width();
+        this._yMax = $(window).height();
         this.position();
     }
 };
@@ -28192,7 +28218,6 @@ ActionMenu.ContextMenu.prototype.hide = function() {
 
 ActionMenu.ContextMenu.prototype.documentClicked = function(e) {
     if (!this._shown) return;
-    if (e.type !== "mousedown") return this.hide();
 
     var $target = $(e.target);
     var containerClicked = false;
@@ -28759,12 +28784,9 @@ function LocalFiles(playlist, allowMime, allowExt) {
 }
 
 (function() {
+    const rext = /\.([A-Z_a-z0-9-]+)$/;
     function getExtension(name) {
-        try {
-            return name.substr(name.lastIndexOf(".") + 1).toLowerCase();
-        } catch (e) {
-            return null;
-        }
+        return name.match(rext);
     }
 
     LocalFiles.prototype.isMimeTypeSupported = function(mime) {
@@ -28782,10 +28804,16 @@ function LocalFiles(playlist, allowMime, allowExt) {
             var file = files[i];
             var ext = getExtension(file.name);
 
+            if (ext) {
+                ext = ext[1].toLowerCase();
+            } else {
+                ext = "";
+            }
+
             if (this.isExtensionSupported(ext) ||
                 this.isMimeTypeSupported(file.type)) {
                 tracks.push(new Track(file));
-            } else if ((!ext || ext.length < 3 || ext.length > 4) && !file.type) {
+            } else if (!ext && !file.type) {
                 tracks.push(new Track(file));
             }
         }
@@ -29156,6 +29184,14 @@ function ReplayGainTrackProcessor(replayGainProcessor, audioBuffer) {
     this.worker.on("transferList", this._onTransferList);
 }
 
+ReplayGainTrackProcessor.prototype._getBuffer = function(index) {
+    var value = this._buffers[index];
+    if (!value) {
+        value = this._buffers[index] = new Float32Array(PREALLOCATION_SIZE);
+    }
+    return value;
+};
+
 ReplayGainTrackProcessor.prototype._onTransferList = function(transferList) {
     for (var i = 0; i < transferList.length; ++i) {
         this.replayGainProcessor._buffers[i] = this._buffers[i] = new Float32Array(transferList[i]);
@@ -29174,16 +29210,15 @@ ReplayGainTrackProcessor.prototype.start = function(track) {
         sampleRate: self.audioBuffer.sampleRate
     }]).then(function loop() {
         var frameCount = Math.min(length - index, PREALLOCATION_SIZE);
-        var buffers = self._buffers;
 
         for (var i = 0; i < channels; ++i) {
-            var buffer = buffers[i];
+            var buffer = self._getBuffer(i);
             self.audioBuffer.copyFromChannel(buffer, i, index);
         }
         index += frameCount;
         return self.worker.invokeInWorkerThread("addFrames", [{
             length: frameCount
-        }], buffers.map(function(v) {
+        }], self._buffers.map(function(v) {
             return v.buffer;
         })).then(function() {
             if (index < length) {
@@ -29205,13 +29240,8 @@ ReplayGainTrackProcessor.prototype.start = function(track) {
 
 function ReplayGainProcessor(workerPool) {
     this._worker = workerPool.reserveWorker();
-    this._buffers = [
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE),
-        new Float32Array(PREALLOCATION_SIZE)
-    ];
+    this._buffers = new Array(5);
+    this._buffers.length = 0;
 }
 
 ReplayGainProcessor.prototype._createDecoder = function(channels, sampleRate) {
@@ -29354,7 +29384,7 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, picture) {
 
     this._formattedTime = null;
     this._formattedName = null;
-    this._imageUrl = null;
+    this._image = null;
 
     this.beginSilenceLength = this.basicInfo.encoderDelay || 0;
     this.endSilenceLength = this.basicInfo.encoderPadding || 0;
@@ -29443,24 +29473,29 @@ TagData.prototype.hasPicture = function() {
     return !!this.picture;
 };
 
-TagData.prototype.getImageUrl = function() {
+TagData.prototype.getImage = function() {
     if (!this.picture) return null;
-    if (this._imageUrl) {
-        URL.revokeObjectURL(this._imageUrl);
-        this._imageUrl = null;
-        return this.getImageUrl();
-    }
+    if (this._image) return this._image.cloneNode();
+
     var blob = this.track.getFile().slice(this.picture.start,
                                           this.picture.start + this.picture.length,
                                           this.picture.type);
-    this._imageUrl = URL.createObjectURL(blob);
-    return this._imageUrl;
+    var url = URL.createObjectURL(blob);
+    this._image = new Image();
+    this._image.src = url;
+    return this._image.cloneNode();
+};
+
+TagData.prototype.getImageUrl = function() {
+    var ret = this.getImage();
+    if (!ret) return null;
+    return ret.src;
 };
 
 TagData.prototype.destroy = function() {
-    if (this._imageUrl) {
-        URL.revokeObjectURL(this._imageUrl);
-        this._imageUrl = null;
+    if (this._image) {
+        URL.revokeObjectURL(this._image.src);
+        this._image = null;
     }
 };
 
@@ -29738,7 +29773,7 @@ ID3Process.prototype.loadNext = function() {
             }
             return tagData;
         })
-        .catch(AudioError, function(e) {
+        .catch(AudioError, FileError, function(e) {
             self.playlist.removeTrack(track);
         })
         .catch(function(e) {
@@ -30413,7 +30448,7 @@ function AudioManager(player, track, implicitlyLoaded) {
         this.url = URL.createObjectURL(track.getFile());
         this.mediaElement = mediaElementPool.alloc();
         this.mediaElementRequiresLoading = true;
-        this.image = new ImageWrapper(track.getImageUrl());
+        this.image = track.getImage();
     }
 
     this.mediaElement.autoplay = false;
@@ -30692,11 +30727,11 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     var fadeOutSamples = crossFadePreferences.getOutCurveSamples();
 
     if (!crossFadePreferences.getShouldAlbumCrossFade()) {
-        if (this.track.isFromSameAlbumAs(this.player.playlist.getPreviousTrack())) {
+        if (this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
             fadeInEnabled = false;
         }
 
-        if (this.track.isFromSameAlbumAs(this.player.playlist.getNextTrack())) {
+        if (this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
             fadeOutEnabled = false;
         }
     }
@@ -30734,7 +30769,6 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    this.image.destroy();
     this.image = null;
     equalizer.removeListener("equalizerChange", this.equalizerChanged);
     crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
@@ -31217,18 +31251,15 @@ function PreloadedMediaElement(track) {
     this.errored = this.errored.bind(this);
     this.tagDateUpated = this.tagDateUpated.bind(this);
 
-    if (tagData && tagData.hasPicture()) {
-        this.image = new ImageWrapper(track.getImageUrl());
-    } else {
-        if (!tagData) {
-            this.track.once("tagDataUpdate", this.tagDateUpated);
-        }
-        this.image = ImageWrapper.EMPTY;
+    this.image = track.getImage();
+
+    if (!tagData || !tagData.hasPicture()) {
+        this.track.once("tagDataUpdate", this.tagDateUpated);
     }
 }
 
 PreloadedMediaElement.prototype.tagDateUpated = function() {
-    this.image = new ImageWrapper(this.track.getImageUrl());
+    this.image = this.track.getImage();
 };
 
 PreloadedMediaElement.prototype.errored = function() {
@@ -31269,7 +31300,7 @@ PreloadedMediaElement.prototype.destroy = function() {
         mediaElementPool.free(this.mediaElement);
         URL.revokeObjectURL(this.url);
         this.track = this.url = this.mediaElement = null;
-        this.image.destroy();
+        this.image = null;
     }
 };
 
@@ -33007,7 +33038,7 @@ const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-co
                 <div class='checkbox-container'>                                             \
                     <label class='checkbox-label'>                                           \
                         <input type='checkbox' class='album-crossfade-preference checkbox'>  \
-                        Don't crossfade between tracks of the same album                     \
+                        Don't crossfade between consecutive tracks of the same album         \
                     </label>                                                                 \
                     <div class='cross-fade-preset-container'>                                \
                         <label>Preset:</label>                                               \
