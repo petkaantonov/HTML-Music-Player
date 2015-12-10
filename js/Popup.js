@@ -1,179 +1,225 @@
-function Popup(width, height, opts) {
+const Popup = (function() { "use strict";
+
+const shownPopups = [];
+const NULL = $(null);
+var blocker = NULL;
+
+function showBlocker() {
+    blocker = $('<div>')
+        .css({
+            position: "fixed",
+            width: $(window).width(),
+            height: $(window).height(),
+            left: 0,
+            top: 0,
+            zIndex: 99999
+        })
+        .addClass("popup-blocker")
+        .appendTo("body")
+        .on("mousedown touchstart", util.fastClickEventHandler(function() {
+            shownPopups.forEach(function(v) {
+                v.close();
+            });
+        }));
+
+    blocker.addClass("initial");
+    blocker[0].offsetWidth;
+    blocker.detach()
+    blocker.appendTo("body");
+    blocker[0].offsetWidth;
+    blocker.removeClass("initial");
+}
+
+function hideBlocker() {
+    blocker.remove();
+    blocker = NULL;
+}
+
+$(window).on("resize", function() {
+    blocker.css({
+        width: $(window).width(),
+        height: $(window).height()
+    });
+});
+
+function Popup(opts) {
     EventEmitter.call(this);
-    var self = this;
-    this._idBase = +(new Date);
-    this._popups = {};
-    this._lastAdd = null;
-    this.length = 0;
-    this._width = width;
-    this._height = height;
-    this._stacks = opts && !!opts.stacks || true;
-    this._stackOffsetX = opts && opts.stackOffsetX || 15;
-    this._stackOffsetY = opts && opts.stackOffsetY || 15;
-    this._closerClass = opts && opts.closerClass || "popup-closer-class";
-    this._closeEvents = {};
-    $(window)
-        .bind("resize", function() {
-            var key, popups = self._popups,
-                left,
-                top, width, height, winWidth = $(window)
-                .width(),
-                winHeight = $(window)
-                .height(),
-                popup, offset, id;
+    opts = Object(opts);
 
-            for (key in popups) {
+    this.transitionClass = opts.transitionClass || "";
+    this.containerClass = util.combineClasses(opts.containerClass, "popup-container");
+    this.headerClass = util.combineClasses(opts.headerClass, "popup-header");
+    this.bodyClass = util.combineClasses(opts.bodyClass, "popup-body");
+    this.closerContainerClass = util.combineClasses(opts.closerContainerClass, "popup-closer-container");
+    this.body = util.toFunction(opts.body || "");
+    this.title = util.toFunction(opts.title || "");
+    this.closer = util.toFunction(opts.closer || "");
+    this._x = -1;
+    this._y = -1;
+    this._anchorDistanceX = -1;
+    this._anchorDistanceY = -1;
+    this._popupDom = NULL;
+    this._shown = false;
 
-                popup = document.getElementById(key);
-                width = parseInt(popup.style.width, 10);
-                height = parseInt(popup.style.height, 10);
-                offset = popups[key].offset;
-                left = (((winWidth - width) / 2) >> 0) + offset * self._stackOffsetX;
-                top = (((winHeight - height) / 2) >> 0) + offset * self._stackOffsetY;
-                left = left < 0 ? 0 : left;
-                top = top < 0 ? 0 : top;
-                popup.style.left = left + "px";
-                popup.style.top = top + "px";
-            }
-        });
+    this.position = this.position.bind(this);
+    this.close = this.close.bind(this);
+    this.headerMouseDowned = this.headerMouseDowned.bind(this);
+    this.draggingEnd = this.draggingEnd.bind(this);
+    this.mousemoved = this.mousemoved.bind(this);
 
-    $(document)
-        .delegate("." + this._closerClass.split(" ")[0], "click", function() {
-            self.close.call(self, this);
-        });
-
-    this._className = opts && opts.addClass || "popup-main";
-};
+    $(window).on("resize blur", this.draggingEnd);
+    $(window).on("resize", this.position);
+    util.documentHidden.on("change", this.draggingEnd);
+}
 util.inherits(Popup, EventEmitter);
 
-Popup.prototype.closeEvent = function(fn, id) {
-    id = id || this._lastAdd;
-    this._closeEvents[id] = fn;
+Popup.prototype.destroy = function() {
+    $(window).off("resize blur", this.draggingEnd);
+    $(window).off("resize", this.position);
+    util.documentHidden.removeListener("change", this.draggingEnd);
 };
 
-Popup.prototype.closeAll = function() {
-    if (!this.length) {
-        return false;
-    }
-    var key, popups = this._popups;
-    for (key in popups) {
-        $("#" + key)
-            .remove();
-    }
-    this._popups = {};
-    this._lastAdd = null;
-    this.length = 0;
-    for (key in this._closeEvents) {
-        this._closeEvents[key]();
-        delete this._closeEvents[key];
-    }
-    this.emit("close");
-    return this;
+Popup.prototype.$ = function() {
+    return this._popupDom;
 };
 
-Popup.prototype.close = function(elm) {
+Popup.prototype.position = function() {
+    if (!this._shown) return;
+    var x = this._x;
+    var y = this._y;
+    var box = this.$()[0].getBoundingClientRect();
+    var maxX = $(window).width() - box.width;
+    var maxY = $(window).height() - box.height;
 
-    var node = elm,
-        popup, className = this._className,
-        popups = this._popups,
-        l = popups.length,
-        id, obj;
-    if (!elm && this._lastAdd !== null) {
-        node = $("#" + (this._lastAdd));
+    if (x === -1) x = ((maxX + box.width) / 2) -  (box.width / 2);
+    if (y === -1) y = ((maxY + box.height) / 2) -  (box.height / 2);
 
-        delete popups[this._lastAdd];
-        $(node)
-            .remove();
-        this.length--;
-        if (typeof this._closeEvents[this._lastAdd] ==
-            "function") {
-            this._closeEvents[this._lastAdd]();
-            delete this._closeEvents[this._lastAdd];
-        }
-        this.emit("close");
-    } else {
-        while (node) {
+    x = Math.max(0, Math.min(x, maxX));
+    y = Math.max(0, Math.min(y, maxY));
 
-            if ((" " + node.className + " ")
-                .indexOf(className) > -1) {
-                popup = node;
-                break;
-            }
-            node = node.parentNode;
-        }
-
-        if (popup && popups[popup.id]) {
-
-            $(popup)
-                .remove();
-            delete popups[popup.id];
-            this.length--;
-            if (typeof this._closeEvents[popup.id] ==
-                "function") {
-                this._closeEvents[popup.id]();
-                delete this._closeEvents[popup.id];
-            }
-            this.emit("close");
-        }
-    }
-
-    if (!this.length) {
-        this._lastAdd = null;
-    } else {
-        this._lastAdd = $("." + this._className)
-            .last()[0].id;
-    }
-    return this;
+    this.$().css({left: x, top: y});
 };
 
-Popup.prototype.open = function(html, width, height) {
-    var div = document.createElement("div"),
-        id, top, left,
-        winWidth = $(window)
-        .width(),
-        winHeight = $(window)
-        .height(),
-        width = width || this._width,
-        height = height || this._height,
-        offset = this._stacks ? this.length : 0,
-        closerDiv = document.createElement("div"),
-        contentDelay, self = this,
-        $div;
+Popup.prototype.refresh = function() {
+    if (!this._shown) return;
+    this.draggingEnd();
+    this.position();
+};
 
-    id = "popup-" + (++this._idBase);
-    left = (((winWidth - width) / 2) >> 0) + offset * this._stackOffsetX;
-    top = (((winHeight - height) / 2) >> 0) + offset * this._stackOffsetY;
-    left = left < 0 ? 0 : left;
-    top = top < 0 ? 0 : top;
-    div.id = id;
-    closerDiv.className = this._closerClass;
-    div.appendChild(closerDiv);
-    div.className = this._className;
-    div.setAttribute("style", "width:" + width + "px;height:" +
-        height + "px;position:absolute;top:" + top +
-        "px;left:" + left + "px;z-index:" + (100000 +
-            offset) + ";display:block;");
-    $div = $(div);
-    $div.appendTo("body");
-    this.emit("beforeOpen", id);
-    this._popups[id] = {
-        width: width,
-        height: height,
-        offset: offset
+Popup.prototype.open = function() {
+    if (this._shown) return;
+    this._shown = true;
+    shownPopups.push(this);
+
+    try {
+        if (shownPopups.length === 1) {
+            showBlocker();
+        }
+
+        this._popupDom = $("<div>", {
+            class: this.containerClass,
+        }).css({
+            zIndex: 100000 + shownPopups.length,
+            position: "fixed"
+        });
+
+        var headerText = $("<h2>").text(this.title() + "");
+        var header = $("<div>", {class: this.headerClass});
+        var body = $("<div>", {class: this.bodyClass}).html(this.body() + "");
+        var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
+
+        headerText.appendTo(header);
+        closer.appendTo(header);
+        header.appendTo(this.$());
+        body.appendTo(this.$());
+
+        this.$().appendTo("body");
+
+        closer.on("mousedown touchstart", util.fastClickEventHandler(this.close));
+        header.on("mousedown touchstart", util.fastClickEventHandler(this.headerMouseDowned));
+
+        this.position();
+
+        if (this.transitionClass) {
+            var $node = this.$();
+            $node[0].offsetHeight;
+            $node.detach();
+            $node.addClass(this.transitionClass + " initial");
+            $node[0].offsetHeight;
+            $node.appendTo("body");
+            $node[0].offsetHeight;
+            $node.removeClass("initial");
+            $node[0].offsetHeight;
+        }
+    } catch (e) {
+        this.close();
+        throw e;
+    }
+    this.emit("open", this);
+};
+
+Popup.prototype.mousemoved = function(e) {
+    if (e.type === "mousemove" && e.which !== 1) {
+        return this.draggingEnd();
+    } else if (e.type === "touchmove" && e.touches && e.touches.length !== 1) {
+        return;
+    }
+    this._x = Math.max(0, e.clientX - this._anchorDistanceX);
+    this._y = Math.max(0, e.clientY - this._anchorDistanceY);
+    this.position();
+};
+
+Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
+    if ($(e.target).closest(this.closerContainerClass).length > 0) return;
+    var box = this.$()[0].getBoundingClientRect();
+    this._anchorDistanceX = e.clientX - box.left;
+    this._anchorDistanceY = e.clientY - box.top;
+    if (isClick && e.which === 1) {
+        util.onCapture(document, "mouseup", this.draggingEnd);
+        util.onCapture(document, "mousemove", this.mousemoved);
+    } else if (isTouch) {
+        util.onCapture(document, "touchend touchcancel", this.draggingEnd);
+        util.onCapture(document, "touchmove", this.mousemoved);
+    }
+    this.$().addClass("popup-dragging");
+};
+
+Popup.prototype.draggingEnd = function() {
+    util.offCapture(document, "mouseup touchend touchcancel", this.draggingEnd);
+    util.offCapture(document, "mousemove touchmove", this.mousemoved);
+    this.$().removeClass("popup-dragging");
+};
+
+Popup.prototype.close = function() {
+    if (!this._shown) return;
+    this._shown = false;
+    shownPopups.splice(shownPopups.indexOf(this), 1);
+    this.$().remove();
+    this.draggingEnd();
+    this._popupDom = NULL;
+
+    if (shownPopups.length === 0) {
+        hideBlocker();
+    }
+    this.emit("close", this);
+};
+
+Popup.prototype.getPreferredPosition = function() {
+    if (this._x === -1 || this._y === -1) return null;
+    return {
+        x: this._x,
+        y: this._y
     };
-    this._lastAdd = id;
-    this.length++;
-    $div.append(html);
-    this.emit("open");
-    return this;
 };
 
-Popup.prototype.html = function(html, elm) {
-    elm = elm || (this._lastAdd && document.getElementById(this
-        ._lastAdd));
-    if (!elm) {
-        return null;
-    }
-    elm.innerHTML = html;
-    return elm;
+Popup.prototype.setPreferredPosition = function(pos) {
+    if (!pos) return;
+    var x = pos.x;
+    var y = pos.y;
+    if (!isFinite(x) || !isFinite(y)) return;
+    this._x = x;
+    this._y = y;
+    this.position();
 };
+
+return Popup; })();

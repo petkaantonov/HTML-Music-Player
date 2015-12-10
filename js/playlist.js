@@ -1,34 +1,4 @@
 var playlist = playlist || {};
-var popup;
-
-popup = new BlockingPopup(500, 300, {
-    closerClass: "app-popup-closer glyphicon glyphicon-remove",
-    addClass: "app-popup-container thick-shadow"
-});
-
-popup.on("beforeOpen", function(id) {
-    $("#" + id)
-        .hide()
-        .fadeIn(400);
-});
-popup.on("close", function() {
-    hotkeyManager.enableHotkeys();
-    if (!this.length) {
-        $("#app-container")
-            .fadeTo(0, 1);
-    }
-});
-popup.on("open", function() {
-    hotkeyManager.disableHotkeys();
-    if (this.length < 2) {
-        $("#app-container")
-            .fadeTo(0, 0.3);
-    }
-});
-
-$(window).on("resize", function() {
-    $(window).trigger("relayout");
-});
 
 (function() {
     const DEFAULT_ITEM_HEIGHT = 21;
@@ -37,6 +7,10 @@ $(window).on("resize", function() {
 
     playlist.main = new Playlist("#app-playlist-container", {
         itemHeight: DEFAULT_ITEM_HEIGHT
+    });
+
+    $(window).on("clear", function() {
+        playlist.main.clearSelection();
     });
 
     const actions = {
@@ -175,7 +149,7 @@ $(window).on("resize", function() {
 
     PanelControls.makeTooltip($(".menul-folder"), "Add a folder");
     PanelControls.makeTooltip($(".menul-files"), "Add files");
-    PanelControls.makeTooltip($(".menul-hotkeys"), "Configure hotkeys");
+    PanelControls.makeTooltip($(".menul-hotkeys"), "Configure shortcuts");
     PanelControls.makeTooltip($(".menul-crossfade"), "Configure crossfading");
     PanelControls.makeTooltip($(".menul-equalizer"), "Configure equalizer");
 

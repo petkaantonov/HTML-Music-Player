@@ -1,28 +1,16 @@
 var hotkeyManager = (function() {"use strict";
 
-const STORAGE_KEY = "hotkey-bindings";
+const STORAGE_KEY = "hotkey-bindings-1";
 const HOTKEY_TYPE_PERSISTENT = 0;
 const HOTKEY_TYPE_NORMAL = 1;
 
-var POPUP_HTML = "<div class='popup-content-container' id='hotkey-manager'>                                      \
-    <div class='popup-header'>                                                                                   \
-        <h2 class='app-header-2'>Hotkey setup</h2>                                                               \
-    </div>                                                                                                       \
-                                                                                                                 \
-    <div class='popup-body'>                                                                                     \
-        <div class='app-bread-text'>                                                                             \
-            Boost your <a href='http://www.youtube.com/watch?v=YbpCLqryN-Q' target='_blank_'>APM</a>             \
-            by binding various shortcuts to keyboard buttons. If a hotkey is bound to a native browser action,   \
-            that action will be overridden. For example, binding 'Ctrl+S' will disable the default browser action\
-            (save page) as long as it is bound. Overriding also applies to application bound hotkeys.            \
-            <span class='emphasis-color'>Most hotkeys are disabled when a popup is open.</span>                  \
-        </div>                                                                                                   \
+var POPUP_HTML = "<div class='popup-content-container'>                                                          \
         <div class='hotkey-manager-columns-container'>                                                           \
             <div id='app-hotkeys-wrapper'>                                                                       \
                 <div class='app-hotkey-header hotkey-manager-left-column'>Action</div>                           \
                 <div class='hotkey-manager-left-column app-hotkey-header'>Bound to</div>                         \
                 <div class='clear'></div>                                                                        \
-                <div class='app-hotkeys-container ps-container'></div>                                                        \
+                <div class='app-hotkeys-container ps-container'></div>                                           \
             </div>                                                                                               \
             <div class='hotkey-manager-description-container'>                                                   \
                 <div class='hotkey-manager-description-header app-hotkey-header'>Description</div>               \
@@ -41,9 +29,7 @@ var POPUP_HTML = "<div class='popup-content-container' id='hotkey-manager'>     
                 <div class='app-hotkey-unbind app-popup-button left'>Unbind</div>                                \
                 <div class='clear'></div>                                                                        \
             </div>                                                                                               \
-        </div>                                                                                                   \
-    </div>                                                                                                       \
-</div>";
+        </div></div>";
 
 var HOTKEY_HTML = "<div class='clear app-hotkey-container'>                   \
     <div class='app-hotkey-name'></div>                                       \
@@ -158,7 +144,6 @@ HotkeyManager.prototype.saveBindings = function() {
 
 var defaults = {
     "Select all": "ctrl+a",
-    "Clear": "esc",
     "Filter": "j",
     "Next track": "ctrl+right arrow",
     "Previous track": "ctrl+left arrow",
@@ -231,21 +216,12 @@ keyValueDatabase.getInitialValues().then(function(values) {
 var hotkeyManager = new HotkeyManager(defaults, [
     "Music player", "Playlist management", "General actions"]);
 
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Clear",
-    description: "Clear selections or popups.",
-    handler: function() {
-        if (popup.length) {
-            popup.closeAll();
-        }
-        playlist.main.clearSelection();
-        return false;
-    },
-    persistent: true,
-    allowRebind: false,
-    options: {
-        allowInput: true
+util.onCapture(document, "keydown", function(e) {
+    if (e.which === 27 && !e.ctrlKey &&
+                          !e.shiftKey &&
+                          !e.metaKey &&
+                          !e.altKey) {
+        $(window).trigger("clear");
     }
 });
 
@@ -424,12 +400,13 @@ HotkeyBinder.prototype.destroy = function() {
 };
 
 
+const hotkeyPopup = PanelControls.makePopup("Shortcuts", POPUP_HTML);
 function openHotkeyManager() {
-    popup.open(POPUP_HTML, 630, 504);
+    hotkeyPopup.open();
 
-    var hotkeyBinder = new HotkeyBinder(hotkeyManager, "#hotkey-manager");
+    var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$());
 
-    popup.once("close", function() {
+    hotkeyPopup.once("close", function() {
         hotkeyBinder.destroy();
     });
 }

@@ -175,12 +175,7 @@ const PRESET_HTML = (function() {
     }).join("") + "</select>";
 })();
 
-const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-container'>    \
-        <div class='popup-header'>                                                           \
-            <h2 class='app-header-2'>Crossfading</h2>                                        \
-        </div>                                                                               \
-        <div class='popup-body'>                                                             \
-            <div class='cross-fade-album-preference-container'>                              \
+const POPUP_EDITOR_HTML = "<div class='cross-fade-album-preference-container'>               \
                 <div class='checkbox-container'>                                             \
                     <label class='checkbox-label'>                                           \
                         <input type='checkbox' class='album-crossfade-preference checkbox'>  \
@@ -197,10 +192,9 @@ const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-co
             <div class='right fade-out-configurator fade-configurator-container'></div>      \
             <div class='clear'></div>                                                        \
             <div class='section-separator'></div>                                            \
-            <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>         \
-        </div>                                                                               \
-    </div>";
+            <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>";
 
+const crossfadingPopup = PanelControls.makePopup("Crossfading", POPUP_EDITOR_HTML);
 var preferences = new CrossFadePreferences();
 preferences.copyFrom(presets["Default"]);
 crossfading.getPreferences = function() {
@@ -222,9 +216,9 @@ const savePreferences = function(preferences) {
 };
 
 const openPopup = function() {
-    popup.open(POPUP_EDITOR_HTML, 550, 445);
-    var manager = new CrossFadeManager(".crossfading-configurator", crossfading.getPreferences());
-    popup.once("close", function() {
+    crossfadingPopup.open();
+    var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
+    crossfadingPopup.once("close", function() {
         manager.destroy();
     });
     manager.on("preferencesUpdate", function() {

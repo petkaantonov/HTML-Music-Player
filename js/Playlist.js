@@ -781,8 +781,8 @@ const compareOrder = [
     compareAlbumIndex,
     compareArtist,
     compareTitle,
-    compareDuration,
-    compareRating
+    compareRating,
+    compareDuration
 ];
 
 const makeComparer = function(mainComparer) {

@@ -7,8 +7,6 @@ const REPEAT = "repeat";
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
-const REPEAT_MODE_TOOLTIP = "<p>The track is repeated.</p>";
-
 function PlaylistModeManager(dom, playlist) {
     var self = this;
     this.playlist = playlist;
@@ -22,8 +20,7 @@ function PlaylistModeManager(dom, playlist) {
 
     this.repeatTooltip = PanelControls.makeTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
-                                         : "<p><strong>Enable</strong> repeat mode</p>" +
-                                            REPEAT_MODE_TOOLTIP;
+                                         : "<p><strong>Enable</strong> repeat mode</p>";
     });
 
     this.shuffleClicked = this.shuffleClicked.bind(this);

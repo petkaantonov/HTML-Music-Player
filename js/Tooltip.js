@@ -17,6 +17,17 @@ const getArrowAlign = function(value) {
     return "middle";
 };
 
+const getActivationStyle = function(value) {
+    value = ("" + value).trim().toLowerCase();
+
+    if (value === "hover" ||
+        value === "focus" ||
+        value === "click") {
+        return value;
+    }
+    return "hover";
+}
+
 const NULL = $(null);
 
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
@@ -66,24 +77,37 @@ function Tooltip(opts) {
     this._shown = false;
     this._tooltip = NULL;
     this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
-    this._gap = parseInt(opts.gap, 10) || 0;
-    this._arrow = !!opts.arrow;
+    this._activationStyle = getActivationStyle(opts.activation);
+    this._arrow = "arrow" in opts ? !!opts.arrow : this._activationStyle === "hover";
+    this._gap = "gap" in opts ? parseInt(opts.gap, 10) : (this._arrow ? 7 : 0);
     this._x = 0;
     this._y = 0;
     this._maxX = 0;
     this._maxY = 0;
 
     this._show = this._show.bind(this);
+
+
     this.mouseLeft = this.mouseLeft.bind(this);
     this.mouseEntered = this.mouseEntered.bind(this);
-    this.hide = this.hide.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
+
+    this.clicked = this.clicked.bind(this);
+    this.documentClicked = this.documentClicked.bind(this);
+
+
+    this.hide = this.hide.bind(this);
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
 
-    this._target.on("mouseenter", this.mouseEntered);
-    this._target.on("mouseleave", this.mouseLeft);
-    this._target.on("click", this.hide);
+    if (this._activationStyle === "hover") {
+        this._target.on("mouseenter", this.mouseEntered);
+        this._target.on("mouseleave", this.mouseLeft);
+        this._target.on("click", this.hide);
+    } else if (this._activationStyle === "click") {
+        this._target.on("click", this.clicked);
+        util.onCapture(document, "click", this.documentClicked);
+    }
     $(window).on("resize", this.position);
     $(window).on("blur", this.hide);
     util.documentHidden.on("change", this.hide);
@@ -110,6 +134,26 @@ Tooltip.prototype._createTooltipNode = function(message) {
     return $($.parseHTML(html)[0]);
 };
 
+Tooltip.prototype.clicked = function() {
+    this._clearDelay();
+    if (this._shown) {
+        this.hide();
+    } else {
+        var box = this._target[0].getBoundingClientRect();
+        this._x = box.left;
+        this._y = box.top;
+        this._show();
+    }
+};
+
+Tooltip.prototype.documentClicked = function(e) {
+    if (!this._shown) return;
+    if ($(e.target).closest(this._target[0]).length === 0) {
+        this._clearDelay();
+        this.hide();
+    }
+};
+
 Tooltip.prototype.position = function() {
     if (!this._shown) return;
     var $node = this._tooltip;
@@ -133,6 +177,10 @@ Tooltip.prototype.position = function() {
     var gap = this._gap;
     var configurations = getConfigurationsToTryInOrder(this._preferredDirection, this._preferredArrowAlign);
     var direction, align;
+    var targetBox = this._target[0].getBoundingClientRect();
+    var cursorSize = this._activationStyle === "hover" ? 21 : 0;
+    var targetSizeX = this._activationStyle === "hover" ? 0 : targetBox.width;
+    var targetSizeY = this._activationStyle === "hover" ? 0 : targetBox.height;
 
     // Keep trying configurations in preferred order until it is fully visible.
     for (var i = 0; i < configurations.length; ++i) {
@@ -152,9 +200,9 @@ Tooltip.prototype.position = function() {
             }
 
             if (direction === "up") {
-                top = baseY + gap + 21;
+                top = baseY + gap + cursorSize + targetSizeY;
             } else {
-                top = baseY - gap - 21 - box.height;
+                top = baseY - gap - cursorSize - box.height;
             }
         } else {
             if (align === "begin") {
@@ -166,9 +214,9 @@ Tooltip.prototype.position = function() {
             }
 
             if (direction === "left") {
-                left = baseX + gap + 21;
+                left = baseX + gap + cursorSize + targetSizeX;
             } else {
-                left = baseX - gap - 21 - box.width;
+                left = baseX - gap - cursorSize - box.width;
             }
         }
 
@@ -404,11 +452,13 @@ Tooltip.prototype.destroy = function() {
     $(window).off("resize", this.position);
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
+    util.offCapture(document, "click", this.documentClicked);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
         this._target.off("click", this.hide);
+        this._target.off("click", this.clicked);
         this._target = this._domNode = null;
     }
 };

@@ -344,19 +344,14 @@ var equalizer = new EventEmitter();
         </div>";
 
 
-        return "<div class='popup-content-container'>                            \
-                <div class='popup-header'>                                       \
-                    <h2 class='app-header-2'>Equalizer</h2>                      \
-                </div>                                                           \
-                <div class='popup-body'>                                         \
-                    <div class='equalizer-popup-content-container'>              \
-                        "+descriptorContainerHtml+"                              \
-                        "+sliderContainerHtml+"                                  \
-                        "+presetContainerHtml+"                                  \
-                    </div>                                                       \
-                </div>                                                           \
-            </div>";
+
+        return "<div class='equalizer-popup-content-container'>              \
+                    "+descriptorContainerHtml+"                              \
+                    "+sliderContainerHtml+"                                  \
+                    "+presetContainerHtml+"                                  \
+                </div>";
     })();
+    const equalizerPopup = PanelControls.makePopup("Equalizer", html);
 
     function gainValueToProgress(gainValue) {
         var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -397,7 +392,7 @@ var equalizer = new EventEmitter();
     }, 50);
 
     function openEditor() {
-        popup.open(html, 560, 279);
+        equalizerPopup.open();
 
         selectCurrentlyMatchingPreset();
         var currentGain =  $("#equalizer-current-gain");

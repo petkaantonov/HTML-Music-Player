@@ -3,25 +3,32 @@ var replayGainProcessor = new ReplayGainProcessor(workerPool);
 var localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
 new ID3Process(playlist.main, replayGainProcessor);
 
+const rInput = /textarea|input|select/i;
+const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
+
 $(document)
-    .bind('dragenter', function(ev) {
+    .on('dragenter', function(ev) {
         return false;
     })
-    .bind("dragleave", function(ev) {
+    .on("dragleave", function(ev) {
         return false;
     })
-    .bind("dragover", function(ev) {
+    .on("dragover", function(ev) {
         return false;
     })
-    .bind("drop", function(ev) {
+    .on("drop", function(ev) {
         localFiles.handle(ev.originalEvent.dataTransfer.files);
         ev.preventDefault();
         ev.stopPropagation();
         return false;
     })
-    .bind("selectstart", function(e) {
-        var insideInput = !!(/textarea|input|select/i.test(e.target.nodeName) || e.target.isContentEditable);
-        if (!insideInput) {
+    .on("selectstart", function(e) {
+        if (rInput.test(e.target.nodeName)) {
+            if (!(e.target.nodeName.toLowerCase() !== "input" ||
+                rTextInput.test(e.target.type))) {
+                e.preventDefault();
+            }
+        } else if (!e.target.isContentEditable) {
             e.preventDefault();
         }
     });

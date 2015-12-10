@@ -12,6 +12,11 @@ Function.prototype.bind = function(ctx) {
     };
 };
 
+util.combineClasses = function(a, b) {
+    if (!a) return b;
+    return a + " " + b;
+};
+
 util.modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
 
 util.modifierKeyProp = util.modifierKey + "Key";
@@ -32,6 +37,28 @@ util.toFunction = function(value) {
     return function() {
         return value;
     };
+};
+
+util.onCapture = function onCapture(dom, eventName, handler) {
+    eventName.split(" ").forEach(function(eventName) {
+        dom.addEventListener(eventName, handler, true);
+    });
+};
+
+util.offCapture = function offCapture(dom, eventName, handler) {
+    eventName.split(" ").forEach(function(eventName) {
+        dom.removeEventListener(eventName, handler, true);
+    });
+};
+
+util.fastClickEventHandler = function fastClickEventHandler(fn) {
+    return function(e) {
+        var touched = e.type === "touchstart" && (e.touches ? e.touches.length === 1 : true);
+        var clicked = e.type === "mousedown" && e.which === 1;
+        if (touched || clicked) {
+            return fn.call(this, e, clicked, touched);
+        }
+    }
 };
 
 util.bits = (function() {
