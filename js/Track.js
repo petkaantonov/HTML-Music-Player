@@ -6,28 +6,28 @@ const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal and clipping protection.</p>" +
 "<p>Playing this track before the analysis has been completed can lead to a below acceptable listening experience.</p>";
 
+const NULL = $(null);
+
 function Track(audioFile) {
     EventEmitter.call(this);
     this.file = audioFile;
     this.tagData = null;
     this.error = false;
     this.index = -1;
-    this._domNode = this._createDomNode();
+    this._domNode = NULL;
     this._searchString = null;
     this._isAttached = false;
     this._lastPlayed = 0;
     this._statusTooltip = null;
-    this.setTrackDuration(this.formatTime());
-    this.setTrackText(this.formatName());
+    this._isBeingAnalysed = false;
 }
 util.inherits(Track, EventEmitter);
 
-
-const NULL = $(null);
-
-Track.prototype._createDomNode = function() {
+Track.prototype._ensureDomNode = function() {
+    if (this._domNode !== NULL) return;
+    var selectable = playlist.main.getSelectable();
     var self = this;
-    var dom = $("<div>", {
+    this._domNode = $("<div>", {
         class: "app-track-container"
     }).html("<div class='app-track'>" +
         "<span class='app-track-name notextflow'>" +
@@ -46,7 +46,7 @@ Track.prototype._createDomNode = function() {
         "</div>" +
     "</div>");
 
-    dom.find(".app-track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+    this.$().find(".app-track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
         if (e.type === "mouseenter") return self.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return self.ratingInputMouseLeft(e);
@@ -54,12 +54,38 @@ Track.prototype._createDomNode = function() {
         if (e.type === "dblclick") return self.ratingInputDoubleClicked(e);
     });
 
-    dom.find(".app-track")
-        .on("dblclick", function(e) {
-            self.doubleClicked(e);
+
+    this.$()
+        .on("click", function(e) {
+            if ($(e.target).closest(".app-track-rating").length) {
+                return;
+            }
+            return selectable.trackClick(e, self);
         })
-        .height(playlist.main.getItemHeight());
-    return dom;
+        .on("mousedown", function(e) {
+            if ($(e.target).closest(".app-track-rating").length) {
+                return;
+            }
+            return selectable.trackMouseDown(e, self);
+        });
+
+    this.$().find(".app-track").on("dblclick", function(e) {
+        self.doubleClicked(e);
+    }).height(playlist.main.getItemHeight());
+
+    this.setTrackDuration(this.formatTime());
+    this.setTrackText(this.formatName());
+    this.setRatingStars(this.getRating());
+
+    if (selectable.contains(this)) {
+        this.selected();
+    }
+
+    if (playlist.main.getCurrentTrack() === this) {
+        this.startPlaying();
+    }
+
+    this.indexChanged();
 };
 
 Track.prototype.$ = function() {
@@ -96,23 +122,6 @@ Track.prototype.$ratingInputsForRatingValue = function(value) {
     });
 };
 
-Track.prototype.registerToSelectable = function(selectable) {
-    var self = this;
-    this.$()
-        .on("click", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackClick(e, self);
-        })
-        .on("mousedown", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackMouseDown(e, self);
-        });
-};
-
 Track.prototype.getTrackGain = function() {
     if (!this.tagData) return 0;
     return this.tagData.getTrackGain();
@@ -137,14 +146,6 @@ Track.prototype.isVisible = function() {
     return this._isAttached;
 };
 
-Track.prototype.bringInTrackAfter = function(delay) {
-    this.$().css("visibility", "hidden");
-    var self = this;
-    setTimeout(function() {
-        self.$().css("visibility", "visible");
-    }, 400);
-};
-
 Track.prototype.remove = function() {
     this.index = -1;
     this._isAttached = false;
@@ -162,12 +163,13 @@ Track.prototype.remove = function() {
 };
 
 Track.prototype.attach = function(target) {
+    this._ensureDomNode();
     this._isAttached = true;
     this.$().appendTo(target);
 };
 
 Track.prototype.detach = function() {
-    if (this.$().parent().length) {
+    if (this._isAttached) {
         this.$().detach();
         this._isAttached = false;
         if (this._statusTooltip) {
@@ -232,6 +234,7 @@ Track.prototype.setTrackDuration = function(duration) {
 };
 
 Track.prototype.setRatingStars = function(ratingValue) {
+    this.$().find(".app-track-rating").addClass("visible");
     this.$ratingInputs().removeClass("rate-intent rated");
 
     if (ratingValue === -1) {
@@ -265,14 +268,20 @@ Track.prototype.getIndex = function() {
     return this.index;
 };
 
+
 Track.prototype.setIndex = function(index) {
     if (this.index === index) return;
     this.index = index;
+    this.indexChanged();
+    this.emit("indexChange", this.index);
+};
+
+Track.prototype.indexChanged = function() {
+    var index = this.index;
     if (index >= 0) {
         this.setTrackNumber(index + 1);
         this.$().css("top", index * playlist.main.getItemHeight());
     }
-    this.emit("indexChange", this.index);
 };
 
 Track.prototype.doubleClicked = function(event) {
@@ -293,6 +302,27 @@ Track.prototype.stopPlaying = function() {
 
 Track.prototype.startPlaying = function() {
     this.$container().addClass("app-playing");
+};
+
+Track.prototype.showAnalysisStatus = function() {
+    if (this._domNode === NULL) return;
+
+    var self = this;
+
+    this.$trackStatus().html("<span " +
+        "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
+        "></span>");
+
+    this._statusTooltip = new Tooltip({
+        transitionClass: "fade-in",
+        preferredDirection: "right",
+        preferredAlign: "middle",
+        container: $("body"),
+        target: this.$trackStatus().find(".track-analysis-status"),
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        arrow: false,
+        content: ANALYSIS_TOOLTIP_MESSAGE
+    });
 };
 
 Track.prototype.hasError = function() {
@@ -318,7 +348,6 @@ Track.prototype.getTagData = function() {
 Track.prototype.setTagData = function(tagData) {
     if (this.tagData !== null) throw new Error("cannot set tagData again");
     this.tagData = tagData;
-    this.$().find(".app-track-rating").addClass("visible");
     this.tagDataUpdated();
 };
 
@@ -388,27 +417,18 @@ Track.prototype.getUid = function() {
 };
 
 Track.prototype.unsetAnalysisStatus = function() {
+    this._isBeingAnalysed = false;
     this.$trackStatus().empty();
-    this._statusTooltip.destroy();
-    this._statusTooltip = null;
+
+    if (this._statusTooltip) {
+        this._statusTooltip.destroy();
+        this._statusTooltip = null;
+    }
 };
 
 Track.prototype.setAnalysisStatus = function() {
-    var self = this;
-    this.$trackStatus().html("<span " +
-        "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
-        "></span>");
-
-    this._statusTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "right",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus().find(".track-analysis-status"),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ANALYSIS_TOOLTIP_MESSAGE
-    });
+    this._isBeingAnalysed = true;
+    this.showAnalysisStatus();
 };
 
 Track.prototype.getSilenceAdjustedDuration = function(duration) {

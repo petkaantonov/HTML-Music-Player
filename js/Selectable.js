@@ -173,6 +173,10 @@ Selectable.prototype._moveToMiddleOfSelection = function() {
     this._playlist.centerOnTrack(this._getMiddleOfSelection());
 };
 
+Selectable.prototype.contains = function(track) {
+    return this._selection.contains(track);
+};
+
 Selectable.prototype.addTrack = function(track) {
     if (track.getIndex() >= 0) {
         this._add(track.getIndex());

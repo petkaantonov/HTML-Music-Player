@@ -265,21 +265,13 @@ Playlist.prototype.$ = function() {
 Playlist.prototype.hidePlaylistEmptyIndicator = function() {
     var self = this;
     var maxLeft = this.$().outerWidth();
-    this.$().find(".playlist-empty").animate({
-        left: maxLeft
-    }, 400, "swiftOut", function() {
-        if (self.length > 0) {
-            $(this).hide();
-        }
-    });
+    this.$().find(".playlist-empty").hide();
     this.$().find(".playlist-spacer").show();
 };
 
 Playlist.prototype.showPlaylistEmptyIndicator = function() {
     this.$().find(".playlist-spacer").hide();
-    this.$().find(".playlist-empty").show().animate({
-        left: 0
-    }, 400, "swiftOut");
+    this.$().find(".playlist-empty").show();
 };
 
 Playlist.prototype.playFirstSelected = function() {
@@ -426,6 +418,10 @@ Playlist.prototype.removeSelected = function() {
     this.removeTracks(selection);
 };
 
+Playlist.prototype.getSelectable = function() {
+    return this._selectable;
+};
+
 Playlist.prototype.add = function(tracks) {
     if (!tracks.length) return;
 
@@ -439,24 +435,11 @@ Playlist.prototype.add = function(tracks) {
     tracks.forEach(function(track) {
         var len = this._trackList.push(track);
         track.setIndex(len - 1);
-        track.registerToSelectable(this._selectable);
     }, this);
 
     this.emit("lengthChange", this.length, oldLength);
     this._updateNextTrack();
     this.contentsChanged();
-    this.animateVisibleNewTracks(tracks);
-};
-
-Playlist.prototype.animateVisibleNewTracks = function(tracks) {
-    var delay = 0;
-
-    for (var i = 0; i < tracks.length; ++i) {
-        if (tracks[i].isVisible()) {
-            tracks[i].bringInTrackAfter(delay);
-            delay += 33;
-        }
-    }
 };
 
 Playlist.prototype.stop = function() {

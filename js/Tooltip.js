@@ -64,6 +64,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
 };
 
 function Tooltip(opts) {
+    EventEmitter.call(this);
     opts = Object(opts);
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
@@ -86,16 +87,11 @@ function Tooltip(opts) {
     this._maxY = 0;
 
     this._show = this._show.bind(this);
-
-
     this.mouseLeft = this.mouseLeft.bind(this);
     this.mouseEntered = this.mouseEntered.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
-
     this.clicked = this.clicked.bind(this);
     this.documentClicked = this.documentClicked.bind(this);
-
-
     this.hide = this.hide.bind(this);
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
@@ -112,6 +108,7 @@ function Tooltip(opts) {
     $(window).on("blur", this.hide);
     util.documentHidden.on("change", this.hide);
 }
+util.inherits(Tooltip, EventEmitter);
 
 Tooltip.prototype._clearDelay = function() {
     if (this._delayTimeoutId !== -1) {
@@ -233,7 +230,7 @@ Tooltip.prototype.position = function() {
     }
 };
 
-Tooltip.prototype._show = function(noTransition) {
+Tooltip.prototype._show = function(isForRepaintOnly) {
     this._target.off("mousemove", this.mousemoved);
     this._clearDelay();
     if (this._shown) return;
@@ -255,7 +252,7 @@ Tooltip.prototype._show = function(noTransition) {
     this.position();
 
     if (this._transitionClass) {
-        if (noTransition) {
+        if (isForRepaintOnly) {
             $node.addClass(this._transitionClass);
         } else {
             $node.detach();
@@ -264,6 +261,10 @@ Tooltip.prototype._show = function(noTransition) {
             $node[0].offsetHeight;
             $node.removeClass("initial");
         }
+    }
+
+    if (!isForRepaintOnly) {
+        this.emit("show", this);
     }
 };
 
@@ -430,6 +431,7 @@ Tooltip.prototype.hide = function() {
         this._tooltip.remove();
         this._tooltip = NULL;
     }
+    this.emit("hide", this);
 };
 
 Tooltip.prototype.mousemoved = function(e) {
