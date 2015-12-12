@@ -1,7 +1,8 @@
-var workerPool = new WorkerPool((navigator.hardwareConcurrency || 2) - 1, "worker/root.js");
-var replayGainProcessor = new ReplayGainProcessor(workerPool);
+var loudnessCalculator = new LoudnessCalculator(new WorkerPool(1, "worker/loudness.js"));
+var fingerprintCalculator = new FingerprintCalculator(new WorkerPool(1, "worker/fingerprint.js"));
+var trackAnalyzer = new TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist.main);
 var localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
-new ID3Process(playlist.main, replayGainProcessor);
+var tagProcessor = new ID3Process(playlist.main, trackAnalyzer);
 
 const rInput = /textarea|input|select/i;
 const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;

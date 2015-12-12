@@ -7,6 +7,7 @@
     const MAX_FFT_FREQUENCY = 18500;
     const BYTE_MAX_SIZE = 255;
     const CAP_DROP_TIME_DEFAULT = 550;
+    const ALPHA_TIME_DEFAULT = 385;
     const CAP_HOLDOUT_TIME = 55;
     const CAP_DROP_TIME_IDLE = CAP_DROP_TIME_DEFAULT;
 
@@ -57,6 +58,7 @@
     }
 
     var capDropTime = CAP_DROP_TIME_DEFAULT;
+
     function getCapPosition(position, now) {
         if (position.binValue === -1) {
             return 0;
@@ -79,13 +81,14 @@
     }
 
     function drawCap(x, capSample, capInfo, now) {
+        var alpha = 1 - (capInfo.started >= 0 ?
+            Math.min(1, (now - capInfo.started) / ALPHA_TIME_DEFAULT) : 0);
         var capY = capSample * HIGHEST_Y + CAP_SPACE;
         context.fillRect(x, HEIGHT - capY, BIN_WIDTH, CAP_HEIGHT);
-        var alpha = capSample / capInfo.binValue * 0.96;
         var originalY = capY - CAP_SPACE - 1;
         context.fillStyle = "rgb(184, 228, 246)";
         context.save();
-        context.globalAlpha = alpha;
+        context.globalAlpha = alpha * 0.9;
         context.shadowBlur = 0;
         context.fillRect(x, HEIGHT - originalY, BIN_WIDTH, originalY);
         context.restore();

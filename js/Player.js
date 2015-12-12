@@ -136,7 +136,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.visualizer = new AudioVisualizer(audioCtx, {
         fps: 48,
         bins: Player.visualizerBins(),
-        baseSmoothingConstant: 0.00007,
+        baseSmoothingConstant: 0.0007,
         maxFrequency: 12500,
         minFrequency: 20
     });
@@ -464,7 +464,6 @@ AudioManager.prototype.destroy = function() {
     this.mediaElement.removeEventListener("durationchange", this.durationChanged, false);
     mediaElementPool.free(this.mediaElement);
     this.mediaElement = null;
-    this.player = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
     this.source = null;
@@ -480,20 +479,21 @@ AudioManager.prototype.destroy = function() {
     if (index >= 0) {
         audioManagers.splice(index, 1);
     }
+    this.player.audioManagerDestroyed(this);
+    this.player = null;
 };
 
 const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
 
 function Player(dom, playlist, opts) {
+    var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = $(dom);
 
     this._playButtonDomNode = this.$().find(opts.playButtonDom);
-    this._pauseButtonDomNode = this.$().find(opts.pauseButtonDom);
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
-    this._stopButtonDomNode = this.$().find(opts.stopButtonDom);
     this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
 
     this.currentAudioManager = null;
@@ -511,15 +511,15 @@ function Player(dom, playlist, opts) {
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
 
-    this.$play().click(this.play.bind(this));
-    this.$pause().click(this.pause.bind(this));
-    this.$stop().click(this.stop.bind(this));
+    this.$play().click(this.playButtonClicked.bind(this));
     this.$next().click(playlist.next.bind(playlist));
     this.$previous().click(playlist.prev.bind(playlist));
 
-    this._playTooltip = PanelControls.makeTooltip(this.$play(), "Resume playback");
-    this._pauseTooltip = PanelControls.makeTooltip(this.$pause(), "Pause playback");
-    this._stopTooltip = PanelControls.makeTooltip(this.$stop(), "Stop playback");
+    this._playTooltip = PanelControls.makeTooltip(this.$play(), function() {
+        return self.isPlaying ? "Pause playback"
+                            : self.isPaused ? "Resume playback" : "Start playback";
+    });
+
     this._nextTooltip = PanelControls.makeTooltip(this.$next(), "Next track");
     this._previousTooltip = PanelControls.makeTooltip(this.$previous(), "Previous track");
 
@@ -537,9 +537,7 @@ function Player(dom, playlist, opts) {
 util.inherits(Player, EventEmitter);
 
 Player.prototype.$allButtons = function() {
-    return this.$play().add(this.$pause())
-                      .add(this.$previous())
-                      .add(this.$stop())
+    return this.$play().add(this.$previous())
                       .add(this.$next());
 };
 
@@ -549,55 +547,28 @@ Player.prototype.$ = function() {
 
 Player.prototype.$play = function() {
     return this._playButtonDomNode;
-}
-
-Player.prototype.$pause = function() {
-    return this._pauseButtonDomNode;
-}
+};
 
 Player.prototype.$previous = function() {
     return this._previousButtonDomNode;
-}
-
-Player.prototype.$stop = function() {
-    return this._stopButtonDomNode;
-}
+};
 
 Player.prototype.$next = function() {
     return this._nextButtonDomNode;
-}
+};
 
 Player.prototype.visualizerData = function(data) {
     this.emit("visualizerData", data);
 };
 
 Player.prototype.historyChanged = function() {
-    if (this.playlist.hasHistory()) {
-        this.$previous().removeClass("disabled");
-    } else {
-        this.$previous().addClass("disabled");
-    }
+    this.checkButtonState();
 };
 
 Player.prototype.nextTrackChanged = function() {
+    this.checkButtonState();
     var track = this.playlist.getNextTrack();
-    this.$pause().addClass("disabled");
-    if (!track) {
-        this.$play().addClass("disabled");
-        this.$next().addClass("disabled");
-        this.$previous().addClass("disabled");
-        return;
-    }
-    this.$play().removeClass("disabled");
-    if (this.playlist.getCurrentTrack()) {
-        this.$pause().removeClass("disabled");
-    }
-
-    this.$next().removeClass("disabled");
-
-    if (this.playlist.hasHistory()) {
-        this.$previous().removeClass("disabled");
-    }
+    if (!track) return;
 
     for (var i = 0; i < this._preloadedTracks.length; ++i) {
         if (this._preloadedTracks[i].isForTrack(track)) return;
@@ -622,6 +593,15 @@ Player.prototype.flushPreloadedMediaElementFor = function(track) {
         }
     }
     return ret;
+};
+
+Player.prototype.audioManagerDestroyed = function(audioManager) {
+    if (audioManager === this.currentAudioManager &&
+        !this.playlist.getCurrentTrack() &&
+        !this.playlist.getNextTrack() &&
+        this.isPlaying) {
+        this.stop();
+    }
 };
 
 Player.prototype.nextTrackImplicitly = function() {
@@ -690,7 +670,7 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
     if (!audioManager) return 0;
 
     if (!preferences.getShouldAlbumCrossFade() &&
-        audioManager.track.isFromSameAlbumAs(this.playlist.getNextTrack())) {
+        audioManager.track.comesBeforeInSameAlbum(this.playlist.getNextTrack())) {
         return 0;
     }
 
@@ -750,7 +730,7 @@ Player.prototype.resume = function() {
 Player.prototype.play = function() {
     if (this.isPlaying) return this;
 
-    if (!this.playlist._currentTrack) {
+    if (!this.playlist.getCurrentTrack()) {
         this.playlist.playFirst();
         return this;
     }
@@ -806,23 +786,65 @@ Player.prototype.loadTrack = function(track) {
     this.currentAudioManager.start();
 };
 
+Player.prototype.playButtonClicked = function() {
+    if (this.isPlaying) {
+        this.pause();
+    } else {
+        this.play();
+    }
+};
+
+Player.prototype.checkButtonState = function() {
+    this.$allButtons().addClass("disabled");
+
+    if (this.playlist.getNextTrack()) {
+        this.$next().removeClass("disabled");
+
+        if (this.playlist.hasHistory()) {
+            this.$previous().removeClass("disabled");
+        }
+    }
+
+    if (!this.isStopped) {
+        this.$play().removeClass("disabled");
+        this.$play().addClass("active");
+        if (this.isPlaying) {
+            this.$play()
+                .find(".play-pause-morph-icon")
+                .removeClass("pause")
+                .addClass("play");
+        } else {
+            this.$play()
+                .find(".play-pause-morph-icon")
+                .removeClass("play")
+                .addClass("pause");
+        }
+    } else {
+        this.$play().removeClass("active")
+                .find(".play-pause-morph-icon")
+                .removeClass("pause")
+                .addClass("play");
+
+        if (this.playlist.getNextTrack()) {
+            this.$play().removeClass("disabled");
+        }
+    }
+
+    this._playTooltip.refresh();
+};
+
 Player.prototype.startedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$play().addClass("active");
-    this.$pause().removeClass("disabled");
+    this.checkButtonState();
     this.emit("play");
 };
 
 Player.prototype.stoppedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$stop().addClass("active");
-    this.$pause().addClass("disabled");
+    this.checkButtonState();
     this.emit("stop");
 };
 
 Player.prototype.pausedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$pause().addClass("active");
+    this.checkButtonState();
     this.emit("pause");
 };
 

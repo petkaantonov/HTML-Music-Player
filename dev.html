@@ -77,26 +77,39 @@
             </div>
 
             <div class="player-control-panel-container module-container">
-                <div class="notextflow time-progress-container" id="app-track-progress-container">
-                    <div id="app-track-progress" class="time-progress"></div>
-                    <div id="app-track-display-container">
-                    <div id="app-track-display"></div>
+                <div class="notextflow time-progress-container" id="track-progress-container">
+                    <div id="track-progress" class="time-progress"></div>
+                    <div id="track-display-container">
+                    <div id="track-display"></div>
                     </div>
                 </div>
                 <div class="smoothness-separator"></div>
                 <div class="button-groups-container">
+                    <div class="app-player-controls volume-controls-container button-group">
+                        <div class="volume-mute volume-mute-button button-group-button">
+                            <span class="icon glyphicon glyphicon-volume-up"></span>
+                        </div>
+
+                        <div class="volume-slider-container button-group-item">
+                            <div class="volume-slider-wrap">
+                                <div class="volume-slider-knob slider-knob"></div>
+                                <div class="volume-slider-bg slider-bg"></div>
+                            </div>
+                        </div>
+                    </div>
+
+
                     <div class="app-player-controls player-controls-container button-group">
                         <div class="disabled previous-button button-group-button">
                             <span class="icon glyphicon glyphicon-step-backward"></span>
                         </div>
                         <div class="disabled play-button button-group-button">
-                            <span class="icon glyphicon glyphicon-play"></span>
-                        </div>
-                        <div class="disabled pause-button button-group-button">
-                            <span class="icon glyphicon glyphicon-pause"></span>
-                        </div>
-                        <div class="stop-button active  button-group-button">
-                            <span class="icon glyphicon glyphicon-stop"></span>
+                            <div class="play-pause-morph-icon-container">
+                                <div class="play-pause-morph-icon play">
+                                    <span class="icon glyphicon glyphicon-play"></span>
+                                    <span class="icon glyphicon glyphicon-pause"></span>
+                                </div>
+                            </div>
                         </div>
                         <div class="disabled next-button button-group-button">
                             <span class="icon glyphicon glyphicon-step-forward"></span>
@@ -110,19 +123,6 @@
 
                         <div class="repeat-mode-button  button-group-button">
                             <span class="icon glyphicon glyphicon-repeat"></span>
-                        </div>
-                    </div>
-
-                    <div class="app-player-controls volume-controls-container button-group">
-                        <div class="volume-mute volume-mute-button button-group-button">
-                            <span class="icon glyphicon glyphicon-volume-up"></span>
-                        </div>
-
-                        <div class="volume-slider-container button-group-item">
-                            <div class="volume-slider-wrap">
-                                <div class="volume-slider-knob slider-knob"></div>
-                                <div class="volume-slider-bg slider-bg"></div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -213,7 +213,9 @@ var __PROJECT__TITLE = "HTML Music Player";
 <script type="text/javascript" src="js/LocalFiles.js"></script>
 <script type="text/javascript" src="js/Slider.js"></script>
 <script type="text/javascript" src="js/WorkerPool.js"></script>
-<script type="text/javascript" src="js/ReplayGainProcessor.js"></script>
+<script type="text/javascript" src="js/TrackAnalyzer.js"></script>
+<script type="text/javascript" src="js/LoudnessCalculator.js"></script>
+<script type="text/javascript" src="js/FingerprintCalculator.js"></script>
 <script type="text/javascript" src="js/TagDatabase.js"></script>
 <script type="text/javascript" src="js/TagData.js"></script>
 <script type="text/javascript" src="js/Id3Process.js"></script>

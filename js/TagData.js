@@ -1,3 +1,7 @@
+const TagData = (function() { "use strict";
+
+const UNKNOWN = "Unknown";
+
 function TagData(track, title, artist, basicInfo, album, albumIndex, picture) {
     this.track = track;
     this.title = title || null;
@@ -41,28 +45,38 @@ TagData.prototype.formatTime = function() {
 
 var stripExtensionPattern = new RegExp("\\.(?:" + features.allowExtensions.join("|") + ")$", "i");
 var separatorPattern = /(.+)\s*-\s*(.+)/;
-TagData.prototype.formatName = function() {
-    if (this._formattedName !== null) return this._formattedName;
-    if (!this.title && !this.artist) {
-        var fileName = this.track.getFileName().replace(stripExtensionPattern, "");
-        var matches = fileName.match(separatorPattern);
-        var trackTitle;
-        if (!matches) {
-            trackTitle = util.capitalize(fileName);
-        } else {
-            trackTitle = util.capitalize(matches[1]) + " - " + util.capitalize(matches[2]);
-        }
 
-        return (this._formattedName = trackTitle);
+TagData.trackInfoFromFileName = function(fileName) {
+    var fileName = fileName.replace(stripExtensionPattern, "");
+    var matches = fileName.match(separatorPattern);
+    var artist, title;
+
+    if (!matches) {
+        title = util.capitalize(fileName);
+        artist = UNKNOWN;
+    } else {
+        artist = util.capitalize(matches[1]) || UNKNOWN;
+        title = util.capitalize(matches[2]) || UNKNOWN;
     }
-    var separator = this.artist && this.title ? " - " : "";
-    var artist = this.artist ? this.artist : "";
-    var title = this.title ? this.title : "";
-    return (this._formattedName = artist + separator + title);
+
+    return {
+        artist: artist,
+        title: title
+    };
 };
 
-TagData.prototype.shouldCalculateReplayGain = function() {
-    return this.getTrackGain() === 0;
+TagData.prototype.ensureArtistAndTitle = function() {
+    if (!this.title || !this.artist) {
+        var artistAndTitle = TagData.trackInfoFromFileName(this.track.getFileName());
+        this.artist = this.artist || artistAndTitle.artist || UNKNOWN;
+        this.title = this.title || artistAndTitle.title || UNKNOWN;
+    }
+};
+
+TagData.prototype.formatName = function() {
+    if (this._formattedName !== null) return this._formattedName;
+    this.ensureArtistAndTitle();
+    return (this._formattedName = this.artist + " - " + this.title);
 };
 
 TagData.prototype.getTrackGain = function() {
@@ -85,7 +99,13 @@ TagData.prototype.getAlbum = function() {
     return this.album;
 };
 
+TagData.prototype.getTitle = function() {
+    this.ensureArtistAndTitle();
+    return this.title;
+};
+
 TagData.prototype.getArtist = function() {
+    this.ensureArtistAndTitle();
     return this.artist;
 };
 
@@ -140,7 +160,7 @@ TagData.prototype.destroy = function() {
 };
 
 TagData.prototype.getTitleForSort = function() {
-    if (this.title === null) return NULL_STRING;
+    this.ensureArtistAndTitle();
     return this.title;
 };
 
@@ -150,7 +170,7 @@ TagData.prototype.getAlbumForSort = function() {
 };
 
 TagData.prototype.getArtistForSort = function() {
-    if (this.artist === null) return NULL_STRING;
+    this.ensureArtistAndTitle();
     return this.artist;
 };
 
@@ -182,3 +202,5 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.rating = data.rating || -1;
     this.track.tagDataUpdated();
 };
+
+return TagData; })();

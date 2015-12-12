@@ -559,11 +559,28 @@ util.readAsBinaryString = function(file) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {
             resolve(e.target.result);
+            reader = null;
         });
         util.once(reader, "error", function() {
             reject(new FileError(this.error));
+            reader = null;
         });
         reader.readAsBinaryString(file);
+    });
+};
+
+util.readAsArrayBuffer = function(file) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        util.once(reader, "load", function(e) {
+            resolve(e.target.result);
+            reader = null;
+        });
+        util.once(reader, "error", function() {
+            reject(new FileError(this.error));
+            reader = null;
+        });
+        reader.readAsArrayBuffer(file);
     });
 };
 

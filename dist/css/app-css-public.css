@@ -415,7 +415,7 @@ label {
     -moz-opacity: 1;
 }
 
-#app-track-progress {
+#track-progress {
     z-index: 3;
     position: absolute;
     left: -100%;
@@ -427,7 +427,7 @@ label {
     border-radius: 2px;
 }
 
-#app-track-progress-container {
+#track-progress-container {
     text-shadow: 1px 1px 1px #111;
     position: relative;
     color: #fcfcfc;
@@ -496,8 +496,9 @@ label {
 }
 
 .tracks-list-container {
-    background-color: #FFFFFF;
+    background-color: #FAFAFA;
 }
+
 #app-playlist-container {
     height: 475px;
     position: relative;
@@ -787,20 +788,7 @@ label {
     user-select: all;
 }
 
-.app-track-container {
-    left: 0px;
-    position: absolute;
-    width: 100%;
-    z-index: 1;
-    clear: both;
-    box-sizing: border-box;
-}
-
-.tracks-list-container.has-scrollbar .app-track-container {
-    width: 569px;
-}
-
-#app-track-display-container {
+#track-display-container {
     z-index: 5;
     position: relative;
     height: 20px;
@@ -810,7 +798,7 @@ label {
     width: 97%;
     margin: 0px auto;
 }
-#app-track-display {
+#track-display {
     margin-top: 3px;
     width: 100%;
     cursor: default;
@@ -892,6 +880,7 @@ label {
 
 .action-menu-item-content .icon {
     margin-right: 10px;
+    margin-top: 1px;
 }
 
 .action-menu-item:hover .icon,
@@ -1306,6 +1295,57 @@ ul.app-empty-playlist-ul li {
     text-align: center;
 }
 
+.button-group .button-group-button.play-button {
+}
+
+.play-pause-morph-icon-container {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 8px;
+    width: 16px;
+    height: 16px;
+    top: 1px;
+}
+
+.play-pause-morph-icon-container .play-pause-morph-icon {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.play-pause-morph-icon-container .icon {
+    position: absolute;
+    left: 0px;
+    margin: 0 !important;
+    padding: 0 !important;
+    top: 0;
+    left: 0;
+}
+
+.play-pause-morph-icon .glyphicon-play {
+    top: 0px;
+}
+
+.play-pause-morph-icon .glyphicon-pause {
+    top: -16px;
+}
+
+.play-pause-morph-icon {
+    transition: top 0.4s ease;
+}
+
+.play-pause-morph-icon.pause {
+    top: 16px;
+}
+
+.play-pause-morph-icon.play {
+    top: 0px;
+}
+
 .button-group .button-group-button {
     cursor: default;
 }
@@ -1349,13 +1389,10 @@ ul.app-empty-playlist-ul li {
 .player-controls-container.button-group {
     position: absolute;
     bottom: 0px;
-    left: 0px;
-
+    left: 50%;
     border-radius: 0px;
-
-    border-left: none;
-    border-bottom: none;
-    border-top: none;
+    margin-left: -54px;
+    border: none;
     box-sizing: border-box;
 }
 
@@ -1363,64 +1400,18 @@ ul.app-empty-playlist-ul li {
     box-sizing: border-box;
     position: absolute;
     bottom: 0px;
-    left: 50%;
-    margin-left: -37px;
-    border-bottom: none;
-    border-top: none;
+    right: 0px;
     border-radius: 0px;
+    border: none;
 }
 
 .volume-controls-container.button-group {
     position: absolute;
     bottom: 0px;
-    right: 0px;
-
-    border-top: none;
+    left: 0px;
     border-radius: 0px;
-    border-right: none;
-    border-bottom: none;
+    border: none;
 }
-
-.player-controls-container:after {
-    content: " ";
-    position: absolute;
-    height: 100%;
-    width: 1px;
-    right: -2px;
-    background-color: #F7F7F7;
-    bottom: 0px;
-}
-
-.playlist-controls-container:before {
-    content: " ";
-    position: absolute;
-    height: 100%;
-    width: 1px;
-    left: -2px;
-    background-color: #F7F7F7;
-    bottom: 0px;
-}
-
-.playlist-controls-container:after {
-    content: " ";
-    position: absolute;
-    height: 100%;
-    width: 1px;
-    right: -2px;
-    background-color: #F7F7F7;
-    bottom: 0px;
-}
-
-.volume-controls-container:before {
-    content: " ";
-    position: absolute;
-    height: 100%;
-    width: 1px;
-    left: -2px;
-    background-color: #F7F7F7;
-    bottom: 0px;
-}
-
 
 .volume-controls-container .button-group-item .volume-slider-wrap {
     top: 13px;
@@ -1434,7 +1425,7 @@ ul.app-empty-playlist-ul li {
     border-right: none;
 }
 
-.volume-controls-container .volume-mute-button .icon-volume-off {
+.icon.glyphicon.glyphicon-volume-off {
     color: #960707;
 }
 
@@ -1497,92 +1488,145 @@ ul.app-empty-playlist-ul li {
     opacity: 0;
 }
 
-.app-track-rating:before {
-    content: " ";
-    position: absolute;
-    top: 0px;
+/*Track stuffs*/
+
+.track-container {
     left: 0px;
-    width: 1px;
-    height: 21px;
-    background-color: #F7F7F7;
-}
-
-.app-track-rating {
     position: absolute;
-    top: 0px;
-    right: 0px;
-    padding: 0px 6px;
-    border-left: 1px solid #E6E6E6;
-    height: 21px;
-    letter-spacing: 2px;
-}
-
-.app-track-name {
-    max-width: 380px;
-    display: inline-block;
-}
-.app-track-time {
-    position: absolute;
-    top: 1px;
-    right: 110px;
-}
-.app-track {
-    color: #323232;
-    font-size: 16px;
-    width: 100%;
-    line-height: 22px;
+    width: 572px;
+    z-index: 1;
     box-sizing: border-box;
-    padding-top: 1px;
+    height: 44px;
+    font-size: 0;
+    border-bottom: 1px solid #EEE;
+    border-top: 1px solid #F6F6F6;
+    background-color: #FFF;
 }
 
-.app-track > .app-track-rating {
+.track-container.track-active {
+    background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
+    border-bottom: 1px solid #B0D1F8;
+}
+
+.track .track-status {
+    width: 36px;
+    height: 100%;
+    font-size: 14px;
+    line-height: 14px;
+    text-align: center;
+}
+
+.track-status .icon {
+    margin-top: 14px;
+}
+
+.track-status .playing-icon {
+    color: #BE7306;
     display: none;
 }
 
-.app-track-container:hover .app-track-rating.visible {
+.track-container.track-playing .playing-icon {
+    display: inline-block;
+}
+
+.track-container
+
+.track-container > .track {
+    height: 100%;
+    width: 100%;
+}
+
+.track .track-clickable {
+    height: 100%;
+}
+
+.track .track-info {
+    height: 100%;
+    width: 330px;
+    overflow: hidden;
+    padding: 4px 0px 4px 6px;
+}
+
+.track .track-title,
+.track .track-artist {
     display: block;
 }
 
-.app-track > .app-track-rating.already-rated.visible,
-.app-track.app-track-active > .app-track-rating.visible {
-    display: block;
+.track .track-title {
+    font-size: 15px;
+    color: #333;
 }
 
-.app-track-status {
-    position: absolute;
-    top: 2px;
-    left: 388px;
-}
-
-.app-track.app-track-active {
-    background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
-    border-top: 1px solid #B0D1F8;
-    padding-top: 0px;
-}
-
-.app-playing {
-    color: #BE7306;
-}
-
-.app-track-rating > .rating-input {
-    color: #aaa;
-    text-shadow: 1px 1px 1px #333;
-    opacity: 0.22;
-    vertical-align: top;
+.track .track-artist {
+    font-size: 13px;
+    color: #777;
     margin-top: 2px;
 }
 
-.app-track-rating.already-rated > .rating-input {
+.track .track-duration,
+.track .track-number {
+    color: #333;
+    font-size: 14px;
+    line-height: 14px;
+    padding-top: 15px;
+    height: 100%;
+}
+
+.track .track-number {
+    width: 42px;
+}
+
+.track .track-duration {
+    width: 38px;
+    text-align: center;
+    margin-left: 6px;
+    overflow: hidden;
+}
+
+.track-container div {
+    vertical-align: top;
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+
+.track > .track-rating {
+    display: none;
+    margin: 0px 9px;
+    height: 100%;
+}
+
+.track-container:hover .track > .track-rating.visible {
+    display: inline-block;
+}
+
+.track > .track-rating.already-rated.visible,
+.track-container.track-active > .track > .track-rating.visible {
+    display: inline-block;
+}
+
+.track-rating > .rating-input {
+    color: #aaa;
+    text-shadow: 1px 1px 1px #333;
+    opacity: 0.22;
+    font-size: 18px;
+    line-height: 18px;
+    height: 100%;
+    padding-top: 11px;
+    padding-right: 2px;
+}
+
+.track-rating.already-rated > .rating-input {
     opacity: 1;
     color: #ccc;
     cursor: default;
 }
 
-.app-track-rating.already-rated > .rating-input.rated {
+.track-rating.already-rated > .rating-input.rated {
     color: #F7ED95;
 }
 
-.app-track-rating > .rating-input.rate-intent {
+.track-rating > .rating-input.rate-intent {
     color: #F7ED95;
     opacity: 1;
     cursor: default;
@@ -1647,12 +1691,12 @@ ul.app-empty-playlist-ul li {
 }
 
 .ps-container>.ps-scrollbar-x-rail {
-    bottom: 3px;
+    bottom: 0px;
     height: 8px
 }
 
 .ps-container>.ps-scrollbar-y-rail {
-    right: 3px;
+    right: 0px;
     width: 8px
 }
 

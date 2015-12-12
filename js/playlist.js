@@ -1,9 +1,9 @@
 var playlist = playlist || {};
 
 (function() {
-    const DEFAULT_ITEM_HEIGHT = 21;
+    const DEFAULT_ITEM_HEIGHT = 44;
 
-    playlist.trackDisplay = new TrackDisplay("app-track-display");
+    playlist.trackDisplay = new TrackDisplay("track-display");
 
     playlist.main = new Playlist("#app-playlist-container", {
         itemHeight: DEFAULT_ITEM_HEIGHT

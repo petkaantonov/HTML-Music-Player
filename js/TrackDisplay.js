@@ -4,7 +4,7 @@ function TrackDisplay(target, opts) {
         target;
 
     if (target.id == null) {
-        target.id = (+new Date) + "-app-track-display";
+        target.id = (+new Date) + "-track-display";
     }
 
     parent = target.parentNode;
@@ -16,7 +16,7 @@ function TrackDisplay(target, opts) {
     }
 
     if (parent && !parent.id) {
-        parent.id = (+new Date) + "-app-track-display-parent";
+        parent.id = (+new Date) + "-track-display-parent";
     }
 
     this._target = target.id;

@@ -44,13 +44,14 @@ function Playlist(domNode, opts) {
 
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, {
-        mustNotMatchSelector: ".app-track-rating",
-        mustMatchSelector: ".app-track-container"
+        mustNotMatchSelector: ".track-rating",
+        mustMatchSelector: ".track-container"
     });
 
     this.$().perfectScrollbar({
         useKeyboard: false,
         suppressScrollX: true,
+        minScrollbarLength: 20
     });
 
     this.requestedRenderFrame = null;

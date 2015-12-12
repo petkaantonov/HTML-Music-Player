@@ -51,8 +51,8 @@ const MPEGSampleRate = [
 
 const MPEGChannels = [2, 2, 2, 1];
 
-function ID3Process(playlist, replayGainProcessor) {
-    this.replayGainProcessor = replayGainProcessor;
+function ID3Process(playlist, trackAnalyzer) {
+    this.trackAnalyzer = trackAnalyzer;
     this.playlist = playlist;
     this.concurrentParsers = 8;
     this.queue = [];
@@ -198,32 +198,43 @@ ID3Process.prototype.loadNext = function() {
         })
         .then(function(tagData) {
             track.setTagData(tagData);
-            if (tagData.shouldCalculateReplayGain()) {
-                var id = track.getUid();
+            var id = track.getUid();
 
-                tagDatabase.query(id).then(function(value) {
-                    if (!value) {
-                        track.setAnalysisStatus();
-                        return self.replayGainProcessor.getReplayGainForTrack(track).finally(function() {
-                            track.unsetAnalysisStatus();
-                        });
-                    } else {
-                        tagData.setDataFromTagDatabase(value);
-                        return null;
-                    }
-                }).then(function(value) {
-                    if (value) {
-                        value.title = tagData.title;
-                        value.artist = tagData.artist;
-                        value.album = tagData.album;
-                        value.albumIndex = tagData.albumIndex;
-                        tagData.setDataFromTagDatabase(value);
-                        return tagDatabase.insert(id, value);
-                    }
-                }).catch(AudioError, function(e) {
-                    self.playlist.removeTrack(track);
-                }).catch(TrackWasRemovedError, function(e) {});
-            }
+            tagDatabase.query(id).then(function(value) {
+                var shouldAnalyzeLoudness = !value || !value.trackGain;
+                var shouldCalculateFingerprint = !value || !value.fingerprint;
+
+                if (shouldAnalyzeLoudness || shouldCalculateFingerprint) {
+                    var analyzerOptions = {
+                        loudness: shouldAnalyzeLoudness,
+                        fingerprint: shouldCalculateFingerprint
+                    };
+                    track.setAnalysisStatus(analyzerOptions);
+                    return self.trackAnalyzer.analyzeTrack(track, analyzerOptions).finally(function() {
+                        track.unsetAnalysisStatus();
+                    }).then(function(result) {
+                        return $.extend({},
+                                        value || {},
+                                        result.loudness || {},
+                                        result.fingerprint || {});
+                    });
+                } else {
+                    tagData.setDataFromTagDatabase(value);
+                    return null;
+                }
+            }).then(function(value) {
+                if (value) {
+                    value.title = tagData.title;
+                    value.artist = tagData.artist;
+                    value.album = tagData.album;
+                    value.albumIndex = tagData.albumIndex;
+                    tagData.setDataFromTagDatabase(value);
+                    return tagDatabase.insert(id, value);
+                }
+            }).catch(AudioError, function(e) {
+                self.playlist.removeTrack(track);
+            }).catch(TrackWasRemovedError, function(e) {});
+
             return tagData;
         })
         .catch(AudioError, FileError, function(e) {

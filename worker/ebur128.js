@@ -690,11 +690,11 @@ DeserializedEbur128.prototype.loudness_global = Ebur128.prototype.loudness_globa
 var currentEbur = null;
 
 return {
-    cancelReplayGainCalculation: function() {
+    cancelEbur128Calculation: function() {
         currentEbur = null;
     },
 
-    initializeReplayGainCalculation: function(workDescriptor) {
+    initializeEbur128Calculation: function(workDescriptor) {
         if (currentEbur) throw new Error("replaygain calculation already initialized");
         var args = workDescriptor.args;
         var obj = args[0];
@@ -741,7 +741,7 @@ return {
         };
     },
 
-    getReplayGain: function(workDescriptor) {
+    getEbur128: function(workDescriptor) {
         if (!currentEbur) throw new Error("replaygain calculation not initialized");
         var ebur128 = currentEbur;
         currentEbur = null;

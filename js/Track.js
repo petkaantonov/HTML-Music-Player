@@ -19,7 +19,7 @@ function Track(audioFile) {
     this._isAttached = false;
     this._lastPlayed = 0;
     this._statusTooltip = null;
-    this._isBeingAnalysed = false;
+    this._isBeingAnalyzed = false;
 }
 util.inherits(Track, EventEmitter);
 
@@ -28,25 +28,27 @@ Track.prototype._ensureDomNode = function() {
     var selectable = playlist.main.getSelectable();
     var self = this;
     this._domNode = $("<div>", {
-        class: "app-track-container"
-    }).html("<div class='app-track'>" +
-        "<span class='app-track-name notextflow'>" +
-            "<span></span>. " +
-            "<span></span>" +
-        "</span>" +
-        "<span class='app-track-status'></span>" +
-        "<span class='app-track-time'></span>" +
-        "<span class='app-track-rating'>" +
-            "<span data-rating='1' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='2' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='3' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='4' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='5' class='glyphicon glyphicon-star rating-input'></span>" +
-        "</span>" +
-        "</div>" +
-    "</div>");
+        class: "track-container"
+    }).html("<div class='track'>                                                                    \
+        <div class='track-status'>                                                                  \
+            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                   \
+        </div>                                                                                      \
+        <div class='track-number'></div>                                                            \
+        <div class='track-info'>                                                                    \
+            <div class='track-title notextflow'></div>                                              \
+            <div class='track-artist notextflow'></div>                                             \
+        </div>                                                                                      \
+        <div class='track-duration'></div>                                                          \
+        <div class='track-rating unclickable'>                                                      \
+            <div data-rating='1' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='2' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='3' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='4' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='5' class='glyphicon glyphicon-star rating-input'></div>               \
+        </div>                                                                                      \
+    </div>");
 
-    this.$().find(".app-track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+    this.$().find(".track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
         if (e.type === "mouseenter") return self.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return self.ratingInputMouseLeft(e);
@@ -55,27 +57,22 @@ Track.prototype._ensureDomNode = function() {
     });
 
 
-    this.$()
-        .on("click", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackClick(e, self);
-        })
-        .on("mousedown", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackMouseDown(e, self);
-        });
+    this.$().on("click mousedown dblclick", function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
 
-    this.$().find(".app-track").on("dblclick", function(e) {
-        self.doubleClicked(e);
-    }).height(playlist.main.getItemHeight());
+        switch (e.type) {
+            case "click": return selectable.trackClick(e, self);
+            case "mousedown": return selectable.trackMouseDown(e, self);
+            case "dblclick": return self.doubleClicked(e);
+        }
+    });
 
-    this.setTrackDuration(this.formatTime());
-    this.setTrackText(this.formatName());
-    this.setRatingStars(this.getRating());
+    this.setTrackDuration();
+    this.setTrackInfo();
+
+    if (this.tagData) {
+        this.setRatingStars();
+    }
 
     if (selectable.contains(this)) {
         this.selected();
@@ -88,28 +85,60 @@ Track.prototype._ensureDomNode = function() {
     this.indexChanged();
 };
 
+Track.prototype.setTrackInfo = function() {
+    var artist, title;
+    if (!this.tagData) {
+        var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
+        artist = artistAndTitle.artist;
+        title = artistAndTitle.title;
+    } else {
+        artist = this.tagData.getArtist();
+        title = this.tagData.getTitle();
+    }
+
+    this.$().find(".track-title").text(title);
+    this.$().find(".track-artist").text(artist);
+};
+
+Track.prototype.setTrackNumber = function() {
+    this.$trackNumber().text((this.getIndex() + 1) + ".");
+};
+
+Track.prototype.setTrackDuration = function() {
+    this.$trackDuration().text(this.formatTime());
+};
+
+Track.prototype.setRatingStars = function() {
+    var ratingValue = this.getRating();
+    this.$().find(".track-rating").addClass("visible");
+    this.$ratingInputs().removeClass("rate-intent rated");
+
+    if (ratingValue === -1) {
+        this.$().find(".track-rating").removeClass("already-rated");
+    } else {
+        this.$().find(".track-rating").addClass("already-rated");
+        this.$ratingInputsForRatingValue(ratingValue).addClass("rated");
+    }
+};
+
 Track.prototype.$ = function() {
     return this._domNode;
 };
 
 Track.prototype.$container = function() {
-    return this.$().find(".app-track");
+    return this.$().find(".track");
 };
 
 Track.prototype.$trackStatus = function() {
-    return this.$().find(".app-track-status");
-};
-
-Track.prototype.$trackName = function() {
-    return this.$().find(".app-track-name span").last();
+    return this.$().find(".track-status");
 };
 
 Track.prototype.$trackNumber = function() {
-    return this.$().find(".app-track-name span").first();
+    return this.$().find(".track-number");
 };
 
-Track.prototype.$trackTime = function() {
-    return this.$().find(".app-track-time");
+Track.prototype.$trackDuration = function() {
+    return this.$().find(".track-duration");
 };
 
 Track.prototype.$ratingInputs = function() {
@@ -221,30 +250,6 @@ Track.prototype.isAttachedToDom = function() {
     return this._isAttached;
 };
 
-Track.prototype.setTrackText = function(text) {
-    this.$trackName().text(text);
-};
-
-Track.prototype.setTrackNumber = function(number) {
-    this.$trackNumber().text(number);
-};
-
-Track.prototype.setTrackDuration = function(duration) {
-    this.$trackTime().text(duration);
-};
-
-Track.prototype.setRatingStars = function(ratingValue) {
-    this.$().find(".app-track-rating").addClass("visible");
-    this.$ratingInputs().removeClass("rate-intent rated");
-
-    if (ratingValue === -1) {
-        this.$().find(".app-track-rating").removeClass("already-rated");
-    } else {
-        this.$().find(".app-track-rating").addClass("already-rated");
-        this.$ratingInputsForRatingValue(ratingValue).addClass("rated");
-    }
-};
-
 Track.prototype.getImage = function() {
     var ret;
     if (this.tagData) ret = this.tagData.getImage();
@@ -279,7 +284,7 @@ Track.prototype.setIndex = function(index) {
 Track.prototype.indexChanged = function() {
     var index = this.index;
     if (index >= 0) {
-        this.setTrackNumber(index + 1);
+        this.setTrackNumber();
         this.$().css("top", index * playlist.main.getItemHeight());
     }
 };
@@ -289,19 +294,19 @@ Track.prototype.doubleClicked = function(event) {
 };
 
 Track.prototype.selected = function() {
-    this.$container().addClass("app-track-active");
+    this.$().addClass("track-active");
 };
 
 Track.prototype.unselected = function() {
-    this.$container().removeClass("app-track-active");
+    this.$().removeClass("track-active");
 };
 
 Track.prototype.stopPlaying = function() {
-    this.$container().removeClass("app-playing");
+    this.$().removeClass("track-playing");
 };
 
 Track.prototype.startPlaying = function() {
-    this.$container().addClass("app-playing");
+    this.$().addClass("track-playing");
 };
 
 Track.prototype.showAnalysisStatus = function() {
@@ -363,7 +368,8 @@ Track.prototype.formatName = function() {
     if (this.tagData !== null) {
         return this.tagData.formatName();
     }
-    return this.getFileName();
+    var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
+    return artistAndTitle.artist + " - " + artistAndTitle.title;
 };
 
 Track.prototype.formatTime = function() {
@@ -396,9 +402,9 @@ Track.prototype.isRated = function() {
 };
 
 Track.prototype.tagDataUpdated = function() {
-    this.setTrackDuration(this.formatTime());
-    this.setTrackText(this.formatName());
-    this.setRatingStars(this.getRating());
+    this.setTrackDuration();
+    this.setTrackInfo();
+    this.setRatingStars();
     this.emit("tagDataUpdate");
 };
 
@@ -417,7 +423,7 @@ Track.prototype.getUid = function() {
 };
 
 Track.prototype.unsetAnalysisStatus = function() {
-    this._isBeingAnalysed = false;
+    this._isBeingAnalyzed = false;
     this.$trackStatus().empty();
 
     if (this._statusTooltip) {
@@ -426,8 +432,12 @@ Track.prototype.unsetAnalysisStatus = function() {
     }
 };
 
+Track.prototype.isBeingAnalyzed = function() {
+    return this._isBeingAnalyzed;
+};
+
 Track.prototype.setAnalysisStatus = function() {
-    this._isBeingAnalysed = true;
+    this._isBeingAnalyzed = true;
     this.showAnalysisStatus();
 };
 
