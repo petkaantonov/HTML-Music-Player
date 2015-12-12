@@ -224,24 +224,24 @@ AcoustId.prototype.chroma = function() {
 };
 
 AcoustId.prototype.transformImage = function() {
-    var rows = this.rows;
-
+    var rows = this.row;
+    var current = 1;
     for (var i = 1; i < 12; ++i) {
         IMAGE[i] = IMAGE[i] + IMAGE[i - 1];
+        current++;
     }
 
     var previous = 0;
     for (var i = 1; i < rows; ++i) {
-        var current = i * 12;
         IMAGE[current] = IMAGE[current] + IMAGE[previous];
         current++;
         previous++;
 
         for (var j = 1; j < 12; ++j) {
-            IMAGE[current] = (IMAGE[current] -
-                              IMAGE[current - 1] +
-                              IMAGE[previous] -
-                              IMAGE[previous - 1]);
+            IMAGE[current] = IMAGE[current] +
+                             IMAGE[current - 1] +
+                             IMAGE[previous] -
+                             IMAGE[previous - 1];
             current++;
             previous++;
         }
@@ -277,7 +277,7 @@ AcoustId.prototype.getFingerprint = function() {
 
 AcoustId.prototype.compressSubFingerprint = function(x) {
     var bit = 1;
-    var last_bit = 1;
+    var last_bit = 0;
 
     while (x !== 0) {
         if ((x & 1) !== 0) {
