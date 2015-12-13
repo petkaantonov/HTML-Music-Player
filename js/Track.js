@@ -189,6 +189,8 @@ Track.prototype.remove = function() {
 
     this.$().remove();
     this._domNode = NULL;
+    this.emit("destroy", this);
+    this.removeAllListeners();
 };
 
 Track.prototype.attach = function(target) {
@@ -410,15 +412,15 @@ Track.prototype.tagDataUpdated = function() {
 
 Track.prototype.getUid = function() {
     if (this.tagData) {
-        var album = this.tagData.album;
-        var title = this.tagData.title;
-        var artist = this.tagData.artist;
+        var album = this.tagData.taggedAlbum;
+        var title = this.tagData.taggedTitle;
+        var artist = this.tagData.taggedArtist;
         var index = this.tagData.albumIndex;
         var name = this.getFileName();
         var size = this.getFileSize();
         return sha1(album + title + artist + index + name + size);
     } else {
-        return sha1(this.getFileName() + "" + this.getFileSize());
+        throw new Error("cannot get uid before having tagData");
     }
 };
 
@@ -520,6 +522,14 @@ Track.prototype.played = function() {
 
 Track.prototype.hasBeenPlayedWithin = function(time) {
     return this._lastPlayed >= time;
+};
+
+Track.prototype.fetchAcoustIdImage = function() {
+    return this.tagData.fetchAcoustIdImage();
+};
+
+Track.prototype.shouldRetrieveAcoustIdImage = function() {
+    return !!(this.tagData && this.tagData.shouldRetrieveAcoustIdImage());
 };
 
 Track.WAV = 0

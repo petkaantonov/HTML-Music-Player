@@ -146,7 +146,7 @@ Playlist.prototype._updateNextTrack = function(forced) {
     }
 
     this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack);
-    this.emit("nextTrackChange", this._nextTrack);
+    this.emit("nextTrackChange", this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
 };
 
 Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind) {

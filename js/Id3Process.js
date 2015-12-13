@@ -51,9 +51,10 @@ const MPEGSampleRate = [
 
 const MPEGChannels = [2, 2, 2, 1];
 
-function ID3Process(playlist, trackAnalyzer) {
+function ID3Process(playlist, player, trackAnalyzer) {
     this.trackAnalyzer = trackAnalyzer;
     this.playlist = playlist;
+    this.player = player;
     this.concurrentParsers = 8;
     this.queue = [];
     this.queueProcessors = new Array(this.concurrentParsers);
@@ -63,11 +64,31 @@ function ID3Process(playlist, trackAnalyzer) {
     this.queueSet = new DS.Set();
     this.jobPollerId = -1;
     playlist.on("lengthChange", $.proxy(this.playlistLengthChanged, this));
+    playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
+    playlist.on("trackChange", this.currentTrackChanged.bind(this));
 }
 
 function isNull(value) {
     return value === null;
 }
+
+ID3Process.prototype.currentTrackChanged = function(track) {
+    if (track && track.shouldRetrieveAcoustIdImage()) {
+        var self = this;
+        track.fetchAcoustIdImage().then(function() {
+            if (self.playlist.getCurrentTrack() === track &&
+                track.tagData.hasAcoustIdImage()) {
+                self.player.getPictureManager().updateImage(track.getImage());
+            }
+        });
+    }
+};
+
+ID3Process.prototype.nextTrackChanged = util.throttle(function(track) {
+    if (track && track.shouldRetrieveAcoustIdImage()) {
+        track.fetchAcoustIdImage();
+    }
+}, 2500);
 
 ID3Process.prototype.checkEmpty = function() {
     if (this.queueProcessors.every(isNull)) {
@@ -145,6 +166,7 @@ ID3Process.prototype.getTimeFromVBRi = function(bytes, sampleRate) {
     return Math.floor(1152 * frames / sampleRate);
 };
 
+
 ID3Process.prototype.getTagSize = function(bytes, version, magicOffset) {
     if (magicOffset === undefined) magicOffset = 0;
 
@@ -156,6 +178,16 @@ ID3Process.prototype.getTagSize = function(bytes, version, magicOffset) {
         return util.synchInt32(bytes, 4 + magicOffset) >>> 0;
     }
     throw new Error("InvalidVersion");
+};
+
+ID3Process.prototype.fillInAcoustId = function(track, duration, fingerprint) {
+    metadataRetriever.getAcoustIdDataForTrack(track, duration, fingerprint).then(function(acoustId) {
+        if (!track.isDetachedFromPlaylist()) {
+            track.tagData.setAcoustId(acoustId);
+            tagDatabase.updateAcoustId(track.getUid(), acoustId);
+        }
+        return null;
+    });
 };
 
 ID3Process.prototype.loadNext = function() {
@@ -201,8 +233,15 @@ ID3Process.prototype.loadNext = function() {
             var id = track.getUid();
 
             tagDatabase.query(id).then(function(value) {
-                var shouldAnalyzeLoudness = !value || !value.trackGain;
-                var shouldCalculateFingerprint = !value || !value.fingerprint;
+                var shouldAnalyzeLoudness = !value || value.trackGain === undefined;
+                var shouldCalculateFingerprint = !value || value.fingerprint === undefined;
+                var shouldRetrieveAcoustIdMetaData = shouldCalculateFingerprint || value.acoustId === undefined;
+
+                var acoustId = Promise.resolve(null);
+
+                if (shouldRetrieveAcoustIdMetaData && value.fingerprint && value.duration) {
+                    self.fillInAcoustId(track, value.duration, value.fingerprint);
+                }
 
                 if (shouldAnalyzeLoudness || shouldCalculateFingerprint) {
                     var analyzerOptions = {
@@ -213,6 +252,10 @@ ID3Process.prototype.loadNext = function() {
                     return self.trackAnalyzer.analyzeTrack(track, analyzerOptions).finally(function() {
                         track.unsetAnalysisStatus();
                     }).then(function(result) {
+                        if (result.fingerprint && result.fingerprint.fingerprint && shouldRetrieveAcoustIdMetaData) {
+                            self.fillInAcoustId(track, value.duration, result.fingerprint.fingerprint);
+                        }
+
                         return $.extend({},
                                         value || {},
                                         result.loudness || {},
@@ -224,10 +267,6 @@ ID3Process.prototype.loadNext = function() {
                 }
             }).then(function(value) {
                 if (value) {
-                    value.title = tagData.title;
-                    value.artist = tagData.artist;
-                    value.album = tagData.album;
-                    value.albumIndex = tagData.albumIndex;
                     tagData.setDataFromTagDatabase(value);
                     return tagDatabase.insert(id, value);
                 }

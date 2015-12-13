@@ -27,14 +27,25 @@ function TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist) {
     this._playlist = playlist;
 
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
+    this.trackDestroyed = this.trackDestroyed.bind(this);
 }
+
+TrackAnalyzer.prototype.trackDestroyed = function(track) {
+    for (var i = 0; i < this._queue.length; ++i) {
+        var spec = this._queue[i];
+        if (spec.track === track) {
+            this._queue.splice(i, 1);
+            break;
+        }
+    }
+};
 
 TrackAnalyzer.prototype._next = function() {
     var q = this._queue;
 
     while (this._queue.length) {
         var spec = this._queue.shift();
-
+        spec.track.removeListener("destroy", this.trackDestroyed);
         if (spec.track.isDetachedFromPlaylist()) {
             spec.reject(new TrackWasRemovedError());
         } else {
@@ -73,6 +84,7 @@ TrackAnalyzer.prototype.prioritize = function(track) {
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
     if (this._currentlyAnalysing) {
+        track.once("destroy", this.trackDestroyed);
         return new Promise(function(resolve, reject) {
             self._queue.push({
                 track: track,

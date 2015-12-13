@@ -4,6 +4,7 @@ function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
+    player.setPictureManager(this);
     this.favicon = $(null);
     this.image = null;
 
@@ -16,14 +17,11 @@ PlayerPictureManager.prototype.$ = function() {
     return this._domNode;
 };
 
-PlayerPictureManager.prototype.newTrackLoaded = function() {
+PlayerPictureManager.prototype.updateImage = function(image) {
     $(this.image).remove();
     const self = this;
 
     this.$().find("img").remove();
-    $("favicon").remove();
-    this.favicon.remove();
-    var image = this.player.getImage();
     if (!image) return;
 
     this.image = image;
@@ -36,7 +34,10 @@ PlayerPictureManager.prototype.newTrackLoaded = function() {
     $(image).addClass("fade-in initial").appendTo(this.$());
     image.offsetWidth;
     $(image).removeClass("initial").addClass("end");
-    this.favicon = $("<link>", {rel: "shortcut icon", href: image.src}).appendTo($("head"));
+};
+
+PlayerPictureManager.prototype.newTrackLoaded = function() {
+    this.updateImage(this.player.getImage());
 };
 
 

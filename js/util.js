@@ -12,6 +12,12 @@ Function.prototype.bind = function(ctx) {
     };
 };
 
+util.queryString = function(obj) {
+    return Object.keys(obj).map(function(key) {
+        return key + "=" + obj[key];
+    }).join("&");
+};
+
 util.combineClasses = function(a, b) {
     if (!a) return b;
     return a + " " + b;
@@ -898,10 +904,18 @@ util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
 
+// Dom errors are not errors :'(
+util.asError = function(value) {
+    if (value instanceof Error) return value;
+    var ret = new Error();
+    value.message = ret.message;
+    return ret;
+};
+
 util.IDBPromisify = function(ee) {
     return new Promise(function(resolve, reject) {
         ee.onerror = function(event) {
-            reject(event.target.transaction.error);
+            reject(util.asError(event.target.transaction.error || ee.error));
         };
         ee.onsuccess = function(event) {
             resolve(event.target.result);

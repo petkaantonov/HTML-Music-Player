@@ -114,14 +114,13 @@ function AudioManager(player, track, implicitlyLoaded) {
         var mediaData = preloadedMediaElement.release();
         this.url = mediaData.url;
         this.mediaElement = mediaData.element;
-        this.image = mediaData.image;
         this.mediaElementRequiresLoading = false;
     } else {
         this.url = URL.createObjectURL(track.getFile());
         this.mediaElement = mediaElementPool.alloc();
         this.mediaElementRequiresLoading = true;
-        this.image = track.getImage();
     }
+    this.image = track.getImage();
 
     this.mediaElement.autoplay = false;
     this.mediaElement.controls = false;
@@ -505,6 +504,8 @@ function Player(dom, playlist, opts) {
     this.implicitLoading = false;
     this.playlist = playlist;
     this.queuedNextTrackImplicitly = false;
+    this.pictureManager = null;
+
     this._preloadedTracks = [];
 
     this.visualizerData = this.visualizerData.bind(this);
@@ -563,6 +564,14 @@ Player.prototype.visualizerData = function(data) {
 
 Player.prototype.historyChanged = function() {
     this.checkButtonState();
+};
+
+Player.prototype.setPictureManager = function(pictureManager) {
+    this.pictureManager = pictureManager;
+};
+
+Player.prototype.getPictureManager = function() {
+    return this.pictureManager;
 };
 
 Player.prototype.nextTrackChanged = function() {
@@ -945,8 +954,6 @@ function PreloadedMediaElement(track) {
     this.errored = this.errored.bind(this);
     this.tagDateUpated = this.tagDateUpated.bind(this);
 
-    this.image = track.getImage();
-
     if (!tagData || !tagData.hasPicture()) {
         this.track.once("tagDataUpdate", this.tagDateUpated);
     }
@@ -994,7 +1001,6 @@ PreloadedMediaElement.prototype.destroy = function() {
         mediaElementPool.free(this.mediaElement);
         URL.revokeObjectURL(this.url);
         this.track = this.url = this.mediaElement = null;
-        this.image = null;
     }
 };
 
@@ -1008,10 +1014,9 @@ PreloadedMediaElement.prototype.release = function() {
         this.removeListeners();
         var ret = {
             url: this.url,
-            element: this.mediaElement,
-            image: this.image
+            element: this.mediaElement
         };
-        this.image = this.track = this.url = this.mediaElement = null;
+        this.track = this.url = this.mediaElement = null;
         return ret;
     } else {
         throw new Error("already released");

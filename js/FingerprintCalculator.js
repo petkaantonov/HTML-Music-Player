@@ -2,6 +2,8 @@ const FingerprintCalculator = (function() {"use strict";
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
+const MIN_DURATION = 7;
+const MIN_FRAMES = MIN_DURATION * SAMPLE_RATE;
 const FRAMES = SAMPLE_RATE * DURATION;
 const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 
@@ -22,6 +24,11 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
     var self = this;
     return new Promise(function(resolve, reject) {
         var duration = Math.min(audioBuffer.duration, DURATION);
+
+        if (duration < MIN_DURATION) {
+            return resolve({fingerprint: null});
+        }
+
         var frames = duration * SAMPLE_RATE;
         var resampler = new OfflineAudioContext(1, frames, SAMPLE_RATE);
         var source = resampler.createBufferSource();
@@ -32,11 +39,6 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
         resampler.oncomplete = function(event) {
             var resampledBuffer = event.renderedBuffer;
             var frames = resampledBuffer.length;
-
-            if (frames < FRAMES) {
-                return resolve({fingerprint: "INCALCULABLE"});
-            }
-
             resampledBuffer.copyFromChannel(self._buffer, 0);
             var result = self._worker.invokeInWorkerThread("getAcoustId", [{
                 length: frames
@@ -47,9 +49,11 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
             reject(new AudioError());
         };
         resampler.startRendering();
-    }).tap(function(result) {
-        debugger;
-    })
+
+    }).catch(function(e) {
+        // TODO: LOg
+        return {fingerprint: undefined};
+    });
 };
 
 return FingerprintCalculator; })();
