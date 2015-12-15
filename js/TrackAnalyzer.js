@@ -11,7 +11,9 @@ Promise.promisifyAll(OfflineAudioContext.prototype, {
             var self = this;
             // which returns a promise
             return new Promise(function(resolve, reject) {
-                args.push(resolve, reject);
+                args.push(resolve, function(v) {
+                    reject(util.asError(v));
+                });
                 originalMethod.apply(self, args);
             });
         };
@@ -27,6 +29,7 @@ function TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist) {
     this._playlist = playlist;
 
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
+    this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
     this.trackDestroyed = this.trackDestroyed.bind(this);
 }
 
@@ -58,6 +61,10 @@ TrackAnalyzer.prototype._next = function() {
 
 TrackAnalyzer.prototype._createDecoder = function(channels, sampleRate) {
     return new OfflineAudioContext(channels, 1024, sampleRate);
+};
+
+TrackAnalyzer.prototype.currentTrackChanged = function(track) {
+    this.prioritize(track);
 };
 
 TrackAnalyzer.prototype.nextTrackChanged = function(track) {
@@ -106,16 +113,23 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         var basicInfo = track.getBasicInfo();
         var decoder = self._createDecoder(basicInfo.channels, basicInfo.sampleRate);
 
-        return decoder.decodeAudioDataAsync(result).catch(function(e) {
-            throw new AudioError(MediaError.MEDIA_ERR_DECODE)
+        return new Promise(function(resolve, reject) {
+            decoder.decodeAudioData(result, function(b) {
+                audioBuffer = b;
+                resolve();
+            }, function() {
+                throw new AudioError(MediaError.MEDIA_ERR_DECODE)    
+            });
         });
-    }).then(function(audioBuffer) {
+    }).then(function() {
         if (track.isDetachedFromPlaylist()) {
+            audioBuffer = null;
             throw new TrackWasRemovedError();
         }
 
         var fingerprint = Promise.resolve(null);
         var loudness = Promise.resolve(null);
+        var duration = audioBuffer.duration;
 
         if (opts.fingerprint) {
             fingerprint = self.fingerprintCalculator.calculateFingerprintForTrack(track, audioBuffer);
@@ -125,9 +139,11 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
             loudness = self.loudnessCalculator.calculateLoudnessForTrack(track, audioBuffer);
         }
 
+        audioBuffer = null;
         return Promise.props({
             loudness: loudness,
-            fingerprint: fingerprint
+            fingerprint: fingerprint,
+            duration: duration
         });
     }).finally(function() {
         self._next();

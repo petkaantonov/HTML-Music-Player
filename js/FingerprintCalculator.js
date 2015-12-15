@@ -44,14 +44,20 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
                 length: frames
             }], [self._buffer.buffer]);
             resolve(result);
+            source.disconnect();
+            source = null;
+            resampler = null;
         };
         resampler.onerror = function() {
+            source.disconnect();
+            source = null;
+            resampler = null;
             reject(new AudioError());
         };
         resampler.startRendering();
 
     }).catch(function(e) {
-        // TODO: LOg
+        GlobalUi.snackbar.show(e.message);
         return {fingerprint: undefined};
     });
 };

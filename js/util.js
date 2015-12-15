@@ -45,6 +45,25 @@ util.toFunction = function(value) {
     };
 };
 
+const rInput = /textarea|input|select/i;
+const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
+util.isTextInputNode = function(node) {
+    if (rInput.test(node.nodeName)) {
+        if (node.nodeName.toLowerCase() !== "input") {
+            return true;
+        }
+
+        if (rTextInput.test(node.type)) {
+            return true;
+        }
+
+        return false;
+    } else if (node.isContentEditable) {
+        return true;
+    }
+    return false;
+};
+
 util.onCapture = function onCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.addEventListener(eventName, handler, true);
@@ -908,7 +927,7 @@ util.stripBinaryBom = function(str) {
 util.asError = function(value) {
     if (value instanceof Error) return value;
     var ret = new Error();
-    value.message = ret.message;
+    ret.message = "" + (value ? value.message : value);
     return ret;
 };
 
@@ -936,13 +955,33 @@ util.documentHidden = (function() {
 
     var ret = new EventEmitter();
     ret.setMaxListeners(255);
+
+    var blurred = undefined;
+
     ret.value = function() {
+        if (blurred === undefined) return document[prop];
+        if (blurred === true) return true;
         return document[prop];
     };
 
-    document.addEventListener(eventName, function() {
+    var changed = util.throttle(function() {
         ret.emit("change");
+    }, 10);
+
+    document.addEventListener(eventName, function() {
+        changed();
     }, false);
+
+    window.addEventListener("blur", function() {
+        blurred = true;
+        changed();
+    }, false);
+
+    window.addEventListener("focus", function() {
+        blurred = false;
+        changed();
+    }, false);
+
 
     return ret;
 })();

@@ -56,7 +56,6 @@ Track.prototype._ensureDomNode = function() {
         if (e.type === "dblclick") return self.ratingInputDoubleClicked(e);
     });
 
-
     this.$().on("click mousedown dblclick", function(e) {
         if ($(e.target).closest(".unclickable").length > 0) return;
 
@@ -85,7 +84,7 @@ Track.prototype._ensureDomNode = function() {
     this.indexChanged();
 };
 
-Track.prototype.setTrackInfo = function() {
+Track.prototype.getTrackInfo = function() {
     var artist, title;
     if (!this.tagData) {
         var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
@@ -96,8 +95,17 @@ Track.prototype.setTrackInfo = function() {
         title = this.tagData.getTitle();
     }
 
-    this.$().find(".track-title").text(title);
-    this.$().find(".track-artist").text(artist);
+    return {
+        artist: artist,
+        title: title
+    };
+};
+
+Track.prototype.setTrackInfo = function() {
+    var artistAndTitle = this.getTrackInfo();
+
+    this.$().find(".track-title").text(artistAndTitle.title);
+    this.$().find(".track-artist").text(artistAndTitle.artist);
 };
 
 Track.prototype.setTrackNumber = function() {
@@ -250,6 +258,11 @@ Track.prototype.ratingInputDoubleClicked = function(e) {
 
 Track.prototype.isAttachedToDom = function() {
     return this._isAttached;
+};
+
+Track.prototype.hasNonDefaultImage = function() {
+    if (!this.tagData) return false;
+    return !!this.tagData.getImage();
 };
 
 Track.prototype.getImage = function() {
@@ -407,7 +420,7 @@ Track.prototype.tagDataUpdated = function() {
     this.setTrackDuration();
     this.setTrackInfo();
     this.setRatingStars();
-    this.emit("tagDataUpdate");
+    this.emit("tagDataUpdate", this);
 };
 
 Track.prototype.getUid = function() {

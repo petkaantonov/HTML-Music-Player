@@ -1,2 +1,3 @@
 hotkeyManager.enableHotkeys();
-hotkeyManager.enablePersistentHotkeys()
+hotkeyManager.enablePersistentHotkeys();
+serviceWorkerManager.start();

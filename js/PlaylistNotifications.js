@@ -21,7 +21,7 @@ function PlaylistNotifications(dom, player) {
     this.tabVisible = !util.documentHidden.value();
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
-    this.tooltip = PanelControls.makeTooltip(this.$(), function() {
+    this.tooltip = GlobalUi.makeTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
     });

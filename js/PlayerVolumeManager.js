@@ -8,7 +8,7 @@ function PlayerVolumeManager(dom, player, opts) {
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);
-    this._muteTooltip = PanelControls.makeTooltip(this.$mute(),function() {
+    this._muteTooltip = GlobalUi.makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
                                      : "<p><strong>Mute</strong> volume.</p>";
     });

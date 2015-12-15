@@ -147,17 +147,15 @@ var playlist = playlist || {};
 
     var playlistModeManager = new PlaylistModeManager(".playlist-controls-container", playlist.main);
 
-    PanelControls.makeTooltip($(".menul-folder"), "Add a folder");
-    PanelControls.makeTooltip($(".menul-files"), "Add files");
-    PanelControls.makeTooltip($(".menul-hotkeys"), "Configure shortcuts");
-    PanelControls.makeTooltip($(".menul-crossfade"), "Configure crossfading");
-    PanelControls.makeTooltip($(".menul-equalizer"), "Configure equalizer");
+    GlobalUi.makeTooltip($(".menul-folder"), "Add a folder");
+    GlobalUi.makeTooltip($(".menul-files"), "Add files");
+    GlobalUi.makeTooltip($(".menul-hotkeys"), "Configure shortcuts");
+    GlobalUi.makeTooltip($(".menul-crossfade"), "Configure crossfading");
+    GlobalUi.makeTooltip($(".menul-equalizer"), "Configure equalizer");
 
     playlist.main.on("trackChange", function(track) {
         if (!track) return;
-        var index = track.getIndex();
-        var trackNumber = index >= 0 ? (index + 1) + "." : "";
-        playlist.trackDisplay.newTitle(trackNumber + " " + track.formatFullName()).beginMarquee();
+        playlist.trackDisplay.setTrack(track);
     });
 
     $(document).ready(function() {
@@ -185,7 +183,6 @@ var playlist = playlist || {};
         });
     });
 
-
     $(window).on("load", function() {
         keyValueDatabase.getInitialValues().then(function() {
             $("#app-loader").remove();
@@ -194,9 +191,9 @@ var playlist = playlist || {};
         });
     });
 
-    window.addEventListener("beforeunload", function(e) {
+    $(window).on("beforeunload", function(e) {
         e.preventDefault();
-        e.returnValue = "Are you sure you want to exit?";
+        e.originalEvent.returnValue = "Are you sure you want to exit?";
         return e.returnValue;
     }, false);
 

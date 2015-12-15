@@ -147,7 +147,8 @@ TagData.prototype.hasPicture = function() {
 
 TagData.prototype.getImage = function() {
     if (this._image) return this._image;
-    if (urlImgMap[this.album]) return urlImgMap[this.album];
+    var mapped = urlImgMap[this.album.toLowerCase()];
+    if (mapped) return mapped;
 
     if (this.hasAcoustIdImage()) {
         this._image = new Image();
@@ -209,9 +210,9 @@ TagData.prototype.getBeginSilenceLength = function() {
 
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId && preferAcoustIdData) {
-        if (acoustId.album) this.album = acoustId.album.name;
-        if (acoustId.artist) this.artist = acoustId.artist.name;
-        if (acoustId.title) this.title = acoustId.title.name;
+        if (acoustId.album && !this.taggedAlbum) this.album = acoustId.album.name;
+        if (acoustId.artist && !this.taggedArtist) this.artist = acoustId.artist.name;
+        if (acoustId.title && !this.taggedTitle) this.title = acoustId.title.name;
     }
 };
 
@@ -220,16 +221,18 @@ TagData.prototype.fetchAcoustIdImage = function() {
     this._acoustIdImage = PENDING_ACOUSTID_IMAGE;
     var self = this;
 
-    return Promise.join(tagDatabase.getAlbumImage(this.album),
+    return Promise.join(tagDatabase.getAlbumImage(this.album.toLowerCase()),
                  tagDatabase.query(this.track.getUid()), function(coverArt, trackData) {
         if (coverArt && coverArt.url) {
             self._acoustIdImage = coverArt.url;
             var image = new Image();
             image.src = coverArt.url;
-            urlImgMap[self.album] = image;
+            urlImgMap[self.album.toLowerCase()] = image;
+            self.track.tagDataUpdated();
         } else if (trackData && trackData.coverArtImageUrl !== undefined) {
             self._acoustIdImage = trackData.coverArtImageUrl === null ? NO_ACOUSTID_IMAGE
                                                                       : trackData.coverArtImageUrl;
+            self.track.tagDataUpdated();
         } else {
             return metadataRetriever.getImage(self.acoustId).then(function(info) {
                 if (info) {
@@ -238,26 +241,30 @@ TagData.prototype.fetchAcoustIdImage = function() {
                         self._image = info.image;
                     } else if (info.acoustId.type === "release-group") {
                         tagDatabase.setAlbumImage(self.album, info.url);
-                        urlImgMap[self.album] = info.image;
+                        urlImgMap[self.album.toLowerCase()] = info.image;
                     }
                     self._acoustIdImage = info.url;
                 } else {
-                    tagDatabase.updateCoverArtImageUrl(self.track.getUid(), null);
-                    self._acoustIdImage = NO_ACOUSTID_IMAGE;
+                    var failedBecauseOffline = !navigator.onLine;
+                    if (!failedBecauseOffline) {
+                        tagDatabase.updateCoverArtImageUrl(self.track.getUid(), null);
+                        self._acoustIdImage = NO_ACOUSTID_IMAGE;
+                    }
                 }
-
+                self.track.tagDataUpdated();
                 return null;
-            });
+            }).catch(Promise.TimeoutError, function ignore() {});
         }
     });
 };
 
 TagData.prototype.hasAcoustIdImage = function() {
-    return urlImgMap[this.album] || typeof this._acoustIdImage === "string";
+    return urlImgMap[this.album.toLowerCase()] ||
+            typeof this._acoustIdImage === "string";
 };
 
 TagData.prototype.shouldRetrieveAcoustIdImage = function() {
-    return this.acoustId && this._acoustIdImage === null && !urlImgMap[this.album];
+    return this.acoustId && this._acoustIdImage === null && !urlImgMap[this.album.toLowerCase()];
 };
 
 TagData.prototype.setAcoustId = function(acoustId) {

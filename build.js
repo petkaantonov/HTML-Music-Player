@@ -2,6 +2,7 @@ var glob = require("glob");
 var Promise = require("bluebird");
 var fs = Promise.promisifyAll(require("fs"));
 var UglifyJS = require("uglify-js");
+var crypto = require("crypto");
 
 var scripts = [
     "lib/sha1.js",
@@ -16,10 +17,13 @@ var scripts = [
     "lib/bezier.js",
     "js/Random.js",
     "js/util.js",
+    "js/ServiceWorkerManager.js",
+    "js/Snackbar.js",
+    "js/Animator.js",
     "js/Popup.js",
     "js/KeyValueDatabase.js",
     "js/Tooltip.js",
-    "js/PanelControls.js",
+    "js/GlobalUi.js",
     "js/PlayerTimeManager.js",
     "js/PlayerVolumeManager.js",
     "js/PlayerPictureManager.js",
@@ -69,9 +73,43 @@ allFiles.forEach(function(file) {
     }
 });
 
+var rinline = /"(https:\/\/[^"]+)"/g;
+var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(function(v) {
+    return v.replace(/(?:^"|"$)/g, "");
+}).concat("index.html", "/");
+
+var assets = glob.sync("dist/css/**/*.*")
+                .concat(glob.sync("dist/images/**/*.*"))
+                .concat(glob.sync("dist/fonts/**/*.woff*"))
+                .concat(glob.sync("worker/**/*.*"));
+
+var serviceWorkerAssetsList = assets.concat("dist/main.min.js", inlineAssets).sort();
+
+var hash = crypto.createHash('sha256');
+var version = Promise.map(assets.concat(scripts), function(file) {
+    return fs.readFileAsync(file);
+}, {concurrency: 4}).then(function(contents) {
+    contents.forEach(function(content) {
+        hash.update(content);
+    });
+    // Any removal or addition to the asset list triggers change.
+    hash.update(JSON.stringify(serviceWorkerAssetsList));
+}).then(function() {
+    return hash.digest("hex");
+})
+
+var serviceWorkerBase = fs.readFileAsync("sw_base.js", "utf8");
+
+var serviceWorkerCreated = Promise.join(serviceWorkerBase, version, function(serviceWorkerBaseCode, version) {
+    var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4) + ";\n";
+    var hashCode = "const versionHash = '" + version + "';\n";
+    var buildDate = "const buildDate = '" + new Date().toUTCString()+ "';\n";
+    serviceWorkerBaseCode = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + assetsCode + hashCode + buildDate + serviceWorkerBaseCode;
+    return fs.writeFileAsync("sw.js", serviceWorkerBaseCode, "utf8");
+});
 
 
-Promise.map(scripts, function(script) {
+var scriptsMinified = Promise.map(scripts, function(script) {
     return fs.readFileAsync(script, "utf8");
 }).reduce(function(a, b) {
     return a + "\n;\n;\n" + b;
@@ -88,6 +126,8 @@ Promise.map(scripts, function(script) {
     minified.map = minified.map.replace('"file":"main.js.map"', '"file":"main.min.js"');
     var mapWritten = fs.writeFileAsync("dist/main.js.map", minified.map, "utf8");
     return [codeWritten, mapWritten];
-}).all().then(function() {
+}).all();
+
+Promise.join(serviceWorkerCreated, scriptsMinified, function() {
     console.log("done");
 });

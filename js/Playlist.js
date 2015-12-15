@@ -252,6 +252,12 @@ Playlist.prototype.renderItems = function() {
     displayedTracks.length = end - start + 1;
 };
 
+Playlist.prototype.getTracksByAlbum = function(album) {
+    return this._trackList.filter(function(track) {
+        return !!(track.tagData && track.tagData.album === album);
+    });
+};
+
 Playlist.prototype.trackVisibilityChanged = function() {
     if (this.requestedRenderFrame) {
         cancelAnimationFrame(this.requestedRenderFrame);
@@ -417,6 +423,15 @@ Playlist.prototype.removeSelected = function() {
     if (!selection.length) return;
     this.clearSelection();
     this.removeTracks(selection);
+};
+
+Playlist.prototype.isTrackHighlyRelevant = function(track) {
+    if (!track || !(track instanceof Track)) {
+        return false;
+    }
+    return track.isDetachedFromPlaylist() ? false
+                                          : (track === this.getCurrentTrack() ||
+                                             track === this.getNextTrack());
 };
 
 Playlist.prototype.getSelectable = function() {

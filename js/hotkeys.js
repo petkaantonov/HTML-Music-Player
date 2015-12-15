@@ -395,16 +395,15 @@ HotkeyBinder.prototype.stopBinding = function() {
 
 HotkeyBinder.prototype.destroy = function() {
     this.$().find(".ps-container").perfectScrollbar('destroy');
-    this.$().remove();
     $(document).unbind("keydown", this.listenUserHotkeys);
 };
 
 
-const hotkeyPopup = PanelControls.makePopup("Shortcuts", POPUP_HTML);
+const hotkeyPopup = GlobalUi.makePopup("Shortcuts", POPUP_HTML, ".menul-hotkeys");
 function openHotkeyManager() {
     hotkeyPopup.open();
 
-    var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$());
+    var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$().find(".popup-content-container"));
 
     hotkeyPopup.once("close", function() {
         hotkeyBinder.destroy();

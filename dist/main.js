@@ -22798,7 +22798,7 @@ var realFft = (function() {
  */
 var unitBezier = (function() {'use strict';
     const solveEpsilon = function(duration) {
-        return 1.0 / (200.0 * duration);
+        return (1000 / 60 / duration) / 4;
     };
 
     return function(p1x, p1y, p2x, p2y) {
@@ -22876,14 +22876,20 @@ var unitBezier = (function() {'use strict';
             return sampleCurveY(solveCurveX(x, epsilon));
         };
 
-        return function(x, duration) {
-            return solve(x, solveEpsilon(duration));
+        return {
+            duration: function(x, duration) {
+                return solve(x, solveEpsilon(duration));
+            },
+
+            motion: function(x, epsilon) {
+                return solve(x, epsilon);
+            }
         };
     };
 })();
 
 var makejQueryEasing = function(x1, y1, x2, y2) {
-    const solver = unitBezier(x1, y1, x2, y2);
+    const solver = unitBezier(x1, y1, x2, y2).duration;
 
     return function(_, currentTime, startValue, changeInValue, totalTime) {
         var ret = solver(currentTime / totalTime, totalTime);
@@ -22892,6 +22898,10 @@ var makejQueryEasing = function(x1, y1, x2, y2) {
 };
 
 $.easing.swiftOut = makejQueryEasing(0.55, 0, 0.1, 1);
+$.easing.easeIn = makejQueryEasing(0.42, 0, 1, 1);
+$.easing.easeOut = makejQueryEasing(0, 0, 0.58, 1);
+$.easing.easeInOut = makejQueryEasing(0.42, 0, 0.58, 1);
+$.easing.ease = makejQueryEasing(0.25, 0.1, 0.25, 1);
 
 ;
 ;
@@ -23064,6 +23074,17 @@ Function.prototype.bind = function(ctx) {
     };
 };
 
+util.queryString = function(obj) {
+    return Object.keys(obj).map(function(key) {
+        return key + "=" + obj[key];
+    }).join("&");
+};
+
+util.combineClasses = function(a, b) {
+    if (!a) return b;
+    return a + " " + b;
+};
+
 util.modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
 
 util.modifierKeyProp = util.modifierKey + "Key";
@@ -23084,6 +23105,47 @@ util.toFunction = function(value) {
     return function() {
         return value;
     };
+};
+
+const rInput = /textarea|input|select/i;
+const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
+util.isTextInputNode = function(node) {
+    if (rInput.test(node.nodeName)) {
+        if (node.nodeName.toLowerCase() !== "input") {
+            return true;
+        }
+
+        if (rTextInput.test(node.type)) {
+            return true;
+        }
+
+        return false;
+    } else if (node.isContentEditable) {
+        return true;
+    }
+    return false;
+};
+
+util.onCapture = function onCapture(dom, eventName, handler) {
+    eventName.split(" ").forEach(function(eventName) {
+        dom.addEventListener(eventName, handler, true);
+    });
+};
+
+util.offCapture = function offCapture(dom, eventName, handler) {
+    eventName.split(" ").forEach(function(eventName) {
+        dom.removeEventListener(eventName, handler, true);
+    });
+};
+
+util.fastClickEventHandler = function fastClickEventHandler(fn) {
+    return function(e) {
+        var touched = e.type === "touchstart" && (e.touches ? e.touches.length === 1 : true);
+        var clicked = e.type === "mousedown" && e.which === 1;
+        if (touched || clicked) {
+            return fn.call(this, e, clicked, touched);
+        }
+    }
 };
 
 util.bits = (function() {
@@ -23584,11 +23646,28 @@ util.readAsBinaryString = function(file) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {
             resolve(e.target.result);
+            reader = null;
         });
         util.once(reader, "error", function() {
             reject(new FileError(this.error));
+            reader = null;
         });
         reader.readAsBinaryString(file);
+    });
+};
+
+util.readAsArrayBuffer = function(file) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        util.once(reader, "load", function(e) {
+            resolve(e.target.result);
+            reader = null;
+        });
+        util.once(reader, "error", function() {
+            reject(new FileError(this.error));
+            reader = null;
+        });
+        reader.readAsArrayBuffer(file);
     });
 };
 
@@ -23906,10 +23985,18 @@ util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
 
+// Dom errors are not errors :'(
+util.asError = function(value) {
+    if (value instanceof Error) return value;
+    var ret = new Error();
+    ret.message = "" + (value ? value.message : value);
+    return ret;
+};
+
 util.IDBPromisify = function(ee) {
     return new Promise(function(resolve, reject) {
         ee.onerror = function(event) {
-            reject(event.target.transaction.error);
+            reject(util.asError(event.target.transaction.error || ee.error));
         };
         ee.onsuccess = function(event) {
             resolve(event.target.result);
@@ -23930,18 +24017,607 @@ util.documentHidden = (function() {
 
     var ret = new EventEmitter();
     ret.setMaxListeners(255);
+
+    var blurred = undefined;
+
     ret.value = function() {
+        if (blurred === undefined) return document[prop];
+        if (blurred === true) return true;
         return document[prop];
     };
 
-    document.addEventListener(eventName, function() {
+    var changed = util.throttle(function() {
         ret.emit("change");
+    }, 10);
+
+    document.addEventListener(eventName, function() {
+        changed();
     }, false);
+
+    window.addEventListener("blur", function() {
+        blurred = true;
+        changed();
+    }, false);
+
+    window.addEventListener("focus", function() {
+        blurred = false;
+        changed();
+    }, false);
+
 
     return ret;
 })();
 
 })();
+
+;
+;
+var serviceWorkerManager = (function() { "use strict";
+
+function ServiceWorkerManager() {
+    this._registration = null;
+    this._started = false;
+
+    this._updateAvailable = this._updateAvailable.bind(this);
+    this._updateFound = this._updateFound.bind(this);
+}
+
+ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeout) {
+    var self = this;
+    if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
+    
+    GlobalUi.snackbar.show("New version available", {
+        action: "refresh",
+        visibilityTime: 15000
+    }).then(function(outcome) {
+        switch (outcome) {
+            case Snackbar.ACTION_CLICKED:
+                worker.postMessage({action: 'skipWaiting'});
+                return;
+            case Snackbar.DISMISSED:
+                worker.postMessage({action: 'skipWaiting'});
+                return;
+            case Snackbar.TIMED_OUT:
+                setTimeout(function() {
+                    self._updateAvailable(worker, nextAskTimeout * 3);
+                }, nextAskTimeout);
+            default:
+                return;
+        }
+    }).catch(function(e) {
+        return GlobalUi.snackbar.show(e.message);
+    });
+};
+
+ServiceWorkerManager.prototype._updateFound = function(worker) {
+    var self = this;
+    worker.addEventListener("statechange", function() {
+        if (worker.state === "installed") {
+            self._updateAvailable(worker);
+        }
+    });
+};
+
+ServiceWorkerManager.prototype.start = function() {
+    if (this._started || !navigator.serviceWorker) return;
+    this._started = true;
+    var self = this;
+    this._registration = navigator.serviceWorker.register("/sw.js").then(function(reg) {
+        if (!navigator.serviceWorker.controller) return;
+
+        if (reg.waiting) {
+            self._updateAvailable(reg.waiting);
+        } else if (reg.installing) {
+            self._updateFound(reg.installing);
+        } else {
+            reg.addEventListener("updatefound", function() {
+                self._updateFound(reg.installing);
+            });
+        }
+    });
+
+    var reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function() {
+        if (reloading) return;
+        reloading = true;
+        $(window).off("beforeunload");
+        location.reload();
+    });
+};
+
+return new ServiceWorkerManager(); })();
+
+;
+;
+const Snackbar = (function() { "use strict";
+
+const NO_TAG = {};
+
+function SnackbarInstance(snackbar, message, opts) {
+    EventEmitter.call(this);
+    opts = Object(opts);
+    this.outcome = Snackbar.NO_OUTCOME;
+    this.tag = opts.tag || NO_TAG;
+    this.visibilityTime = opts.visibilityTime || snackbar.visibilityTime || 5000;
+
+    this._exiting = false;
+    this._visible = !util.documentHidden.value();
+    this._snackbar = snackbar;
+    this._startedShowing = this._visible ? Date.now() : -1;
+    this._initialShowing = Date.now();
+    this._isHovering = false;
+
+    this._domNode = this._createDom(message, opts);
+    this._visibilityChanged = this._visibilityChanged.bind(this);
+    this._clicked = this._clicked.bind(this);
+    this._timeoutChecker = this._timeoutChecker.bind(this);
+    this._mouseEntered = this._mouseEntered.bind(this);
+    this._mouseLeft = this._mouseLeft.bind(this);
+
+    this.$().on("click", this._clicked);
+    this.$().on("mouseenter", this._mouseEntered);
+    this.$().on("mouseleave", this._mouseLeft);
+    util.documentHidden.on("change", this._visibilityChanged);
+    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+
+    if (this._snackbar.transitionInClass) {
+        this.$().addClass(this._snackbar.transitionInClass + " initial");
+        this.$().appendTo("body");
+        this.$().width()
+        this.$().removeClass("initial");
+        this._snackbar.beforeTransitionIn(this.$());
+    } else {
+        this.$().appendTo("body");    
+    }
+}
+util.inherits(SnackbarInstance, EventEmitter);
+
+SnackbarInstance.prototype.$ = function() {
+    return this._domNode;
+};
+
+SnackbarInstance.prototype._clearTimer = function() {
+    if (this._checkerTimerId !== -1) {
+        this._checkerTimerId = -1;
+        clearTimeout(this._checkerTimerId);
+    }
+};
+
+SnackbarInstance.prototype._createDom = function(message, opts) {
+    var action = $(null);
+    if (opts.action) {
+        action = $("<div>", {
+            class: this._snackbar.actionClass + " snackbar-action-" + this._initialShowing,
+            text: opts.action + ""
+        });
+    }
+    var title = $("<div>", {
+        class: this._snackbar.titleClass + " snackbar-title-" + this._initialShowing,
+        text: message
+    });
+
+    return $("<div>", {
+        class: this._snackbar.containerClass
+    }).append(title)
+      .append(action);
+};
+
+SnackbarInstance.prototype.replace = function(message) {
+    var self = this;
+    this.$().find(".snackbar-title-" + this._initialShowing).text(message + "");
+    this._startedShowing = Date.now();
+    return new Promise(function(resolve) {
+        self.once("hide", function() {
+            resolve(self.outcome);
+        });
+    });
+};
+
+SnackbarInstance.prototype._mouseEntered = function() {
+    this._clearTimer();
+    this._isHovering = true;
+};
+
+SnackbarInstance.prototype._mouseLeft = function() {
+    this._clearTimer();
+    this._startedShowing = Date.now();
+    this._isHovering = false;
+    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+};
+
+SnackbarInstance.prototype._timeoutChecker = function() {
+    this._checkerTimerId = -1;
+    if (this._exiting) return;
+    var visibilityTime = this.visibilityTime;
+    var shownTime = this._startedShowing === -1 ? 0 : Date.now() - this._startedShowing;
+
+    if (!util.documentHidden.value() && !this._isHovering) {
+        if (shownTime > visibilityTime) {
+            this.outcome = Snackbar.TIMED_OUT;
+            this._hide();
+        } else {
+            this._checkerTimerId = setTimeout(this._timeoutChecker, Math.max(0, visibilityTime - shownTime))
+        }
+    }
+};
+
+SnackbarInstance.prototype._visibilityChanged = function() {
+    this._clearTimer();
+    this._startedShowing = Date.now();
+    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+};
+
+SnackbarInstance.prototype._clicked = function(e) {
+    var hasBeenActiveMilliseconds = Date.now() - this._initialShowing;
+    var dismissable = hasBeenActiveMilliseconds >
+            (this._snackbar.initialUndismissableWindow + this._snackbar.nextDelay);
+
+    
+    var action = this.$().find(".snackbar-action-" + this._initialShowing)[0];
+    if ($(e.target).closest(action).length > 0) {
+        this.outcome = Snackbar.ACTION_CLICKED;
+    } else if (dismissable) {
+        this.outcome = Snackbar.DISMISSED;
+    }
+
+    if (this.outcome !== Snackbar.NO_OUTCOME) {
+        this._hide();
+    }
+};
+
+SnackbarInstance.prototype._hide = function() {
+    if (this._exiting) return;
+    this._exiting = true;
+    this._removeListeners();
+    if (this._snackbar.transitionOutClass) {
+        this.$().detach();
+        if (this._snackbar.transitionInClass) {
+            this.$().removeClass(this._snackbar.transitionInClass + " initial");
+        }
+        this.$().addClass(this._snackbar.transitionOutClass + " initial");
+        this.$().appendTo("body");
+        this.$().height();
+        this.$().removeClass("initial");
+        this._snackbar.beforeTransitionOut(this.$());
+    }
+    var self = this;
+    setTimeout(function() {
+        self.emit("hide", self);
+        self._destroy();
+    }, this._snackbar.nextDelay)
+    
+};
+
+SnackbarInstance.prototype._removeListeners = function() {
+    this.$().off("click", this._clicked);
+    util.documentHidden.removeListener("change", this._visibilityChanged);
+    this._clearTimer();
+};
+
+SnackbarInstance.prototype._destroy = function() {
+    this._removeListeners();
+    this.$().remove();
+};
+
+function Snackbar(opts) {
+    opts = Object(opts);
+    this.containerClass = opts.containerClass || "snackbar-container";
+    this.transitionInClass = opts.transitionInClass || "";
+    this.transitionOutClass = opts.transitionOutClass || "";
+    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
+    this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
+    this.actionClass = opts.actionClass || "snackbar-action";
+    this.titleClass = opts.titleClass || "snackbar-title";
+    this.nextDelay = opts.nextDelay || 300;
+    this.visibilityTime = opts.visibilityTime || 5000;
+    this.initialUndismissableWindow = opts.initialUndismissableWindow || 500;
+    this.maxLength = opts.maxLength || 3;
+
+    this._currentInstance = null;
+    this._queue = [];
+
+    this._nextDelayId = -1;
+    this._next = this._next.bind(this);
+}
+
+Snackbar.prototype._next = function() {
+    if (this._nextDelayId !== -1) {
+        clearTimeout(this._nextDelayId);
+        this._nextDelayId = -1;
+    }
+    var self = this;
+    this._nextDelayId = setTimeout(function() {
+        self._currentInstance = null;
+        if (self._queue.length) {
+            var item = self._queue.shift();
+            item.resolve(self.show(item.message, item.opts));
+        }
+    }, this.nextDelay);
+};
+
+Snackbar.prototype.show = function(message, opts) {
+    opts = Object(opts);
+    var self = this;
+
+    if (opts.tag && self._currentInstance &&
+        opts.tag === self._currentInstance.tag &&
+        !self._currentInstance._exiting) {
+        return self._currentInstance.replace(message);
+    }
+
+    var queue = self._queue;
+    var resolve, promise;
+    promise = new Promise(function() {
+        resolve = arguments[0];
+    });
+
+    if (self._currentInstance) {
+        if (opts.tag && queue.length) {
+            for (var i = 0; i < queue.length; ++i) {
+                if (queue[i].opts.tag === opts.tag) {
+                    resolve(queue[i].promise);
+                    queue[i].message = message;
+                    return promise;
+                }
+            }
+        }
+
+        if (queue.length >= this.maxLength) {
+            queue.pop();
+        }
+
+        queue.push({
+            message: message,
+            opts: opts,
+            resolve: resolve,
+            promise: promise
+        });
+        return promise;
+    }
+    var instance = new SnackbarInstance(self, message, opts);
+    self._currentInstance = instance;
+    instance.once("hide", function() {
+        resolve(instance.outcome);
+        self._next();
+    });
+
+    return promise;
+};
+
+Snackbar.NO_OUTCOME = -1;
+Snackbar.ACTION_CLICKED = 0;
+Snackbar.DISMISSED = 1;
+Snackbar.TIMED_OUT = 2;
+
+return Snackbar; })();
+
+;
+;
+const Popup = (function() { "use strict";
+
+const shownPopups = [];
+const NULL = $(null);
+var blocker = NULL;
+
+function showBlocker() {
+    blocker = $('<div>')
+        .css({
+            position: "fixed",
+            width: $(window).width(),
+            height: $(window).height(),
+            left: 0,
+            top: 0,
+            zIndex: 99999
+        })
+        .addClass("popup-blocker")
+        .appendTo("body")
+        .on("mousedown touchstart", util.fastClickEventHandler(function() {
+            shownPopups.forEach(function(v) {
+                v.close();
+            });
+        }));
+
+    blocker.addClass("initial");
+    blocker[0].offsetWidth;
+    blocker.detach()
+    blocker.appendTo("body");
+    blocker[0].offsetWidth;
+    blocker.removeClass("initial");
+}
+
+function hideBlocker() {
+    blocker.remove();
+    blocker = NULL;
+}
+
+$(window).on("resize", function() {
+    blocker.css({
+        width: $(window).width(),
+        height: $(window).height()
+    });
+});
+
+function Popup(opts) {
+    EventEmitter.call(this);
+    opts = Object(opts);
+
+    this.transitionClass = opts.transitionClass || "";
+    this.containerClass = util.combineClasses(opts.containerClass, "popup-container");
+    this.headerClass = util.combineClasses(opts.headerClass, "popup-header");
+    this.bodyClass = util.combineClasses(opts.bodyClass, "popup-body");
+    this.closerContainerClass = util.combineClasses(opts.closerContainerClass, "popup-closer-container");
+    this.body = util.toFunction(opts.body || "");
+    this.title = util.toFunction(opts.title || "");
+    this.closer = util.toFunction(opts.closer || "");
+    this._x = -1;
+    this._y = -1;
+    this._anchorDistanceX = -1;
+    this._anchorDistanceY = -1;
+    this._popupDom = NULL;
+    this._shown = false;
+
+    this.position = this.position.bind(this);
+    this.close = this.close.bind(this);
+    this.headerMouseDowned = this.headerMouseDowned.bind(this);
+    this.draggingEnd = this.draggingEnd.bind(this);
+    this.mousemoved = this.mousemoved.bind(this);
+
+    $(window).on("resize blur", this.draggingEnd);
+    $(window).on("resize", this.position);
+    util.documentHidden.on("change", this.draggingEnd);
+}
+util.inherits(Popup, EventEmitter);
+
+Popup.prototype.destroy = function() {
+    $(window).off("resize blur", this.draggingEnd);
+    $(window).off("resize", this.position);
+    util.documentHidden.removeListener("change", this.draggingEnd);
+};
+
+Popup.prototype.$ = function() {
+    return this._popupDom;
+};
+
+Popup.prototype.position = function() {
+    if (!this._shown) return;
+    var x = this._x;
+    var y = this._y;
+    var box = this.$()[0].getBoundingClientRect();
+    var maxX = $(window).width() - box.width;
+    var maxY = $(window).height() - box.height;
+
+    if (x === -1) x = ((maxX + box.width) / 2) -  (box.width / 2);
+    if (y === -1) y = ((maxY + box.height) / 2) -  (box.height / 2);
+
+    x = Math.max(0, Math.min(x, maxX));
+    y = Math.max(0, Math.min(y, maxY));
+
+    this.$().css({left: x, top: y});
+};
+
+Popup.prototype.refresh = function() {
+    if (!this._shown) return;
+    this.draggingEnd();
+    this.position();
+};
+
+Popup.prototype.open = function() {
+    if (this._shown) return;
+    this._shown = true;
+    shownPopups.push(this);
+
+    try {
+        if (shownPopups.length === 1) {
+            showBlocker();
+        }
+
+        this._popupDom = $("<div>", {
+            class: this.containerClass,
+        }).css({
+            zIndex: 100000 + shownPopups.length,
+            position: "fixed"
+        });
+
+        var headerText = $("<h2>").text(this.title() + "");
+        var header = $("<div>", {class: this.headerClass});
+        var body = $("<div>", {class: this.bodyClass}).html(this.body() + "");
+        var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
+
+        headerText.appendTo(header);
+        closer.appendTo(header);
+        header.appendTo(this.$());
+        body.appendTo(this.$());
+
+        this.$().appendTo("body");
+
+        closer.on("mousedown touchstart", util.fastClickEventHandler(this.close));
+        header.on("mousedown touchstart", util.fastClickEventHandler(this.headerMouseDowned));
+
+        this.position();
+
+        if (this.transitionClass) {
+            var $node = this.$();
+            $node[0].offsetHeight;
+            $node.detach();
+            $node.addClass(this.transitionClass + " initial");
+            $node[0].offsetHeight;
+            $node.appendTo("body");
+            $node[0].offsetHeight;
+            $node.removeClass("initial");
+            $node[0].offsetHeight;
+        }
+    } catch (e) {
+        this.close();
+        throw e;
+    }
+    this.emit("open", this);
+};
+
+Popup.prototype.mousemoved = function(e) {
+    if (e.type === "mousemove" && e.which !== 1) {
+        return this.draggingEnd();
+    } else if (e.type === "touchmove" && e.touches && e.touches.length !== 1) {
+        return;
+    }
+    this._x = Math.max(0, e.clientX - this._anchorDistanceX);
+    this._y = Math.max(0, e.clientY - this._anchorDistanceY);
+    this.position();
+};
+
+Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
+    if ($(e.target).closest(this.closerContainerClass).length > 0) return;
+    var box = this.$()[0].getBoundingClientRect();
+    this._anchorDistanceX = e.clientX - box.left;
+    this._anchorDistanceY = e.clientY - box.top;
+    if (isClick && e.which === 1) {
+        util.onCapture(document, "mouseup", this.draggingEnd);
+        util.onCapture(document, "mousemove", this.mousemoved);
+    } else if (isTouch) {
+        util.onCapture(document, "touchend touchcancel", this.draggingEnd);
+        util.onCapture(document, "touchmove", this.mousemoved);
+    }
+    this.$().addClass("popup-dragging");
+};
+
+Popup.prototype.draggingEnd = function() {
+    util.offCapture(document, "mouseup touchend touchcancel", this.draggingEnd);
+    util.offCapture(document, "mousemove touchmove", this.mousemoved);
+    this.$().removeClass("popup-dragging");
+};
+
+Popup.prototype.close = function() {
+    if (!this._shown) return;
+    this._shown = false;
+    shownPopups.splice(shownPopups.indexOf(this), 1);
+    this.$().remove();
+    this.draggingEnd();
+    this._popupDom = NULL;
+
+    if (shownPopups.length === 0) {
+        hideBlocker();
+    }
+    this.emit("close", this);
+};
+
+Popup.prototype.getPreferredPosition = function() {
+    if (this._x === -1 || this._y === -1) return null;
+    return {
+        x: this._x,
+        y: this._y
+    };
+};
+
+Popup.prototype.setPreferredPosition = function(pos) {
+    if (!pos) return;
+    var x = pos.x;
+    var y = pos.y;
+    if (!isFinite(x) || !isFinite(y)) return;
+    this._x = x;
+    this._y = y;
+    this.position();
+};
+
+return Popup; })();
 
 ;
 ;
@@ -24076,6 +24752,17 @@ const getArrowAlign = function(value) {
     return "middle";
 };
 
+const getActivationStyle = function(value) {
+    value = ("" + value).trim().toLowerCase();
+
+    if (value === "hover" ||
+        value === "focus" ||
+        value === "click") {
+        return value;
+    }
+    return "hover";
+}
+
 const NULL = $(null);
 
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
@@ -24112,6 +24799,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
 };
 
 function Tooltip(opts) {
+    EventEmitter.call(this);
     opts = Object(opts);
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
@@ -24125,8 +24813,9 @@ function Tooltip(opts) {
     this._shown = false;
     this._tooltip = NULL;
     this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
-    this._gap = parseInt(opts.gap, 10) || 0;
-    this._arrow = !!opts.arrow;
+    this._activationStyle = getActivationStyle(opts.activation);
+    this._arrow = "arrow" in opts ? !!opts.arrow : this._activationStyle === "hover";
+    this._gap = "gap" in opts ? parseInt(opts.gap, 10) : (this._arrow ? 7 : 0);
     this._x = 0;
     this._y = 0;
     this._maxX = 0;
@@ -24135,18 +24824,26 @@ function Tooltip(opts) {
     this._show = this._show.bind(this);
     this.mouseLeft = this.mouseLeft.bind(this);
     this.mouseEntered = this.mouseEntered.bind(this);
-    this.hide = this.hide.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
+    this.clicked = this.clicked.bind(this);
+    this.documentClicked = this.documentClicked.bind(this);
+    this.hide = this.hide.bind(this);
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
 
-    this._target.on("mouseenter", this.mouseEntered);
-    this._target.on("mouseleave", this.mouseLeft);
-    this._target.on("click", this.hide);
+    if (this._activationStyle === "hover") {
+        this._target.on("mouseenter", this.mouseEntered);
+        this._target.on("mouseleave", this.mouseLeft);
+        this._target.on("click", this.hide);
+    } else if (this._activationStyle === "click") {
+        this._target.on("click", this.clicked);
+        util.onCapture(document, "click", this.documentClicked);
+    }
     $(window).on("resize", this.position);
     $(window).on("blur", this.hide);
     util.documentHidden.on("change", this.hide);
 }
+util.inherits(Tooltip, EventEmitter);
 
 Tooltip.prototype._clearDelay = function() {
     if (this._delayTimeoutId !== -1) {
@@ -24167,6 +24864,26 @@ Tooltip.prototype._createTooltipNode = function(message) {
             "<div class='"+messageClass+"'>" + message + "</div></div>";
 
     return $($.parseHTML(html)[0]);
+};
+
+Tooltip.prototype.clicked = function() {
+    this._clearDelay();
+    if (this._shown) {
+        this.hide();
+    } else {
+        var box = this._target[0].getBoundingClientRect();
+        this._x = box.left;
+        this._y = box.top;
+        this._show();
+    }
+};
+
+Tooltip.prototype.documentClicked = function(e) {
+    if (!this._shown) return;
+    if ($(e.target).closest(this._target[0]).length === 0) {
+        this._clearDelay();
+        this.hide();
+    }
 };
 
 Tooltip.prototype.position = function() {
@@ -24192,6 +24909,10 @@ Tooltip.prototype.position = function() {
     var gap = this._gap;
     var configurations = getConfigurationsToTryInOrder(this._preferredDirection, this._preferredArrowAlign);
     var direction, align;
+    var targetBox = this._target[0].getBoundingClientRect();
+    var cursorSize = this._activationStyle === "hover" ? 21 : 0;
+    var targetSizeX = this._activationStyle === "hover" ? 0 : targetBox.width;
+    var targetSizeY = this._activationStyle === "hover" ? 0 : targetBox.height;
 
     // Keep trying configurations in preferred order until it is fully visible.
     for (var i = 0; i < configurations.length; ++i) {
@@ -24211,9 +24932,9 @@ Tooltip.prototype.position = function() {
             }
 
             if (direction === "up") {
-                top = baseY + gap + 21;
+                top = baseY + gap + cursorSize + targetSizeY;
             } else {
-                top = baseY - gap - 21 - box.height;
+                top = baseY - gap - cursorSize - box.height;
             }
         } else {
             if (align === "begin") {
@@ -24225,9 +24946,9 @@ Tooltip.prototype.position = function() {
             }
 
             if (direction === "left") {
-                left = baseX + gap + 21;
+                left = baseX + gap + cursorSize + targetSizeX;
             } else {
-                left = baseX - gap - 21 - box.width;
+                left = baseX - gap - cursorSize - box.width;
             }
         }
 
@@ -24244,7 +24965,7 @@ Tooltip.prototype.position = function() {
     }
 };
 
-Tooltip.prototype._show = function(noTransition) {
+Tooltip.prototype._show = function(isForRepaintOnly) {
     this._target.off("mousemove", this.mousemoved);
     this._clearDelay();
     if (this._shown) return;
@@ -24266,7 +24987,7 @@ Tooltip.prototype._show = function(noTransition) {
     this.position();
 
     if (this._transitionClass) {
-        if (noTransition) {
+        if (isForRepaintOnly) {
             $node.addClass(this._transitionClass);
         } else {
             $node.detach();
@@ -24275,6 +24996,10 @@ Tooltip.prototype._show = function(noTransition) {
             $node[0].offsetHeight;
             $node.removeClass("initial");
         }
+    }
+
+    if (!isForRepaintOnly) {
+        this.emit("show", this);
     }
 };
 
@@ -24441,6 +25166,7 @@ Tooltip.prototype.hide = function() {
         this._tooltip.remove();
         this._tooltip = NULL;
     }
+    this.emit("hide", this);
 };
 
 Tooltip.prototype.mousemoved = function(e) {
@@ -24463,11 +25189,13 @@ Tooltip.prototype.destroy = function() {
     $(window).off("resize", this.position);
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
+    util.offCapture(document, "click", this.documentClicked);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
         this._target.off("click", this.hide);
+        this._target.off("click", this.clicked);
         this._target = this._domNode = null;
     }
 };
@@ -24480,13 +25208,25 @@ return Tooltip; })();
 
 ;
 ;
-const PanelControls = (function() { "use strict";
+const GlobalUi = (function() { "use strict";
 var ret = {};
 
-
+ret.snackbar = new Snackbar({
+    transitionInClass: "transition-in",
+    transitionOutClass: "transition-out",
+    beforeTransitionIn: function($root) {
+        $root.find(".snackbar-title, .snackbar-action").css("opacity", 0).animate({opacity: 1}, 400, "easeIn");
+    },
+    beforeTransitionOut: function($root) {
+        $root.find(".snackbar-title, .snackbar-action").css("opacity", 1).animate({opacity: 0}, 400, "easeOut");
+    },
+    nextDelay: 400,
+    visibilityTime: 4400
+});
 
 ret.makeTooltip = function(target, content) {
     return new Tooltip({
+        activation: "hover",
         transitionClass: "fade-in",
         preferredDirection: "up",
         preferredAlign: "begin",
@@ -24497,6 +25237,34 @@ ret.makeTooltip = function(target, content) {
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
         content: content
     });
+};
+
+ret.makePopup = function(title, body) {
+    const PREFERENCE_KEY = title + "position";
+
+    ret = new Popup({
+        title: title,
+        body: body,
+        closer: '<span class="icon glyphicon glyphicon-remove"></span>',
+        transitionClass: "popup-fade-in",
+        containerClass: "ui-text"
+    });
+
+    ret.on("open", function() {
+        hotkeyManager.disableHotkeys();
+    });
+
+    ret.on("close", function() {
+        hotkeyManager.enableHotkeys();
+        keyValueDatabase.set(title + "position", ret.getPreferredPosition());
+    });
+
+    keyValueDatabase.getInitialValues().then(function(values) {
+        if (PREFERENCE_KEY in values) ret.setPreferredPosition(values[PREFERENCE_KEY]);
+    });
+
+    $(window).on("clear", ret.close.bind(ret));
+    return ret;
 };
 
 return ret; })();
@@ -24710,7 +25478,7 @@ function PlayerVolumeManager(dom, player, opts) {
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);
-    this._muteTooltip = PanelControls.makeTooltip(this.$mute(),function() {
+    this._muteTooltip = GlobalUi.makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
                                      : "<p><strong>Mute</strong> volume.</p>";
     });
@@ -24797,6 +25565,7 @@ function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
+    player.setPictureManager(this);
     this.favicon = $(null);
     this.image = null;
 
@@ -24809,14 +25578,11 @@ PlayerPictureManager.prototype.$ = function() {
     return this._domNode;
 };
 
-PlayerPictureManager.prototype.newTrackLoaded = function() {
+PlayerPictureManager.prototype.updateImage = function(image) {
     $(this.image).remove();
     const self = this;
 
     this.$().find("img").remove();
-    $("favicon").remove();
-    this.favicon.remove();
-    var image = this.player.getImage();
     if (!image) return;
 
     this.image = image;
@@ -24829,7 +25595,10 @@ PlayerPictureManager.prototype.newTrackLoaded = function() {
     $(image).addClass("fade-in initial").appendTo(this.$());
     image.offsetWidth;
     $(image).removeClass("initial").addClass("end");
-    this.favicon = $("<link>", {rel: "shortcut icon", href: image.src}).appendTo($("head"));
+};
+
+PlayerPictureManager.prototype.newTrackLoaded = function() {
+    this.updateImage(this.player.getImage());
 };
 
 
@@ -24846,23 +25615,20 @@ const REPEAT = "repeat";
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
-const REPEAT_MODE_TOOLTIP = "<p>The track is repeated.</p>";
-
 function PlaylistModeManager(dom, playlist) {
     var self = this;
     this.playlist = playlist;
     this._domNode = $(dom);
 
-    this.shuffleTooltip = PanelControls.makeTooltip(this.$shuffle(), function() {
+    this.shuffleTooltip = GlobalUi.makeTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
                                           : "<p><strong>Enable</strong> shuffle mode</p>" +
                                             SHUFFLE_MODE_TOOLTIP;
     });
 
-    this.repeatTooltip = PanelControls.makeTooltip(this.$repeat(), function() {
+    this.repeatTooltip = GlobalUi.makeTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
-                                         : "<p><strong>Enable</strong> repeat mode</p>" +
-                                            REPEAT_MODE_TOOLTIP;
+                                         : "<p><strong>Enable</strong> repeat mode</p>";
     });
 
     this.shuffleClicked = this.shuffleClicked.bind(this);
@@ -24972,7 +25738,7 @@ function PlaylistNotifications(dom, player) {
     this.tabVisible = !util.documentHidden.value();
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
-    this.tooltip = PanelControls.makeTooltip(this.$(), function() {
+    this.tooltip = GlobalUi.makeTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
     });
@@ -25041,18 +25807,10 @@ PlaylistNotifications.prototype.notificationErrored = function(e) {
 
 PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
     var track = this.playlist.getCurrentTrack();
-    var tagData = track.getTagData();
-    var body = "";
-    if (tagData) body = tagData.getAlbum() || "";
-
-    if (body) {
-        body += "\n\n(Click to skip)";
-    } else {
-        body += "(Click to skip)";
-    }
-
-    var title = (track.getIndex() + 1) + ". " +
-            track.formatName() + " ("+track.formatTime()+")";
+    var artistAndTitle = track.getTrackInfo();
+    var number = (track.getIndex() + 1) + ".";
+    var title = number + " " + artistAndTitle.title;
+    var body = artist;
 
     var notification = new Notification(title, {
         tag: "track-change-notification",
@@ -25142,6 +25900,70 @@ PlaylistNotifications.prototype.requestPermission = function() {
 
 return PlaylistNotifications;
 })();
+
+;
+;
+const AcoustIdApiError = (function() { "use strict";
+
+const codeToString = function(code) {
+    return Object.keys(AcoustIdApiError).filter(function(key) {
+        var value = AcoustIdApiError[key];
+        return typeof value === "number" && code === value;
+    })[0] || "ERROR_UNKNOWN";
+};
+
+var AcoustIdApiError = util.subClassError("AcoustIdApiError", function(message, code) {
+    this.code = code;
+    this.message = message || codeToString(code);
+});
+
+AcoustIdApiError.ERROR_INVALID_RESPONSE_SYNTAX = -1;
+AcoustIdApiError.ERROR_UNKNOWN_FORMAT = 1;
+AcoustIdApiError.ERROR_MISSING_PARAMETER = 2;
+AcoustIdApiError.ERROR_INVALID_FINGERPRINT = 3;
+AcoustIdApiError.ERROR_INVALID_APIKEY = 4;
+AcoustIdApiError.ERROR_INTERNAL = 5;
+AcoustIdApiError.ERROR_INVALID_USER_APIKEY = 6;
+AcoustIdApiError.ERROR_INVALID_UUID = 7;
+AcoustIdApiError.ERROR_INVALID_DURATION = 8;
+AcoustIdApiError.ERROR_INVALID_BITRATE = 9;
+AcoustIdApiError.ERROR_INVALID_FOREIGNID = 10;
+AcoustIdApiError.ERROR_INVALID_MAX_DURATION_DIFF = 11;
+AcoustIdApiError.ERROR_NOT_ALLOWED = 12;
+AcoustIdApiError.ERROR_SERVICE_UNAVAILABLE = 13;
+AcoustIdApiError.ERROR_TOO_MANY_REQUESTS = 14;
+AcoustIdApiError.ERROR_INVALID_MUSICBRAINZ_ACCESS_TOKEN = 15;
+AcoustIdApiError.ERROR_INSECURE_REQUEST = 14;
+
+AcoustIdApiError.prototype.isFatal = function() {
+    switch (this.code) {
+        case AcoustIdApiError.ERROR_INVALID_RESPONSE_SYNTAX:
+        case AcoustIdApiError.ERROR_UNKNOWN_FORMAT:
+        case AcoustIdApiError.ERROR_MISSING_PARAMETER:
+        case AcoustIdApiError.ERROR_INVALID_FINGERPRINT:
+        case AcoustIdApiError.ERROR_INVALID_APIKEY:
+        case AcoustIdApiError.ERROR_INVALID_USER_APIKEY:
+        case AcoustIdApiError.ERROR_INVALID_UUID:
+        case AcoustIdApiError.ERROR_INVALID_DURATION:
+        case AcoustIdApiError.ERROR_INVALID_BITRATE:
+        case AcoustIdApiError.ERROR_INVALID_FOREIGNID:
+        case AcoustIdApiError.ERROR_INVALID_MAX_DURATION_DIFF:
+        case AcoustIdApiError.ERROR_INVALID_MUSICBRAINZ_ACCESS_TOKEN:
+        case AcoustIdApiError.ERROR_INSECURE_REQUEST:
+            return true;
+        default:
+            return false;
+    }
+};
+
+AcoustIdApiError.prototype.isRetryable = function() {
+    return !this.isFatal();
+};
+
+
+
+return AcoustIdApiError; })();
+
 
 ;
 ;
@@ -25448,13 +26270,6 @@ var TrackWasRemovedError = util.subClassError("TrackWasRemovedError");
 
 ;
 ;
-var FileError = util.subClassError("FileError", function(fileError) {
-    this.message = fileError.message;
-    this.name = fileError.name;
-});
-
-;
-;
 var AudioError = util.subClassError("AudioError", function(code) {
     this.code = code;
     var audioCodeString;
@@ -25471,6 +26286,13 @@ var AudioError = util.subClassError("AudioError", function(code) {
 
 ;
 ;
+var FileError = util.subClassError("FileError", function(fileError) {
+    this.message = fileError.message;
+    this.name = fileError.name;
+});
+
+;
+;
 var Track = (function() {"use strict";
 
 const DEFAULT_IMAGE_URL = "/dist/images/icon.png";
@@ -25479,47 +26301,49 @@ const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal and clipping protection.</p>" +
 "<p>Playing this track before the analysis has been completed can lead to a below acceptable listening experience.</p>";
 
+const NULL = $(null);
+
 function Track(audioFile) {
     EventEmitter.call(this);
     this.file = audioFile;
     this.tagData = null;
     this.error = false;
     this.index = -1;
-    this._domNode = this._createDomNode();
+    this._domNode = NULL;
     this._searchString = null;
     this._isAttached = false;
     this._lastPlayed = 0;
     this._statusTooltip = null;
-    this.setTrackDuration(this.formatTime());
-    this.setTrackText(this.formatName());
+    this._isBeingAnalyzed = false;
 }
 util.inherits(Track, EventEmitter);
 
-
-const NULL = $(null);
-
-Track.prototype._createDomNode = function() {
+Track.prototype._ensureDomNode = function() {
+    if (this._domNode !== NULL) return;
+    var selectable = playlist.main.getSelectable();
     var self = this;
-    var dom = $("<div>", {
-        class: "app-track-container"
-    }).html("<div class='app-track'>" +
-        "<span class='app-track-name notextflow'>" +
-            "<span></span>. " +
-            "<span></span>" +
-        "</span>" +
-        "<span class='app-track-status'></span>" +
-        "<span class='app-track-time'></span>" +
-        "<span class='app-track-rating'>" +
-            "<span data-rating='1' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='2' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='3' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='4' class='glyphicon glyphicon-star rating-input'></span>" +
-            "<span data-rating='5' class='glyphicon glyphicon-star rating-input'></span>" +
-        "</span>" +
-        "</div>" +
-    "</div>");
+    this._domNode = $("<div>", {
+        class: "track-container"
+    }).html("<div class='track'>                                                                    \
+        <div class='track-status'>                                                                  \
+            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                   \
+        </div>                                                                                      \
+        <div class='track-number'></div>                                                            \
+        <div class='track-info'>                                                                    \
+            <div class='track-title notextflow'></div>                                              \
+            <div class='track-artist notextflow'></div>                                             \
+        </div>                                                                                      \
+        <div class='track-duration'></div>                                                          \
+        <div class='track-rating unclickable'>                                                      \
+            <div data-rating='1' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='2' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='3' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='4' class='glyphicon glyphicon-star rating-input'></div>               \
+            <div data-rating='5' class='glyphicon glyphicon-star rating-input'></div>               \
+        </div>                                                                                      \
+    </div>");
 
-    dom.find(".app-track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+    this.$().find(".track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
         if (e.type === "mouseenter") return self.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return self.ratingInputMouseLeft(e);
@@ -25527,12 +26351,77 @@ Track.prototype._createDomNode = function() {
         if (e.type === "dblclick") return self.ratingInputDoubleClicked(e);
     });
 
-    dom.find(".app-track")
-        .on("dblclick", function(e) {
-            self.doubleClicked(e);
-        })
-        .height(playlist.main.getItemHeight());
-    return dom;
+    this.$().on("click mousedown dblclick", function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+
+        switch (e.type) {
+            case "click": return selectable.trackClick(e, self);
+            case "mousedown": return selectable.trackMouseDown(e, self);
+            case "dblclick": return self.doubleClicked(e);
+        }
+    });
+
+    this.setTrackDuration();
+    this.setTrackInfo();
+
+    if (this.tagData) {
+        this.setRatingStars();
+    }
+
+    if (selectable.contains(this)) {
+        this.selected();
+    }
+
+    if (playlist.main.getCurrentTrack() === this) {
+        this.startPlaying();
+    }
+
+    this.indexChanged();
+};
+
+Track.prototype.getTrackInfo = function() {
+    var artist, title;
+    if (!this.tagData) {
+        var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
+        artist = artistAndTitle.artist;
+        title = artistAndTitle.title;
+    } else {
+        artist = this.tagData.getArtist();
+        title = this.tagData.getTitle();
+    }
+
+    return {
+        artist: artist,
+        title: title
+    };
+};
+
+Track.prototype.setTrackInfo = function() {
+    var artistAndTitle = this.getTrackInfo();
+
+    this.$().find(".track-title").text(artistAndTitle.title);
+    this.$().find(".track-artist").text(artistAndTitle.artist);
+};
+
+Track.prototype.setTrackNumber = function() {
+    this.$trackNumber().text((this.getIndex() + 1) + ".");
+};
+
+Track.prototype.setTrackDuration = function() {
+    this.$trackDuration().text(this.formatTime());
+};
+
+Track.prototype.setRatingStars = function() {
+    var ratingValue = this.getRating();
+    this.$().find(".track-rating").addClass("visible");
+    this.$ratingInputs().removeClass("rate-intent rated");
+
+    if (ratingValue === -1) {
+        this.$().find(".track-rating").removeClass("already-rated");
+    } else {
+        this.$().find(".track-rating").addClass("already-rated");
+        this.$ratingInputsForRatingValue(ratingValue).addClass("rated");
+    }
 };
 
 Track.prototype.$ = function() {
@@ -25540,23 +26429,19 @@ Track.prototype.$ = function() {
 };
 
 Track.prototype.$container = function() {
-    return this.$().find(".app-track");
+    return this.$().find(".track");
 };
 
 Track.prototype.$trackStatus = function() {
-    return this.$().find(".app-track-status");
-};
-
-Track.prototype.$trackName = function() {
-    return this.$().find(".app-track-name span").last();
+    return this.$().find(".track-status");
 };
 
 Track.prototype.$trackNumber = function() {
-    return this.$().find(".app-track-name span").first();
+    return this.$().find(".track-number");
 };
 
-Track.prototype.$trackTime = function() {
-    return this.$().find(".app-track-time");
+Track.prototype.$trackDuration = function() {
+    return this.$().find(".track-duration");
 };
 
 Track.prototype.$ratingInputs = function() {
@@ -25567,23 +26452,6 @@ Track.prototype.$ratingInputsForRatingValue = function(value) {
     return this.$ratingInputs().filter(function() {
         return parseInt($(this).data("rating"), 10) <= value;
     });
-};
-
-Track.prototype.registerToSelectable = function(selectable) {
-    var self = this;
-    this.$()
-        .on("click", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackClick(e, self);
-        })
-        .on("mousedown", function(e) {
-            if ($(e.target).closest(".app-track-rating").length) {
-                return;
-            }
-            return selectable.trackMouseDown(e, self);
-        });
 };
 
 Track.prototype.getTrackGain = function() {
@@ -25610,14 +26478,6 @@ Track.prototype.isVisible = function() {
     return this._isAttached;
 };
 
-Track.prototype.bringInTrackAfter = function(delay) {
-    this.$().css("visibility", "hidden");
-    var self = this;
-    setTimeout(function() {
-        self.$().css("visibility", "visible");
-    }, 400);
-};
-
 Track.prototype.remove = function() {
     this.index = -1;
     this._isAttached = false;
@@ -25632,15 +26492,18 @@ Track.prototype.remove = function() {
 
     this.$().remove();
     this._domNode = NULL;
+    this.emit("destroy", this);
+    this.removeAllListeners();
 };
 
 Track.prototype.attach = function(target) {
+    this._ensureDomNode();
     this._isAttached = true;
     this.$().appendTo(target);
 };
 
 Track.prototype.detach = function() {
-    if (this.$().parent().length) {
+    if (this._isAttached) {
         this.$().detach();
         this._isAttached = false;
         if (this._statusTooltip) {
@@ -25692,27 +26555,9 @@ Track.prototype.isAttachedToDom = function() {
     return this._isAttached;
 };
 
-Track.prototype.setTrackText = function(text) {
-    this.$trackName().text(text);
-};
-
-Track.prototype.setTrackNumber = function(number) {
-    this.$trackNumber().text(number);
-};
-
-Track.prototype.setTrackDuration = function(duration) {
-    this.$trackTime().text(duration);
-};
-
-Track.prototype.setRatingStars = function(ratingValue) {
-    this.$ratingInputs().removeClass("rate-intent rated");
-
-    if (ratingValue === -1) {
-        this.$().find(".app-track-rating").removeClass("already-rated");
-    } else {
-        this.$().find(".app-track-rating").addClass("already-rated");
-        this.$ratingInputsForRatingValue(ratingValue).addClass("rated");
-    }
+Track.prototype.hasNonDefaultImage = function() {
+    if (!this.tagData) return false;
+    return !!this.tagData.getImage();
 };
 
 Track.prototype.getImage = function() {
@@ -25738,14 +26583,20 @@ Track.prototype.getIndex = function() {
     return this.index;
 };
 
+
 Track.prototype.setIndex = function(index) {
     if (this.index === index) return;
     this.index = index;
+    this.indexChanged();
+    this.emit("indexChange", this.index);
+};
+
+Track.prototype.indexChanged = function() {
+    var index = this.index;
     if (index >= 0) {
-        this.setTrackNumber(index + 1);
+        this.setTrackNumber();
         this.$().css("top", index * playlist.main.getItemHeight());
     }
-    this.emit("indexChange", this.index);
 };
 
 Track.prototype.doubleClicked = function(event) {
@@ -25753,19 +26604,40 @@ Track.prototype.doubleClicked = function(event) {
 };
 
 Track.prototype.selected = function() {
-    this.$container().addClass("app-track-active");
+    this.$().addClass("track-active");
 };
 
 Track.prototype.unselected = function() {
-    this.$container().removeClass("app-track-active");
+    this.$().removeClass("track-active");
 };
 
 Track.prototype.stopPlaying = function() {
-    this.$container().removeClass("app-playing");
+    this.$().removeClass("track-playing");
 };
 
 Track.prototype.startPlaying = function() {
-    this.$container().addClass("app-playing");
+    this.$().addClass("track-playing");
+};
+
+Track.prototype.showAnalysisStatus = function() {
+    if (this._domNode === NULL) return;
+
+    var self = this;
+
+    this.$trackStatus().html("<span " +
+        "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
+        "></span>");
+
+    this._statusTooltip = new Tooltip({
+        transitionClass: "fade-in",
+        preferredDirection: "right",
+        preferredAlign: "middle",
+        container: $("body"),
+        target: this.$trackStatus().find(".track-analysis-status"),
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        arrow: false,
+        content: ANALYSIS_TOOLTIP_MESSAGE
+    });
 };
 
 Track.prototype.hasError = function() {
@@ -25791,7 +26663,6 @@ Track.prototype.getTagData = function() {
 Track.prototype.setTagData = function(tagData) {
     if (this.tagData !== null) throw new Error("cannot set tagData again");
     this.tagData = tagData;
-    this.$().find(".app-track-rating").addClass("visible");
     this.tagDataUpdated();
 };
 
@@ -25807,7 +26678,8 @@ Track.prototype.formatName = function() {
     if (this.tagData !== null) {
         return this.tagData.formatName();
     }
-    return this.getFileName();
+    var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
+    return artistAndTitle.artist + " - " + artistAndTitle.title;
 };
 
 Track.prototype.formatTime = function() {
@@ -25840,48 +26712,43 @@ Track.prototype.isRated = function() {
 };
 
 Track.prototype.tagDataUpdated = function() {
-    this.setTrackDuration(this.formatTime());
-    this.setTrackText(this.formatName());
-    this.setRatingStars(this.getRating());
+    this.setTrackDuration();
+    this.setTrackInfo();
+    this.setRatingStars();
     this.emit("tagDataUpdate");
 };
 
 Track.prototype.getUid = function() {
     if (this.tagData) {
-        var album = this.tagData.album;
-        var title = this.tagData.title;
-        var artist = this.tagData.artist;
+        var album = this.tagData.taggedAlbum;
+        var title = this.tagData.taggedTitle;
+        var artist = this.tagData.taggedArtist;
         var index = this.tagData.albumIndex;
         var name = this.getFileName();
         var size = this.getFileSize();
         return sha1(album + title + artist + index + name + size);
     } else {
-        return sha1(this.getFileName() + "" + this.getFileSize());
+        throw new Error("cannot get uid before having tagData");
     }
 };
 
 Track.prototype.unsetAnalysisStatus = function() {
+    this._isBeingAnalyzed = false;
     this.$trackStatus().empty();
-    this._statusTooltip.destroy();
-    this._statusTooltip = null;
+
+    if (this._statusTooltip) {
+        this._statusTooltip.destroy();
+        this._statusTooltip = null;
+    }
+};
+
+Track.prototype.isBeingAnalyzed = function() {
+    return this._isBeingAnalyzed;
 };
 
 Track.prototype.setAnalysisStatus = function() {
-    var self = this;
-    this.$trackStatus().html("<span " +
-        "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
-        "></span>");
-
-    this._statusTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "right",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus().find(".track-analysis-status"),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ANALYSIS_TOOLTIP_MESSAGE
-    });
+    this._isBeingAnalyzed = true;
+    this.showAnalysisStatus();
 };
 
 Track.prototype.getSilenceAdjustedDuration = function(duration) {
@@ -25963,6 +26830,14 @@ Track.prototype.played = function() {
 
 Track.prototype.hasBeenPlayedWithin = function(time) {
     return this._lastPlayed >= time;
+};
+
+Track.prototype.fetchAcoustIdImage = function() {
+    return this.tagData.fetchAcoustIdImage();
+};
+
+Track.prototype.shouldRetrieveAcoustIdImage = function() {
+    return !!(this.tagData && this.tagData.shouldRetrieveAcoustIdImage());
 };
 
 Track.WAV = 0
@@ -26068,13 +26943,14 @@ function Playlist(domNode, opts) {
 
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, {
-        mustNotMatchSelector: ".app-track-rating",
-        mustMatchSelector: ".app-track-container"
+        mustNotMatchSelector: ".track-rating",
+        mustMatchSelector: ".track-container"
     });
 
     this.$().perfectScrollbar({
         useKeyboard: false,
         suppressScrollX: true,
+        minScrollbarLength: 20
     });
 
     this.requestedRenderFrame = null;
@@ -26169,7 +27045,7 @@ Playlist.prototype._updateNextTrack = function(forced) {
     }
 
     this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack);
-    this.emit("nextTrackChange", this._nextTrack);
+    this.emit("nextTrackChange", this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
 };
 
 Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind) {
@@ -26275,6 +27151,12 @@ Playlist.prototype.renderItems = function() {
     displayedTracks.length = end - start + 1;
 };
 
+Playlist.prototype.getTracksByAlbum = function(album) {
+    return this._trackList.filter(function(track) {
+        return !!(track.tagData && track.tagData.album === album);
+    });
+};
+
 Playlist.prototype.trackVisibilityChanged = function() {
     if (this.requestedRenderFrame) {
         cancelAnimationFrame(this.requestedRenderFrame);
@@ -26289,21 +27171,13 @@ Playlist.prototype.$ = function() {
 Playlist.prototype.hidePlaylistEmptyIndicator = function() {
     var self = this;
     var maxLeft = this.$().outerWidth();
-    this.$().find(".playlist-empty").animate({
-        left: maxLeft
-    }, 400, "swiftOut", function() {
-        if (self.length > 0) {
-            $(this).hide();
-        }
-    });
+    this.$().find(".playlist-empty").hide();
     this.$().find(".playlist-spacer").show();
 };
 
 Playlist.prototype.showPlaylistEmptyIndicator = function() {
     this.$().find(".playlist-spacer").hide();
-    this.$().find(".playlist-empty").show().animate({
-        left: 0
-    }, 400, "swiftOut");
+    this.$().find(".playlist-empty").show();
 };
 
 Playlist.prototype.playFirstSelected = function() {
@@ -26450,6 +27324,19 @@ Playlist.prototype.removeSelected = function() {
     this.removeTracks(selection);
 };
 
+Playlist.prototype.isTrackHighlyRelevant = function(track) {
+    if (!track || !(track instanceof Track)) {
+        return false;
+    }
+    return track.isDetachedFromPlaylist() ? false
+                                          : (track === this.getCurrentTrack() ||
+                                             track === this.getNextTrack());
+};
+
+Playlist.prototype.getSelectable = function() {
+    return this._selectable;
+};
+
 Playlist.prototype.add = function(tracks) {
     if (!tracks.length) return;
 
@@ -26463,24 +27350,11 @@ Playlist.prototype.add = function(tracks) {
     tracks.forEach(function(track) {
         var len = this._trackList.push(track);
         track.setIndex(len - 1);
-        track.registerToSelectable(this._selectable);
     }, this);
 
     this.emit("lengthChange", this.length, oldLength);
     this._updateNextTrack();
     this.contentsChanged();
-    this.animateVisibleNewTracks(tracks);
-};
-
-Playlist.prototype.animateVisibleNewTracks = function(tracks) {
-    var delay = 0;
-
-    for (var i = 0; i < tracks.length; ++i) {
-        if (tracks[i].isVisible()) {
-            tracks[i].bringInTrackAfter(delay);
-            delay += 33;
-        }
-    }
 };
 
 Playlist.prototype.stop = function() {
@@ -26805,8 +27679,8 @@ const compareOrder = [
     compareAlbumIndex,
     compareArtist,
     compareTitle,
-    compareDuration,
-    compareRating
+    compareRating,
+    compareDuration
 ];
 
 const makeComparer = function(mainComparer) {
@@ -27073,6 +27947,10 @@ Selectable.prototype._getMiddleOfSelection = function() {
 
 Selectable.prototype._moveToMiddleOfSelection = function() {
     this._playlist.centerOnTrack(this._getMiddleOfSelection());
+};
+
+Selectable.prototype.contains = function(track) {
+    return this._selection.contains(track);
 };
 
 Selectable.prototype.addTrack = function(track) {
@@ -27534,7 +28412,7 @@ function TrackDisplay(target, opts) {
         target;
 
     if (target.id == null) {
-        target.id = (+new Date) + "-app-track-display";
+        target.id = (+new Date) + "-track-display";
     }
 
     parent = target.parentNode;
@@ -27546,7 +28424,7 @@ function TrackDisplay(target, opts) {
     }
 
     if (parent && !parent.id) {
-        parent.id = (+new Date) + "-app-track-display-parent";
+        parent.id = (+new Date) + "-track-display-parent";
     }
 
     this._target = target.id;
@@ -27557,12 +28435,44 @@ function TrackDisplay(target, opts) {
     this._amounts = 0;
     this._direction = "right";
     this._scrollWidth = 0;
+    this._track = null;
+    this._trackDataUpdated = this._trackDataUpdated.bind(this);
+    this._trackIndexChanged = this._trackIndexChanged.bind(this);
 };
 
-TrackDisplay.prototype.newTitle = function(titleName) {
-    $(document.getElementById(this._target)).text(titleName);
-    document.title = titleName;
+TrackDisplay.prototype.clearPrevious = function() {
+    if (!this._track) return;
+    this._track.removeListener("indexChange", this._trackIndexChanged);
+    this._track.removeListener("tagDataUpdate", this._trackDataUpdated);
+    this._track = null;
+};
+
+TrackDisplay.prototype._trackDataUpdated = function() {
+    this.update();
+};
+
+TrackDisplay.prototype._trackIndexChanged = function() {
+    this.update();
+};
+
+TrackDisplay.prototype.update = function() {
+    var track = this._track;
+    var index = track.getIndex();
+    var trackNumber = index >= 0 ? (index + 1) + ". " : "";
+    var title = trackNumber + track.formatFullName();
+    $(document.getElementById(this._target)).text(title);
+    document.title = title;
     return this;
+};
+
+TrackDisplay.prototype.setTrack = function(track) {
+    if (track === this._track) return;
+    this.clearPrevious();
+    this._track = track;
+    track.on("indexChange", this._trackIndexChanged);
+    track.on("tagDataUpdate", this._trackDataUpdated);
+    this.update();
+    this.beginMarquee();
 };
 
 TrackDisplay.prototype.__marquer = function() {
@@ -28239,229 +29149,6 @@ ActionMenu.ContextMenu.prototype.keypressed = function() {
 };
 
 return ActionMenu; })();
-
-;
-;
-function Popup(width, height, opts) {
-    EventEmitter.call(this);
-    var self = this;
-    this._idBase = +(new Date);
-    this._popups = {};
-    this._lastAdd = null;
-    this.length = 0;
-    this._width = width;
-    this._height = height;
-    this._stacks = opts && !!opts.stacks || true;
-    this._stackOffsetX = opts && opts.stackOffsetX || 15;
-    this._stackOffsetY = opts && opts.stackOffsetY || 15;
-    this._closerClass = opts && opts.closerClass || "popup-closer-class";
-    this._closeEvents = {};
-    $(window)
-        .bind("resize", function() {
-            var key, popups = self._popups,
-                left,
-                top, width, height, winWidth = $(window)
-                .width(),
-                winHeight = $(window)
-                .height(),
-                popup, offset, id;
-
-            for (key in popups) {
-
-                popup = document.getElementById(key);
-                width = parseInt(popup.style.width, 10);
-                height = parseInt(popup.style.height, 10);
-                offset = popups[key].offset;
-                left = (((winWidth - width) / 2) >> 0) + offset * self._stackOffsetX;
-                top = (((winHeight - height) / 2) >> 0) + offset * self._stackOffsetY;
-                left = left < 0 ? 0 : left;
-                top = top < 0 ? 0 : top;
-                popup.style.left = left + "px";
-                popup.style.top = top + "px";
-            }
-        });
-
-    $(document)
-        .delegate("." + this._closerClass.split(" ")[0], "click", function() {
-            self.close.call(self, this);
-        });
-
-    this._className = opts && opts.addClass || "popup-main";
-};
-util.inherits(Popup, EventEmitter);
-
-Popup.prototype.closeEvent = function(fn, id) {
-    id = id || this._lastAdd;
-    this._closeEvents[id] = fn;
-};
-
-Popup.prototype.closeAll = function() {
-    if (!this.length) {
-        return false;
-    }
-    var key, popups = this._popups;
-    for (key in popups) {
-        $("#" + key)
-            .remove();
-    }
-    this._popups = {};
-    this._lastAdd = null;
-    this.length = 0;
-    for (key in this._closeEvents) {
-        this._closeEvents[key]();
-        delete this._closeEvents[key];
-    }
-    this.emit("close");
-    return this;
-};
-
-Popup.prototype.close = function(elm) {
-
-    var node = elm,
-        popup, className = this._className,
-        popups = this._popups,
-        l = popups.length,
-        id, obj;
-    if (!elm && this._lastAdd !== null) {
-        node = $("#" + (this._lastAdd));
-
-        delete popups[this._lastAdd];
-        $(node)
-            .remove();
-        this.length--;
-        if (typeof this._closeEvents[this._lastAdd] ==
-            "function") {
-            this._closeEvents[this._lastAdd]();
-            delete this._closeEvents[this._lastAdd];
-        }
-        this.emit("close");
-    } else {
-        while (node) {
-
-            if ((" " + node.className + " ")
-                .indexOf(className) > -1) {
-                popup = node;
-                break;
-            }
-            node = node.parentNode;
-        }
-
-        if (popup && popups[popup.id]) {
-
-            $(popup)
-                .remove();
-            delete popups[popup.id];
-            this.length--;
-            if (typeof this._closeEvents[popup.id] ==
-                "function") {
-                this._closeEvents[popup.id]();
-                delete this._closeEvents[popup.id];
-            }
-            this.emit("close");
-        }
-    }
-
-    if (!this.length) {
-        this._lastAdd = null;
-    } else {
-        this._lastAdd = $("." + this._className)
-            .last()[0].id;
-    }
-    return this;
-};
-
-Popup.prototype.open = function(html, width, height) {
-    var div = document.createElement("div"),
-        id, top, left,
-        winWidth = $(window)
-        .width(),
-        winHeight = $(window)
-        .height(),
-        width = width || this._width,
-        height = height || this._height,
-        offset = this._stacks ? this.length : 0,
-        closerDiv = document.createElement("div"),
-        contentDelay, self = this,
-        $div;
-
-    id = "popup-" + (++this._idBase);
-    left = (((winWidth - width) / 2) >> 0) + offset * this._stackOffsetX;
-    top = (((winHeight - height) / 2) >> 0) + offset * this._stackOffsetY;
-    left = left < 0 ? 0 : left;
-    top = top < 0 ? 0 : top;
-    div.id = id;
-    closerDiv.className = this._closerClass;
-    div.appendChild(closerDiv);
-    div.className = this._className;
-    div.setAttribute("style", "width:" + width + "px;height:" +
-        height + "px;position:absolute;top:" + top +
-        "px;left:" + left + "px;z-index:" + (100000 +
-            offset) + ";display:block;");
-    $div = $(div);
-    $div.appendTo("body");
-    this.emit("beforeOpen", id);
-    this._popups[id] = {
-        width: width,
-        height: height,
-        offset: offset
-    };
-    this._lastAdd = id;
-    this.length++;
-    $div.append(html);
-    this.emit("open");
-    return this;
-};
-
-Popup.prototype.html = function(html, elm) {
-    elm = elm || (this._lastAdd && document.getElementById(this
-        ._lastAdd));
-    if (!elm) {
-        return null;
-    }
-    elm.innerHTML = html;
-    return elm;
-};
-
-;
-;
-function BlockingPopup() {
-    Popup.apply(this, Array.prototype.slice.call(arguments, 0));
-    this._blockerId = "blocker-" + (+new Date);
-};
-util.inherits(BlockingPopup, Popup);
-
-BlockingPopup.prototype.closeAll = function() {
-    if (!this.closeAll$()) {
-        return false;
-    }
-    $("#" + this._blockerId).remove();
-    return this;
-};
-
-BlockingPopup.prototype.open = function(html, width, height) {
-    this.open$(html, width, height);
-
-    if (this.length < 2) {
-        $("<div id=\"" + this._blockerId +
-                "\"style=\"background-color:rgba(0, 0, 0, 0.2);position:absolute;" +
-                "top:0px;left:0px;z-index:99999;display:block;width:" +
-                $(window)
-                .width() + "px;" +
-                "height:" + $(window)
-                .height() + "px;\"></div>")
-            .prependTo("body").one("click", this.closeAll.bind(this));
-    }
-    return this;
-};
-
-BlockingPopup.prototype.close = function(elm) {
-    this.close$(elm);
-    if (!this.length) {
-        $("#" + this._blockerId)
-            .remove();
-    }
-    return this;
-};
 
 ;
 ;
@@ -29163,28 +29850,173 @@ return WorkerPool;})();
 
 ;
 ;
-var ReplayGainProcessor = (function() {"use strict";
+var TrackAnalyzer = (function() {"use strict";
+
+const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+Promise.promisifyAll(OfflineAudioContext.prototype, {
+    promisifier: function DOMPromisifier(originalMethod) {
+        // return a function
+        return function promisified() {
+            var args = [].slice.call(arguments);
+            // Needed so that the original method can be called with the correct receiver
+            var self = this;
+            // which returns a promise
+            return new Promise(function(resolve, reject) {
+                args.push(resolve, function(v) {
+                    reject(util.asError(v));
+                });
+                originalMethod.apply(self, args);
+            });
+        };
+    }
+});
+
+function TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist) {
+    this.loudnessCalculator = loudnessCalculator;
+    this.fingerprintCalculator = fingerprintCalculator;
+    this._queue = [];
+    this._longQueue = [];
+    this._currentlyAnalysing = false;
+    this._playlist = playlist;
+
+    this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
+    this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
+    this.trackDestroyed = this.trackDestroyed.bind(this);
+}
+
+TrackAnalyzer.prototype.trackDestroyed = function(track) {
+    for (var i = 0; i < this._queue.length; ++i) {
+        var spec = this._queue[i];
+        if (spec.track === track) {
+            this._queue.splice(i, 1);
+            break;
+        }
+    }
+};
+
+TrackAnalyzer.prototype._next = function() {
+    var q = this._queue;
+
+    while (this._queue.length) {
+        var spec = this._queue.shift();
+        spec.track.removeListener("destroy", this.trackDestroyed);
+        if (spec.track.isDetachedFromPlaylist()) {
+            spec.reject(new TrackWasRemovedError());
+        } else {
+            this._currentlyAnalysing = false;
+            return spec.resolve(this.analyzeTrack(spec.track, spec.opts));
+        }
+    }
+    this._currentlyAnalysing = false;
+};
+
+TrackAnalyzer.prototype._createDecoder = function(channels, sampleRate) {
+    return new OfflineAudioContext(channels, 1024, sampleRate);
+};
+
+TrackAnalyzer.prototype.currentTrackChanged = function(track) {
+    this.prioritize(track);
+};
+
+TrackAnalyzer.prototype.nextTrackChanged = function(track) {
+    this.prioritize(track);
+};
+
+TrackAnalyzer.prototype.prioritize = function(track) {
+    if (track instanceof Track && track.isBeingAnalyzed() && this._queue.length) {
+        var q = this._queue;
+        for (var i = 0; i < q.length; ++i) {
+            var spec = q[i];
+
+            if (spec.track === track) {
+                for (var j = i; j >= 1; --j) {
+                    q[j] = q[j - 1];
+                }
+                q[0] = spec;
+                break;
+            }
+        }
+    }
+};
+
+TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
+    var self = this;
+    if (this._currentlyAnalysing) {
+        track.once("destroy", this.trackDestroyed);
+        return new Promise(function(resolve, reject) {
+            self._queue.push({
+                track: track,
+                opts: opts,
+                resolve: resolve,
+                reject: reject
+            });
+        });
+    }
+
+    var audioBuffer = null;
+    this._currentlyAnalysing = true;
+
+    return util.readAsArrayBuffer(track.file).then(function(result) {
+        if (track.isDetachedFromPlaylist()) {
+            throw new TrackWasRemovedError();
+        }
+
+        var basicInfo = track.getBasicInfo();
+        var decoder = self._createDecoder(basicInfo.channels, basicInfo.sampleRate);
+
+        return decoder.decodeAudioDataAsync(result).catch(function(e) {
+            throw new AudioError(MediaError.MEDIA_ERR_DECODE)
+        });
+    }).then(function(audioBuffer) {
+        if (track.isDetachedFromPlaylist()) {
+            throw new TrackWasRemovedError();
+        }
+
+        var fingerprint = Promise.resolve(null);
+        var loudness = Promise.resolve(null);
+        var duration = audioBuffer.duration;
+
+        if (opts.fingerprint) {
+            fingerprint = self.fingerprintCalculator.calculateFingerprintForTrack(track, audioBuffer);
+        }
+
+        if (opts.loudness) {
+            loudness = self.loudnessCalculator.calculateLoudnessForTrack(track, audioBuffer);
+        }
+
+        return Promise.props({
+            loudness: loudness,
+            fingerprint: fingerprint,
+            duration: duration
+        });
+    }).finally(function() {
+        self._next();
+        return null;
+    });
+}
+
+return TrackAnalyzer; })();
+
+;
+;
+const LoudnessCalculator = (function() {"use strict";
 
 // Chrome likes to hold on to malloced arrays even when the tab will crash from running out of memory
 // so just use the same preallocated array for everything.
 // There is one trick that will release all malloced memory from typed arrays: opening developer tools or
 // reopening it if it was already open.
-var PREALLOCATION_SIZE = 882000; //4410000;
-var OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+const PREALLOCATION_SIZE = 882000; //4410000;
 
-function ReplayGainTrackProcessor(replayGainProcessor, audioBuffer) {
-    this.replayGainProcessor = replayGainProcessor;
-    this.audioBuffer = audioBuffer;
-    this.worker = replayGainProcessor._worker;
-
-    this._buffers = replayGainProcessor._buffers;
-    this._onTransferList = $.proxy(this._onTransferList, this);
-    // The worker will transfer back the pre allocated arrays once it's done
-    // with the current chunk.
-    this.worker.on("transferList", this._onTransferList);
+function LoudnessCalculator(pool) {
+    this._worker = pool.reserveWorker();
+    this._buffers = new Array(5);
+    this._buffers.length = 0;
+    this._onTransferList = this._onTransferList.bind(this);
+    this._worker.on("transferList", this._onTransferList);
 }
 
-ReplayGainTrackProcessor.prototype._getBuffer = function(index) {
+LoudnessCalculator.prototype._getBuffer = function(index) {
     var value = this._buffers[index];
     if (!value) {
         value = this._buffers[index] = new Float32Array(PREALLOCATION_SIZE);
@@ -29192,31 +30024,31 @@ ReplayGainTrackProcessor.prototype._getBuffer = function(index) {
     return value;
 };
 
-ReplayGainTrackProcessor.prototype._onTransferList = function(transferList) {
+LoudnessCalculator.prototype._onTransferList = function(transferList) {
     for (var i = 0; i < transferList.length; ++i) {
-        this.replayGainProcessor._buffers[i] = this._buffers[i] = new Float32Array(transferList[i]);
+        this._buffers[i] = new Float32Array(transferList[i]);
     }
 };
 
-ReplayGainTrackProcessor.prototype.start = function(track) {
+LoudnessCalculator.prototype.calculateLoudnessForTrack = function(track, audioBuffer) {
     var self = this;
-    var channels = Math.min(5, self.audioBuffer.numberOfChannels);
-    var sampleRate = self.audioBuffer.sampleRate;
-    var length = self.audioBuffer.length;
+    var channels = Math.min(5, audioBuffer.numberOfChannels);
+    var sampleRate = audioBuffer.sampleRate;
+    var length = audioBuffer.length;
     var index = 0;
 
-    return self.worker.invokeInWorkerThread("initializeReplayGainCalculation", [{
-        channels: self.audioBuffer.numberOfChannels,
-        sampleRate: self.audioBuffer.sampleRate
+    return self._worker.invokeInWorkerThread("initializeEbur128Calculation", [{
+        channels: audioBuffer.numberOfChannels,
+        sampleRate: audioBuffer.sampleRate
     }]).then(function loop() {
         var frameCount = Math.min(length - index, PREALLOCATION_SIZE);
 
         for (var i = 0; i < channels; ++i) {
             var buffer = self._getBuffer(i);
-            self.audioBuffer.copyFromChannel(buffer, i, index);
+            audioBuffer.copyFromChannel(buffer, i, index);
         }
         index += frameCount;
-        return self.worker.invokeInWorkerThread("addFrames", [{
+        return self._worker.invokeInWorkerThread("addFrames", [{
             length: frameCount
         }], self._buffers.map(function(v) {
             return v.buffer;
@@ -29225,82 +30057,91 @@ ReplayGainTrackProcessor.prototype.start = function(track) {
                 return loop();
             } else {
                 var album = track.getTagData().getAlbum();
-                return self.worker.invokeInWorkerThread("getReplayGain", [{album: album}]);
+                return self._worker.invokeInWorkerThread("getEbur128", [{album: album}]);
             }
         });
     }).tap(function(response) {
-        response.duration = self.audioBuffer.duration;
+        response.duration = audioBuffer.duration;
     }).catch(function(e) {
-        return self.worker.invokeInWorkerThread("cancelReplayGainCalculation").thenThrow(e);
+        return self._worker.invokeInWorkerThread("cancelEbur128Calculation").thenThrow(e);
     }).finally(function() {
-        self.worker.removeListener("transferList", self._onTransferList);
-        self.audioBuffer = self.replayGainProcessor = self.worker = self._buffers = null;
+        audioBuffer = null;
     });
 };
 
-function ReplayGainProcessor(workerPool) {
-    this._worker = workerPool.reserveWorker();
-    this._buffers = new Array(5);
-    this._buffers.length = 0;
+return LoudnessCalculator; })();
+
+;
+;
+const FingerprintCalculator = (function() {"use strict";
+
+const DURATION = 120;
+const SAMPLE_RATE = 11025;
+const MIN_DURATION = 7;
+const MIN_FRAMES = MIN_DURATION * SAMPLE_RATE;
+const FRAMES = SAMPLE_RATE * DURATION;
+const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+
+function FingerprintCalculator(pool) {
+    this._worker = pool.reserveWorker();
+    this._onTransferList = this._onTransferList.bind(this);
+    this._worker.on("transferList", this._onTransferList);
+    this._buffer = null;
 }
 
-ReplayGainProcessor.prototype._createDecoder = function(channels, sampleRate) {
-    return new OfflineAudioContext(channels, 1024, sampleRate);
+FingerprintCalculator.prototype._onTransferList = function(transferList) {
+    this._buffer = new Float32Array(transferList[0]);
 };
 
-ReplayGainProcessor.prototype.getReplayGainForTrack = function(track) {
-    var url;
+FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, audioBuffer) {
+    if (!this._buffer) this._buffer = new Float32Array(FRAMES);
     var self = this;
-    var audioBuffer = null;
-    return this._worker.invokeInMainThread(function(release) {
-        return new Promise(function(resolve, reject) {
-            if (track.isDetachedFromPlaylist()) {
-                return reject(new TrackWasRemovedError());
-            }
-            url = URL.createObjectURL(track.file);
-            var request = new XMLHttpRequest();
+    return new Promise(function(resolve, reject) {
+        var duration = Math.min(audioBuffer.duration, DURATION);
 
-            request.open('GET', url, true);
-            request.responseType = 'arraybuffer';
-            request.onload = function() {
-                var basicInfo = track.getBasicInfo();
-                self._createDecoder(basicInfo.channels,
-                                    basicInfo.sampleRate).decodeAudioData(request.response, function(_audioBuffer) {
-                    audioBuffer = _audioBuffer;
-                    resolve();
-                }, function() {
-                    reject(new AudioError(MediaError.MEDIA_ERR_DECODE));
-                });
-                request = null;
-            };
+        if (duration < MIN_DURATION) {
+            return resolve({fingerprint: null});
+        }
 
-            request.onerror = function(e) {
-                request = null;
-                reject(new Error("invalid audio file"));
-            };
-            request.send();
-        }).then(function() {
-            var replayGainTrackProcessor = new ReplayGainTrackProcessor(self, audioBuffer);
-            audioBuffer = null;
-            return replayGainTrackProcessor.start(track).finally(function() {
-                if (url) {
-                    URL.revokeObjectURL(url);
-                    url = null;
-                }
-            });
-        })
+        var frames = duration * SAMPLE_RATE;
+        var resampler = new OfflineAudioContext(1, frames, SAMPLE_RATE);
+        var source = resampler.createBufferSource();
+        source.buffer = audioBuffer;
+        audioBuffer = null;
+        source.connect(resampler.destination);
+        source.start(0);
+        resampler.oncomplete = function(event) {
+            var resampledBuffer = event.renderedBuffer;
+            var frames = resampledBuffer.length;
+            resampledBuffer.copyFromChannel(self._buffer, 0);
+            var result = self._worker.invokeInWorkerThread("getAcoustId", [{
+                length: frames
+            }], [self._buffer.buffer]);
+            resolve(result);
+        };
+        resampler.onerror = function() {
+            reject(new AudioError());
+        };
+        resampler.startRendering();
+
+    }).catch(function(e) {
+        // TODO: LOg
+        return {fingerprint: undefined};
     });
-}
+};
 
-return ReplayGainProcessor; })();
+return FingerprintCalculator; })();
 
 ;
 ;
 var tagDatabase = (function() {"use strict";
-const VERSION = 2;
+const VERSION = 3;
 const NAME = "TagDatabase";
 const KEY_NAME = "trackUid";
+const ALBUM_KEY_NAME = "album";
 const TABLE_NAME = "trackInfo";
+const COVERART_TABLE_NAME = "coverart";
 const READ_WRITE = "readwrite";
 const READ_ONLY = "readonly";
 
@@ -29318,11 +30159,21 @@ function TagDatabase() {
     request.onupgradeneeded = this._onUpgradeNeeded;
 }
 
-
 TagDatabase.prototype._onUpgradeNeeded = function(event) {
     var db = event.target.result;
-    var objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
-    this.db = util.IDBPromisify(objectStore.transaction).thenReturn(db);
+    var objectStore = Promise.resolve();
+    var albumStore = Promise.resolve();
+
+    try {
+        objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
+    } catch (e) {}
+
+    try {
+        albumStore = db.createObjectStore(COVERART_TABLE_NAME, { keyPath: ALBUM_KEY_NAME});
+    } catch (e) {}
+
+    this.db = Promise.all([util.IDBPromisify(objectStore.transaction),
+                           util.IDBPromisify(albumStore.transaction)]).thenReturn(db);
 };
 
 TagDatabase.prototype.query = function(trackUid) {
@@ -29331,39 +30182,78 @@ TagDatabase.prototype.query = function(trackUid) {
     });
 };
 
-TagDatabase.prototype.insert = function(trackUid, data) {
-    data.trackUid = trackUid;
+TagDatabase.prototype.getAlbumImage = function(album) {
+    if (!album) return Promise.resolve(null);
     return this.db.then(function(db) {
-        var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
-        return util.IDBPromisify(store.add(data));
+        return util.IDBPromisify(db.transaction(COVERART_TABLE_NAME).objectStore(COVERART_TABLE_NAME).get(album));
     });
 };
 
-TagDatabase.prototype.updateRating = function(trackUid, rating) {
+TagDatabase.prototype.setAlbumImage = function(album, url) {
+    if (!album) return Promise.resolve(null);
+    return this.db.then(function(db) {
+        var store = db.transaction(COVERART_TABLE_NAME, READ_WRITE).objectStore(COVERART_TABLE_NAME);
+        var obj = {
+            album: album,
+            url: url
+        };
+        return util.IDBPromisify(store.put(obj));
+    });
+};
+
+TagDatabase.prototype.insert = function(trackUid, data) {
+    data.trackUid = trackUid;
     var self = this;
     return this.db.then(function(db) {
         var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
         return util.IDBPromisify(store.get(trackUid));
-    }).then(function(data) {
+    }).then(function(previousData) {
         var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
-        data = Object(data);
-        data.trackUid = trackUid;
-        data.rating = rating;
-        return util.IDBPromisify(store.put(data));
+        var newData = $.extend({}, previousData || {}, data);
+        return util.IDBPromisify(store.put(newData));
     });
 };
 
+const fieldUpdater = function(fieldName) {
+    return function(trackUid, value) {
+        var self = this;
+        return this.db.then(function(db) {
+            var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+            return util.IDBPromisify(store.get(trackUid));
+        }).then(function(data) {
+            var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+            data = Object(data);
+            data.trackUid = trackUid;
+            data[fieldName] = value;
+            return util.IDBPromisify(store.put(data));
+        });
+    };
+};
+
+TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
+TagDatabase.prototype.updateRating = fieldUpdater("rating");
+TagDatabase.prototype.updateCoverArtImageUrl = fieldUpdater("coverArtImageUrl");
 
 return new TagDatabase();})();
 
 ;
 ;
+const TagData = (function() { "use strict";
+
+const UNKNOWN = "Unknown";
+const NO_ACOUSTID_IMAGE = {};
+const PENDING_ACOUSTID_IMAGE = {};
+var preferAcoustIdData = true;
+
+const urlImgMap = Object.create(null);
+
 function TagData(track, title, artist, basicInfo, album, albumIndex, picture) {
     this.track = track;
     this.title = title || null;
     if (this.title) this.title = util.formatTagString(this.title);
     this.artist = artist || null;
     if (this.artist) this.artist = util.formatTagString(this.artist);
+
     this.basicInfo = basicInfo || {
         duration: NaN,
         sampleRate: 44100,
@@ -29381,13 +30271,19 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, picture) {
     this.albumPeak = 1;
     this.rating = -1;
     this.picture = picture;
+    this.acoustId = null;
 
     this._formattedTime = null;
     this._formattedName = null;
     this._image = null;
+    this._acoustIdImage = null;
 
     this.beginSilenceLength = this.basicInfo.encoderDelay || 0;
     this.endSilenceLength = this.basicInfo.encoderPadding || 0;
+
+    this.taggedArtist = this.artist;
+    this.taggedTitle = this.title;
+    this.taggedAlbum = this.album;
 }
 
 TagData.prototype.formatTime = function() {
@@ -29401,28 +30297,38 @@ TagData.prototype.formatTime = function() {
 
 var stripExtensionPattern = new RegExp("\\.(?:" + features.allowExtensions.join("|") + ")$", "i");
 var separatorPattern = /(.+)\s*-\s*(.+)/;
-TagData.prototype.formatName = function() {
-    if (this._formattedName !== null) return this._formattedName;
-    if (!this.title && !this.artist) {
-        var fileName = this.track.getFileName().replace(stripExtensionPattern, "");
-        var matches = fileName.match(separatorPattern);
-        var trackTitle;
-        if (!matches) {
-            trackTitle = util.capitalize(fileName);
-        } else {
-            trackTitle = util.capitalize(matches[1]) + " - " + util.capitalize(matches[2]);
-        }
 
-        return (this._formattedName = trackTitle);
+TagData.trackInfoFromFileName = function(fileName) {
+    var fileName = fileName.replace(stripExtensionPattern, "");
+    var matches = fileName.match(separatorPattern);
+    var artist, title;
+
+    if (!matches) {
+        title = util.capitalize(fileName);
+        artist = UNKNOWN;
+    } else {
+        artist = util.capitalize(matches[1]) || UNKNOWN;
+        title = util.capitalize(matches[2]) || UNKNOWN;
     }
-    var separator = this.artist && this.title ? " - " : "";
-    var artist = this.artist ? this.artist : "";
-    var title = this.title ? this.title : "";
-    return (this._formattedName = artist + separator + title);
+
+    return {
+        artist: artist,
+        title: title
+    };
 };
 
-TagData.prototype.shouldCalculateReplayGain = function() {
-    return this.getTrackGain() === 0;
+TagData.prototype.ensureArtistAndTitle = function() {
+    if (!this.title || !this.artist) {
+        var artistAndTitle = TagData.trackInfoFromFileName(this.track.getFileName());
+        this.artist = this.artist || artistAndTitle.artist || UNKNOWN;
+        this.title = this.title || artistAndTitle.title || UNKNOWN;
+    }
+};
+
+TagData.prototype.formatName = function() {
+    if (this._formattedName !== null) return this._formattedName;
+    this.ensureArtistAndTitle();
+    return (this._formattedName = this.artist + " - " + this.title);
 };
 
 TagData.prototype.getTrackGain = function() {
@@ -29445,7 +30351,13 @@ TagData.prototype.getAlbum = function() {
     return this.album;
 };
 
+TagData.prototype.getTitle = function() {
+    this.ensureArtistAndTitle();
+    return this.title;
+};
+
 TagData.prototype.getArtist = function() {
+    this.ensureArtistAndTitle();
     return this.artist;
 };
 
@@ -29474,33 +30386,42 @@ TagData.prototype.hasPicture = function() {
 };
 
 TagData.prototype.getImage = function() {
-    if (!this.picture) return null;
-    if (this._image) return this._image.cloneNode();
+    if (this._image) return this._image;
+    if (urlImgMap[this.album]) return urlImgMap[this.album];
 
+    if (this.hasAcoustIdImage()) {
+        this._image = new Image();
+        this._image.src = this._acoustIdImage;
+        return this._image;
+    }
+
+    // TODO change this field name lol.
+    if (!this.picture) return null;
     var blob = this.track.getFile().slice(this.picture.start,
                                           this.picture.start + this.picture.length,
                                           this.picture.type);
     var url = URL.createObjectURL(blob);
     this._image = new Image();
     this._image.src = url;
-    return this._image.cloneNode();
+    return this._image;
 };
 
 TagData.prototype.getImageUrl = function() {
-    var ret = this.getImage();
-    if (!ret) return null;
-    return ret.src;
+    if (!this._image) return null;
+    return this._image.src;
 };
 
 TagData.prototype.destroy = function() {
     if (this._image) {
-        URL.revokeObjectURL(this._image.src);
+        try {
+            URL.revokeObjectURL(this._image.src);
+        } catch (e) {}
         this._image = null;
     }
 };
 
 TagData.prototype.getTitleForSort = function() {
-    if (this.title === null) return NULL_STRING;
+    this.ensureArtistAndTitle();
     return this.title;
 };
 
@@ -29510,7 +30431,7 @@ TagData.prototype.getAlbumForSort = function() {
 };
 
 TagData.prototype.getArtistForSort = function() {
-    if (this.artist === null) return NULL_STRING;
+    this.ensureArtistAndTitle();
     return this.artist;
 };
 
@@ -29526,6 +30447,70 @@ TagData.prototype.getBeginSilenceLength = function() {
     return this.beginSilenceLength;
 };
 
+TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
+    if (acoustId && preferAcoustIdData) {
+        if (acoustId.album) this.album = acoustId.album.name;
+        if (acoustId.artist) this.artist = acoustId.artist.name;
+        if (acoustId.title) this.title = acoustId.title.name;
+    }
+};
+
+TagData.prototype.fetchAcoustIdImage = function() {
+    if (this.hasAcoustIdImage()) throw new Error("already has acoust id image");
+    this._acoustIdImage = PENDING_ACOUSTID_IMAGE;
+    var self = this;
+
+    return Promise.join(tagDatabase.getAlbumImage(this.album),
+                 tagDatabase.query(this.track.getUid()), function(coverArt, trackData) {
+        if (coverArt && coverArt.url) {
+            self._acoustIdImage = coverArt.url;
+            var image = new Image();
+            image.src = coverArt.url;
+            urlImgMap[self.album] = image;
+            self.track.tagDataUpdated();
+        } else if (trackData && trackData.coverArtImageUrl !== undefined) {
+            self._acoustIdImage = trackData.coverArtImageUrl === null ? NO_ACOUSTID_IMAGE
+                                                                      : trackData.coverArtImageUrl;
+            self.track.tagDataUpdated();
+        } else {
+            return metadataRetriever.getImage(self.acoustId).then(function(info) {
+                if (info) {
+                    if (info.acoustId.type === "release") {
+                        tagDatabase.updateCoverArtImageUrl(self.track.getUid(), info.url);
+                        self._image = info.image;
+                    } else if (info.acoustId.type === "release-group") {
+                        tagDatabase.setAlbumImage(self.album, info.url);
+                        urlImgMap[self.album] = info.image;
+                    }
+                    self._acoustIdImage = info.url;
+                } else {
+                    var failedBecauseOffline = !navigator.onLine;
+                    if (!failedBecauseOffline) {
+                        tagDatabase.updateCoverArtImageUrl(self.track.getUid(), null);
+                        self._acoustIdImage = NO_ACOUSTID_IMAGE;
+                    }
+                }
+                self.track.tagDataUpdated();
+                return null;
+            }).catch(Promise.TimeoutError, function ignore() {});
+        }
+    });
+};
+
+TagData.prototype.hasAcoustIdImage = function() {
+    return urlImgMap[this.album] || typeof this._acoustIdImage === "string";
+};
+
+TagData.prototype.shouldRetrieveAcoustIdImage = function() {
+    return this.acoustId && this._acoustIdImage === null && !urlImgMap[this.album];
+};
+
+TagData.prototype.setAcoustId = function(acoustId) {
+    this.acoustId = acoustId;
+    this.updateFieldsFromAcoustId(acoustId);
+    this.track.tagDataUpdated();
+};
+
 TagData.prototype.setDataFromTagDatabase = function(data) {
     this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
                               this.beginSilenceLength ||
@@ -29533,6 +30518,8 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.endSilenceLength = data.silence && data.silence.endSilenceLength ||
                             this.endSilenceLength ||
                             0;
+    this.acoustId = data.acoustId || this.acoustId|| null;
+    if (this.acoustId) this.updateFieldsFromAcoustId(this.acoustId);
     this.trackGain = data.trackGain;
     this.trackPeak = data.trackPeak || 1;
     this.albumGain = data.albumGain;
@@ -29542,6 +30529,8 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.rating = data.rating || -1;
     this.track.tagDataUpdated();
 };
+
+return TagData; })();
 
 ;
 ;
@@ -29598,9 +30587,10 @@ const MPEGSampleRate = [
 
 const MPEGChannels = [2, 2, 2, 1];
 
-function ID3Process(playlist, replayGainProcessor) {
-    this.replayGainProcessor = replayGainProcessor;
+function ID3Process(playlist, player, trackAnalyzer) {
+    this.trackAnalyzer = trackAnalyzer;
     this.playlist = playlist;
+    this.player = player;
     this.concurrentParsers = 8;
     this.queue = [];
     this.queueProcessors = new Array(this.concurrentParsers);
@@ -29609,12 +30599,27 @@ function ID3Process(playlist, replayGainProcessor) {
     }
     this.queueSet = new DS.Set();
     this.jobPollerId = -1;
-    playlist.on("lengthChange", $.proxy(this.playlistLengthChanged, this));
+    playlist.on("lengthChange", this.playlistLengthChanged.bind(this));
+    playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
+    playlist.on("trackChange", this.currentTrackChanged.bind(this));
 }
 
 function isNull(value) {
     return value === null;
 }
+
+ID3Process.prototype.currentTrackChanged = util.throttle(function(track) {
+    if (track && track.shouldRetrieveAcoustIdImage()) {
+        track.fetchAcoustIdImage();
+    }
+}, 1000);
+
+ID3Process.prototype.nextTrackChanged = util.throttle(function(track) {
+
+    if (track && track.shouldRetrieveAcoustIdImage()) {
+        track.fetchAcoustIdImage();
+    }
+}, 2500);
 
 ID3Process.prototype.checkEmpty = function() {
     if (this.queueProcessors.every(isNull)) {
@@ -29692,6 +30697,7 @@ ID3Process.prototype.getTimeFromVBRi = function(bytes, sampleRate) {
     return Math.floor(1152 * frames / sampleRate);
 };
 
+
 ID3Process.prototype.getTagSize = function(bytes, version, magicOffset) {
     if (magicOffset === undefined) magicOffset = 0;
 
@@ -29703,6 +30709,31 @@ ID3Process.prototype.getTagSize = function(bytes, version, magicOffset) {
         return util.synchInt32(bytes, 4 + magicOffset) >>> 0;
     }
     throw new Error("InvalidVersion");
+};
+
+ID3Process.prototype.fillInAcoustId = function(track, duration, fingerprint) {
+    var self = this;
+    metadataRetriever.getAcoustIdDataForTrack(track, duration, fingerprint).then(function(acoustId) {
+        if (!track.isDetachedFromPlaylist()) {
+            track.tagData.setAcoustId(acoustId);
+            tagDatabase.updateAcoustId(track.getUid(), acoustId);
+
+            if (self.playlist.isTrackHighlyRelevant(track) &&
+                track.shouldRetrieveAcoustIdImage()) {
+                track.fetchAcoustIdImage();
+            }
+        }
+        return null;
+    }).catch(function(e) {
+        if (e && e.statusText && e.statusText === "timeout") {
+            return;
+        }
+        console.log("AcoustId fetch failed:", e.message, e.code);
+    });
+
+    if (this.playlist.isTrackHighlyRelevant(track)) {
+        metadataRetriever.prioritize(track);
+    }
 };
 
 ID3Process.prototype.loadNext = function() {
@@ -29745,32 +30776,53 @@ ID3Process.prototype.loadNext = function() {
         })
         .then(function(tagData) {
             track.setTagData(tagData);
-            if (tagData.shouldCalculateReplayGain()) {
-                var id = track.getUid();
+            var id = track.getUid();
 
-                tagDatabase.query(id).then(function(value) {
-                    if (!value) {
-                        track.setAnalysisStatus();
-                        return self.replayGainProcessor.getReplayGainForTrack(track).finally(function() {
-                            track.unsetAnalysisStatus();
-                        });
-                    } else {
-                        tagData.setDataFromTagDatabase(value);
-                        return null;
-                    }
-                }).then(function(value) {
-                    if (value) {
-                        value.title = tagData.title;
-                        value.artist = tagData.artist;
-                        value.album = tagData.album;
-                        value.albumIndex = tagData.albumIndex;
-                        tagData.setDataFromTagDatabase(value);
-                        return tagDatabase.insert(id, value);
-                    }
-                }).catch(AudioError, function(e) {
-                    self.playlist.removeTrack(track);
-                }).catch(TrackWasRemovedError, function(e) {});
-            }
+            tagDatabase.query(id).then(function(value) {
+                var shouldAnalyzeLoudness = !value || value.trackGain === undefined;
+                var shouldCalculateFingerprint = !value || value.fingerprint === undefined;
+                var shouldRetrieveAcoustIdMetaData = (shouldCalculateFingerprint ||
+                                                     (value && value.acoustId === undefined));
+
+                var acoustId = Promise.resolve(null);
+
+                if (shouldRetrieveAcoustIdMetaData && value && value.fingerprint && value.duration) {
+                    self.fillInAcoustId(track, value.duration, value.fingerprint);
+                }
+
+                if (shouldAnalyzeLoudness || shouldCalculateFingerprint) {
+                    var analyzerOptions = {
+                        loudness: shouldAnalyzeLoudness,
+                        fingerprint: shouldCalculateFingerprint
+                    };
+                    track.setAnalysisStatus(analyzerOptions);
+                    return self.trackAnalyzer.analyzeTrack(track, analyzerOptions).finally(function() {
+                        track.unsetAnalysisStatus();
+                    }).then(function(result) {
+                        var duration = value ? value.duration : result.duration;
+
+                        if (result.fingerprint && result.fingerprint.fingerprint && shouldRetrieveAcoustIdMetaData) {
+                            self.fillInAcoustId(track, duration, result.fingerprint.fingerprint);
+                        }
+
+                        return $.extend({},
+                                        value || {},
+                                        result.loudness || {},
+                                        result.fingerprint || {});
+                    });
+                } else {
+                    tagData.setDataFromTagDatabase(value);
+                    return null;
+                }
+            }).then(function(value) {
+                if (value) {
+                    tagData.setDataFromTagDatabase(value);
+                    return tagDatabase.insert(id, value);
+                }
+            }).catch(AudioError, function(e) {
+                self.playlist.removeTrack(track);
+            }).catch(TrackWasRemovedError, function(e) {});
+
             return tagData;
         })
         .catch(AudioError, FileError, function(e) {
@@ -30442,14 +31494,13 @@ function AudioManager(player, track, implicitlyLoaded) {
         var mediaData = preloadedMediaElement.release();
         this.url = mediaData.url;
         this.mediaElement = mediaData.element;
-        this.image = mediaData.image;
         this.mediaElementRequiresLoading = false;
     } else {
         this.url = URL.createObjectURL(track.getFile());
         this.mediaElement = mediaElementPool.alloc();
         this.mediaElementRequiresLoading = true;
-        this.image = track.getImage();
     }
+    this.image = track.getImage();
 
     this.mediaElement.autoplay = false;
     this.mediaElement.controls = false;
@@ -30464,7 +31515,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.visualizer = new AudioVisualizer(audioCtx, {
         fps: 48,
         bins: Player.visualizerBins(),
-        baseSmoothingConstant: 0.00007,
+        baseSmoothingConstant: 0.0007,
         maxFrequency: 12500,
         minFrequency: 20
     });
@@ -30483,14 +31534,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.preampGain.gain.value = 1;
     this.volumeGain.gain.value = player.getVolume();
 
-    var replayGain = equalizer.decibelChangeToAmplitudeRatio(
-        track.getTrackGain() || track.getAlbumGain() || -6);
-
-    if (track.getTrackPeak() * replayGain > 1) {
-        replayGain = (1 / track.getTrackPeak()) * replayGain;
-    }
-
-    this.replayGain.gain.value = replayGain;
+    this.normalizeLoudness();
 
     this.source.connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
@@ -30508,7 +31552,9 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.equalizerChanged = this.equalizerChanged.bind(this);
     this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
+    this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
 
+    track.on("tagDataUpdate", this.trackTagDataUpdated);
     equalizer.on("equalizerChange", this.equalizerChanged);
     crossfading.on("crossFadingChange", this.crossFadingChanged);
     player.playlist.on("nextTrackChange", this.nextTrackChanged);
@@ -30517,6 +31563,30 @@ function AudioManager(player, track, implicitlyLoaded) {
 AudioManager.prototype.nextTrackChanged = function() {
     if (this.destroyed) return;
     this.updateSchedules();
+};
+
+AudioManager.prototype.trackTagDataUpdated = function() {
+    if (this.destroyed || player.currentAudioManager !== this) return;
+    var track = this.track;
+
+    if (track.hasNonDefaultImage()) {
+        this.player.getPictureManager().updateImage(track.getImage());
+    }
+
+    this.normalizeLoudness();
+};
+
+AudioManager.prototype.normalizeLoudness = function() {
+    if (this.destroyed) return;
+    var track = this.track;
+    var replayGain = equalizer.decibelChangeToAmplitudeRatio(
+        track.getTrackGain() || track.getAlbumGain() || -6);
+
+    if (track.getTrackPeak() * replayGain > 1) {
+        replayGain = (1 / track.getTrackPeak()) * replayGain;
+    }
+
+    this.replayGain.gain.value = replayGain;
 };
 
 AudioManager.prototype.getImage = function() {
@@ -30786,13 +31856,13 @@ AudioManager.prototype.destroy = function() {
     this.fadeOutGain.disconnect();
     this.source.disconnect();
     this.visualizer.destroy();
+    this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
     this.mediaElement.removeEventListener("timeupdate", this.timeUpdated, false);
     this.mediaElement.removeEventListener("ended", this.ended, false);
     this.mediaElement.removeEventListener("error", this.errored, false);
     this.mediaElement.removeEventListener("durationchange", this.durationChanged, false);
     mediaElementPool.free(this.mediaElement);
     this.mediaElement = null;
-    this.player = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
     this.source = null;
@@ -30808,20 +31878,21 @@ AudioManager.prototype.destroy = function() {
     if (index >= 0) {
         audioManagers.splice(index, 1);
     }
+    this.player.audioManagerDestroyed(this);
+    this.player = null;
 };
 
 const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
 
 function Player(dom, playlist, opts) {
+    var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = $(dom);
 
     this._playButtonDomNode = this.$().find(opts.playButtonDom);
-    this._pauseButtonDomNode = this.$().find(opts.pauseButtonDom);
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
-    this._stopButtonDomNode = this.$().find(opts.stopButtonDom);
     this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
 
     this.currentAudioManager = null;
@@ -30833,23 +31904,25 @@ function Player(dom, playlist, opts) {
     this.implicitLoading = false;
     this.playlist = playlist;
     this.queuedNextTrackImplicitly = false;
+    this.pictureManager = null;
+
     this._preloadedTracks = [];
 
     this.visualizerData = this.visualizerData.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
 
-    this.$play().click(this.play.bind(this));
-    this.$pause().click(this.pause.bind(this));
-    this.$stop().click(this.stop.bind(this));
+    this.$play().click(this.playButtonClicked.bind(this));
     this.$next().click(playlist.next.bind(playlist));
     this.$previous().click(playlist.prev.bind(playlist));
 
-    this._playTooltip = PanelControls.makeTooltip(this.$play(), "Resume playback");
-    this._pauseTooltip = PanelControls.makeTooltip(this.$pause(), "Pause playback");
-    this._stopTooltip = PanelControls.makeTooltip(this.$stop(), "Stop playback");
-    this._nextTooltip = PanelControls.makeTooltip(this.$next(), "Next track");
-    this._previousTooltip = PanelControls.makeTooltip(this.$previous(), "Previous track");
+    this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
+        return self.isPlaying ? "Pause playback"
+                            : self.isPaused ? "Resume playback" : "Start playback";
+    });
+
+    this._nextTooltip = GlobalUi.makeTooltip(this.$next(), "Next track");
+    this._previousTooltip = GlobalUi.makeTooltip(this.$previous(), "Previous track");
 
     playlist.on("loadNeed", this.loadTrack.bind(this));
     playlist.on("playlistEmpty", this.stop.bind(this));
@@ -30865,9 +31938,7 @@ function Player(dom, playlist, opts) {
 util.inherits(Player, EventEmitter);
 
 Player.prototype.$allButtons = function() {
-    return this.$play().add(this.$pause())
-                      .add(this.$previous())
-                      .add(this.$stop())
+    return this.$play().add(this.$previous())
                       .add(this.$next());
 };
 
@@ -30877,55 +31948,36 @@ Player.prototype.$ = function() {
 
 Player.prototype.$play = function() {
     return this._playButtonDomNode;
-}
-
-Player.prototype.$pause = function() {
-    return this._pauseButtonDomNode;
-}
+};
 
 Player.prototype.$previous = function() {
     return this._previousButtonDomNode;
-}
-
-Player.prototype.$stop = function() {
-    return this._stopButtonDomNode;
-}
+};
 
 Player.prototype.$next = function() {
     return this._nextButtonDomNode;
-}
+};
 
 Player.prototype.visualizerData = function(data) {
     this.emit("visualizerData", data);
 };
 
 Player.prototype.historyChanged = function() {
-    if (this.playlist.hasHistory()) {
-        this.$previous().removeClass("disabled");
-    } else {
-        this.$previous().addClass("disabled");
-    }
+    this.checkButtonState();
+};
+
+Player.prototype.setPictureManager = function(pictureManager) {
+    this.pictureManager = pictureManager;
+};
+
+Player.prototype.getPictureManager = function() {
+    return this.pictureManager;
 };
 
 Player.prototype.nextTrackChanged = function() {
+    this.checkButtonState();
     var track = this.playlist.getNextTrack();
-    this.$pause().addClass("disabled");
-    if (!track) {
-        this.$play().addClass("disabled");
-        this.$next().addClass("disabled");
-        this.$previous().addClass("disabled");
-        return;
-    }
-    this.$play().removeClass("disabled");
-    if (this.playlist.getCurrentTrack()) {
-        this.$pause().removeClass("disabled");
-    }
-
-    this.$next().removeClass("disabled");
-
-    if (this.playlist.hasHistory()) {
-        this.$previous().removeClass("disabled");
-    }
+    if (!track) return;
 
     for (var i = 0; i < this._preloadedTracks.length; ++i) {
         if (this._preloadedTracks[i].isForTrack(track)) return;
@@ -30950,6 +32002,15 @@ Player.prototype.flushPreloadedMediaElementFor = function(track) {
         }
     }
     return ret;
+};
+
+Player.prototype.audioManagerDestroyed = function(audioManager) {
+    if (audioManager === this.currentAudioManager &&
+        !this.playlist.getCurrentTrack() &&
+        !this.playlist.getNextTrack() &&
+        this.isPlaying) {
+        this.stop();
+    }
 };
 
 Player.prototype.nextTrackImplicitly = function() {
@@ -31018,7 +32079,7 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
     if (!audioManager) return 0;
 
     if (!preferences.getShouldAlbumCrossFade() &&
-        audioManager.track.isFromSameAlbumAs(this.playlist.getNextTrack())) {
+        audioManager.track.comesBeforeInSameAlbum(this.playlist.getNextTrack())) {
         return 0;
     }
 
@@ -31078,7 +32139,7 @@ Player.prototype.resume = function() {
 Player.prototype.play = function() {
     if (this.isPlaying) return this;
 
-    if (!this.playlist._currentTrack) {
+    if (!this.playlist.getCurrentTrack()) {
         this.playlist.playFirst();
         return this;
     }
@@ -31134,23 +32195,65 @@ Player.prototype.loadTrack = function(track) {
     this.currentAudioManager.start();
 };
 
+Player.prototype.playButtonClicked = function() {
+    if (this.isPlaying) {
+        this.pause();
+    } else {
+        this.play();
+    }
+};
+
+Player.prototype.checkButtonState = function() {
+    this.$allButtons().addClass("disabled");
+
+    if (this.playlist.getNextTrack()) {
+        this.$next().removeClass("disabled");
+
+        if (this.playlist.hasHistory()) {
+            this.$previous().removeClass("disabled");
+        }
+    }
+
+    if (!this.isStopped) {
+        this.$play().removeClass("disabled");
+        this.$play().addClass("active");
+        if (this.isPlaying) {
+            this.$play()
+                .find(".play-pause-morph-icon")
+                .removeClass("pause")
+                .addClass("play");
+        } else {
+            this.$play()
+                .find(".play-pause-morph-icon")
+                .removeClass("play")
+                .addClass("pause");
+        }
+    } else {
+        this.$play().removeClass("active")
+                .find(".play-pause-morph-icon")
+                .removeClass("pause")
+                .addClass("play");
+
+        if (this.playlist.getNextTrack()) {
+            this.$play().removeClass("disabled");
+        }
+    }
+
+    this._playTooltip.refresh();
+};
+
 Player.prototype.startedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$play().addClass("active");
-    this.$pause().removeClass("disabled");
+    this.checkButtonState();
     this.emit("play");
 };
 
 Player.prototype.stoppedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$stop().addClass("active");
-    this.$pause().addClass("disabled");
+    this.checkButtonState();
     this.emit("stop");
 };
 
 Player.prototype.pausedPlay = function() {
-    this.$allButtons().removeClass("active");
-    this.$pause().addClass("active");
+    this.checkButtonState();
     this.emit("pause");
 };
 
@@ -31251,8 +32354,6 @@ function PreloadedMediaElement(track) {
     this.errored = this.errored.bind(this);
     this.tagDateUpated = this.tagDateUpated.bind(this);
 
-    this.image = track.getImage();
-
     if (!tagData || !tagData.hasPicture()) {
         this.track.once("tagDataUpdate", this.tagDateUpated);
     }
@@ -31300,7 +32401,6 @@ PreloadedMediaElement.prototype.destroy = function() {
         mediaElementPool.free(this.mediaElement);
         URL.revokeObjectURL(this.url);
         this.track = this.url = this.mediaElement = null;
-        this.image = null;
     }
 };
 
@@ -31314,10 +32414,9 @@ PreloadedMediaElement.prototype.release = function() {
         this.removeListeners();
         var ret = {
             url: this.url,
-            element: this.mediaElement,
-            image: this.image
+            element: this.mediaElement
         };
-        this.image = this.track = this.url = this.mediaElement = null;
+        this.track = this.url = this.mediaElement = null;
         return ret;
     } else {
         throw new Error("already released");
@@ -31384,31 +32483,315 @@ return Player;})();
 
 ;
 ;
+const metadataRetriever = (function() { "use strict";
+
+function getBestRecordingGroup(recordings) {
+    var groups = [];
+
+    for (var i = 0; i < recordings.length; ++i) {
+        var recording = recordings[i];
+        var releasegroups = recording.releasegroups;
+        for (var j = 0; j < releasegroups.length; ++j) {
+            var releasegroup = releasegroups[j];
+            var secondarytypes = releasegroup.secondarytypes;
+            groups.push({
+                indexI: i,
+                indexJ: j,
+                recording: recording,
+                type: releasegroup.type.toLowerCase(),
+                album: releasegroups[j],
+                secondarytypes: secondarytypes ? secondarytypes.map(function(v) {
+                    return v.toLowerCase();
+                }) : null
+            });
+        }
+    }
+
+    groups.sort(function(a, b) {
+        if (a.type === "album" && b.type === "album") {
+            var aSec = a.secondarytypes;
+            var bSec = b.secondarytypes;
+
+            if (aSec && bSec) {
+                var aCompilation = aSec.indexOf("compilation") >= 0;
+                var bCompilation = bSec.indexOf("compilation") >= 0;
+
+                if (aCompilation && bCompilation) {
+                    var diff = a.indexI - b.indexI;
+                    if (diff !== 0) return diff;
+                    return a.indexJ - b.indexJ;
+                } else if (aCompilation && !bCompilation) {
+                    return 1;
+                } else if (!aCompilation && bCompilation) {
+                    return -1;
+                } else {
+                    var diff = a.indexI - b.indexI;
+                    if (diff !== 0) return diff;
+                    return a.indexJ - b.indexJ;
+                }
+            } else if (aSec && !bSec) {
+                return 1;
+            } else if (!aSec && bSec) {
+                return -1;
+            } else {
+                var diff = a.indexI - b.indexI;
+                if (diff !== 0) return diff;
+                return a.indexJ - b.indexJ;
+            }
+        } else if (a.type === "album") {
+            return -1;
+        } else {
+            return 1;
+        }
+    });
+
+    if (!groups.length) {
+        return {
+            recording: recordings[0],
+            album: null
+        };
+    }
+
+    return groups[0];
+}
+
+function formatArtist(artists) {
+    if (artists.length === 1) {
+        return artists[0].name;
+    } else {
+        var ret = "";
+        for (var i = 0; i < artists.length - 1; ++i) {
+            ret += artists[i].name + artists[i].joinphrase;
+        }
+        ret += artists[i].name;
+        return ret;
+    }
+}
+
+function parseAcoustId(data) {
+    if (!data) {
+        throw new AcoustIdApiError("Invalid JSON response", -1);
+    }
+
+    if (data.status === "error") {
+        throw new AcoustIdApiError(data.error.message, data.error.code);
+    }
+
+    var result = data.results && data.results[0] || null;
+    if (!result) return null;
+
+    var bestRecordingGroup = getBestRecordingGroup(result.recordings);
+
+    if (!bestRecordingGroup) return null;
+    var recording = bestRecordingGroup.recording;
+
+    var title = {
+        name: recording.title,
+        mbid: recording.id,
+        type: "release"
+    };
+    var album = null;
+
+    if (bestRecordingGroup.album) {
+        album = {
+            name: bestRecordingGroup.album.title,
+            mbid: bestRecordingGroup.album.id,
+            type: "release-group"
+        };
+    }
+
+    var artist = null;
+    if (recording.artists && recording.artists.length) {
+        artist = {
+            name: formatArtist(recording.artists),
+            mbid: recording.artists[0].id,
+            type: "artist"
+        };
+    }
+
+    return {
+        title: title,
+        album: album,
+        artist: artist
+    };
+}
+
+function MetadataRetriever() {
+    this._lastAcoustIdRequest = 0;
+    this._queue = [];
+    this._currentRequest = null;
+    this.trackDestroyed = this.trackDestroyed.bind(this);
+}
+
+MetadataRetriever.prototype.prioritize = TrackAnalyzer.prototype.prioritize;
+MetadataRetriever.prototype.trackDestroyed = TrackAnalyzer.prototype.trackDestroyed;
+
+
+MetadataRetriever.prototype.processNextInQueue = function() {
+    if (this._queue.length > 0 && this.canQuery()) {
+        var spec = this._queue.shift();
+        spec.track.removeListener("destroy", this.trackDestroyed);
+        if (spec.track.isDetachedFromPlaylist()) {
+            spec.reject(new TrackWasRemovedError());
+        } else {
+            spec.resolve(this.acoustIdQuery(spec.track, spec.duration, spec.fingerprint));
+        }
+    }
+};
+
+MetadataRetriever.prototype.canQuery = function() {
+    return !!(navigator.onLine &&
+           !this._currentRequest &&
+           Date.now() - this._lastAcoustIdRequest > 500);
+};
+
+MetadataRetriever.prototype._queuedRequest = function(track, duration, fingerprint) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        track.once("destroy", this.trackDestroyed);
+        self.push({
+            resolve: resolve,
+            reject: reject,
+            track: track,
+            duration: duration,
+            fingerprint: fingerprint
+        });
+    });
+};
+
+MetadataRetriever.prototype.acoustIdQuery = function(track, duration, fingerprint, _retries) {
+    var self = this;
+    if (!_retries) _retries = 0;
+
+    if (!this.canQuery()) {
+        return this._queuedRequest(track, duration, fingerprint);
+    }
+
+    this._lastAcoustIdRequest = Date.now();
+
+    var jqXhr = $.ajax({
+        dataType: "jsonp",
+        jsonp: "jsoncallback",
+        url: "https://api.acoustId.org/v2/lookup",
+        timeout: 5000,
+        // jQuery escaping is not supported by acoustid
+        data: util.queryString({
+            client: "ULjKruIg",
+            format: "jsonp",
+            duration: duration,
+            meta: "recordings+releasegroups+compress",
+            fingerprint: fingerprint
+        })
+    });
+
+    this._currentRequest = Promise.resolve(jqXhr)
+        .then(parseAcoustId)
+        .catch(AcoustIdApiError, function(e) {
+            if (e.isRetryable() && _retries <= 5) {
+                return Promise.delay(1000).then(function() {
+                    self._currentRequest = null;
+                    return self.acoustIdQuery(track, duration, fingerprint, _retries + 1);
+                });
+            }
+            throw e;
+        })
+        .finally(function() {
+            self._currentRequest = null;
+        })
+        .catch(function(e) {
+            // Went offline during request, try later.
+            if (!navigator.onLine || jqXhr.statusText === "timeout") {
+                return self._queuedRequest(track, duration, fingerprint);
+            }
+        })
+
+    return this._currentRequest;
+};
+
+MetadataRetriever.prototype.getAcoustIdDataForTrack = function(track, duration, fingerprint) {
+    duration = Math.floor(duration);
+    return this.acoustIdQuery(track, duration, fingerprint);
+};
+
+MetadataRetriever.prototype.getImage = function(acoustId) {
+    if (!navigator.onLine) return Promise.reject(new Promise.TimeoutError());
+
+    var imagesToTry = [];
+
+    if (acoustId.album) imagesToTry.push(acoustId.album);
+
+    if (!imagesToTry.length) {
+        return Promise.resolve(null);
+    }
+
+    return (function loop(value) {
+        if (value) return value;
+        var cur = imagesToTry.shift();
+        if (!cur) return null;
+
+        return new Promise(function(resolve, reject) {
+            var timerId = -1;
+            var img = new Image();
+            img.src = "https://coverartarchive.org/" + cur.type + "/" + cur.mbid + "/front-250";
+
+            function clearTimer() {
+                if (timerId !== -1) {
+                    timerId = -1;
+                    clearTimeout(timerId);
+                }
+            }
+
+            function success() {
+                clearTimer();
+                img.onerror = img.onload = null;
+                resolve({
+                    image: img,
+                    url: img.src,
+                    acoustId: cur
+                });
+            }
+
+            img.onerror = function() {
+                clearTimer();
+                resolve();
+            };
+
+            img.onload = success;
+
+            timerId = setTimeout(function() {
+                timerId = -1;
+                reject(new Promise.TimeoutError());
+            }, 5000);
+
+            if (img.complete) success();
+        }).then(loop);
+    })();
+};
+
+
+var ret = new MetadataRetriever();
+
+setInterval(function() {
+    ret.processNextInQueue();
+}, 1000);
+
+return ret; })();
+
+;
+;
 var hotkeyManager = (function() {"use strict";
 
-const STORAGE_KEY = "hotkey-bindings";
+const STORAGE_KEY = "hotkey-bindings-1";
 const HOTKEY_TYPE_PERSISTENT = 0;
 const HOTKEY_TYPE_NORMAL = 1;
 
-var POPUP_HTML = "<div class='popup-content-container' id='hotkey-manager'>                                      \
-    <div class='popup-header'>                                                                                   \
-        <h2 class='app-header-2'>Hotkey setup</h2>                                                               \
-    </div>                                                                                                       \
-                                                                                                                 \
-    <div class='popup-body'>                                                                                     \
-        <div class='app-bread-text'>                                                                             \
-            Boost your <a href='http://www.youtube.com/watch?v=YbpCLqryN-Q' target='_blank_'>APM</a>             \
-            by binding various shortcuts to keyboard buttons. If a hotkey is bound to a native browser action,   \
-            that action will be overridden. For example, binding 'Ctrl+S' will disable the default browser action\
-            (save page) as long as it is bound. Overriding also applies to application bound hotkeys.            \
-            <span class='emphasis-color'>Most hotkeys are disabled when a popup is open.</span>                  \
-        </div>                                                                                                   \
+var POPUP_HTML = "<div class='popup-content-container'>                                                          \
         <div class='hotkey-manager-columns-container'>                                                           \
             <div id='app-hotkeys-wrapper'>                                                                       \
                 <div class='app-hotkey-header hotkey-manager-left-column'>Action</div>                           \
                 <div class='hotkey-manager-left-column app-hotkey-header'>Bound to</div>                         \
                 <div class='clear'></div>                                                                        \
-                <div class='app-hotkeys-container ps-container'></div>                                                        \
+                <div class='app-hotkeys-container ps-container'></div>                                           \
             </div>                                                                                               \
             <div class='hotkey-manager-description-container'>                                                   \
                 <div class='hotkey-manager-description-header app-hotkey-header'>Description</div>               \
@@ -31427,9 +32810,7 @@ var POPUP_HTML = "<div class='popup-content-container' id='hotkey-manager'>     
                 <div class='app-hotkey-unbind app-popup-button left'>Unbind</div>                                \
                 <div class='clear'></div>                                                                        \
             </div>                                                                                               \
-        </div>                                                                                                   \
-    </div>                                                                                                       \
-</div>";
+        </div></div>";
 
 var HOTKEY_HTML = "<div class='clear app-hotkey-container'>                   \
     <div class='app-hotkey-name'></div>                                       \
@@ -31544,7 +32925,6 @@ HotkeyManager.prototype.saveBindings = function() {
 
 var defaults = {
     "Select all": "ctrl+a",
-    "Clear": "esc",
     "Filter": "j",
     "Next track": "ctrl+right arrow",
     "Previous track": "ctrl+left arrow",
@@ -31617,21 +32997,12 @@ keyValueDatabase.getInitialValues().then(function(values) {
 var hotkeyManager = new HotkeyManager(defaults, [
     "Music player", "Playlist management", "General actions"]);
 
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Clear",
-    description: "Clear selections or popups.",
-    handler: function() {
-        if (popup.length) {
-            popup.closeAll();
-        }
-        playlist.main.clearSelection();
-        return false;
-    },
-    persistent: true,
-    allowRebind: false,
-    options: {
-        allowInput: true
+util.onCapture(document, "keydown", function(e) {
+    if (e.which === 27 && !e.ctrlKey &&
+                          !e.shiftKey &&
+                          !e.metaKey &&
+                          !e.altKey) {
+        $(window).trigger("clear");
     }
 });
 
@@ -31810,12 +33181,13 @@ HotkeyBinder.prototype.destroy = function() {
 };
 
 
+const hotkeyPopup = GlobalUi.makePopup("Shortcuts", POPUP_HTML);
 function openHotkeyManager() {
-    popup.open(POPUP_HTML, 630, 504);
+    hotkeyPopup.open();
 
-    var hotkeyBinder = new HotkeyBinder(hotkeyManager, "#hotkey-manager");
+    var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$());
 
-    popup.once("close", function() {
+    hotkeyPopup.once("close", function() {
         hotkeyBinder.destroy();
     });
 }
@@ -32172,19 +33544,14 @@ var equalizer = new EventEmitter();
         </div>";
 
 
-        return "<div class='popup-content-container'>                            \
-                <div class='popup-header'>                                       \
-                    <h2 class='app-header-2'>Equalizer</h2>                      \
-                </div>                                                           \
-                <div class='popup-body'>                                         \
-                    <div class='equalizer-popup-content-container'>              \
-                        "+descriptorContainerHtml+"                              \
-                        "+sliderContainerHtml+"                                  \
-                        "+presetContainerHtml+"                                  \
-                    </div>                                                       \
-                </div>                                                           \
-            </div>";
+
+        return "<div class='equalizer-popup-content-container'>              \
+                    "+descriptorContainerHtml+"                              \
+                    "+sliderContainerHtml+"                                  \
+                    "+presetContainerHtml+"                                  \
+                </div>";
     })();
+    const equalizerPopup = GlobalUi.makePopup("Equalizer", html);
 
     function gainValueToProgress(gainValue) {
         var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -32225,7 +33592,7 @@ var equalizer = new EventEmitter();
     }, 50);
 
     function openEditor() {
-        popup.open(html, 560, 279);
+        equalizerPopup.open();
 
         selectCurrentlyMatchingPreset();
         var currentGain =  $("#equalizer-current-gain");
@@ -32338,44 +33705,18 @@ var equalizer = new EventEmitter();
 ;
 ;
 var playlist = playlist || {};
-var popup;
-
-popup = new BlockingPopup(500, 300, {
-    closerClass: "app-popup-closer glyphicon glyphicon-remove",
-    addClass: "app-popup-container thick-shadow"
-});
-
-popup.on("beforeOpen", function(id) {
-    $("#" + id)
-        .hide()
-        .fadeIn(400);
-});
-popup.on("close", function() {
-    hotkeyManager.enableHotkeys();
-    if (!this.length) {
-        $("#app-container")
-            .fadeTo(0, 1);
-    }
-});
-popup.on("open", function() {
-    hotkeyManager.disableHotkeys();
-    if (this.length < 2) {
-        $("#app-container")
-            .fadeTo(0, 0.3);
-    }
-});
-
-$(window).on("resize", function() {
-    $(window).trigger("relayout");
-});
 
 (function() {
-    const DEFAULT_ITEM_HEIGHT = 21;
+    const DEFAULT_ITEM_HEIGHT = 44;
 
-    playlist.trackDisplay = new TrackDisplay("app-track-display");
+    playlist.trackDisplay = new TrackDisplay("track-display");
 
     playlist.main = new Playlist("#app-playlist-container", {
         itemHeight: DEFAULT_ITEM_HEIGHT
+    });
+
+    $(window).on("clear", function() {
+        playlist.main.clearSelection();
     });
 
     const actions = {
@@ -32512,17 +33853,15 @@ $(window).on("resize", function() {
 
     var playlistModeManager = new PlaylistModeManager(".playlist-controls-container", playlist.main);
 
-    PanelControls.makeTooltip($(".menul-folder"), "Add a folder");
-    PanelControls.makeTooltip($(".menul-files"), "Add files");
-    PanelControls.makeTooltip($(".menul-hotkeys"), "Configure hotkeys");
-    PanelControls.makeTooltip($(".menul-crossfade"), "Configure crossfading");
-    PanelControls.makeTooltip($(".menul-equalizer"), "Configure equalizer");
+    GlobalUi.makeTooltip($(".menul-folder"), "Add a folder");
+    GlobalUi.makeTooltip($(".menul-files"), "Add files");
+    GlobalUi.makeTooltip($(".menul-hotkeys"), "Configure shortcuts");
+    GlobalUi.makeTooltip($(".menul-crossfade"), "Configure crossfading");
+    GlobalUi.makeTooltip($(".menul-equalizer"), "Configure equalizer");
 
     playlist.main.on("trackChange", function(track) {
         if (!track) return;
-        var index = track.getIndex();
-        var trackNumber = index >= 0 ? (index + 1) + "." : "";
-        playlist.trackDisplay.newTitle(trackNumber + " " + track.formatFullName()).beginMarquee();
+        playlist.trackDisplay.setTrack(track);
     });
 
     $(document).ready(function() {
@@ -32550,7 +33889,6 @@ $(window).on("resize", function() {
         });
     });
 
-
     $(window).on("load", function() {
         keyValueDatabase.getInitialValues().then(function() {
             $("#app-loader").remove();
@@ -32559,9 +33897,9 @@ $(window).on("resize", function() {
         });
     });
 
-    window.addEventListener("beforeunload", function(e) {
+    $(window).on("beforeunload", function(e) {
         e.preventDefault();
-        e.returnValue = "Are you sure you want to exit?";
+        e.originalEvent.returnValue = "Are you sure you want to exit?";
         return e.returnValue;
     }, false);
 
@@ -33029,12 +34367,7 @@ const PRESET_HTML = (function() {
     }).join("") + "</select>";
 })();
 
-const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-container'>    \
-        <div class='popup-header'>                                                           \
-            <h2 class='app-header-2'>Crossfading</h2>                                        \
-        </div>                                                                               \
-        <div class='popup-body'>                                                             \
-            <div class='cross-fade-album-preference-container'>                              \
+const POPUP_EDITOR_HTML = "<div class='cross-fade-album-preference-container'>               \
                 <div class='checkbox-container'>                                             \
                     <label class='checkbox-label'>                                           \
                         <input type='checkbox' class='album-crossfade-preference checkbox'>  \
@@ -33051,10 +34384,9 @@ const POPUP_EDITOR_HTML = "<div class='crossfading-configurator popup-content-co
             <div class='right fade-out-configurator fade-configurator-container'></div>      \
             <div class='clear'></div>                                                        \
             <div class='section-separator'></div>                                            \
-            <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>         \
-        </div>                                                                               \
-    </div>";
+            <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>";
 
+const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML);
 var preferences = new CrossFadePreferences();
 preferences.copyFrom(presets["Default"]);
 crossfading.getPreferences = function() {
@@ -33076,9 +34408,9 @@ const savePreferences = function(preferences) {
 };
 
 const openPopup = function() {
-    popup.open(POPUP_EDITOR_HTML, 550, 445);
-    var manager = new CrossFadeManager(".crossfading-configurator", crossfading.getPreferences());
-    popup.once("close", function() {
+    crossfadingPopup.open();
+    var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
+    crossfadingPopup.once("close", function() {
         manager.destroy();
     });
     manager.on("preferencesUpdate", function() {
@@ -33614,28 +34946,23 @@ hotkeyManager.addDescriptor({
 ;
 ;
 var filter = {};
+var filterPopup = GlobalUi.makePopup("Filter",
+            "<div class='filter-container'>                                                             \
+                <div class='app-bread-text'>Find tracks on the playlist that match the given text.</div> \
+                <div id='track-searcher-container'></div></div>");
 
 filter.show = function() {
     if (playlist.main.length > 0) {
-        popup.open("<div class='popup-content-container'>                                                            \
-                        <div class='popup-header'>                                                                   \
-                            <h2 class='app-header-2'>Filter</h2>                                                     \
-                        </div>                                                                                       \
-                        <div class='popup-body'>                                                                     \
-                            <div class='app-bread-text'>Find tracks on the playlist that match the given text.</div> \
-                            <div id='track-searcher-container'></div>                                                \
-                        </div>                                                                                       \
-                    </div>",
-        415, 495);
+        filterPopup.open();
 
-        var trackSearcher = new TrackSearcher(playlist.main, "#track-searcher-container");
+        var trackSearcher = new TrackSearcher(playlist.main, filterPopup.$().find(".filter-container"));
 
-        popup.closeEvent(function() {
+        filterPopup.once("close", function() {
             trackSearcher.destroy();
         });
 
-        trackSearcher.on("destroy", function() {
-            popup.closeAll();
+        trackSearcher.once("destroy", function() {
+            filterPopup.close();
         });
 
         setTimeout(function() {
@@ -33654,30 +34981,32 @@ hotkeyManager.addDescriptor({
 
 ;
 ;
-var workerPool = new WorkerPool((navigator.hardwareConcurrency || 2) - 1, "worker/root.js");
-var replayGainProcessor = new ReplayGainProcessor(workerPool);
+var loudnessCalculator = new LoudnessCalculator(new WorkerPool(1, "worker/loudness.js"));
+var fingerprintCalculator = new FingerprintCalculator(new WorkerPool(1, "worker/fingerprint.js"));
+var trackAnalyzer = new TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist.main);
 var localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
-new ID3Process(playlist.main, replayGainProcessor);
+var tagProcessor = new ID3Process(playlist.main, player.main, trackAnalyzer);
+
+
 
 $(document)
-    .bind('dragenter', function(ev) {
+    .on('dragenter', function(ev) {
         return false;
     })
-    .bind("dragleave", function(ev) {
+    .on("dragleave", function(ev) {
         return false;
     })
-    .bind("dragover", function(ev) {
+    .on("dragover", function(ev) {
         return false;
     })
-    .bind("drop", function(ev) {
+    .on("drop", function(ev) {
         localFiles.handle(ev.originalEvent.dataTransfer.files);
         ev.preventDefault();
         ev.stopPropagation();
         return false;
     })
-    .bind("selectstart", function(e) {
-        var insideInput = !!(/textarea|input|select/i.test(e.target.nodeName) || e.target.isContentEditable);
-        if (!insideInput) {
+    .on("selectstart", function(e) {
+        if (!util.isTextInputNode(e.target)) {
             e.preventDefault();
         }
     });
@@ -33694,6 +35023,7 @@ $(document)
     const MAX_FFT_FREQUENCY = 18500;
     const BYTE_MAX_SIZE = 255;
     const CAP_DROP_TIME_DEFAULT = 550;
+    const ALPHA_TIME_DEFAULT = 385;
     const CAP_HOLDOUT_TIME = 55;
     const CAP_DROP_TIME_IDLE = CAP_DROP_TIME_DEFAULT;
 
@@ -33744,6 +35074,7 @@ $(document)
     }
 
     var capDropTime = CAP_DROP_TIME_DEFAULT;
+
     function getCapPosition(position, now) {
         if (position.binValue === -1) {
             return 0;
@@ -33766,13 +35097,14 @@ $(document)
     }
 
     function drawCap(x, capSample, capInfo, now) {
+        var alpha = 1 - (capInfo.started >= 0 ?
+            Math.min(1, (now - capInfo.started) / ALPHA_TIME_DEFAULT) : 0);
         var capY = capSample * HIGHEST_Y + CAP_SPACE;
         context.fillRect(x, HEIGHT - capY, BIN_WIDTH, CAP_HEIGHT);
-        var alpha = capSample / capInfo.binValue * 0.96;
         var originalY = capY - CAP_SPACE - 1;
         context.fillStyle = "rgb(184, 228, 246)";
         context.save();
-        context.globalAlpha = alpha;
+        context.globalAlpha = alpha * 0.9;
         context.shadowBlur = 0;
         context.fillRect(x, HEIGHT - originalY, BIN_WIDTH, originalY);
         context.restore();
@@ -33874,4 +35206,5 @@ $(document)
 ;
 ;
 hotkeyManager.enableHotkeys();
-hotkeyManager.enablePersistentHotkeys()
+hotkeyManager.enablePersistentHotkeys();
+serviceWorkerManager.start();

@@ -351,7 +351,7 @@ var equalizer = new EventEmitter();
                     "+presetContainerHtml+"                                  \
                 </div>";
     })();
-    const equalizerPopup = PanelControls.makePopup("Equalizer", html);
+    const equalizerPopup = GlobalUi.makePopup("Equalizer", html, ".menul-equalizer");
 
     function gainValueToProgress(gainValue) {
         var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);

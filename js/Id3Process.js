@@ -63,7 +63,7 @@ function ID3Process(playlist, player, trackAnalyzer) {
     }
     this.queueSet = new DS.Set();
     this.jobPollerId = -1;
-    playlist.on("lengthChange", $.proxy(this.playlistLengthChanged, this));
+    playlist.on("lengthChange", this.playlistLengthChanged.bind(this));
     playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
     playlist.on("trackChange", this.currentTrackChanged.bind(this));
 }
@@ -72,19 +72,14 @@ function isNull(value) {
     return value === null;
 }
 
-ID3Process.prototype.currentTrackChanged = function(track) {
+ID3Process.prototype.currentTrackChanged = util.throttle(function(track) {
     if (track && track.shouldRetrieveAcoustIdImage()) {
-        var self = this;
-        track.fetchAcoustIdImage().then(function() {
-            if (self.playlist.getCurrentTrack() === track &&
-                track.tagData.hasAcoustIdImage()) {
-                self.player.getPictureManager().updateImage(track.getImage());
-            }
-        });
+        track.fetchAcoustIdImage();
     }
-};
+}, 1000);
 
 ID3Process.prototype.nextTrackChanged = util.throttle(function(track) {
+
     if (track && track.shouldRetrieveAcoustIdImage()) {
         track.fetchAcoustIdImage();
     }
@@ -181,13 +176,28 @@ ID3Process.prototype.getTagSize = function(bytes, version, magicOffset) {
 };
 
 ID3Process.prototype.fillInAcoustId = function(track, duration, fingerprint) {
+    var self = this;
     metadataRetriever.getAcoustIdDataForTrack(track, duration, fingerprint).then(function(acoustId) {
         if (!track.isDetachedFromPlaylist()) {
             track.tagData.setAcoustId(acoustId);
             tagDatabase.updateAcoustId(track.getUid(), acoustId);
+
+            if (self.playlist.isTrackHighlyRelevant(track) &&
+                track.shouldRetrieveAcoustIdImage()) {
+                track.fetchAcoustIdImage();
+            }
         }
         return null;
+    }).catch(function(e) {
+        if (e && e.statusText && e.statusText === "timeout") {
+            return;
+        }
+        console.log("AcoustId fetch failed:", e.message, e.code);
     });
+
+    if (this.playlist.isTrackHighlyRelevant(track)) {
+        metadataRetriever.prioritize(track);
+    }
 };
 
 ID3Process.prototype.loadNext = function() {
@@ -235,11 +245,12 @@ ID3Process.prototype.loadNext = function() {
             tagDatabase.query(id).then(function(value) {
                 var shouldAnalyzeLoudness = !value || value.trackGain === undefined;
                 var shouldCalculateFingerprint = !value || value.fingerprint === undefined;
-                var shouldRetrieveAcoustIdMetaData = shouldCalculateFingerprint || value.acoustId === undefined;
+                var shouldRetrieveAcoustIdMetaData = (shouldCalculateFingerprint ||
+                                                     (value && value.acoustId === undefined));
 
                 var acoustId = Promise.resolve(null);
 
-                if (shouldRetrieveAcoustIdMetaData && value.fingerprint && value.duration) {
+                if (shouldRetrieveAcoustIdMetaData && value && value.fingerprint && value.duration) {
                     self.fillInAcoustId(track, value.duration, value.fingerprint);
                 }
 
@@ -252,8 +263,10 @@ ID3Process.prototype.loadNext = function() {
                     return self.trackAnalyzer.analyzeTrack(track, analyzerOptions).finally(function() {
                         track.unsetAnalysisStatus();
                     }).then(function(result) {
+                        var duration = value ? value.duration : result.duration;
+
                         if (result.fingerprint && result.fingerprint.fingerprint && shouldRetrieveAcoustIdMetaData) {
-                            self.fillInAcoustId(track, value.duration, result.fingerprint.fingerprint);
+                            self.fillInAcoustId(track, duration, result.fingerprint.fingerprint);
                         }
 
                         return $.extend({},

@@ -47,6 +47,8 @@ function Popup(opts) {
     opts = Object(opts);
 
     this.transitionClass = opts.transitionClass || "";
+    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
+    this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
     this.containerClass = util.combineClasses(opts.containerClass, "popup-container");
     this.headerClass = util.combineClasses(opts.headerClass, "popup-header");
     this.bodyClass = util.combineClasses(opts.bodyClass, "popup-body");
@@ -151,6 +153,7 @@ Popup.prototype.open = function() {
             $node.removeClass("initial");
             $node[0].offsetHeight;
         }
+        this.beforeTransitionIn(this.$());
     } catch (e) {
         this.close();
         throw e;
@@ -159,6 +162,7 @@ Popup.prototype.open = function() {
 };
 
 Popup.prototype.mousemoved = function(e) {
+    if (!this._shown) return;
     if (e.type === "mousemove" && e.which !== 1) {
         return this.draggingEnd();
     } else if (e.type === "touchmove" && e.touches && e.touches.length !== 1) {
@@ -170,6 +174,7 @@ Popup.prototype.mousemoved = function(e) {
 };
 
 Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
+    if (!this._shown) return;
     if ($(e.target).closest(this.closerContainerClass).length > 0) return;
     var box = this.$()[0].getBoundingClientRect();
     this._anchorDistanceX = e.clientX - box.left;
@@ -194,7 +199,12 @@ Popup.prototype.close = function() {
     if (!this._shown) return;
     this._shown = false;
     shownPopups.splice(shownPopups.indexOf(this), 1);
-    this.$().remove();
+    
+    var $node = this._popupDom;
+    Promise.resolve(this.beforeTransitionOut(this._popupDom)).finally(function() {
+        $node.remove();
+    });
+
     this.draggingEnd();
     this._popupDom = NULL;
 

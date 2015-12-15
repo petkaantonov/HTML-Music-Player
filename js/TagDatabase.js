@@ -54,6 +54,7 @@ TagDatabase.prototype.getAlbumImage = function(album) {
 
 TagDatabase.prototype.setAlbumImage = function(album, url) {
     if (!album) return Promise.resolve(null);
+    album = album.toLowerCase();
     return this.db.then(function(db) {
         var store = db.transaction(COVERART_TABLE_NAME, READ_WRITE).objectStore(COVERART_TABLE_NAME);
         var obj = {

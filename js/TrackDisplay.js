@@ -27,12 +27,44 @@ function TrackDisplay(target, opts) {
     this._amounts = 0;
     this._direction = "right";
     this._scrollWidth = 0;
+    this._track = null;
+    this._trackDataUpdated = this._trackDataUpdated.bind(this);
+    this._trackIndexChanged = this._trackIndexChanged.bind(this);
 };
 
-TrackDisplay.prototype.newTitle = function(titleName) {
-    $(document.getElementById(this._target)).text(titleName);
-    document.title = titleName;
+TrackDisplay.prototype.clearPrevious = function() {
+    if (!this._track) return;
+    this._track.removeListener("indexChange", this._trackIndexChanged);
+    this._track.removeListener("tagDataUpdate", this._trackDataUpdated);
+    this._track = null;
+};
+
+TrackDisplay.prototype._trackDataUpdated = function() {
+    this.update();
+};
+
+TrackDisplay.prototype._trackIndexChanged = function() {
+    this.update();
+};
+
+TrackDisplay.prototype.update = function() {
+    var track = this._track;
+    var index = track.getIndex();
+    var trackNumber = index >= 0 ? (index + 1) + ". " : "";
+    var title = trackNumber + track.formatFullName();
+    $(document.getElementById(this._target)).text(title);
+    document.title = title;
     return this;
+};
+
+TrackDisplay.prototype.setTrack = function(track) {
+    if (track === this._track) return;
+    this.clearPrevious();
+    this._track = track;
+    track.on("indexChange", this._trackIndexChanged);
+    track.on("tagDataUpdate", this._trackDataUpdated);
+    this.update();
+    this.beginMarquee();
 };
 
 TrackDisplay.prototype.__marquer = function() {

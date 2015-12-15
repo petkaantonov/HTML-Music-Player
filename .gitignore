@@ -5,3 +5,4 @@ gh-pages
 test/browser/bundle.js
 zalgo.js
 coverage/*
+server.pem

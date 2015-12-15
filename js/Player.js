@@ -154,14 +154,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.preampGain.gain.value = 1;
     this.volumeGain.gain.value = player.getVolume();
 
-    var replayGain = equalizer.decibelChangeToAmplitudeRatio(
-        track.getTrackGain() || track.getAlbumGain() || -6);
-
-    if (track.getTrackPeak() * replayGain > 1) {
-        replayGain = (1 / track.getTrackPeak()) * replayGain;
-    }
-
-    this.replayGain.gain.value = replayGain;
+    this.normalizeLoudness();
 
     this.source.connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
@@ -179,7 +172,9 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.equalizerChanged = this.equalizerChanged.bind(this);
     this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
+    this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
 
+    track.on("tagDataUpdate", this.trackTagDataUpdated);
     equalizer.on("equalizerChange", this.equalizerChanged);
     crossfading.on("crossFadingChange", this.crossFadingChanged);
     player.playlist.on("nextTrackChange", this.nextTrackChanged);
@@ -188,6 +183,30 @@ function AudioManager(player, track, implicitlyLoaded) {
 AudioManager.prototype.nextTrackChanged = function() {
     if (this.destroyed) return;
     this.updateSchedules();
+};
+
+AudioManager.prototype.trackTagDataUpdated = function() {
+    if (this.destroyed || this.player.currentAudioManager !== this) return;
+    var track = this.track;
+
+    if (track.hasNonDefaultImage()) {
+        this.player.getPictureManager().updateImage(track.getImage());
+    }
+
+    this.normalizeLoudness();
+};
+
+AudioManager.prototype.normalizeLoudness = function() {
+    if (this.destroyed) return;
+    var track = this.track;
+    var replayGain = equalizer.decibelChangeToAmplitudeRatio(
+        track.getTrackGain() || track.getAlbumGain() || -6);
+
+    if (track.getTrackPeak() * replayGain > 1) {
+        replayGain = (1 / track.getTrackPeak()) * replayGain;
+    }
+
+    this.replayGain.gain.value = replayGain;
 };
 
 AudioManager.prototype.getImage = function() {
@@ -457,6 +476,7 @@ AudioManager.prototype.destroy = function() {
     this.fadeOutGain.disconnect();
     this.source.disconnect();
     this.visualizer.destroy();
+    this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
     this.mediaElement.removeEventListener("timeupdate", this.timeUpdated, false);
     this.mediaElement.removeEventListener("ended", this.ended, false);
     this.mediaElement.removeEventListener("error", this.errored, false);
@@ -516,13 +536,13 @@ function Player(dom, playlist, opts) {
     this.$next().click(playlist.next.bind(playlist));
     this.$previous().click(playlist.prev.bind(playlist));
 
-    this._playTooltip = PanelControls.makeTooltip(this.$play(), function() {
+    this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"
                             : self.isPaused ? "Resume playback" : "Start playback";
     });
 
-    this._nextTooltip = PanelControls.makeTooltip(this.$next(), "Next track");
-    this._previousTooltip = PanelControls.makeTooltip(this.$previous(), "Previous track");
+    this._nextTooltip = GlobalUi.makeTooltip(this.$next(), "Next track");
+    this._previousTooltip = GlobalUi.makeTooltip(this.$previous(), "Previous track");
 
     playlist.on("loadNeed", this.loadTrack.bind(this));
     playlist.on("playlistEmpty", this.stop.bind(this));
@@ -816,17 +836,16 @@ Player.prototype.checkButtonState = function() {
 
     if (!this.isStopped) {
         this.$play().removeClass("disabled");
-        this.$play().addClass("active");
         if (this.isPlaying) {
-            this.$play()
-                .find(".play-pause-morph-icon")
-                .removeClass("pause")
-                .addClass("play");
-        } else {
             this.$play()
                 .find(".play-pause-morph-icon")
                 .removeClass("play")
                 .addClass("pause");
+        } else if (this.isPaused) {
+            this.$play()
+                .find(".play-pause-morph-icon")
+                .removeClass("pause")
+                .addClass("play");
         }
     } else {
         this.$play().removeClass("active")

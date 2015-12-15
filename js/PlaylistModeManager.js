@@ -12,13 +12,13 @@ function PlaylistModeManager(dom, playlist) {
     this.playlist = playlist;
     this._domNode = $(dom);
 
-    this.shuffleTooltip = PanelControls.makeTooltip(this.$shuffle(), function() {
+    this.shuffleTooltip = GlobalUi.makeTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
                                           : "<p><strong>Enable</strong> shuffle mode</p>" +
                                             SHUFFLE_MODE_TOOLTIP;
     });
 
-    this.repeatTooltip = PanelControls.makeTooltip(this.$repeat(), function() {
+    this.repeatTooltip = GlobalUi.makeTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
                                          : "<p><strong>Enable</strong> repeat mode</p>";
     });

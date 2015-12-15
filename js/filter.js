@@ -1,8 +1,9 @@
 var filter = {};
-var filterPopup = PanelControls.makePopup("Filter",
+var filterPopup = GlobalUi.makePopup("Filter",
             "<div class='filter-container'>                                                             \
                 <div class='app-bread-text'>Find tracks on the playlist that match the given text.</div> \
-                <div id='track-searcher-container'></div></div>");
+                <div id='track-searcher-container'></div></div>",
+                ".menul-filter");
 
 filter.show = function() {
     if (playlist.main.length > 0) {

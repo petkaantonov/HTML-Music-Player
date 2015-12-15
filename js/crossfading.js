@@ -194,7 +194,7 @@ const POPUP_EDITOR_HTML = "<div class='cross-fade-album-preference-container'>  
             <div class='section-separator'></div>                                            \
             <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>";
 
-const crossfadingPopup = PanelControls.makePopup("Crossfading", POPUP_EDITOR_HTML);
+const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade");
 var preferences = new CrossFadePreferences();
 preferences.copyFrom(presets["Default"]);
 crossfading.getPreferences = function() {
