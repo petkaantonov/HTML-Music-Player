@@ -96,6 +96,6 @@ const fieldUpdater = function(fieldName) {
 
 TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
-TagDatabase.prototype.updateCoverArtImageUrl = fieldUpdater("coverArtImageUrl");
+TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
 
 return new TagDatabase();})();

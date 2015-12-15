@@ -971,16 +971,7 @@ function PreloadedMediaElement(track) {
     this.track = track;
     this.timeUpdated = this.timeUpdated.bind(this);
     this.errored = this.errored.bind(this);
-    this.tagDateUpated = this.tagDateUpated.bind(this);
-
-    if (!tagData || !tagData.hasPicture()) {
-        this.track.once("tagDataUpdate", this.tagDateUpated);
-    }
 }
-
-PreloadedMediaElement.prototype.tagDateUpated = function() {
-    this.image = this.track.getImage();
-};
 
 PreloadedMediaElement.prototype.errored = function() {
     this.error = true;
@@ -989,7 +980,6 @@ PreloadedMediaElement.prototype.errored = function() {
 PreloadedMediaElement.prototype.removeListeners = function() {
     this.mediaElement.removeEventListener("timeupdate", this.timeUpdated, false);
     this.mediaElement.removeEventListener("error", this.errored, false);
-    this.track.removeListener("tagDataUpdate", this.tagDateUpated);
 };
 
 PreloadedMediaElement.prototype.timeUpdated = function() {

@@ -252,12 +252,6 @@ Playlist.prototype.renderItems = function() {
     displayedTracks.length = end - start + 1;
 };
 
-Playlist.prototype.getTracksByAlbum = function(album) {
-    return this._trackList.filter(function(track) {
-        return !!(track.tagData && track.tagData.album === album);
-    });
-};
-
 Playlist.prototype.trackVisibilityChanged = function() {
     if (this.requestedRenderFrame) {
         cancelAnimationFrame(this.requestedRenderFrame);

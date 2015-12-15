@@ -72,18 +72,19 @@ function isNull(value) {
     return value === null;
 }
 
-ID3Process.prototype.currentTrackChanged = util.throttle(function(track) {
-    if (track && track.shouldRetrieveAcoustIdImage()) {
-        track.fetchAcoustIdImage();
-    }
-}, 1000);
-
-ID3Process.prototype.nextTrackChanged = util.throttle(function(track) {
-
+var retrieveAcoustIdImage = util.throttle(function(track) {
     if (track && track.shouldRetrieveAcoustIdImage()) {
         track.fetchAcoustIdImage();
     }
 }, 2500);
+
+ID3Process.prototype.currentTrackChanged = function(track) {
+    retrieveAcoustIdImage(track);
+};
+
+ID3Process.prototype.nextTrackChanged = function(track) {
+    retrieveAcoustIdImage(track);
+};
 
 ID3Process.prototype.checkEmpty = function() {
     if (this.queueProcessors.every(isNull)) {
@@ -242,7 +243,14 @@ ID3Process.prototype.loadNext = function() {
             track.setTagData(tagData);
             var id = track.getUid();
 
-            tagDatabase.query(id).then(function(value) {
+            var coverArt = Promise.resolve(null);
+            if (tagData.album) {
+                coverArt = tagDatabase.getAlbumImage(tagData.album.toLowerCase())
+            }
+
+            Promise.join(tagDatabase.query(id), coverArt, function(value, coverArt) {
+                if (coverArt && value) value.coverArt = coverArt;
+
                 var shouldAnalyzeLoudness = !value || value.trackGain === undefined;
                 var shouldCalculateFingerprint = !value || value.fingerprint === undefined;
                 var shouldRetrieveAcoustIdMetaData = (shouldCalculateFingerprint ||

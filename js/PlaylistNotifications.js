@@ -90,23 +90,18 @@ PlaylistNotifications.prototype.notificationErrored = function(e) {
 
 PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
     var track = this.playlist.getCurrentTrack();
-    var tagData = track.getTagData();
-    var body = "";
-    if (tagData) body = tagData.getAlbum() || "";
+    var info = track.getTrackInfo();
 
-    if (body) {
-        body += "\n\n(Click to skip)";
-    } else {
-        body += "(Click to skip)";
-    }
-
-    var title = (track.getIndex() + 1) + ". " +
-            track.formatName() + " ("+track.formatTime()+")";
+    var body = info.artist;
+    var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
 
     var notification = new Notification(title, {
         tag: "track-change-notification",
         body: body,
-        icon: track.getImageUrl()
+        icon: track.getImageUrl(),
+        requireInteraction: true,
+        renotify: false,
+        sticky: true
     });
 
     this.currentNotification = notification;
