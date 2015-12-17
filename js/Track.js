@@ -545,15 +545,14 @@ Track.prototype.shouldRetrieveAcoustIdImage = function() {
     return !!(this.tagData && this.tagData.shouldRetrieveAcoustIdImage());
 };
 
+const rType =
+    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
 Track.WAV = 0
 Track.MP3 = 1;
 Track.AAC = 2;
 Track.WEBM = 3;
 Track.OGG = 4;
-
 Track.UNKNOWN_FORMAT = 9999;
-
-const MPEGSyncWord = /\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF]/;
 
 const formats = [
     [/^(audio\/vnd.wave|audio\/wav|audio\/wave|audio\/x-wav)$/, Track.WAV],
@@ -575,24 +574,14 @@ Track.prototype.getFormat = function(initialBytes) {
     if (type && matches.length) {
         return matches[0][1];
     } else if (!type) {
-        initialBytes = initialBytes.slice(0, 10);
-
-        if (initialBytes.indexOf("ID3") !== -1 ||
-            MPEGSyncWord.test(initialBytes)) {
-            return Track.MP3
-        } else if (initialBytes.indexOf("RIFF") !== -1 &&
-                   initialBytes.indexOf("WAVE") !== -1) {
-            return Track.WAV;
-        } else if (initialBytes.indexOf("OggS") !== -1) {
-            return Track.OGG
-        } else if (initialBytes.indexOf("\xFF\xF1") !== -1 ||
-                   initialBytes.indexOf("\xFF\xF9") !== -1) {
-            return Track.AAC
-        } else if (initialBytes.indexOf("\x1A\x45\xDF\xA3") !== -1) {
-            return Track.WEBM;
-        } else {
-            return Track.UNKNOWN_FORMAT;
+        var match = rType.exec(initialBytes.slice(0, 10));
+        for (var i = 0; i < formats.length; ++i) {
+            if (match[formats[i][1]] !== undefined) {
+                return formats[i][1];
+            }
         }
+
+        return Track.UNKNOWN_FORMAT;
     } else {
         return Track.UNKNOWN_FORMAT;
     }

@@ -4,6 +4,8 @@
     const canvas = document.getElementById("visualizer");
     const context = canvas.getContext("2d");
 
+    const TARGET_FPS = 48;
+    const MIN_ELAPSED = (1000 / TARGET_FPS) - 1;
     const MAX_FFT_FREQUENCY = 18500;
     const BYTE_MAX_SIZE = 255;
     const CAP_DROP_TIME_DEFAULT = 550;
@@ -41,6 +43,7 @@
 
     const NUM_BINS = Math.floor(WIDTH / BIN_SPACE);
     Player.visualizerBins(NUM_BINS);
+    Player.targetFps(TARGET_FPS);
     const CAP_STYLE = "rgb(37,117,197)";
     const BIN_STYLE = gradient;
 
@@ -141,7 +144,11 @@
     }
 
     var nothingToDraw = 0;
+    var lastDrew = 0;
     player.main.on("visualizerData", function(event) {
+        if (event.now - lastDrew < MIN_ELAPSED) return;
+        lastDrew = event.now;
+
         var fresh = false;
 
         if (event.paused) {

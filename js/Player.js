@@ -133,7 +133,7 @@ function AudioManager(player, track, implicitlyLoaded) {
 
     this.source = getMediaElementSourceFor(this.mediaElement);
     this.visualizer = new AudioVisualizer(audioCtx, {
-        fps: 48,
+        fps: Player.targetFps(),
         bins: Player.visualizerBins(),
         baseSmoothingConstant: 0.0007,
         maxFrequency: 12500,
@@ -954,6 +954,14 @@ Player.visualizerBins = function(value) {
     }
 };
 
+var targetFps = 48;
+Player.targetFps = function(value) {
+    if (value !== undefined) {
+        targetFps = value;
+    } else {
+        return targetFps;
+    }
+};
 
 function PreloadedMediaElement(track) {
     var tagData = track.getTagData();

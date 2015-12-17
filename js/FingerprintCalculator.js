@@ -37,6 +37,10 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
         source.connect(resampler.destination);
         source.start(0);
         resampler.oncomplete = function(event) {
+            source.stop();
+            source.disconnect();
+            source = null;
+            resampler = null;
             var resampledBuffer = event.renderedBuffer;
             var frames = resampledBuffer.length;
             resampledBuffer.copyFromChannel(self._buffer, 0);
@@ -44,15 +48,6 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
                 length: frames
             }], [self._buffer.buffer]);
             resolve(result);
-            source.disconnect();
-            source = null;
-            resampler = null;
-        };
-        resampler.onerror = function() {
-            source.disconnect();
-            source = null;
-            resampler = null;
-            reject(new AudioError());
         };
         resampler.startRendering();
 

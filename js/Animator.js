@@ -38,6 +38,22 @@ function Move(x, y) {
     this.y = y;
 }
 
+Move.prototype.yAt = function(progress) {
+    return this.y;
+};
+
+Move.prototype.xAt = function(progress) {
+    return this.x;
+};
+
+Move.prototype.startX = function() {
+    return this.x;
+};
+
+Move.prototype.startY = function() {
+    return this.y;
+};
+
 Move.prototype.endX = function() {
     return this.x;
 };
@@ -280,13 +296,16 @@ function Animation(animator, path, duration) {
     this.maxDuration = animator._additionalProperties.reduce(function(max, cur) {
         return Math.max(max, cur.duration);
     }, 0);
+    this.singleUsesCleared = false;
     this.started = Date.now();
 }
 
 Animation.prototype.animate = function(now) {
     var ret = true;
     var elapsed = now - this.started;
-    if (elapsed >= this.maxDuration) ret = false;
+    if (elapsed >= this.maxDuration) {
+        ret = false;
+    }
 
     if (this.path) {
         var progress = this.animator._interpolate(elapsed, this.duration);
@@ -298,26 +317,36 @@ Animation.prototype.animate = function(now) {
     } else {
         this.animator._progress(elapsed, this.duration);
     }
+
+    if (ret === false && !this.singleUsesCleared) {
+        this.animator._additionalProperties = this.animator._additionalProperties.filter(function(v) {
+            return v.repeat !== "none";
+        });
+        this.singleUsesCleared = true;
+    }
+
     return ret;
 };
 
 const validProperties = [
     "scale", "scaleX", "scaleY", "rotate", "skew",
-    "skewX", "skewY", "rotateX", "rotateY", "opacity"
+    "skewX", "skewY", "rotateX", "rotateY", "opacity",
+    "translateX", "translateY", "translate"
 ];
 
-const multiProperties = ["scale", "skew"];
+const multiProperties = ["scale", "skew", "translate"];
 const transformProperties = [
     "scale", "scaleX", "scaleY", "rotate", "skew",
-    "skewX", "skewY", "rotateX", "rotateY"
+    "skewX", "skewY", "rotateX", "rotateY", "translateX",
+    "translateY", "translate"
 ];
 function AdditionalAnimationProperty(animator, property) {
     this.name = property.name + "";
     this.isTransform = transformProperties.indexOf(this.name) >= 0;
-    this.isMulti = transformProperties.indexOf(this.name) >= 0;
+    this.isMulti = multiProperties.indexOf(this.name) >= 0;
 
     if (validProperties.indexOf(this.name) === -1) {
-        throw new Error(name + " is not an animatable property");
+        throw new Error(this.name + " is not an animatable property");
     }
 
     this.interpolate = property.interpolate || animator._interpolate;
@@ -325,6 +354,7 @@ function AdditionalAnimationProperty(animator, property) {
     this.end = property.end;
     this.unit = property.unit || "";
     this.duration = "duration" in property ? +property.duration : -1;
+    this.repeat = property.repeat || "none";
 
     if (this.isMulti) {
         if (!Array.isArray(this.start)) {
@@ -346,6 +376,21 @@ function AdditionalAnimationProperty(animator, property) {
 
 AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     if (this.duration !== -1) total = this.duration;
+
+    if (current > total) {
+        if (this.repeat === "none") {
+            return null;
+        } else if (this.repeat === "cycle") {
+            if (Math.floor(current / total) % 2 === 1) {
+                current = total - (current % total);
+            } else {
+                current = current % total;
+            }
+        } else {
+            current = current % total;
+        }
+    }
+
     var progress = this.interpolate(current, total);
     var result = "";
     if (this.isMulti) {
@@ -391,26 +436,133 @@ function Animator(dom, opts) {
         return !value.isTransform;
     });
 
+    this._hasCycles = this._additionalProperties.filter(function(value) {
+        return value.repeat !== "none";
+    }).length > 0;
+
     this._gotAnimationFrame = this._gotAnimationFrame.bind(this);
+    this.stop = this.stop.bind(this);
 }
 util.inherits(Animator, EventEmitter);
+
+const parsePath = (function() {
+    const number = "[01]+(?:\\.\\d+)?"
+    const point = number + "[, ]" + number + "";
+    const rpath = new RegExp("(?:( ?M ("+point+"))|( ?C ("+point+
+                                ") ("+point+") ("+point+"))|( ?L ("+point+"))|\\s+)", "g");
+    const rsplit = /[, ]/;
+
+    return function parse(str) {
+        str = "" + str;
+        var ret = [];
+        var m;
+        rpath.lastIndex = 0;
+        while(m = rpath.exec(str)) {
+            if (m[1] !== undefined) {
+                var p = m[2].split(rsplit);
+                ret.push(new Move(+p[0], +p[1]));
+            } else if (m[3] !== undefined) {
+                if (!ret.length) ret.push(new Move(0, 0));
+                var cp1 = m[4].split(rsplit);
+                var cp2 = m[5].split(rsplit);
+                var p = m[6].split(rsplit);
+                var prev = ret[ret.length - 1];
+                ret.push(new CubicCurve(prev.endX(), prev.endY(), +p[0], +p[1], +cp1[0], +cp1[1],  +cp2[0], +cp2[1]));
+            } else if (m[7] !== undefined) {
+                if (!ret.length) ret.push(new Move(0, 0));
+                var p = m[8].split(rsplit);
+                var prev = ret[ret.length - 1];
+                ret.push(new Line(prev.endX(), prev.endY(), +p[0], +p[1]));
+            }
+        }
+
+        if (ret.length < 2) throw new Error("too few items");
+
+        if (ret[0].startX() !== 0) throw new Error("path must start at 0");
+        if (ret[ret.length - 1].endX() !== 1) throw new Error("path must end at 1");
+
+        var prev = ret[0];
+        for (var i = 1; i < ret.length; ++i) {
+            if (ret[i].startX() !== prev.endX()) {
+                throw new Error("path must not have gaps");
+            }
+            prev = ret[i];
+        }
+
+        return ret;
+    };
+})();
+
+const makePathEasing = function(path) {
+    path = parsePath(path);
+
+    return function(current, total) {
+        var progress = Math.min(1, Math.max(0, current / total));
+
+        for (var i = 0; i < path.length; ++i) {
+            var start = path[i].startX();
+            var end = path[i].endX();
+
+            if (start <= progress && progress <= end) {
+                var progressWithin = (progress - start) / (path[i].endX() - start);
+                return path[i].yAt(progressWithin);
+            }
+        }
+    };
+};
 
 const makeEasing = function(a, b, c, d) {
     const solver = unitBezier(a, b, c, d).duration;
 
-    return function(cur, total) {
-        return solver(cur / total, total);
+    return function(current, total) {
+        var progress = Math.min(1, Math.max(0, current / total));
+        return solver(progress, total);
+    };
+};
+
+const makeDecelator = function(power) {
+    return function(current, total) {
+        var progress = Math.min(1, Math.max(0, current / total));
+        return 1 - Math.pow(1 - progress, power);
+    };
+};
+
+const makeAccelerator = function(power) {
+    return function(current, total) {
+        var progress = Math.min(1, Math.max(0, current / total));
+        return Math.pow(progress, power);
     };
 };
 
 Animator.TOP_AND_LEFT = 1;
 Animator.TRANSLATE = 2;
-Animator.LINEAR = function(a, b) { return a / b; };
+Animator.LINEAR = function(a, b) { return Math.min(1, Math.max(0, a / b)); };
 Animator.SWIFT_OUT = makeEasing(0.55, 0, 0.1, 1);
 Animator.EASE_IN = makeEasing(0.42, 0, 1, 1);
 Animator.EASE_OUT = makeEasing(0, 0, 0.58, 1);
 Animator.EASE_IN_OUT = makeEasing(0.42, 0, 0.58, 1);
 Animator.EASE = makeEasing(0.25, 0.1, 0.25, 1);
+Animator.DECELERATE_QUAD = makeDecelator(2);
+Animator.DECELERATE_CUBIC = makeDecelator(3);
+Animator.DECELERATE_QUART = makeDecelator(4);
+Animator.DECELERATE_QUINT = makeDecelator(5);
+Animator.ACCELERATE_QUAD = makeAccelerator(2);
+Animator.ACCELERATE_CUBIC = makeAccelerator(3);
+Animator.ACCELERATE_QUART = makeAccelerator(4);
+Animator.ACCELERATE_QUINT = makeDecelator(5);
+
+Animator.RECT1_SCALE_X = makePathEasing("M 0 0 L 0.3665 0 C 0.47252618112021,0.062409910275 0.61541608570164,0.5 0.68325,0.5 C 0.75475061236836,0.5 0.75725829093844,0.814510098964 1.0,1.0");
+Animator.RECT1_TRANSLATE_X = makePathEasing("M 0.0,0.0 L 0.2 0 C 0.3958333333336,0.0 0.474845090492,0.206797621729 0.5916666666664,0.417082932942 C 0.7151610251224,0.639379624869 0.81625,0.974556908664 1.0,1.0");
+Animator.RECT2_SCALE_X = makePathEasing("M 0,0 C 0.06834272400867,0.01992566661414 0.19220331656133,0.15855429260523 0.33333333333333,0.34926160892842 C 0.38410433133433,0.41477913453861 0.54945792615267,0.68136029463551 0.66666666666667,0.68279962777002 C 0.752586273196,0.68179620963216 0.737253971954,0.878896194318 1,1")
+Animator.RECT2_TRANSLATE_X = makePathEasing("M 0.0,0.0 C 0.0375,0.0 0.128764607715,0.0895380946618 0.25,0.218553507947 C 0.322410320025,0.295610602487 0.436666666667,0.417591408114 0.483333333333,0.489826169306 C 0.69,0.80972296795 0.793333333333,0.950016125212 1.0,1.0");
+
+Animator.prototype.stop = function() {
+    if (this.isAnimating()) {
+        cancelAnimationFrame(this._frameId);
+    }
+    this._animations = [];
+    this.emit("animationEnd", this);
+};
 
 Animator.prototype.isAnimating = function() {
     return this._frameId !== -1;
@@ -431,7 +583,6 @@ Animator.prototype._applyDirectProperties = function(node, current, total) {
 Animator.prototype._progress = function(current, total) {
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
-
     if (transforms) {
         node.style.transform = transforms;
     }
@@ -458,7 +609,9 @@ Animator.prototype._gotAnimationFrame = function() {
     var newFrameNeeded = false;
     var now = Date.now();
     for (var i = 0; i < this._animations.length; ++i) {
-        if (this._animations[i].animate(now)) {
+        var durationExceeded = this._animations[i].animate(now);
+
+        if (durationExceeded || this._hasCycles) {
             newFrameNeeded = true;
         } else {
             this._animations.splice(i, 1);
@@ -481,8 +634,9 @@ Animator.prototype._scheduleFrame = function() {
 
 Animator.prototype.animationEnd = function() {
     var self = this;
-    return new Promise(function(resolve) {
+    return new Promise(function(resolve, _, onCancel) {
         self.on("animationEnd", resolve);
+        onCancel(self.stop);
     });
 };
 

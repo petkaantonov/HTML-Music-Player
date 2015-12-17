@@ -193,6 +193,7 @@ ID3Process.prototype.fillInAcoustId = function(track, duration, fingerprint) {
         if (e && e.statusText && e.statusText === "timeout") {
             return;
         }
+        console.log(e.stack);
         console.log("AcoustId fetch failed:", e.message, e.code);
     });
 

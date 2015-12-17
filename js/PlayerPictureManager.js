@@ -1,12 +1,23 @@
 const PlayerPictureManager = (function() {"use strict";
 
+const START_SCALE = 0.95;
+const END_SCALE = 1;
+const START_ALPHA = 0;
+const END_ALPHA = 1;
+
 function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
     player.setPictureManager(this);
     this.favicon = $(null);
-    this.current = Promise.resolve();
+
+    
+    this._currentImage = null;
+    this._currentAnimation = null;
+    this._awaitingAnimation = null;
+
+    this._next = this._next.bind(this);
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
     this.player.on("newTrackLoad", this.newTrackLoaded);
 }
@@ -15,74 +26,109 @@ PlayerPictureManager.prototype.$ = function() {
     return this._domNode;
 };
 
-PlayerPictureManager.prototype.updateImage = function(image) {
-    const self = this;
-    var $img = this.$().find("img");
+PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
+    var self = this;
+    var image = this._currentImage;
+    var animator = new Animator(image, {
+        properties: [{
+            name: "opacity",
+            start: startState ? startState.alpha : END_ALPHA,
+            end: START_ALPHA,
+            duration: 300
+        }, {
+            name: "scale",
+            start: [startState ? startState.scale : END_SCALE,
+                    startState ? startState.scale : END_SCALE],
+            end: [START_SCALE, START_SCALE],
+            duration: 300
+        }],
+        interpolate: Animator.DECELERATE_CUBIC
+    });
 
-    if ($img.length) {
-        if (image && image.src === $img[0].src) return;
+    return animator.animate().finally(function() {
+        $(image).remove();
+        self._next();
+    });
+};
 
-        this.current = this.current.then(function() {
-            var animator = new Animator($img[0], {
-                properties: [{
-                    name: "opacity",
-                    start: 1,
-                    end: 0,
-                    duration: 250
-                }, {
-                    name: "scale",
-                    start: [1, 1],
-                    end: [0.8, 0.8],
-                    duration: 250
-                }],
-                interpolate: Animator.EASE
-            });
+PlayerPictureManager.prototype._startTransitioningIn = function(image) {
+    var self = this;
+    this._currentImage = image;
+    this._attachCurrentImage();
+    var animator = new Animator(image, {
+        properties: [{
+            name: "opacity",
+            start: START_ALPHA,
+            end: END_ALPHA,
+            duration: 300
+        }, {
+            name: "scale",
+            start: [START_SCALE, START_SCALE],
+            end: [END_SCALE, END_SCALE],
+            duration: 300
+        }],
+        interpolate: Animator.DECELERATE_CUBIC
+    });
 
-            return animator.animate();
-        }).then(function() {
-            $img.remove();
+    return animator.animate().then(function() {
+        self._next();
+    });
+};
+
+PlayerPictureManager.prototype._next = function() {
+    this._currentAnimation = null;
+    if (this._awaitingAnimation) {
+        this._currentAnimation = this._startTransitioningIn(this._awaitingAnimation);
+        this._awaitingAnimation = null;
+    }
+};
+
+PlayerPictureManager.prototype._attachCurrentImage = function() {
+    var self = this;
+    var image = this._currentImage;
+    $(image).css({
+        opacity: START_ALPHA,
+        transform: "scale(" + START_SCALE + "," +  START_SCALE + ")"
+    }).appendTo(this.$());
+
+    if (!image.complete) {
+        $(image).one("error", function() {
+            $(image).off("load error");
+            $(this).addClass("erroneous-image");
+        }).one("load", function() {
+            $(image).off("load error");
         });
     }
+};
 
+PlayerPictureManager.prototype._getCurrentAnimationState = function() {
+    var $img = $(this._currentImage);
+
+    return {
+        alpha: $img.css("opacity"),
+        scale: +($img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i)[1])
+    };
+};
+
+PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
+    if (this._currentImage && image.src === this._currentImage.src) return;
     image.width = image.height = 128;
 
-    function clear() {
-        $(image).off("load error");
+    if (!this._currentAnimation) {
+        if (this._currentImage) {
+            this._currentAnimation = this._startTransitioningOut();
+            this._awaitingAnimation = image;
+        } else {
+            this._currentAnimation = this._startTransitioningIn(image);
+        }
+    } else if (!this._awaitingAnimation) {
+        this._currentAnimation.cancel();
+        this._currentAnimation = this._startTransitioningOut(this._getCurrentAnimationState());
+        this._awaitingAnimation = image;
+    } else {
+        this._awaitingAnimation = image;
     }
-
-    this.current = this.current.then(function() {
-        $(image).appendTo(self.$())
-                    .css("opacity", 0)
-                    .one("error", function() {
-                        clear();
-                        $(this).addClass("erroneous-image");
-                    })
-                    .one("load", function() {
-                        clear();
-                    });
-
-        var animator = new Animator(image, {
-            properties: [{
-                name: "opacity",
-                start: 0,
-                end: 1,
-                duration: 350
-            }, {
-                name: "scale",
-                start: [0.8, 0.8],
-                end: [1, 1],
-                duration: 350
-            }],
-            interpolate: Animator.EASE
-        });
-
-        return animator.animate();
-    }).then(function() {
-        if (image.complete) clear();
-        self.current = Promise.resolve();
-        return null;
-    });
 };
 
 PlayerPictureManager.prototype.newTrackLoaded = function() {

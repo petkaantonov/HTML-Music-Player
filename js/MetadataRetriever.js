@@ -163,8 +163,8 @@ MetadataRetriever.prototype.canQuery = function() {
 MetadataRetriever.prototype._queuedRequest = function(track, duration, fingerprint) {
     var self = this;
     return new Promise(function(resolve, reject) {
-        track.once("destroy", this.trackDestroyed);
-        self.push({
+        track.once("destroy", self.trackDestroyed);
+        self._queue.push({
             resolve: resolve,
             reject: reject,
             track: track,
