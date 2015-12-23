@@ -15,7 +15,8 @@ const console = {
  * Ported from acousticid/chromaprint
  *
  * Chromaprint -- Audio fingerprinting toolkit
- * Copyright (C) 2010  Lukas Lalinsky <lalinsky@gmail.com>
+ * Copyright (C) 2010  Lukas Lalinsky <lalinsky@gmail.com>,
+ * Copyright (C) 2015  Petka Antonov
  * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public

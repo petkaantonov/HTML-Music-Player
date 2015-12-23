@@ -9,24 +9,10 @@ const console = {
     }
 };
 
+/* Ported to JavaScript from libebur128. */
 /*
-
-Ported to JavaScript from libebur128.
-
-See port's license in LICENSE file.
-
-Changes:
-    - Channels are not interleaved in one array but given in separate arrays
-    - Loudness range not implemented
-    - Different code structure and true peak implementation
-    - Implement silence detection
-    - Implement deserialization and serialization (so that album gain can be
-      calculated fast later on without having to scan the file again)
-
-
-Original's License:
-
 Copyright (c) 2011 Jan Kokemüller
+Copyright (c) 2015 Petka Antonov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
