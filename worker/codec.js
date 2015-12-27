@@ -26,7 +26,7 @@ const loadCodec = function(name, retries) {
                     if (!expectedCodec || expectedCodec.name !== name) {
                         reject(new Error("codec " + name + " did not register properly"));
                     }
-                    resolve(expectedCodec.exports);
+                    resolve(expectedCodec);
                 } finally {
                     expectedCodec = null;
                 }
@@ -40,12 +40,13 @@ const loadCodec = function(name, retries) {
         xhr.open("GET", url);
         xhr.send(null);
     });
+    return codecs[name];
 };
 
-globalObject.codecLoaded = function(name, exports) {
+globalObject.codecLoaded = function(name, Context) {
     expectedCodec = {
         name: name,
-        exports: exports
+        Context: Context
     };
 };
 

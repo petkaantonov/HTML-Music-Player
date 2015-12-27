@@ -1,3 +1,4 @@
+(function () {
 "use strict";
 /* Ported from minimp3.c, LGPL license follows */
 /*
@@ -23,14 +24,12 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-var EventEmitter = require("events");
-
 const FLOAT = 0;
 const INT16 = 1;
 
 const DEFAULT_BUFFER_LENGTH_SECONDS = 2;
 const MAX_BUFFER_LENGTH_SECONDS = 5;
-const MIN_BUFFER_LENGTH_SECONDS = 0.250;
+const MIN_BUFFER_LENGTH_SECONDS = 1152 / 8000;
 
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
@@ -1323,18 +1322,31 @@ Granule.prototype.toJSON = function() {
     };
 };
 
+const bufferCache = Object.create(null);
+const getBuffer = function(channelIndex, type, length, id) {
+    var key = channelIndex + " " + type + " " + length + " " + id;
+    var result = bufferCache[key];
+    if (!result) {
+        result = 
+            bufferCache[key] = type === INT16 ? new Int16Array(length) : new Float32Array(length);
+    }
+    return result;
+};
+
 const PENDING_HEADER = 0;
 const PENDING_DATA = 1;
+var id = 0;
 function Mp3Context(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-    var bufferLength = "bufferLength" in opts ? (
-      Math.max(Math.min(opts.bufferLength, MAX_BUFFER_LENGTH_SECONDS),
+    var targetBufferLengthSeconds = "targetBufferLengthSeconds" in opts ? (
+      Math.max(Math.min(opts.targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS),
                MIN_BUFFER_LENGTH_SECONDS) || DEFAULT_BUFFER_LENGTH_SECONDS)
       : DEFAULT_BUFFER_LENGTH_SECONDS;
 
     var dataType = opts.dataType === INT16 ? INT16 : FLOAT;
-    this.bufferLength = bufferLength;
+    this.id = id++;
+    this.targetBufferLengthSeconds = targetBufferLengthSeconds;
     this.dataType = dataType;
     this.granules = [new Granule(), new Granule(), new Granule(), new Granule()];
     this.last_buf = new Uint8Array(2 * BACKSTEP_SIZE * EXTRABYTES);
@@ -1368,12 +1380,8 @@ function Mp3Context(opts) {
         new Int32Array(SBLIMIT * 18)
     ];
     this.dither_state = 0;
-
-    var ArrayConstructor = this.dataType === INT16 ? Int16Array : Float32Array;
-    this.samples = [
-        new ArrayConstructor(MAX_BUFFER_LENGTH_SECONDS * MAX_MP3_SAMPLE_RATE),
-        new ArrayConstructor(MAX_BUFFER_LENGTH_SECONDS * MAX_MP3_SAMPLE_RATE)
-    ];
+    this.samples = new Array(2);
+    this.sampleBuffersInitialized = false;
     this.sampleLength = 0;
     this.invalidFrameCount = 0;
     this.state = PENDING_HEADER;
@@ -1382,6 +1390,7 @@ function Mp3Context(opts) {
     this.header = 0;
     this.samplesProcessed = 0;
     this.started = false;
+    this.flushed = false;
 }
 Mp3Context.FLOAT = FLOAT;
 Mp3Context.INT16 = INT16;
@@ -1389,13 +1398,13 @@ Mp3Context.INT16 = INT16;
 Mp3Context.prototype = Object.create(EventEmitter.prototype);
 Mp3Context.prototype.constructor = Mp3Context;
 
-Mp3Context.prototype.setBufferLength = function(bufferLength) {
-    if (!isFinite(+bufferLength)) throw new Error("bufferLength must be a number");
+Mp3Context.prototype.setBufferLength = function(targetBufferLengthSeconds) {
+    if (!isFinite(+targetBufferLengthSeconds)) throw new Error("targetBufferLengthSeconds must be a number");
     
-    bufferLength = Math.max(Math.min(bufferLength, MAX_BUFFER_LENGTH_SECONDS),
+    targetBufferLengthSeconds = Math.max(Math.min(targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS),
                             MIN_BUFFER_LENGTH_SECONDS);
     this._flush();
-    this.bufferLength = bufferLength;
+    this.targetBufferLengthSeconds = targetBufferLengthSeconds;
 };
 
 Mp3Context.prototype.getSampleRate = function() {
@@ -1413,17 +1422,20 @@ Mp3Context.prototype.getChannelCount = function() {
     return this.nb_channels;
 };
 
-Mp3Context.prototype.update = function(src, srcStart, length) {
+Mp3Context.prototype.decodeUntilFlush = function(src, srcStart) {
+    return this.update(src, srcStart === undefined ? 0 : srcStart, undefined, true);
+};
+
+Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
     if (!this.started) throw new Error("call .start() before calling update");
+    if (breakOnFlush === undefined) breakOnFlush = false;
     if (arguments.length < 2) {
         length = src.length;
         srcStart = 0;
-    } else if (arguments.length < 3) {
-        length = src.length;
     }
+    if (length === undefined) length = src.length - srcStart;
 
     const buffer = this.source;
-    
     while (length > 0) {
         if (this.state === PENDING_HEADER) {
             if (length >= HEADER_SIZE) {
@@ -1453,9 +1465,12 @@ Mp3Context.prototype.update = function(src, srcStart, length) {
                 break;
             }
         } else {
-            var targetSamples = Math.floor(this.sample_rate * this.bufferLength);
-            if (this.sampleLength >= (targetSamples + MP3_FRAME_SIZE)) {
-              this._flush();
+            if (!this.sampleBuffersInitialized) {
+                this.sampleBuffersInitialized = true;
+                for (var ch = 0; ch < this.nb_channels; ++ch) {
+                    this.samples[ch] =
+                        getBuffer(ch, this.dataType, (this.sample_rate * this.targetBufferLengthSeconds)|0, this.id);
+                }
             }
             var bytesIndex = this.sourceByteLength;
             var bytesNeeded = this.frame_size - bytesIndex - HEADER_SIZE;
@@ -1465,12 +1480,15 @@ Mp3Context.prototype.update = function(src, srcStart, length) {
                     buffer[bytesIndex + i] = src[srcStart + i];
                 }
                 this.sourceByteLength = bytesIndex + bytesNeeded;
-                this.decode();
+                var flushed = this.decode();
                 this.sourceByteLength = 0;
                 length -= bytesNeeded;
                 srcStart += bytesNeeded;
                 this.state = PENDING_HEADER;
                 this.header = 0;
+                if (flushed && breakOnFlush) {
+                    return srcStart;
+                }
             } else {
                 for (var i = 0; i < length; ++i) {
                     buffer[bytesIndex + i] = src[srcStart + i];
@@ -1481,14 +1499,40 @@ Mp3Context.prototype.update = function(src, srcStart, length) {
             }
         }
     }
+
+    return srcStart;
 };
 
+const EMPTY_FLOAT_ARRAY = new Float32Array(0);
+const EMPTY_INT16_ARRAY = new Int16Array(0);
 Mp3Context.prototype._flush = function() {
     var sampleLength = this.sampleLength;
+    this.flushed = true;
     if (sampleLength > 0) {
-        var samples = this.samples.slice(0, this.nb_channels);
-        this.emit("data", samples, sampleLength, this);
+        var targetSampleLength = (this.targetBufferLengthSeconds * this.sample_rate)|0;
+        var samples;
+
+        if (targetSampleLength === sampleLength) {
+            samples = this.samples.slice(0, this.nb_channels);
+        } else {
+            samples = new Array(this.nb_channels);
+            for (var ch = 0; ch < this.nb_channels; ++ch) {
+                samples[ch] = this.dataType === FLOAT ? new Float32Array(sampleLength) : new Int16Array(sampleLength);
+                var dst = samples[ch];
+                var src = this.samples[ch];
+                for (var i = 0; i < sampleLength; ++i) {
+                    dst[i] = src[i];
+                }
+            }
+        }
+
+        this.emit("data", samples);
         this.sampleLength = 0;
+    } else {
+        var samples = new Array(this.nb_channels);
+        var array = this.dataType === INT16 ? EMPTY_INT16_ARRAY : EMPTY_FLOAT_ARRAY;
+        for (var i = 0; i < samples.length; ++i) samples[i] = array;
+        this.emit("data", samples);
     }
 };
 
@@ -1510,6 +1554,48 @@ Mp3Context.prototype.decode = function() {
         if (this.invalidFrameCount >= MAX_INVALID_FRAME_COUNT) {
             this._error();
         }
+    }
+
+    if (this.flushed) {
+        this.flushed = false;
+        return true;
+    }
+    return false;
+};
+
+const tmp_samples_i16 = new Int16Array(1152 * 2);
+const tmp_samples_f32 = new Float32Array(1152 * 2);
+Mp3Context.prototype._updatePositions = function(nb_frames, targetSamples) {
+    const size = nb_frames * 32;
+
+    if (this.sampleLength + size > targetSamples) {
+        const overflow = size - (targetSamples - this.sampleLength);
+        const remaining = targetSamples - this.sampleLength;
+        const src = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
+        for (var ch = 0; ch < this.nb_channels; ++ch) {
+            var srcIndex = ch * size;
+            var dstIndex = this.sampleLength;
+            var dst = this.samples[ch];
+            
+            for (var i = 0; i < remaining; ++i) {
+                dst[dstIndex + i] = src[srcIndex + i];
+            }
+        }
+        this.sampleLength = targetSamples;
+        this.samplesProcessed += remaining;
+        this._flush();
+        for (var ch = 0; ch < this.nb_channels; ++ch) {
+            var srcIndex = (ch * size) + remaining;
+            var dst = this.samples[ch];
+            
+            for (var i = 0; i < overflow; ++i) {
+                dst[i] = src[srcIndex + i];
+            }
+        }
+        this.sampleLength = overflow;
+    } else if (nb_frames > 0) {
+        this.sampleLength = this.sampleLength + nb_frames * 32;
+        this.samplesProcessed += (nb_frames * 32);
     }
 };
 
@@ -1557,9 +1643,18 @@ Mp3Context.prototype.decodeMain = function() {
     this.last_buf_size += i;
 
     var method = this.dataType === FLOAT ? this.synthFilterFloat32 : this.synthFilterInt16;
+    var targetSamples = (this.sample_rate * this.targetBufferLengthSeconds)|0;
+    const willOverflow = this.sampleLength + (nb_frames * 32) > targetSamples;
     for (var ch = 0; ch < this.nb_channels; ++ch) {
-        var dstStart = this.sampleLength;
-        var dst = this.samples[ch];
+        var dst, dstStart;
+    
+        if (willOverflow) {
+            dst = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
+            dstStart = ch * (nb_frames * 32);
+        } else {
+            dst = this.samples[ch];
+            dstStart = this.sampleLength;
+        }
 
         var sb_samples = this.sb_samples[ch];
         var synth_buf_offset = this.synth_buf_offset[ch];
@@ -1571,29 +1666,30 @@ Mp3Context.prototype.decodeMain = function() {
 
         for (var i = 0; i < nb_frames; ++i) {
             var sb_samples_ptr = Math.imul(i, SBLIMIT);
-            method.call(this, ref, dstStart, synth_buf, dst, sb_samples, sb_samples_ptr);
+            method.call(this, ref, dstStart, synth_buf, dst, sb_samples, sb_samples_ptr, targetSamples);
             dstStart += 32;
         }
         this.synth_buf_offset[ch] = ref.synth_buf_offset;
         this.dither_state = ref.dither_state;
     }
-    if (nb_frames > 0) {
-      this.sampleLength = this.sampleLength + nb_frames * 32;
-      this.samplesProcessed += (nb_frames * 32);
-    }
+
+    this._updatePositions(nb_frames, targetSamples);
     return nb_frames * 32;
 };
 
 Mp3Context.prototype.start = function() {
     if (this.started) throw new Error("previous decoding in session, call .end()");
     this.started = true;
+    this.sampleBuffersInitialized = false;
 };
 
 Mp3Context.prototype.end = function() {
     try {
         this._flush();
     } finally {
+        this.sampleBuffersInitialized = false;
         this.started = false;
+        this.flushed = false;
         this.last_buf_size = 0;
         this.frame_size = 0;
         this.free_format_next_header = 0;
@@ -2086,7 +2182,7 @@ Mp3Context.prototype.computeStereo = function(g0, g1) {
                     hybrid1[tab1ptr + j] = MULL(tmp0, v2);
                 }
             } else {
-                this._found1(len, tab0ptr, tab1ptr, hmdybrid0, hybrid1);
+                this._found1(len, tab0ptr, tab1ptr, hybrid0, hybrid1);
             }
         }
     } else if ((this.mode_ext & MODE_EXT_MS_STEREO) !== 0) {
@@ -2968,4 +3064,6 @@ BitStream.prototype.get_vlc2 = function(table, bits, max_depth) {
     return code;
 };
 
+
 codecLoaded("mp3", Mp3Context);
+})();

@@ -386,6 +386,7 @@ const getBuffer = function(index, samples) {
 
 Resampler.prototype.end = function() {
     if (!this.started) throw new Error("not started");
+    this.started = false;
 
     for (var i = 0; i < this.nb_channels; ++i) {
         this.last_sample[i] = 0;
@@ -408,6 +409,7 @@ Resampler.prototype.start = function() {
 Resampler.prototype.resample = function(channels, length) {
     if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
     if (!this.started) throw new Error("start() not called");
+    if (length === undefined) length = channels[0].length;
 
     const ret = new Array(channels.length);
     const outLength = Math.ceil((length * this.den_rate) / this.num_rate)|0;
