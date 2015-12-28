@@ -1,7 +1,7 @@
 "use strict";
 const $ = require("../lib/jquery");
 require("./BluebirdConfig");
-require("./lib/perfect-scrollbar.jquery.min");
+require("../lib/perfect-scrollbar.jquery.min");
 
 window.__PROJECT__TITLE = "HTML Music Player";
 

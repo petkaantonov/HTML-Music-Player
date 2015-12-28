@@ -1,7 +1,7 @@
 "use strict";
 const EventEmitter = require("events");
 const util = require("./util");
-const realFft = require("../lib/realFft");
+const realFft = require("../lib/realfft");
 
 const weights = new Float32Array([
     0, 0,

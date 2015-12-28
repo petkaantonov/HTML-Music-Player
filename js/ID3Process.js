@@ -2,7 +2,7 @@
 const $ = require("../lib/jquery");
 const Promise = require("../lib/bluebird.js");
 
-const DS = require("./lib/DataStructures.js");
+const DS = require("../lib/DataStructures.js");
 const Track = require("./Track");
 const metadataRetriever = require("./MetadataRetriever");
 const tagDatabase = require("./TagDatabase");
