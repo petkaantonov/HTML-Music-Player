@@ -609,12 +609,15 @@ AudioPlayer.prototype.seek = function(args, transferList) {
     this.decoderContext.end();
     this.decoderContext.start();
     this.ended = false;
-    var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.blob);
+    var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
     this.offset = seekerResult.offset;
     var result = this._fillBuffers(count, requestId, transferList);
     result.baseTime = seekerResult.time;
     message(this.id, "_seeked", result, transferList);
 };
+
+// Preload mp3.
+codec.getCodec("mp3");
 
 },{"./ChannelMixer":3,"./FileView":4,"./Resampler":5,"./codec":6,"./demuxer":7,"./seeker":8,"./sniffer":9,"events":1}],3:[function(require,module,exports){
 "use strict";
@@ -1679,19 +1682,34 @@ const mp3_bitrate_tab = new Uint16Array([
 ]);
 
 // TODO: Lots of duplication with demuxer.
-function Mp3SeekTable(metadata, blob) {
-    var fileView = new FileView(blob);
+function Mp3SeekTable() {
+    this.frames = 0;
+    this.tocFilledUntil = 0;
+    this.table = new Array(128);
+    this.lastFrameSize = 0;
+}
+
+Mp3SeekTable.prototype.fillUntil = function(time, metadata, fileView) {
+    if (this.tocFilledUntil >= time) return;
     var offset = metadata.dataStart;
     var end = metadata.dataEnd;
 
-    var size = metadata.maxByteSizePerSample * metadata.samplesPerFrame | 0;
-    var frames = 0;
-    var maxFrames = Math.ceil(metadata.duration * (metadata.sampleRate / (1152 >> metadata.lsf)));
-    var frameOffsets = new Array(maxFrames);
+    var bufferSize = metadata.maxByteSizePerSample * metadata.samplesPerFrame | 0;
+    var maxFrames = Math.ceil(time * (metadata.sampleRate / (1152 >> metadata.lsf)));
     var lsf = metadata.lsf ? 1 : 0;
 
-    while (offset < end && frames < maxFrames) {
-        var buffer = fileView.bufferOfSizeAt(size, offset);
+    var table = this.table;
+    var offset, frames;
+    if (this.frames > 0) {
+        frames = this.frames;
+        offset = table[this.frames - 1] + this.lastFrameSize;
+    } else {
+        frames = 0;
+        offset = metadata.dataStart;
+    }
+
+    mainLoop: while (offset < end && frames < maxFrames) {
+        var buffer = fileView.bufferOfSizeAt(bufferSize, offset);
         var header = 0;
 
         do {
@@ -1731,28 +1749,35 @@ function Mp3SeekTable(metadata, blob) {
             if (bitRateIndex < 0 || bitRateIndex >= mp3_bitrate_tab.length) continue;
             var bitRate = mp3_bitrate_tab[bitRateIndex] * 1000;
 
-            frameOffsets[frames] = (offset - 3);
+            table[frames] = (offset - 3);
             frames++;
                 
 
             var padding = (header >> 9) & 1;
             var frame_size = (((bitRate / 1000) * 144000) / ((sampleRate << lsf)) |0) + padding;
+            this.lastFrameSize = frame_size;
             offset += (frame_size - 4);
+
+            if (frames >= maxFrames) {
+                break mainLoop;
+            }
             break;
         } while (++offset < end);
     }
     this.frames = frames;
-    this.table = frameOffsets;
-}
+    this.tocFilledUntil = (metadata.samplesPerFrame / metadata.sampleRate) * frames;
+};
+function seekMp3(time, metadata, context, fileView) {
+    time = Math.min(metadata.duration, Math.max(0, time));
+    var table = metadata.seekTable;
 
-function seekMp3(time, metadata, context, blob) {
-    if (!metadata.seekTable) {
-        metadata.seekTable = new Mp3SeekTable(metadata, blob);
+    if (!table) {
+        table = metadata.seekTable = new Mp3SeekTable();
     }
 
-    var table = metadata.seekTable;
-    time = Math.min(metadata.duration, Math.max(0, time));
     var timePerFrame = (metadata.samplesPerFrame / metadata.sampleRate);
+    table.fillUntil(time + timePerFrame, metadata, fileView);
+
     var index = 0;
     
     var frame = Math.max(0, Math.min(table.frames - 1, Math.round(time / timePerFrame)));
@@ -1765,9 +1790,9 @@ function seekMp3(time, metadata, context, blob) {
     };
 }
 
-function seek(type, time, metadata, context, blob) {
+function seek(type, time, metadata, context, fileView) {
     if (type === "mp3") {
-        return seekMp3(time, metadata, context, blob);
+        return seekMp3(time, metadata, context, fileView);
     }
     throw new Error("unsupported type");
 }

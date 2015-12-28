@@ -29,6 +29,7 @@ PlayerPictureManager.prototype.$ = function() {
 };
 
 PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
+    var self = this;
     var image = this._currentImage;
     var animator = new Animator(image, {
         properties: [{

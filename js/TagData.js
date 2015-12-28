@@ -4,7 +4,6 @@ const Promise = require("../lib/bluebird.js");
 const util = require("./util");
 const tagDatabase = require("./TagDatabase");
 const features = require("./features");
-const metadataRetriever = require("./MetadataRetriever");
 
 const UNKNOWN = "Unknown";
 
@@ -238,6 +237,7 @@ TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
 };
 
 TagData.prototype.fetchAcoustIdImage = function() {
+    const metadataRetriever = require("./MetadataRetriever");
     if (this.hasAcoustIdImage()) throw new Error("already has acoust id image");
     this._coverArtImageState = PENDING_IMAGE;
     var self = this;

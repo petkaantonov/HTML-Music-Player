@@ -21,17 +21,10 @@ const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 
-const SEEK_START_CURVE = new Float32Array([
-    1, 0.3981071710586548, 0.15848931670188904,
-    0.06309573352336884, 0.025118865072727203,
-    0.009999999776482582, 0]);
-const SEEK_END_CURVE = new Float32Array([
-    0, 0.009999999776482582, 0.025118865072727203,
-    0.06309573352336884, 0.15848931670188904,
-    0.3981071710586548, 1]);
-
-const SEEK_START_FADE_TIME = 0.25;
-const SEEK_END_FADE_TIME = 0.15;
+const SEEK_START_CURVE = new Float32Array([1, 0.0]);
+const SEEK_END_CURVE = new Float32Array([0.0, 1]);
+const SEEK_START_FADE_TIME = 0.02;
+const SEEK_END_FADE_TIME = 0.35;
 
 const audioManagers = [];
 // Supports deletion mid-iteration.
@@ -125,15 +118,14 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.muteGain.connect(this.fadeInGain);
     this.fadeInGain.connect(this.fadeOutGain);
     this.fadeOutGain.connect(audioCtx.destination);
+
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
     this.errored = this.errored.bind(this);
-    this.durationChanged = this.durationChanged.bind(this);
     this.equalizerChanged = this.equalizerChanged.bind(this);
     this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
     this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
-
     this.willSeek = this.willSeek.bind(this);
     this.didSeek = this.didSeek.bind(this);
     this.initialPlaythrough = this.initialPlaythrough.bind(this);
@@ -259,11 +251,6 @@ AudioManager.prototype.getDuration = function() {
     return this.track.getSilenceAdjustedDuration(this.sourceNode.getDuration());
 };
 
-AudioManager.prototype.durationChanged = function() {
-    if (this.destroyed) return;
-    this.updateSchedules(!this.implicitlyLoaded);
-};
-
 AudioManager.prototype.errored = function() {
     if (this.destroyed) return;
     this.player.audioManagerErrored(this);
@@ -314,7 +301,6 @@ AudioManager.prototype.start = function() {
     this.sourceNode.on("timeUpdate", this.timeUpdated);
     this.sourceNode.on("ended", this.ended);
     this.sourceNode.on("error", this.errored);
-    this.sourceNode.on("durationChange", this.durationChanged);
     this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
 
     if (this.sourceNodeRequiresLoading) {
@@ -324,6 +310,7 @@ AudioManager.prototype.start = function() {
 };
 
 AudioManager.prototype.initialPlaythrough = function() {
+    this.updateSchedules(!this.implicitlyLoaded);
     this.sourceNode.on("seeking", this.willSeek);
     this.sourceNode.on("seekComplete", this.didSeek);
 };
@@ -337,6 +324,7 @@ AudioManager.prototype.willSeek = function() {
 
 AudioManager.prototype.didSeek = function() {
     if (this.destroyed) return;
+    this.updateSchedules(true);
     var now = audioCtx.currentTime;
     this.seekGain.gain.cancelScheduledValues(0);
     this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
@@ -454,6 +442,18 @@ AudioManager.prototype.destroy = function() {
     this.filterNodes = [];
     this.track = null;
     this.destroyed = true;
+
+    this.timeUpdated = 
+    this.ended = 
+    this.errored = 
+    this.equalizerChanged = 
+    this.crossFadingChanged = 
+    this.nextTrackChanged = 
+    this.trackTagDataUpdated = 
+    this.willSeek = 
+    this.didSeek = 
+    this.initialPlaythrough = null;
+
     var index = audioManagers.indexOf(this);
     if (index >= 0) {
         audioManagers.splice(index, 1);
@@ -844,7 +844,6 @@ Player.prototype.seek = function(seconds) {
     if (!isFinite(maxSeek)) return;
     seconds = Math.max(0, Math.min(seconds, maxSeek));
     this.currentAudioManager.seek(seconds);
-    this.currentAudioManager.updateSchedules(true);
 };
 
 Player.prototype.isMuted = function() {
@@ -904,6 +903,7 @@ Player.prototype.getAnalyzer = function() {
     if (!this.isPlaying || !this.currentAudioManager) return null;
     return this.currentAudioManager.getAnalyzer();
 };
+
 
 var visualizerBins = 3;
 Player.visualizerBins = function(value) {

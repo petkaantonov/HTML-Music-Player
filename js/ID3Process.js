@@ -271,7 +271,7 @@ ID3Process.prototype.loadNext = function() {
                     self.fillInAcoustId(track, value.duration, value.fingerprint);
                 }
 
-                if (shouldAnalyzeLoudness || shouldCalculateFingerprint) {
+                if (false && (shouldAnalyzeLoudness || shouldCalculateFingerprint)) {
                     var analyzerOptions = {
                         loudness: shouldAnalyzeLoudness,
                         fingerprint: shouldCalculateFingerprint
@@ -291,7 +291,7 @@ ID3Process.prototype.loadNext = function() {
                                         result.loudness || {},
                                         result.fingerprint || {});
                     });
-                } else {
+                } else if (value) {
                     tagData.setDataFromTagDatabase(value);
                     return null;
                 }

@@ -82,7 +82,6 @@ function AudioVisualizer(audioContext, sourceNode, opts) {
     }
 
     this.destroyed = false;
-    this.connected = false;
     this.paused = false;
     this.handleAudioProcessingEvent = this.handleAudioProcessingEvent.bind(this);
     this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
@@ -105,14 +104,13 @@ AudioVisualizer.prototype.destroy = function() {
     this.destroyed = true;
     this.removeAllListeners();
     cancelAnimationFrame(this.frameId);
-    this.disconnect();
     this.sourceNode = null;
 };
 
 AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
     if (this.destroyed) return;
     this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
-    if (!this.connected || this.listenerCount("data") === 0) {
+    if (this.listenerCount("data") === 0) {
         return;
     } else if (this.paused) {
         this.emit("data", {

@@ -7,8 +7,6 @@ const Popup = require("./Popup");
 const Tooltip = require("./Tooltip");
 const Animator = require("./Animator");
 const keyValueDatabase = require("./KeyValueDatabase");
-const hotkeyManager = require("./HotkeyManager");
-
 
 const GlobalUi = module.exports;
 
@@ -103,6 +101,7 @@ GlobalUi.makePopup = function(title, body, opener) {
         containerClass: "ui-text"
     });
 
+    const hotkeyManager = require("./HotkeyManager");
     ret.on("open", function() {
         hotkeyManager.disableHotkeys();
     });

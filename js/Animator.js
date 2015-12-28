@@ -297,9 +297,9 @@ function Animation(animator, path, duration) {
     this.animator = animator;
     this.path = path;
     this.duration = duration;
-    this.maxDuration = animator._additionalProperties.reduce(function(max, cur) {
+    this.maxDuration = Math.max(animator._additionalProperties.reduce(function(max, cur) {
         return Math.max(max, cur.duration);
-    }, 0);
+    }, 0), duration);
     this.singleUsesCleared = false;
     this.started = Date.now();
 }
@@ -595,6 +595,7 @@ Animator.prototype._applyDirectProperties = function(node, current, total) {
 };
 
 Animator.prototype._progress = function(current, total) {
+    current = Math.min(current, total);
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
     if (transforms) {
@@ -605,6 +606,7 @@ Animator.prototype._progress = function(current, total) {
 };
 
 Animator.prototype._progressTo = function(x, y, current, total) {
+    current = Math.min(current, total);
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
 
@@ -624,7 +626,6 @@ Animator.prototype._gotAnimationFrame = function() {
     var now = Date.now();
     for (var i = 0; i < this._animations.length; ++i) {
         var durationExceeded = this._animations[i].animate(now);
-
         if (durationExceeded || this._hasCycles) {
             newFrameNeeded = true;
         } else {

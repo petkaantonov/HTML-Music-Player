@@ -308,9 +308,12 @@ AudioPlayer.prototype.seek = function(args, transferList) {
     this.decoderContext.end();
     this.decoderContext.start();
     this.ended = false;
-    var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.blob);
+    var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
     this.offset = seekerResult.offset;
     var result = this._fillBuffers(count, requestId, transferList);
     result.baseTime = seekerResult.time;
     message(this.id, "_seeked", result, transferList);
 };
+
+// Preload mp3.
+codec.getCodec("mp3");

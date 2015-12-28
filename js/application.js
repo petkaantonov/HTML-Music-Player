@@ -1,7 +1,12 @@
 "use strict";
-const $ = require("../lib/jquery");
+
+window.$ = window.jQuery = require("../lib/jquery");
+window.Promise = require("../lib/bluebird");
 require("./BluebirdConfig");
 require("../lib/perfect-scrollbar.jquery.min");
+require("./jquery.fileinput");
+
+const $ = window.$;
 
 window.__PROJECT__TITLE = "HTML Music Player";
 
@@ -30,8 +35,6 @@ const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
 
-hotkeyManager.enableHotkeys();
-hotkeyManager.enablePersistentHotkeys();
 serviceWorkerManager.start();
 
 window.playlist = {};
@@ -448,8 +451,8 @@ player.main.on("stop", function() {
 resetCaps();
 drawIdleBins({now: Date.now()});
 
-const loudnessCalculator = new LoudnessCalculator(new WorkerPool(1, "worker/loudness.js"));
-const fingerprintCalculator = new FingerprintCalculator(new WorkerPool(1, "worker/fingerprint.js"));
+const loudnessCalculator = new LoudnessCalculator(new WorkerPool(1, "worker/worker_api.js"));
+const fingerprintCalculator = new FingerprintCalculator(new WorkerPool(1, "worker/worker_api.js"));
 const trackAnalyzer = new TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist.main);
 const localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
 new ID3Process(playlist.main, player.main, trackAnalyzer);
@@ -911,3 +914,5 @@ hotkeyManager.addDescriptor({
     }
 });
 
+hotkeyManager.enableHotkeys();
+hotkeyManager.enablePersistentHotkeys();
