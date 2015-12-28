@@ -1,5 +1,7 @@
-var ActionMenu = (function() { "use strict";
-
+"use strict";
+const $ = require("../lib/jquery");
+const util = require("./util");
+const EventEmitter = require("events");
 const NULL = $(null);
 
 function ActionMenuItem(root, spec, children, level) {
@@ -78,7 +80,7 @@ ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
     }
 };
 
-ActionMenuItem.prototype.itemMouseEntered = function(e) {
+ActionMenuItem.prototype.itemMouseEntered = function() {
     this.addActiveClass();
     this.root.clearDelayTimer();
     this._clearDelayTimer();
@@ -138,7 +140,7 @@ ActionMenuItem.prototype.itemClicked = function() {
     } else {
         var prevented = false;
         try {
-            this.handler({preventDefault: function() {prevented = true;}});;
+            this.handler({preventDefault: function() {prevented = true;}});
         } finally {
             if (!prevented) {
                 this.root.hideContainer();
@@ -357,7 +359,7 @@ function ActionMenu(opts) {
 
         this._idToItem[id] = item;
     }, this);
-};
+}
 util.inherits(ActionMenu, EventEmitter);
 
 ActionMenu.prototype.destroy = function() {
@@ -618,4 +620,4 @@ ActionMenu.ContextMenu.prototype.keypressed = function() {
     this.hide();
 };
 
-return ActionMenu; })();
+module.exports = ActionMenu;

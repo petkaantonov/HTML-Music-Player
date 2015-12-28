@@ -1,4 +1,8 @@
-const PlayerTimeManager = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+
+const keyValueDatabase = require("./KeyValueDatabase");
+const util = require("./util");
 
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
@@ -191,4 +195,4 @@ PlayerTimeManager.prototype.newTrackLoaded = function() {
     this.setCurrentTime(0);
 };
 
-return PlayerTimeManager; })();
+module.exports = PlayerTimeManager;

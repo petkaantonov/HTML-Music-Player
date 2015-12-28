@@ -1,5 +1,4 @@
-const LoudnessCalculator = (function() {"use strict";
-
+"use strict";
 // Chrome likes to hold on to malloced arrays even when the tab will crash from running out of memory
 // so just use the same preallocated array for everything.
 // There is one trick that will release all malloced memory from typed arrays: opening developer tools or
@@ -31,7 +30,6 @@ LoudnessCalculator.prototype._onTransferList = function(transferList) {
 LoudnessCalculator.prototype.calculateLoudnessForTrack = function(track, audioBuffer) {
     var self = this;
     var channels = Math.min(5, audioBuffer.numberOfChannels);
-    var sampleRate = audioBuffer.sampleRate;
     var length = audioBuffer.length;
     var index = 0;
 
@@ -67,4 +65,4 @@ LoudnessCalculator.prototype.calculateLoudnessForTrack = function(track, audioBu
     });
 };
 
-return LoudnessCalculator; })();
+module.exports = LoudnessCalculator;

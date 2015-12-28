@@ -1,4 +1,17 @@
-var ID3Process = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const DS = require("./lib/DataStructures.js");
+const Track = require("./Track");
+const metadataRetriever = require("./MetadataRetriever");
+const tagDatabase = require("./TagDatabase");
+const TagData = require("./TagData");
+const util = require("./util");
+
+const AudioError = require("./AudioError");
+const TrackWasRemovedError = require("./TrackWasRemovedError");
+const FileError = require("./FileError");
 
 const BlobConstructor = window.Blob ||
                         window.WebKitBlob ||
@@ -16,9 +29,6 @@ const BlobSlice = BlobConstructor.prototype.slice ||
                   null;
 
 const XING_FRAMES = 0x0001;
-const XING_BYTES = 0x0002;
-const XING_TOC = 0x0004;
-const XING_QUALITY_INDICATOR = 0x0004;
 
 const ID3Encoding = {
     ISO88591: 0,
@@ -246,7 +256,7 @@ ID3Process.prototype.loadNext = function() {
 
             var coverArt = Promise.resolve(null);
             if (tagData.album) {
-                coverArt = tagDatabase.getAlbumImage(tagData.album.toLowerCase())
+                coverArt = tagDatabase.getAlbumImage(tagData.album.toLowerCase());
             }
 
             Promise.join(tagDatabase.query(id), coverArt, function(value, coverArt) {
@@ -256,8 +266,6 @@ ID3Process.prototype.loadNext = function() {
                 var shouldCalculateFingerprint = !value || value.fingerprint === undefined;
                 var shouldRetrieveAcoustIdMetaData = (shouldCalculateFingerprint ||
                                                      (value && value.acoustId === undefined));
-
-                var acoustId = Promise.resolve(null);
 
                 if (shouldRetrieveAcoustIdMetaData && value && value.fingerprint && value.duration) {
                     self.fillInAcoustId(track, value.duration, value.fingerprint);
@@ -292,13 +300,13 @@ ID3Process.prototype.loadNext = function() {
                     tagData.setDataFromTagDatabase(value);
                     return tagDatabase.insert(id, value);
                 }
-            }).catch(AudioError, function(e) {
+            }).catch(AudioError, function() {
                 self.playlist.removeTrack(track);
-            }).catch(TrackWasRemovedError, function(e) {});
+            }).catch(TrackWasRemovedError, function() {});
 
             return tagData;
         })
-        .catch(AudioError, FileError, function(e) {
+        .catch(AudioError, FileError, function() {
             self.playlist.removeTrack(track);
         })
         .catch(function(e) {
@@ -331,7 +339,7 @@ ID3Process.prototype.getPictures = function(bytes, version, offsetMap) {
             offset += 1;
             var type = "image/" + bytes.substr(offset, 3).toLowerCase();
             offset += 3;
-            var pictureKind = bytes.charCodeAt(offset);
+            //var pictureKind = bytes.charCodeAt(offset);
             offset += 1;
             var dataStart = bytes.indexOf(nullMagic, offset) + nullMagic.length;
             var descriptionLength = dataStart - nullMagic.length - offset;
@@ -364,7 +372,7 @@ ID3Process.prototype.getPictures = function(bytes, version, offsetMap) {
                 }
             }
             offset += (typeLength + 1);
-            var pictureKind = bytes.charCodeAt(offset);
+            //var pictureKind = bytes.charCodeAt(offset);
             offset += 1;
             var dataStart = bytes.indexOf(nullMagic, offset) + nullMagic.length;
             var descriptionLength = dataStart - nullMagic.length - offset;
@@ -384,7 +392,7 @@ ID3Process.prototype.getPictures = function(bytes, version, offsetMap) {
             offset += 2;
 
             if (flags.hasDataLengthIndicator) {
-                tagSize = util.synchInt32(bytes, offset);
+                size = util.synchInt32(bytes, offset);
                 offset += 4;
             }
 
@@ -405,7 +413,7 @@ ID3Process.prototype.getPictures = function(bytes, version, offsetMap) {
                 }
             }
             offset += (typeLength + 1);
-            var pictureKind = bytes.charCodeAt(offset);
+            //var pictureKind = bytes.charCodeAt(offset);
             offset += 1;
             var dataStart = bytes.indexOf(nullMagic, offset) + nullMagic.length;
             var descriptionLength = dataStart - nullMagic.length - offset;
@@ -512,13 +520,11 @@ ID3Process.prototype.parseMpegTagData = function(bytes, track) {
 };
 
 ID3Process.prototype.getVorbisBasicInfo = function(bytes, fileSize) {
-    var channels = bytes.charCodeAt(11);
-    var rate = util.int32LE(bytes, 12) >>> 0;
     var bitrateUpper = util.int32LE(bytes, 16) >>> 0;
     var bitrateNominal = util.int32LE(bytes, 20) >>> 0;
     var bitrateLower = util.int32LE(bytes, 24) >>> 0;
 
-    var duration = NaN
+    var duration = NaN;
     if (bitrateNominal) {
         duration = Math.floor(fileSize * 8 / bitrateNominal);
     } else if (bitrateLower && bitrateUpper) {
@@ -643,7 +649,7 @@ ID3Process.prototype.decodeID3v2Text = function(text, encoding) {
     } else if (encoding === ID3Encoding.UTF8) {
         return util.unicode.decodeUtf8EncodedBinaryString(text);
     } else {
-        return util.stripBinaryBom(text);;
+        return util.stripBinaryBom(text);
     }
 };
 
@@ -782,6 +788,7 @@ ID3Process.prototype.parseApeBits = function(bytes, offset) {
 };
 
 ID3Process.prototype.parseApe = function(bytes, offset, track, offsetMap) {
+    var apeHeader;
     var version = util.int32LE(bytes, offset + 8);
 
     if (version !== 2000) {
@@ -802,7 +809,6 @@ ID3Process.prototype.parseApe = function(bytes, offset, track, offsetMap) {
     }
     apeHeader = BlobSlice.call(track.file, start, end);
 
-    var self = this;
     return util.readAsBinaryString(apeHeader).then(function(bytes) {
         var offset = 0;
         var ret = Object.create(null);
@@ -847,4 +853,4 @@ ID3Process.prototype.translateNegativeOffset = function(offset, offsetMap, minus
     }
 };
 
-return ID3Process;})();
+module.exports = ID3Process;

@@ -86,7 +86,7 @@ function seekMp3(time, metadata, context, blob) {
     var timePerFrame = (metadata.samplesPerFrame / metadata.sampleRate);
     var index = 0;
     
-    var frame = Math.max(0, Math.min(table.frames - 1, (time / timePerFrame) | 0));
+    var frame = Math.max(0, Math.min(table.frames - 1, Math.round(time / timePerFrame)));
     var currentTime = frame * timePerFrame;
     var offset = table.table[frame];
 
@@ -95,7 +95,6 @@ function seekMp3(time, metadata, context, blob) {
         offset: offset
     };
 }
-
 
 function seek(type, time, metadata, context, blob) {
     if (type === "mp3") {

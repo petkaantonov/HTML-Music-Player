@@ -1,4 +1,10 @@
-var hotkeyManager = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const util = require("./util");
+const keyValueDatabase = require("./KeyValueDatabase");
+const Hotkeys = require("../lib/hotkeys");
+const shiftKeys = Hotkeys.shiftKeys;
+const GlobalUi = require("./GlobalUi");
 
 const STORAGE_KEY = "hotkey-bindings-1";
 const HOTKEY_TYPE_PERSISTENT = 0;
@@ -258,16 +264,16 @@ HotkeyBinding.prototype.setBindingTo = function(str) {
     this.$().find(".app-hotkey-binding").text(this.binding);
 };
 
-HotkeyBinding.prototype.onMouseEnter = function(e) {
+HotkeyBinding.prototype.onMouseEnter = function() {
     this.hotkeyBinder.$().find(".app-describe-action").text(this.descriptor.description);
 };
 
-HotkeyBinding.prototype.onMouseLeave = function(e) {
+HotkeyBinding.prototype.onMouseLeave = function() {
     this.hotkeyBinder.$().find(".app-describe-action").text("");
 
 };
 
-HotkeyBinding.prototype.onClick = function(e) {
+HotkeyBinding.prototype.onClick = function() {
     this.hotkeyBinder.startBinding(this);
 };
 
@@ -344,7 +350,7 @@ HotkeyBinder.prototype.listenUserHotkeys = function(e) {
 HotkeyBinder.prototype.setCurrentHotkeyString = function(value) {
     this._currentHotkeyString = value;
     this.$().find(".app-keybind-input").text(value);
-}
+};
 
 HotkeyBinder.prototype.startBinding = function(hotkeyBinding) {
     this.cancelBinding();
@@ -368,7 +374,7 @@ HotkeyBinder.prototype.applyBinding = function() {
         if (this._currentHotkeyString) {
             this._hotkeyBindings.forEach(function(hotkeyBinding) {
                 if (hotkeyBinding === this._currentlyBindingTo) {
-                    hotkeyBinding.setBindingTo(this._currentHotkeyString)
+                    hotkeyBinding.setBindingTo(this._currentHotkeyString);
                     this._hotkeyManager.setBindingForDescriptor(hotkeyBinding.descriptor, this._currentHotkeyString);
                 } else if (hotkeyBinding.binding === this._currentHotkeyString) {
                     hotkeyBinding.setBindingTo("");
@@ -412,4 +418,4 @@ function openHotkeyManager() {
 
 $(".menul-hotkeys").click(openHotkeyManager);
 
-return hotkeyManager })();
+module.exports = hotkeyManager;

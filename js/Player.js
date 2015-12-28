@@ -1,67 +1,39 @@
-const Player = (function () {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const AudioPlayer = require("./AudioPlayerAudioBufferImpl");
+const AudioVisualizer = require("./AudioVisualizer");
+const equalizer = require("./equalizer");
+const crossfading = require("./crossfading");
+const EventEmitter = require("events");
+const util = require("./util");
+const GlobalUi = require("./GlobalUi");
+const keyValueDatabase = require("./KeyValueDatabase");
 
 const audioCtx = (function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
     return new AudioContext();
 })();
-
-const mediaElementPool = (function() {
-    $(document).one("click.poolpriming touchstart.poolpriming", function() {
-        $(document).off(".poolpriming");
-        pool.forEach(function(element) {
-            element.volume = 0;
-            element.play();
-        });
-    });
-
-    const pool = [
-        document.createElement("audio"),
-        document.createElement("audio"),
-        document.createElement("audio"),
-        document.createElement("audio"),
-        document.createElement("audio"),
-        document.createElement("audio")
-    ];
-
-    var id = 1;
-
-    return {
-        alloc: function() {
-            var element = pool.shift();
-            element.currentTime = 0;
-            element.volume = 0;
-            element.src = "";
-            element.pause();
-            if (!element.id) element.id = id++;
-            return element;
-        },
-
-        free: function(element) {
-            element.currentTime = 0;
-            element.volume = 0;
-            element.muted = true;
-            element.src = "";
-            element.load();
-            element.pause();
-            pool.push(element);
-        }
-    };
-})();
-
-const getMediaElementSourceFor = function(mediaElement) {
-    var src = $(mediaElement).data("media-element-source");
-
-    if (!src) {
-        src = audioCtx.createMediaElementSource(mediaElement);
-        $(mediaElement).data("media-element-source", src);
-    }
-    return src;
-};
+const audioPlayer = new AudioPlayer(audioCtx);
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 
+const SEEK_START_CURVE = new Float32Array([
+    1, 0.3981071710586548, 0.15848931670188904,
+    0.06309573352336884, 0.025118865072727203,
+    0.009999999776482582, 0]);
+const SEEK_END_CURVE = new Float32Array([
+    0, 0.009999999776482582, 0.025118865072727203,
+    0.06309573352336884, 0.15848931670188904,
+    0.3981071710586548, 1]);
+
+const SEEK_START_FADE_TIME = 0.25;
+const SEEK_END_FADE_TIME = 0.15;
+
+const audioManagers = [];
 // Supports deletion mid-iteration.
 function forEachAudioManager(fn) {
     var currentLength = audioManagers.length;
@@ -79,7 +51,7 @@ function destroyAudioManagers() {
     var ams = [];
     forEachAudioManager(function(am, index, audioManagers) {
         am.pause();
-        ams.push(am)
+        ams.push(am);
         audioManagers.splice(index, 1);
     });
     Promise.map(ams, function(am) {
@@ -98,72 +70,60 @@ function destroyAudioManagers() {
     });
 }
 
-const audioManagers = [];
 function AudioManager(player, track, implicitlyLoaded) {
     audioManagers.push(this);
-    var tagData = track.getTagData();
-    var sampleRate = track.getBasicInfo().sampleRate;
     this.implicitlyLoaded = implicitlyLoaded;
     this.player = player;
     this.destroyed = false;
     this.started = false;
     this.track = track;
 
-    var preloadedMediaElement = player.flushPreloadedMediaElementFor(track);
-    if (preloadedMediaElement) {
-        var mediaData = preloadedMediaElement.release();
-        this.url = mediaData.url;
-        this.mediaElement = mediaData.element;
-        this.mediaElementRequiresLoading = false;
+    var preloadedSourceNode = player.flushPreloadedSourceNodeFor(track);
+    if (preloadedSourceNode) {
+        this.sourceNode = preloadedSourceNode.release();
+        this.sourceNodeRequiresLoading = false;
     } else {
-        this.url = URL.createObjectURL(track.getFile());
-        this.mediaElement = mediaElementPool.alloc();
-        this.mediaElementRequiresLoading = true;
+        this.sourceNode = audioPlayer.createSourceNode();
+        this.sourceNodeRequiresLoading = true;
     }
+
     this.image = track.getImage();
-
-    this.mediaElement.autoplay = false;
-    this.mediaElement.controls = false;
-    this.mediaElement.loop = false;
-    this.mediaElement.volume = 1;
-    this.mediaElement.muted = false;
-    this.mediaElement.preload = "none";
+    this.sourceNode.setVolume(1);
     this.setCurrentTime(0);
-    this.mediaElement.pause();
+    this.sourceNode.pause();
 
-    this.source = getMediaElementSourceFor(this.mediaElement);
-    this.visualizer = new AudioVisualizer(audioCtx, {
+    this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, {
         fps: Player.targetFps(),
         bins: Player.visualizerBins(),
         baseSmoothingConstant: 0.0007,
         maxFrequency: 12500,
         minFrequency: 20
     });
+
     this.pauseResumeFadeGain = audioCtx.createGain();
     this.replayGain = audioCtx.createGain();
-    this.preampGain = audioCtx.createGain();
+    this.seekGain = audioCtx.createGain();
     this.volumeGain = audioCtx.createGain();
     this.muteGain = audioCtx.createGain();
     this.fadeInGain = audioCtx.createGain();
     this.fadeOutGain = audioCtx.createGain();
+
     this.filterNodes = [];
 
     this.pauseResumeFadeGain.gain.value = 1;
     this.pauseResumeFadePromise = null;
     this.muteGain.gain.value = player.isMuted() ? 0 : 1;
-    this.preampGain.gain.value = 1;
     this.volumeGain.gain.value = player.getVolume();
 
     this.normalizeLoudness();
 
-    this.source.connect(this.pauseResumeFadeGain);
+    this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
-    this.replayGain.connect(this.preampGain);
     this.connectEqualizerFilters(equalizer.getBands(this.track));
-    this.visualizer.connect(this.volumeGain);
-    this.volumeGain.connect(this.muteGain);
+    this.volumeGain.connect(this.seekGain);
+    this.seekGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
-    this.fadeInGain.connect(this.fadeOutGain)
+    this.fadeInGain.connect(this.fadeOutGain);
     this.fadeOutGain.connect(audioCtx.destination);
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
@@ -173,6 +133,10 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
     this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
+
+    this.willSeek = this.willSeek.bind(this);
+    this.didSeek = this.didSeek.bind(this);
+    this.initialPlaythrough = this.initialPlaythrough.bind(this);
 
     track.on("tagDataUpdate", this.trackTagDataUpdated);
     equalizer.on("equalizerChange", this.equalizerChanged);
@@ -225,8 +189,11 @@ AudioManager.prototype.crossFadingChanged = function() {
 
 AudioManager.prototype.connectEqualizerFilters = function(bands) {
     if (this.destroyed) return;
-    var a = Date.now();
-    var preampGain = 1;
+    this.replayGain.disconnect();
+    this.filterNodes.forEach(function(node) {
+        node.disconnect();
+    });
+
     var bandsFrequencySorted = Object.keys(bands).map(function(key) {
         if (!isFinite(+key)) return null;
         return {
@@ -237,26 +204,11 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
         return a.frequency - b.frequency;
     });
 
-    if (typeof bands.preamp === "number") {
-        preampGain = equalizer.decibelChangeToAmplitudeRatio(bands.preamp);
-    } else {
-        var maxIncrease = bandsFrequencySorted.reduce(function(max, current) {
-            return Math.max(current.gain, max);
-        }, -Infinity);
-
-        if (maxIncrease > 0) {
-            preampGain = equalizer.decibelChangeToAmplitudeRatio(-0.75 * maxIncrease);
-        }
-    }
-
-    this.filterNodes.forEach(function(node) {
-        node.disconnect();
-    });
-
     var someBandHasGainOrAttenuation = bandsFrequencySorted.some(function(v) {
         return +v.gain !== 0;
     });
 
+    // TODO: Only connect the bands that have gain or attenuation.
     if (someBandHasGainOrAttenuation) {
         var firstBand = bandsFrequencySorted.shift();
         var firstFilterNode = audioCtx.createBiquadFilter();
@@ -281,33 +233,30 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
             return filterNode;
         }), lastFilterNode);
 
-        this.preampGain.gain.value = preampGain;
 
         var lastFilter = this.filterNodes.reduce(function(prev, curr) {
             prev.connect(curr);
             return curr;
-        }, this.preampGain);
-
-        lastFilter.connect(this.visualizer.getAudioNode());
+        }, this.replayGain);
+        lastFilter.connect(this.volumeGain);
     } else {
-        this.preampGain.gain.value = 1;
-        this.preampGain.connect(this.visualizer.getAudioNode());
+        this.replayGain.connect(this.volumeGain);
     }
 };
 
 AudioManager.prototype.setCurrentTime = function(currentTime) {
     if (this.destroyed) return;
-    this.mediaElement.currentTime = this.track.convertFromSilenceAdjustedTime(currentTime);
+    this.sourceNode.setCurrentTime(this.track.convertFromSilenceAdjustedTime(currentTime));
 };
 
 AudioManager.prototype.getCurrentTime = function() {
     if (this.destroyed) return 0;
-    return this.track.convertToSilenceAdjustedTime(this.mediaElement.currentTime);
+    return this.track.convertToSilenceAdjustedTime(this.sourceNode.getCurrentTime());
 };
 
 AudioManager.prototype.getDuration = function() {
     if (this.destroyed) return 0;
-    return this.track.getSilenceAdjustedDuration(this.mediaElement.duration);
+    return this.track.getSilenceAdjustedDuration(this.sourceNode.getDuration());
 };
 
 AudioManager.prototype.durationChanged = function() {
@@ -340,7 +289,7 @@ AudioManager.prototype.pause = function() {
     var self = this;
     this.pauseResumeFadePromise = Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
         if (self.destroyed) return;
-        self.mediaElement.pause();
+        self.sourceNode.pause();
         self.visualizer.pause();
     }).finally(function() {
         self.pauseResumeFadePromise  = null;
@@ -351,7 +300,7 @@ AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started) return;
     var now = audioCtx.currentTime;
     this.cancelPauseResumeFade();
-    this.mediaElement.play();
+    this.sourceNode.play();
     this.visualizer.resume();
     this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
@@ -362,16 +311,35 @@ AudioManager.prototype.start = function() {
     if (this.destroyed || this.started) return;
     this.started = true;
 
-    this.mediaElement.addEventListener("timeupdate", this.timeUpdated, false);
-    this.mediaElement.addEventListener("ended", this.ended, false);
-    this.mediaElement.addEventListener("error", this.errored, false);
-    this.mediaElement.addEventListener("durationchange", this.durationChanged, false);
+    this.sourceNode.on("timeUpdate", this.timeUpdated);
+    this.sourceNode.on("ended", this.ended);
+    this.sourceNode.on("error", this.errored);
+    this.sourceNode.on("durationChange", this.durationChanged);
+    this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
 
-    if (this.mediaElementRequiresLoading) {
-        this.mediaElement.src = this.url;
-        this.mediaElement.load();
+    if (this.sourceNodeRequiresLoading) {
+        this.sourceNode.load(this.track.getFile());
     }
-    this.mediaElement.play();
+    this.sourceNode.play();
+};
+
+AudioManager.prototype.initialPlaythrough = function() {
+    this.sourceNode.on("seeking", this.willSeek);
+    this.sourceNode.on("seekComplete", this.didSeek);
+};
+
+AudioManager.prototype.willSeek = function() {
+    if (this.destroyed) return;
+    var now = audioCtx.currentTime;
+    this.seekGain.gain.cancelScheduledValues(0);
+    this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, now, SEEK_START_FADE_TIME);
+};
+
+AudioManager.prototype.didSeek = function() {
+    if (this.destroyed) return;
+    var now = audioCtx.currentTime;
+    this.seekGain.gain.cancelScheduledValues(0);
+    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
 };
 
 AudioManager.prototype.mute = function() {
@@ -463,31 +431,23 @@ AudioManager.prototype.destroy = function() {
     equalizer.removeListener("equalizerChange", this.equalizerChanged);
     crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChanged);
-    URL.revokeObjectURL(this.url);
-    this.url = null;
     this.filterNodes.forEach(function(node) {
         node.disconnect();
     });
     this.pauseResumeFadeGain.disconnect();
     this.muteGain.disconnect();
-    this.preampGain.disconnect();
+    this.seekGain.disconnect();
     this.volumeGain.disconnect();
     this.fadeInGain.disconnect();
     this.fadeOutGain.disconnect();
-    this.source.disconnect();
+    this.sourceNode.destroy();
     this.visualizer.destroy();
     this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
-    this.mediaElement.removeEventListener("timeupdate", this.timeUpdated, false);
-    this.mediaElement.removeEventListener("ended", this.ended, false);
-    this.mediaElement.removeEventListener("error", this.errored, false);
-    this.mediaElement.removeEventListener("durationchange", this.durationChanged, false);
-    mediaElementPool.free(this.mediaElement);
-    this.mediaElement = null;
+    this.seekGain = null;
+    this.sourceNode = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
-    this.source = null;
     this.visualizer = null;
-    this.preampGain = null;
     this.volumeGain = null;
     this.muteGain = null;
     this.pauseResumeFadeGain = null;
@@ -603,7 +563,7 @@ Player.prototype.nextTrackChanged = function() {
         if (this._preloadedTracks[i].isForTrack(track)) return;
     }
 
-    var preloadedTrack = new PreloadedMediaElement(track);
+    var preloadedTrack = new PreloadedSourceNode(track);
     preloadedTrack.startPreload();
     this._preloadedTracks.push(preloadedTrack);
 
@@ -612,7 +572,7 @@ Player.prototype.nextTrackChanged = function() {
     }
 };
 
-Player.prototype.flushPreloadedMediaElementFor = function(track) {
+Player.prototype.flushPreloadedSourceNodeFor = function(track) {
     var ret = null;
     for (var i = 0; i < this._preloadedTracks.length; ++i) {
         if (this._preloadedTracks[i].isForTrack(track)) {
@@ -963,81 +923,55 @@ Player.targetFps = function(value) {
     }
 };
 
-function PreloadedMediaElement(track) {
-    var tagData = track.getTagData();
+function PreloadedSourceNode(track) {
     this.error = false;
-    this.url = URL.createObjectURL(track.getFile());
-    this.mediaElement =  mediaElementPool.alloc();
-
-    this.mediaElement.autoplay = false;
-    this.mediaElement.controls = false;
-    this.mediaElement.loop = false;
-    this.mediaElement.volume = 0;
-    this.mediaElement.muted = true;
-    this.mediaElement.preload = "none";
-
+    this.sourceNode = audioPlayer.createSourceNode();
+    this.sourceNode.setVolume(0);
     this.track = track;
-    this.timeUpdated = this.timeUpdated.bind(this);
     this.errored = this.errored.bind(this);
 }
 
-PreloadedMediaElement.prototype.errored = function() {
+PreloadedSourceNode.prototype.errored = function() {
     this.error = true;
 };
 
-PreloadedMediaElement.prototype.removeListeners = function() {
-    this.mediaElement.removeEventListener("timeupdate", this.timeUpdated, false);
-    this.mediaElement.removeEventListener("error", this.errored, false);
+PreloadedSourceNode.prototype.removeListeners = function() {
+    this.sourceNode.removeListener("error", this.errored);
 };
 
-PreloadedMediaElement.prototype.timeUpdated = function() {
-    if (this.url && this.mediaElement) {
-        var time = this.track.convertToSilenceAdjustedTime(this.mediaElement.currentTime);
-        if (time > 1) {
-            this.mediaElement.pause();
-            this.mediaElement.currentTime = 0;
-        }
-    }
-};
-
-PreloadedMediaElement.prototype.startPreload = function() {
-    if (this.url && this.mediaElement) {
-        this.mediaElement.addEventListener("timeupdate", this.timeUpdated, false);
-        this.mediaElement.addEventListener("error", this.errored, false);
-        this.mediaElement.src = this.url;
-        this.mediaElement.load();
-        this.mediaElement.play();
+PreloadedSourceNode.prototype.startPreload = function() {
+    if (this.sourceNode) {
+        this.sourceNode.on("error", this.errored);
+        this.sourceNode.pause();
+        this.sourceNode.setCurrentTime(this.track.convertToSilenceAdjustedTime(0));
+        this.sourceNode.load(this.track.getFile());
     } else {
         throw new Error("already released");
     }
 };
 
-PreloadedMediaElement.prototype.destroy = function() {
-    if (this.url && this.mediaElement) {
+PreloadedSourceNode.prototype.destroy = function() {
+    if (this.sourceNode) {
         this.removeListeners();
-        mediaElementPool.free(this.mediaElement);
-        URL.revokeObjectURL(this.url);
-        this.track = this.url = this.mediaElement = null;
+        this.sourceNode.destroy();
+        this.track = this.sourceNode = null;
     }
 };
 
-PreloadedMediaElement.prototype.isForTrack = function(track) {
-    if (!this.track || this.error || !this.mediaElement) return false;
+PreloadedSourceNode.prototype.isForTrack = function(track) {
+    if (!this.track || this.error || !this.sourceNode) return false;
     return this.track === track;
 };
 
-PreloadedMediaElement.prototype.release = function() {
-    if (this.url && this.mediaElement) {
+PreloadedSourceNode.prototype.release = function() {
+    if (this.sourceNode) {
         this.removeListeners();
-        var ret = {
-            url: this.url,
-            element: this.mediaElement
-        };
-        this.track = this.url = this.mediaElement = null;
+        var ret = this.sourceNode;
+        this.track = this.sourceNode = null;
         return ret;
     } else {
         throw new Error("already released");
     }
 };
 
-return Player;})();
+module.exports = Player;

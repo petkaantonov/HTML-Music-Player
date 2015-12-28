@@ -130,6 +130,12 @@ AudioPlayer.prototype.destroy = function() {
     this.offset = 0;
     this.metadata = null;
     this.ended = false;
+
+    this.errored = this.errored.bind(this);
+};
+
+AudioPlayer.prototype.errored = function(e) {
+    message(this.id, "_error", {message: "Decoder error: " + e.message});
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
@@ -145,6 +151,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
     });
 
     this.decoderContext.start();
+    this.decoderContext.on("error", this.errored);
     this.metadata = metadata;
 
     if (this.metadata.sampleRate !== hardwareSampleRate) {

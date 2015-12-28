@@ -1,12 +1,21 @@
-const AudioPlayer = (function() { "use strict";
-// TODO destination changes
+"use strict";
+const Promise = require("../lib/bluebird.js");
+const util = require("./util");
+const EventEmitter = require("events");
+const ChannelMixer = require("../worker/ChannelMixer");
 
-function SourceDescriptor(buffer, duration) {
+// TODO destination changes
+const asap = function(fn) {
+    Promise.resolve().then(fn);
+};
+
+function SourceDescriptor(buffer, duration, channelData) {
     this.buffer = buffer;
     this.playedSoFar = 0;
     this.duration = duration;
     this.started = -1;
     this.source = null;
+    this.channelData = channelData;
 }
 
 SourceDescriptor.prototype.getRemainingDuration = function() {
@@ -141,6 +150,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._duration = 0;
     this._pendingSeek = -1;
 
+    this._initialPlaythroughTriggered = false;
     this._paused = true;
     this._destroyed = false;
     this._seeking = false;
@@ -209,6 +219,9 @@ AudioPlayerSourceNode.prototype._ended = function() {
     var sourceDescriptor;
     while (sourceDescriptor = this._sources.shift()) {
         this._player._freeAudioBuffer(sourceDescriptor.buffer);
+        for (var i = 0; i < sourceDescriptor.channelData.length; ++i) {
+            this._player._freeArrayBuffer(sourceDescriptor.channelData[i]);
+        }
     }
 
     this.emit("ended");
@@ -225,6 +238,9 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
     while (sourceDescriptor = this._sources.shift()) {
         this._baseTime += sourceDescriptor.duration;
         this._player._freeAudioBuffer(sourceDescriptor.buffer);
+        for (var i = 0; i < sourceDescriptor.channelData.length; ++i) {
+            this._player._freeArrayBuffer(sourceDescriptor.channelData[i]);
+        }
         if (sourceDescriptor.source === source) break;
     }
 
@@ -265,6 +281,14 @@ AudioPlayerSourceNode.prototype._startSources = function() {
     for (var i = 0; i < this._sources.length; ++i) {
         now = this._startSource(this._sources[i], now);
     }
+
+    if (!this._initialPlaythroughTriggered) {
+        this._initialPlaythroughTriggered = true;
+        var self = this;
+        asap(function() {
+            self.emit("initialPlaythrough");
+        });
+    }
 };
 
 AudioPlayerSourceNode.prototype._stopSources = function() {
@@ -287,6 +311,69 @@ AudioPlayerSourceNode.prototype._stopSources = function() {
         try {
             src.disconnect();
         } catch (e) {}
+    }
+};
+
+const MAX_ANALYSER_SIZE = 65536;
+const analyserChannelMixer = new ChannelMixer(1);
+const tmpChannels = [
+    new Float32Array(MAX_ANALYSER_SIZE),
+    new Float32Array(MAX_ANALYSER_SIZE),
+    new Float32Array(MAX_ANALYSER_SIZE),
+    new Float32Array(MAX_ANALYSER_SIZE),
+    new Float32Array(MAX_ANALYSER_SIZE),
+    new Float32Array(MAX_ANALYSER_SIZE)
+];
+AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
+    if (!(input instanceof Float32Array)) throw new Error("need Float32Array");
+    var samplesNeeded = Math.min(MAX_ANALYSER_SIZE, input.length);
+
+    if (!this._sourceStopped) {
+        var now = this._audioContext.currentTime;
+        var samplesIndex = 0;
+        for (var i = 0; i < this._sources.length; ++i) {
+            var sourceDescriptor = this._sources[i];
+            if (!sourceDescriptor.source) continue;
+            var timeOffset = sourceDescriptor.started;
+            if (now > timeOffset) {
+                timeOffset = now - (timeOffset - sourceDescriptor.playedSoFar);
+            } else {
+                timeOffset = 0;
+            }
+            var buffer = sourceDescriptor.buffer;
+            var totalSamples = (sourceDescriptor.duration * buffer.sampleRate)|0;
+            var sampleOffset = (buffer.sampleRate * timeOffset)|0;
+            var fillCount = Math.min(totalSamples - sampleOffset, samplesNeeded);
+            
+            var channelData = sourceDescriptor.channelData;
+            for (var ch = 0; ch < channelData.length; ++ch) {
+                var src = channelData[ch];
+                var dst = tmpChannels[ch];
+
+                for (var j = 0; j < fillCount; ++j) {
+                    dst[j] = src[sampleOffset + j];
+                }
+            }
+
+            var toMix = tmpChannels.slice(0, channelData.length);
+            toMix = analyserChannelMixer.mix(toMix, fillCount)[0];
+
+            for (var j = 0; j < fillCount; ++j) {
+                input[j + samplesIndex] = toMix[j];
+            }
+
+            samplesIndex += fillCount;
+            samplesNeeded -= fillCount;
+            if (samplesNeeded <= 0) {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        for (var i = 0; i < input.length; ++i) {
+            input[i] = 0;
+        }
+        return true;
     }
 };
 
@@ -320,11 +407,13 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
 
     for (var i = 0; i < count; ++i) {
         var audioBuffer = this._player._allocAudioBuffer();
+        var channelData = new Array(channelCount);
         for (var ch = 0; ch < channelCount; ++ch) {
             var data = new Float32Array(transferList.shift());
             audioBuffer.copyToChannel(data, ch);
+            channelData[ch] = data;
         }
-        var sourceDescriptor = new SourceDescriptor(audioBuffer, args.lengths[i] / audioBuffer.sampleRate);
+        var sourceDescriptor = new SourceDescriptor(audioBuffer, args.lengths[i] / audioBuffer.sampleRate, channelData);
         sources[i] = sourceDescriptor;
     }
 
@@ -388,6 +477,7 @@ AudioPlayerSourceNode.prototype.play = function() {
     if (this._sources.length > 0 && this._sourceStopped && this._haveBlob) {
         this._startSources();
     }
+    this.emit("timeUpdate", this._currentTime, this._duration);
 };
 
 AudioPlayerSourceNode.prototype.isMuted = function() {
@@ -467,6 +557,9 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
     var sourceDescriptor;
     while (sourceDescriptor = this._sources.shift()) {
         this._player._freeAudioBuffer(sourceDescriptor.buffer);
+        for (var i = 0; i < sourceDescriptor.channelData.length; ++i) {
+            this._player._freeArrayBuffer(sourceDescriptor.channelData[i]);
+        }
     }
 
     this._applyBuffers(args, transferList);
@@ -483,6 +576,7 @@ AudioPlayerSourceNode.prototype.setCurrentTime = function(time) {
         this._pendingSeek = time;
         return;
     }
+    if (this._currentTime === time) return;
     this._seeking = true;
     time = Math.min(this._duration, time);
     var requestId = ++this._seekRequestId;
@@ -510,10 +604,14 @@ AudioPlayerSourceNode.prototype.unload = function() {
     this._stopSources();
     this._haveBlob = false;
     this._seeking = false;
+    this._initialPlaythroughTriggered = false;
 
     var sourceDescriptor;
     while (sourceDescriptor = this._sources.shift()) {
         this._player._freeAudioBuffer(sourceDescriptor.buffer);
+        for (var i = 0; i < sourceDescriptor.channelData.length; ++i) {
+            this._player._freeArrayBuffer(sourceDescriptor.channelData[i]);
+        }
     }
 };
 
@@ -560,4 +658,4 @@ AudioPlayerSourceNode.prototype.load = function(blob) {
     });
 };
 
-return AudioPlayer; })();
+module.exports = AudioPlayer;

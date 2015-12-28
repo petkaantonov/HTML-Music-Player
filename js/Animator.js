@@ -1,4 +1,8 @@
-const Animator = (function() { "use strict";
+"use strict";
+const Promise = require("../lib/bluebird.js");
+const util = require("./util");
+const EventEmitter = require("events");
+const unitBezier = require("../lib/bezier");
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -38,11 +42,11 @@ function Move(x, y) {
     this.y = y;
 }
 
-Move.prototype.yAt = function(progress) {
+Move.prototype.yAt = function() {
     return this.y;
 };
 
-Move.prototype.xAt = function(progress) {
+Move.prototype.xAt = function() {
     return this.x;
 };
 
@@ -188,7 +192,7 @@ AnimationPath.prototype.curveTo = function(endX, endY, gap, positionMultiplier, 
     }
 
     return this.quadraticCurveTo(x, y, endX, endY, progress);
-}
+};
 
 AnimationPath.prototype.cubicCurveTo = function(cpx1, cpy1, cpx2, cpy2, x, y, progress) {
     if (this._closed) throw new Error("path already closed");
@@ -372,7 +376,7 @@ function AdditionalAnimationProperty(animator, property) {
         this.start -= 0;
         this.end -= 0;
     }
-};
+}
 
 AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     if (this.duration !== -1) total = this.duration;
@@ -446,7 +450,7 @@ function Animator(dom, opts) {
 util.inherits(Animator, EventEmitter);
 
 const parsePath = (function() {
-    const number = "[01]+(?:\\.\\d+)?"
+    const number = "[01]+(?:\\.\\d+)?";
     const point = number + "[, ]" + number + "";
     const rpath = new RegExp("(?:( ?M ("+point+"))|( ?C ("+point+
                                 ") ("+point+") ("+point+"))|( ?L ("+point+"))|\\s+)", "g");
@@ -551,10 +555,20 @@ Animator.ACCELERATE_CUBIC = makeAccelerator(3);
 Animator.ACCELERATE_QUART = makeAccelerator(4);
 Animator.ACCELERATE_QUINT = makeDecelator(5);
 
-Animator.RECT1_SCALE_X = makePathEasing("M 0 0 L 0.3665 0 C 0.47252618112021,0.062409910275 0.61541608570164,0.5 0.68325,0.5 C 0.75475061236836,0.5 0.75725829093844,0.814510098964 1.0,1.0");
-Animator.RECT1_TRANSLATE_X = makePathEasing("M 0.0,0.0 L 0.2 0 C 0.3958333333336,0.0 0.474845090492,0.206797621729 0.5916666666664,0.417082932942 C 0.7151610251224,0.639379624869 0.81625,0.974556908664 1.0,1.0");
-Animator.RECT2_SCALE_X = makePathEasing("M 0,0 C 0.06834272400867,0.01992566661414 0.19220331656133,0.15855429260523 0.33333333333333,0.34926160892842 C 0.38410433133433,0.41477913453861 0.54945792615267,0.68136029463551 0.66666666666667,0.68279962777002 C 0.752586273196,0.68179620963216 0.737253971954,0.878896194318 1,1")
-Animator.RECT2_TRANSLATE_X = makePathEasing("M 0.0,0.0 C 0.0375,0.0 0.128764607715,0.0895380946618 0.25,0.218553507947 C 0.322410320025,0.295610602487 0.436666666667,0.417591408114 0.483333333333,0.489826169306 C 0.69,0.80972296795 0.793333333333,0.950016125212 1.0,1.0");
+Animator.RECT1_SCALE_X = makePathEasing("M 0 0 L 0.3665 0 C 0.47252618112021,0.062409910275 " +
+                    "0.61541608570164,0.5 0.68325,0.5 C 0.75475061236836,0.5 0.75725829093844,0.814510098964 1.0,1.0");
+Animator.RECT1_TRANSLATE_X = makePathEasing("M 0.0,0.0 L 0.2 0 C 0.3958333333336,0.0 " +
+                    "0.474845090492,0.206797621729 0.5916666666664,0.417082932942 C " +
+                    "0.7151610251224,0.639379624869 0.81625,0.974556908664 1.0,1.0");
+Animator.RECT2_SCALE_X = makePathEasing("M 0,0 C 0.06834272400867,0.01992566661414 " +
+                    "0.19220331656133,0.15855429260523 0.33333333333333,0.34926160892842 " +
+                    "C 0.38410433133433,0.41477913453861 0.54945792615267,0.68136029463551 " +
+                    "0.66666666666667,0.68279962777002 C 0.752586273196,0.68179620963216 " +
+                    "0.737253971954,0.878896194318 1,1");
+Animator.RECT2_TRANSLATE_X = makePathEasing("M 0.0,0.0 C 0.0375,0.0 0.128764607715,0.0895380946618 " +
+                    "0.25,0.218553507947 C 0.322410320025,0.295610602487 0.436666666667,0.417591408114 " +
+                    "0.483333333333,0.489826169306 C 0.69,0.80972296795 0.793333333333,0.950016125212 " +
+                    "1.0,1.0");
 
 Animator.prototype.stop = function() {
     if (this.isAnimating()) {
@@ -642,7 +656,7 @@ Animator.prototype.animationEnd = function() {
 
 Animator.prototype.animate = function(duration, path) {
     if (path && !path._closed) throw new Error("path is not closed");
-    if (!(+duration)) duration = 300;
+    if (!duration) duration = 300;
     this._animations.push(new Animation(this, path, duration));
     if (this._frameId === -1) {
         this.emit("animationStart");
@@ -655,4 +669,4 @@ Animator.prototype.createPath = function(addX, addY) {
     return new AnimationPath(addX || 0, addY || 0);
 };
 
-return Animator; })();
+module.exports = Animator;

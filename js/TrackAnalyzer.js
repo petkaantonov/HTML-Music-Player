@@ -1,4 +1,10 @@
-var TrackAnalyzer = (function() {"use strict";
+"use strict";
+const Promise = require("../lib/bluebird.js");
+
+const util = require("./util");
+const TrackWasRemovedError = require("./TrackWasRemovedError");
+const Track = require("./Track");
+const AudioError = require("./AudioError");
 
 const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
 
@@ -44,8 +50,6 @@ TrackAnalyzer.prototype.trackDestroyed = function(track) {
 };
 
 TrackAnalyzer.prototype._next = function() {
-    var q = this._queue;
-
     while (this._queue.length) {
         var spec = this._queue.shift();
         spec.track.removeListener("destroy", this.trackDestroyed);
@@ -118,7 +122,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
                 audioBuffer = b;
                 resolve();
             }, function() {
-                throw new AudioError(MediaError.MEDIA_ERR_DECODE)    
+                reject(new AudioError(MediaError.MEDIA_ERR_DECODE));
             });
         });
     }).then(function() {
@@ -149,6 +153,6 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         self._next();
         return null;
     });
-}
+};
 
-return TrackAnalyzer; })();
+module.exports = TrackAnalyzer;

@@ -1,19 +1,7 @@
-var AudioVisualizer = (function() {"use strict";
-
-// https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
-const reverseBits = function(v, count) {
-    // swap odd and even bits
-    v = ((v >>> 1) & 0x55555555) | ((v & 0x55555555) << 1);
-    // swap consecutive pairs
-    v = ((v >>> 2) & 0x33333333) | ((v & 0x33333333) << 2);
-    // swap nibbles ...
-    v = ((v >>> 4) & 0x0F0F0F0F) | ((v & 0x0F0F0F0F) << 4);
-    // swap bytes
-    v = ((v >>> 8) & 0x00FF00FF) | ((v & 0x00FF00FF) << 8);
-    // swap 2-byte long pairs
-    v = ( v >>> 16             ) | ( v               << 16);
-    return v >>> (32 - count);
-};
+"use strict";
+const EventEmitter = require("events");
+const util = require("./util");
+const realFft = require("../lib/realFft");
 
 const weights = new Float32Array([
     0, 0,
@@ -62,7 +50,7 @@ function makeBuffer(bufferSize, bins) {
 
 const buffers = {};
 
-function AudioVisualizer(audioContext, opts) {
+function AudioVisualizer(audioContext, sourceNode, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.sampleRate = audioContext.sampleRate;
@@ -72,6 +60,7 @@ function AudioVisualizer(audioContext, opts) {
     this.bufferSize = 2;
     this.bins = opts.bins || this.bufferSize / 2;
     this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
+    this.sourceNode = sourceNode;
 
     while (this.bufferSize * this.fps < this.sampleRate) {
         this.bufferSize *= 2;
@@ -96,8 +85,6 @@ function AudioVisualizer(audioContext, opts) {
     this.connected = false;
     this.paused = false;
     this.handleAudioProcessingEvent = this.handleAudioProcessingEvent.bind(this);
-    this.analyser = audioContext.createAnalyser();
-    this.analyser.fftSize = this.bufferSize;
     this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
 }
 util.inherits(AudioVisualizer, EventEmitter);
@@ -114,27 +101,12 @@ AudioVisualizer.prototype.resume = function() {
     this.emit("resume");
 };
 
-AudioVisualizer.prototype.getAudioNode = function() {
-    return this.analyser;
-};
-
 AudioVisualizer.prototype.destroy = function() {
     this.destroyed = true;
     this.removeAllListeners();
     cancelAnimationFrame(this.frameId);
     this.disconnect();
-};
-
-AudioVisualizer.prototype.disconnect = function() {
-    var ret = this.analyser.disconnect.apply(this.analyser, arguments);
-    this.connected = false;
-    return ret;
-};
-
-AudioVisualizer.prototype.connect = function() {
-    var ret = this.analyser.connect.apply(this.analyser, arguments);
-    this.connected = true;
-    return ret;
+    this.sourceNode = null;
 };
 
 AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
@@ -152,7 +124,10 @@ AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
         return;
     }
 
-    this.analyser.getFloatTimeDomainData(this.buffer[0]);
+    if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
+        return;
+    }
+    
     this.hammingWindow();
     this.forwardFft();
     this.calculateBins();
@@ -222,7 +197,7 @@ AudioVisualizer.prototype.calculateBins = function() {
 AudioVisualizer.prototype.hammingWindow = function() {
     const x = this.buffer[0];
     const N = x.length;
-    const pi2 = Math.PI * 2;
+    //const pi2 = Math.PI * 2;
     const a = 2 * Math.pow(Math.sin(-Math.PI / N), 2);
     const b = Math.sin(-Math.PI * 2 / N);
     var tmp;
@@ -240,5 +215,4 @@ AudioVisualizer.prototype.forwardFft = function() {
     realFft(this.buffer[0]);
 };
 
-
-return AudioVisualizer; })();
+module.exports = AudioVisualizer;

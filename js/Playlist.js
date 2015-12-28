@@ -1,4 +1,13 @@
-const Playlist = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const EventEmitter = require("events");
+const util = require("./util");
+const Selectable = require("./Selectable");
+const DraggableSelection = require("./DraggableSelection");
+const keyValueDatabase = require("./KeyValueDatabase");
+const Random = require("./Random");
+const Track = require("./Track");
+
 
 const PLAYLIST_MODE_KEY = "playlist-mode";
 
@@ -11,7 +20,7 @@ const MAX_HISTORY = 500;
 const EMPTY_ARRAY = [];
 const DUMMY_TRACK = {
     getIndex: function() {
-        return -1
+        return -1;
     },
 
     isDetachedFromPlaylist: function() {
@@ -19,10 +28,7 @@ const DUMMY_TRACK = {
     }
 };
 
-
-const REPEAT_MODE = "repeat";
 const SHUFFLE_MODE = "shuffle";
-const NORMAL_MODE = "normal";
 
 var playlistRunningPlayId = 0;
 function Playlist(domNode, opts) {
@@ -57,7 +63,7 @@ function Playlist(domNode, opts) {
     this.requestedRenderFrame = null;
     this.renderItems = $.proxy(this.renderItems, this);
 
-    $(window).on("resize", $.proxy(this.windowLayoutChanged, this))
+    $(window).on("resize", $.proxy(this.windowLayoutChanged, this));
     this.$().on("scroll ps-scroll-y", $.proxy(this.scrolled, this));
 
     this._nextTrack = null;
@@ -216,7 +222,6 @@ Playlist.prototype.renderItems = function() {
     var $topSpacer = this.$().find(".top-spacer");
     var $bottomSpacer= this.$().find(".bottom-spacer");
     var tracks = this.getTracks();
-    var visibleTracks = this._visibleTracks;
     var itemHeight = this._itemHeight;
     var scrollTop = container.scrollTop;
     var displayedTracks = this._displayedTracks;
@@ -264,8 +269,6 @@ Playlist.prototype.$ = function() {
 };
 
 Playlist.prototype.hidePlaylistEmptyIndicator = function() {
-    var self = this;
-    var maxLeft = this.$().outerWidth();
     this.$().find(".playlist-empty").hide();
     this.$().find(".playlist-spacer").show();
 };
@@ -799,8 +802,8 @@ const makeComparer = function(mainComparer) {
         }
 
         for (var i = 0; i < length; ++i) {
-            var comparer = comparers[i];
-            if ((comparison = comparer(aTagData, bTagData)) !== 0) {
+            var theComparer = comparers[i];
+            if ((comparison = theComparer(aTagData, bTagData)) !== 0) {
                 return comparison;
             }
         }
@@ -817,10 +820,10 @@ const makeComparer = function(mainComparer) {
     };
 };
 
-Playlist.prototype.sortByAlbum = makeComparer(compareAlbum)
-Playlist.prototype.sortByArtist = makeComparer(compareArtist)
-Playlist.prototype.sortByTitle = makeComparer(compareTitle)
-Playlist.prototype.sortByRating = makeComparer(compareRating)
+Playlist.prototype.sortByAlbum = makeComparer(compareAlbum);
+Playlist.prototype.sortByArtist = makeComparer(compareArtist);
+Playlist.prototype.sortByTitle = makeComparer(compareTitle);
+Playlist.prototype.sortByRating = makeComparer(compareRating);
 Playlist.prototype.sortByDuration = makeComparer(compareDuration);
 
 Playlist.prototype.sortByReverseOrder = function() {
@@ -850,7 +853,7 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
     this.emit("trackOrderChange");
 };
 
-Playlist.prototype.setItemHeight = function(newHeight) {
+Playlist.prototype.setItemHeight = function() {
     throw new Error("Not implemented");
 };
 
@@ -865,4 +868,4 @@ Object.defineProperty(Playlist.prototype, "length", {
     configurable: false
 });
 
-return Playlist; })();
+module.exports = Playlist;

@@ -1,3 +1,4 @@
+const Promise = require("../lib/bluebird");
 Promise.config({
     // Enable warnings.
     warnings: false,

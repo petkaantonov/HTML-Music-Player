@@ -1,6 +1,10 @@
-var serviceWorkerManager = (function() { "use strict";
+"use strict";
 
-var timing = window.performance && window.performance.timing || {};
+const $ = require("../lib/jquery");
+const GlobalUi = require("./GlobalUi");
+const Snackbar = require("./Snackbar");
+
+/*var timing = window.performance && window.performance.timing || {};
 const TAB_ID = sha1(timing.connectEnd + "" +
                 timing.connectStart + "" +
                 timing.domComplete + "" +
@@ -23,7 +27,7 @@ const TAB_ID = sha1(timing.connectEnd + "" +
                 timing.unloadEventEnd + "" +
                 timing.unloadEventStart + "" +
                 Date.now() + "" +
-                Math.random());
+               Math.random());*/
 
 function ServiceWorkerManager() {
     this._registration = null;
@@ -52,6 +56,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
                 setTimeout(function() {
                     self._updateAvailable(worker, nextAskTimeout * 3);
                 }, nextAskTimeout);
+                break;
             default:
                 return;
         }
@@ -96,4 +101,4 @@ ServiceWorkerManager.prototype.start = function() {
     });
 };
 
-return new ServiceWorkerManager(); })();
+module.exports = new ServiceWorkerManager();

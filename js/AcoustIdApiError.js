@@ -1,4 +1,6 @@
-const AcoustIdApiError = (function() { "use strict";
+"use strict";
+
+const util = require("./util");
 
 const codeToString = function(code) {
     return Object.keys(AcoustIdApiError).filter(function(key) {
@@ -55,7 +57,5 @@ AcoustIdApiError.prototype.isRetryable = function() {
     return !this.isFatal();
 };
 
-
-
-return AcoustIdApiError; })();
+module.exports = AcoustIdApiError;
 

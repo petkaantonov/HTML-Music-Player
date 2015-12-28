@@ -431,6 +431,12 @@ AudioPlayer.prototype.destroy = function() {
     this.offset = 0;
     this.metadata = null;
     this.ended = false;
+
+    this.errored = this.errored.bind(this);
+};
+
+AudioPlayer.prototype.errored = function(e) {
+    message(this.id, "_error", {message: "Decoder error: " + e.message});
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
@@ -446,6 +452,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
     });
 
     this.decoderContext.start();
+    this.decoderContext.on("error", this.errored);
     this.metadata = metadata;
 
     if (this.metadata.sampleRate !== hardwareSampleRate) {
@@ -637,30 +644,31 @@ ChannelMixer.prototype.getChannels = function() {
     return this.channels;
 };
 
-ChannelMixer.prototype.mix = function(input) {
+ChannelMixer.prototype.mix = function(input, length) {
     const inputChannels = input.length;
     if (inputChannels === this.channels) {
         return input;
     }
+    if (length === undefined) length = input[0].length;
 
-    var method = this._mix[inputChannels + "to" + this.channels];
+    var method = this["_mix" + inputChannels + "to" + this.channels];
 
-    if (!method) return this._mixAnyToAny(input);
+    if (!method) return this._mixAnyToAny(input, length);
 
-    return method.call(this, input);
+    return method.call(this, input, length);
 };
 
 ChannelMixer.prototype._mix1to2 = function(input) {
     return [input[0], input[0]];
 };
 
-ChannelMixer.prototype._mix1to4 = function(input) {
-    var silent = getBuffer(input[0].length);
+ChannelMixer.prototype._mix1to4 = function(input, length) {
+    var silent = getBuffer(length);
     return [input[0], input[0], silent, silent];
 };
 
-ChannelMixer.prototype._mix1to6 = function(input) {
-    var silent = getBuffer(input[0].length);
+ChannelMixer.prototype._mix1to6 = function(input, length) {
+    var silent = getBuffer(length);
     return [
         silent,
         silent,
@@ -671,52 +679,52 @@ ChannelMixer.prototype._mix1to6 = function(input) {
     ];
 };
 
-ChannelMixer.prototype._mix2to1 = function(input) {
+ChannelMixer.prototype._mix2to1 = function(input, length) {
     var ret = input[0];
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         ret[i] = Math.fround(Math.fround(input[0][i] + input[1][i]) / 2);
     }
     return [ret];
 };
 
-ChannelMixer.prototype._mix2to4 = function(input) {
-    var silent = getBuffer(input[0].length);
+ChannelMixer.prototype._mix2to4 = function(input, length) {
+    var silent = getBuffer(length);
     return [input[0], input[1], silent, silent];
 };
 
-ChannelMixer.prototype._mix2to6 = function(input) {
-    var silent = getBuffer(input[0].length);
+ChannelMixer.prototype._mix2to6 = function(input, length) {
+    var silent = getBuffer(length);
     return [input[0], input[1], silent, silent, silent, silent];
 };
 
-ChannelMixer.prototype._mix4to1 = function(input) {
+ChannelMixer.prototype._mix4to1 = function(input, length) {
     var ret = input[0];
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         ret[i] = (input[0][i] + input[1][i] + input[2][i] + input[3][i]) / 4;
     }
     return [ret];
 };
 
-ChannelMixer.prototype._mix4to2 = function(input) {
+ChannelMixer.prototype._mix4to2 = function(input, length) {
     var ret0 = input[0];
     var ret1 = input[1];
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         ret0[i] = (input[0][i] + input[2][i]) / 2;
         ret1[i] = (input[1][i] + input[3][i]) / 2;
     }
     return [ret0, ret1];
 };
 
-ChannelMixer.prototype._mix4to6 = function(input) {
-    var silent = getBuffer(input[0].length);
+ChannelMixer.prototype._mix4to6 = function(input, length) {
+    var silent = getBuffer(length);
     return [input[0], input[1], silent, silent, input[2], input[3]];
 };
 
 
-ChannelMixer.prototype._mix6to1 = function(input) {
+ChannelMixer.prototype._mix6to1 = function(input, length) {
     var ret = input[0];
 
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         var L = input[0][i];
         var R = input[1][i];
         var C = input[2][i];
@@ -727,11 +735,11 @@ ChannelMixer.prototype._mix6to1 = function(input) {
     return [ret];
 };
 
-ChannelMixer.prototype._mix6to2 = function(input) {
+ChannelMixer.prototype._mix6to2 = function(input, length) {
     var ret0 = input[0];
     var ret1 = input[1];
 
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         var L = input[0][i];
         var R = input[1][i];
         var C = input[2][i];
@@ -744,13 +752,13 @@ ChannelMixer.prototype._mix6to2 = function(input) {
     return [ret0, ret1];
 };
 
-ChannelMixer.prototype._mix6to4 = function(input) {
+ChannelMixer.prototype._mix6to4 = function(input, length) {
     var ret0 = input[0];
     var ret1 = input[1];
     var ret2 = input[4];
     var ret3 = input[5];
 
-    for (var i = 0; i < ret.length; ++i) {
+    for (var i = 0; i < length; ++i) {
         var L = input[0][i];
         var R = input[1][i];
         var C = input[2][i];
@@ -761,7 +769,7 @@ ChannelMixer.prototype._mix6to4 = function(input) {
     return [ret0, ret1, ret2, ret3];
 };
 
-ChannelMixer.prototype._mixAnyToAny = function(input) {
+ChannelMixer.prototype._mixAnyToAny = function(input, length) {
     var channels = this.channels;
 
     if (channels < input.length) {
@@ -769,10 +777,10 @@ ChannelMixer.prototype._mixAnyToAny = function(input) {
     } else if (channels > input.length) {
         var ret = new Array(channels);
         var i = 0;
-        for ( ; i < input.length; ++i) {
+        for ( ; i < length; ++i) {
             ret[i] = input[i];
         }
-        var silent = getBuffer(ret[0].length);
+        var silent = getBuffer(length);
         for ( ; i < channels; ++i) {
             ret[i] = silent;
         }
@@ -781,7 +789,6 @@ ChannelMixer.prototype._mixAnyToAny = function(input) {
         return input;
     }
 };
-
 module.exports = ChannelMixer;
 
 },{}],4:[function(require,module,exports){
@@ -1748,7 +1755,7 @@ function seekMp3(time, metadata, context, blob) {
     var timePerFrame = (metadata.samplesPerFrame / metadata.sampleRate);
     var index = 0;
     
-    var frame = Math.max(0, Math.min(table.frames - 1, (time / timePerFrame) | 0));
+    var frame = Math.max(0, Math.min(table.frames - 1, Math.round(time / timePerFrame)));
     var currentTime = frame * timePerFrame;
     var offset = table.table[frame];
 
@@ -1757,7 +1764,6 @@ function seekMp3(time, metadata, context, blob) {
         offset: offset
     };
 }
-
 
 function seek(type, time, metadata, context, blob) {
     if (type === "mp3") {

@@ -1,10 +1,13 @@
+"use strict";
+const $ = require("../lib/jquery");
+
 function TrackDisplay(target, opts) {
     var parent;
     target = typeof target == "string" ? document.getElementById(target) :
         target;
 
     if (target.id == null) {
-        target.id = (+new Date) + "-track-display";
+        target.id = (+new Date()) + "-track-display";
     }
 
     parent = target.parentNode;
@@ -12,11 +15,10 @@ function TrackDisplay(target, opts) {
     if (!parent || !target) {
         throw new TypeError(
             "TrackDisplay needs a scroll parent and a content target");
-        return false;
     }
 
     if (parent && !parent.id) {
-        parent.id = (+new Date) + "-track-display-parent";
+        parent.id = (+new Date()) + "-track-display-parent";
     }
 
     this._target = target.id;
@@ -30,7 +32,7 @@ function TrackDisplay(target, opts) {
     this._track = null;
     this._trackDataUpdated = this._trackDataUpdated.bind(this);
     this._trackIndexChanged = this._trackIndexChanged.bind(this);
-};
+}
 
 TrackDisplay.prototype.clearPrevious = function() {
     if (!this._track) return;
@@ -72,7 +74,7 @@ TrackDisplay.prototype.__marquer = function() {
         self = this,
         progress = this._direction == "right" ? 1 : -1;
 
-    var last = -1
+    var last = -1;
     var updateTime = 1000 / this._pixelsPerSecond;
     this._frameRequest = requestAnimationFrame(function animate(now) {
         self._frameRequest = null;
@@ -117,3 +119,5 @@ TrackDisplay.prototype.stopMarquee = function() {
     }
     return this;
 };
+
+module.exports = TrackDisplay;

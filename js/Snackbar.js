@@ -1,4 +1,9 @@
-const Snackbar = (function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const EventEmitter = require("events");
+const util = require("./util");
 
 const NO_TAG = {};
 
@@ -32,7 +37,7 @@ function SnackbarInstance(snackbar, message, opts) {
     if (this._snackbar.transitionInClass) {
         this.$().addClass(this._snackbar.transitionInClass + " initial");
         this.$().appendTo("body");
-        this.$().width()
+        this.$().width();
         this.$().removeClass("initial");
         this._snackbar.beforeTransitionIn(this.$());
     } else {
@@ -105,7 +110,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
             this.outcome = Snackbar.TIMED_OUT;
             this._hide();
         } else {
-            this._checkerTimerId = setTimeout(this._timeoutChecker, Math.max(0, visibilityTime - shownTime))
+            this._checkerTimerId = setTimeout(this._timeoutChecker, Math.max(0, visibilityTime - shownTime));
         }
     }
 };
@@ -153,7 +158,7 @@ SnackbarInstance.prototype._hide = function() {
     setTimeout(function() {
         self.emit("hide", self);
         self._destroy();
-    }, this._snackbar.nextDelay)
+    }, this._snackbar.nextDelay);
     
 };
 
@@ -258,4 +263,4 @@ Snackbar.ACTION_CLICKED = 0;
 Snackbar.DISMISSED = 1;
 Snackbar.TIMED_OUT = 2;
 
-return Snackbar; })();
+module.exports = Snackbar;

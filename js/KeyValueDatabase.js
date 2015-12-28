@@ -1,4 +1,8 @@
-var keyValueDatabase = (function() {"use strict";
+"use strict";
+const Promise = require("../lib/bluebird");
+const $ = require("../lib/jquery");
+const util = require("./util");
+
 const VERSION = 2;
 const NAME = "KeyValueDatabase2";
 const KEY_NAME = "key";
@@ -6,10 +10,7 @@ const TABLE_NAME = "keyValueDatabase2";
 const READ_WRITE = "readwrite";
 const READ_ONLY = "readonly";
 
-const indexedDB = window.indexedDB || window.mozIndexedDB || window.msIndexedDB;
-const IDBTransaction = window.IDBTransaction ||  window.msIDBTransaction || {READ_WRITE: "readwrite"}; // This line should only be needed if it is needed to support the object's constants for older browsers
-const IDBKeyRange = window.IDBKeyRange || window.msIDBKeyRange;
-
+const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
 function KeyValueDatabase() {
     var request = indexedDB.open(NAME, VERSION);
@@ -106,4 +107,4 @@ KeyValueDatabase.prototype.getAll = function(_tries) {
     });
 };
 
-return new KeyValueDatabase();})();
+module.exports = new KeyValueDatabase();

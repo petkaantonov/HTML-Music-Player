@@ -1,3 +1,8 @@
+"use strict";
+const $ = require("../lib/jquery");
+const EventEmitter = require("events");
+const util = require("./util");
+
 function Slider(domNode, opts) {
     EventEmitter.call(this);
     this._domNode = $(domNode);
@@ -52,7 +57,7 @@ Slider.prototype.__createMouseUp = function() {
             .off("mousemove", self.__onmousemove)
             .off("mouseup", self.__onmouseup);
         $(window).off("relayout", self._onReLayout);
-    }
+    };
 };
 
 Slider.prototype.__createMouseMover = function() {
@@ -91,3 +96,5 @@ Slider.prototype._init = function() {
     });
 
 };
+
+module.exports = Slider;

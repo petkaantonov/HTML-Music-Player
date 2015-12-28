@@ -1,4 +1,8 @@
-var tagDatabase = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const util = require("./util");
 const VERSION = 3;
 const NAME = "TagDatabase";
 const KEY_NAME = "trackUid";
@@ -8,10 +12,7 @@ const COVERART_TABLE_NAME = "coverart";
 const READ_WRITE = "readwrite";
 const READ_ONLY = "readonly";
 
-const indexedDB = window.indexedDB || window.mozIndexedDB || window.msIndexedDB;
-const IDBTransaction = window.IDBTransaction ||  window.msIDBTransaction || {READ_WRITE: "readwrite"}; // This line should only be needed if it is needed to support the object's constants for older browsers
-const IDBKeyRange = window.IDBKeyRange || window.msIDBKeyRange;
-
+const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
 function TagDatabase() {
     var request = indexedDB.open(NAME, VERSION);
@@ -98,4 +99,4 @@ TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
 
-return new TagDatabase();})();
+module.exports = new TagDatabase();

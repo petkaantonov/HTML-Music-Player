@@ -1,4 +1,11 @@
-const metadataRetriever = (function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const AcoustIdApiError = require("./AcoustIdApiError");
+const TrackAnalyzer = require("./TrackAnalyzer");
+const TrackWasRemovedError = require("./TrackWasRemovedError");
+const util = require("./util");
 
 function getBestRecordingGroup(recordings) {
     var groups = [];
@@ -213,12 +220,12 @@ MetadataRetriever.prototype.acoustIdQuery = function(track, duration, fingerprin
         .finally(function() {
             self._currentRequest = null;
         })
-        .catch(function(e) {
+        .catch(function() {
             // Went offline during request, try later.
             if (!navigator.onLine || jqXhr.statusText === "timeout") {
                 return self._queuedRequest(track, duration, fingerprint);
             }
-        })
+        });
 
     return this._currentRequest;
 };
@@ -290,4 +297,4 @@ setInterval(function() {
     ret.processNextInQueue();
 }, 1000);
 
-return ret; })();
+module.exports = ret;

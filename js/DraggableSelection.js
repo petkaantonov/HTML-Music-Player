@@ -1,3 +1,8 @@
+"use strict";
+const $ = require("../lib/jquery");
+const util = require("./util");
+const Selectable = require("./Selectable");
+
 function DraggableSelection(dom, playlist, opts) {
     opts = Object(opts);
     this._mustMatchSelector = opts.mustMatchSelector || null;
@@ -21,7 +26,7 @@ function DraggableSelection(dom, playlist, opts) {
     this._scrollIntervalId = -1;
 
     this.$().bind("mousedown", this._onTrackMouseDown);
-    this.$().bind("selectstart", function(e) {e.preventDefault()});
+    this.$().bind("selectstart", function(e) {e.preventDefault();});
 }
 
 DraggableSelection.prototype._clearScrollInterval = function() {
@@ -111,7 +116,6 @@ DraggableSelection.prototype._onMovement = function(e) {
     this._maybeStartDownScroller();
     this._maybeStartUpScroller();
 
-    var dom = this.$()[0];
     var itemHeight = this._playlist.getItemHeight();
     var clientY = typeof e.clientY === "number" ? e.clientY : this._previousRawY;
     this._previousRawY = clientY;
@@ -169,7 +173,6 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     this._previousRawY = e.clientY;
     this._onReLayout();
 
-    var tracks = this._playlist.getTracks();
     this.$().on("scroll", this._onMovement);
     $(document).on("mousemove", this._onMovement);
     $(document).on("mouseup", this._onMouseRelease);
@@ -177,5 +180,6 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     this._playlist.on("tracksSelected", this._restart);
     this._playlist.on("lengthChange", this._restart);
     this._playlist.on("trackOrderChange", this._restart);
-
 };
+
+module.exports = DraggableSelection;

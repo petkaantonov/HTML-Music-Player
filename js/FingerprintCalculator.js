@@ -1,12 +1,13 @@
-const FingerprintCalculator = (function() {"use strict";
+"use strict";
+const Promise = require("../lib/bluebird.js");
+
+const GlobalUi = require("./GlobalUi");
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
 const MIN_DURATION = 7;
-const MIN_FRAMES = MIN_DURATION * SAMPLE_RATE;
 const FRAMES = SAMPLE_RATE * DURATION;
 const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
 
 function FingerprintCalculator(pool) {
     this._worker = pool.reserveWorker();
@@ -22,7 +23,7 @@ FingerprintCalculator.prototype._onTransferList = function(transferList) {
 FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, audioBuffer) {
     if (!this._buffer) this._buffer = new Float32Array(FRAMES);
     var self = this;
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve) {
         var duration = Math.min(audioBuffer.duration, DURATION);
 
         if (duration < MIN_DURATION) {
@@ -57,4 +58,4 @@ FingerprintCalculator.prototype.calculateFingerprintForTrack = function(track, a
     });
 };
 
-return FingerprintCalculator; })();
+module.exports = FingerprintCalculator;

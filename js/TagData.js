@@ -1,4 +1,10 @@
-const TagData = (function() { "use strict";
+"use strict";
+const Promise = require("../lib/bluebird.js");
+
+const util = require("./util");
+const tagDatabase = require("./TagDatabase");
+const features = require("./features");
+const metadataRetriever = require("./MetadataRetriever");
 
 const UNKNOWN = "Unknown";
 
@@ -8,10 +14,10 @@ const PENDING_IMAGE = 3;
 const HAS_IMAGE = 4;
 
 var preferAcoustIdData = true;
+var tagDatasRetainingBlobUrls = [];
 
 const albumNameToCoverArtUrlMap = Object.create(null);
 
-const tagDatasRetainingBlobUrls = [];
 
 function TagData(track, title, artist, basicInfo, album, albumIndex, embeddedImageOffsets) {
     this.track = track;
@@ -65,7 +71,7 @@ TagData.prototype.formatTime = function() {
 
 var stripExtensionPattern = new RegExp("\\.(?:" + features.allowExtensions.join("|") + ")$", "i");
 var separatorPattern = /(.+)\s*-\s*(.+)/;
-
+TagData.stripExtensionPattern = stripExtensionPattern;
 TagData.trackInfoFromFileName = function(fileName) {
     var fileName = fileName.replace(stripExtensionPattern, "");
     var matches = fileName.match(separatorPattern);
@@ -313,4 +319,4 @@ function checkTagDatasRetainingBlobUrls() {
     }
 }
 
-return TagData; })();
+module.exports = TagData;

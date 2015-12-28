@@ -1,5 +1,8 @@
-var util = util || {};
-(function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+const EventEmitter = require("events");
+var util = module.exports;
 
 var FunctionBind = Function.prototype.bind;
 Function.prototype.bind = function(ctx) {
@@ -118,7 +121,7 @@ util.fastClickEventHandler = function fastClickEventHandler(fn) {
         if (touched || clicked) {
             return fn.call(this, e, clicked, touched);
         }
-    }
+    };
 };
 
 util.bits = (function() {
@@ -343,7 +346,7 @@ util.truncateUp = function(num) {
 
 util.toTimeString = function(secs) {
     if (!isFinite(secs) || secs == null) return "";
-    secs = Math.round(secs)
+    secs = Math.round(secs);
     var days, hours, minutes, seconds;
 
     days = (secs / 86400) >> 0;
@@ -405,8 +408,7 @@ util.scrollIntoView = {
         }
         var nodeOffset = node.offsetTop,
             parentHeight = parentNode.offsetHeight,
-            parentScrollTop = parentNode.scrollTop,
-            dif, mid;
+            dif;
 
         dif = nodeOffset - (parentHeight / 2);
 
@@ -492,7 +494,7 @@ if (typeof Array.prototype.last !== "function") {
         if (len > 0)  {
             return this[len - 1];
         }
-    }
+    };
 }
 
 if (typeof Math.log10 !== "function") {
@@ -517,7 +519,7 @@ Array.prototype.toKeysObj = function() {
     return ret;
 };
 
-util.IDENTITY = function(v) { return v; }
+util.IDENTITY = function(v) { return v; };
 
 util.buildConsecutiveRanges = function(array, callback) {
     if (typeof callback !== "function") callback = util.IDENTITY;
@@ -622,7 +624,7 @@ util.readAsBinaryString = function(file) {
             reader = null;
         });
         util.once(reader, "error", function() {
-            reject(new FileError(this.error));
+            reject(new Error(this.error.message));
             reader = null;
         });
         reader.readAsBinaryString(file);
@@ -637,7 +639,7 @@ util.readAsArrayBuffer = function(file) {
             reader = null;
         });
         util.once(reader, "error", function() {
-            reject(new FileError(this.error));
+            reject(new Error(this.error.message));
             reader = null;
         });
         reader.readAsArrayBuffer(file);
@@ -787,8 +789,8 @@ util.unicode.decodeUnicodeEncodedBinaryString = (function() {
         }
         var codePoints = new Array(Math.ceil(str.length / 2)),
             codePoint,
-            low, high,
-            byte;
+            low, high;
+
         codePoints.length = 0;
         if (endianess === BIG_ENDIAN) {
             for (; i < len; i += 2) {
@@ -975,7 +977,7 @@ util.IDBPromisify = function(ee) {
             resolve(event.target.result);
         };
         ee.oncomplete = resolve;
-    })
+    });
 };
 
 util.documentHidden = (function() {
@@ -991,7 +993,7 @@ util.documentHidden = (function() {
     var ret = new EventEmitter();
     ret.setMaxListeners(255);
 
-    var blurred = undefined;
+    var blurred;
 
     ret.value = function() {
         if (blurred === undefined) return document[prop];
@@ -1019,6 +1021,4 @@ util.documentHidden = (function() {
 
 
     return ret;
-})();
-
 })();

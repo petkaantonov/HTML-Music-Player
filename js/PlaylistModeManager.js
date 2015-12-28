@@ -1,4 +1,6 @@
-const PlaylistModeManager = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const GlobalUi = require("./GlobalUi");
 
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
@@ -101,6 +103,4 @@ PlaylistModeManager.prototype.setMode = function(mode) {
     this.playlist.tryChangeMode(mode);
 };
 
-
-
-return PlaylistModeManager; })();
+module.exports = PlaylistModeManager;

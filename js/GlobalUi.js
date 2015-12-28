@@ -1,5 +1,16 @@
-const GlobalUi = (function() { "use strict";
-var GlobalUi = {};
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const Snackbar = require("./Snackbar");
+const Popup = require("./Popup");
+const Tooltip = require("./Tooltip");
+const Animator = require("./Animator");
+const keyValueDatabase = require("./KeyValueDatabase");
+const hotkeyManager = require("./HotkeyManager");
+
+
+const GlobalUi = module.exports;
 
 GlobalUi.snackbar = new Snackbar({
     transitionInClass: "transition-in",
@@ -96,7 +107,7 @@ GlobalUi.makePopup = function(title, body, opener) {
         hotkeyManager.disableHotkeys();
     });
 
-    ret.on("close", function(instance) {
+    ret.on("close", function() {
         hotkeyManager.enableHotkeys();
         keyValueDatabase.set(title + "position", ret.getPreferredPosition());
     });
@@ -108,5 +119,3 @@ GlobalUi.makePopup = function(title, body, opener) {
     $(window).on("clear", ret.close.bind(ret));
     return ret;
 };
-
-return GlobalUi; })();

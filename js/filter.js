@@ -1,4 +1,10 @@
-var filter = {};
+"use strict";
+const $ = require("../lib/jquery");
+const hotkeyManager = require("./HotkeyManager");
+const GlobalUi = require("./GlobalUi");
+const TrackSearcher = require("./TrackSearcher");
+
+var filter = module.exports;
 var filterPopup = GlobalUi.makePopup("Filter",
             "<div class='filter-container'>                                                             \
                 <div class='app-bread-text'>Find tracks on the playlist that match the given text.</div> \
@@ -25,7 +31,7 @@ filter.show = function() {
     }
 };
 
-$(".menul-filter").bind("click", filter.show)
+$(".menul-filter").bind("click", filter.show);
 hotkeyManager.addDescriptor({
     category: "Playlist management",
     action: "Filter",

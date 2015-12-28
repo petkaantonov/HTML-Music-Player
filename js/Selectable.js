@@ -1,10 +1,13 @@
-const Selectable = (function() { "use strict";
+"use strict";
+const EventEmitter = require("events");
+const util = require("./util");
+const DS = require("../lib/DataStructures");
+
 
 const modifierKeyProp = util.modifierKeyProp;
 
 function Selectable(playlist) {
     EventEmitter.call(this);
-    var self = this;
     this._playlist = playlist;
     this._selectionPointer = null;
     this._lastIdx = null;
@@ -143,8 +146,7 @@ Selectable.prototype._shiftSelection = function(idx) {
 };
 
 Selectable.prototype._appendingShiftSelection = function(idx) {
-    var j, start = this._selection.first().getIndex(),
-        end = this._selection.last().getIndex();
+    var j;
     if (idx < this._selectionPointer) {
         for (j = idx; j <= this._selectionPointer; ++j) {
             this._add(j);
@@ -442,4 +444,4 @@ Selectable.moveSelectedTracksUpBy = function(tracks, selection, distance) {
     }
 };
 
-return Selectable; })();
+module.exports = Selectable;

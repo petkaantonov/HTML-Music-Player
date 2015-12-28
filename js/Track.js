@@ -1,4 +1,11 @@
-var Track = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+
+const EventEmitter = require("events");
+const util = require("./util");
+const TagData = require("./TagData");
+const Tooltip = require("./Tooltip");
+const sha1 = require("../lib/sha1");
 
 const DEFAULT_IMAGE_URL = "/dist/images/icon.png";
 
@@ -232,7 +239,7 @@ Track.prototype.rate = function(value) {
     this.tagDataUpdated();
 };
 
-Track.prototype.ratingInputMouseLeft = function(e) {
+Track.prototype.ratingInputMouseLeft = function() {
     this.$ratingInputs().removeClass("rate-intent");
 };
 
@@ -250,7 +257,7 @@ Track.prototype.ratingInputClicked = function(e) {
     this.tagDataUpdated();
 };
 
-Track.prototype.ratingInputDoubleClicked = function(e) {
+Track.prototype.ratingInputDoubleClicked = function() {
     if (!this.isRated()) return;
     this.tagData.unsetRating();
     this.tagDataUpdated();
@@ -304,7 +311,7 @@ Track.prototype.indexChanged = function() {
     }
 };
 
-Track.prototype.doubleClicked = function(event) {
+Track.prototype.doubleClicked = function() {
     playlist.main.changeTrackExplicitly(this);
 };
 
@@ -326,8 +333,6 @@ Track.prototype.startPlaying = function() {
 
 Track.prototype.showAnalysisStatus = function() {
     if (this._domNode === NULL) return;
-
-    var self = this;
 
     this.$trackStatus().html("<span " +
         "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
@@ -523,7 +528,7 @@ Track.prototype.isFromSameAlbumAs = function(otherTrack) {
 
 Track.prototype.getSearchString = function() {
     if (this._searchString !== null) return this._searchString;
-    var searchString = this.formatName().toLowerCase().replace(stripExtensionPattern, "")
+    var searchString = this.formatName().toLowerCase().replace(TagData.stripExtensionPattern, "")
                                     .replace(util.unicode.alphaNumericFilteringPattern, "");
     this._searchString = searchString;
     return searchString;
@@ -547,7 +552,7 @@ Track.prototype.shouldRetrieveAcoustIdImage = function() {
 
 const rType =
     /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
-Track.WAV = 0
+Track.WAV = 0;
 Track.MP3 = 1;
 Track.AAC = 2;
 Track.WEBM = 3;
@@ -587,4 +592,4 @@ Track.prototype.getFormat = function(initialBytes) {
     }
 };
 
-return Track;})();
+module.exports = Track;

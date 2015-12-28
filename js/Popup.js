@@ -1,4 +1,9 @@
-const Popup = (function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const EventEmitter = require("events");
+const util = require("./util");
 
 const shownPopups = [];
 const NULL = $(null);
@@ -24,7 +29,7 @@ function showBlocker() {
 
     blocker.addClass("initial");
     blocker[0].offsetWidth;
-    blocker.detach()
+    blocker.detach();
     blocker.appendTo("body");
     blocker[0].offsetWidth;
     blocker.removeClass("initial");
@@ -232,4 +237,4 @@ Popup.prototype.setPreferredPosition = function(pos) {
     this.position();
 };
 
-return Popup; })();
+module.exports = Popup;

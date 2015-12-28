@@ -1,4 +1,7 @@
-var Tooltip = (function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const EventEmitter = require("events");
+const util = require("./util");
 
 const getDirection = function(value) {
     value = ("" + value).trim().toLowerCase();
@@ -26,7 +29,7 @@ const getActivationStyle = function(value) {
         return value;
     }
     return "hover";
-}
+};
 
 const NULL = $(null);
 
@@ -241,7 +244,6 @@ Tooltip.prototype._show = function(isForRepaintOnly) {
     this._shown = true;
     content = content + "";
 
-    var $target = this._target;
     var $parent = $("body");
     var $node = this._createTooltipNode(content);
 
@@ -446,7 +448,7 @@ Tooltip.prototype.mouseEntered = function(e) {
     this.mousemoved(e);
 };
 
-Tooltip.prototype.mouseLeft = function(e) {
+Tooltip.prototype.mouseLeft = function() {
     this.hide();
 };
 
@@ -469,4 +471,4 @@ Tooltip.prototype.$ = function() {
     return this._domNode;
 };
 
-return Tooltip; })();
+module.exports = Tooltip;

@@ -1,3 +1,4 @@
+"use strict";
 const Random = (function() {
 
     var reth, retl;
@@ -37,11 +38,6 @@ const Random = (function() {
     const shr = function(h, l, count) {
         retl = (l >>> count) | (h << (32 - count));
         reth = h >>> count;
-    };
-
-    const and = function(ah, al, bh, bl) {
-        reth = ah & bh;
-        retl = al & bl;
     };
 
     var state0l, state0h, state1l, state1h;
@@ -150,3 +146,5 @@ const Random = (function() {
     };
 
 })();
+
+module.exports = Random;

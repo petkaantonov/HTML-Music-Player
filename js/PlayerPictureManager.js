@@ -1,4 +1,6 @@
-const PlayerPictureManager = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Animator = require("./Animator");
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
@@ -27,7 +29,6 @@ PlayerPictureManager.prototype.$ = function() {
 };
 
 PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
-    var self = this;
     var image = this._currentImage;
     var animator = new Animator(image, {
         properties: [{
@@ -84,7 +85,6 @@ PlayerPictureManager.prototype._next = function() {
 };
 
 PlayerPictureManager.prototype._attachCurrentImage = function() {
-    var self = this;
     var image = this._currentImage;
     $(image).css({
         opacity: START_ALPHA,
@@ -136,4 +136,4 @@ PlayerPictureManager.prototype.newTrackLoaded = function() {
 };
 
 
-return PlayerPictureManager;})();
+module.exports = PlayerPictureManager;

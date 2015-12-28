@@ -1,4 +1,9 @@
-var WorkerPool = (function() {
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
+
+const EventEmitter = require("events");
+const util = require("./util");
 
 var runningId = 0;
 var WORKER_THREAD = 0;
@@ -88,7 +93,7 @@ PoolWorker.prototype._startWork = function(work) {
             transferList: null
         };
         if (transferList && transferList.length) {
-            message.transferList = transferList
+            message.transferList = transferList;
             this.worker.postMessage(message, transferList);
         } else {
             this.worker.postMessage(message);
@@ -237,4 +242,4 @@ WorkerPool.prototype.invokeInWorkerThread = function(methodName, args, transferL
     return this._getNextPoolWorkerForWorkerWork().queueWork(descriptor);
 };
 
-return WorkerPool;})();
+module.exports = WorkerPool;

@@ -1,4 +1,6 @@
-const PlayerVolumeManager = (function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const GlobalUi = require("./GlobalUi");
 
 function PlayerVolumeManager(dom, player, opts) {
     var self = this;
@@ -58,7 +60,7 @@ PlayerVolumeManager.prototype.volumeChanged = function() {
 };
 
 PlayerVolumeManager.prototype.slideBegun = function() {};
-PlayerVolumeManager.prototype.slideEnded = function(percentage) {};
+PlayerVolumeManager.prototype.slideEnded = function() {};
 PlayerVolumeManager.prototype.slided = function(percentage) {
     this.player.setVolume(percentage);
 };
@@ -85,4 +87,4 @@ PlayerVolumeManager.prototype.muteChanged = function(muted) {
     this._muteTooltip.refresh();
 };
 
-return PlayerVolumeManager;})();
+module.exports = PlayerVolumeManager;

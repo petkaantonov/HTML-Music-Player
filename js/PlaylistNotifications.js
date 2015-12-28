@@ -1,12 +1,16 @@
-var PlaylistNotifications = (function() { "use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const Promise = require("../lib/bluebird.js");
 
+const util = require("./util");
+const GlobalUi = require("./GlobalUi");
 const Notification = window.Notification;
 
 const NOTIFICATIONS_EXPLANATION = "<p>When this browser window is not active, " +
         "a notification will be shown when the current track changes. The notification " +
         "can be clicked to skip the track.</p>";
 
-const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> notifications</p>"
+const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> notifications</p>";
 
 const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> notifications</p>" +
     NOTIFICATIONS_EXPLANATION;
@@ -45,7 +49,7 @@ PlaylistNotifications.prototype.$ = function() {
 
 PlaylistNotifications.prototype.update = function() {
     if (this.enabled) {
-        this.$().off("mouseleave.justdectivated")
+        this.$().off("mouseleave.justdectivated");
         this.$().removeClass("just-deactivated").addClass("active");
     } else {
         this.$().removeClass("active").addClass("just-deactivated");
@@ -84,7 +88,7 @@ PlaylistNotifications.prototype.notificationClicked = function(e) {
     this.playlist.next();
 };
 
-PlaylistNotifications.prototype.notificationErrored = function(e) {
+PlaylistNotifications.prototype.notificationErrored = function() {
     this.destroyCurrentNotification();
 };
 
@@ -184,5 +188,5 @@ PlaylistNotifications.prototype.requestPermission = function() {
     return ret;
 };
 
-return PlaylistNotifications;
-})();
+module.exports = PlaylistNotifications;
+

@@ -1,5 +1,14 @@
-var crossfading = crossfading || new EventEmitter();
-(function() {"use strict";
+"use strict";
+const $ = require("../lib/jquery");
+const EventEmitter = require("events");
+const util = require("./util");
+const GlobalUi = require("./GlobalUi");
+const keyValueDatabase = require("./KeyValueDatabase");
+const hotkeyManager = require("./HotkeyManager");
+const Slider = require("./Slider");
+
+const crossfading = new EventEmitter();
+module.exports = crossfading;
 
 const PROGRESS_INCREASE = 1;
 const PROGRESS_DECREASE = 2;
@@ -51,6 +60,68 @@ const FADE_CONFIGURATOR_HTML =
         <br class='clear' />                                                                          \
         </div>                                                                                        \
     </div>";
+
+const curveInterpolator = {
+    cubicFromStart: function(ticks, maxTicks, progressDirection) {
+        var ret = (ticks = ticks / maxTicks - 1) * ticks * ticks + 1;
+        if (progressDirection === PROGRESS_DECREASE) {
+            return 1 - ret;
+        }
+        return ret;
+    },
+
+    linear: function(ticks, maxTicks, progressDirection) {
+        var ret = ticks / maxTicks;
+        if (progressDirection === PROGRESS_DECREASE) {
+            return 1 - ret;
+        }
+        return ret;
+    },
+
+    sCurve: function(ticks, maxTicks, progressDirection) {
+        ticks = ticks / (maxTicks / 2);
+
+        var ret;
+        if (ticks < 1) {
+            ret = 1 / 2 * ticks * ticks * ticks;
+        } else {
+            ret = 1 / 2 * ((ticks -= 2) * ticks * ticks + 2);
+        }
+        if (progressDirection === PROGRESS_DECREASE) {
+            return 1 - ret;
+        }
+        return ret;
+    },
+
+    exponentialFromStart: function(ticks, maxTicks, progressDirection) {
+        var ret = (ticks == maxTicks) ? 1 : -Math.pow(2, -10 * ticks /
+            maxTicks) + 1;
+        if (progressDirection === PROGRESS_DECREASE) {
+            return 1 - ret;
+        }
+        return ret;
+    },
+
+    exponentialToEnd: function(ticks, maxTicks, progressDirection) {
+        var ret = (ticks == 0) ? 0 : Math.pow(2, 10 * (ticks / maxTicks -
+            1));
+        if (progressDirection === PROGRESS_DECREASE) {
+            return 1 - ret;
+        }
+        return ret;
+    }
+};
+
+const getSamplesForCurve = function(curve, progressDirection) {
+    const interpolator = curveInterpolator[curve];
+    const maxTicks = 16;
+    const ret = new Float32Array(maxTicks);
+
+    for (var i = 0; i < maxTicks; ++i) {
+        ret[i] = interpolator(i, maxTicks - 1, progressDirection);
+    }
+    return ret;
+};
 
 function CrossFadePreferences(inEnabled, inTime, inCurve,
                              outEnabled, outTime, outCurve,
@@ -161,7 +232,7 @@ CrossFadePreferences.getPresetMatchingPreferences = function(preferences) {
     return "Custom";
 };
 
-const presets = {
+var presets = {
     "Default": new CrossFadePreferences(true, 5, "sCurve", true, 5, "sCurve", false),
     "Normal": new CrossFadePreferences(true, 5, "linear", true, 5, "linear", false),
     "Sudden death": new CrossFadePreferences(true, 5, "exponentialFromStart", true, 5, "sCurve", false),
@@ -234,68 +305,6 @@ hotkeyManager.addDescriptor({
     description: "Opens the crossfading options popup.",
     handler: openPopup
 });
-
-const curveInterpolator = {
-    cubicFromStart: function(ticks, maxTicks, progressDirection) {
-        var ret = (ticks = ticks / maxTicks - 1) * ticks * ticks + 1;
-        if (progressDirection === PROGRESS_DECREASE) {
-            return 1 - ret;
-        }
-        return ret;
-    },
-
-    linear: function(ticks, maxTicks, progressDirection) {
-        var ret = ticks / maxTicks;
-        if (progressDirection === PROGRESS_DECREASE) {
-            return 1 - ret;
-        }
-        return ret;
-    },
-
-    sCurve: function(ticks, maxTicks, progressDirection) {
-        ticks = ticks / (maxTicks / 2);
-
-        var ret;
-        if (ticks < 1) {
-            ret = 1 / 2 * ticks * ticks * ticks;
-        } else {
-            ret = 1 / 2 * ((ticks -= 2) * ticks * ticks + 2);
-        }
-        if (progressDirection === PROGRESS_DECREASE) {
-            return 1 - ret;
-        }
-        return ret;
-    },
-
-    exponentialFromStart: function(ticks, maxTicks, progressDirection) {
-        var ret = (ticks == maxTicks) ? 1 : -Math.pow(2, -10 * ticks /
-            maxTicks) + 1;
-        if (progressDirection === PROGRESS_DECREASE) {
-            return 1 - ret;
-        }
-        return ret;
-    },
-
-    exponentialToEnd: function(ticks, maxTicks, progressDirection) {
-        var ret = (ticks == 0) ? 0 : Math.pow(2, 10 * (ticks / maxTicks -
-            1));
-        if (progressDirection === PROGRESS_DECREASE) {
-            return 1 - ret;
-        }
-        return ret;
-    }
-};
-
-const getSamplesForCurve = function(curve, progressDirection) {
-    const interpolator = curveInterpolator[curve];
-    const maxTicks = 16;
-    const ret = new Float32Array(maxTicks);
-
-    for (var i = 0; i < maxTicks; ++i) {
-        ret[i] = interpolator(i, maxTicks - 1, progressDirection);
-    }
-    return ret;
-};
 
 function FadeConfigurator(manager, domNode, config) {
     this._domNode = domNode;
@@ -476,7 +485,7 @@ function CrossFadeVisualizer(domNode, manager) {
     this.height = domNode.prop("height");
     this.context = domNode[0].getContext("2d");
     this.manager = manager;
-};
+}
 
 CrossFadeVisualizer.prototype.getContext = function() {
     return this.context;
@@ -567,5 +576,3 @@ CrossFadeVisualizer.prototype._drawFade = function(specs) {
     ctx.fill();
     ctx.closePath();
 };
-
-})();
