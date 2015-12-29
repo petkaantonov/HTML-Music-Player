@@ -153,7 +153,6 @@ ID3Process.prototype.placeQueue = function(queue) {
 ID3Process.prototype.getTimeFromXing = function(bytes, sampleRate) {
     var index = bytes.indexOf("Xing");
     index = index === -1 ? bytes.indexOf("Info") : index;
-
     if (index === -1) return null;
 
     if (util.int32BE(bytes, index + 4) & XING_FRAMES) {
@@ -565,7 +564,6 @@ ID3Process.prototype.getWavBasicInfo = function(bytes) {
 
 ID3Process.prototype.parseMpegBasicInfo = function(bytes, track) {
     var syncWord = bytes.match(MPEGSyncWord);
-
     if (syncWord) {
         var firstFrame = syncWord[0];
         var version2Bit = (firstFrame.charCodeAt(1) & 0x18) >> 3;

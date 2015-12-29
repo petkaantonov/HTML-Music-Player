@@ -22,7 +22,13 @@ SourceDescriptor.prototype.getRemainingDuration = function() {
     return this.duration - this.playedSoFar;
 };
 
-const BUFFER_SAMPLES = 48000 * 1;
+function webAudioBlockSize(value) {
+    const BLOCK_SIZE = 128;
+    if (value % BLOCK_SIZE === 0) return value;
+    return value + (BLOCK_SIZE - (value % BLOCK_SIZE));
+}
+
+const BUFFER_SAMPLES = webAudioBlockSize(48000 * 1);
 const PRELOAD_BUFFER_COUNT = 2;
 
 var nodeId = 0;
@@ -337,8 +343,9 @@ const tmpChannels = [
     new Float32Array(MAX_ANALYSER_SIZE),
     new Float32Array(MAX_ANALYSER_SIZE)
 ];
-AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
+AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input, multiplier) {
     if (!(input instanceof Float32Array)) throw new Error("need Float32Array");
+    if (multiplier === undefined) multiplier = 1;
     var samplesNeeded = Math.min(MAX_ANALYSER_SIZE, input.length);
 
     if (!this._sourceStopped) {
@@ -364,7 +371,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
                 var dst = tmpChannels[ch];
 
                 for (var j = 0; j < fillCount; ++j) {
-                    dst[j] = src[sampleOffset + j];
+                    dst[j] = src[sampleOffset + j] * multiplier;
                 }
             }
 
@@ -553,7 +560,6 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
         }, this);
         var seek = this._pendingSeek;
         this._pendingSeek = -1;
-        console.log("seeked with pending: ", seek);
         if (seek !== -1) {
             this._seeking = false;
             if (this._haveBlob) {
@@ -562,7 +568,6 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
         }
         return;
     }
-    console.log("seeked successfully with this._seeking = ", this._seeking);
 
     this._audioBufferFillRequestId++;
     this._seekRequestId++;
@@ -586,12 +591,11 @@ AudioPlayerSourceNode.prototype.setCurrentTime = function(time) {
     if (!isFinite(time)) return;
     time = Math.max(0, time);
     if (!this._haveBlob || this._seeking) {
-        console.log("pending seek to", time);
         this._pendingSeek = time;
         return;
     }
     if (this._currentTime === time) return;
-    console.log("seek requested to", time);
+    
     this._seeking = true;
     time = Math.min(this._duration, time);
     var requestId = ++this._seekRequestId;
@@ -602,13 +606,11 @@ AudioPlayerSourceNode.prototype.setCurrentTime = function(time) {
     }
 
     this.emit("seeking", time);
-    console.log("seek start emitted for", time);
     this._player._message(this._id, "seek", {
         requestId : requestId,
         count: PRELOAD_BUFFER_COUNT,
         time: time
     }, buffers);
-
 };
 
 AudioPlayerSourceNode.prototype.unload = function() {
@@ -618,10 +620,10 @@ AudioPlayerSourceNode.prototype.unload = function() {
     this._seekRequestId++;
     this._currentTime = this._duration = 0;
     this._loadingBuffers = false;
-    this._stopSources();
     this._haveBlob = false;
     this._seeking = false;
     this._initialPlaythroughTriggered = false;
+    this._stopSources();
 
     var sourceDescriptor;
     while (sourceDescriptor = this._sources.shift()) {
@@ -634,7 +636,9 @@ AudioPlayerSourceNode.prototype._error = function(args, transferList) {
         this._player._freeArrayBuffer(v);
     }, this);
     this.unload();
-    this.emit("error", new Error(args.message));
+    var e = new Error(args.message);
+    e.stack = args.stack;
+    this.emit("error", e);
 };
 
 AudioPlayerSourceNode.prototype._blobLoaded = function(args) {

@@ -135,7 +135,10 @@ AudioPlayer.prototype.destroy = function() {
 };
 
 AudioPlayer.prototype.errored = function(e) {
-    message(this.id, "_error", {message: "Decoder error: " + e.message});
+    message(this.id, "_error", {
+        message: "Decoder error: " + e.message,
+        stack: e.stack
+    });
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
@@ -304,12 +307,11 @@ AudioPlayer.prototype.seek = function(args, transferList) {
         this.resampler.end();
         this.resampler.start();
     }
-    this.decoderContext.removeAllListeners("data");
-    this.decoderContext.end();
-    this.decoderContext.start();
+
     this.ended = false;
     var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
     this.offset = seekerResult.offset;
+    this.decoderContext.applySeek(seekerResult);
     var result = this._fillBuffers(count, requestId, transferList);
     result.baseTime = seekerResult.time;
     message(this.id, "_seeked", result, transferList);

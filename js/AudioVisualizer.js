@@ -53,6 +53,8 @@ const buffers = {};
 function AudioVisualizer(audioContext, sourceNode, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.multiplier = "multiplier" in opts ? +opts.multiplier : 1;
+    if (!(this.multiplier >= 0)) this.multiplier = 1;
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
@@ -122,7 +124,7 @@ AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
         return;
     }
 
-    if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
+    if (!this.sourceNode.getUpcomingSamples(this.buffer[0], this.multiplier)) {
         return;
     }
     
