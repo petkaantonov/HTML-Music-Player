@@ -1,9 +1,22 @@
 "use strict";
+
+// Audio player implemented using AudioBuffers. Tracks are resampled and mixed
+// manually to hardware specs to guarantee seamless playback between consecutive
+// audiobuffers.
+
+// Over ScriptProcessorNode it has the benefit of not having any
+// latency regardless of buffer size, the buffer size can be arbitrarily large
+// so that audio doens't glitch when ui is blocked for a long time and
+// in the catastrophic case where ui is blocked, the output will be silence
+// instead of ear destroying noise.
+
 const Promise = require("../lib/bluebird.js");
 const util = require("./util");
 const EventEmitter = require("events");
 const ChannelMixer = require("../worker/ChannelMixer");
 
+const NO_THROTTLE = {};
+const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 // TODO destination changes
 const asap = function(fn) {
     Promise.resolve().then(fn);
@@ -36,7 +49,7 @@ var instances = false;
 function AudioPlayer(audioContext) {
     if (instances) throw new Error("only 1 AudioPlayer instance can be made");
     instances = true;
-    this._audioContext = audioContext || new AudioContext();
+    this._audioContext = audioContext || new AudioContext();
     this._worker = new Worker("worker/AudioPlayerWorker.js");
     this._arrayBufferPool = [];
     this._audioBufferPool = [];
@@ -47,7 +60,24 @@ function AudioPlayer(audioContext) {
         sampleRate: this._audioContext.sampleRate,
         bufferTime: this._audioBufferTime
     });
+
+    this._messaged = this._messaged.bind(this);
+    this._worker.addEventListener("message", this._messaged, false);
 }
+AudioPlayer.webAudioBlockSize = webAudioBlockSize;
+
+AudioPlayer.prototype.blockSizedTime = function(time) {
+    return webAudioBlockSize(this._audioContext.sampleRate * time) /
+            this._audioContext.sampleRate;
+};
+
+AudioPlayer.prototype._messaged = function(event) {
+    if ((event.data.nodeId < 0 || event.data.nodeId === undefined) &&
+        event.data.methodName) {
+        var data = event.data;
+        this[data.methodName].call(this, data.args, data.transferList);
+    }
+};
 
 AudioPlayer.prototype._message = function(nodeId, methodName, args, transferList) {
     if (transferList === undefined) transferList = [];
@@ -62,6 +92,16 @@ AudioPlayer.prototype._message = function(nodeId, methodName, args, transferList
         args: args,
         transferList: transferList
     }, transferList);
+};
+
+AudioPlayer.prototype._freeTransferList = function(args, transferList) {
+    while (transferList.length > 0) {
+        this._freeArrayBuffer(transferList.pop());
+    }
+};
+
+AudioPlayer.prototype.getBufferDuration = function() {
+    return this._audioBufferTime;
 };
 
 AudioPlayer.prototype._freeAudioBuffer = function(audioBuffer) {
@@ -90,7 +130,7 @@ AudioPlayer.prototype._allocArrayBuffer = function() {
 };
 
 AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
-    var i = this._sourceNodes.indexOf(node);    
+    var i = this._sourceNodes.indexOf(node);
     if (i >= 0) this._sourceNodes.splice(i, 1);
 };
 
@@ -137,8 +177,13 @@ AudioPlayer.prototype.createSourceNode = function() {
 function AudioPlayerSourceNode(player, id, audioContext, worker) {
     EventEmitter.call(this);
     this._id = id;
+    this._sourceEndedId = 0;
     this._seekRequestId = 0;
     this._audioBufferFillRequestId = 0;
+    this._replacementRequestId = 0;
+
+    this._lastExpensiveCall = 0;
+
     this._player = player;
     this._audioContext = audioContext;
     this._worker = worker;
@@ -151,16 +196,22 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._muted = false;
 
     this._lastBufferFillCount = 0;
+    // Due to AudioBuffers not having any timing events and them being long
+    // enough to ensure seamless and glitch-free playback, 2 times are tracked as
+    // otherwise only very sparse .getCurrentTime() resolution would be available.
+    //
+    // Base time is the precise known time and based on it, the current time can
+    // be calculated by calculating how long the current AudioBuffer has played
+    // which is complicated too and tracked in SourceDescriptor.
     this._currentTime = 0;
     this._baseTime = 0;
     this._duration = 0;
-    this._pendingSeek = -1;
 
     this._initialPlaythroughTriggered = false;
     this._paused = true;
     this._destroyed = false;
-    this._seeking = false;
     this._loop = false;
+    this._currentSeekEmitted = false;
 
     this._messaged = this._messaged.bind(this);
     this._timeUpdate = this._timeUpdate.bind(this);
@@ -177,6 +228,20 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._sources = [];
 }
 util.inherits(AudioPlayerSourceNode, EventEmitter);
+
+const emit = EventEmitter.prototype.emit;
+
+AudioPlayerSourceNode.prototype.emitSync = emit;
+AudioPlayerSourceNode.prototype.emit = function() {
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; ++i) {
+        args[i] = arguments[i];
+    }
+    var self = this;
+    asap(function() {
+        emit.apply(self, args);
+    });
+};
 
 AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
@@ -198,31 +263,35 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     this._ended = null;
 };
 
-AudioPlayerSourceNode.prototype._timeUpdate = function() {
-    if (this._paused ||
-        this._destroyed ||
-        this._sourceStopped ||
-        this._sources.length === 0 ||
-        this._duration === 0 ||
-        this._seeking) {
-        return;
-    }
-    
-    var now = this._audioContext.currentTime;
+AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function() {
     var sourceDescriptor = this._sources[0];
+    if (!sourceDescriptor) return 0;
+    var now = this._audioContext.currentTime;
     var started = sourceDescriptor.started;
-
     if (now < started || started > (sourceDescriptor.started + sourceDescriptor.duration)) {
-        return;
+        return 0;
     }
 
-    var playedSoFar = (now - started) + sourceDescriptor.playedSoFar;
-    var currentTime = Math.min(this._duration, this._baseTime + playedSoFar);
-    this._currentTime = currentTime;
+    if (this._paused || this._sourceStopped) return 0;
+    return Math.min((now - started) + sourceDescriptor.playedSoFar, this._player.getBufferDuration());
+};
+
+AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
+    this._audioBufferFillRequestId++;
+    this._seekRequestId++;
+    this._sourceEndedId++;
+};
+
+AudioPlayerSourceNode.prototype._timeUpdate = function() {
+    if (this._destroyed) return;
+
+    var currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
+    this._currentTime = Math.min(this._duration, this._baseTime + currentBufferPlayedSoFar);
     this.emit("timeUpdate", this._currentTime, this._duration);
 };
 
 AudioPlayerSourceNode.prototype._ended = function() {
+    this._nullifyPendingRequests();
     this._lastBufferFillCount = 0;
     this._currentTime = this._duration;
     this._stopSources();
@@ -235,7 +304,7 @@ AudioPlayerSourceNode.prototype._ended = function() {
     this.emit("ended");
     this.emit("timeUpdate", this._currentTime, this._duration);
     if (this._loop) {
-        this.setCurrentTime(0);
+        this.setCurrentTime(0, NO_THROTTLE);
     }
 };
 
@@ -252,23 +321,30 @@ AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescri
     sourceDescriptor.channelData = null;
 };
 
+AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
+    if (this._sourceEndedId !== args.requestId) return;
+    this._fillBuffers();
+};
+
 AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
     var source = event.target;
-    var sourceDescriptor;
+    var sourceDescriptor = this._sources.shift();
 
-    while (sourceDescriptor = this._sources.shift()) {
-        this._baseTime += sourceDescriptor.duration;
-        var currentSource = sourceDescriptor.source;
-        this._destroySourceDescriptor(sourceDescriptor);
-        if (currentSource === source) break;
+    if (sourceDescriptor.source !== source) {
+        throw new Error("should not happen");
     }
+    this._baseTime += sourceDescriptor.duration;
+    this._destroySourceDescriptor(sourceDescriptor);
 
     if ((this._sources.length === 0 && this._lastBufferFillCount === 0) ||
         this._baseTime >= this._duration) {
-        this._ended();
-    } else {
-        this._fillBuffers();
+        return this._ended();
     }
+
+    var id = ++this._sourceEndedId;
+    // Delay the fillBuffers call in case more sourceEnded calls will come
+    // right after this one.
+    this._player._message(this._id, "sourceEndedPing", {requestId: id});
 };
 
 AudioPlayerSourceNode.prototype._lastSourceEnds = function() {
@@ -293,7 +369,7 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
 };
 
 AudioPlayerSourceNode.prototype._startSources = function() {
-    if (this._destroyed || this._paused) return;
+    if (this._destroyed || this._paused) return;
     if (!this._sourceStopped) throw new Error("sources are not stopped");
     this._sourceStopped = false;
     var now = this._audioContext.currentTime;
@@ -343,6 +419,8 @@ const tmpChannels = [
     new Float32Array(MAX_ANALYSER_SIZE),
     new Float32Array(MAX_ANALYSER_SIZE)
 ];
+// When visualizing audio it is better to visualize samples that will play right away
+// rather than what has already been played.
 AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input, multiplier) {
     if (!(input instanceof Float32Array)) throw new Error("need Float32Array");
     if (multiplier === undefined) multiplier = 1;
@@ -364,7 +442,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input, multiplier)
             var totalSamples = (sourceDescriptor.duration * buffer.sampleRate)|0;
             var sampleOffset = (buffer.sampleRate * timeOffset)|0;
             var fillCount = Math.min(totalSamples - sampleOffset, samplesNeeded);
-            
+
             var channelData = sourceDescriptor.channelData;
             for (var ch = 0; ch < channelData.length; ++ch) {
                 var src = channelData[ch];
@@ -397,8 +475,19 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input, multiplier)
     }
 };
 
-AudioPlayerSourceNode.prototype._fillBuffers = function(forced) {
-    if ((this._loadingBuffers && !forced) || !this._haveBlob) {
+AudioPlayerSourceNode.prototype._getBuffersForTransferList = function(count) {
+    var buffers = new Array(this._audioContext.destination.channelCount * count);
+    for (var i = 0; i < buffers.length; ++i) {
+        buffers[i] = this._player._allocArrayBuffer();
+    }
+    return buffers;
+};
+
+AudioPlayerSourceNode.prototype._fillBuffers = function() {
+    // Can be suddenly called multiple times if UI was blocked for a long time and multiple
+    // audio buffers ended while the UI was blocked. Only the first request is
+    // necessary, so early return for the others.
+    if (this._loadingBuffers || !this._haveBlob) {
         return;
     }
 
@@ -407,15 +496,10 @@ AudioPlayerSourceNode.prototype._fillBuffers = function(forced) {
         this._loadingBuffers = true;
         var fillRequestId = ++this._audioBufferFillRequestId;
 
-        var buffers = new Array(this._audioContext.destination.channelCount * count);
-        for (var i = 0; i < buffers.length; ++i) {
-            buffers[i] = this._player._allocArrayBuffer();
-        }
-
         this._player._message(this._id, "fillBuffers", {
             requestId : fillRequestId,
             count: count
-        }, buffers);
+        }, this._getBuffersForTransferList(count));
     }
 };
 
@@ -437,9 +521,7 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
         sources[i] = sourceDescriptor;
     }
 
-    while (transferList.length > 0) {
-        this._player._freeArrayBuffer(transferList.shift());
-    }
+    this._freeTransferList(transferList);
 
     if (count > 0) {
         if (this._sourceStopped) {
@@ -462,10 +544,7 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
 AudioPlayerSourceNode.prototype._buffersFilled = function(args, transferList) {
     this._loadingBuffers = false;
     if (args.requestId !== this._audioBufferFillRequestId) {
-        transferList.forEach(function(v) {
-            this._player._freeArrayBuffer(v);
-        }, this);
-        return;
+        return this._freeTransferList(transferList);
     }
 
     this._applyBuffers(args, transferList);
@@ -487,7 +566,7 @@ AudioPlayerSourceNode.prototype.pause = function() {
 
 AudioPlayerSourceNode.prototype.resume =
 AudioPlayerSourceNode.prototype.play = function() {
-    if (this._destroyed || !this._paused) return;
+    if (this._destroyed || !this._paused) return;
     if (this._duration > 0 &&
         this._currentTime > 0 &&
         this._currentTime >= this._duration) {
@@ -553,76 +632,89 @@ AudioPlayerSourceNode.prototype.getDuration = function() {
     return this._duration;
 };
 
+AudioPlayerSourceNode.prototype._freeTransferList = function(transferList) {
+    while (transferList.length > 0) {
+        this._player._freeArrayBuffer(transferList.pop());
+    }
+};
+
 AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
-    if (args.requestId !== this._seekRequestId || this._pendingSeek !== -1) {
-        transferList.forEach(function(v) {
-            this._player._freeArrayBuffer(v);
-        }, this);
-        var seek = this._pendingSeek;
-        this._pendingSeek = -1;
-        if (seek !== -1) {
-            this._seeking = false;
-            if (this._haveBlob) {
-                this.setCurrentTime(seek);
-            }
-        }
-        return;
+    if (args.requestId !== this._seekRequestId) {
+        return this._freeTransferList(transferList);
     }
 
-    this._audioBufferFillRequestId++;
-    this._seekRequestId++;
+    this._currentSeekEmitted = false;
+    this._nullifyPendingRequests();
     this._baseTime = args.baseTime;
-    this._currentTime = this._baseTime;
-    this.emit("timeUpdate", this._currentTime, this._duration);
-    this.emit("seekComplete", this._baseTime);
     this._stopSources();
     var sourceDescriptor;
     while (sourceDescriptor = this._sources.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
 
+    this._timeUpdate();
     this._applyBuffers(args, transferList);
-    this._seeking = false;
+    if (args.isUserSeek) {
+        this.emit("seekComplete", this._currentTime);
+    }
 };
 
-AudioPlayerSourceNode.prototype.setCurrentTime = function(time) {
-    if (this._destroyed) return;
-    time = +time;
-    if (!isFinite(time)) return;
-    time = Math.max(0, time);
-    if (!this._haveBlob || this._seeking) {
-        this._pendingSeek = time;
-        return;
+AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
+    if (!this._currentSeekEmitted && isUserSeek) {
+        this._currentSeekEmitted = true;
+        this.emit("seeking", this._currentTime);
     }
-    if (this._currentTime === time) return;
-    
-    this._seeking = true;
-    time = Math.min(this._duration, time);
     var requestId = ++this._seekRequestId;
-
-    var buffers = new Array(this._audioContext.destination.channelCount * PRELOAD_BUFFER_COUNT);
-    for (var i = 0; i < buffers.length; ++i) {
-        buffers[i] = this._player._allocArrayBuffer();
-    }
-
-    this.emit("seeking", time);
     this._player._message(this._id, "seek", {
         requestId : requestId,
         count: PRELOAD_BUFFER_COUNT,
-        time: time
-    }, buffers);
+        time: time,
+        isUserSeek: isUserSeek
+    }, this._getBuffersForTransferList(PRELOAD_BUFFER_COUNT));
+};
+
+AudioPlayerSourceNode.prototype._throttledSeek = util.throttle(function(time) {
+    this._seek(time, true);
+}, EXPENSIVE_CALL_THROTTLE_TIME);
+
+AudioPlayerSourceNode.prototype.setCurrentTime = function(time, noThrottle) {
+    if (this._destroyed) return;
+    time = +time;
+    if (!isFinite(time)) throw new Error("time is not finite");
+    time = Math.max(0, time);
+    if (this._haveBlob) {
+        time = Math.min(this._duration, time);
+    }
+    this._currentTime = time;
+    this._baseTime = this._currentTime - this._getCurrentAudioBufferBaseTimeDelta();
+    this._timeUpdate();
+
+    if (!this._haveBlob) {
+        return;
+    }
+
+    if (noThrottle === NO_THROTTLE) {
+        this._seek(this._currentTime, false);
+    } else {
+        var now = Date.now();
+        if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
+            this._seek(this._currentTime, true);
+        } else {
+            this._throttledSeek(this._currentTime);
+        }
+        this._lastExpensiveCall = now;
+    }
 };
 
 AudioPlayerSourceNode.prototype.unload = function() {
-    this._baseTime = 0;
     this._lastBufferFillCount = 0;
-    this._audioBufferFillRequestId++;
-    this._seekRequestId++;
-    this._currentTime = this._duration = 0;
+    this._nullifyPendingRequests();
+    this._currentTime = this._duration = this._baseTime = 0;
     this._loadingBuffers = false;
     this._haveBlob = false;
     this._seeking = false;
     this._initialPlaythroughTriggered = false;
+    this._currentSeekEmitted = false;
     this._stopSources();
 
     var sourceDescriptor;
@@ -632,9 +724,7 @@ AudioPlayerSourceNode.prototype.unload = function() {
 };
 
 AudioPlayerSourceNode.prototype._error = function(args, transferList) {
-    transferList.forEach(function(v) {
-        this._player._freeArrayBuffer(v);
-    }, this);
+    this._freeTransferList(transferList);
     this.unload();
     var e = new Error(args.message);
     e.stack = args.stack;
@@ -645,35 +735,101 @@ AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     if (this._audioBufferFillRequestId !== args.requestId) return;
     this._haveBlob = true;
     this._duration = args.metadata.duration;
-    this._currentTime = 0;
+    this._currentTime = Math.min(this._duration, Math.max(0, this._currentTime));
+    this._seek(this._currentTime, false);
+    this.emit("timeUpdate", this._currentTime, this._duration);
     this.emit("durationChange", this._duration);
     this.emit("canPlay");
-
-    var seek = this._pendingSeek;
-    this._pendingSeek = -1;
-    if (seek > 0) {
-        this.setCurrentTime(seek);
-    } else {
-        this.emit("timeUpdate", 0, this._duration);
-        this._fillBuffers();
-    }
 };
 
-AudioPlayerSourceNode.prototype.load = function(blob) {
-    if (this._destroyed) return;
-    if (!(blob instanceof Blob) && !(blob instanceof File)) {
-        throw new Error("blob must be a blob");
+AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList) {
+    if (args.requestId !== this._replacementRequestId) {
+        return this._freeTransferList(transferList);
     }
-    if (this.blob === blob) {
-        this.setCurrentTime(0);
-        return;
+    this._duration = args.metadata.duration;
+    this._baseTime = args.baseTime;
+    this.emit("durationChange", this._duration);
+    this._timeUpdate();
+    // Sync so that proper gains nodes are set up already when applying the buffers 
+    // for this track.
+    this.emitSync("replacementLoaded");
+    this._currentSeekEmitted = false;
+    this._nullifyPendingRequests();
+    this._stopSources();
+    var sourceDescriptor;
+    while (sourceDescriptor = this._sources.shift()) {
+        this._destroySourceDescriptor(sourceDescriptor);
+    }
+    this._applyBuffers(args, transferList);
+};
+
+AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime) {
+    if (this._destroyed) return;
+    if (!this._haveBlob) {
+        return this.load(blob, seekTime);
+    }
+    if (seekTime === undefined) {
+        seekTime = 0;
+    }
+
+    var requestId = ++this._replacementRequestId;
+
+    this._player._message(this._id, "loadReplacement", {
+        blob: blob,
+        requestId: requestId,
+        seekTime: seekTime,
+        count: PRELOAD_BUFFER_COUNT
+    }, this._getBuffersForTransferList(PRELOAD_BUFFER_COUNT));
+};
+
+AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime) {
+    this._actualReplace(blob, seekTime);
+}, EXPENSIVE_CALL_THROTTLE_TIME);
+
+// Seamless replacement of current track with the next.
+AudioPlayerSourceNode.prototype.replace = function(blob, seekTime) {
+    if (this._destroyed) return;
+
+    var now = Date.now();
+    if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
+        this._actualReplace(blob, seekTime);
+    } else {
+        this._replaceThrottled(blob, seekTime);
+    }
+    this._lastExpensiveCall = now;
+};
+
+AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime) {
+    if (this._destroyed) return;
+    if (seekTime === undefined) {
+        seekTime = 0;
     }
     this.unload();
+    this.setCurrentTime(seekTime, NO_THROTTLE);
     var fillRequestId = ++this._audioBufferFillRequestId;
     this._player._message(this._id, "loadBlob", {
         blob: blob,
         requestId: fillRequestId
     });
+};
+
+AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, seekTime) {
+    this._actualLoad(blob, seekTime);
+}, EXPENSIVE_CALL_THROTTLE_TIME);
+
+AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
+    if (this._destroyed) return;
+    if (!(blob instanceof Blob) && !(blob instanceof File)) {
+        throw new Error("blob must be a blob");
+    }
+
+    var now = Date.now();
+    if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
+        this._actualLoad(blob, seekTime);
+    } else {
+        this._loadThrottled(blob, seekTime);
+    }
+    this._lastExpensiveCall = now;
 };
 
 module.exports = AudioPlayer;

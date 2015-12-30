@@ -320,39 +320,55 @@ const resamplers = Object.create(null);
 
 const getResampler = function(channels, from, to) {
     var key = channels + " " + from + " " + to;
-    if (!resamplers[key]) {
-        resamplers[key] = [
-            new Resampler(channels, from, to),
-            new Resampler(channels, from, to),
-            new Resampler(channels, from, to)
-        ];
+    var entry = resamplers[key];
+    if (!entry) {
+        entry = resamplers[key] = {
+            allocationCount: 2,
+            instances: [new Resampler(channels, from, to), new Resampler(channels, from, to)]
+        };
     }
-    var ret = resamplers[key].shift();
+    if (entry.instances.length === 0) {
+        entry.instances.push(new Resampler(channels, from, to));
+        entry.allocationCount++;
+        if (entry.allocationCount > 6) {
+            throw new Error("memory leak");
+        }
+    }
+    var ret = entry.instances.shift();
     ret.start();
     return ret;
 };
 
 const freeResampler = function(resampler) {
     var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
+    resamplers[key].instances.push(resampler);
     resampler.end();
-    resamplers[key].push(resampler);
 };
 
 const allocDecoderContext = function(name, Context, contextOpts) {
-    var pool = decoderPool[name];
+    var entry = decoderPool[name];
 
-    if (!pool) {
-        pool = [new Context(contextOpts), new Context(contextOpts), new Context(contextOpts)];
-        decoderPool[name] = pool;
+    if (!entry) {
+        entry = decoderPool[name] = {
+            allocationCount: 2,
+            instances: [new Context(contextOpts), new Context(contextOpts)]
+        };
     }
 
-    return pool.shift();
+    if (entry.instances.length === 0) {
+        entry.instances.push(new Context(contextOpts));
+        entry.allocationCount++;
+        if (entry.allocationCount > 6) {
+            throw new Error("memory leak");
+        }
+    }
+    return entry.instances.shift();
 };
 
 const freeDecoderContext = function(name, context) {
     context.removeAllListeners();
+    decoderPool[name].instances.push(context);
     context.end();
-    decoderPool[name].push(context);
 };
 
 const message = function(nodeId, methodName, args, transferList) {
@@ -394,7 +410,7 @@ self.onmessage = function(event) {
     }
 };
 
-function AudioPlayer(id) {
+function AudioPlayer(id, parent) {
     EventEmitter.call(this);
     this.id = id;
     this.decoderContext = null;
@@ -405,16 +421,127 @@ function AudioPlayer(id) {
     this.metadata = null;
     this.fileView = null;
     this.resampler = null;
+    this.errored = this.errored.bind(this);
+    this.replacementPlayer = null;
+    this.replacementSpec = null;
+    this.parent = parent || null;
 }
 AudioPlayer.prototype = Object.create(EventEmitter.prototype);
 AudioPlayer.prototype.constructor = AudioPlayer;
+
+AudioPlayer.prototype.assign = function(other) {
+    if (this.decoderContext) {
+        freeDecoderContext(this.codecName, this.decoderContext);
+        this.decoderContext = null;
+    }
+    if (this.resampler) {
+        freeResampler(this.resampler);
+        this.resampler = null;
+    }
+    this.blob = other.blob;
+    this.fileView = other.fileView;
+    this.metadata = other.metadata;
+    this.codecName = other.codecName;
+    this.decoderContext = other.decoderContext;
+    this.offset = other.offset;
+    this.resampler = other.resampler;
+};
 
 AudioPlayer.prototype.getBlobSize = function() {
     return this.blob.size;
 };
 
+AudioPlayer.prototype.sendMessage = function(name, args, transferList) {
+    if (this.destroyed) return;
+    if (this.parent == null)  {
+        message(this.id, name, args, transferList);
+    } else {
+        this.parent.messageFromReplacement(name, args, transferList, this);
+    }
+};
+
+AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList, sender) {
+    if (this.replacementSpec.requestId !== args.requestId ||
+        this.replacementPlayer !== sender) {
+        sender.destroy();
+        return message(-1, "_freeTransferList", args, transferList);
+    }
+    
+    switch (name) {
+    case "_error":
+        this.destroyReplacement();
+        this.passError(args.message, args.stack);
+    break;
+
+    case "_blobLoaded":
+        this.replacementSpec.metadata = args.metadata;
+        this.replacementPlayer.seek({
+            requestId: args.requestId,
+            count: this.replacementSpec.preloadBufferCount,
+            time: this.replacementSpec.seekTime,
+            isUserSeek: false
+        }, this.replacementSpec.transferList);
+    break;
+
+    case "_seeked":
+        var spec = this.replacementSpec;
+        this.replacementSpec = null;
+        this.assign(this.replacementPlayer);
+        this.replacementPlayer.parent = null;
+        this.replacementPlayer = null;
+        this.sendMessage("_replacementLoaded", {
+            metadata: spec.metadata,
+            requestId: spec.requestId,
+            isUserSeek: args.isUserSeek,
+            baseTime: args.baseTime,
+            count: args.count,
+            channelCount: args.channelCount,
+            lengths: args.lengths
+        }, transferList);
+    break;
+
+    default:
+        this.passError("unknown message from replacement: " + name, new Error().stack);
+    break;
+    }
+};
+
+AudioPlayer.prototype.destroyReplacement = function() {
+    if (this.replacementPlayer) {
+        var spec = this.replacementSpec;
+        if (spec) {
+            message(-1, "_freeTransferList", {}, spec.transferList);
+            this.replacementSpec = null;
+        }
+        this.replacementPlayer.destroy();
+        this.replacementPlayer = null;
+    }
+};
+
+AudioPlayer.prototype.loadReplacement = function(args, transferList) {
+    if (this.destroyed) return;
+    this.destroyReplacement();
+    try {
+        this.replacementSpec = {
+            requestId: args.requestId,
+            blob: args.blob,
+            seekTime: args.seekTime,
+            transferList: transferList,
+            metadata: null,
+            preloadBufferCount: args.count
+        };
+        this.replacementPlayer = new AudioPlayer(-1, this);
+        this.replacementPlayer.loadBlob(args);
+    } catch (e) {
+        this.destroyReplacement();
+        this.passError(e.message, e.stack);
+    }
+};
+
 AudioPlayer.prototype.destroy = function() {
     if (this.destroyed) return;
+    this.parent = null;
+    this.destroyReplacement();
     this.destroyed = true;
     delete audioPlayerMap[this.id];
     if (this.decoderContext) {
@@ -431,80 +558,92 @@ AudioPlayer.prototype.destroy = function() {
     this.offset = 0;
     this.metadata = null;
     this.ended = false;
-
-    this.errored = this.errored.bind(this);
+    this.removeAllListeners();
 };
 
-AudioPlayer.prototype.errored = function(e) {
-    message(this.id, "_error", {
-        message: "Decoder error: " + e.message,
-        stack: e.stack
+AudioPlayer.prototype.passError = function(errorMessage, stack) {
+    this.sendMessage("_error", {
+        message: errorMessage,
+        stack: stack
     });
+}
+
+AudioPlayer.prototype.errored = function(e) {
+    this.passError("Decoder error: " + e.message, e.stack);
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
-    if (this.destroyed) return;
-    var metadata = demuxer(codec.name, this.blob);
-    if (!metadata) {
-        return message(this.id, "_error", {message: "Invalid " + codec.name + " file"});
+    try {
+        if (this.destroyed) return;
+        this.fileView = new FileView(this.blob);
+        var metadata = demuxer(codec.name, this.fileView);
+    
+        if (!metadata) {
+            return this.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
+        }
+        this.decoderContext = allocDecoderContext(codec.name, codec.Context, {
+            seekable: true,
+            dataType: codec.Context.FLOAT,
+            targetBufferLengthSeconds: bufferTime
+        });
+
+        this.decoderContext.start();
+        this.decoderContext.on("error", this.errored);
+        this.metadata = metadata;
+        if (this.metadata.sampleRate !== hardwareSampleRate) {
+            this.resampler = getResampler(this.metadata.channels,
+                                          this.metadata.sampleRate,
+                                          hardwareSampleRate);
+        } else {
+            if (this.resampler) freeResampler(this.resampler);
+            this.resampler = null;
+        }
+        this.offset = this.metadata.dataStart;
+        this.sendMessage("_blobLoaded", {
+            requestId: requestId,
+            metadata: this.metadata
+        });
+    } catch (e) {
+        this.passError(e.message, e.stack);
     }
-    this.decoderContext = allocDecoderContext(codec.name, codec.Context, {
-        seekable: true,
-        dataType: codec.Context.FLOAT,
-        targetBufferLengthSeconds: bufferTime
-    });
-
-    this.decoderContext.start();
-    this.decoderContext.on("error", this.errored);
-    this.metadata = metadata;
-
-    if (this.metadata.sampleRate !== hardwareSampleRate) {
-        this.resampler = getResampler(this.metadata.channels,
-                                      this.metadata.sampleRate,
-                                      hardwareSampleRate);
-    } else {
-        if (this.resampler) freeResampler(this.resampler);
-        this.resampler = null;
-    }
-
-    this.offset = this.metadata.dataStart;
-    this.fileView = new FileView(this.blob);
-    message(this.id, "_blobLoaded", {
-        requestId: requestId,
-        metadata: this.metadata
-    });
 };
 
 AudioPlayer.prototype.loadBlob = function(args) {
-    if (this.destroyed) return;
-    if (this.decoderContext) {
-        freeDecoderContext(this.codecName, this.decoderContext);
-        this.decoderContext = null;
+    try {
+        if (this.destroyed) return;
+        if (this.decoderContext) {
+            freeDecoderContext(this.codecName, this.decoderContext);
+            this.decoderContext = null;
+        }
+        if (this.resampler) {
+            freeResampler(this.resampler);
+            this.resampler = null;
+        }
+        this.ended = false;
+        this.resampler = this.fileView = this.decoderContext = this.blob = this.metadata = null;
+        this.offset = 0;
+        this.codecName = "";
+
+        var blob = args.blob;
+        if (!(blob instanceof Blob) && !(blob instanceof File)) {
+            return this.sendMessage("_error", {message: "Blob must be a file or blob"});
+        }
+
+        var codecName = sniffer.getCodecName(blob);
+        if (!codecName) {
+            return this.sendMessage("_error", {message: "Codec not supported"});
+        }
+        this.codecName = codecName;
+        var self = this;
+        return codec.getCodec(codecName).then(function(codec) {
+            self.blob = blob;
+            self.gotCodec(codec, args.requestId);
+        }).catch(function(e) {
+            this.sendMessage("_error", {message: "Unable to load codec: " + e.message});
+        });
+    } catch (e) {
+        this.passError(e.message, e.stack);
     }
-    if (this.resampler) {
-        freeResampler(this.resampler);
-        this.resampler = null;
-    }
-    this.ended = false;
-    this.resampler = this.fileView = this.decoderContext = this.blob = this.metadata = null;
-    this.offset = 0;
-    this.codecName = "";
-    var blob = args.blob;
-    if (!(blob instanceof Blob) && !(blob instanceof File)) {
-        return message(this.id, "_error", {message: "Blob must be a file or blob"});
-    }
-    var codecName = sniffer.getCodecName(blob);
-    if (!codecName) {
-        return message(this.id, "_error", {message: "Codec not supported"});
-    }
-    this.codecName = codecName;
-    var self = this;
-    return codec.getCodec(codecName).then(function(codec) {
-        self.blob = blob;
-        self.gotCodec(codec, args.requestId);
-    }).catch(function(e) {
-        message(self.id, "_error", {message: "Unable to load codec: " + e.message});
-    });
 };
 
 const EMPTY_F32 = new Float32Array(0);
@@ -582,41 +721,59 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
 };
 
 AudioPlayer.prototype.fillBuffers = function(args, transferList) {
-    var requestId = args.requestId;
-    var count = args.count;
-    if (this.destroyed) {
-        return message(this.id, "_error", {message: "Destroyed"}, transferList);
+    try {
+        var requestId = args.requestId;
+        var count = args.count;
+        if (this.destroyed) {
+            return this.sendMessage("_error", {message: "Destroyed"}, transferList);
+        }
+        if (!this.blob) {
+            return this.sendMessage("_error", {message: "No blob loaded"}, transferList);
+        }
+        var result = this._fillBuffers(count, requestId, transferList);
+        this.sendMessage("_buffersFilled", result, transferList);
+    } catch (e) {
+        this.passError(e.message, e.stack);
     }
-    if (!this.blob) {
-        return message(this.id, "_error", {message: "No blob loaded"}, transferList);
-    }
-    var result = this._fillBuffers(count, requestId, transferList);
-    message(this.id, "_buffersFilled", result, transferList);
 };
 
 AudioPlayer.prototype.seek = function(args, transferList) {
-    var requestId = args.requestId;
-    var count = args.count;
-    var time = args.time;
-    if (this.destroyed) {
-        return message(this.id, "_error", {message: "Destroyed"}, transferList);
-    }
-    if (!this.blob) {
-        return message(this.id, "_error", {message: "No blob loaded"}, transferList);
-    }
-    if (this.resampler) {
-        this.resampler.end();
-        this.resampler.start();
-    }
+    try {
+        var requestId = args.requestId;
+        var count = args.count;
+        var time = args.time;
+        if (this.destroyed) {
+            return this.sendMessage("_error", {message: "Destroyed"}, transferList);
+        }
+        if (!this.blob) {
+            return this.sendMessage("_error", {message: "No blob loaded"}, transferList);
+        }
+        if (this.resampler) {
+            this.resampler.end();
+            this.resampler.start();
+        }
 
-    this.ended = false;
-    var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
-    this.offset = seekerResult.offset;
-    this.decoderContext.applySeek(seekerResult);
-    var result = this._fillBuffers(count, requestId, transferList);
-    result.baseTime = seekerResult.time;
-    message(this.id, "_seeked", result, transferList);
+        this.ended = false;
+        var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
+        this.offset = seekerResult.offset;
+        this.decoderContext.applySeek(seekerResult);
+        var result = this._fillBuffers(count, requestId, transferList);
+        result.baseTime = seekerResult.time;
+        result.isUserSeek = args.isUserSeek;
+        this.sendMessage("_seeked", result, transferList);
+    } catch (e) {
+        this.passError(e.message, e.stack);
+    }
 };
+
+AudioPlayer.prototype.sourceEndedPing = function(args) {
+    if (this.destroyed) return;
+    try {
+        this.sendMessage("_sourceEndedPong", {requestId: args.requestId});
+    } catch (e) {
+        this.passError(e.message, e.stack);
+    }
+}
 
 // Preload mp3.
 codec.getCodec("mp3");
@@ -1535,12 +1692,20 @@ const mp3_bitrate_tab = new Uint16Array([
     0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160
 ]);
 
-function demuxMp3(blob) {
-    var view = new FileView(blob);
+function probablyMp3Header(header) {
+    return !(((header & 0xffe00000) !== -2097152)     ||
+             ((header & (3 << 17)) !== (1 << 17))     ||
+             ((header & (0xF << 12)) === (0xF << 12)) ||
+             ((header & (3 << 10)) === (3 << 10)));
+}
+
+function demuxMp3(view) {
     var offset = 0;
     var dataStart = 0;
-    var dataEnd = blob.size;
+    var dataEnd = view.file.size;
     var samplesPerFrame = 1152;
+
+    var now = Date.now();
 
     if ((view.getUint32(0, false) >>> 8) === 0x494433) {
         var footer = ((view.getUint8(5) >> 4) & 1) * 10;
@@ -1552,7 +1717,8 @@ function demuxMp3(blob) {
         dataStart = offset;
     }
 
-    var id3v1AtEnd = (view.getUint32(blob.size - 128) >>> 8) === 0x544147;
+    var n = Date.now();
+    var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === 0x544147;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
@@ -1562,16 +1728,12 @@ function demuxMp3(blob) {
     var header = 0;
     var metadata = null;
     var headersFound = 0;
-    var prevSampleRate = 0;
-    var prevChannels = 0;
-    var prevLsf = -1;
-    var prevMpeg25 = -1;
 
     for (var i = 0; i < max; ++i) {
         var index = offset + i;
-        header = ((header << 8) | view.getUint8(index)) >>> 0;
-            // MP3
-        if (((header & (0xffe60000 >>> 0)) >>> 0) === (0xffe20000) >>> 0) {
+        header = view.getInt32(index);
+            
+        if (probablyMp3Header(header)) {
             if (headersFound > 4) {
                 break;
             }
@@ -1599,26 +1761,19 @@ function demuxMp3(blob) {
                 continue;
             }
 
-            var channels = ((header >> 6) & 0x3) === 3 ? 1 : 2;
-
-            if (prevLsf === -1) {
-                prevLsf = lsf;
-                prevMpeg25 = mpeg25;
-                prevSampleRate = sampleRate;
-                prevChannels = channels;
-            } else if (prevLsf !== lsf ||
-                       prevMpeg25 !== mpeg25 ||
-                       prevSampleRate !== sampleRate ||
-                       prevChannels !== channels) {
-                return null;
-            }
-
             var padding = (header >> 9) & 1;
             var frame_size = (((bitRate / 1000) * 144000) / ((sampleRate << lsf)) |0) + padding;
-            
-            var channels = ((header >> 6) & 3) === 3 ? 1 : 2;
-            headersFound++;
+            var nextHeader = view.getInt32(index + 4 + frame_size - 4, false);
 
+            if (!probablyMp3Header(nextHeader)) {
+                if (view.getInt32(index + 4 + 32) === (0x56425249|0)) {
+                    i += (4 + 32 - 1);
+                } else {
+                    continue;
+                }
+            }
+        
+            headersFound++;
             if (metadata) {
                 if (metadata.bitRate !== bitRate) {
                     metadata.bitRate = bitRate;
@@ -1629,7 +1784,7 @@ function demuxMp3(blob) {
                 metadata = {
                     lsf: !!lsf,
                     sampleRate: sampleRate,
-                    channels: channels,
+                    channels: ((header >> 6) & 3) === 3 ? 1 : 2,
                     bitRate: bitRate,
                     dataStart: dataStart,
                     dataEnd: dataEnd,
@@ -1643,25 +1798,34 @@ function demuxMp3(blob) {
             }
             header = 0;
             // VBRI
-        } else if (header === (0x56425249 >>> 0)) {
+        } else if (header === (0x56425249|0)) {
             metadata.vbr = true;
-            var offset = index + 1 + 10;
+            var offset = index + 4 + 10;
             var frames = view.getUint32(offset, false);
+            metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             offset += 4;
             var entries = view.getUint16(offset, false);
-            // Skip "entries scale factor" as nobody seems to have any idea what that actually means.
-            offset += 4;
+            offset += 2;
+            var entryScale = view.getUint16(offset, false);
+            offset += 2;
             var sizePerEntry = view.getUint16(offset, false);
             offset += 2;
             var framesPerEntry = view.getUint16(offset, false);
             offset += 2;
             var entryOffset = offset + entries + sizePerEntry;
             var dataStart = entryOffset;
-            var toc = new Uint8Array(100);
-            var tocFrame = 0;
+
+            var seekTable = new Mp3SeekTable();
+            var table = seekTable.table;
+            table.length = entries + 1;
+            seekTable.isFromMetaData = true;
+            seekTable.framesPerEntry = framesPerEntry;
+            seekTable.tocFilledUntil = metadata.duration;
+            seekTable.frames = frames;
+            metadata.seekTable = seekTable;
+            
             var shift = 0;
             var method;
-
             switch (sizePerEntry) {
                 case 4: method = view.getUint32; break;
                 case 3: method = view.getUint32; shift = 8; break;
@@ -1671,30 +1835,23 @@ function demuxMp3(blob) {
             }
 
             var j = 0;
+            table[0] = dataStart;
             for (; j < entries; ++j) {
                 var value = method.call(view, offset + (j * sizePerEntry)) >>> shift;
-                entryOffset += value;
-                var bytePercentage = (((entryOffset - dataStart) / (dataEnd - dataStart)) * 256) | 0;
-                var framesPercentage = Math.min(((tocFrame / frames) * 100)|0, 99);
-                toc[framesPercentage] = Math.min(255, bytePercentage);
-                tocFrame += framesPerEntry;
+                entryOffset += (value * entryScale);
+                table[j + 1] = entryOffset;
             }
 
-            for ( ; j < 100; ++j) {
-                toc[j] = 255;
-            }
-
-            metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             metadata.dataStart = dataStart;
-            metadata.toc = toc;
+            debugger;
             break;
         // Xing | Info
-        } else if (header === (0x58696e67 >>> 0) || header === (0x496e666f >>> 0)) {
-            if (header === (0x58696e67 >>> 0)) {
+        } else if (header === (0x58696e67|0) || header === (0x496e666f|0)) {
+            if (header === (0x58696e67|0)) {
                 metadata.vbr = true;
             }
 
-            var offset = index + 1;
+            var offset = index + 4;
             var fields = view.getUint32(offset, false);
 
             offset += 4;
@@ -1721,6 +1878,10 @@ function demuxMp3(blob) {
             break;
         }
     }
+
+    if (!metadata) {
+        return null;
+    }
     metadata.maxByteSizePerSample = (2881 * (metadata.samplesPerFrame / 1152)) / 1152;
 
     if (metadata.duration === 0) {
@@ -1728,19 +1889,20 @@ function demuxMp3(blob) {
         if (!metadata.vbr) {
             metadata.duration = (size * 8) / metadata.bitRate;
         } else {
+            // VBR without Xing or VBRI header = need to scan the entire file.
+            // What kind of sadist encoder does this?
             metadata.seekTable = new Mp3SeekTable();
             metadata.seekTable.fillUntil(2592000, metadata, view);
             metadata.duration = (metadata.seekTable.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
     }
-
     return metadata;
 }
 
-module.exports = function(codecName, blob) {
+module.exports = function(codecName, fileView) {
     try {
         if (codecName === "mp3") {
-            return demuxMp3(blob);
+            return demuxMp3(fileView);
         }
     } catch (e) {
         throw e;
@@ -1755,7 +1917,20 @@ function Mp3SeekTable() {
     this.tocFilledUntil = 0;
     this.table = new Array(128);
     this.lastFrameSize = 0;
+    this.framesPerEntry = 1;
+    this.isFromMetaData = false;
 }
+
+Mp3SeekTable.prototype.closestFrameOf = function(frame) {
+    frame = Math.min(this.frames, frame);
+    return Math.round(frame / this.framesPerEntry) * this.framesPerEntry;
+};
+
+Mp3SeekTable.prototype.offsetOfFrame = function(frame) {
+    frame = this.closestFrameOf(frame);
+    var index = frame / this.framesPerEntry;
+    return this.table[index];
+};
 
 Mp3SeekTable.prototype.fillUntil = function(time, metadata, fileView) {
     if (this.tocFilledUntil >= time) return;
@@ -1859,7 +2034,11 @@ function seekMp3(time, metadata, context, fileView) {
     if (!metadata.vbr) {
         offset = (metadata.dataStart + targetFrame * metadata.averageFrameSize)|0;
     } else if (metadata.toc) {
-        var tocIndex = Math.min(99, (((targetFrame / frames) * 100)|0));
+        // Xing seek tables.
+        frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
+        currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
+        framesToSkip = 0;
+        var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
         offset = (metadata.dataStart + (offsetPercentage * (metadata.dataEnd - metadata.dataStart)))|0;
     } else {
@@ -1869,7 +2048,17 @@ function seekMp3(time, metadata, context, fileView) {
         }
         table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate),
                 metadata, fileView);
-        offset = table.table[targetFrame];
+
+        // Trust that the seek offset given by VBRI metadata will not be to a frame that has bit
+        // reservoir. VBR should have little need for bit reservoir anyway.
+        if (table.isFromMetaData) {
+            frame = table.closestFrameOf(frame);
+            currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
+            framesToSkip = 0;
+            offset = table.offsetOfFrame(frame);
+        } else {
+            offset = table.offsetOfFrame(targetFrame);
+        }
     }
 
     return {

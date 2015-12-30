@@ -442,14 +442,26 @@ util.inherits = function(Child, Parent) {
 };
 
 util.throttle = function(callback, delay) {
-    var timeridto = 0;
+    var timerId = -1;
+    var callId = 0;
 
     return function() {
-        var args = Array.prototype.slice.call(arguments),
-            $this = this;
-        clearTimeout(timeridto);
-        timeridto = setTimeout(function() {
-            callback.apply($this, args);
+        if (timerId !== -1) {
+            clearTimeout(timerId);
+            timerId = -1;
+        }
+        var myCallId = ++callId;
+        var args = new Array(arguments.length);
+        for (var i = 0; i < args.length; ++i) {
+            args[i] = arguments[i];
+        }
+        var self = this;
+
+        timerId = setTimeout(function() {
+            if (callId !== myCallId) return;
+            callId = 0;
+            timerId = -1;
+            callback.apply(self, args);
         }, delay);
     };
 };

@@ -17,7 +17,11 @@ function seekMp3(time, metadata, context, fileView) {
     if (!metadata.vbr) {
         offset = (metadata.dataStart + targetFrame * metadata.averageFrameSize)|0;
     } else if (metadata.toc) {
-        var tocIndex = Math.min(99, (((targetFrame / frames) * 100)|0));
+        // Xing seek tables.
+        frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
+        currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
+        framesToSkip = 0;
+        var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
         offset = (metadata.dataStart + (offsetPercentage * (metadata.dataEnd - metadata.dataStart)))|0;
     } else {
@@ -27,7 +31,17 @@ function seekMp3(time, metadata, context, fileView) {
         }
         table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate),
                 metadata, fileView);
-        offset = table.table[targetFrame];
+
+        // Trust that the seek offset given by VBRI metadata will not be to a frame that has bit
+        // reservoir. VBR should have little need for bit reservoir anyway.
+        if (table.isFromMetaData) {
+            frame = table.closestFrameOf(frame);
+            currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
+            framesToSkip = 0;
+            offset = table.offsetOfFrame(frame);
+        } else {
+            offset = table.offsetOfFrame(targetFrame);
+        }
     }
 
     return {

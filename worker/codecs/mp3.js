@@ -1676,7 +1676,7 @@ Mp3Context.prototype.decodeMain = function() {
 
     var method = this.dataType === FLOAT ? this.synthFilterFloat32 : this.synthFilterInt16;
     var targetSamples = (this.sample_rate * this.targetBufferLengthSeconds)|0;
-    const willOverflow = this.sampleLength + (nb_frames * 32) > targetSamples;
+    var willOverflow = this.sampleLength + (nb_frames * 32) > targetSamples;
     for (var ch = 0; ch < this.nb_channels; ++ch) {
         var dst, dstStart;
     
@@ -2642,7 +2642,7 @@ Mp3Context.prototype.huffmanDecode = function(g, end_pos2) {
         s_index += 4;
     }
 
-    const length = 576 - s_index;
+    var length = 576 - s_index;
     for (var i = 0; i < length; ++i) {
         hybrid[i + s_index] = 0;
     }

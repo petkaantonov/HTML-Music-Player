@@ -7,12 +7,20 @@ const mp3_bitrate_tab = new Uint16Array([
     0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160
 ]);
 
-function demuxMp3(blob) {
-    var view = new FileView(blob);
+function probablyMp3Header(header) {
+    return !(((header & 0xffe00000) !== -2097152)     ||
+             ((header & (3 << 17)) !== (1 << 17))     ||
+             ((header & (0xF << 12)) === (0xF << 12)) ||
+             ((header & (3 << 10)) === (3 << 10)));
+}
+
+function demuxMp3(view) {
     var offset = 0;
     var dataStart = 0;
-    var dataEnd = blob.size;
+    var dataEnd = view.file.size;
     var samplesPerFrame = 1152;
+
+    var now = Date.now();
 
     if ((view.getUint32(0, false) >>> 8) === 0x494433) {
         var footer = ((view.getUint8(5) >> 4) & 1) * 10;
@@ -24,7 +32,8 @@ function demuxMp3(blob) {
         dataStart = offset;
     }
 
-    var id3v1AtEnd = (view.getUint32(blob.size - 128) >>> 8) === 0x544147;
+    var n = Date.now();
+    var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === 0x544147;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
@@ -34,16 +43,12 @@ function demuxMp3(blob) {
     var header = 0;
     var metadata = null;
     var headersFound = 0;
-    var prevSampleRate = 0;
-    var prevChannels = 0;
-    var prevLsf = -1;
-    var prevMpeg25 = -1;
 
     for (var i = 0; i < max; ++i) {
         var index = offset + i;
-        header = ((header << 8) | view.getUint8(index)) >>> 0;
-            // MP3
-        if (((header & (0xffe60000 >>> 0)) >>> 0) === (0xffe20000) >>> 0) {
+        header = view.getInt32(index);
+            
+        if (probablyMp3Header(header)) {
             if (headersFound > 4) {
                 break;
             }
@@ -71,26 +76,19 @@ function demuxMp3(blob) {
                 continue;
             }
 
-            var channels = ((header >> 6) & 0x3) === 3 ? 1 : 2;
-
-            if (prevLsf === -1) {
-                prevLsf = lsf;
-                prevMpeg25 = mpeg25;
-                prevSampleRate = sampleRate;
-                prevChannels = channels;
-            } else if (prevLsf !== lsf ||
-                       prevMpeg25 !== mpeg25 ||
-                       prevSampleRate !== sampleRate ||
-                       prevChannels !== channels) {
-                return null;
-            }
-
             var padding = (header >> 9) & 1;
             var frame_size = (((bitRate / 1000) * 144000) / ((sampleRate << lsf)) |0) + padding;
-            
-            var channels = ((header >> 6) & 3) === 3 ? 1 : 2;
-            headersFound++;
+            var nextHeader = view.getInt32(index + 4 + frame_size - 4, false);
 
+            if (!probablyMp3Header(nextHeader)) {
+                if (view.getInt32(index + 4 + 32) === (0x56425249|0)) {
+                    i += (4 + 32 - 1);
+                } else {
+                    continue;
+                }
+            }
+        
+            headersFound++;
             if (metadata) {
                 if (metadata.bitRate !== bitRate) {
                     metadata.bitRate = bitRate;
@@ -101,7 +99,7 @@ function demuxMp3(blob) {
                 metadata = {
                     lsf: !!lsf,
                     sampleRate: sampleRate,
-                    channels: channels,
+                    channels: ((header >> 6) & 3) === 3 ? 1 : 2,
                     bitRate: bitRate,
                     dataStart: dataStart,
                     dataEnd: dataEnd,
@@ -115,25 +113,34 @@ function demuxMp3(blob) {
             }
             header = 0;
             // VBRI
-        } else if (header === (0x56425249 >>> 0)) {
+        } else if (header === (0x56425249|0)) {
             metadata.vbr = true;
-            var offset = index + 1 + 10;
+            var offset = index + 4 + 10;
             var frames = view.getUint32(offset, false);
+            metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             offset += 4;
             var entries = view.getUint16(offset, false);
-            // Skip "entries scale factor" as nobody seems to have any idea what that actually means.
-            offset += 4;
+            offset += 2;
+            var entryScale = view.getUint16(offset, false);
+            offset += 2;
             var sizePerEntry = view.getUint16(offset, false);
             offset += 2;
             var framesPerEntry = view.getUint16(offset, false);
             offset += 2;
             var entryOffset = offset + entries + sizePerEntry;
             var dataStart = entryOffset;
-            var toc = new Uint8Array(100);
-            var tocFrame = 0;
+
+            var seekTable = new Mp3SeekTable();
+            var table = seekTable.table;
+            table.length = entries + 1;
+            seekTable.isFromMetaData = true;
+            seekTable.framesPerEntry = framesPerEntry;
+            seekTable.tocFilledUntil = metadata.duration;
+            seekTable.frames = frames;
+            metadata.seekTable = seekTable;
+            
             var shift = 0;
             var method;
-
             switch (sizePerEntry) {
                 case 4: method = view.getUint32; break;
                 case 3: method = view.getUint32; shift = 8; break;
@@ -143,30 +150,23 @@ function demuxMp3(blob) {
             }
 
             var j = 0;
+            table[0] = dataStart;
             for (; j < entries; ++j) {
                 var value = method.call(view, offset + (j * sizePerEntry)) >>> shift;
-                entryOffset += value;
-                var bytePercentage = (((entryOffset - dataStart) / (dataEnd - dataStart)) * 256) | 0;
-                var framesPercentage = Math.min(((tocFrame / frames) * 100)|0, 99);
-                toc[framesPercentage] = Math.min(255, bytePercentage);
-                tocFrame += framesPerEntry;
+                entryOffset += (value * entryScale);
+                table[j + 1] = entryOffset;
             }
 
-            for ( ; j < 100; ++j) {
-                toc[j] = 255;
-            }
-
-            metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             metadata.dataStart = dataStart;
-            metadata.toc = toc;
+            debugger;
             break;
         // Xing | Info
-        } else if (header === (0x58696e67 >>> 0) || header === (0x496e666f >>> 0)) {
-            if (header === (0x58696e67 >>> 0)) {
+        } else if (header === (0x58696e67|0) || header === (0x496e666f|0)) {
+            if (header === (0x58696e67|0)) {
                 metadata.vbr = true;
             }
 
-            var offset = index + 1;
+            var offset = index + 4;
             var fields = view.getUint32(offset, false);
 
             offset += 4;
@@ -193,6 +193,10 @@ function demuxMp3(blob) {
             break;
         }
     }
+
+    if (!metadata) {
+        return null;
+    }
     metadata.maxByteSizePerSample = (2881 * (metadata.samplesPerFrame / 1152)) / 1152;
 
     if (metadata.duration === 0) {
@@ -200,19 +204,20 @@ function demuxMp3(blob) {
         if (!metadata.vbr) {
             metadata.duration = (size * 8) / metadata.bitRate;
         } else {
+            // VBR without Xing or VBRI header = need to scan the entire file.
+            // What kind of sadist encoder does this?
             metadata.seekTable = new Mp3SeekTable();
             metadata.seekTable.fillUntil(2592000, metadata, view);
             metadata.duration = (metadata.seekTable.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
     }
-
     return metadata;
 }
 
-module.exports = function(codecName, blob) {
+module.exports = function(codecName, fileView) {
     try {
         if (codecName === "mp3") {
-            return demuxMp3(blob);
+            return demuxMp3(fileView);
         }
     } catch (e) {
         throw e;
@@ -227,7 +232,20 @@ function Mp3SeekTable() {
     this.tocFilledUntil = 0;
     this.table = new Array(128);
     this.lastFrameSize = 0;
+    this.framesPerEntry = 1;
+    this.isFromMetaData = false;
 }
+
+Mp3SeekTable.prototype.closestFrameOf = function(frame) {
+    frame = Math.min(this.frames, frame);
+    return Math.round(frame / this.framesPerEntry) * this.framesPerEntry;
+};
+
+Mp3SeekTable.prototype.offsetOfFrame = function(frame) {
+    frame = this.closestFrameOf(frame);
+    var index = frame / this.framesPerEntry;
+    return this.table[index];
+};
 
 Mp3SeekTable.prototype.fillUntil = function(time, metadata, fileView) {
     if (this.tocFilledUntil >= time) return;

@@ -881,14 +881,38 @@ hotkeyManager.addDescriptor({
 });
 
 
+var seekHotkey;
+var seekValueToCommit = -1;
+var commitSeek = function(e) {
+    if (e.which !== seekHotkey) return;
+    util.offCapture(document, "keyup", commitSeek);
+    player.main.setProgress(seekValueToCommit);
+    seekValueToCommit = -1;
+};
+
+player.main.on("newTrackLoad", function() {
+    util.offCapture(document, "keyup", commitSeek);
+});
+
 hotkeyManager.addDescriptor({
     category: "Music player",
     action: "Seek forward",
     description: "Seeks forward by 1%.",
-    handler: function() {
-        var p = player.main.getProgress();
+    handler: function(e) {
+        util.offCapture(document, "keyup", commitSeek);
+
+        var p;
+        if (seekValueToCommit !== -1) {
+            p = seekValueToCommit;
+        } else {
+            p = player.main.getProgress();    
+        }
+        
         if (p !== -1) {
-            player.main.setProgress(p + 0.01);
+            seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
+            seekHotkey = e.which;
+            util.onCapture(document, "keyup", commitSeek);
+            player.main.seekIntent(seekValueToCommit);
         }
     }
 });
@@ -897,10 +921,21 @@ hotkeyManager.addDescriptor({
     category: "Music player",
     action: "Seek back",
     description: "Seeks back by 1%.",
-    handler: function() {
-        var p = player.main.getProgress();
+    handler: function(e) {
+        util.offCapture(document, "keyup", commitSeek);
+
+        var p;
+        if (seekValueToCommit !== -1) {
+            p = seekValueToCommit;
+        } else {
+            p = player.main.getProgress();    
+        }
+
         if (p !== -1) {
-            player.main.setProgress(p - 0.01);
+            seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
+            seekHotkey = e.which;
+            util.onCapture(document, "keyup", commitSeek);
+            player.main.seekIntent(seekValueToCommit);
         }
     }
 });
