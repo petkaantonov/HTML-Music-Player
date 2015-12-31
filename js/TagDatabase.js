@@ -30,14 +30,15 @@ TagDatabase.prototype._onUpgradeNeeded = function(event) {
 
     try {
         objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
+        objectStore = util.IDBPromisify(objectStore.transaction);
     } catch (e) {}
 
     try {
         albumStore = db.createObjectStore(COVERART_TABLE_NAME, { keyPath: ALBUM_KEY_NAME});
+        albumStore = util.IDBPromisify(albumStore.transaction);
     } catch (e) {}
 
-    this.db = Promise.all([util.IDBPromisify(objectStore.transaction),
-                           util.IDBPromisify(albumStore.transaction)]).thenReturn(db);
+    this.db = Promise.all([objectStore, albumStore]).thenReturn(db);
 };
 
 TagDatabase.prototype.query = function(trackUid) {
