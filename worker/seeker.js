@@ -21,6 +21,7 @@ function seekMp3(time, metadata, context, fileView) {
         frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
         currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
         framesToSkip = 0;
+        targetFrame = frame;
         var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
         offset = (metadata.dataStart + (offsetPercentage * (metadata.dataEnd - metadata.dataStart)))|0;
@@ -39,6 +40,7 @@ function seekMp3(time, metadata, context, fileView) {
             currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
             framesToSkip = 0;
             offset = table.offsetOfFrame(frame);
+            targetFrame = frame;
         } else {
             offset = table.offsetOfFrame(targetFrame);
         }
@@ -47,7 +49,8 @@ function seekMp3(time, metadata, context, fileView) {
     return {
         time: currentTime,
         offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
-        framesToSkip: framesToSkip
+        framesToSkip: framesToSkip,
+        frame: targetFrame
     };
 }
 

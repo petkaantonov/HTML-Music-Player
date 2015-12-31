@@ -1388,11 +1388,14 @@ function Mp3Context(opts) {
     this.source = new Uint8Array(MAX_MP3_FRAME_BYTE_LENGTH);
     this.sourceByteLength = 0;
     this.header = 0;
-    this.samplesProcessed = 0;
     this.started = false;
     this.flushed = false;
     this.framesToSkip = 0;
+    this.samplesToSkip = 0;
+    this.frame = 0;
+    this.frames = (-1 >>> 1)|0;
 
+    this.metadata = null;
     this.establishedSampleRate = -1;
     this.establishedChannels = -1;
     this.establishedVersion = -1;
@@ -1418,11 +1421,6 @@ Mp3Context.prototype.getSampleRate = function() {
     return this.sample_rate;
 };
 
-Mp3Context.prototype.getCurrentTime = function() {
-    if (this.state !== PENDING_DATA) throw new Error("header not parsed yet");
-    return this.samplesProcessed / this.sample_rate;
-};
-
 Mp3Context.prototype.getChannelCount = function() {
     if (this.state !== PENDING_DATA) throw new Error("header not parsed yet");
     return this.nb_channels;
@@ -1443,6 +1441,11 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
 
     const buffer = this.source;
     var altLength = -1, altSrcStart = -1, altSrc = null;
+
+    if (this.frame >= this.frames) {
+        return srcStart + length;
+    }
+
     do {
         while (length > 0) {
             if (this.state === PENDING_HEADER) {
@@ -1495,18 +1498,23 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
                         this.header = 0;
                         continue;
                     }
+                    
                     // Doesn't include' next frame's header.
                     this.sourceByteLength = l - HEADER_SIZE;
                     length -= (i - HEADER_SIZE);
                     srcStart += (i - HEADER_SIZE);
                     this._validHeader();
                     var flushed = this.decode();
+
                     this.sourceByteLength = 0;
                     this.state = PENDING_HEADER;
                     this.header = 0;
                     if (flushed && breakOnFlush) {
                         if (altSrc !== null) throw new Error("must be null");
                         return srcStart;
+                    }
+                    if (this.frame >= this.frames) {
+                        return srcStart + length;
                     }
                 }
             }
@@ -1533,6 +1541,7 @@ const EMPTY_INT16_ARRAY = new Int16Array(0);
 Mp3Context.prototype._flush = function() {
     var sampleLength = this.sampleLength;
     this.flushed = true;
+
     if (sampleLength > 0) {
         var targetSampleLength = (this.targetBufferLengthSeconds * this.sample_rate)|0;
         var samples;
@@ -1590,15 +1599,33 @@ Mp3Context.prototype.decode = function() {
 
 const tmp_samples_i16 = new Int16Array(1152 * 2);
 const tmp_samples_f32 = new Float32Array(1152 * 2);
-Mp3Context.prototype._updatePositions = function(nb_frames, targetSamples) {
-    const size = nb_frames * 32;
+Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
+    var size = nb_frames * 32;
+    var metadata = this.metadata;
 
+    if (metadata !== null) {
+        var frame = this.frame;
+        if (frame === 0) {
+            this.samplesToSkip = metadata.encoderDelay;
+        } else if (metadata.paddingStartFrame !== -1 && frame >= metadata.paddingStartFrame) {
+            if (frame === metadata.paddingStartFrame) {
+                size -= (metadata.encoderPadding % metadata.samplesPerFrame);
+            } else {
+                return;
+            }
+        }
+    }
+
+
+    var skipped = Math.min(size, this.samplesToSkip);
+    size -= skipped;
+    this.samplesToSkip -= skipped;
     if (this.sampleLength + size > targetSamples) {
-        const overflow = size - (targetSamples - this.sampleLength);
-        const remaining = targetSamples - this.sampleLength;
-        const src = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
+        var overflow = size - (targetSamples - this.sampleLength);
+        var remaining = targetSamples - this.sampleLength;
+        var src = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
         for (var ch = 0; ch < this.nb_channels; ++ch) {
-            var srcIndex = ch * size;
+            var srcIndex = ch * 1152 + skipped;
             var dstIndex = this.sampleLength;
             var dst = this.samples[ch];
             
@@ -1607,10 +1634,9 @@ Mp3Context.prototype._updatePositions = function(nb_frames, targetSamples) {
             }
         }
         this.sampleLength = targetSamples;
-        this.samplesProcessed += remaining;
         this._flush();
         for (var ch = 0; ch < this.nb_channels; ++ch) {
-            var srcIndex = (ch * size) + remaining;
+            var srcIndex = ch * 1152 + remaining + skipped;
             var dst = this.samples[ch];
             
             for (var i = 0; i < overflow; ++i) {
@@ -1618,9 +1644,19 @@ Mp3Context.prototype._updatePositions = function(nb_frames, targetSamples) {
             }
         }
         this.sampleLength = overflow;
-    } else if (nb_frames > 0) {
-        this.sampleLength = this.sampleLength + nb_frames * 32;
-        this.samplesProcessed += (nb_frames * 32);
+    } else if (size > 0) {
+        var sampleStart = this.sampleLength;
+        if (skipped > 0) {
+            for (var ch = 0; ch < this.nb_channels; ++ch) {
+                
+                var dst = this.samples[ch];
+                for (var j = 0; j < size; ++j) {
+                    dst[sampleStart + j] = dst[sampleStart + j + skipped];
+                }
+            }
+        }
+
+        this.sampleLength = sampleStart + size;
     }
 };
 
@@ -1668,9 +1704,12 @@ Mp3Context.prototype.decodeMain = function() {
 
     this.last_buf_size += i;
 
+    if (nb_frames < 0) return nb_frames;
+
     if (this.framesToSkip > 0) {
         this.framesToSkip--;
         this.invalidFrameCount = 0;
+        this.frame++;
         return -1;
     }
 
@@ -1682,7 +1721,7 @@ Mp3Context.prototype.decodeMain = function() {
     
         if (willOverflow) {
             dst = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
-            dstStart = ch * (nb_frames * 32);
+            dstStart = ch * 1152;
         } else {
             dst = this.samples[ch];
             dstStart = this.sampleLength;
@@ -1705,14 +1744,18 @@ Mp3Context.prototype.decodeMain = function() {
         this.dither_state = ref.dither_state;
     }
 
-    this._updatePositions(nb_frames, targetSamples);
+    this._updateOutputState(nb_frames, targetSamples);
+    this.frame++;
     return nb_frames * 32;
 };
 
-Mp3Context.prototype.start = function() {
+Mp3Context.prototype.start = function(metadata) {
     if (this.started) throw new Error("previous decoding in session, call .end()");
+    if (metadata === undefined) metadata = null;
+    this.metadata = metadata;
     this.started = true;
     this.sampleBuffersInitialized = false;
+    this.frames = metadata ? metadata.frames : ((-1 >>> 1)|0);
 };
 
 Mp3Context.prototype._validHeader = function() {
@@ -1733,6 +1776,7 @@ Mp3Context.prototype._validHeader = function() {
 };
 
 Mp3Context.prototype._resetState = function() {
+    this.samplesToSkip = 0;
     this.framesToSkip = 0;
     this.sampleBuffersInitialized = false;
     this.started = false;
@@ -1757,11 +1801,13 @@ Mp3Context.prototype._resetState = function() {
     this.state = PENDING_HEADER;
     this.sourceByteLength = 0;
     this.header = 0;
-    this.samplesProcessed = 0;
     this.establishedSampleRate = -1;
     this.establishedChannels = -1;
     this.establishedVersion = -1;
     this.establishedLsf = -1;
+    this.frame = 0;
+    this.frames = (-1 >>> 1)|0;
+    this.metadata = null;
 };
 
 Mp3Context.prototype.applySeek = function(mp3SeekResult) {
@@ -1770,13 +1816,19 @@ Mp3Context.prototype.applySeek = function(mp3SeekResult) {
     var establishedChannels = this.establishedChannels;
     var establishedVersion = this.establishedVersion;
     var establishedLsf = this.establishedLsf;
+    var metadata = this.metadata;
+    var frames = this.frames;
+    // TODO: use method that doesn't clear all state.
     this._resetState();
+    this.metadata = metadata;
     this.establishedSampleRate = establishedSampleRate;
     this.establishedChannels = establishedChannels;
     this.establishedVersion = establishedVersion;
     this.establishedLsf = establishedLsf;
     this.started = true;
     this.framesToSkip = mp3SeekResult.framesToSkip;
+    this.frame = mp3SeekResult.frame - mp3SeekResult.framesToSkip;
+    this.frames = frames;
 };
 
 Mp3Context.prototype.end = function() {

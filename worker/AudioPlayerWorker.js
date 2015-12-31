@@ -362,6 +362,7 @@ const allocDecoderContext = function(name, Context, contextOpts) {
             throw new Error("memory leak");
         }
     }
+
     return entry.instances.shift();
 };
 
@@ -413,6 +414,7 @@ self.onmessage = function(event) {
 function AudioPlayer(id, parent) {
     EventEmitter.call(this);
     this.id = id;
+    this.ended = false;
     this.decoderContext = null;
     this.blob = null;
     this.offset = 0;
@@ -429,7 +431,7 @@ function AudioPlayer(id, parent) {
 AudioPlayer.prototype = Object.create(EventEmitter.prototype);
 AudioPlayer.prototype.constructor = AudioPlayer;
 
-AudioPlayer.prototype.assign = function(other) {
+AudioPlayer.prototype.transfer = function(other) {
     if (this.decoderContext) {
         freeDecoderContext(this.codecName, this.decoderContext);
         this.decoderContext = null;
@@ -438,6 +440,7 @@ AudioPlayer.prototype.assign = function(other) {
         freeResampler(this.resampler);
         this.resampler = null;
     }
+    this.ended = other.ended;
     this.blob = other.blob;
     this.fileView = other.fileView;
     this.metadata = other.metadata;
@@ -445,6 +448,13 @@ AudioPlayer.prototype.assign = function(other) {
     this.decoderContext = other.decoderContext;
     this.offset = other.offset;
     this.resampler = other.resampler;
+
+    other.decoderContext = null;
+    other.resampler = null;
+    other.fileView = null;
+    other.blob = null;
+    other.metadata = null;
+    other.destroy();
 };
 
 AudioPlayer.prototype.getBlobSize = function() {
@@ -486,13 +496,14 @@ AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList
     case "_seeked":
         var spec = this.replacementSpec;
         this.replacementSpec = null;
-        this.assign(this.replacementPlayer);
+        this.transfer(this.replacementPlayer);
         this.replacementPlayer.parent = null;
         this.replacementPlayer = null;
         this.sendMessage("_replacementLoaded", {
             metadata: spec.metadata,
             requestId: spec.requestId,
             isUserSeek: args.isUserSeek,
+            gaplessPreload: spec.gaplessPreload,
             baseTime: args.baseTime,
             count: args.count,
             channelCount: args.channelCount,
@@ -528,7 +539,8 @@ AudioPlayer.prototype.loadReplacement = function(args, transferList) {
             seekTime: args.seekTime,
             transferList: transferList,
             metadata: null,
-            preloadBufferCount: args.count
+            preloadBufferCount: args.count,
+            gaplessPreload: args.gaplessPreload
         };
         this.replacementPlayer = new AudioPlayer(-1, this);
         this.replacementPlayer.loadBlob(args);
@@ -587,9 +599,9 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
             targetBufferLengthSeconds: bufferTime
         });
 
-        this.decoderContext.start();
-        this.decoderContext.on("error", this.errored);
         this.metadata = metadata;
+        this.decoderContext.start(metadata);
+        this.decoderContext.on("error", this.errored);
         if (this.metadata.sampleRate !== hardwareSampleRate) {
             this.resampler = getResampler(this.metadata.channels,
                                           this.metadata.sampleRate,
@@ -654,7 +666,11 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
     var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset);
     var srcStart = offset - this.fileView.start;
 
-    var ret = new Array(channelMixer.getChannels());
+    var ret = {
+        channels: new Array(channelMixer.getChannels()),
+        length: 0
+    };
+
     var self = this;
     var gotData = false;
     this.decoderContext.once("data", function(channels) {
@@ -671,17 +687,23 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
             for (var j = 0; j < src.length; ++j) {
                 dst[j] = src[j];
             }
-            ret[ch] = dst;
+            ret.channels[ch] = dst;
+            ret.length = src.length;
         }
     });
+
+    var st = this.decoderContext.frame;
     var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
+    var en = this.decoderContext.frame;
     this.offset += (srcEnd - srcStart);
+
     if (!gotData) {
         this.decoderContext.end();
         this.ended = true;
+
         if (!gotData) {
-            for (var ch = 0; ch < ret.length; ++ch) {
-                ret[ch] = EMPTY_F32;
+            for (var ch = 0; ch < ret.channels.length; ++ch) {
+                ret.channels[ch] = EMPTY_F32;
             }
         }
     }
@@ -694,17 +716,19 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
             requestId: requestId,
             channelCount: channelMixer.getChannels(),
             count: 0,
-            lengths: []
+            lengths: [],
+            trackEndingBufferIndex: -1
         };
 
         var transferListIndex = 0;
         for (var i = 0; i < count; ++i) {
-            var channels = this._decodeNextBuffer(transferList, transferListIndex);
-            transferListIndex += channels.length;
-            result.lengths.push(channels[0].length);
+            var decodeResult = this._decodeNextBuffer(transferList, transferListIndex);
+            transferListIndex += decodeResult.channels.length;
+            result.lengths.push(decodeResult.length);
             result.count++;
 
             if (this.ended) {
+                result.trackEndingBufferIndex = i;
                 break;
             }
         }
@@ -715,7 +739,8 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
             requestId: requestId,
             channelCount: channelMixer.getChannels(),
             count: 0,
-            lengths: []
+            lengths: [],
+            trackEndingBufferIndex: -1
         };
     }
 };
@@ -1782,6 +1807,10 @@ function demuxMp3(view) {
                 i += (frame_size - 4 - 1);
             } else {
                 metadata = {
+                    frames: 0,
+                    encoderDelay: 576,
+                    encoderPadding: 0,
+                    paddingStartFrame: -1,
                     lsf: !!lsf,
                     sampleRate: sampleRate,
                     channels: ((header >> 6) & 3) === 3 ? 1 : 2,
@@ -1802,6 +1831,7 @@ function demuxMp3(view) {
             metadata.vbr = true;
             var offset = index + 4 + 10;
             var frames = view.getUint32(offset, false);
+            metadata.frames = frames;
             metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             offset += 4;
             var entries = view.getUint16(offset, false);
@@ -1842,8 +1872,8 @@ function demuxMp3(view) {
                 table[j + 1] = entryOffset;
             }
 
+            metadata.encoderDelay = 1159;
             metadata.dataStart = dataStart;
-            debugger;
             break;
         // Xing | Info
         } else if (header === (0x58696e67|0) || header === (0x496e666f|0)) {
@@ -1853,12 +1883,14 @@ function demuxMp3(view) {
 
             var offset = index + 4;
             var fields = view.getUint32(offset, false);
-
             offset += 4;
+
+            var frames = -1;
             if ((fields & 0x7) !== 0) {
                 if ((fields & 0x1) !== 0) {
-                    metadata.duration =
-                        (view.getUint32(offset, false) * samplesPerFrame / metadata.sampleRate);
+                    var frames = view.getUint32(offset, false);
+                    metadata.frames = frames;
+                    metadata.duration = (frames * samplesPerFrame / metadata.sampleRate);
                     offset += 4;
                 }
                 if ((fields & 0x2) !== 0) {
@@ -1874,6 +1906,19 @@ function demuxMp3(view) {
                 }
                 if (fields & 0x8 !== 0) offset += 4;
             }
+
+            // LAME
+            if (view.getInt32(offset, false) === (0x4c414d45|0)) {
+                offset += (9 + 1 + 1 + 8 + 1 + 1);
+                var padding = (view.getInt32(offset, false) >>> 8);
+                metadata.encoderDelay = padding >> 12;
+                metadata.encoderPadding = padding & 0xFFF;
+                if (frames !== -1) {
+                    metadata.paddingStartFrame = frames - Math.ceil(metadata.encoderPadding / metadata.samplesPerFrame);                    
+                }
+                offset += (3 + 1 + 1 + 2 + 4 + 2 + 2);
+            }
+
             metadata.dataStart = offset;
             break;
         }
@@ -1888,14 +1933,17 @@ function demuxMp3(view) {
         var size = Math.max(0, metadata.dataEnd - metadata.dataStart);
         if (!metadata.vbr) {
             metadata.duration = (size * 8) / metadata.bitRate;
+            metadata.frames = ((metadata.sampleRate * metadata.duration) / metadata.samplesPerFrame) | 0;
         } else {
             // VBR without Xing or VBRI header = need to scan the entire file.
             // What kind of sadist encoder does this?
             metadata.seekTable = new Mp3SeekTable();
             metadata.seekTable.fillUntil(2592000, metadata, view);
-            metadata.duration = (metadata.seekTable.frames * metadata.samplesPerFrame) / metadata.sampleRate;
+            metadata.frames = metadata.seekTable.frames;
+            metadata.duration = (metadata.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
     }
+
     return metadata;
 }
 
@@ -2038,6 +2086,7 @@ function seekMp3(time, metadata, context, fileView) {
         frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
         currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
         framesToSkip = 0;
+        targetFrame = frame;
         var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
         offset = (metadata.dataStart + (offsetPercentage * (metadata.dataEnd - metadata.dataStart)))|0;
@@ -2056,6 +2105,7 @@ function seekMp3(time, metadata, context, fileView) {
             currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
             framesToSkip = 0;
             offset = table.offsetOfFrame(frame);
+            targetFrame = frame;
         } else {
             offset = table.offsetOfFrame(targetFrame);
         }
@@ -2064,7 +2114,8 @@ function seekMp3(time, metadata, context, fileView) {
     return {
         time: currentTime,
         offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
-        framesToSkip: framesToSkip
+        framesToSkip: framesToSkip,
+        frame: targetFrame
     };
 }
 
@@ -2092,10 +2143,9 @@ const OGG = 4;
 
 exports.getCodecName = function(blob) {
     var reader = new FileReaderSync();
-    var str = reader.readAsBinaryString(blob.slice(0, 10));
+    var str = reader.readAsBinaryString(blob.slice(0, 8192));
 
     var match = rType.exec(str);
-
     if (match) {
         for (var i = 0; i < indices.length; ++i) {
             if (match[i + 1] !== undefined) {

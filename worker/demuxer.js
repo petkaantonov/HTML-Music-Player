@@ -97,6 +97,10 @@ function demuxMp3(view) {
                 i += (frame_size - 4 - 1);
             } else {
                 metadata = {
+                    frames: 0,
+                    encoderDelay: 576,
+                    encoderPadding: 0,
+                    paddingStartFrame: -1,
                     lsf: !!lsf,
                     sampleRate: sampleRate,
                     channels: ((header >> 6) & 3) === 3 ? 1 : 2,
@@ -117,6 +121,7 @@ function demuxMp3(view) {
             metadata.vbr = true;
             var offset = index + 4 + 10;
             var frames = view.getUint32(offset, false);
+            metadata.frames = frames;
             metadata.duration = (frames * samplesPerFrame) / metadata.sampleRate;
             offset += 4;
             var entries = view.getUint16(offset, false);
@@ -157,8 +162,8 @@ function demuxMp3(view) {
                 table[j + 1] = entryOffset;
             }
 
+            metadata.encoderDelay = 1159;
             metadata.dataStart = dataStart;
-            debugger;
             break;
         // Xing | Info
         } else if (header === (0x58696e67|0) || header === (0x496e666f|0)) {
@@ -168,12 +173,14 @@ function demuxMp3(view) {
 
             var offset = index + 4;
             var fields = view.getUint32(offset, false);
-
             offset += 4;
+
+            var frames = -1;
             if ((fields & 0x7) !== 0) {
                 if ((fields & 0x1) !== 0) {
-                    metadata.duration =
-                        (view.getUint32(offset, false) * samplesPerFrame / metadata.sampleRate);
+                    var frames = view.getUint32(offset, false);
+                    metadata.frames = frames;
+                    metadata.duration = (frames * samplesPerFrame / metadata.sampleRate);
                     offset += 4;
                 }
                 if ((fields & 0x2) !== 0) {
@@ -189,6 +196,19 @@ function demuxMp3(view) {
                 }
                 if (fields & 0x8 !== 0) offset += 4;
             }
+
+            // LAME
+            if (view.getInt32(offset, false) === (0x4c414d45|0)) {
+                offset += (9 + 1 + 1 + 8 + 1 + 1);
+                var padding = (view.getInt32(offset, false) >>> 8);
+                metadata.encoderDelay = padding >> 12;
+                metadata.encoderPadding = padding & 0xFFF;
+                if (frames !== -1) {
+                    metadata.paddingStartFrame = frames - Math.ceil(metadata.encoderPadding / metadata.samplesPerFrame);                    
+                }
+                offset += (3 + 1 + 1 + 2 + 4 + 2 + 2);
+            }
+
             metadata.dataStart = offset;
             break;
         }
@@ -203,14 +223,17 @@ function demuxMp3(view) {
         var size = Math.max(0, metadata.dataEnd - metadata.dataStart);
         if (!metadata.vbr) {
             metadata.duration = (size * 8) / metadata.bitRate;
+            metadata.frames = ((metadata.sampleRate * metadata.duration) / metadata.samplesPerFrame) | 0;
         } else {
             // VBR without Xing or VBRI header = need to scan the entire file.
             // What kind of sadist encoder does this?
             metadata.seekTable = new Mp3SeekTable();
             metadata.seekTable.fillUntil(2592000, metadata, view);
-            metadata.duration = (metadata.seekTable.frames * metadata.samplesPerFrame) / metadata.sampleRate;
+            metadata.frames = metadata.seekTable.frames;
+            metadata.duration = (metadata.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
     }
+
     return metadata;
 }
 

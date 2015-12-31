@@ -12,10 +12,9 @@ const OGG = 4;
 
 exports.getCodecName = function(blob) {
     var reader = new FileReaderSync();
-    var str = reader.readAsBinaryString(blob.slice(0, 10));
+    var str = reader.readAsBinaryString(blob.slice(0, 8192));
 
     var match = rType.exec(str);
-
     if (match) {
         for (var i = 0; i < indices.length; ++i) {
             if (match[i + 1] !== undefined) {

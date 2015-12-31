@@ -51,8 +51,8 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, embeddedIma
     this._formattedName = null;
     this._coverArtImageState = INITIAL;
 
-    this.beginSilenceLength = this.basicInfo.encoderDelay || 0;
-    this.endSilenceLength = this.basicInfo.encoderPadding || 0;
+    this.beginSilenceLength = 0;
+    this.endSilenceLength = 0;
 
     this.taggedArtist = this.artist;
     this.taggedTitle = this.title;

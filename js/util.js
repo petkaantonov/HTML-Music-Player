@@ -466,6 +466,20 @@ util.throttle = function(callback, delay) {
     };
 };
 
+util.debounce = function(callback, delay) {
+    var lastCall = 0;
+
+    return function() {
+        var now = Date.now();
+        var elapsed = now - lastCall;
+
+        if (elapsed >= delay) {
+            lastCall = now;
+            return callback.apply(this, arguments);
+        }
+    };
+};
+
 util.callableEveryMs = function(callback, delay) {
     var lastCall = 0;
 

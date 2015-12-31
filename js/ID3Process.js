@@ -535,9 +535,7 @@ ID3Process.prototype.getVorbisBasicInfo = function(bytes, fileSize) {
     return {
         channels: bytes.charCodeAt(11),
         sampleRate: sampleRate,
-        duration: duration,
-        encoderDelay: 4096 / sampleRate,
-        encoderPadding: 0
+        duration: duration
     };
 };
 
@@ -556,9 +554,7 @@ ID3Process.prototype.getWavBasicInfo = function(bytes) {
     return {
         duration: Math.floor(duration),
         sampleRate: sampleRate,
-        channels: channels,
-        encoderDelay: 0,
-        encoderPadding: 0
+        channels: channels
     };
 };
 
@@ -586,9 +582,7 @@ ID3Process.prototype.parseMpegBasicInfo = function(bytes, track) {
         return {
             duration: duration,
             sampleRate: sampleRate,
-            channels: channels,
-            encoderDelay: 2048 / sampleRate,
-            encoderPadding: 1024 / sampleRate
+            channels: channels
         };
     }
     return null;
