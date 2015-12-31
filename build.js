@@ -1,15 +1,16 @@
+var Promise = require("bluebird");
 var cp = require("child_process");
-cp.execSync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js");
-cp.execSync("browserify js/application.js --standalone Application > dist/main.js");
+Promise.promisifyAll(cp);
+var browserified = Promise.all(
+    [cp.execAsync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js"),
+    cp.execAsync("browserify js/application.js --standalone Application > dist/main.js")]);
 
 var glob = require("glob");
 var Promise = require("bluebird");
 var fs = Promise.promisifyAll(require("fs"));
 var UglifyJS = require("uglify-js");
 var crypto = require("crypto");
-
 var allFiles = glob.sync("lib/**/*.*").concat(glob.sync("js/**/*.*"));
-
 var rinline = /"(https:\/\/[^"]+)"/g;
 var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(function(v) {
     return v.replace(/(?:^"|"$)/g, "");
@@ -45,7 +46,7 @@ var serviceWorkerCreated = Promise.join(serviceWorkerBase, version, function(ser
     return fs.writeFileAsync("sw.js", serviceWorkerBaseCode, "utf8");
 });
 
-var scriptsMinified = Promise.resolve().then(function() {
+var scriptsMinified = browserified.then(function() {
     var dir = process.cwd();
     process.chdir("dist");
     var minified = UglifyJS.minify("main.js", {
