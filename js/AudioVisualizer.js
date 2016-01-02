@@ -1,5 +1,5 @@
 "use strict";
-const EventEmitter = require("events");
+
 const util = require("./util");
 const realFft = require("../lib/realfft");
 
@@ -34,10 +34,10 @@ const weights = new Float32Array([
     4000, 0.630108393559098,
     5000, 0.620108393559098,
     6300, 0.930108393559098,
-    8000, 1.670108393559098,
-    10000, 1.79498942093324559,
-    12500, 1.826095368972401691,
-    16000, 1.9546773514128719823,
+    8000, 1.270108393559098,
+    10000, 1.29498942093324559,
+    12500, 1.346095368972401691,
+    16000, 1.3946773514128719823,
     20000, 0.34276778654645035
 ]);
 
@@ -50,31 +50,29 @@ function makeBuffer(bufferSize, bins) {
 
 const buffers = {};
 
-function AudioVisualizer(audioContext, sourceNode, opts) {
-    EventEmitter.call(this);
+function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     opts = Object(opts);
+    this.visualizerCanvas = visualizerCanvas;
     this.multiplier = "multiplier" in opts ? +opts.multiplier : 1;
     this.multiplier = Math.max(0, Math.min(1, this.multiplier));
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
-    this.fps = opts.fps || 48;
     this.bufferSize = 2;
-    this.bins = opts.bins || this.bufferSize / 2;
     this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
     this.sourceNode = sourceNode;
 
-    while (this.bufferSize * this.fps < this.sampleRate) {
+    while (this.bufferSize * this.fps() < this.sampleRate) {
         this.bufferSize *= 2;
     }
 
     if (this.bufferSize > 16384) {
-        throw new Error("too low fps " +this.fps+ " for sample rate" + this.sampleRate);
+        throw new Error("too low fps " +this.fps()+ " for sample rate" + this.sampleRate);
     }
 
-    var buffer = buffers[this.bufferSize + " " + this.bins];
+    var buffer = buffers[this.bufferSize + " " + this.bins()];
     if (!buffer) {
-        buffer = buffers[this.bufferSize + " " + this.bins] = makeBuffer(this.bufferSize, this.bins);
+        buffer = buffers[this.bufferSize + " " + this.bins()] = makeBuffer(this.bufferSize, this.bins());
     }
     this.buffer = buffer;
 
@@ -85,10 +83,20 @@ function AudioVisualizer(audioContext, sourceNode, opts) {
 
     this.destroyed = false;
     this.paused = false;
-    this.handleAudioProcessingEvent = this.handleAudioProcessingEvent.bind(this);
-    this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
+    this.gotFrame = this.gotFrame.bind(this);
+    this.frameId = requestAnimationFrame(this.gotFrame);
+    this.lastFrameTimeStamp = 0;
+    this.frameSkip = 1;
+    this.frameNumber = 0;
 }
-util.inherits(AudioVisualizer, EventEmitter);
+
+AudioVisualizer.prototype.bins = function() {
+    return this.visualizerCanvas.getNumBins();
+};
+
+AudioVisualizer.prototype.fps = function() {
+    return this.visualizerCanvas.getTargetFps();
+};
 
 AudioVisualizer.prototype.setMultiplier = function(value) {
     if (!isFinite(value)) throw new Error("infinite");
@@ -99,35 +107,50 @@ AudioVisualizer.prototype.setMultiplier = function(value) {
 AudioVisualizer.prototype.pause = function() {
     if (this.paused) return;
     this.paused = true;
-    this.emit("pause");
 };
 
 AudioVisualizer.prototype.resume = function() {
     if (!this.paused) return;
     this.paused = false;
-    this.emit("resume");
 };
 
 AudioVisualizer.prototype.destroy = function() {
     this.destroyed = true;
-    this.removeAllListeners();
     cancelAnimationFrame(this.frameId);
     this.sourceNode = null;
 };
 
-AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
+
+AudioVisualizer.prototype.gotFrame = function(now) {
     if (this.destroyed) return;
-    this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
-    if (this.listenerCount("data") === 0) {
+    this.frameId = requestAnimationFrame(this.gotFrame);
+
+    var elapsed = now - this.lastFrameTimeStamp;
+    var targetFps = this.fps();
+
+    if ((elapsed + 1) < (1000 / targetFps)) {
+        var screenFps = Math.ceil(1000 / elapsed);
+        var div = screenFps / targetFps;
+        if (div !== (div|0)) div = 2;
+        var frameSkip = this.frameSkip;
+        while (screenFps / div >= targetFps) {
+            frameSkip *= div;
+            screenFps /= div;
+        }
+
+        this.frameSkip = frameSkip;
+    } else {
+        this.frameSkip = 1;
+    }
+    this.frameNumber++;
+
+    if (this.frameNumber % this.frameSkip !== 0) {
         return;
-    } else if (this.paused) {
-        this.emit("data", {
-            paused: true,
-            bins: this.buffer[1],
-            maxPower: this.maxPower,
-            now: now
-        });
-        return;
+    }
+    this.lastFrameTimeStamp = now;
+
+    if (this.paused) {
+        return this.visualizerCanvas.drawIdleBins(now);
     }
 
     if (!this.sourceNode.getUpcomingSamples(this.buffer[0], this.multiplier)) {
@@ -137,12 +160,7 @@ AudioVisualizer.prototype.handleAudioProcessingEvent = function(now) {
     this.hammingWindow();
     this.forwardFft();
     this.calculateBins();
-    this.emit("data", {
-        paused: false,
-        bins: this.buffer[1],
-        maxPower: this.maxPower,
-        now: now
-    });
+    this.visualizerCanvas.drawBins(now, this.buffer[1]);
 };
 
 AudioVisualizer.prototype.calculateBins = function() {

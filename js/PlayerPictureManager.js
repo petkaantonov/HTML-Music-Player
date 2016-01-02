@@ -120,7 +120,7 @@ PlayerPictureManager.prototype.updateImage = function(image) {
         return;
     }
 
-    image.width = image.height = 128;
+    image.width = image.height = 116;
 
     if (!this._currentAnimation) {
         if (this._currentImage) {

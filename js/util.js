@@ -50,6 +50,18 @@ if (typeof Math.fdzround !== "function") {
     });
 }
 
+if (typeof Math.gcd !== "function") {
+    Object.defineProperty(Math, "gcd", {
+        value: function(a, b) {
+            if (b === 0) {
+                return a;
+            }
+
+            return gcd(b, a % b);
+        }
+    });
+}
+
 util.queryString = function(obj) {
     return Object.keys(obj).map(function(key) {
         return key + "=" + obj[key];

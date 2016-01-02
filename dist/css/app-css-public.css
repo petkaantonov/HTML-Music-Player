@@ -242,25 +242,30 @@ ul, ul li, ol, ol li {
     display: block;
 }
 
-
-#app-left {
-    width: 152px;
-    display: inline-block;
+.division {
+    font-size: 0;
     vertical-align: top;
     box-sizing: border-box;
-}
-
-#app-middle {
     display: inline-block;
-    vertical-align: top;
-    margin-left: 26px;
-    box-sizing: border-box;
-    width: 582px;
 }
 
-.picture-module-container {
+.visualizer-coverart-section-container {
     margin: 15px 0px;
-    width: 150px;
+    width: 100%;
+}
+
+.coverart-section-container {
+    width: 120px;
+}
+
+.visualizer-section-container {
+    width: 614px;
+    margin-left: 26px;
+}
+
+.playlist-section-container {
+    width: 100%;
+    margin-top: 15px;
 }
 
 .tracks-menu-module-container,
@@ -271,18 +276,19 @@ ul, ul li, ol, ol li {
 }
 
 .picture-container {
-    margin: 11px;
-    width: 128px;
-    height: 128px;
+    width: 116px;
+    height: 116px;
     position: relative;
 }
 
 .picture-container img {
-    width: 128px;
-    height: 128px;
+    width: 116px;
+    height: 116px;
     top: 0px;
     left: 0px;
     border: 0;
+    position: absolute;
+    left: 2px;
 }
 
 input[type="radio"] {
@@ -798,24 +804,21 @@ label {
     width: 97%;
     margin: 0px auto;
 }
+
 #track-display {
     margin-top: 3px;
     width: 100%;
     cursor: default;
 }
-#app-search-container {
-    height: 70px;
-    padding: 0px 15px;
-}
+
 
 .visualizer-container {
-    height: 70px;
-    margin: 15px 0px;
+    height: 118px;
 }
 
 .visualizer {
-    width: 580px;
-    height: 70px;
+    width: 612px;
+    height: 100%;
     display: block;
 }
 #app-loader {
@@ -1497,7 +1500,7 @@ ul.app-empty-playlist-ul li {
 .track-container {
     left: 0px;
     position: absolute;
-    width: 580px;
+    width: 760px;
     z-index: 1;
     box-sizing: border-box;
     height: 44px;
@@ -1508,7 +1511,7 @@ ul.app-empty-playlist-ul li {
 }
 
 .tracks-list-container.has-scrollbar .track-container {
-    width: 572px;
+    width: 752px;
 }
 
 .track-container.track-active {
@@ -1550,13 +1553,13 @@ ul.app-empty-playlist-ul li {
 
 .track .track-info {
     height: 100%;
-    width: 338px;
+    width: 518px;
     overflow: hidden;
     padding: 4px 0px 4px 6px;
 }
 
 .tracks-list-container.has-scrollbar .track-info {
-    width: 330px;
+    width: 510px;
 }
 
 

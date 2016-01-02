@@ -78,9 +78,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.muteGain.gain.value = player.isMuted() ? 0 : 1;
     this.volumeGain.gain.value = player.getVolume();
 
-    this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, {
-        fps: Player.targetFps(),
-        bins: Player.visualizerBins(),
+    this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
         baseSmoothingConstant: 0.0007,
         maxFrequency: 12500,
         minFrequency: 20,
@@ -567,6 +565,7 @@ function Player(dom, playlist, opts) {
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
     this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
 
+    this.visualizerCanvas = opts.visualizerCanvas;
     this.currentAudioManager = null;
     this.volume = 0.15;
     this.isStopped = true;
@@ -578,9 +577,7 @@ function Player(dom, playlist, opts) {
     this.queuedNextTrackImplicitly = false;
     this.pictureManager = null;
 
-    this.visualizerData = this.visualizerData.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
-
 
     this.$play().click(this.playButtonClicked.bind(this));
     this.$next().click(playlist.next.bind(playlist));
@@ -626,10 +623,6 @@ Player.prototype.$previous = function() {
 
 Player.prototype.$next = function() {
     return this._nextButtonDomNode;
-};
-
-Player.prototype.visualizerData = function(data) {
-    this.emit("visualizerData", data);
 };
 
 Player.prototype.historyChanged = function() {
@@ -850,22 +843,15 @@ Player.prototype.loadTrack = function(track) {
         destroyAudioManagers(this.currentAudioManager);
     }
 
-    if (this.currentAudioManager) {
-        if (!implicit || this.currentAudioManager.sourceNode.hasGaplessPreload()) {
-            this.currentAudioManager.replaceTrack(track);
-            this.startedPlay();
-            this.emit("trackPlaying");
-            this.emit("newTrackLoad");
-            return;
-        }
-
-        var visualizer = this.currentAudioManager.getVisualizer();
-        if (visualizer) {
-            visualizer.removeListener("data", this.visualizerData);
-        }
+    if (this.currentAudioManager &&
+        (!implicit || this.currentAudioManager.sourceNode.hasGaplessPreload())) {
+        this.currentAudioManager.replaceTrack(track);
+        this.startedPlay();
+        this.emit("trackPlaying");
+        this.emit("newTrackLoad");
+        return;
     }
     this.currentAudioManager = new AudioManager(this, track, implicit);
-    this.currentAudioManager.visualizer.on("data", this.visualizerData);
     this.currentAudioManager.trackTagDataUpdated();
     this.startedPlay();
     this.emit("trackPlaying");
@@ -999,30 +985,6 @@ Player.prototype.setVolume = function(val) {
     this.emit("volumeChange");
     keyValueDatabase.set(VOLUME_KEY, volume);
     return this;
-};
-
-Player.prototype.getAnalyzer = function() {
-    if (!this.isPlaying || !this.currentAudioManager) return null;
-    return this.currentAudioManager.getAnalyzer();
-};
-
-
-var visualizerBins = 3;
-Player.visualizerBins = function(value) {
-    if (value !== undefined) {
-        visualizerBins = value;
-    } else {
-        return visualizerBins;
-    }
-};
-
-var targetFps = 48;
-Player.targetFps = function(value) {
-    if (value !== undefined) {
-        targetFps = value;
-    } else {
-        return targetFps;
-    }
 };
 
 module.exports = Player;
