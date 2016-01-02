@@ -10,7 +10,7 @@ function seekMp3(time, metadata, context, fileView) {
     // Target an earlier frame to build up the bit reservoir for the actual frame.
     var targetFrame = Math.max(0, frame - 9);
     // The frames are only decoded to build up the bit reservoir and should not be actually played back.
-    var framesToSkip = frame - targetFrame;
+    var samplesToSkip = (frame - targetFrame) * metadata.samplesPerFrame;
 
     var offset;
 
@@ -19,8 +19,8 @@ function seekMp3(time, metadata, context, fileView) {
     } else if (metadata.toc) {
         // Xing seek tables.
         frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
-        currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
-        framesToSkip = 0;
+        currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
+        samplesToSkip = metadata.samplesPerFrame;
         targetFrame = frame;
         var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
@@ -37,8 +37,8 @@ function seekMp3(time, metadata, context, fileView) {
         // reservoir. VBR should have little need for bit reservoir anyway.
         if (table.isFromMetaData) {
             frame = table.closestFrameOf(frame);
-            currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
-            framesToSkip = 0;
+            currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
+            samplesToSkip = metadata.samplesPerFrame;
             offset = table.offsetOfFrame(frame);
             targetFrame = frame;
         } else {
@@ -46,10 +46,14 @@ function seekMp3(time, metadata, context, fileView) {
         }
     }
 
+    if (targetFrame === 0) {
+        samplesToSkip = metadata.encoderDelay;
+    }
+
     return {
         time: currentTime,
         offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
-        framesToSkip: framesToSkip,
+        samplesToSkip: samplesToSkip,
         frame: targetFrame
     };
 }

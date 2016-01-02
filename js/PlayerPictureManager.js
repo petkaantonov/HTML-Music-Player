@@ -30,6 +30,7 @@ PlayerPictureManager.prototype.$ = function() {
 
 PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
     var self = this;
+
     var image = this._currentImage;
     var animator = new Animator(image, {
         properties: [{
@@ -55,6 +56,7 @@ PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
 
 PlayerPictureManager.prototype._startTransitioningIn = function(image) {
     var self = this;
+
     this._currentImage = image;
     this._attachCurrentImage();
     var animator = new Animator(image, {
@@ -110,10 +112,14 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
         scale: +($img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i)[1])
     };
 };
-
+Error.stackTraceLimit = 1000;
 PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
-    if (this._currentImage && image.src === this._currentImage.src) return;
+    if (this._currentImage && image.src === this._currentImage.src &&
+        (!this._awaitingAnimation || this._awaitingAnimation && this._awaitingAnimation.src === image.src)) {
+        return;
+    }
+
     image.width = image.height = 128;
 
     if (!this._currentAnimation) {

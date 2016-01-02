@@ -1,6 +1,8 @@
 "use strict";
 var FileView = require("./FileView");
 
+const MINIMUM_LENGTH = 5;
+const MP3_DECODER_DELAY = 529;
 const mp3_freq_tab = new Uint16Array([44100, 48000, 32000]);
 const mp3_bitrate_tab = new Uint16Array([
     0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
@@ -13,6 +15,8 @@ function probablyMp3Header(header) {
              ((header & (0xF << 12)) === (0xF << 12)) ||
              ((header & (3 << 10)) === (3 << 10)));
 }
+
+
 
 function demuxMp3(view) {
     var offset = 0;
@@ -162,6 +166,8 @@ function demuxMp3(view) {
                 table[j + 1] = entryOffset;
             }
 
+            // 1159, 864, or 529
+            // http://mp3decoders.mp3-tech.org/decoders_lame.html
             metadata.encoderDelay = 1159;
             metadata.dataStart = dataStart;
             break;
@@ -201,10 +207,15 @@ function demuxMp3(view) {
             if (view.getInt32(offset, false) === (0x4c414d45|0)) {
                 offset += (9 + 1 + 1 + 8 + 1 + 1);
                 var padding = (view.getInt32(offset, false) >>> 8);
-                metadata.encoderDelay = padding >> 12;
-                metadata.encoderPadding = padding & 0xFFF;
+                var encoderDelay = padding >> 12;
+                metadata.encoderDelay = encoderDelay;
+                var encoderPadding = padding & 0xFFF;
                 if (frames !== -1) {
-                    metadata.paddingStartFrame = frames - Math.ceil(metadata.encoderPadding / metadata.samplesPerFrame);                    
+                    if (encoderPadding > 0) {
+                        encoderPadding = Math.max(0, encoderPadding - MP3_DECODER_DELAY);
+                        metadata.paddingStartFrame = frames - Math.ceil(encoderPadding / metadata.samplesPerFrame) - 1;
+                        metadata.encoderPadding = encoderPadding;
+                    }
                 }
                 offset += (3 + 1 + 1 + 2 + 4 + 2 + 2);
             }
@@ -232,6 +243,10 @@ function demuxMp3(view) {
             metadata.frames = metadata.seekTable.frames;
             metadata.duration = (metadata.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
+    }
+
+    if (metadata.duration < MINIMUM_LENGTH) {
+        return null;
     }
 
     return metadata;

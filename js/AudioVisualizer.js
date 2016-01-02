@@ -54,7 +54,7 @@ function AudioVisualizer(audioContext, sourceNode, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.multiplier = "multiplier" in opts ? +opts.multiplier : 1;
-    if (!(this.multiplier >= 0)) this.multiplier = 1;
+    this.multiplier = Math.max(0, Math.min(1, this.multiplier));
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
@@ -89,6 +89,12 @@ function AudioVisualizer(audioContext, sourceNode, opts) {
     this.frameId = requestAnimationFrame(this.handleAudioProcessingEvent);
 }
 util.inherits(AudioVisualizer, EventEmitter);
+
+AudioVisualizer.prototype.setMultiplier = function(value) {
+    if (!isFinite(value)) throw new Error("infinite");
+    value = Math.max(0, Math.min(1, value));
+    this.multiplier = value;
+};
 
 AudioVisualizer.prototype.pause = function() {
     if (this.paused) return;

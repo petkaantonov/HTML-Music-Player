@@ -471,12 +471,16 @@ AudioPlayer.prototype.sendMessage = function(name, args, transferList) {
 };
 
 AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList, sender) {
-    if (this.replacementSpec.requestId !== args.requestId ||
+    if (args.requestId === undefined) {
+        this.destroyReplacement();
+        this.passError(args.message, args.stack);
+        return;
+    } else if (this.replacementSpec.requestId !== args.requestId ||
         this.replacementPlayer !== sender) {
         sender.destroy();
         return message(-1, "_freeTransferList", args, transferList);
     }
-    
+
     switch (name) {
     case "_error":
         this.destroyReplacement();
@@ -651,7 +655,7 @@ AudioPlayer.prototype.loadBlob = function(args) {
             self.blob = blob;
             self.gotCodec(codec, args.requestId);
         }).catch(function(e) {
-            this.sendMessage("_error", {message: "Unable to load codec: " + e.message});
+            self.sendMessage("_error", {message: "Unable to load codec: " + e.message});
         });
     } catch (e) {
         this.passError(e.message, e.stack);
@@ -692,9 +696,7 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
         }
     });
 
-    var st = this.decoderContext.frame;
     var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
-    var en = this.decoderContext.frame;
     this.offset += (srcEnd - srcStart);
 
     if (!gotData) {
@@ -1711,6 +1713,8 @@ module.exports = codec;
 "use strict";
 var FileView = require("./FileView");
 
+const MINIMUM_LENGTH = 5;
+const MP3_DECODER_DELAY = 529;
 const mp3_freq_tab = new Uint16Array([44100, 48000, 32000]);
 const mp3_bitrate_tab = new Uint16Array([
     0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
@@ -1723,6 +1727,8 @@ function probablyMp3Header(header) {
              ((header & (0xF << 12)) === (0xF << 12)) ||
              ((header & (3 << 10)) === (3 << 10)));
 }
+
+
 
 function demuxMp3(view) {
     var offset = 0;
@@ -1872,6 +1878,8 @@ function demuxMp3(view) {
                 table[j + 1] = entryOffset;
             }
 
+            // 1159, 864, or 529
+            // http://mp3decoders.mp3-tech.org/decoders_lame.html
             metadata.encoderDelay = 1159;
             metadata.dataStart = dataStart;
             break;
@@ -1911,10 +1919,15 @@ function demuxMp3(view) {
             if (view.getInt32(offset, false) === (0x4c414d45|0)) {
                 offset += (9 + 1 + 1 + 8 + 1 + 1);
                 var padding = (view.getInt32(offset, false) >>> 8);
-                metadata.encoderDelay = padding >> 12;
-                metadata.encoderPadding = padding & 0xFFF;
+                var encoderDelay = padding >> 12;
+                metadata.encoderDelay = encoderDelay;
+                var encoderPadding = padding & 0xFFF;
                 if (frames !== -1) {
-                    metadata.paddingStartFrame = frames - Math.ceil(metadata.encoderPadding / metadata.samplesPerFrame);                    
+                    if (encoderPadding > 0) {
+                        encoderPadding = Math.max(0, encoderPadding - MP3_DECODER_DELAY);
+                        metadata.paddingStartFrame = frames - Math.ceil(encoderPadding / metadata.samplesPerFrame) - 1;
+                        metadata.encoderPadding = encoderPadding;
+                    }
                 }
                 offset += (3 + 1 + 1 + 2 + 4 + 2 + 2);
             }
@@ -1942,6 +1955,10 @@ function demuxMp3(view) {
             metadata.frames = metadata.seekTable.frames;
             metadata.duration = (metadata.frames * metadata.samplesPerFrame) / metadata.sampleRate;
         }
+    }
+
+    if (metadata.duration < MINIMUM_LENGTH) {
+        return null;
     }
 
     return metadata;
@@ -2075,7 +2092,7 @@ function seekMp3(time, metadata, context, fileView) {
     // Target an earlier frame to build up the bit reservoir for the actual frame.
     var targetFrame = Math.max(0, frame - 9);
     // The frames are only decoded to build up the bit reservoir and should not be actually played back.
-    var framesToSkip = frame - targetFrame;
+    var samplesToSkip = (frame - targetFrame) * metadata.samplesPerFrame;
 
     var offset;
 
@@ -2084,8 +2101,8 @@ function seekMp3(time, metadata, context, fileView) {
     } else if (metadata.toc) {
         // Xing seek tables.
         frame = ((Math.round(frame / frames * 100) / 100) * frames)|0;
-        currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
-        framesToSkip = 0;
+        currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
+        samplesToSkip = metadata.samplesPerFrame;
         targetFrame = frame;
         var tocIndex = Math.min(99, Math.round(frame / frames * 100)|0);
         var offsetPercentage = metadata.toc[tocIndex] / 256;
@@ -2102,8 +2119,8 @@ function seekMp3(time, metadata, context, fileView) {
         // reservoir. VBR should have little need for bit reservoir anyway.
         if (table.isFromMetaData) {
             frame = table.closestFrameOf(frame);
-            currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
-            framesToSkip = 0;
+            currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
+            samplesToSkip = metadata.samplesPerFrame;
             offset = table.offsetOfFrame(frame);
             targetFrame = frame;
         } else {
@@ -2111,10 +2128,14 @@ function seekMp3(time, metadata, context, fileView) {
         }
     }
 
+    if (targetFrame === 0) {
+        samplesToSkip = metadata.encoderDelay;
+    }
+
     return {
         time: currentTime,
         offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
-        framesToSkip: framesToSkip,
+        samplesToSkip: samplesToSkip,
         frame: targetFrame
     };
 }

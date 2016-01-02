@@ -170,12 +170,16 @@ AudioPlayer.prototype.sendMessage = function(name, args, transferList) {
 };
 
 AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList, sender) {
-    if (this.replacementSpec.requestId !== args.requestId ||
+    if (args.requestId === undefined) {
+        this.destroyReplacement();
+        this.passError(args.message, args.stack);
+        return;
+    } else if (this.replacementSpec.requestId !== args.requestId ||
         this.replacementPlayer !== sender) {
         sender.destroy();
         return message(-1, "_freeTransferList", args, transferList);
     }
-    
+
     switch (name) {
     case "_error":
         this.destroyReplacement();
@@ -350,7 +354,7 @@ AudioPlayer.prototype.loadBlob = function(args) {
             self.blob = blob;
             self.gotCodec(codec, args.requestId);
         }).catch(function(e) {
-            this.sendMessage("_error", {message: "Unable to load codec: " + e.message});
+            self.sendMessage("_error", {message: "Unable to load codec: " + e.message});
         });
     } catch (e) {
         this.passError(e.message, e.stack);
@@ -391,9 +395,7 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
         }
     });
 
-    var st = this.decoderContext.frame;
     var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
-    var en = this.decoderContext.frame;
     this.offset += (srcEnd - srcStart);
 
     if (!gotData) {

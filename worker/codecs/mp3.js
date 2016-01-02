@@ -30,6 +30,7 @@ const INT16 = 1;
 const DEFAULT_BUFFER_LENGTH_SECONDS = 2;
 const MAX_BUFFER_LENGTH_SECONDS = 5;
 const MIN_BUFFER_LENGTH_SECONDS = 1152 / 8000;
+const DECODER_DELAY = 529;
 
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
@@ -1335,7 +1336,6 @@ const getBuffer = function(channelIndex, type, length, id) {
 
 const PENDING_HEADER = 0;
 const PENDING_DATA = 1;
-var id = 0;
 function Mp3Context(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
@@ -1345,7 +1345,6 @@ function Mp3Context(opts) {
       : DEFAULT_BUFFER_LENGTH_SECONDS;
 
     var dataType = opts.dataType === INT16 ? INT16 : FLOAT;
-    this.id = id++;
     this.targetBufferLengthSeconds = targetBufferLengthSeconds;
     this.dataType = dataType;
     this.granules = [new Granule(), new Granule(), new Granule(), new Granule()];
@@ -1390,7 +1389,6 @@ function Mp3Context(opts) {
     this.header = 0;
     this.started = false;
     this.flushed = false;
-    this.framesToSkip = 0;
     this.samplesToSkip = 0;
     this.frame = 0;
     this.frames = (-1 >>> 1)|0;
@@ -1604,10 +1602,9 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
     var metadata = this.metadata;
 
     if (metadata !== null) {
+
         var frame = this.frame;
-        if (frame === 0) {
-            this.samplesToSkip = metadata.encoderDelay;
-        } else if (metadata.paddingStartFrame !== -1 && frame >= metadata.paddingStartFrame) {
+        if (metadata.paddingStartFrame !== -1 && frame >= metadata.paddingStartFrame) {
             if (frame === metadata.paddingStartFrame) {
                 size -= (metadata.encoderPadding % metadata.samplesPerFrame);
             } else {
@@ -1615,7 +1612,6 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
             }
         }
     }
-
 
     var skipped = Math.min(size, this.samplesToSkip);
     size -= skipped;
@@ -1706,13 +1702,6 @@ Mp3Context.prototype.decodeMain = function() {
 
     if (nb_frames < 0) return nb_frames;
 
-    if (this.framesToSkip > 0) {
-        this.framesToSkip--;
-        this.invalidFrameCount = 0;
-        this.frame++;
-        return -1;
-    }
-
     var method = this.dataType === FLOAT ? this.synthFilterFloat32 : this.synthFilterInt16;
     var targetSamples = (this.sample_rate * this.targetBufferLengthSeconds)|0;
     var willOverflow = this.sampleLength + (nb_frames * 32) > targetSamples;
@@ -1752,10 +1741,17 @@ Mp3Context.prototype.decodeMain = function() {
 Mp3Context.prototype.start = function(metadata) {
     if (this.started) throw new Error("previous decoding in session, call .end()");
     if (metadata === undefined) metadata = null;
+
+    if (metadata) {
+        this.samplesToSkip = metadata.encoderDelay + DECODER_DELAY;
+        this.frames = metadata.frames;
+    } else {
+        this.samplesToSkip = DECODER_DELAY;
+        this.frames = ((-1 >>> 1)|0);
+    }
     this.metadata = metadata;
     this.started = true;
     this.sampleBuffersInitialized = false;
-    this.frames = metadata ? metadata.frames : ((-1 >>> 1)|0);
 };
 
 Mp3Context.prototype._validHeader = function() {
@@ -1777,7 +1773,6 @@ Mp3Context.prototype._validHeader = function() {
 
 Mp3Context.prototype._resetState = function() {
     this.samplesToSkip = 0;
-    this.framesToSkip = 0;
     this.sampleBuffersInitialized = false;
     this.started = false;
     this.flushed = false;
@@ -1826,8 +1821,9 @@ Mp3Context.prototype.applySeek = function(mp3SeekResult) {
     this.establishedVersion = establishedVersion;
     this.establishedLsf = establishedLsf;
     this.started = true;
-    this.framesToSkip = mp3SeekResult.framesToSkip;
-    this.frame = mp3SeekResult.frame - mp3SeekResult.framesToSkip;
+    this.frame = mp3SeekResult.frame;
+    this.samplesToSkip = mp3SeekResult.samplesToSkip;
+    if (this.frame === 0) this.samplesToSkip += DECODER_DELAY;
     this.frames = frames;
 };
 
