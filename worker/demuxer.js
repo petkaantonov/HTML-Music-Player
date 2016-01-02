@@ -1,7 +1,7 @@
 "use strict";
 var FileView = require("./FileView");
 
-const MINIMUM_LENGTH = 5;
+const MINIMUM_DURATION = 3;
 const MP3_DECODER_DELAY = 529;
 const mp3_freq_tab = new Uint16Array([44100, 48000, 32000]);
 const mp3_bitrate_tab = new Uint16Array([
@@ -245,7 +245,7 @@ function demuxMp3(view) {
         }
     }
 
-    if (metadata.duration < MINIMUM_LENGTH) {
+    if (metadata.duration < MINIMUM_DURATION) {
         return null;
     }
 

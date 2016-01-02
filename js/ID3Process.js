@@ -250,9 +250,6 @@ ID3Process.prototype.loadNext = function() {
             return result;
         })
         .then(function(tagData) {
-            if (tagData.duration >= 0 && tagData.duration < 5) {
-                throw new AudioError();
-            }
             track.setTagData(tagData);
             var id = track.getUid();
 
