@@ -786,6 +786,7 @@ AudioPlayerSourceNode.prototype._error = function(args, transferList) {
     if (this._destroyed) return this._freeTransferList(transferList);
     this._freeTransferList(transferList);
     var e = new Error(args.message);
+    e.name = args.name;
     e.stack = args.stack;
     this.unload();
     this.emit("error", e);

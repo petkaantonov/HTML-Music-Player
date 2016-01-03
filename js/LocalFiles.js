@@ -41,6 +41,11 @@ LocalFiles.prototype.handle = function(files) {
             ext = "";
         }
 
+        // Probably a folder. Minimum audio file length is 3 seconds anyway.
+        if (file.size <= 131072) {
+            continue;
+        }
+
         if (this.isExtensionSupported(ext) ||
             this.isMimeTypeSupported(file.type)) {
             tracks.push(new Track(file));

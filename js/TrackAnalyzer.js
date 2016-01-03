@@ -6,34 +6,19 @@ const TrackWasRemovedError = require("./TrackWasRemovedError");
 const Track = require("./Track");
 const AudioError = require("./AudioError");
 
-const OfflineAudioContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-
-Promise.promisifyAll(OfflineAudioContext.prototype, {
-    promisifier: function DOMPromisifier(originalMethod) {
-        // return a function
-        return function promisified() {
-            var args = [].slice.call(arguments);
-            // Needed so that the original method can be called with the correct receiver
-            var self = this;
-            // which returns a promise
-            return new Promise(function(resolve, reject) {
-                args.push(resolve, function(v) {
-                    reject(util.asError(v));
-                });
-                originalMethod.apply(self, args);
-            });
-        };
-    }
-});
-
-function TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist) {
-    this.loudnessCalculator = loudnessCalculator;
-    this.fingerprintCalculator = fingerprintCalculator;
+var instances = false;
+function TrackAnalyzer(playlist) {
+    if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
+    instances = true;
+    this._worker = new Worker("worker/TrackAnalyzerWorker.js");
+    this._jobs = [];
+    this._nextJobId = 0;
     this._queue = [];
     this._longQueue = [];
     this._currentlyAnalysing = false;
     this._playlist = playlist;
 
+    this._worker.addEventListener("message", this._messaged.bind(this), false);
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
     this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
     this.trackDestroyed = this.trackDestroyed.bind(this);
@@ -92,13 +77,32 @@ TrackAnalyzer.prototype.prioritize = function(track) {
     }
 };
 
+TrackAnalyzer.prototype._messaged = function(event) {
+    var id = event.data.id;
+    for (var i = 0; i < this._jobs.length; ++i) {
+        if (this._jobs[i].id === id) {
+            var job = this._jobs[i];
+            this._jobs.splice(i, 1);
+            if (event.data.error) {
+                var e = new Error(event.data.error.message);
+                e.stack = event.data.error.stack;
+                job.reject(e);
+            } else {
+                job.resolve(event.data.result);
+            }
+            return;
+        }
+    }
+};
+
+
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
     if (this._currentlyAnalysing) {
         track.once("destroy", this.trackDestroyed);
         return new Promise(function(resolve, reject) {
             self._queue.push({
-                track: track,
+               track: track,
                 opts: opts,
                 resolve: resolve,
                 reject: reject
@@ -108,48 +112,30 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
 
     var audioBuffer = null;
     this._currentlyAnalysing = true;
+    var id = ++this._nextJobId;
 
-    return util.readAsArrayBuffer(track.file).then(function(result) {
+    return new Promise(function(resolve, reject) {
         if (track.isDetachedFromPlaylist()) {
             throw new TrackWasRemovedError();
         }
 
-        var basicInfo = track.getBasicInfo();
-        var decoder = self._createDecoder(basicInfo.channels, basicInfo.sampleRate);
-
-        return new Promise(function(resolve, reject) {
-            decoder.decodeAudioData(result, function(b) {
-                audioBuffer = b;
-                resolve();
-            }, function() {
-                reject(new AudioError(MediaError.MEDIA_ERR_DECODE));
-            });
+        this._jobs.push({
+            id: id,
+            track: track,
+            resolve: resolve,
+            reject: reject
         });
-    }).then(function() {
-        if (track.isDetachedFromPlaylist()) {
-            audioBuffer = null;
-            throw new TrackWasRemovedError();
-        }
 
-        var fingerprint = Promise.resolve(null);
-        var loudness = Promise.resolve(null);
-        var duration = audioBuffer.duration;
-
-        if (opts.fingerprint) {
-            fingerprint = self.fingerprintCalculator.calculateFingerprintForTrack(track, audioBuffer);
-        }
-
-        if (opts.loudness) {
-            loudness = self.loudnessCalculator.calculateLoudnessForTrack(track, audioBuffer);
-        }
-
-        audioBuffer = null;
-        return Promise.props({
-            loudness: loudness,
-            fingerprint: fingerprint,
-            duration: duration
+        this._worker.postMessage({
+            action: "analyze",
+            args: {
+                id: id,
+                fingerprint: !!opts.fingerprint,
+                loudness: !!opts.loudness,
+                file: track.getFile()
+            }
         });
-    }).finally(function() {
+    }.bind(this)).finally(function() {
         self._next();
         return null;
     });

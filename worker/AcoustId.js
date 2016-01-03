@@ -1,16 +1,4 @@
-importScripts("../lib/realfft.js");
-
-const console = {
-    log: function() {
-        var args = [].slice.call(arguments);
-        self.postMessage({
-            log: true,
-            args: args
-        });
-    }
-};
-
-
+"use strict";
 /*
  * Ported from acousticid/chromaprint
  *
@@ -33,7 +21,8 @@ const console = {
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  * USA
  */
-const AcoustId = (function() { "use strict";
+
+var realFft = require("../lib/realfft");
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
@@ -448,21 +437,4 @@ AcoustId.prototype.calculate = function(raw) {
     }
 };
 
-
-AcoustId.calculate = function(workDescriptor) {
-    var args = workDescriptor.args;
-    var obj = args[0];
-    var srcLength = obj.length;
-    var src = workDescriptor.transferList.map(function(v) {
-        return new Float32Array(v);
-    })[0];
-
-    var fpcalc = new AcoustId(src, srcLength);
-    var fingerprint = fpcalc.calculate(false);
-
-    return {
-        fingerprint: fingerprint
-    };
-};
-
-return AcoustId; })();
+module.exports = AcoustId;

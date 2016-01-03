@@ -1438,98 +1438,81 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
     if (length === undefined) length = src.length - srcStart;
 
     const buffer = this.source;
-    var altLength = -1, altSrcStart = -1, altSrc = null;
-
+    
     if (this.frame >= this.frames) {
         return srcStart + length;
     }
 
-    do {
-        while (length > 0) {
-            if (this.state === PENDING_HEADER) {
-                var header = this.header;
-                for (var i = 0; i < length; ++i) {
-                    header = (header << 8) | src[srcStart + i];
-                    if (this.checkHeader(header) && this.decodeHeader(header)) {
-                        this.state = PENDING_DATA;
-                        i++;
-                        break;
-                    }
-                }
-                this.header = header;
-                length -= i;
-                srcStart += i;
-            } else {
-                var bytesIndex = this.sourceByteLength;
-                // Includes next frame's header.
-                var bytesNeeded = this.frame_size - bytesIndex;
-                var l = Math.min(length, bytesNeeded);
-
-                var i = 0;
-                for ( ; i < l; ++i) {
-                    buffer[bytesIndex + i] = src[srcStart + i];
-                }
-
-                if (i < bytesNeeded) {
-                    this.sourceByteLength = bytesIndex + i;
+    while (length > 0) {
+        if (this.state === PENDING_HEADER) {
+            var header = this.header;
+            for (var i = 0; i < length; ++i) {
+                header = (header << 8) | src[srcStart + i];
+                if (this.checkHeader(header) && this.decodeHeader(header)) {
+                    this.state = PENDING_DATA;
+                    i++;
                     break;
-                } else {
-                    // Include's next frame's header.
-                    l = bytesIndex + i;
+                }
+            }
+            this.header = header;
+            length -= i;
+            srcStart += i;
+        } else {
+            var bytesIndex = this.sourceByteLength;
+            // Includes next frame's header.
+            var bytesNeeded = this.frame_size - bytesIndex;
+            var l = Math.min(length, bytesNeeded);
 
-                    // Check that the next frame's header pointed to by this header is valid
-                    // as well.
-                    if (!this.checkHeader((buffer[l - 4] << 24) |
-                                          (buffer[l - 3] << 16) |
-                                          (buffer[l - 2] << 8) |
-                                          (buffer[l - 1]))) {
-                        // Fake header.
-                        if (altSrc !== null) throw new Error("must be null");
-                        altSrc = src;
-                        altLength = length;
-                        altSrcStart = srcStart;
-                        src = buffer;
-                        length = l;
-                        srcStart = 0;
+            var i = 0;
+            for ( ; i < l; ++i) {
+                buffer[bytesIndex + i] = src[srcStart + i];
+            }
+
+            if (i < bytesNeeded) {
+                this.sourceByteLength = bytesIndex + i;
+                break;
+            } else {
+                // Include's next frame's header.
+                l = bytesIndex + i;
+
+                // Check that the next frame's header pointed to by this header is valid
+                // as well.
+                if (!this.checkHeader((buffer[l - 4] << 24) |
+                                      (buffer[l - 3] << 16) |
+                                      (buffer[l - 2] << 8) |
+                                      (buffer[l - 1]))) {
+
+                    if (!(this.frame !== -1 && this.frames !== ((-1 >>> 1)|0) &&
+                        this.frame >= this.frames - 2)) {
+                        length -= (i - HEADER_SIZE);
+                        srcStart += (i - HEADER_SIZE);
                         this.sourceByteLength = 0;
                         this.state = PENDING_HEADER;
                         this.header = 0;
                         continue;
-                    }
-                    
-                    // Doesn't include' next frame's header.
-                    this.sourceByteLength = l - HEADER_SIZE;
-                    length -= (i - HEADER_SIZE);
-                    srcStart += (i - HEADER_SIZE);
-                    this._validHeader();
-                    var flushed = this.decode();
+                    }    
+                }
+                
+                // Doesn't include' next frame's header.
+                this.sourceByteLength = l - HEADER_SIZE;
+                length -= (i - HEADER_SIZE);
+                srcStart += (i - HEADER_SIZE);
+                this._validHeader();
+                var flushed = this.decode();
 
-                    this.sourceByteLength = 0;
-                    this.state = PENDING_HEADER;
-                    this.header = 0;
-                    if (flushed && breakOnFlush) {
-                        if (altSrc !== null) throw new Error("must be null");
-                        return srcStart;
-                    }
-                    if (this.frame >= this.frames) {
-                        return srcStart + length;
-                    }
+                this.sourceByteLength = 0;
+                this.state = PENDING_HEADER;
+                this.header = 0;
+                if (flushed && breakOnFlush) {
+                    return srcStart;
+                }
+                if (this.frame >= this.frames) {
+                    return srcStart + length;
                 }
             }
         }
+    }
 
-        if (altLength !== -1)  {
-            src = altSrc;
-            length = altLength;
-            srcStart = altSrcStart;
-            altLength = -1;
-            altSrcStart = -1;
-            altSrc = null;
-        } else {
-            break;
-        }
-
-    } while (true);
 
     return srcStart;
 };

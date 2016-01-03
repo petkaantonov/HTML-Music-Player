@@ -11,6 +11,7 @@ const EventEmitter = require("events");
 const util = require("./util");
 const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
+const Track = require("./Track");
 
 const audioCtx = (function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -675,6 +676,15 @@ Player.prototype.nextTrackImplicitly = function() {
 };
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
+    if (audioManager.track) {
+        var trackError;
+        if (e.name === "NotFoundError" || e.name === "NotReadableError") {
+            trackError = Track.FILESYSTEM_ACCESS_ERROR;
+        } else {
+            trackError = Track.DECODE_ERROR;
+        }
+        audioManager.track.setError(trackError);
+    }
     destroyAudioManagers();
     this.currentAudioManager = null;
     this.nextTrackImplicitly();
@@ -732,6 +742,11 @@ Player.prototype.audioManagerSeekIntent = function(audioManager, time) {
 };
 
 Player.prototype.trackFinished = function() {
+    if (this.currentAudioManager &&
+        this.currentAudioManager.track &&
+        this.currentAudioManager.track.hasError()) {
+        this.currentAudioManager.track.unsetError();
+    }
     this.playlist.trackPlayedSuccessfully();
     this.nextTrackImplicitly();
 };

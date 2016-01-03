@@ -302,75 +302,26 @@ function isUndefined(arg) {
 "use strict";
 self.EventEmitter = require("events");
 
-var Resampler = require("./Resampler");
 var ChannelMixer = require("./ChannelMixer");
 var sniffer = require("./sniffer");
 var codec = require("./codec");
 var demuxer = require("./demuxer");
 var FileView = require("./FileView");
 var seeker = require("./seeker");
+var pool = require("./pool");
+
+var allocResampler = pool.allocResampler;
+var allocDecoderContext = pool.allocDecoderContext;
+var freeResampler = pool.freeResampler;
+var freeDecoderContext = pool.freeDecoderContext;
+
 
 const channelMixer = new ChannelMixer(2);
 var hardwareSampleRate = 0;
 var bufferTime = 0;
 
 const audioPlayerMap = Object.create(null);
-const decoderPool = Object.create(null);
-const resamplers = Object.create(null);
 
-const getResampler = function(channels, from, to) {
-    var key = channels + " " + from + " " + to;
-    var entry = resamplers[key];
-    if (!entry) {
-        entry = resamplers[key] = {
-            allocationCount: 2,
-            instances: [new Resampler(channels, from, to), new Resampler(channels, from, to)]
-        };
-    }
-    if (entry.instances.length === 0) {
-        entry.instances.push(new Resampler(channels, from, to));
-        entry.allocationCount++;
-        if (entry.allocationCount > 6) {
-            throw new Error("memory leak");
-        }
-    }
-    var ret = entry.instances.shift();
-    ret.start();
-    return ret;
-};
-
-const freeResampler = function(resampler) {
-    var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
-    resamplers[key].instances.push(resampler);
-    resampler.end();
-};
-
-const allocDecoderContext = function(name, Context, contextOpts) {
-    var entry = decoderPool[name];
-
-    if (!entry) {
-        entry = decoderPool[name] = {
-            allocationCount: 2,
-            instances: [new Context(contextOpts), new Context(contextOpts)]
-        };
-    }
-
-    if (entry.instances.length === 0) {
-        entry.instances.push(new Context(contextOpts));
-        entry.allocationCount++;
-        if (entry.allocationCount > 6) {
-            throw new Error("memory leak");
-        }
-    }
-
-    return entry.instances.shift();
-};
-
-const freeDecoderContext = function(name, context) {
-    context.removeAllListeners();
-    decoderPool[name].instances.push(context);
-    context.end();
-};
 
 const message = function(nodeId, methodName, args, transferList) {
     if (transferList === undefined) transferList = [];
@@ -577,15 +528,16 @@ AudioPlayer.prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-AudioPlayer.prototype.passError = function(errorMessage, stack) {
+AudioPlayer.prototype.passError = function(errorMessage, stack, name) {
     this.sendMessage("_error", {
         message: errorMessage,
-        stack: stack
+        stack: stack,
+        name: name
     });
 }
 
 AudioPlayer.prototype.errored = function(e) {
-    this.passError("Decoder error: " + e.message, e.stack);
+    this.passError(e.message, e.stack, e.name);
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
@@ -607,7 +559,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
         this.decoderContext.start(metadata);
         this.decoderContext.on("error", this.errored);
         if (this.metadata.sampleRate !== hardwareSampleRate) {
-            this.resampler = getResampler(this.metadata.channels,
+            this.resampler = allocResampler(this.metadata.channels,
                                           this.metadata.sampleRate,
                                           hardwareSampleRate);
         } else {
@@ -620,7 +572,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
             metadata: this.metadata
         });
     } catch (e) {
-        this.passError(e.message, e.stack);
+        this.passError(e.message, e.stack, e.name);
     }
 };
 
@@ -658,7 +610,7 @@ AudioPlayer.prototype.loadBlob = function(args) {
             self.sendMessage("_error", {message: "Unable to load codec: " + e.message});
         });
     } catch (e) {
-        this.passError(e.message, e.stack);
+        this.passError(e.message, e.stack, e.name);
     }
 };
 
@@ -760,7 +712,7 @@ AudioPlayer.prototype.fillBuffers = function(args, transferList) {
         var result = this._fillBuffers(count, requestId, transferList);
         this.sendMessage("_buffersFilled", result, transferList);
     } catch (e) {
-        this.passError(e.message, e.stack);
+        this.passError(e.message, e.stack, e.name);
     }
 };
 
@@ -789,7 +741,7 @@ AudioPlayer.prototype.seek = function(args, transferList) {
         result.isUserSeek = args.isUserSeek;
         this.sendMessage("_seeked", result, transferList);
     } catch (e) {
-        this.passError(e.message, e.stack);
+        this.passError(e.message, e.stack, e.name);
     }
 };
 
@@ -798,14 +750,14 @@ AudioPlayer.prototype.sourceEndedPing = function(args) {
     try {
         this.sendMessage("_sourceEndedPong", {requestId: args.requestId});
     } catch (e) {
-        this.passError(e.message, e.stack);
+        this.passError(e.message, e.stack, e.name);
     }
 }
 
 // Preload mp3.
 codec.getCodec("mp3");
 
-},{"./ChannelMixer":3,"./FileView":4,"./Resampler":5,"./codec":6,"./demuxer":7,"./seeker":8,"./sniffer":9,"events":1}],3:[function(require,module,exports){
+},{"./ChannelMixer":3,"./FileView":4,"./codec":6,"./demuxer":7,"./pool":8,"./seeker":9,"./sniffer":10,"events":1}],3:[function(require,module,exports){
 "use strict";
 
 const bufferCache = Object.create(null);
@@ -990,6 +942,10 @@ function FileView(file) {
     this.start = -1;
     this.end = -1;
 }
+
+FileView.prototype.toBufferOffset = function(fileOffset) {
+    return fileOffset - this.start;
+};
 
 FileView.prototype.ensure = function(offset, length) {
     if (!(this.start <= offset && offset + length <= this.end)) {
@@ -1653,6 +1609,12 @@ module.exports = Resampler;
 const globalObject = typeof self !== "undefined" ? self : global;
 const codecs = Object.create(null);
 
+const delay = function(ms) {
+    return new Promise(function(resolve) {
+        setTimeout(resolve, ms);
+    });
+};
+
 var expectedCodec = null;
 const loadCodec = function(name, retries) {
     if (codecs[name]) return codecs[name];
@@ -1663,7 +1625,7 @@ const loadCodec = function(name, retries) {
         xhr.addEventListener("load", function() {
             if (xhr.status >= 300) {
                 if (xhr.status >= 500 && retries < 5) {
-                    return resolve(Promise.delay(1000).then(function() {
+                    return resolve(delay(1000).then(function() {
                         return loadCodec(name, retries + 1);
                     }));
                 }
@@ -2081,6 +2043,100 @@ module.exports.Mp3SeekTable = Mp3SeekTable;
 
 },{"./FileView":4}],8:[function(require,module,exports){
 "use strict";
+
+var Resampler = require("./Resampler");
+
+const decoderPool = Object.create(null);
+const resamplers = Object.create(null);
+const bufferPool = Object.create(null);
+
+
+const allocBuffer = function(size, channels) {
+    var key = size + " " + channels;
+
+    var buffers = bufferPool[key];
+    if (!buffers || !buffers.length) {
+        buffers = new Array(channels);
+        for (var i = 0; i < channels; ++i) {
+            buffers[i] = new Float32Array(size);
+        }
+
+        bufferPool[key] = [buffers];
+    }
+
+    return bufferPool[key].shift();
+}
+
+const freeBuffer = function(size, channels, buffer) {
+    var key = size + " " + channels;
+    bufferPool[key].push(buffer);
+}
+
+const allocResampler = function(channels, from, to) {
+    var key = channels + " " + from + " " + to;
+    var entry = resamplers[key];
+    if (!entry) {
+        entry = resamplers[key] = {
+            allocationCount: 2,
+            instances: [new Resampler(channels, from, to), new Resampler(channels, from, to)]
+        };
+    }
+    if (entry.instances.length === 0) {
+        entry.instances.push(new Resampler(channels, from, to));
+        entry.allocationCount++;
+        if (entry.allocationCount > 6) {
+            throw new Error("memory leak");
+        }
+    }
+    var ret = entry.instances.shift();
+    ret.start();
+    return ret;
+};
+
+const freeResampler = function(resampler) {
+    var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
+    resamplers[key].instances.push(resampler);
+    resampler.end();
+};
+
+const allocDecoderContext = function(name, Context, contextOpts) {
+    var entry = decoderPool[name];
+
+    if (!entry) {
+        entry = decoderPool[name] = {
+            allocationCount: 2,
+            instances: [new Context(contextOpts), new Context(contextOpts)]
+        };
+    }
+
+    if (entry.instances.length === 0) {
+        entry.instances.push(new Context(contextOpts));
+        entry.allocationCount++;
+        if (entry.allocationCount > 6) {
+            throw new Error("memory leak");
+        }
+    }
+
+    return entry.instances.shift();
+};
+
+const freeDecoderContext = function(name, context) {
+    context.removeAllListeners();
+    decoderPool[name].instances.push(context);
+    context.end();
+};
+
+module.exports = {
+    allocResampler: allocResampler,
+    freeResampler: freeResampler,
+    allocDecoderContext: allocDecoderContext,
+    freeDecoderContext: freeDecoderContext,
+    allocBuffer: allocBuffer,
+    freeBuffer: freeBuffer
+};
+
+},{"./Resampler":5}],9:[function(require,module,exports){
+"use strict";
 const FileView = require("./FileView");
 const Mp3SeekTable = require("./demuxer").Mp3SeekTable;
 
@@ -2149,7 +2205,7 @@ function seek(type, time, metadata, context, fileView) {
 
 module.exports = seek;
 
-},{"./FileView":4,"./demuxer":7}],9:[function(require,module,exports){
+},{"./FileView":4,"./demuxer":7}],10:[function(require,module,exports){
 "use strict";
 
 const rType =

@@ -25,6 +25,10 @@ const DUMMY_TRACK = {
 
     isDetachedFromPlaylist: function() {
         return true;
+    },
+
+    hasError: function() {
+        return false;
     }
 };
 
@@ -81,11 +85,20 @@ Playlist.Modes = {
     normal: function(track) {
         var index = track.getIndex() + 1;
 
-        if (index > this.length - 1) {
-            return this._trackList.first();
-        } else {
-            return this.getTrackByIndex(index);
-        }
+        var ret;
+        var trials = 0;
+
+        do {
+            index = Math.max(0, index);
+            if (index >= this.length) {
+                index = 0;
+            }
+
+            ret = this.getTrackByIndex(index);
+            index++;
+            trials++;
+        } while (ret && ret.hasError() && trials <= this.length);
+        return ret;
     },
 
     shuffle: function(track) {
@@ -109,7 +122,7 @@ Playlist.Modes = {
         }
 
         var zeroWeights = [track, this.getNextTrack()].filter(function(track) {
-            return track && !track.isDetachedFromPlaylist();
+            return track && !track.isDetachedFromPlaylist() && !track.hasError();
         });
 
         var maxWeight = 0;
@@ -135,7 +148,7 @@ Playlist.Modes = {
     },
 
     repeat: function(track) {
-        if (track.isDetachedFromPlaylist()) {
+        if (track.isDetachedFromPlaylist() || track.hasError()) {
             return Playlist.Modes.normal.call(this, track);
         }
         return track;
@@ -152,6 +165,14 @@ Playlist.prototype._updateNextTrack = function(forced) {
     }
 
     this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack);
+
+    if (this._nextTrack === DUMMY_TRACK ||
+        this._nextTrack === null ||
+        this._nextTrack.isDetachedFromPlaylist() ||
+        this._nextTrack.hasError()) {
+        this._nextTrack = DUMMY_TRACK;
+    }
+
     this.emit("nextTrackChange", this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
 };
 
@@ -314,7 +335,7 @@ Playlist.prototype.getUnparsedTracks = function(maxCount) {
 
     for (var i = 0; i < this._trackList.length; ++i) {
         var track = this._trackList[i];
-        if (track.needsParsing()) {
+        if (track.needsParsing() && !track.hasError()) {
             ret.push(track);
             if (ret.length >= maxCount) {
                 break;

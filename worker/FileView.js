@@ -8,6 +8,10 @@ function FileView(file) {
     this.end = -1;
 }
 
+FileView.prototype.toBufferOffset = function(fileOffset) {
+    return fileOffset - this.start;
+};
+
 FileView.prototype.ensure = function(offset, length) {
     if (!(this.start <= offset && offset + length <= this.end)) {
         const max = this.file.size;

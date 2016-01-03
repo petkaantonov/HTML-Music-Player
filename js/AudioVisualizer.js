@@ -44,7 +44,8 @@ const weights = new Float32Array([
 function makeBuffer(bufferSize, bins) {
     return [
         new Float32Array(bufferSize),
-        new Float32Array(bins)
+        new Float32Array(bins),
+        new Float64Array(bufferSize)
     ];
 }
 
@@ -81,6 +82,7 @@ function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
         bins[i] = 0;
     }
 
+    this.fillWindow();
     this.destroyed = false;
     this.paused = false;
     this.gotFrame = this.gotFrame.bind(this);
@@ -157,7 +159,6 @@ AudioVisualizer.prototype.gotFrame = function(now) {
         return;
     }
     
-    this.hammingWindow();
     this.forwardFft();
     this.calculateBins();
     this.visualizerCanvas.drawBins(now, this.buffer[1]);
@@ -218,24 +219,21 @@ AudioVisualizer.prototype.calculateBins = function() {
     }
 };
 
-AudioVisualizer.prototype.hammingWindow = function() {
-    const x = this.buffer[0];
-    const N = x.length;
-    //const pi2 = Math.PI * 2;
-    const a = 2 * Math.pow(Math.sin(-Math.PI / N), 2);
-    const b = Math.sin(-Math.PI * 2 / N);
-    var tmp;
-    var cos = 1;
-    var sin = 0;
+AudioVisualizer.prototype.fillWindow = function() {
+    var window = this.buffer[2];
+    var N = window.length;
     for (var n = 0; n < N; ++n) {
-        x[n] *= (0.53836 - 0.46164 * cos);
-        tmp = cos - (a * cos + b * sin);
-        sin = sin + (b * cos - a * sin);
-        cos = tmp;
+        // Hamming window.
+        window[n] = (0.53836 - 0.46164 * Math.cos((2 * Math.PI * n) / (N - 1)));
     }
 };
 
 AudioVisualizer.prototype.forwardFft = function() {
+    var samples = this.buffer[0];
+    var window = this.buffer[2];
+    for (var i = 0; i < samples.length; ++i) {
+        samples[i] = Math.fround(samples[i] * window[i]);
+    }
     realFft(this.buffer[0]);
 };
 

@@ -1,6 +1,5 @@
 "use strict";
-const $ = require("../lib/jquery");
-const Promise = require("../lib/bluebird.js");
+
 const EventEmitter = require("events");
 var util = module.exports;
 
@@ -662,7 +661,9 @@ util.readAsBinaryString = function(file) {
             reader = null;
         });
         util.once(reader, "error", function() {
-            reject(new Error(this.error.message));
+            var e = new Error(this.error.message);
+            e.name = this.error.name;
+            reject(e);
             reader = null;
         });
         reader.readAsBinaryString(file);
@@ -677,7 +678,9 @@ util.readAsArrayBuffer = function(file) {
             reader = null;
         });
         util.once(reader, "error", function() {
-            reject(new Error(this.error.message));
+            var e = new Error(this.error.message);
+            e.name = this.error.name;
+            reject(e);
             reader = null;
         });
         reader.readAsArrayBuffer(file);
@@ -985,15 +988,6 @@ util.unicode.decodeUtf8EncodedBinaryString = function(str) {
     return codePoints.join("");
 };
 
-util.getLongestTransitionDuration = function(node) {
-    var $node = $(node);
-    var prop = $node.css("transitionDuration");
-    if (+!prop) return 0;
-    return prop.split(",").reduce(function(max, cur) {
-        return Math.max(max, parseFloat(cur));
-    }, 0) * 1000;
-};
-
 util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
@@ -1029,7 +1023,7 @@ util.documentHidden = (function() {
     var eventName = prefix.slice(0, -1) + "visibilitychange";
 
     var ret = new EventEmitter();
-    ret.setMaxListeners(255);
+    ret.setMaxListeners(99999999);
 
     var blurred;
 

@@ -1531,6 +1531,14 @@ ul.app-empty-playlist-ul li {
     margin-top: 14px;
 }
 
+.track-status .track-analysis-status {
+    color: #6BC5E1;
+}
+
+.track-status .track-error-status {
+    color: #a94442;
+}
+
 .track-status .playing-icon {
     color: #BE7306;
     display: none;
@@ -1540,7 +1548,10 @@ ul.app-empty-playlist-ul li {
     display: inline-block;
 }
 
-.track-container
+.track-container.track-playing .track-analysis-status,
+.track-container.track-playing .track-error-status {
+    display: none;
+}
 
 .track-container > .track {
     height: 100%;
@@ -1646,11 +1657,6 @@ ul.app-empty-playlist-ul li {
     color: #F7ED95;
     opacity: 1;
     cursor: default;
-}
-
-.track-analysis-status {
-    color: #EED202;
-    text-shadow: 1px 1px 1px #333;
 }
 
 /* perfect-scrollbar v0.6.7 */

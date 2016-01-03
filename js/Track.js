@@ -13,19 +13,26 @@ const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal and clipping protection.</p>" +
 "<p>Playing this track before the analysis has been completed can lead to a below acceptable listening experience.</p>";
 
+const ERROR_HEADER = "<p>There was an error with this track:</p>";
+
+Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
+Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
+Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
+
 const NULL = $(null);
 
 function Track(audioFile) {
     EventEmitter.call(this);
     this.file = audioFile;
     this.tagData = null;
-    this.error = false;
     this.index = -1;
+    this._error = null;
     this._domNode = NULL;
     this._searchString = null;
     this._isAttached = false;
     this._lastPlayed = 0;
     this._statusTooltip = null;
+    this._errorTooltip = null;
     this._isBeingAnalyzed = false;
 }
 util.inherits(Track, EventEmitter);
@@ -89,6 +96,14 @@ Track.prototype._ensureDomNode = function() {
     }
 
     this.indexChanged();
+
+    if (this._isBeingAnalyzed) {
+        this.showAnalysisStatus();
+    }
+
+    if (this._error) {
+        this.showErrorStatus();
+    }
 };
 
 Track.prototype.getTrackInfo = function() {
@@ -334,8 +349,8 @@ Track.prototype.startPlaying = function() {
 Track.prototype.showAnalysisStatus = function() {
     if (this._domNode === NULL) return;
 
-    this.$trackStatus().html("<span " +
-        "class='glyphicon glyphicon-warning-sign track-analysis-status'" +
+    this.$trackStatus().append("<span " +
+        "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>");
 
     this._statusTooltip = new Tooltip({
@@ -350,8 +365,56 @@ Track.prototype.showAnalysisStatus = function() {
     });
 };
 
+Track.prototype.showErrorStatus = function() {
+    if (this._domNode === NULL) return;
+
+    this.$trackStatus().append("<span " +
+        "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
+        "></span>");
+
+    this._errorTooltip = new Tooltip({
+        transitionClass: "fade-in",
+        preferredDirection: "right",
+        preferredAlign: "middle",
+        container: $("body"),
+        target: this.$trackStatus().find(".track-error-status"),
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        arrow: false,
+        content: ERROR_HEADER + this._error
+    });
+};
+
+Track.prototype.unsetAnalysisStatus = function() {
+    this._isBeingAnalyzed = false;
+
+    if (this._statusTooltip) {
+        this._statusTooltip.destroy();
+        this._statusTooltip = null;
+        this.$trackStatus().find(".track-analysis-status").remove();
+    }
+};
+
+Track.prototype.unsetError = function() {
+    this._error = null;
+
+    if (this._errorTooltip) {
+        this._errorTooltip.destroy();
+        this._errorTooltip = null;
+        this.$trackStatus().find(".track-error-status").remove();
+    }
+};
+
+Track.prototype.setError = function(message) {
+    if (this._error && this._domNode !== NULL) {
+        this._errorTooltip.destroy();
+        this.$trackStatus().find(".track-error-status").remove();
+    }
+    this._error = message;
+    this.showErrorStatus();
+};
+
 Track.prototype.hasError = function() {
-    return this.error;
+    return !!this._error;
 };
 
 Track.prototype.getFileName = function() {
@@ -400,7 +463,7 @@ Track.prototype.formatTime = function() {
 };
 
 Track.prototype.needsParsing = function() {
-    return this.tagData === null && !this.error;
+    return this.tagData === null && !this._error;
 };
 
 Track.prototype.getBasicInfo = function() {
@@ -439,16 +502,6 @@ Track.prototype.getUid = function() {
         return sha1(album + title + artist + index + name + size);
     } else {
         throw new Error("cannot get uid before having tagData");
-    }
-};
-
-Track.prototype.unsetAnalysisStatus = function() {
-    this._isBeingAnalyzed = false;
-    this.$trackStatus().empty();
-
-    if (this._statusTooltip) {
-        this._statusTooltip.destroy();
-        this._statusTooltip = null;
     }
 };
 

@@ -1,14 +1,4 @@
-importScripts("../js/util.js");
-const console = {
-    log: function() {
-        var args = [].slice.call(arguments);
-        self.postMessage({
-            log: true,
-            args: args
-        });
-    }
-};
-
+"use strict";
 /* Ported to JavaScript from libebur128. */
 /*
 Copyright (c) 2011 Jan Kokemüller
@@ -33,9 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-
-var ebur128 = (function() {
-"use strict";
+const util = require("../js/util");
 
 const SILENCE_THRESHOLD = -70;
 const REFERENCE_LUFS = -18;
@@ -209,6 +197,15 @@ Ebur128.prototype.initFilter = function() {
     this.a[3] = pa[1] * ra[2] + pa[2] * ra[1];
     this.a[4] = pa[2] * ra[2];
 };
+
+Ebur128.EBUR128_MODE_M = EBUR128_MODE_M;
+Ebur128.EBUR128_MODE_S = EBUR128_MODE_S;
+Ebur128.EBUR128_MODE_I = EBUR128_MODE_I;
+Ebur128.EBUR128_MODE_LRA = EBUR128_MODE_LRA;
+Ebur128.EBUR128_MODE_SAMPLE_PEAK = EBUR128_MODE_SAMPLE_PEAK;
+Ebur128.EBUR128_MODE_TRUE_PEAK = EBUR128_MODE_TRUE_PEAK;
+Ebur128.EBUR128_MODE_HISTOGRAM = EBUR128_MODE_HISTOGRAM;
+Ebur128.REFERENCE_LUFS = REFERENCE_LUFS;
 
 Ebur128.prototype.initChannels = function() {
     var channels = this.channels;
@@ -673,75 +670,4 @@ DeserializedEbur128.prototype.getSamplePeak = function() {
 
 DeserializedEbur128.prototype.loudness_global = Ebur128.prototype.loudness_global;
 
-var currentEbur = null;
-
-return {
-    cancelEbur128Calculation: function() {
-        currentEbur = null;
-    },
-
-    initializeEbur128Calculation: function(workDescriptor) {
-        if (currentEbur) throw new Error("replaygain calculation already initialized");
-        var args = workDescriptor.args;
-        var obj = args[0];
-        currentEbur = new Ebur128(obj.channels,
-                                  obj.sampleRate,
-                                  EBUR128_MODE_I | EBUR128_MODE_TRUE_PEAK);
-    },
-
-    addFrames: function(workDescriptor) {
-        if (!currentEbur) throw new Error("replaygain calculation not initialized");
-        var ebur128 = currentEbur;
-        var args = workDescriptor.args;
-        var obj = args[0];
-        var srcLength = obj.length;
-
-        var src = workDescriptor.transferList.map(function(v) {
-            return new Float32Array(v);
-        });
-
-
-        if (src.length && src[0].length >= srcLength) {
-            ebur128.add_frames(src, srcLength);
-        } else {
-            throw new Error("not enough samples: " + src.length + " vs " + srcLength);
-        }
-    },
-
-    getAlbumGain: function(workDescriptor) {
-        var eburSerializations = workDescriptor.args[0].eburs;
-
-        var eburs = eburSerializations.map(function(v) {
-            return new DeserializedEbur128(v);
-        });
-
-        var peak = eburs.reduce(function(max, cur) {
-            return Math.max(max, cur.getTruePeak());
-        }, -Infinity);
-
-        var loudness = Ebur128.loudness_global_multiple(eburs);
-
-        return {
-            albumGain: REFERENCE_LUFS - loudness,
-            albumPeak: peak
-        };
-    },
-
-    getEbur128: function(workDescriptor) {
-        if (!currentEbur) throw new Error("replaygain calculation not initialized");
-        var ebur128 = currentEbur;
-        currentEbur = null;
-        var loudness = ebur128.loudness_global();
-        var peak = Math.max.apply(Math, ebur128.getTruePeak());
-        var silence = ebur128.getSilence();
-
-        return {
-            trackGain: REFERENCE_LUFS - loudness,
-            trackPeak: peak,
-            ebur128: ebur128.serialize(),
-            silence: silence
-        };
-    }
-};
-
-})();
+module.exports = Ebur128;

@@ -3,6 +3,15 @@ const $ = require("../lib/jquery");
 const EventEmitter = require("events");
 const util = require("./util");
 
+const getLongestTransitionDuration = function(node) {
+    var $node = $(node);
+    var prop = $node.css("transitionDuration");
+    if (+!prop) return 0;
+    return prop.split(",").reduce(function(max, cur) {
+        return Math.max(max, parseFloat(cur));
+    }, 0) * 1000;
+};
+
 const getDirection = function(value) {
     value = ("" + value).trim().toLowerCase();
     if (value === "right") return "right";
@@ -423,7 +432,7 @@ Tooltip.prototype.hide = function() {
         $node.appendTo($parent);
         $node[0].offsetHeight;
         $node.addClass("initial");
-        var duration = util.getLongestTransitionDuration($node);
+        var duration = getLongestTransitionDuration($node);
         var self = this;
         this._delayTimeoutId = setTimeout(function() {
             self._tooltip.remove();

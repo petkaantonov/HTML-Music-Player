@@ -28,10 +28,6 @@ const PlayerVolumeManager = require("./PlayerVolumeManager");
 const PlayerPictureManager = require("./PlayerPictureManager");
 const PlaylistNotifications = require("./PlaylistNotifications");
 const VisualizerCanvas = require("./VisualizerCanvas");
-
-const WorkerPool = require("./WorkerPool");
-const FingerprintCalculator = require("./FingerprintCalculator");
-const LoudnessCalculator = require("./LoudnessCalculator");
 const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
@@ -128,12 +124,7 @@ const trackActionsSpec = {
     }]
 };
 
-var trackActionMenu = new ActionMenu(trackActionsSpec);
 var trackContextMenu = new ActionMenu.ContextMenu(playlist.main.$(), trackActionsSpec);
-
-if (features.touch) {
-    trackActionMenu.$().appendTo(".tracks-menu-container");
-}
 
 playlist.main.on("tracksSelected", function(selectable) {
     var selectedItemsCount = selectable.getSelectedItemCount();
@@ -157,8 +148,6 @@ playlist.main.on("tracksSelected", function(selectable) {
         actionsToEnable.push("select-all");
     }
 
-    trackActionMenu.enable(actionsToEnable);
-    trackActionMenu.disable(actionsToDisable);
     trackContextMenu.enable(actionsToEnable);
     trackContextMenu.disable(actionsToDisable);
 });
@@ -179,8 +168,6 @@ playlist.main.on("lengthChange", function(newLength) {
         actionsToDisable.push("select-all", "filter");
     }
 
-    trackActionMenu.enable(actionsToEnable);
-    trackActionMenu.disable(actionsToDisable);
     trackContextMenu.enable(actionsToEnable);
     trackContextMenu.disable(actionsToDisable);
 });
@@ -275,9 +262,7 @@ player.main.on("stop", function() {
     document.title = __PROJECT__TITLE;
 });
 
-const loudnessCalculator = new LoudnessCalculator(new WorkerPool(1, "worker/worker_api.js"));
-const fingerprintCalculator = new FingerprintCalculator(new WorkerPool(1, "worker/worker_api.js"));
-const trackAnalyzer = new TrackAnalyzer(loudnessCalculator, fingerprintCalculator, playlist.main);
+const trackAnalyzer = new TrackAnalyzer(playlist.main);
 const localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
 new ID3Process(playlist.main, player.main, trackAnalyzer);
 

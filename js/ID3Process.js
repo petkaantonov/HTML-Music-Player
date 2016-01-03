@@ -11,7 +11,6 @@ const util = require("./util");
 
 const AudioError = require("./AudioError");
 const TrackWasRemovedError = require("./TrackWasRemovedError");
-const FileError = require("./FileError");
 
 const BlobConstructor = window.Blob ||
                         window.WebKitBlob ||
@@ -217,7 +216,7 @@ ID3Process.prototype.loadNext = function() {
         return Promise.resolve(false);
     }
     var track = this.queue.shift();
-    if (track.isDetachedFromPlaylist()) {
+    if (track.isDetachedFromPlaylist() || track.hasError()) {
         this.queueSet.delete(track);
         return Promise.resolve(false);
     }
@@ -270,7 +269,7 @@ ID3Process.prototype.loadNext = function() {
                     self.fillInAcoustId(track, value.duration, value.fingerprint);
                 }
 
-                if (false && (shouldAnalyzeLoudness || shouldCalculateFingerprint)) {
+                if (shouldAnalyzeLoudness || shouldCalculateFingerprint) {
                     var analyzerOptions = {
                         loudness: shouldAnalyzeLoudness,
                         fingerprint: shouldCalculateFingerprint
@@ -279,7 +278,7 @@ ID3Process.prototype.loadNext = function() {
                     return self.trackAnalyzer.analyzeTrack(track, analyzerOptions).finally(function() {
                         track.unsetAnalysisStatus();
                     }).then(function(result) {
-                        var duration = value ? value.duration : result.duration;
+                        var duration = value && value.duration ? value.duration : result.duration;
 
                         if (result.fingerprint && result.fingerprint.fingerprint && shouldRetrieveAcoustIdMetaData) {
                             self.fillInAcoustId(track, duration, result.fingerprint.fingerprint);
@@ -287,6 +286,7 @@ ID3Process.prototype.loadNext = function() {
 
                         return $.extend({},
                                         value || {},
+                                        {duration: duration},
                                         result.loudness || {},
                                         result.fingerprint || {});
                     });
@@ -300,19 +300,22 @@ ID3Process.prototype.loadNext = function() {
                     return tagDatabase.insert(id, value);
                 }
             }).catch(AudioError, function() {
-                self.playlist.removeTrack(track);
+                track.setError(Track.DECODE_ERROR);
             }).catch(TrackWasRemovedError, function() {});
 
             return tagData;
         })
-        .catch(AudioError, FileError, function() {
-            self.playlist.removeTrack(track);
+        .catch(AudioError, function(e) {
+            track.setError(Track.DECODE_ERROR);
         })
         .catch(function(e) {
-            self.playlist.removeTrack(track);
             if (e instanceof Error) {
-                throw e;
+                if (e.name === "NotFoundError" || e.name === "NotReadableError") {
+                    track.setError(Track.FILESYSTEM_ACCESS_ERROR);
+                    return;
+                }
             }
+            throw e;
         })
         .finally(function() {
             self.queueSet.delete(track);

@@ -3,6 +3,12 @@
 const globalObject = typeof self !== "undefined" ? self : global;
 const codecs = Object.create(null);
 
+const delay = function(ms) {
+    return new Promise(function(resolve) {
+        setTimeout(resolve, ms);
+    });
+};
+
 var expectedCodec = null;
 const loadCodec = function(name, retries) {
     if (codecs[name]) return codecs[name];
@@ -13,7 +19,7 @@ const loadCodec = function(name, retries) {
         xhr.addEventListener("load", function() {
             if (xhr.status >= 300) {
                 if (xhr.status >= 500 && retries < 5) {
-                    return resolve(Promise.delay(1000).then(function() {
+                    return resolve(delay(1000).then(function() {
                         return loadCodec(name, retries + 1);
                     }));
                 }
