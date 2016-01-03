@@ -2853,8 +2853,27 @@ const fingerprintMixer = new ChannelMixer(FINGERPRINT_CHANNELS);
 
 var queue = [];
 var processing = false;
+var shouldAbort = false;
+var currentJobId = -1;
+
+function delay(value, ms) {
+    return new Promise(function(resolve) {
+        setTimeout(function() {
+            resolve(value);
+        }, ms);
+    });
+}
+
+function doAbort(args) {
+    var jobId = args.id;
+    if (currentJobId === jobId) {
+        shouldAbort = true;
+    }
+}
 
 function nextJob() {
+    currentJobId = -1;
+    shouldAbort = false;
     processing = true;
 
     if (queue.length === 0) {
@@ -2874,6 +2893,7 @@ function nextJob() {
     var fingerprintSource;
     var sampleRate;
     var channels;
+    currentJobId = id;
 
     if (!codecName) {
         return error(id, new Error("file type not supported"));
@@ -2960,52 +2980,65 @@ function nextJob() {
         });
 
         var offset = metadata.dataStart;
+        var aborted = false;
 
+        return Promise.resolve(offset).then(function loop(offset) {
+            if (offset < metadata.dataEnd && error === undefined) {
+                flushed = false;
+                var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
+                var srcStart = view.toBufferOffset(offset);
+                var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
+                var bytesRead = (srcEnd - srcStart);
+                offset += bytesRead;
+                progress(id, (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart));
 
-        while (offset < metadata.dataEnd && error === undefined) {
-            flushed = false;
-            var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
-            var srcStart = view.toBufferOffset(offset);
-            var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
-            var bytesRead = (srcEnd - srcStart);
-            offset += bytesRead;
-            progress(id, (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart));
-            if (!flushed) {
-                break;
+                if (!flushed) {
+                    return;
+                }
+
+                if (shouldAbort) {
+                    aborted = true;
+                    return reportAbort(id);
+                }
+                return delay(offset, 0).then(loop);
             }
-        }
+        }).then(function() {
+            if (aborted) {
+                return;
+            }
 
-        if (error === undefined) {
-            decoder.end();
-        }
+            if (error === undefined) {
+                decoder.end();
+            }
 
-        if (error) {
-            return error(id, error);
-        }
-        var result = {
-            loudness: null,
-            fingerprint: null,
-            duration: metadata.duration
-        };
-
-        if (fingerprintSource && fingerprintBufferLength > 0) {
-            var fpcalc = new AcoustId(fingerprintSource[0], fingerprintBufferLength);
-            result.fingerprint = {
-                fingerprint: fpcalc.calculate(false)
+            if (error) {
+                return error(id, error);
+            }
+            var result = {
+                loudness: null,
+                fingerprint: null,
+                duration: metadata.duration
             };
-        }
 
-        if (loudness && ebur128) {
-            var trackGain = Ebur128.REFERENCE_LUFS - ebur128.loudness_global();
-            var trackPeak = Math.max.apply(Math, ebur128.getSamplePeak());
-            var silence = ebur128.getSilence();
-            result.loudness = {
-                trackGain: trackGain,
-                trackPeak: trackPeak,
-                silence: silence
-            };
-        }
-        success(id, result);
+            if (fingerprintSource && fingerprintBufferLength > 0) {
+                var fpcalc = new AcoustId(fingerprintSource[0], fingerprintBufferLength);
+                result.fingerprint = {
+                    fingerprint: fpcalc.calculate(false)
+                };
+            }
+
+            if (loudness && ebur128) {
+                var trackGain = Ebur128.REFERENCE_LUFS - ebur128.loudness_global();
+                var trackPeak = Math.max.apply(Math, ebur128.getSamplePeak());
+                var silence = ebur128.getSilence();
+                result.loudness = {
+                    trackGain: trackGain,
+                    trackPeak: trackPeak,
+                    silence: silence
+                };
+            }
+            success(id, result);
+        });
     }).catch(function(e) {
         error(id, e);
     }).then(cleanup, cleanup);
@@ -3030,6 +3063,13 @@ function nextJob() {
         }
         nextJob();
     }
+}
+
+function reportAbort(id) {
+    self.postMessage({
+        id: id,
+        type: "abort"
+    });
 }
 
 function progress(id, amount) {
@@ -3065,6 +3105,8 @@ self.onmessage = function(event) {
     if (data.action === "analyze") {
         queue.push(data.args);
         if (!processing) nextJob();
+    } else if (data.action === "abort") {
+        doAbort(data.args);
     }
 };
 

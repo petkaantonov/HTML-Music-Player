@@ -22,6 +22,7 @@ function TrackAnalyzer(playlist) {
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
     this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
     this.trackDestroyed = this.trackDestroyed.bind(this);
+    this.abortJobForTrack = this.abortJobForTrack.bind(this);
 }
 
 TrackAnalyzer.prototype.trackDestroyed = function(track) {
@@ -96,6 +97,11 @@ TrackAnalyzer.prototype._messaged = function(event) {
                     job.reject(e);
                 break;
 
+                case "abort":
+                    this._jobs.splice(i, 1);
+                    job.reject(new TrackWasRemovedError());
+                break;
+
                 case "success":
                     job.resolve(event.data.result);
                     this._jobs.splice(i, 1);
@@ -106,6 +112,18 @@ TrackAnalyzer.prototype._messaged = function(event) {
     }
 };
 
+TrackAnalyzer.prototype.abortJobForTrack = function(track) {
+    for (var i = 0; i < this._jobs.length; ++i) {
+        if (this._jobs[i].track === track) {
+            this._worker.postMessage({
+                action: "abort",
+                args: {
+                    id: this._jobs[i].id
+                }
+            });
+        }
+    }
+};
 
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
@@ -124,7 +142,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var audioBuffer = null;
     this._currentlyAnalysing = true;
     var id = ++this._nextJobId;
-
+    track.once("destroy", this.abortJobForTrack);
     return new Promise(function(resolve, reject) {
         if (track.isDetachedFromPlaylist()) {
             throw new TrackWasRemovedError();
@@ -147,6 +165,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
             }
         });
     }.bind(this)).finally(function() {
+        track.removeListener("destroy", self.abortJobForTrack);
         self._next();
         return null;
     });
