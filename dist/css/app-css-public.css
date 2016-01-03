@@ -1497,6 +1497,22 @@ ul.app-empty-playlist-ul li {
 
 /*Track stuffs*/
 
+.track-container.track-container-progress {
+    padding-bottom: 1px !important;
+    border-bottom: none !important;
+}
+
+.track-container .track-progress-bar {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    width: 100%;
+    height: 1px;
+    background-color: #6BC5E1;
+    transform: translateX(-100%);
+    transition: transform 0.15s ease;
+}
+
 .track-container {
     left: 0px;
     position: absolute;
@@ -1508,6 +1524,7 @@ ul.app-empty-playlist-ul li {
     border-bottom: 1px solid #EEE;
     border-top: 1px solid #F6F6F6;
     background-color: #FFF;
+    overflow: hidden;
 }
 
 .tracks-list-container.has-scrollbar .track-container {

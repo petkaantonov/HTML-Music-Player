@@ -82,13 +82,24 @@ TrackAnalyzer.prototype._messaged = function(event) {
     for (var i = 0; i < this._jobs.length; ++i) {
         if (this._jobs[i].id === id) {
             var job = this._jobs[i];
-            this._jobs.splice(i, 1);
-            if (event.data.error) {
-                var e = new Error(event.data.error.message);
-                e.stack = event.data.error.stack;
-                job.reject(e);
-            } else {
-                job.resolve(event.data.result);
+
+            switch (event.data.type) {
+                case "progress":
+                    var progress = event.data.progress;
+                    job.track.analysisProgress(progress);
+                break;
+
+                case "error":
+                    this._jobs.splice(i, 1);
+                    var e = new Error(event.data.error.message);
+                    e.stack = event.data.error.stack;
+                    job.reject(e);
+                break;
+
+                case "success":
+                    job.resolve(event.data.result);
+                    this._jobs.splice(i, 1);
+                break;
             }
             return;
         }

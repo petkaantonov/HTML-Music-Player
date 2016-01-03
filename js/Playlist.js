@@ -164,10 +164,9 @@ Playlist.prototype._updateNextTrack = function(forced) {
         return;
     }
 
-    this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack);
+    this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack) || DUMMY_TRACK;
 
     if (this._nextTrack === DUMMY_TRACK ||
-        this._nextTrack === null ||
         this._nextTrack.isDetachedFromPlaylist() ||
         this._nextTrack.hasError()) {
         this._nextTrack = DUMMY_TRACK;

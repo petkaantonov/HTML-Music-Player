@@ -10,8 +10,8 @@ const sha1 = require("../lib/sha1");
 const DEFAULT_IMAGE_URL = "/dist/images/icon.png";
 
 const ANALYSIS_TOOLTIP_MESSAGE =
-"<p>This track is currently being analyzed for loudness normalization, silence removal and clipping protection.</p>" +
-"<p>Playing this track before the analysis has been completed can lead to a below acceptable listening experience.</p>";
+"<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
+"<p>Playing this track before the analysis has been completed may require manually adjusting volume.</p>";
 
 const ERROR_HEADER = "<p>There was an error with this track:</p>";
 
@@ -31,9 +31,13 @@ function Track(audioFile) {
     this._searchString = null;
     this._isAttached = false;
     this._lastPlayed = 0;
-    this._statusTooltip = null;
+
     this._errorTooltip = null;
+    // Todo extract to a class.
+    this._analysisTooltip = null;
     this._isBeingAnalyzed = false;
+    this._analysisProgress = 0;
+    this._analysisProgressBarInitialized = false;
 }
 util.inherits(Track, EventEmitter);
 
@@ -99,6 +103,7 @@ Track.prototype._ensureDomNode = function() {
 
     if (this._isBeingAnalyzed) {
         this.showAnalysisStatus();
+        this.updateAnalysisProgress();
     }
 
     if (this._error) {
@@ -209,8 +214,12 @@ Track.prototype.remove = function() {
     this.index = -1;
     this._isAttached = false;
 
-    if (this._statusTooltip) {
-        this._statusTooltip.destroy();
+    if (this._analysisTooltip) {
+        this._analysisTooltip.destroy();
+    }
+
+    if (this._errorTooltip) {
+        this._errorTooltip.destroy();
     }
 
     if (this.tagData) {
@@ -233,8 +242,12 @@ Track.prototype.detach = function() {
     if (this._isAttached) {
         this.$().detach();
         this._isAttached = false;
-        if (this._statusTooltip) {
-            this._statusTooltip.hide();
+        if (this._analysisTooltip) {
+            this._analysisTooltip.hide();
+        }
+
+        if (this._errorTooltip) {
+            this._errorTooltip.hide();
         }
     }
 };
@@ -346,6 +359,39 @@ Track.prototype.startPlaying = function() {
     this.$().addClass("track-playing");
 };
 
+Track.prototype.analysisProgress = function(progress) {
+    this._analysisProgress = progress;
+    if (this._domNode !== NULL) {
+        this.updateAnalysisProgress();
+    }
+};
+
+Track.prototype.initializeAnalysisProgressBar = function() {
+    if (!this._analysisProgressBarInitialized) {
+        this._analysisProgressBarInitialized = true;
+        this.$().addClass(".track-container-progress");
+        $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
+    }
+};
+
+Track.prototype.updateAnalysisProgress = function() {
+    this.initializeAnalysisProgressBar();
+    var p = (-1 * Math.round((1 - this._analysisProgress) * 100)) + "%";
+    this.$().find(".track-progress-bar").css("transform", "translateX("+p+")");
+};
+
+Track.prototype.unsetAnalysisStatus = function() {
+    this._isBeingAnalyzed = false;
+
+    if (this._analysisTooltip) {
+        this._analysisTooltip.destroy();
+        this._analysisTooltip = null;
+        this.$().removeClass(".track-container-progress");
+        this.$().find(".track-progress-bar").remove();
+        this.$trackStatus().find(".track-analysis-status").remove();
+    }
+};
+
 Track.prototype.showAnalysisStatus = function() {
     if (this._domNode === NULL) return;
 
@@ -353,7 +399,7 @@ Track.prototype.showAnalysisStatus = function() {
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>");
 
-    this._statusTooltip = new Tooltip({
+    this._analysisTooltip = new Tooltip({
         transitionClass: "fade-in",
         preferredDirection: "right",
         preferredAlign: "middle",
@@ -382,16 +428,6 @@ Track.prototype.showErrorStatus = function() {
         arrow: false,
         content: ERROR_HEADER + this._error
     });
-};
-
-Track.prototype.unsetAnalysisStatus = function() {
-    this._isBeingAnalyzed = false;
-
-    if (this._statusTooltip) {
-        this._statusTooltip.destroy();
-        this._statusTooltip = null;
-        this.$trackStatus().find(".track-analysis-status").remove();
-    }
 };
 
 Track.prototype.unsetError = function() {

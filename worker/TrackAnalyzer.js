@@ -136,6 +136,7 @@ function nextJob() {
 
         var offset = metadata.dataStart;
 
+
         while (offset < metadata.dataEnd && error === undefined) {
             flushed = false;
             var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
@@ -143,6 +144,7 @@ function nextJob() {
             var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
             var bytesRead = (srcEnd - srcStart);
             offset += bytesRead;
+            progress(id, (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart));
             if (!flushed) {
                 break;
             }
@@ -205,9 +207,18 @@ function nextJob() {
     }
 }
 
+function progress(id, amount) {
+    self.postMessage({
+        id: id,
+        type: "progress",
+        progress: amount
+    });
+}
+
 function error(id, e) {
     self.postMessage({
         id: id,
+        type: "error",
         error: {
             message: e.message,
             stack: e.stack
@@ -218,6 +229,7 @@ function error(id, e) {
 function success(id, result) {
     self.postMessage({
         id: id,
+        type: "success",
         result: result
     });
 }
