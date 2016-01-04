@@ -1,13 +1,13 @@
 "use strict";
 const $ = require("../lib/jquery");
 
+const PlayerPictureManager = require("./PlayerPictureManager");
 const EventEmitter = require("events");
 const util = require("./util");
 const TagData = require("./TagData");
 const Tooltip = require("./Tooltip");
 const sha1 = require("../lib/sha1");
-
-const DEFAULT_IMAGE_URL = "/dist/images/icon.png";
+const Promise = require("../lib/bluebird");
 
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
@@ -31,6 +31,8 @@ function Track(audioFile) {
     this._searchString = null;
     this._isAttached = false;
     this._lastPlayed = 0;
+
+    this._generatedImage = null;
 
     this._errorTooltip = null;
     // Todo extract to a class.
@@ -216,14 +218,22 @@ Track.prototype.remove = function() {
 
     if (this._analysisTooltip) {
         this._analysisTooltip.destroy();
+        this._analysisTooltip = null;
     }
 
     if (this._errorTooltip) {
         this._errorTooltip.destroy();
+        this._errorTooltip = null;
     }
 
     if (this.tagData) {
         this.tagData.destroy();
+        this.tagData = null;
+    }
+
+    if (this._generatedImage) {
+        URL.revokeObjectURL(this._generatedImage.src);
+        this._generatedImage = null;
     }
 
     this.$().remove();
@@ -295,24 +305,27 @@ Track.prototype.isAttachedToDom = function() {
     return this._isAttached;
 };
 
-Track.prototype.hasNonDefaultImage = function() {
-    if (!this.tagData) return false;
-    return !!this.tagData.getImage();
-};
-
-Track.prototype.getImage = function() {
-    var ret;
-    if (this.tagData) ret = this.tagData.getImage();
-
-    if (!ret) {
-        ret = new Image();
-        ret.src = DEFAULT_IMAGE_URL;
+Track.prototype.getImage = Promise.method(function() {
+    var image;
+    if (this.tagData) {
+        image = this.tagData.getImage();
     }
-    return ret;
-};
+    if (!image) {
+        image = this._generatedImage;
+    }
+    if (!image) {
+        if (!this.tagData) {
+            return PlayerPictureManager.getDefaultImage();
+        }
+        return PlayerPictureManager.generateImageForTrack(this).bind(this).tap(function(result) {
+            this._generatedImage = result;
+        });
+    }
+    return image;
+});
 
 Track.prototype.getImageUrl = function() {
-    return this.getImage().src;
+    return this.getImage().get("src");
 };
 
 Track.prototype.isDetachedFromPlaylist = function() {

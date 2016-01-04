@@ -18,6 +18,7 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> notif
 function PlaylistNotifications(dom, player) {
     var self = this;
     this._domNode = $(dom);
+    this._notificationRequestId = 0;
     this.playlist = player.playlist;
     this.player = player;
     this.enabled = this.notificationsEnabled();
@@ -94,23 +95,28 @@ PlaylistNotifications.prototype.notificationErrored = function() {
 
 PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
     var track = this.playlist.getCurrentTrack();
-    var info = track.getTrackInfo();
+    var id = ++this._notificationRequestId;
 
-    var body = info.artist;
-    var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
+    track.getImageUrl().bind(this).then(function(imageUrl) {
+        if (id !== this._notificationRequestId) return;
+        var info = track.getTrackInfo();
 
-    var notification = new Notification(title, {
-        tag: "track-change-notification",
-        body: body,
-        icon: track.getImageUrl(),
-        requireInteraction: true,
-        renotify: false,
-        sticky: true
+        var body = info.artist;
+        var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
+
+        var notification = new Notification(title, {
+            tag: "track-change-notification",
+            body: body,
+            icon: imageUrl,
+            requireInteraction: true,
+            renotify: false,
+            sticky: true
+        });
+
+        this.currentNotification = notification;
+        notification.addEventListener("click", this.notificationClicked, false);
+        notification.addEventListener("error", this.notificationErrored, false);
     });
-
-    this.currentNotification = notification;
-    notification.addEventListener("click", this.notificationClicked, false);
-    notification.addEventListener("error", this.notificationErrored, false);
 };
 
 PlaylistNotifications.prototype.newTrackLoaded = function() {

@@ -85,7 +85,7 @@ var retrieveAcoustIdImage = util.throttle(function(track) {
     if (track && track.shouldRetrieveAcoustIdImage()) {
         track.fetchAcoustIdImage();
     }
-}, 2500);
+}, 100);
 
 ID3Process.prototype.currentTrackChanged = function(track) {
     retrieveAcoustIdImage(track);

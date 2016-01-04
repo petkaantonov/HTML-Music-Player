@@ -1,11 +1,15 @@
 "use strict";
 const $ = require("../lib/jquery");
 const Animator = require("./Animator");
+const jdenticon = require("../lib/jdenticon");
+const Promise = require("../lib/bluebird");
+const base64 = require("../lib/base64");
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
 const START_ALPHA = 0;
 const END_ALPHA = 1;
+const IMAGE_DIMENSIONS = 116;
 
 function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
@@ -120,7 +124,7 @@ PlayerPictureManager.prototype.updateImage = function(image) {
         return;
     }
 
-    image.width = image.height = 116;
+    image.width = image.height = IMAGE_DIMENSIONS;
 
     if (!this._currentAnimation) {
         if (this._currentImage) {
@@ -138,8 +142,46 @@ PlayerPictureManager.prototype.updateImage = function(image) {
     }
 };
 
+PlayerPictureManager.prototype.updateImageFromTrack = function(track) {
+    track.getImage().bind(this).then(this.updateImage);
+};
+
 PlayerPictureManager.prototype.newTrackLoaded = function() {
-    this.updateImage(this.player.getImage());
+    this.player.getImage().bind(this).then(this.updateImage);
+};
+
+const jdenticonCanvas = document.createElement("canvas");
+jdenticonCanvas.width = jdenticonCanvas.height = IMAGE_DIMENSIONS;
+const jdenticonContext = jdenticonCanvas.getContext("2d");
+
+PlayerPictureManager.generateImageForTrack = function(track) {
+    return new Promise(function(resolve) {
+        // Chrome has weird bugs with notifications when image has alpha.
+        var clearRect = jdenticonContext.clearRect;
+        // Prevent clearRect which would reset alpha channel.
+        jdenticonContext.clearRect = function() {};
+        clearRect.call(jdenticonContext, 0, 0, IMAGE_DIMENSIONS, IMAGE_DIMENSIONS);
+        jdenticonContext.save();
+        jdenticonContext.fillStyle = "rgba(255, 255, 255, 255)";
+        jdenticonContext.fillRect(0, 0, IMAGE_DIMENSIONS, IMAGE_DIMENSIONS);
+        jdenticonContext.restore();
+        jdenticon.drawIcon(jdenticonContext, track.getUid(), IMAGE_DIMENSIONS);
+        jdenticonContext.clearRect = clearRect;
+
+        var data = jdenticonCanvas.toDataURL("image/png").split("base64,")[1];
+        resolve(new Blob([base64.toByteArray(data)], {type: "image/png"}));
+    }).then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var image = new Image();
+        image.src = url;
+        return image;
+    });
+};
+
+const defaultImage = new Image();
+defaultImage.src = "/dist/images/icon.png";
+PlayerPictureManager.getDefaultImage = function() {
+    return defaultImage;
 };
 
 

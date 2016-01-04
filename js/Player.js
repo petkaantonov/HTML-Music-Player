@@ -210,12 +210,7 @@ AudioManager.prototype.nextTrackChanged = function() {
 
 AudioManager.prototype.trackTagDataUpdated = function() {
     if (this.destroyed || this.player.currentAudioManager !== this) return;
-    var track = this.track;
-
-    if (track.hasNonDefaultImage()) {
-        this.player.getPictureManager().updateImage(track.getImage());
-    }
-
+    this.player.getPictureManager().updateImageFromTrack(this.track);
     this.normalizeLoudness();
 };
 
@@ -811,7 +806,7 @@ Player.prototype.getImage = function() {
     if (this.currentAudioManager) {
         return this.currentAudioManager.getImage();
     }
-    return null;
+    return Promise.resolve(null);
 };
 
 Player.prototype.pause = function() {

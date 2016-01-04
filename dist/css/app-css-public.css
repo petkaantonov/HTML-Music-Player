@@ -255,12 +255,12 @@ ul, ul li, ol, ol li {
 }
 
 .coverart-section-container {
-    width: 120px;
+    width: 118px;
 }
 
 .visualizer-section-container {
     width: 614px;
-    margin-left: 26px;
+    margin-left: 28px;
 }
 
 .playlist-section-container {
@@ -275,20 +275,21 @@ ul, ul li, ol, ol li {
     padding-bottom: 10px;
 }
 
+.picture-module-container {
+    display: inline-block;
+}
+
 .picture-container {
-    width: 116px;
     height: 116px;
-    position: relative;
+    width: 116px;
+    display: inline-block;
+    vertical-align: top;
 }
 
 .picture-container img {
-    width: 116px;
-    height: 116px;
-    top: 0px;
-    left: 0px;
-    border: 0;
-    position: absolute;
-    left: 2px;
+    border: none;
+    display: inline-block;
+    vertical-align: top;
 }
 
 input[type="radio"] {
