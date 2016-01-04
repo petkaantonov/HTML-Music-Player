@@ -1,52 +1,153 @@
-#app-container, .toolbar > .toolbar-items,
-.track-container {
-    width: 760px;
+@import "variables";
+
+#app-container, .toolbar > .toolbar-items, .track-container {
+    @include large-screen {
+        width: $large-screen-width;
+    }
+
+    @include small-screen {
+        width: $small-screen-width;
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width;
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width;
+    }
 }
 
 .ps-container>.ps-scrollbar-x-rail>.ps-scrollbar-x {
-    height: 8px
+    height: $scrollbar-width;
 }
 
 .ps-container>.ps-scrollbar-y-rail>.ps-scrollbar-y {
-    width: 8px
+    width: $scrollbar-width;
 }
 
 .ps-container>.ps-scrollbar-x-rail {
-    height: 8px
+    height: $scrollbar-width;
 }
 
 .ps-container>.ps-scrollbar-y-rail {
-    width: 8px
+    width: $scrollbar-width;
 }
 
 .tracks-list-container.has-scrollbar .track-container {
-    /* layout base - scroll bar width px*/
-    width: 752px;
+    @include large-screen {
+        width: $large-screen-width - $scrollbar-width;
+    }
+
+    @include small-screen {
+        width: $small-screen-width - $scrollbar-width;
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - $scrollbar-width;
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width - $scrollbar-width;
+    }
 }
 
 .track .track-info {
-    /* layout base - 242px */
-    width: 518px;
+    @include large-screen {
+        width: $large-screen-width - 242px;
+    }
+
+    @include small-screen {
+        width: $small-screen-width - 242px;
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width - 242px + 109px;
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - 242px + 109px;
+    }
 }
 
 .tracks-list-container.has-scrollbar .track-info {
-    /* track base - scroll bar width px */
-    width: 510px;
+    @include large-screen {
+        width: $large-screen-width - 242px - $scrollbar-width;
+    }
+
+    @include small-screen {
+        width: $small-screen-width - 242px - $scrollbar-width;
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width - 242px - $scrollbar-width + 109px;
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - 242px - $scrollbar-width + 109px;
+    }
 }
 
 .coverart-section-container {
-    width: 118px;
-}
-
-.visualizer-section-container {
-    width: 614px;
+    width: $picture-size + (2 * $border-width);
 }
 
 .picture-container {
-    height: 116px;
-    width: 116px;
+    height: $picture-size;
+    width: $picture-size;
+}
+
+.visualizer-section-container {
+    margin-left: $visualizer-gap;
+    @include large-screen {
+        width: $large-screen-width - $visualizer-gap - $picture-size - (2 * $border-width);
+    }
+
+    @include small-screen {
+        width: $small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width);
+    }
+
+    @include medium-small-screen {
+        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
 }
 
 .visualizer {
-    width: 612px;
+    @include large-screen {
+        width: $large-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
+
+    @include small-screen {
+        width: $small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+    }
+}
+
+.visualizer-coverart-section-container {
+    @include short-screen {
+        display: none;
+    }
+
+    @include small-screen {
+        display: none;
+    }
+
+    @include medium-small-screen {
+        display: none;
+    }
+
+    @include ultra-small-screen {
+        display: none;
+    }
 }

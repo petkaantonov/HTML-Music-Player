@@ -14,7 +14,6 @@ const PLAYLIST_MODE_KEY = "playlist-mode";
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
 
-const MINIMUM_PLAYLIST_HEIGHT = 300;
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
 const EMPTY_ARRAY = [];
@@ -234,12 +233,12 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
 };
 
 Playlist.prototype.windowLayoutChanged = function() {
-    const USED_HEIGHT = $("#visualizer-container").outerHeight() +
-                        $("#visualizer-container").offset().top;
+    const USED_HEIGHT = this.$()[0].getBoundingClientRect().top
 
-    var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height, MINIMUM_PLAYLIST_HEIGHT) - 50;
     var itemHeight = this.getItemHeight();
+    var height = $(window).height() - USED_HEIGHT;
+    height = Math.max(height - 22, itemHeight + 22);
+
     var remainder = height % itemHeight;
     if (remainder !== 0) {
         height -= remainder;

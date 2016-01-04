@@ -38,12 +38,15 @@ TransitionInfo.prototype.start = function(peakSample, now) {
 };
 
 function VisualizerCanvas(targetCanvas, opts) {
-    targetCanvas = $(targetCanvas)[0];
+    var $targetCanvas = $(targetCanvas);
+    targetCanvas = $targetCanvas[0];
+    var width = $targetCanvas.width();
+    var height = $targetCanvas.height();
     this.needToDraw = true;
     this.targetCanvas = targetCanvas;
     this.context = this.targetCanvas.getContext("2d");
-    this.width = +targetCanvas.width;
-    this.height = +targetCanvas.height;
+    this.width = targetCanvas.width = width;
+    this.height = targetCanvas.height = height;
     this.binWidth = opts.binWidth;
     this.gapWidth = opts.gapWidth;
     this.capHeight = opts.capHeight;
@@ -57,6 +60,13 @@ function VisualizerCanvas(targetCanvas, opts) {
     this.capDropTime = opts.capDropTime;
     this.currentCapPositions = new Float64Array(this.getNumBins());
     this.emptyBins = new Float64Array(this.getNumBins());
+    this.transitionInfoArray = new Array(this.getNumBins());
+
+    this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
+    this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
+
+    this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
+    this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
 
     for (var i = 0; i < this.gradients.length; ++i) {
         var gradient = this.context.createLinearGradient(0, 0, 0, i);
@@ -67,19 +77,55 @@ function VisualizerCanvas(targetCanvas, opts) {
         this.gradients[i] = gradient;
     }
 
-    this.transitionInfoArray = new Array(this.getNumBins());
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
     }
 
+    if (this.enabledMediaMatcher) {
+        this.enabledMediaMatcher.addEventListener("change", this.enabledMediaMatchChanged, false);
+        this.enabledMediaMatchChanged();
+    }
 
+    if (this.binSizeChangeMatcher) {
+        this.binSizeChangeMatcher.addEventListener("change", this.binSizeMediaMatchChanged, false);
+    }
+
+    this.enabled = true;
     this.binCache = null;
     this.capCache = null;
     this.context.imageSmoothingEnabled = false;
     this.populateCache();
     this.drawIdleBins(Date.now());
 }
+
+VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
+    this.enabled = !!this.enabledMediaMatcher.matches;
+    this.binSizeMediaMatchChanged();
+};
+
+VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
+    if (this.isEnabled()) {
+        var width = $(this.targetCanvas).width();
+        if (width !== this.width) {
+            this.width = width;
+            this.targetCanvas.width = width;
+
+            this.currentCapPositions = new Float64Array(this.getNumBins());
+            this.emptyBins = new Float64Array(this.getNumBins());
+            this.transitionInfoArray = new Array(this.getNumBins());
+
+            for (var i = 0; i < this.transitionInfoArray.length; ++i) {
+                this.transitionInfoArray[i] = new TransitionInfo(this);
+            }
+            this.resetCaps();
+        }
+    }
+};
+
+VisualizerCanvas.prototype.isEnabled = function() {
+    return this.enabled;
+};
 
 VisualizerCanvas.prototype.resetCaps = function() {
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
@@ -160,6 +206,8 @@ VisualizerCanvas.prototype.drawIdleBins = function(now) {
 };
 
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
+    if (bins.length !== this.getNumBins()) return;
+
     this.context.clearRect(0, 0, this.width, this.height);
     this.needToDraw = true;
 

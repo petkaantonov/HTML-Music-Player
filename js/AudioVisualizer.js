@@ -41,10 +41,11 @@ const weights = new Float32Array([
     20000, 0.34276778654645035
 ]);
 
-function makeBuffer(bufferSize, bins) {
+
+
+function makeBuffer(bufferSize) {
     return [
         new Float32Array(bufferSize),
-        new Float32Array(bins),
         new Float64Array(bufferSize)
     ];
 }
@@ -62,6 +63,8 @@ function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     this.bufferSize = 2;
     this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
     this.sourceNode = sourceNode;
+    this.bins = null;
+    this.binSizeChanged();
 
     while (this.bufferSize * this.fps() < this.sampleRate) {
         this.bufferSize *= 2;
@@ -71,17 +74,11 @@ function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
         throw new Error("too low fps " +this.fps()+ " for sample rate" + this.sampleRate);
     }
 
-    var buffer = buffers[this.bufferSize + " " + this.bins()];
+    var buffer = buffers[this.bufferSize];
     if (!buffer) {
-        buffer = buffers[this.bufferSize + " " + this.bins()] = makeBuffer(this.bufferSize, this.bins());
+        buffer = buffers[this.bufferSize] = makeBuffer(this.bufferSize);
     }
     this.buffer = buffer;
-
-    var bins = this.buffer[1];
-    for (var i = 0; i < bins.length; ++i) {
-        bins[i] = 0;
-    }
-
     this.fillWindow();
     this.destroyed = false;
     this.paused = false;
@@ -92,7 +89,11 @@ function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     this.frameNumber = 0;
 }
 
-AudioVisualizer.prototype.bins = function() {
+AudioVisualizer.prototype.binSizeChanged = function() {
+    this.bins = new Float32Array(this.binCount());
+};
+
+AudioVisualizer.prototype.binCount = function() {
     return this.visualizerCanvas.getNumBins();
 };
 
@@ -127,6 +128,8 @@ AudioVisualizer.prototype.gotFrame = function(now) {
     if (this.destroyed) return;
     this.frameId = requestAnimationFrame(this.gotFrame);
 
+    if (!this.visualizerCanvas.isEnabled()) return;
+
     var elapsed = now - this.lastFrameTimeStamp;
     var targetFps = this.fps();
 
@@ -160,14 +163,19 @@ AudioVisualizer.prototype.gotFrame = function(now) {
     }
     
     this.forwardFft();
+
+    if (this.bins.length !== this.binCount()) {
+        this.binSizeChanged();
+    }
+
     this.calculateBins();
-    this.visualizerCanvas.drawBins(now, this.buffer[1]);
+    this.visualizerCanvas.drawBins(now, this.bins);
 };
 
 AudioVisualizer.prototype.calculateBins = function() {
     const X = this.buffer[0];
     const imOffset = this.bufferSize >> 1;
-    const bins = this.buffer[1];
+    const bins = this.bins;
     const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / this.sampleRate);
     const inverseSmoothingConstant = 1 - smoothingConstant;
 
@@ -220,7 +228,7 @@ AudioVisualizer.prototype.calculateBins = function() {
 };
 
 AudioVisualizer.prototype.fillWindow = function() {
-    var window = this.buffer[2];
+    var window = this.buffer[1];
     var N = window.length;
     for (var n = 0; n < N; ++n) {
         // Hamming window.
@@ -230,7 +238,7 @@ AudioVisualizer.prototype.fillWindow = function() {
 
 AudioVisualizer.prototype.forwardFft = function() {
     var samples = this.buffer[0];
-    var window = this.buffer[2];
+    var window = this.buffer[1];
     for (var i = 0; i < samples.length; ++i) {
         samples[i] = Math.fround(samples[i] * window[i]);
     }

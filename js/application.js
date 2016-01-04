@@ -39,6 +39,8 @@ const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
 
+const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px) and (min-width: 760px)");
+
 serviceWorkerManager.start();
 
 window.playlist = {};
@@ -46,7 +48,9 @@ window.player = {};
 
 const DEFAULT_ITEM_HEIGHT = 44;
 
-playlist.trackDisplay = new TrackDisplay("track-display");
+playlist.trackDisplay = new TrackDisplay("track-display", {
+    delay: 5
+});
 
 playlist.main = new Playlist("#app-playlist-container", {
     itemHeight: DEFAULT_ITEM_HEIGHT
@@ -216,7 +220,9 @@ var visualizerCanvas = new VisualizerCanvas("#visualizer", {
     targetFps: 48,
     capDropTime: 600,
     ghostOpacity: 0.25,
-    capInterpolator: "ACCELERATE_CUBIC"
+    capInterpolator: "ACCELERATE_CUBIC",
+    enabledMediaMatcher: visualizerEnabledMediaMatcher,
+    binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
 });
 
 player.visualizerCanvas = visualizerCanvas;
@@ -243,7 +249,9 @@ var playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", 
     muteDom: ".volume-mute"
 });
 
-var playerPictureManager = new PlayerPictureManager(".picture-container", player.main);
+var playerPictureManager = new PlayerPictureManager(".picture-container", player.main, {
+    enabledMediaMatcher: visualizerEnabledMediaMatcher
+});
 
 var playlistNotifications = new PlaylistNotifications(".notification-setting", player.main);
 

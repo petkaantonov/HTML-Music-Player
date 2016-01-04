@@ -1,0 +1,56 @@
+$large-screen-width: 768px;
+$small-screen-width: 568px;
+$medium-small-screen-width: 360px;
+$ultra-small-screen-width: 320px;
+$visualizer-gap: 28px;
+$picture-size: 116px;
+$scrollbar-width: 8px;
+$border-width: 1px;
+$minimum-visualizer-height: 568px;
+
+/* <= 359 */
+@mixin ultra-small-screen {
+    @media (max-width: #{$medium-small-screen-width - 1px}) {
+        @content;
+    }
+}
+
+/* >= 360 && <= 567 */
+@mixin medium-small-screen {
+    @media (min-width: #{$medium-small-screen-width}) and (max-width: #{$small-screen-width - 1px}) {
+        @content;
+    }
+}
+
+/* >= 568 && <= 767 */
+@mixin small-screen {
+    @media (min-width: #{$small-screen-width}) and (max-width: #{$large-screen-width - 1px}) {
+        @content;
+    }
+}
+
+/* >= 768 */
+@mixin large-screen {
+    @media (min-width: #{$large-screen-width}) {
+        @content;
+    }
+}
+
+/* For weird height */
+@mixin short-screen {
+    @media (max-height: #{$minimum-visualizer-height - 1px}) {
+        @content;
+    }
+}
+
+@mixin retina {
+    @media
+        only screen and (-webkit-min-device-pixel-ratio: 2),
+        only screen and (min--moz-device-pixel-ratio: 2),
+        only screen and (-o-min-device-pixel-ratio: 2/1),
+        only screen and (min-device-pixel-ratio: 2),
+        only screen and (min-resolution: 192dpi),
+        only screen and (min-resolution: 2dppx) {
+        @content;
+    }
+}

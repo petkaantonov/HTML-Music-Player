@@ -18,24 +18,45 @@ function PlayerPictureManager(dom, player, opts) {
     player.setPictureManager(this);
     this.favicon = $(null);
 
-    
+    this._enabledMediaMatcher = opts.enabledMediaMatcher || null;
+    this._enabled = true;
     this._currentImage = null;
     this._currentAnimation = null;
     this._awaitingAnimation = null;
 
     this._next = this._next.bind(this);
+    this._enabledMediaMatchChanged = this._enabledMediaMatchChanged.bind(this);
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
     this.player.on("newTrackLoad", this.newTrackLoaded);
+
+    if (this._enabledMediaMatcher) {
+        this._enabledMediaMatcher.addEventListener("change", this._enabledMediaMatchChanged, false);
+        this._enabledMediaMatchChanged();
+    }
+
 }
 
 PlayerPictureManager.prototype.$ = function() {
     return this._domNode;
 };
 
-PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
-    var self = this;
+PlayerPictureManager.prototype._enabledMediaMatchChanged = function() {
+    var wasEnabled = !!this._enabled;
+    this._enabled = !!this._enabledMediaMatcher.matches;
+    if (!wasEnabled && this._enabled) {
+        if (this._currentImage) {
+            this._startTransitioningIn(this._currentImage);
+        }
+    }
+};
 
+PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
     var image = this._currentImage;
+    if (!this._enabled) {
+        $(image).remove();
+        return Promise.resolve().then(this._next);
+    }
+    var self = this;
     var animator = new Animator(image, {
         properties: [{
             name: "opacity",
@@ -63,6 +84,9 @@ PlayerPictureManager.prototype._startTransitioningIn = function(image) {
 
     this._currentImage = image;
     this._attachCurrentImage();
+    if (!this._enabled) {
+        return Promise.resolve().then(this._next);
+    }
     var animator = new Animator(image, {
         properties: [{
             name: "opacity",
@@ -109,6 +133,8 @@ PlayerPictureManager.prototype._attachCurrentImage = function() {
 };
 
 PlayerPictureManager.prototype._getCurrentAnimationState = function() {
+    if (!this._enabled) return;
+
     var $img = $(this._currentImage);
 
     return {
@@ -116,7 +142,7 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
         scale: +($img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i)[1])
     };
 };
-Error.stackTraceLimit = 1000;
+
 PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
     if (this._currentImage && image.src === this._currentImage.src &&
@@ -151,7 +177,8 @@ PlayerPictureManager.prototype.newTrackLoaded = function() {
 };
 
 const jdenticonCanvas = document.createElement("canvas");
-jdenticonCanvas.width = jdenticonCanvas.height = IMAGE_DIMENSIONS;
+const jdenticonSize = (IMAGE_DIMENSIONS * (self.devicePixelRatio || 1))|0;
+jdenticonCanvas.width = jdenticonCanvas.height = jdenticonSize;
 const jdenticonContext = jdenticonCanvas.getContext("2d");
 
 PlayerPictureManager.generateImageForTrack = function(track) {
@@ -160,12 +187,12 @@ PlayerPictureManager.generateImageForTrack = function(track) {
         var clearRect = jdenticonContext.clearRect;
         // Prevent clearRect which would reset alpha channel.
         jdenticonContext.clearRect = function() {};
-        clearRect.call(jdenticonContext, 0, 0, IMAGE_DIMENSIONS, IMAGE_DIMENSIONS);
+        clearRect.call(jdenticonContext, 0, 0, jdenticonSize, jdenticonSize);
         jdenticonContext.save();
         jdenticonContext.fillStyle = "rgba(255, 255, 255, 255)";
-        jdenticonContext.fillRect(0, 0, IMAGE_DIMENSIONS, IMAGE_DIMENSIONS);
+        jdenticonContext.fillRect(0, 0, jdenticonSize, jdenticonSize);
         jdenticonContext.restore();
-        jdenticon.drawIcon(jdenticonContext, track.getUid(), IMAGE_DIMENSIONS);
+        jdenticon.drawIcon(jdenticonContext, track.getUid(), jdenticonSize);
         jdenticonContext.clearRect = clearRect;
 
         var data = jdenticonCanvas.toDataURL("image/png").split("base64,")[1];

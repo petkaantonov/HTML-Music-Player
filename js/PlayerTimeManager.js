@@ -18,6 +18,8 @@ function PlayerTimeManager(dom, player, opts) {
     this.totalTime = 0;
     this.currentTime = 0;
     this.seekSlider = opts.seekSlider;
+    this._displayedTimeRight = 0;
+    this._displayedTimeLeft = 0;
     this._transitionEnabled = false;
     this._totalTimeDomNode = this.$().find(opts.totalTimeDom);
     this._currentTimeDomNode = this.$().find(opts.currentTimeDom);
@@ -116,23 +118,37 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
 PlayerTimeManager.prototype.setTotalTime = function(time) {
     this.checkVisibility(time);
 
-    if (Math.floor(this.totalTime) !== Math.floor(time)) {
-        if (this.displayMode === DISPLAY_ELAPSED) {
-            this.$totalTime().text(util.toTimeString(time));
+    if (this.displayMode === DISPLAY_ELAPSED) {
+        var totalTime = util.toTimeString(time);
+        if (this._displayedTimeRight !== totalTime) {
+            this.$totalTime().text(totalTime);
+            this._displayedTimeRight = totalTime;
         }
     }
+
 
     this.totalTime = time;
 };
 
 PlayerTimeManager.prototype.setCurrentTime = function(time) {
-    if (Math.floor(this.currentTime) !== Math.floor(time)) {
-        this.$currentTime().text(util.toTimeString(time));
-        if (this.displayMode === DISPLAY_REMAINING) {
-            var remainingTime = Math.max(0, this.totalTime - time);
-            this.$totalTime().text("-" + util.toTimeString(remainingTime));
+    
+    var currentTime = util.toTimeString(time);
+
+    if (this._displayedTimeLeft !== currentTime) {
+        this._displayedTimeLeft = currentTime;
+        this.$currentTime().text(currentTime);
+    }
+
+    if (this.displayMode === DISPLAY_REMAINING) {
+        var remainingTime = Math.max(0, this.totalTime - time);
+        remainingTime = util.toTimeString(remainingTime);
+
+        if (this._displayedTimeRight !== remainingTime) {
+            this.$totalTime().text("-" + remainingTime);
+            this._displayedTimeRight = remainingTime;
         }
     }
+    
 
     this.currentTime = time;
 };

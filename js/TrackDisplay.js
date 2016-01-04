@@ -27,12 +27,23 @@ function TrackDisplay(target, opts) {
     this._pixelsPerSecond = 15;
     this._frameRequest = null;
     this._amounts = 0;
-    this._direction = "right";
-    this._scrollWidth = 0;
+    this._direction = "left";
+    this._textHiddenWidth = 0;
     this._track = null;
+    this._needRecalc = true;
     this._trackDataUpdated = this._trackDataUpdated.bind(this);
     this._trackIndexChanged = this._trackIndexChanged.bind(this);
+    this._windowResized = this._windowResized.bind(this);
+
+    $(window).on("resize", this._windowResized);
 }
+
+TrackDisplay.prototype._windowResized = function() {
+    this._needRecalc = true;
+    document.getElementById(this._target).style.transform = "";
+    this._amounts = 0;
+    this.beginMarquee();
+};
 
 TrackDisplay.prototype.clearPrevious = function() {
     if (!this._track) return;
@@ -56,6 +67,7 @@ TrackDisplay.prototype.update = function() {
     var title = trackNumber + track.formatFullName();
     $(document.getElementById(this._target)).text(title);
     document.title = title;
+    this._needRecalc = true;
     return this;
 };
 
@@ -65,12 +77,17 @@ TrackDisplay.prototype.setTrack = function(track) {
     this._track = track;
     track.on("indexChange", this._trackIndexChanged);
     track.on("tagDataUpdate", this._trackDataUpdated);
+    this._direction = "left";
     this.update();
-    this.beginMarquee();
+    this._amounts = 0;
+    var self = this;
+    window.setTimeout(function() {
+        self.beginMarquee();
+    }, self._marqDelay);
 };
 
 TrackDisplay.prototype.__marquer = function() {
-    var target = document.getElementById(this._scrollParent),
+    var target = document.getElementById(this._target),
         self = this,
         progress = this._direction == "right" ? 1 : -1;
 
@@ -81,8 +98,11 @@ TrackDisplay.prototype.__marquer = function() {
         var diff = last === -1 ? updateTime : now - last;
         last = now;
         self._amounts += (diff / updateTime) * progress;
-        target.scrollLeft = self._amounts;
-        if (self._amounts > self._scrollWidth || self._amounts < 0) {
+        var translate3d = "translate3d("+self._amounts+"px,0,0)";
+        target.style.transform = translate3d;
+
+        if (self._amounts > 0 ||
+            self._amounts <= -self._textHiddenWidth) {
             self._direction = self._amounts < 0 ? "right" : "left";
             window.setTimeout(function() {
                 self.beginMarquee();
@@ -95,18 +115,18 @@ TrackDisplay.prototype.__marquer = function() {
 };
 
 TrackDisplay.prototype.beginMarquee = function() {
-    var scrollParent = document.getElementById(this._scrollParent),
-        sWidth = scrollParent.scrollWidth,
-        oWidth = scrollParent.offsetWidth;
+    this.stopMarquee();
 
-    if (sWidth - oWidth < 1) {
-        return this;
+    if (this._needRecalc) {
+        var scrollParent = document.getElementById(this._scrollParent);
+        var target = document.getElementById(this._target);
+        var textHiddenWidth = $(target).width() - $(scrollParent).width();
+        this._textHiddenWidth = textHiddenWidth;
+        this._needRecalc = false;
     }
 
-    this._scrollWidth = sWidth - oWidth;
-    if (this._frameRequest) {
-        cancelAnimationFrame(this._frameRequest);
-        this._frameRequest = null;
+    if (this._textHiddenWidth <= 0) {
+        return this;
     }
 
     return this.__marquer();

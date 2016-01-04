@@ -1,3 +1,5 @@
+@import "variables";
+
 #track-display-container {
     z-index: 5;
     position: relative;
@@ -11,8 +13,9 @@
 
 #track-display {
     margin-top: 3px;
-    width: 100%;
     cursor: default;
+    display: inline-block;
+    vertical-align: top;
 }
 
 #track-progress {
@@ -69,7 +72,7 @@
     font-size: 0;
     position: relative;
     height: 36px;
-    margin-top: 18px;
+    margin: 0;
     background: #FFF;
     background: -moz-linear-gradient(top, #FAFAFA 0%, #FAFAFA 100%);
     background: -webkit-linear-gradient(top, #FFF 0%,#FAFAFA 100%);
@@ -203,6 +206,16 @@
     margin-left: -54px;
     border: none;
     box-sizing: border-box;
+
+    @include ultra-small-screen {
+        margin-left: 0px;
+        left: auto;
+        right: 0px;
+    }
+
+    @include medium-small-screen {
+        left: 62%;
+    }
 }
 
 .playlist-controls-container.button-group {
@@ -212,6 +225,10 @@
     right: 0px;
     border-radius: 0px;
     border: none;
+
+    @include ultra-small-screen {
+        display: none;
+    }
 }
 
 .volume-controls-container.button-group {
@@ -242,6 +259,8 @@
     width: 112px;
     height: 30px;
     display: inline-block;
+    margin-top: 1px;
+    margin-left: 3px;
 }
 
 .volume-slider-knob,
@@ -288,7 +307,7 @@
     position: relative;
     white-space: nowrap;
     z-index: 1;
-    margin-top: 25px;
+    margin: 0px;
     color: #7a7a7a;
     overflow: hidden;
 }

@@ -1,3 +1,5 @@
+@import "variables";
+
 .track-container.track-container-progress {
     padding-bottom: 1px !important;
     border-bottom: none !important;
@@ -128,7 +130,13 @@
     display: none;
     margin: 0px 9px;
     height: 100%;
+
+    @include ultra-small-screen {
+        display: none !important;
+    }
 }
+
+
 
 .track-container:hover .track > .track-rating.visible {
     display: inline-block;
