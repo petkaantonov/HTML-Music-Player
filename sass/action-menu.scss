@@ -1,0 +1,63 @@
+.action-menu-submenu, .action-menu-root.action-menu-context-root {
+    border-radius: 4px;
+    background-color: #fff;
+    border: 1px solid #F4F4F4;
+    padding: 10px 0px;
+    min-width: 150px;
+    box-sizing: border-box;
+}
+
+.action-menu-item.action-menu-sub-menu-item::after {
+    content: "\25B6";
+    font-size: 12px;
+    right: 8px;
+    top: 11px;
+    position: absolute;
+    line-height: 12px;
+}
+
+.action-menu-item-content .icon {
+    margin-right: 10px;
+    margin-top: 1px;
+}
+
+.action-menu-item:hover .icon,
+.action-menu-item.action-menu-sub-menu-item.action-menu-active .icon {
+    color: #BE7306;
+}
+
+.action-menu-item, .action-menu-item.action-menu-disabled:hover .icon {
+    color: #5B616A;
+}
+
+.action-menu-item {
+    padding: 7px 20px 7px 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.action-menu-divider {
+    height: 1px;
+    background-color: #e6e6e6;
+    margin: 5px 0px;
+}
+
+.action-menu-item:hover,
+.action-menu-item.action-menu-sub-menu-item.action-menu-active {
+    background-color: #f7f7f7;
+}
+
+.action-menu-item.action-menu-disabled {
+    background-color: transparent !important;
+    opacity: 0.3 !important;
+    cursor: default;
+}
+
+.action-menu-item.action-menu-sub-menu-item {
+    cursor: default;
+    position: relative;
+}
+
+.action-menu-item-content {
+    font-size: 14px;
+}

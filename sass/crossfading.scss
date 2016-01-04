@@ -1,0 +1,112 @@
+.fade-preset-select {
+    margin-left: 8px;
+}
+
+.cross-fade-preset-container {
+    position: absolute;
+    top: -3px;
+    right: 0px;
+}
+
+.fade-curve-select {
+    outline: none;
+    display: block;
+    float: left;
+    width: 117px;
+    border: 1px solid #E2F7FE;
+}
+
+.fade-inputs-container {
+    margin-left: 8px;
+    margin-bottom: 10px;
+}
+.normal-fade-label {
+    margin-right: 15px;
+    width: 40px;
+    float: left;
+}
+
+.normal-fade-value {
+    float: left;
+    margin-left: 20px;
+}
+.fade-curve-label {
+    margin-right: 15px;
+    width: 37px;
+    margin-top: 4px;
+    float: left;
+}
+
+.crossfadeact {
+    cursor: pointer;
+    float: left;
+    width: 150px;
+    height: 20px;
+    margin-top: 5px;
+    margin-left: 8px;
+    font-size: 13px;
+    text-shadow: 1px 1px 1px #333;
+    font-weight: bold;
+    color: #737A7F;
+}
+#crossfadeval {
+    font-weight: bold;
+    width: 15px;
+    text-align: center;
+    display: inline-block;
+}
+.cfadeseconds {
+    height: 16px;
+    cursor: default;
+    float: left;
+    margin-left: 10px;
+}
+.crossfadeinact {
+    opacity: 0.3;
+    filter: alpha(opacity='30');
+    -moz-opacity: 0.3;
+    cursor: pointer;
+    float: left;
+    width: 150px;
+    height: 20px;
+    margin-top: 5px;
+    margin-left: 8px;
+    font-size: 13px;
+    text-shadow: 1px 1px 1px #333;
+    font-weight: bold;
+    color: #737A7F;
+}
+
+.fade-configurator-container {
+    width: 228px;
+}
+
+.fade-configurator-separator {
+    width: 50px;
+}
+
+.fade-enabler-container {
+    margin-top: 10px;
+}
+
+.fade-indicator {
+    width: 16px;
+    height: 16px;
+    position: absolute;
+    right: 14px;
+    top: -2px;
+}
+
+.fade-in-color {
+    border: 1px solid navy;
+    background-color: rgb(140, 140, 198);
+}
+
+.fade-out-color {
+    border: 1px solid darkGreen;
+    background-color: rgb(140, 185, 140);
+}
+
+.fade-slider {
+    top: 6px;
+}

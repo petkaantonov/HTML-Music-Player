@@ -102,7 +102,7 @@ AudioVisualizer.prototype.fps = function() {
 
 AudioVisualizer.prototype.setMultiplier = function(value) {
     if (!isFinite(value)) throw new Error("infinite");
-    value = Math.max(0.5, Math.min(256, value));
+    value = Math.max(0.82, Math.min(256, value));
     this.multiplier = value;
 };
 

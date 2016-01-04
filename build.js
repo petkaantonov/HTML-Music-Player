@@ -4,7 +4,8 @@ Promise.promisifyAll(cp);
 var browserified = Promise.all(
     [cp.execAsync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js"),
     cp.execAsync("browserify worker/TrackAnalyzer.js --standalone TrackAnalyzer > worker/TrackAnalyzerWorker.js"),
-    cp.execAsync("browserify js/application.js --standalone Application > dist/main.js")]);
+    cp.execAsync("browserify js/application.js --standalone Application > dist/main.js"),
+    cp.execAsync("npm run compile-css")]);
 
 var glob = require("glob");
 var Promise = require("bluebird");
@@ -17,7 +18,7 @@ var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(func
     return v.replace(/(?:^"|"$)/g, "");
 }).concat("index.html", "/");
 
-var assets = glob.sync("dist/css/**/*.*")
+var assets = glob.sync("dist/css/min/*.*")
                 .concat(glob.sync("dist/images/**/*.*"))
                 .concat(glob.sync("dist/fonts/**/*.woff*"))
                 .concat(glob.sync("worker/**/*.*"));

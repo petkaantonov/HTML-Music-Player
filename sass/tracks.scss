@@ -1,0 +1,167 @@
+.track-container.track-container-progress {
+    padding-bottom: 1px !important;
+    border-bottom: none !important;
+}
+
+.track-container .track-progress-bar {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    width: 100%;
+    height: 1px;
+    background-color: #6BC5E1;
+    transform: translateX(-100%);
+    transition: transform 0.15s ease;
+}
+
+.track-container {
+    left: 0px;
+    position: absolute;
+    z-index: 1;
+    box-sizing: border-box;
+    height: 44px;
+    font-size: 0;
+    border-bottom: 1px solid #EEE;
+    border-top: 1px solid #F6F6F6;
+    background-color: #FFF;
+    overflow: hidden;
+}
+
+.track-container.track-active {
+    background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
+    border-bottom: 1px solid #B0D1F8;
+}
+
+.track .track-status {
+    width: 36px;
+    height: 100%;
+    font-size: 14px;
+    line-height: 14px;
+    text-align: center;
+}
+
+.track-status .icon {
+    margin-top: 14px;
+}
+
+.track-status .track-analysis-status {
+    color: #6BC5E1;
+}
+
+.track-status .track-error-status {
+    color: #a94442;
+}
+
+.track-status .playing-icon {
+    color: #BE7306;
+    display: none;
+}
+
+.track-container.track-playing .playing-icon {
+    display: inline-block;
+}
+
+.track-container.track-playing .track-analysis-status,
+.track-container.track-playing .track-error-status {
+    display: none;
+}
+
+.track-container > .track {
+    height: 100%;
+    width: 100%;
+}
+
+.track .track-clickable {
+    height: 100%;
+}
+
+.track .track-info {
+    height: 100%;
+    overflow: hidden;
+    padding: 4px 0px 4px 6px;
+}
+
+.track .track-title,
+.track .track-artist {
+    display: block;
+}
+
+.track .track-title {
+    font-size: 15px;
+    color: #333;
+}
+
+.track .track-artist {
+    font-size: 13px;
+    color: #777;
+    margin-top: 2px;
+}
+
+.track .track-duration,
+.track .track-number {
+    color: #333;
+    font-size: 14px;
+    line-height: 14px;
+    padding-top: 15px;
+    height: 100%;
+}
+
+.track .track-number {
+    width: 42px;
+}
+
+.track .track-duration {
+    width: 38px;
+    text-align: center;
+    margin-left: 6px;
+    overflow: hidden;
+}
+
+.track-container div {
+    vertical-align: top;
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+
+.track > .track-rating {
+    display: none;
+    margin: 0px 9px;
+    height: 100%;
+}
+
+.track-container:hover .track > .track-rating.visible {
+    display: inline-block;
+}
+
+.track > .track-rating.already-rated.visible,
+.track-container.track-active > .track > .track-rating.visible {
+    display: inline-block;
+}
+
+.track-rating > .rating-input {
+    color: #aaa;
+    text-shadow: 1px 1px 1px #333;
+    opacity: 0.22;
+    font-size: 18px;
+    line-height: 18px;
+    height: 100%;
+    padding-top: 11px;
+    padding-right: 2px;
+}
+
+.track-rating.already-rated > .rating-input {
+    opacity: 1;
+    color: #ccc;
+    cursor: default;
+}
+
+.track-rating.already-rated > .rating-input.rated {
+    color: #F7ED95;
+}
+
+.track-rating > .rating-input.rate-intent {
+    color: #F7ED95;
+    opacity: 1;
+    cursor: default;
+}

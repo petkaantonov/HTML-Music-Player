@@ -1,0 +1,47 @@
+.tooltip-container {
+    z-index: 1000000000;
+    position: absolute;
+    display: block;
+}
+
+.app-tooltip-container,
+.app-tooltip-playlist-empty-container,
+.app-tooltip-mode-container {
+    box-sizing: border-box;
+    max-width: 350px;
+    padding: 6px;
+    border-radius: 4px;
+    background-color: #474747;
+    color: #F2F6F5;
+    font-size: 13px;
+}
+.app-tooltip-playlist-empty-container {
+    max-width: 350px;
+    box-sizing: border-box;
+}
+
+.app-tooltip-container.autosized-tooltip-container {
+    width: auto;
+    max-width: 350px;
+    box-sizing: border-box;
+}
+
+.app-tooltip-container.minimal-size-tooltip-container {
+    margin: 0;
+    padding: 3px 8px;
+    box-sizing: border-box;
+}
+
+.app-tooltip-container.minimal-size-tooltip-container p {
+    box-sizing: border-box;
+    margin: 0px 0px 8px 0px;
+    padding: 0;
+}
+
+.app-tooltip-container.minimal-size-tooltip-container p:last-child {
+    margin: 0;
+}
+
+.app-tooltip-mode-container {
+    width: auto;
+}

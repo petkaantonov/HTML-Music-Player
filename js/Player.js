@@ -97,7 +97,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.volumeGain.gain.value = player.getVolume();
 
     this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
-        baseSmoothingConstant: 0.0007,
+        baseSmoothingConstant: 0.0059,
         maxFrequency: 12500,
         minFrequency: 20,
         multiplier: this.replayGain.gain.value

@@ -1,0 +1,91 @@
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.link-text {
+    cursor: pointer;
+    color: #BE7306;
+    text-decoration: underline;
+}
+
+a.link-text {
+    outline: none;
+}
+
+body {
+    font-family: "Droid Sans";
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background-color: #F5F5F5;
+    background-image: url('../images/body-noise.png');
+}
+
+ul, ul li, ol, ol li {
+    margin: 0;
+    padding: 0;
+}
+
+input[type="radio"] {
+    background-color: white;
+    display: inline-block;
+    padding: 0;
+    border: 0;
+    margin: 0px 3px;
+    position: relative;
+    top: 1px;
+}
+input,
+textarea {
+    outline: none;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0px 0px;
+    border-color: transparent;
+    width: 100%;
+}
+
+label {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.checkbox-container {
+    position: relative;
+}
+
+.checkbox-container > .checkbox-label > .checkbox {
+    line-height: normal;
+    position: absolute;
+    box-sizing: border-box;
+    padding: 0;
+    left: 0px;
+    top: -2px;
+}
+
+.checkbox-container > .checkbox-label {
+    min-height: 20px;
+    padding-left: 20px;
+    margin-bottom: 0;
+    font-weight: 400;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-left: 2px;
+}
+
+.division {
+    font-size: 0;
+    vertical-align: top;
+    box-sizing: border-box;
+    display: inline-block;
+}
+
+.section-separator {
+    width: 100%;
+    height: 1px;
+    border-top: 1px solid #ddd;
+    margin: 5px 0px;
+}

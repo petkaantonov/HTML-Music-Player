@@ -8,7 +8,9 @@
     "watch-player-worker": "watchify worker/AudioPlayer.js --standalone AudioPlayer -o worker/AudioPlayerWorker.js",
     "watch-analyzer-worker": "watchify worker/TrackAnalyzer.js --standalone TrackAnalyzer -o worker/TrackAnalyzerWorker.js",
     "watch-app": "watchify js/application.js --standalone Application -o dist/main.js",
-    "start": "npm run watch-player-worker | npm run watch-analyzer-worker | npm run watch-app"
+    "watch-css": "node-sass -w sass/ --recursive sass/app-css-public.scss -o dist/css/",
+    "compile-css": "node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/app-public-css.css",
+    "start": "npm run watch-player-worker | npm run watch-analyzer-worker | npm run watch-app | npm run watch-css"
   },
   "repository": {
     "type": "git",
@@ -25,6 +27,7 @@
     "browserify": "^12.0.1",
     "glob": "^5.0.15",
     "js-beautify": "^1.5.10",
+    "node-sass": "^3.4.2",
     "uglify-js": "^2.5.0"
   }
 }

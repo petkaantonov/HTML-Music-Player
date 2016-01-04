@@ -1,0 +1,43 @@
+.slide-out {
+    transition: height 0.3s ease-in;
+    transform-origin: top;
+}
+
+.slide-out.initial {
+    transform: scaleY(0);
+}
+
+.scale-in {
+    transform: scale(1, 1);
+    transition: transform .4s cubic-bezier(.55, 0, .1, 1);
+}
+
+.scale-in.initial {
+    transform: scale(0, 0);
+}
+
+.fade-scale-in {
+    transition: transform .4s cubic-bezier(.55, 0, .1, 1),
+                opacity .4s cubic-bezier(.55, 0, .1, 1);
+    transform: scale(1, 1);
+    opacity: 1;
+}
+
+.fade-scale-in.initial {
+    transform: scale(0, 0);
+    opacity: 0;
+}
+
+.fade-in {
+    transition: opacity 0.3s cubic-bezier(.55, 0, .1, 1);
+    opacity: 1;
+}
+
+.slide-out.fade-in {
+    transition: opacity 0.3s cubic-bezier(.55, 0, .1, 1),
+                transform 0.3s cubic-bezier(.55, 0, .1, 1);
+}
+
+.fade-in.initial {
+    opacity: 0;
+}

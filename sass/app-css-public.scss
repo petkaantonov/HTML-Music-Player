@@ -1,0 +1,69 @@
+@import "glyphicons";
+@import "icomoon";
+@import "transitions";
+@import "tags";
+@import "scaling";
+@import "player-controls";
+@import "action-menu";
+@import "shadows";
+@import "toolbar";
+@import "snackbar";
+@import "scrollbar";
+@import "popup";
+@import "equalizer";
+@import "tracks";
+@import "hotkeys";
+@import "visualizer";
+@import "crossfading";
+@import "playlist";
+@import "slider";
+@import "util";
+@import "loader";
+
+#app-container {
+    font-size: 0;
+    display: none;
+}
+
+#wrapper {
+    width: 100%;
+    margin: 0;
+    display: block;
+}
+
+.tracks-menu-module-container,
+.settings-menu-module-container,
+.selection-menu-module-container {
+    margin: 15px 0px;
+    padding-bottom: 10px;
+}
+
+.module-container {
+    border-radius: 4px;
+    background-color: #fff;
+    border: 1px solid #F4F4F4;
+}
+
+.app-bread-text {
+    font-size: 14px;
+}
+
+.content {
+    display: none;
+}
+
+.material-icons.small-material-icon {
+    font-size: 18px;
+    width: 14px;
+    vertical-align: top;
+    line-height: 14px;
+    text-indent: -2px;
+}
+
+.large-material-icon.material-icons {
+    font-size: 24px;
+    line-height: 22px;
+    width: 18px;
+    text-indent: -3px;
+    vertical-align: top;
+}

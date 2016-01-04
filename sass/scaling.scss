@@ -1,0 +1,52 @@
+#app-container, .toolbar > .toolbar-items,
+.track-container {
+    width: 760px;
+}
+
+.ps-container>.ps-scrollbar-x-rail>.ps-scrollbar-x {
+    height: 8px
+}
+
+.ps-container>.ps-scrollbar-y-rail>.ps-scrollbar-y {
+    width: 8px
+}
+
+.ps-container>.ps-scrollbar-x-rail {
+    height: 8px
+}
+
+.ps-container>.ps-scrollbar-y-rail {
+    width: 8px
+}
+
+.tracks-list-container.has-scrollbar .track-container {
+    /* layout base - scroll bar width px*/
+    width: 752px;
+}
+
+.track .track-info {
+    /* layout base - 242px */
+    width: 518px;
+}
+
+.tracks-list-container.has-scrollbar .track-info {
+    /* track base - scroll bar width px */
+    width: 510px;
+}
+
+.coverart-section-container {
+    width: 118px;
+}
+
+.visualizer-section-container {
+    width: 614px;
+}
+
+.picture-container {
+    height: 116px;
+    width: 116px;
+}
+
+.visualizer {
+    width: 612px;
+}

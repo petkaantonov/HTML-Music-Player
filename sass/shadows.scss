@@ -1,0 +1,35 @@
+.action-menu-level-1,
+.action-menu-context-root,
+.depth-level-1 {
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
+}
+
+.action-menu-level-2,
+.depth-level-2 {
+    box-shadow: 0 8px 17px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.action-menu-level-3,
+.depth-level-3,
+.popup-container {
+    box-shadow: 0 12px 15px 0 rgba(0, 0, 0, 0.24), 0 17px 50px 0 rgba(0, 0, 0, 0.19);
+}
+
+.action-menu-level-4,
+.depth-level-4 {
+    box-shadow: 0 16px 28px 0 rgba(0, 0, 0, 0.22), 0 25px 55px 0 rgba(0, 0, 0, 0.21);
+}
+
+.action-menu-level-5,
+.depth-level-5 {
+    box-shadow: 0 27px 24px 0 rgba(0, 0, 0, 0.2), 0 40px 77px 0 rgba(0, 0, 0, 0.22);
+}
+
+.thick-shadow {
+    -moz-box-shadow: 5px 5px 25px -2px rgba(0, 0, 0, 0.7),
+                -5px -5px 25px -10px rgba(0, 0, 0, 0.7);
+    -webkit-box-shadow: 5px 5px 25px -2px rgba(0, 0, 0, 0.7),
+                -5px -5px 25px -10px rgba(0, 0, 0, 0.7);
+    box-shadow: 5px 5px 25px -2px rgba(0, 0, 0, 0.7),
+                -5px -5px 25px -10px rgba(0, 0, 0, 0.7);
+}

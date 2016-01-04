@@ -1,0 +1,374 @@
+#track-display-container {
+    z-index: 5;
+    position: relative;
+    height: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+    background-color: transparent;
+    width: 97%;
+    margin: 0px auto;
+}
+
+#track-display {
+    margin-top: 3px;
+    width: 100%;
+    cursor: default;
+}
+
+#track-progress {
+    z-index: 3;
+    position: absolute;
+    left: 0;
+    transform: translate3d(-100%, 0, 0);
+    height: 20px;
+    background-image: url('../images/seek_fill_gradient.png');
+    background-repeat: repeat-x;
+    width: 100%;
+    cursor: default;
+    border-radius: 2px;
+}
+
+#track-progress-container {
+    text-shadow: 1px 1px 1px #111;
+    position: relative;
+    color: #fcfcfc;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 14px;
+    height: 20px;
+    text-align: center;
+    width: 100%;
+    background: linear-gradient(to bottom, #FFF 0%,#F6F6F6 47%,#EDEDED 100%);
+    border-bottom: 1px solid #ccc;
+}
+
+.smoothness-separator {
+    width: 100%;
+    height: 1px;
+    background-color: #eee;
+}
+
+#app-player-panel-container {
+    background-color: #FFFFFF;
+}
+
+.player-control-panel-container.module-container {
+    margin: 0px 0px 5px 0px;
+    padding: 0px;
+    background-color: #fff;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid #fbfbfb;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    box-sizing: border-box;
+}
+
+.button-groups-container {
+    font-size: 0;
+    position: relative;
+    height: 36px;
+    margin-top: 18px;
+    background: #FFF;
+    background: -moz-linear-gradient(top, #FAFAFA 0%, #FAFAFA 100%);
+    background: -webkit-linear-gradient(top, #FFF 0%,#FAFAFA 100%);
+    background: linear-gradient(to bottom, #FFF 0%,#FAFAFA 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#FAFAFA',GradientType=0 );
+}
+
+.button-group .button-group-button,
+.button-group .button-group-item,
+.button-group .button-group-button.disabled:hover,
+.button-group .button-group-button.just-deactivated:hover,
+.button-group .button-group-button.just-deactivated {
+    background-color: transparent;
+    color: #666;
+}
+
+.button-group .button-group-button,
+.button-group .button-group-item {
+    display: inline-block;
+    font-size: 16px;
+    line-height: 16px;
+
+    vertical-align: top;
+    height: 100%;
+    width: 36px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.button-group .button-group-button.play-button {
+}
+
+.play-pause-morph-icon-container {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 8px;
+    width: 16px;
+    height: 16px;
+    top: 1px;
+}
+
+.play-pause-morph-icon-container .play-pause-morph-icon {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+
+.play-pause-morph-icon-container .icon {
+    position: absolute;
+    left: 0px;
+    margin: 0 !important;
+    padding: 0 !important;
+    top: 0;
+    left: 0;
+}
+
+.play-pause-morph-icon .glyphicon-play {
+    top: 0px;
+}
+
+.play-pause-morph-icon .glyphicon-pause {
+    top: -16px;
+}
+
+.play-pause-morph-icon {
+    transition: top 0.4s ease;
+}
+
+.play-pause-morph-icon.pause {
+    top: 16px;
+}
+
+.play-pause-morph-icon.play {
+    top: 0px;
+}
+
+.button-group .button-group-button {
+    cursor: default;
+}
+
+.button-group .button-group-button.disabled {
+    cursor: default;
+}
+
+.button-group .button-group-button:hover {
+    color: #000;
+    text-shadow: 1px 1px 1px #aaa;
+}
+
+.button-group .button-group-button.disabled:hover {
+    text-shadow: none;
+}
+
+.button-group .button-group-button.active {
+    color: #85C4FF;
+    text-shadow: 1px 1px 0px #E0F0FF;
+}
+
+.button-group .button-group-button.active:hover {
+    color: #85C4FF;
+}
+
+.button-group .button-group-button.disabled {
+    opacity: 0.3;
+}
+
+.button-group .button-group-button .icon,
+.button-group .button-group-item .icon {
+    vertical-align: top;
+    margin-top: 8px;
+}
+
+.button-group {
+    vertical-align: top;
+    display: inline-block;
+    border: 1px solid #E6E6E6;
+    border-radius: 4px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.player-controls-container.button-group {
+    position: absolute;
+    bottom: 0px;
+    left: 50%;
+    border-radius: 0px;
+    margin-left: -54px;
+    border: none;
+    box-sizing: border-box;
+}
+
+.playlist-controls-container.button-group {
+    box-sizing: border-box;
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    border-radius: 0px;
+    border: none;
+}
+
+.volume-controls-container.button-group {
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    border-radius: 0px;
+    border: none;
+}
+
+.volume-controls-container .button-group-item .volume-slider-wrap {
+    top: 13px;
+}
+
+.volume-controls-container .button-group-item.volume-slider-container {
+    margin-right: 10px;
+}
+
+.volume-controls-container.button-group .button-group-button {
+    border-right: none;
+}
+
+.icon.glyphicon.glyphicon-volume-off {
+    color: #960707;
+}
+
+.volume-controls-container .volume-slider-container {
+    width: 112px;
+    height: 30px;
+    display: inline-block;
+}
+
+.volume-slider-knob,
+.app-general-slider-knob {
+    width: 18px;
+    height: 13px;
+    background-image: url('../images/volume_slider_knob.png');
+    background-repeat: no-repeat;
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    z-index: 10;
+}
+
+.app-general-slider-knob.vertical {
+    left: -8px;
+}
+
+#app-volume-slider-clickarea,
+.app-general-slider-clickarea {
+    position: absolute;
+    right: 5px;
+    top: 0px;
+    width: 112px;
+    height: 26px;
+}
+.volume-slider-wrap,
+.app-general-slider-wrap {
+    width: 110px;
+    height: 3px;
+    background: white;
+    position: relative;
+    z-index: 1;
+    border: 1px solid #E2F7FE;
+    box-shadow: 0px 0px 3px #A8B7FF;
+    top: 9px;
+}
+
+.playback-status-wrapper {
+    width: 100%;
+    height: 19px;
+    font-size: 14px;
+    line-height: 15px;
+    position: relative;
+    white-space: nowrap;
+    z-index: 1;
+    margin-top: 25px;
+    color: #7a7a7a;
+    overflow: hidden;
+}
+
+.playback-status-wrapper .slanted {
+    position: relative;
+    display: inline-block;
+    vertical-align: top
+}
+
+.playback-status-wrapper .current-time-container,
+.playback-status-wrapper .total-time-container {
+    cursor: default;
+}
+
+.playback-status-wrapper .time-container {
+    width: 40px;
+    text-align: center;
+    position: absolute;
+    bottom: 0px;
+    transition: bottom .4s cubic-bezier(.55, 0, .1, 1);
+}
+
+.playback-status-wrapper .time-container.hidden {
+    bottom: -20px;
+}
+
+.playback-status-wrapper .current-time-container {
+    padding: 4px 4px 0px 4px;
+    margin-left: 35px;
+}
+
+.playback-status-wrapper .total-time-container {
+    padding: 4px 4px 0px 4px;
+    position: absolute;
+    right: 35px;
+}
+
+.slanted {
+    border-top: 1px solid #ECECEC;
+    background: linear-gradient(to top, #FFF 0%,#F3F3F3 100%);
+}
+
+.slanted.left-side-slant {
+    border-top-right-radius: 8px;
+}
+
+.slanted.right-side-slant {
+    border-top-left-radius: 8px;
+}
+
+
+.slanted.left-side-slant:before,
+.slanted.right-side-slant:after {
+    position: absolute;
+    bottom: 0px;
+    width: 15px;
+    height: 19px;
+    content: " ";
+    border: 1px solid #ECECEC;
+    border-bottom: none;
+    background: linear-gradient(to top, #FFF 0%,#F3F3F3 100%);
+    z-index: 3;
+}
+
+.slanted.left-side-slant:before {
+    left: -12px;
+    border-right: none;
+    border-top-left-radius: 6px;
+    transform: skew(-23deg);
+}
+
+.slanted.right-side-slant:after {
+    right: -12px;
+    border-left: none;
+    border-top-right-radius: 6px;
+    transform: skew(23deg);
+}
+
+.mode-active,
+.app-playlist-mode:hover {
+    background-color: #CBDFED;
+}

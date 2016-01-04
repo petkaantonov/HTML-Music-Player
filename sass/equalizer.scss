@@ -1,0 +1,69 @@
+.app-general-slider-wrap.vertical.equalizer-slider-wrap {
+    margin: 10px;
+}
+
+.equalizer-slider-container {
+    display: inline-block;
+    width: 50px;
+}
+
+.equalizer-slider-container:last-child {
+    width: 40px;
+}
+
+.equalizer-descriptor-container {
+    width: 45px;
+    height: 146px;
+    display: inline-block;
+    position: relative;
+}
+
+.equalizer-sliders-container {
+    display: inline-block;
+}
+
+.equalizer-min-gain, .equalizer-max-gain, .equalizer-current-gain {
+    position: absolute;
+}
+
+.equalizer-min-gain {
+    bottom: 17px;
+}
+
+.equalizer-max-gain {
+    top: 6px;
+}
+
+.equalizer-current-gain {
+    top: 59px;
+    font-weight: bold;
+    display: none;
+    left: 0px;
+    width: 40px;
+    height: 20px;
+}
+
+.equalizer-current-gain > div {
+    position: absolute;
+}
+
+.equalizer-current-gain > .equalizer-current-gain-sign {
+    left: 0px;
+}
+
+.equalizer-current-gain > .equalizer-current-gain-value {
+    left: 9px;
+}
+
+.equalizer-current-gain > .equalizer-current-gain-unit {
+    left: 25px;
+}
+
+.equalizer-preset-container {
+    margin-top: 25px;
+}
+
+.equalizer-preset-label {
+    font-size: 14px;
+    margin-right: 15px;
+}
