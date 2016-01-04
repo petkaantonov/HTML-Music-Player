@@ -212,6 +212,13 @@ Track.prototype.isVisible = function() {
     return this._isAttached;
 };
 
+Track.prototype.willBeReplaced = function() {
+    if (this._generatedImage) {
+        URL.revokeObjectURL(this._generatedImage.src);
+        this._generatedImage = null;
+    }
+};
+
 Track.prototype.remove = function() {
     this.index = -1;
     this._isAttached = false;

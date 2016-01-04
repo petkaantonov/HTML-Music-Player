@@ -201,6 +201,12 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
         throw new Error("invalid track");
     }
 
+    var currentTrack = this.getCurrentTrack();
+
+    if (currentTrack && currentTrack !== DUMMY_TRACK) {
+        currentTrack.willBeReplaced();
+    }
+
     this.setCurrentTrack(track, trackChangeKind);
 
     if (track.hasError()) {
