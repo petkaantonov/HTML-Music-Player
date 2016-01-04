@@ -2,37 +2,39 @@
 
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = "rgb(11,32,53)";
+const Animator = require("./Animator");
 
 const $ = require("../lib/jquery");
 
-const easeInQuad = function(x, t, b, c, d) {
-    return c*(t/=d)*t + b;
-};
-
 function TransitionInfo(visualizerCanvas) {
-    this.started = -1;
-    this.minValue = -1;
+    this.capStarted = -1;
+    this.peakSample = -1;
     this.visualizerCanvas = visualizerCanvas;
 }
 
 TransitionInfo.prototype.getCapPosition = function(now) {
-    if (this.binValue === -1) {
-        return 0;
+    if (this.capStarted === -1) return 0;
+    var elapsed = now - this.capStarted;
+    var duration = this.visualizerCanvas.capDropTime;
+    if (elapsed >= duration) {
+        this.capStarted = -1;
     }
-    var capDropTime = this.visualizerCanvas.capDropTime;
-    if (this.started === -1 || ((now - this.started) > capDropTime)) {
-        this.binValue = -1;
-        return 0;
-    }
-    var elapsed = now - this.started;
-    var duration = capDropTime;
-    if (elapsed < this.visualizerCanvas.capHoldoutTime) return this.binValue;
-    return (1 - easeInQuad(0, elapsed, 0, 1, duration)) * this.binValue;
+
+    return (1 - this.visualizerCanvas.capInterpolator(elapsed, duration)) * this.peakSample;
+};
+
+TransitionInfo.prototype.inProgress = function() {
+    return this.capStarted !== -1;
 };
 
 TransitionInfo.prototype.reset = function() {
-    this.started = -1;
-    this.minValue = -1;
+    this.capStarted = -1;
+    this.peakSample = -1;
+};
+
+TransitionInfo.prototype.start = function(peakSample, now) {
+    this.capStarted = now;
+    this.peakSample = peakSample;
 };
 
 function VisualizerCanvas(targetCanvas, opts) {
@@ -49,11 +51,11 @@ function VisualizerCanvas(targetCanvas, opts) {
     this.gradients = new Array(this.height + 1);
     this.capStyle = opts.capStyle;
     this.targetFps = opts.targetFps;
-
+    this.capInterpolator = null;
+    this.setCapInterpolator(opts.capInterpolator || "ACCELERATE_QUAD");
+    this.ghostOpacity = opts.ghostOpacity || 0.25;
     this.capDropTime = opts.capDropTime;
-    this.capHoldoutTime = opts.capHoldoutTime;
-    this.alphaTime = opts.alphaTime;
-    this.pendingTransitionsToDraw = new Float64Array(this.getNumBins());
+    this.currentCapPositions = new Float64Array(this.getNumBins());
     this.emptyBins = new Float64Array(this.getNumBins());
 
     for (var i = 0; i < this.gradients.length; ++i) {
@@ -91,6 +93,7 @@ VisualizerCanvas.prototype.populateCache = function() {
     for (var j = 0; j < this.binCache.length; ++j) {
         var y = j * 0.5;
         var canvas = document.createElement("canvas");
+        canvas.style.transform = "translate3d(0,0,0)";
         canvas.height = ((y + 0.5) | 0) + SHADOW_BLUR;
         canvas.width = this.binWidth + this.gapWidth * 2;
         var context = canvas.getContext("2d");
@@ -105,6 +108,7 @@ VisualizerCanvas.prototype.populateCache = function() {
     }
 
     this.capCache = document.createElement("canvas");
+    this.capCache.style.transform = "translate3d(0,0,0)";
     this.capCache.width = this.binWidth + this.gapWidth * 2;
     this.capCache.height = this.capHeight + SHADOW_BLUR;
     var context = this.capCache.getContext("2d");
@@ -115,6 +119,11 @@ VisualizerCanvas.prototype.populateCache = function() {
     context.shadowColor = SHADOW_COLOR;
     context.fillRect(this.gapWidth, SHADOW_BLUR / 2, this.binWidth, this.capHeight);
     context.restore();
+};
+
+VisualizerCanvas.prototype.setCapInterpolator = function(name) {
+    if (typeof Animator[name] !== "function") throw new Error(name + " is not a known interpolator");
+    this.capInterpolator = Animator[name];
 };
 
 VisualizerCanvas.prototype.getTargetFps = function() {
@@ -137,21 +146,12 @@ VisualizerCanvas.prototype.drawBin = function(x, y) {
     this.context.drawImage(this.binCache[y << 1], x|0, (this.height - y)|0);
 };
 
-VisualizerCanvas.prototype.drawTransition = function(x, capSample, transitionInfo, now) {
-    var alpha = 1 - (transitionInfo.started >= 0 ?
-        Math.min(1, (now - transitionInfo.started) / this.alphaTime) : 0);
-
-    var originalY = Math.round(Math.max(0, capSample * this.getHighestY() - 1) * 2) / 2;
-    this.context.globalAlpha = alpha * 0.74;
-    this.drawBin(x, originalY);
-};
-
 VisualizerCanvas.prototype.drawIdleBins = function(now) {
     if (this.needToDraw) {
         this.drawBins(now, this.emptyBins);
-        var pendingTransitionsToDraw = this.pendingTransitionsToDraw;
-        for (var i = 0; i < pendingTransitionsToDraw.length; ++i) {
-            if (pendingTransitionsToDraw[i] !== -1) {
+        var currentCapPositions = this.currentCapPositions;
+        for (var i = 0; i < currentCapPositions.length; ++i) {
+            if (currentCapPositions[i] !== -1) {
                 return;
             }
         }
@@ -171,32 +171,28 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
     var capSpace = this.capHeight + this.capSeparator;
     var binWidth = this.binWidth;
 
-    var pendingTransitionsToDraw = this.pendingTransitionsToDraw;
+    var currentCapPositions = this.currentCapPositions;
     var transitionInfoArray = this.transitionInfoArray;
+    
+    this.context.globalAlpha = this.ghostOpacity;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
         var transitionInfo = transitionInfoArray[i];
-        var capSample = -1;
+        var currentCapBasePosition = -1;
 
-        if (transitionInfo.binValue !== -1) {
-            capSample = transitionInfo.getCapPosition(now);
+        if (transitionInfo.inProgress()) {
+            currentCapBasePosition = transitionInfo.getCapPosition(now);
         }
 
-        if (binValue < capSample) {
-            pendingTransitionsToDraw[i] = capSample;
+        if (binValue < currentCapBasePosition) {
+            currentCapPositions[i] = currentCapBasePosition;
+            var y = Math.round(currentCapBasePosition * this.getHighestY() * 2) / 2;
+            var x = i * binSpace;
+            this.drawBin(x, y);
         } else {
-            pendingTransitionsToDraw[i] = -1;
-            transitionInfo.binValue = binValue;
-            transitionInfo.started = now;
-        }
-    }
-
-    for (var i = 0; i < pendingTransitionsToDraw.length; ++i) {
-        var capSample = pendingTransitionsToDraw[i];
-
-        if (capSample !== -1) {
-            this.drawTransition(i * binSpace, capSample, this.transitionInfoArray[i], now);
+            currentCapPositions[i] = -1;
+            transitionInfo.start(binValue, now);
         }
     }
 
@@ -208,9 +204,9 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
         var y = Math.round(binValue * highestY * 2) / 2;
         var x = i * binSpace;
 
-        var capSample = pendingTransitionsToDraw[i];
-        if (binValue < capSample) {
-            var capY = Math.round((capSample * highestY + capSpace) * 2) / 2;
+        var currentCapBasePosition = currentCapPositions[i];
+        if (binValue < currentCapBasePosition) {
+            var capY = Math.round((currentCapBasePosition * highestY + capSpace) * 2) / 2;
             this.drawCap(x, capY);
         } else {
             this.drawCap(x, y + capSpace);

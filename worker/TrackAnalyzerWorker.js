@@ -658,7 +658,7 @@ util.truncateUp = function(num) {
 
 util.toTimeString = function(secs) {
     if (!isFinite(secs) || secs == null) return "";
-    secs = Math.round(secs);
+    secs = Math.floor(secs);
     var days, hours, minutes, seconds;
 
     days = (secs / 86400) >> 0;
@@ -1006,6 +1006,20 @@ util.subClassError = function(name, additional) {
 util.formatTagString = function(str) {
     return str.replace(/[\u0000-\u001F]+/g, "").trim();
 };
+
+util.internString = (function() {
+    var o = {"- ": 0};
+    delete o["- "];
+
+    return function(str) {
+        o[str] = true;
+        var ret = Object.keys(o)[0];
+        delete o[str];
+        return ret;
+        try {} catch(e) {} finally {}
+        eval(str);
+    }
+})();
 
 util.indexOfCodePoint = function(string, codePoint, start) {
     if (start === undefined) start = 0;

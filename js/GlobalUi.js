@@ -40,6 +40,19 @@ GlobalUi.makeTooltip = function(target, content) {
 
 GlobalUi.makePopup = function(title, body, opener) {
     const PREFERENCE_KEY = title + "position";
+    const INITIAL_SCALE = 0.1;
+
+    const xPos = function(openerBox, popupBox) {
+        return (openerBox.left - popupBox.left) -
+                (popupBox.width / 2 * INITIAL_SCALE) +
+                (openerBox.width / 2);
+    };
+
+    const yPos = function(openerBox, popupBox) {
+        return ((openerBox.top + openerBox.height) - popupBox.top) -
+                (popupBox.height / 2 * INITIAL_SCALE) +
+                (openerBox.height / 2);
+    };
 
     var ret = new Popup({
         title: title,
@@ -53,19 +66,14 @@ GlobalUi.makePopup = function(title, body, opener) {
                 interpolate: Animator.EASE_IN,
                 properties: [{
                     name: "scale",
-                    start: [0.1, 0.1],
+                    start: [INITIAL_SCALE, INITIAL_SCALE],
                     end: [1, 1]
                 }]
             });
 
-            var x1 = openerBox.left + openerBox.width / 2;
-            var y1 = openerBox.top + openerBox.height / 2;
-            var x2 = popupBox.left;
-            var y2 = popupBox.top;
-
             var path = animator.createPath();
-            path.moveTo(x1, y1);
-            path.fastOutLinearInCurveTo(x2, y2);
+            path.moveTo(xPos(openerBox, popupBox), yPos(openerBox, popupBox));
+            path.fastOutLinearInCurveTo(0, 0);
             path.close();
             animator.animate(400, path);
         },
@@ -77,7 +85,7 @@ GlobalUi.makePopup = function(title, body, opener) {
                     properties: [{
                         name: "scale",
                         start: [1, 1],
-                        end: [0, 0]
+                        end: [INITIAL_SCALE, INITIAL_SCALE]
                     }]
                 });
                 animator.on("animationEnd", resolve);
@@ -85,14 +93,9 @@ GlobalUi.makePopup = function(title, body, opener) {
                 var openerBox = $(opener)[0].getBoundingClientRect();
                 var popupBox = $node[0].getBoundingClientRect();
 
-                var x1 = popupBox.left;
-                var y1 = popupBox.top;
-                var x2 = openerBox.left + openerBox.width / 2;
-                var y2 = openerBox.top + openerBox.height / 2;
-
                 var path = animator.createPath();
-                path.moveTo(x1, y1);
-                path.fastOutLinearInCurveTo(x2, y2);
+                path.moveTo(0, 0);
+                path.fastOutLinearInCurveTo(xPos(openerBox, popupBox), yPos(openerBox, popupBox));
                 path.close();
                 animator.animate(400, path);
             });

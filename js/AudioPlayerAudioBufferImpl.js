@@ -228,7 +228,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._sourceEnded = this._sourceEnded.bind(this);
     this._ended = this._ended.bind(this);
 
-    this._timeUpdater = setInterval(this._timeUpdate, 200);
+    this._timeUpdater = setInterval(this._timeUpdate, 32);
 
     this._worker.addEventListener("message", this._messaged, false);
     this._player._message(-1, "register", {
@@ -295,7 +295,6 @@ AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
 
 AudioPlayerSourceNode.prototype._timeUpdate = function() {
     if (this._destroyed) return;
-
     var currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
     this._currentTime = Math.min(this._duration, this._baseTime + currentBufferPlayedSoFar);
     this.emit("timeUpdate", this._currentTime, this._duration);

@@ -52,6 +52,9 @@ function Playlist(domNode, opts) {
         this.showPlaylistEmptyIndicator();
     }
 
+    this._scrolledUp = this._scrolledUp.bind(this);
+    this._scrolledDown = this._scrolledDown.bind(this);
+
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, {
         mustNotMatchSelector: ".track-rating",
@@ -68,9 +71,12 @@ function Playlist(domNode, opts) {
     this.renderItems = $.proxy(this.renderItems, this);
 
     $(window).on("resize", $.proxy(this.windowLayoutChanged, this));
-    this.$().on("scroll ps-scroll-y", $.proxy(this.scrolled, this));
+    this.$().on("scroll ps-scroll-y", $.proxy(this.scrolled, this))
+        .on("ps-scroll-up", this._scrolledUp)
+        .on("ps-scroll-down", this._scrolledDown);
 
     this._nextTrack = null;
+    this._scrollDirection = 1;
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
@@ -155,6 +161,14 @@ Playlist.Modes = {
     }
 };
 
+Playlist.prototype._scrolledDown = function() {
+    this._scrollDirection = 1;
+};
+
+Playlist.prototype._scrolledUp = function() {
+    this._scrollDirection = -1;
+};
+
 Playlist.prototype._updateNextTrack = function(forced) {
     var currentTrack = this.getCurrentTrack() || DUMMY_TRACK;
     var nextTrack = this._nextTrack;
@@ -218,13 +232,27 @@ Playlist.prototype.windowLayoutChanged = function() {
                         $("#visualizer-container").offset().top;
 
     var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height, MINIMUM_PLAYLIST_HEIGHT) - this.getItemHeight() - 50;
+    height = Math.max(height, MINIMUM_PLAYLIST_HEIGHT) - 50;
+    var itemHeight = this.getItemHeight();
+    var remainder = height % itemHeight;
+    if (remainder !== 0) {
+        height -= remainder;
+    }
+
     this.$().css("height", height + "px");
     this.updateScrollBar();
     this.trackVisibilityChanged();
 };
 
 Playlist.prototype.scrolled = function() {
+    var scrollTop = this.$()[0].scrollTop;
+    var itemHeight = this.getItemHeight();
+    var remainder = scrollTop % itemHeight;
+    if (remainder !== 0) {
+        scrollTop = this._scrollDirection === 1 ? scrollTop + (itemHeight - remainder)
+                                                : scrollTop - remainder;
+        this.$()[0].scrollTop = scrollTop;
+    }
     this.trackVisibilityChanged();
 };
 

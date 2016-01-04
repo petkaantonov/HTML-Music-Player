@@ -1,5 +1,12 @@
 "use strict";
-
+var desc = {value: function() {return ""}, writable: false, configurable: false};
+try {
+    Object.defineProperties(window, {
+        alert: desc,
+        prompt: desc,
+        confirm: desc
+    });
+} catch (e) {}
 window.$ = window.jQuery = require("../lib/jquery");
 window.Promise = require("../lib/bluebird");
 require("./BluebirdConfig");
@@ -207,10 +214,12 @@ var visualizerCanvas = new VisualizerCanvas("#visualizer", {
     capSeparator: 2,
     capStyle: "rgb(37,117,197)",
     targetFps: 48,
-    capDropTime: 550,
-    capHoldoutTime: 95,
-    alphaTime: 385
+    capDropTime: 600,
+    ghostOpacity: 0.25,
+    capInterpolator: "ACCELERATE_CUBIC"
 });
+
+player.visualizerCanvas = visualizerCanvas;
 
 player.main = new Player(".app-player-controls", playlist.main, {
     visualizerCanvas: visualizerCanvas,

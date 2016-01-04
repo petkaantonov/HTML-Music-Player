@@ -12,12 +12,29 @@ const util = require("./util");
 const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Track = require("./Track");
+const patchAudioContext = require("../lib/audiocontextpatch");
 
 const audioCtx = (function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
-    return new AudioContext();
+    var ret = new AudioContext();
+    if (!window.AudioContext) {
+        patchAudioContext(AudioContext, ret);
+    }
+    return ret;
 })();
+
 const audioPlayer = new AudioPlayer(audioCtx);
+
+function touchPrimer(e) {
+    window.removeEventListener(e.type, touchPrimer, false);
+    var buffer = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
+    var source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+}
+
+window.addEventListener("touchend", touchPrimer, false);
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
@@ -766,18 +783,18 @@ Player.prototype.audioManagerEnded = function(audioManager, haveGaplessPreloadPe
     }
 };
 
-Player.prototype.audioManagerProgressed= function(audioManager) {
+Player.prototype.audioManagerProgressed = function(audioManager) {
     if (audioManager === this.currentAudioManager) {
         var currentTime = audioManager.getCurrentTime();
         var totalTime = audioManager.getDuration();
         var fadeInTime = this.getFadeInTimeForNextTrack();
 
-        this.emit("progress", currentTime, totalTime);
-
         if ((currentTime >= totalTime && totalTime > 0 && currentTime > 0) ||
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
+        } else if (this.isPlaying) {
+            this.emit("progress", currentTime, totalTime);
         }
     }
 };

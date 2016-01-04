@@ -434,9 +434,11 @@ Tooltip.prototype.hide = function() {
         $node.addClass("initial");
         var duration = getLongestTransitionDuration($node);
         var self = this;
-        this._delayTimeoutId = setTimeout(function() {
-            self._tooltip.remove();
-            self._tooltip = NULL;
+        setTimeout(function() {
+            if (!self._shown) {
+                self._tooltip.remove();
+                self._tooltip = NULL;
+            }
         }, duration);
     } else {
         this._tooltip.remove();

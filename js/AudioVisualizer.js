@@ -54,8 +54,8 @@ const buffers = {};
 function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     opts = Object(opts);
     this.visualizerCanvas = visualizerCanvas;
-    this.multiplier = "multiplier" in opts ? +opts.multiplier : 1;
-    this.multiplier = Math.max(0, Math.min(1, this.multiplier));
+    this.multiplier = 1;
+    this.setMultiplier("multiplier" in opts ? +opts.multiplier : 1);
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
@@ -102,7 +102,7 @@ AudioVisualizer.prototype.fps = function() {
 
 AudioVisualizer.prototype.setMultiplier = function(value) {
     if (!isFinite(value)) throw new Error("infinite");
-    value = Math.max(0, Math.min(1, value));
+    value = Math.max(0.5, Math.min(256, value));
     this.multiplier = value;
 };
 

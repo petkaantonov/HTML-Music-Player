@@ -4,8 +4,8 @@ const $ = require("../lib/jquery");
 var features = module.exports;
 var input = document.createElement("input");
 
-features.allowMimes = ["audio/mp3"];
-features.allowExtensions = "mp1,mp2,mp3,mpg,mpeg".split(",");
+features.allowMimes = ["audio/mp3", "audio/mpeg"];
+features.allowExtensions = "mp3,mpg,mpeg".split(",");
 
 features.readFiles = typeof FileReader == "function" && new FileReader()
     .readAsBinaryString;

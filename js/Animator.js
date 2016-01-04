@@ -317,7 +317,7 @@ Animation.prototype.animate = function(now) {
         var internalProgress = range.getInternalProgress(progress);
         var x = range.item.xAt(internalProgress);
         var y = range.item.yAt(internalProgress);
-        this.animator._progressTo(x + this.path.addX, y + this.path.addY, elapsed, this.duration);
+        this.animator._progressPathedAnimation(x + this.path.addX, y + this.path.addY, elapsed, this.duration);
     } else {
         this.animator._progress(elapsed, this.duration);
     }
@@ -333,16 +333,19 @@ Animation.prototype.animate = function(now) {
 };
 
 const validProperties = [
-    "scale", "scaleX", "scaleY", "rotate", "skew",
-    "skewX", "skewY", "rotateX", "rotateY", "opacity",
-    "translateX", "translateY", "translate"
+    "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
+    "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
+    "translateX", "translateY", "translateZ", "translate", "translate3d",
+    "skew", "skewX", "skewY",
+    "opacity"
 ];
 
-const multiProperties = ["scale", "skew", "translate"];
+const multiProperties = ["scale", "skew", "translate", "scale3d", "translate3d", "rotate3d"];
 const transformProperties = [
-    "scale", "scaleX", "scaleY", "rotate", "skew",
-    "skewX", "skewY", "rotateX", "rotateY", "translateX",
-    "translateY", "translate"
+    "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
+    "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
+    "translateX", "translateY", "translateZ", "translate", "translate3d",
+    "skew", "skewX", "skewY"
 ];
 function AdditionalAnimationProperty(animator, property) {
     this.name = property.name + "";
@@ -424,7 +427,6 @@ function Animator(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = dom;
-    this._prop = opts.positionProperty || Animator.TOP_AND_LEFT;
     this._animations = [];
     this._frameId = -1;
     this._interpolate = opts.interpolate || Animator.SWIFT_OUT;
@@ -538,8 +540,6 @@ const makeAccelerator = function(power) {
     };
 };
 
-Animator.TOP_AND_LEFT = 1;
-Animator.TRANSLATE = 2;
 Animator.LINEAR = function(a, b) { return Math.min(1, Math.max(0, a / b)); };
 Animator.SWIFT_OUT = makeEasing(0.55, 0, 0.1, 1);
 Animator.EASE_IN = makeEasing(0.42, 0, 1, 1);
@@ -605,18 +605,12 @@ Animator.prototype._progress = function(current, total) {
     this._applyDirectProperties(node, current, total);
 };
 
-Animator.prototype._progressTo = function(x, y, current, total) {
+Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     current = Math.min(current, total);
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
 
-    if (this._prop === Animator.TOP_AND_LEFT) {
-        node.style.left = x + "px";
-        node.style.top = y + "px";
-        if (transforms) node.style.transform = transforms;
-    } else {
-        node.style.transform = "translate("+x+", "+y+") " + transforms + ";";
-    }
+    node.style.transform = "translate3d("+x+"px, "+y+"px, 0) " + transforms;
     this._applyDirectProperties(node, current, total);
 };
 

@@ -424,7 +424,8 @@ label {
 #track-progress {
     z-index: 3;
     position: absolute;
-    left: -100%;
+    left: 0;
+    transform: translate3d(-100%, 0, 0);
     height: 20px;
     background-image: url('../images/seek_fill_gradient.png');
     background-repeat: repeat-x;
@@ -510,6 +511,7 @@ label {
     position: relative;
     overflow: hidden;
     width: 100%;
+    transform: translate3d(0, 0, 0);
 }
 #trackstatuscontainer {
     float: right;
@@ -939,18 +941,15 @@ label {
     transform-origin: 0 0;
 }
 
-.popup-container.popup-dragging {
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-}
-
 .popup-blocker {
-    background-color: rgba(0, 0, 0, 0.55);
-    transition: background-color 0.25s cubic-bezier(.55, 0, .1, 1);
+    transform: translate3d(0, 0, 0);
+    background-color: #000000;
+    opacity: 0.55;
+    transition: opacity 0.25s ease-in;
 }
 
 .popup-blocker.initial {
-    background-color: rgba(0, 0, 0, 0);
+    opacity: 0;
 }
 
 .popup-fade-in {

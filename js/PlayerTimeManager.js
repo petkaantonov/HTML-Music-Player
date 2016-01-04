@@ -18,11 +18,13 @@ function PlayerTimeManager(dom, player, opts) {
     this.totalTime = 0;
     this.currentTime = 0;
     this.seekSlider = opts.seekSlider;
+    this._transitionEnabled = false;
     this._totalTimeDomNode = this.$().find(opts.totalTimeDom);
     this._currentTimeDomNode = this.$().find(opts.currentTimeDom);
     this._timeContainerDomNode = this.$().find(opts.timeContainerDom);
     this._timeProgressDomNode = this.$().find(opts.timeProgressDom);
     this._timeSeparatorDomNode = this.$().find(opts.timeSeparatorDom);
+    this._updateProgress = this._updateProgress.bind(this);
     this.hidden = true;
 
     this.slideBegun = this.slideBegun.bind(this);
@@ -46,6 +48,8 @@ function PlayerTimeManager(dom, player, opts) {
             self.displayMode = values[TIME_DISPLAY_PREFERENCE_KEY];
         }
     });
+
+    this.frameId = requestAnimationFrame(this._updateProgress);
 }
 
 
@@ -110,35 +114,46 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
 };
 
 PlayerTimeManager.prototype.setTotalTime = function(time) {
-    time = Math.round(time);
     this.checkVisibility(time);
-    if (time !== this.totalTime) {
-        this.totalTime = time;
+
+    if (Math.floor(this.totalTime) !== Math.floor(time)) {
         if (this.displayMode === DISPLAY_ELAPSED) {
             this.$totalTime().text(util.toTimeString(time));
         }
-        this.updateProgress();
     }
+
+    this.totalTime = time;
 };
 
 PlayerTimeManager.prototype.setCurrentTime = function(time) {
-    time = Math.round(time);
-
-    if (time !== this.currentTime) {
-        this.currentTime = time;
+    if (Math.floor(this.currentTime) !== Math.floor(time)) {
         this.$currentTime().text(util.toTimeString(time));
         if (this.displayMode === DISPLAY_REMAINING) {
-            time = Math.max(0, this.totalTime - time);
-            this.$totalTime().text("-" + util.toTimeString(time));
+            var remainingTime = Math.max(0, this.totalTime - time);
+            this.$totalTime().text("-" + util.toTimeString(remainingTime));
         }
-        this.updateProgress();
     }
+
+    this.currentTime = time;
 };
 
-PlayerTimeManager.prototype.updateProgress = function() {
-    var progressPercentage = (this.currentTime / this.totalTime) || 0;
-    var width = this.$timeProgress().width() + 5;
-    this.$timeProgress().css("left", -(1 - progressPercentage) * width);
+const progressValues = new Array(1025);
+for (var i = 0; i < progressValues.length; ++i) {
+    var percentage = -((1 - (i / 1024)) * 100) + "%"
+    progressValues[i] = util.internString("translate3d(" + percentage + ",0,0)");
+}
+PlayerTimeManager.prototype._updateProgress = function() {
+    this.frameId = requestAnimationFrame(this._updateProgress);
+
+    var transform;
+    if (this.currentTime === 0 || this.totalTime === 0) {
+        transform = progressValues[0];
+    } else {
+        var progressIndex = ((this.currentTime / this.totalTime * 1024)|0);
+        transform = progressValues[progressIndex];
+    }
+    
+    this.$timeProgress()[0].style.transform = transform;
 };
 
 PlayerTimeManager.prototype.forceUpdate = function() {

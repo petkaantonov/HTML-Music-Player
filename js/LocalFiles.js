@@ -33,17 +33,17 @@ LocalFiles.prototype.handle = function(files) {
     var tracks = [];
     for (var i = 0; i < files.length; ++i) {
         var file = files[i];
+
+        if (file.size <= 131072 || file.size >= 1073741824) {
+            continue;
+        }
+
         var ext = getExtension(file.name);
 
         if (ext) {
             ext = ext[1].toLowerCase();
         } else {
             ext = "";
-        }
-
-        // Probably a folder. Minimum audio file length is 3 seconds anyway.
-        if (file.size <= 131072) {
-            continue;
         }
 
         if (this.isExtensionSupported(ext) ||
