@@ -3,6 +3,7 @@ var cp = require("child_process");
 Promise.promisifyAll(cp);
 var browserified = Promise.all(
     [cp.execAsync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js"),
+    cp.execAsync("browserify worker/TrackAnalyzer.js --standalone TrackAnalyzer > worker/TrackAnalyzerWorker.js"),
     cp.execAsync("browserify js/application.js --standalone Application > dist/main.js")]);
 
 var glob = require("glob");
