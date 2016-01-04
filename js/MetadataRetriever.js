@@ -8,13 +8,28 @@ const TrackWasRemovedError = require("./TrackWasRemovedError");
 const util = require("./util");
 
 function getBestRecordingGroup(recordings) {
+    recordings.reverse();
     var groups = [];
 
     for (var i = 0; i < recordings.length; ++i) {
         var recording = recordings[i];
+        if (!recording || !recording.releasegroups) {
+            continue;
+        }
         var releasegroups = recording.releasegroups;
+        if (!releasegroups) {
+            continue;
+        }
         for (var j = 0; j < releasegroups.length; ++j) {
             var releasegroup = releasegroups[j];
+            if (!releasegroup) {
+                continue;
+            }
+
+            if (!releasegroup.type) {
+                releasegroup.type = "crap";
+            }
+
             var secondarytypes = releasegroup.secondarytypes;
             groups.push({
                 indexI: i,
@@ -100,10 +115,9 @@ function parseAcoustId(data) {
     }
 
     var result = data.results && data.results[0] || null;
+
     if (!result) return null;
-
     var bestRecordingGroup = getBestRecordingGroup(result.recordings);
-
     if (!bestRecordingGroup) return null;
     var recording = bestRecordingGroup.recording;
 

@@ -100,4 +100,13 @@ TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
 
-module.exports = new TagDatabase();
+
+self.removeTrackInfo = function(trackUid) {
+    return ret.db.then(function(db) {
+        var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        store.delete(trackUid);
+    });
+};
+
+var ret = new TagDatabase();
+module.exports = ret;
