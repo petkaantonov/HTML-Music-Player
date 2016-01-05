@@ -296,7 +296,8 @@ AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
 AudioPlayerSourceNode.prototype._timeUpdate = function() {
     if (this._destroyed) return;
     var currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
-    this._currentTime = Math.min(this._duration, this._baseTime + currentBufferPlayedSoFar);
+    var currentTime = this._baseTime + currentBufferPlayedSoFar;
+    this._currentTime = this._haveBlob ? Math.min(this._duration, currentTime) : currentTime;
     this.emit("timeUpdate", this._currentTime, this._duration);
 };
 
@@ -735,6 +736,7 @@ AudioPlayerSourceNode.prototype.setCurrentTime = function(time, noThrottle) {
     if (this._haveBlob) {
         time = Math.min(this._player.getMaximumSeekTime(this._duration), time);
     }
+
     this._currentTime = time;
     this._baseTime = this._currentTime - this._getCurrentAudioBufferBaseTimeDelta();
     this._timeUpdate();
@@ -897,6 +899,7 @@ AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob,
 // Seamless replacement of current track with the next.
 AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreload) {
     if (this._destroyed) return;
+    if (seekTime === undefined) seekTime = 0;
 
     this._nullifyPendingRequests();
     var now = Date.now();
@@ -929,6 +932,7 @@ AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, se
 
 AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
     if (this._destroyed) return;
+    if (seekTime === undefined) seekTime = 0;
     if (!(blob instanceof Blob) && !(blob instanceof File)) {
         throw new Error("blob must be a blob");
     }

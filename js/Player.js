@@ -134,7 +134,7 @@ function AudioManager(player, track, implicitlyLoaded) {
 
 AudioManager.prototype._updateNextGaplessTrack = function() {
     this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
-    var time = this.gaplessPreloadTrack.getSilenceAdjustedDuration(0);
+    var time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
     this.sourceNode.replace(this.gaplessPreloadTrack.getFile(), time, true);
 };
 
@@ -183,9 +183,8 @@ AudioManager.prototype.replaceTrack = function(track) {
     }
 
     this.fadeOutSeekGain();
-    var time = track.convertToSilenceAdjustedTime(0);
-    this.intendingToSeek = time;
-    this.player.audioManagerSeekIntent(this, time);
+    this.intendingToSeek = 0;
+    this.player.audioManagerSeekIntent(this, 0);
     var self = this;
     this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
     this.track = track;
@@ -200,7 +199,7 @@ AudioManager.prototype.replaceTrack = function(track) {
         self.resume();
         self.fadeInSeekGain();
     });
-    this.sourceNode.replace(track.getFile(), time);
+    this.sourceNode.replace(track.getFile(), track.convertFromSilenceAdjustedTime(0));
 };
 
 AudioManager.prototype.nextTrackChanged = function() {
@@ -301,7 +300,8 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
 
 AudioManager.prototype.setCurrentTime = function(currentTime) {
     if (this.destroyed) return;
-    this.sourceNode.setCurrentTime(this.track.convertFromSilenceAdjustedTime(currentTime));
+    var adjusted = this.track.convertFromSilenceAdjustedTime(currentTime);
+    this.sourceNode.setCurrentTime(adjusted);
 };
 
 AudioManager.prototype.getCurrentTime = function() {
@@ -375,7 +375,7 @@ AudioManager.prototype.start = function() {
     this.sourceNode.on("ended", this.ended);
     this.sourceNode.on("error", this.errored);
     this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
-    this.sourceNode.load(this.track.getFile());
+    this.sourceNode.load(this.track.getFile(), this.track.convertFromSilenceAdjustedTime(0));
     this.sourceNode.play();
 };
 
@@ -688,6 +688,7 @@ Player.prototype.nextTrackImplicitly = function() {
 };
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
+    debugger;
     if (audioManager.track) {
         var trackError;
         if (e.name === "NotFoundError" || e.name === "NotReadableError") {

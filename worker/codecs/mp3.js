@@ -61,10 +61,10 @@ const MULH = function(a, b) {
     var a0 = a & 0xFFFF, a1 = a >> 16;
     var b0 = b & 0xFFFF, b1 = b >> 16;
     var w0 = Math.imul(a0, b0);
-    var t = (Math.imul(a1, b0) >>> 0) + (w0 >>> 16);
+    var t = Math.imul(a1, b0) + (w0 >>> 16);
     var w1 = t & 0xFFFF;
     var w2 = t >> 16;
-    w1 = (Math.imul(a0, b1) >>> 0) + w1;
+    w1 = Math.imul(a0, b1) + w1;
     return (Math.imul(a1, b1) + w2 + (w1 >> 16))|0;
 };
 
@@ -2323,18 +2323,7 @@ Mp3Context.prototype.switch_buffer = function(pos, end_pos, end_pos2) {
     return false;
 };
 
-Mp3Context.prototype.synthFilterInt16 = function(ref, samples_ptr, synth_buf_values,
-                                                   samples_values, sb_samples,
-                                                   sb_samples_ptr) {
-    var synth_buf_ptr;
-    var w_ptr, w2_ptr, p_ptr;
-    var samples2_ptr;
-
-    dct32(sb_samples, sb_samples_ptr);
-
-    var offset = ref.synth_buf_offset;
-    synth_buf_ptr = offset;
-
+const initSynthBuf = function(synth_buf_values, synth_buf_ptr) {
     for (var j = 0; j < 32; ++j) {
         var v = Math.max(Math.min(dct32_tmp32[j], 32767), -32768);
         synth_buf_values[synth_buf_ptr + j] = v;
@@ -2344,154 +2333,165 @@ Mp3Context.prototype.synthFilterInt16 = function(ref, samples_ptr, synth_buf_val
         synth_buf_values[synth_buf_ptr + j + 512] =
             synth_buf_values[synth_buf_ptr + j];
     }
+};
 
-    samples2_ptr = samples_ptr + 31;
-    w_ptr = 0;
-    w2_ptr = 31;
-
-    var sum = ref.dither_state;
-
-    p_ptr = synth_buf_ptr + 16;
+const synthFirstSample = function(sum, synth_buf_values, synth_buf_ptr) {
+    var p_ptr = (synth_buf_ptr + 16)|0;
     for (var u = 0; u < 512; u += 64) {
-        sum += (Math.imul(window_values[w_ptr + u],
+        sum += (Math.imul(window_values[u],
                     synth_buf_values[p_ptr + u]));
     }
 
-    p_ptr = synth_buf_ptr + 48;
+    p_ptr = (synth_buf_ptr + 48)|0;
     for (var u = 0; u < 512; u += 64) {
-        sum -= (Math.imul(window_values[w_ptr + u + 32],
+        sum -= (Math.imul(window_values[u + 32],
                     synth_buf_values[p_ptr + u]));
     }
+    return sum;
+};
 
-    samples_values[samples_ptr] = Math.max(-32768, Math.min(32767, sum >> OUT_SHIFT));
-    sum &= ((1 << OUT_SHIFT) - 1);
-    samples_ptr++;
-    w_ptr++;
-
-    for (var j = 1; j < 16; ++j) {
-        var sum2 = 0;
-        p_ptr = synth_buf_ptr + 16 + j;
-
-        for (var u = 0; u < 512; u += 64) {
-            var tmp = synth_buf_values[p_ptr + u];
-            sum += (Math.imul(window_values[w_ptr + u], tmp));
-            sum2 -= (Math.imul(window_values[w2_ptr + u], tmp));
-        }
-
-        p_ptr = synth_buf_ptr + 48 - j;
-
-        for (var u = 0; u < 512; u += 64) {
-            var tmp = synth_buf_values[p_ptr + u];
-            sum -= (Math.imul(window_values[w_ptr + u + 32], tmp));
-            sum2 -= (Math.imul(window_values[w2_ptr + u + 32], tmp));
-        }
-
-        samples_values[samples_ptr] = Math.max(-32768, Math.min(32767, sum >> OUT_SHIFT));
-        sum &= ((1 << OUT_SHIFT) - 1);
-        samples_ptr++;
-        sum += sum2;
-        samples_values[samples2_ptr] = Math.max(-32768, Math.min(32767, sum >> OUT_SHIFT));
-        sum &= ((1 << OUT_SHIFT) - 1);
-        samples2_ptr--;
-        w_ptr++;
-        w2_ptr--;
-    }
-
-    p_ptr = synth_buf_ptr + 32;
+const synthLastSample = function(sum, synth_buf_values, synth_buf_ptr) {
+    var p_ptr = (synth_buf_ptr + 32)|0;
     for (var u = 0; u < 512; u += 64) {
-        sum -= (Math.imul(window_values[w_ptr + u + 32],
+        sum -= (Math.imul(window_values[u + 48],
                     synth_buf_values[p_ptr + u]));
     }
+    return sum;
+};
 
-    samples_values[samples_ptr] = Math.max(-32768, Math.min(32767, sum >> OUT_SHIFT));
-    sum &= ((1 << OUT_SHIFT) - 1);
-    ref.dither_state = sum;
-    offset = (offset - 32) & 511;
-    ref.synth_buf_offset = offset;
+var synthMidSamples2_sum2 = 0;
+const synthMidSamples2 = function(sum, j, synth_buf_values, synth_buf_ptr) {
+    var sum2 = 0;
+    var p_ptr = (synth_buf_ptr + 16 + j)|0;
+    var w2_ptr = 32 - j;
+    var tmp;
+
+    tmp = synth_buf_values[p_ptr];
+    sum += (Math.imul(window_values[j], tmp));
+    sum2 -= (Math.imul(window_values[32 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 64];
+    sum += (Math.imul(window_values[j + 64], tmp));
+    sum2 -= (Math.imul(window_values[96 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 128];
+    sum += (Math.imul(window_values[j + 128], tmp));
+    sum2 -= (Math.imul(window_values[160 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 192];
+    sum += (Math.imul(window_values[j + 192], tmp));
+    sum2 -= (Math.imul(window_values[224 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 256];
+    sum += (Math.imul(window_values[j + 256], tmp));
+    sum2 -= (Math.imul(window_values[288 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 320];
+    sum += (Math.imul(window_values[j + 320], tmp));
+    sum2 -= (Math.imul(window_values[352 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 384];
+    sum += (Math.imul(window_values[j + 384], tmp));
+    sum2 -= (Math.imul(window_values[416 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 448];
+    sum += (Math.imul(window_values[j + 448], tmp));
+    sum2 -= (Math.imul(window_values[480 - j], tmp));
+    
+
+    p_ptr = (synth_buf_ptr + 48 - j)|0;
+
+    tmp = synth_buf_values[p_ptr];
+    sum -= (Math.imul(window_values[j + 32], tmp));
+    sum2 -= (Math.imul(window_values[64 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 64];
+    sum -= (Math.imul(window_values[j + 96], tmp));
+    sum2 -= (Math.imul(window_values[128 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 128];
+    sum -= (Math.imul(window_values[j + 160], tmp));
+    sum2 -= (Math.imul(window_values[192 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 192];
+    sum -= (Math.imul(window_values[j + 224], tmp));
+    sum2 -= (Math.imul(window_values[256 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 256];
+    sum -= (Math.imul(window_values[j + 288], tmp));
+    sum2 -= (Math.imul(window_values[320 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 320];
+    sum -= (Math.imul(window_values[j + 352], tmp));
+    sum2 -= (Math.imul(window_values[384 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 384];
+    sum -= (Math.imul(window_values[j + 416], tmp));
+    sum2 -= (Math.imul(window_values[448 - j], tmp));
+
+    tmp = synth_buf_values[p_ptr + 448];
+    sum -= (Math.imul(window_values[j + 480], tmp));
+    sum2 -= (Math.imul(window_values[512 - j], tmp));
+
+    synthMidSamples2_sum2 = sum2;
+    return sum;
 };
 
 Mp3Context.prototype.synthFilterFloat32 = function(ref, samples_ptr, synth_buf_values,
                                                    samples_values, sb_samples,
                                                    sb_samples_ptr) {
-    var synth_buf_ptr;
-    var w_ptr, w2_ptr, p_ptr;
-    var samples2_ptr;
-
     dct32(sb_samples, sb_samples_ptr);
-
     var offset = ref.synth_buf_offset;
-    synth_buf_ptr = offset;
+    initSynthBuf(synth_buf_values, offset);
 
-    for (var j = 0; j < 32; ++j) {
-        var v = Math.max(Math.min(dct32_tmp32[j], 32767), -32768);
-        synth_buf_values[synth_buf_ptr + j] = v;
-    }
-
-    for (var j = 0; j < 32; ++j) {
-        synth_buf_values[synth_buf_ptr + j + 512] =
-            synth_buf_values[synth_buf_ptr + j];
-    }
-
-    samples2_ptr = samples_ptr + 31;
-    w_ptr = 0;
-    w2_ptr = 31;
-
-    var sum = ref.dither_state;
-
-    p_ptr = synth_buf_ptr + 16;
-    for (var u = 0; u < 512; u += 64) {
-        sum += (Math.imul(window_values[w_ptr + u],
-                    synth_buf_values[p_ptr + u]));
-    }
-
-    p_ptr = synth_buf_ptr + 48;
-    for (var u = 0; u < 512; u += 64) {
-        sum -= (Math.imul(window_values[w_ptr + u + 32],
-                    synth_buf_values[p_ptr + u]));
-    }
-
-    samples_values[samples_ptr] = Math.fround((sum >> OUT_SHIFT) / 32768);
-    sum &= ((1 << OUT_SHIFT) - 1);
-    samples_ptr++;
-    w_ptr++;
+    var sum = synthFirstSample(ref.dither_state, synth_buf_values, offset);
+    samples_values[samples_ptr] = Math.fround((sum >> 14) / 32768);
+    sum &= 16383;
 
     for (var j = 1; j < 16; ++j) {
-        var sum2 = 0;
-        p_ptr = synth_buf_ptr + 16 + j;
+        sum = synthMidSamples2(sum, j, synth_buf_values, offset)|0;
+        var sum2 = synthMidSamples2_sum2|0;
 
-        for (var u = 0; u < 512; u += 64) {
-            var tmp = synth_buf_values[p_ptr + u];
-            sum += (Math.imul(window_values[w_ptr + u], tmp));
-            sum2 -= (Math.imul(window_values[w2_ptr + u], tmp));
-        }
-
-        p_ptr = synth_buf_ptr + 48 - j;
-
-        for (var u = 0; u < 512; u += 64) {
-            var tmp = synth_buf_values[p_ptr + u];
-            sum -= (Math.imul(window_values[w_ptr + u + 32], tmp));
-            sum2 -= (Math.imul(window_values[w2_ptr + u + 32], tmp));
-        }
-
-        samples_values[samples_ptr] = Math.fround((sum >> OUT_SHIFT) / 32768);
-        sum &= ((1 << OUT_SHIFT) - 1);
-        samples_ptr++;
+        samples_values[samples_ptr + j] = Math.fround((sum >> 14) / 32768);
+        sum &= 16383;
         sum += sum2;
-        samples_values[samples2_ptr] = Math.fround((sum >> OUT_SHIFT) / 32768);
-        sum &= ((1 << OUT_SHIFT) - 1);
-        samples2_ptr--;
-        w_ptr++;
-        w2_ptr--;
+        samples_values[samples_ptr + (32 - j)] = Math.fround((sum >> 14) / 32768);
+        sum &= 16383;
     }
 
-    p_ptr = synth_buf_ptr + 32;
-    for (var u = 0; u < 512; u += 64) {
-        sum -= (Math.imul(window_values[w_ptr + u + 32],
-                    synth_buf_values[p_ptr + u]));
+    sum = synthLastSample(sum, synth_buf_values, offset);
+    samples_values[samples_ptr + 16] = Math.fround((sum >> 14) / 32768);
+    sum &= 16383;
+    ref.dither_state = sum;
+    offset = (offset - 32) & 511;
+    ref.synth_buf_offset = offset;
+};
+
+Mp3Context.prototype.synthFilterInt16 = function(ref, samples_ptr, synth_buf_values,
+                                                   samples_values, sb_samples,
+                                                   sb_samples_ptr) {
+    dct32(sb_samples, sb_samples_ptr);
+    var offset = ref.synth_buf_offset;
+    initSynthBuf(synth_buf_values, offset);
+
+    var sum = synthFirstSample(ref.dither_state, synth_buf_values, offset);
+    samples_values[samples_ptr] = Math.max(-32768, Math.min(32767, sum >> 14));
+    sum &= 16383;
+
+    for (var j = 1; j < 16; ++j) {
+        sum = synthMidSamples2(sum, j, synth_buf_values, offset)|0;
+        var sum2 = synthMidSamples2_sum2|0;
+
+        samples_values[samples_ptr + j] = Math.max(-32768, Math.min(32767, sum >> 14));
+        sum &= 16383;
+        sum += sum2;
+        samples_values[samples_ptr + (32 - j)] = Math.max(-32768, Math.min(32767, sum >> 14));
+        sum &= 16383;
     }
 
-    samples_values[samples_ptr] = Math.fround((sum >> OUT_SHIFT) / 32768);
-    sum &= ((1 << OUT_SHIFT) - 1);
+    sum = synthLastSample(sum, synth_buf_values, offset);
+    samples_values[samples_ptr + 16] = Math.max(-32768, Math.min(32767, sum >> 14));
+    sum &= 16383;
     ref.dither_state = sum;
     offset = (offset - 32) & 511;
     ref.synth_buf_offset = offset;

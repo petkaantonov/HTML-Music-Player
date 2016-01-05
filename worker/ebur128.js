@@ -25,7 +25,7 @@ THE SOFTWARE.
 */
 const util = require("../js/util");
 
-const SILENCE_THRESHOLD = -70;
+const SILENCE_THRESHOLD = -63;
 const REFERENCE_LUFS = -18;
 const INTERPOLATION_PHASE_LENGTH = 12;
 
@@ -404,7 +404,6 @@ Ebur128.prototype.calc_gating_block = function(frames_per_block, optional_output
 
 Ebur128.prototype.checkSilence = function() {
     var loudness = this.loudness_momentary();
-
     if (loudness < SILENCE_THRESHOLD) {
         if (this.lastSilenceStarted === -1) {
             this.lastSilenceStarted = this.currentTime;

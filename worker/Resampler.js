@@ -140,7 +140,7 @@ const sinc = function(cutoff, x, N, table) {
 };
 
 function Resampler(nb_channels, in_rate, out_rate, quality) {
-    if (quality === undefined) quality = 5;
+    if (quality === undefined) quality = 2;
     this.initialised = 0;
     this.started = false;
     this.in_rate = 0;
@@ -471,7 +471,7 @@ Resampler.prototype._processNative = function(channel_index) {
     const N = this.filt_len;
     const mem_ptr = channel_index * this.mem_alloc_size;
     const mem_values = this.mem;
-    var out_sample = this._resamplerBasicDirectDouble(channel_index);
+    var out_sample = this._resamplerBasicDirectSingle(channel_index);
     var in_len = process_ref.in_len;
     var out_len = process_ref.out_len;
 
@@ -514,7 +514,7 @@ Resampler.prototype._resamplerMagic = function(channel_index, out_len) {
     return out_len;
 };
 
-Resampler.prototype._resamplerBasicDirectDouble = function(channel_index) {
+Resampler.prototype._resamplerBasicDirectSingle = function(channel_index) {
     const N = this.filt_len;
     var out_sample = 0;
     var last_sample = this.last_sample[channel_index];
@@ -526,7 +526,6 @@ Resampler.prototype._resamplerBasicDirectDouble = function(channel_index) {
     const den_rate = this.den_rate;
     const mem_ptr = channel_index * this.mem_alloc_size;
     const mem_values = this.mem;
-    var sum;
 
     var in_len = process_ref.in_len;
     var out_len = process_ref.out_len;
@@ -538,26 +537,20 @@ Resampler.prototype._resamplerBasicDirectDouble = function(channel_index) {
         const sinct_ptr = samp_frac_num * N;
         const iptr = process_ref.in_ptr + last_sample;
 
-        for (var i = 0; i < 4; ++i) {
-            resampler_basic_direct_double_accum[i] = 0;
-        }
+        var a1 = Math.fround(0);
+        var a2 = Math.fround(0);
+        var a3 = Math.fround(0);
+        var a4 = Math.fround(0);
 
         for (var j = 0; j < N; j += 4) {
-            resampler_basic_direct_double_accum[0] += sinc_table[sinct_ptr + j] *
-                    mem_values[mem_ptr + iptr + j];
-            resampler_basic_direct_double_accum[1] += sinc_table[sinct_ptr + j + 1] *
-                    mem_values[mem_ptr + iptr + j + 1];
-            resampler_basic_direct_double_accum[2] += sinc_table[sinct_ptr + j + 2] *
-                    mem_values[mem_ptr + iptr + j + 2];
-            resampler_basic_direct_double_accum[3] += sinc_table[sinct_ptr + j + 3] *
-                    mem_values[mem_ptr + iptr + j + 3];
+            a1 += Math.fround(sinc_table[sinct_ptr + j] * mem_values[mem_ptr + iptr + j]);
+            a2 += Math.fround(sinc_table[sinct_ptr + j + 1] * mem_values[mem_ptr + iptr + j + 1]);
+            a3 += Math.fround(sinc_table[sinct_ptr + j + 2] * mem_values[mem_ptr + iptr + j + 2]);
+            a4 += Math.fround(sinc_table[sinct_ptr + j + 3] * mem_values[mem_ptr + iptr + j + 3]);
         }
-        sum = resampler_basic_direct_double_accum[0] +
-                resampler_basic_direct_double_accum[1] +
-                resampler_basic_direct_double_accum[2] +
-                resampler_basic_direct_double_accum[3];
 
-        out_values[out_ptr + out_stride * out_sample++] = sum;
+        out_values[out_ptr + Math.imul(out_stride, out_sample++)] =
+            Math.fround(a1 + Math.fround(a2 + Math.fround(a3 + a4)));
         last_sample += int_advance;
         samp_frac_num += frac_advance;
 

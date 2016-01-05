@@ -117,6 +117,7 @@ function parseAcoustId(data) {
     var result = data.results && data.results[0] || null;
 
     if (!result) return null;
+    if (!result.recordings || result.recordings.length === 0) return null;
     var bestRecordingGroup = getBestRecordingGroup(result.recordings);
     if (!bestRecordingGroup) return null;
     var recording = bestRecordingGroup.recording;
@@ -212,7 +213,7 @@ MetadataRetriever.prototype.acoustIdQuery = function(track, duration, fingerprin
         timeout: 5000,
         // jQuery escaping is not supported by acoustid
         data: util.queryString({
-            client: "ULjKruIg",
+            client: "djbbrJFK",
             format: "jsonp",
             duration: duration,
             meta: "recordings+releasegroups+compress",
