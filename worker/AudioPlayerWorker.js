@@ -792,11 +792,42 @@ ChannelMixer.prototype.mix = function(input, length) {
     }
     if (length === undefined) length = input[0].length;
 
-    var method = this["_mix" + inputChannels + "to" + this.channels];
+    var outputChannels = this.channels;
+    if (outputChannels === 1) {
+        if (inputChannels === 2) {
+            return this._mix2to1(input, length);
+        } else if (inputChannels === 4) {
+            return this._mix4to1(input, length);
+        } else if (inputChannels === 6) {
+            return this._mix6to1(input, length);
+        }
+    } else if (outputChannels === 2) {
+        if (inputChannels === 1) {
+            return this._mix1to2(input, length);
+        } else if (inputChannels === 4) {
+            return this._mix4to2(input, length);
+        } else if (inputChannels === 6) {
+            return this._mix6to2(input, length);            
+        }
+    } else if (outputChannels === 4) {
+        if (inputChannels === 1) {
+            return this._mix1to4(input, length);
+        } else if (inputChannels === 2) {
+            return this._mix2to4(input, length);
+        }   else if (inputChannels === 6) {
+            return this._mix6to4(input, length);
+        }
+    } else if (outputChannels === 6) {
+        if (inputChannels === 1) {
+            return this._mix1to6(input, length);
+        } else if (inputChannels === 2) {
+            return this._mix2to6(input, length);
+        } else if (inputChannels === 4) {
+            return this._mix4to6(input, length);
+        }
+    }
 
-    if (!method) return this._mixAnyToAny(input, length);
-
-    return method.call(this, input, length);
+    return this._mixAnyToAny(input, length);
 };
 
 ChannelMixer.prototype._mix1to2 = function(input) {

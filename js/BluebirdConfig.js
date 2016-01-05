@@ -3,7 +3,7 @@ Promise.config({
     // Enable warnings.
     warnings: false,
     // Enable long stack traces.
-    longStackTraces: true,
+    longStackTraces: false,
     // Enable cancellation.
     cancellation: true
 });

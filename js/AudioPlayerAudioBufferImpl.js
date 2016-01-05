@@ -65,6 +65,9 @@ function AudioPlayer(audioContext) {
 
     this._messaged = this._messaged.bind(this);
     this._worker.addEventListener("message", this._messaged, false);
+
+    this._audioBuffersAllocated = 0;
+    this._arrayBuffersAllocated = 0;
 }
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 
@@ -119,6 +122,12 @@ AudioPlayer.prototype._allocAudioBuffer = function() {
     var ret = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
                                               BUFFER_SAMPLES,
                                               this._audioContext.sampleRate);
+    this._audioBuffersAllocated++;
+    if (this._audioBuffersAllocated > 10) {
+        if (window.console && console.warn) {
+            console.warn("Possible memory leak: over 10 audio buffers allocated");
+        }
+    }
     return ret;
 };
 
@@ -132,6 +141,12 @@ AudioPlayer.prototype._freeArrayBuffer = function(arrayBuffer) {
 AudioPlayer.prototype._allocArrayBuffer = function() {
     if (this._arrayBufferPool.length) return this._arrayBufferPool.shift();
     var length = this._audioContext.sampleRate * this._audioBufferTime;
+    this._arrayBuffersAllocated++;
+    if (this._arrayBuffersAllocated > 20) {
+        if (window.console && console.warn) {
+            console.warn("Possible memory leak: over 20 array buffers allocated");
+        }
+    }
     return new Float32Array(length);
 };
 

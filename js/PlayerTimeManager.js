@@ -119,37 +119,33 @@ PlayerTimeManager.prototype.setTotalTime = function(time) {
     this.checkVisibility(time);
 
     if (this.displayMode === DISPLAY_ELAPSED) {
-        var totalTime = util.toTimeString(time);
+        var totalTime = Math.floor(time);
         if (this._displayedTimeRight !== totalTime) {
-            this.$totalTime().text(totalTime);
+            this.$totalTime().text(util.toTimeString(totalTime));
             this._displayedTimeRight = totalTime;
         }
     }
-
 
     this.totalTime = time;
 };
 
 PlayerTimeManager.prototype.setCurrentTime = function(time) {
     
-    var currentTime = util.toTimeString(time);
+    var currentTime = Math.floor(time);
 
     if (this._displayedTimeLeft !== currentTime) {
         this._displayedTimeLeft = currentTime;
-        this.$currentTime().text(currentTime);
+        this.$currentTime().text(util.toTimeString(currentTime));
     }
 
     if (this.displayMode === DISPLAY_REMAINING) {
-        var remainingTime = Math.max(0, this.totalTime - time);
-        remainingTime = util.toTimeString(remainingTime);
-
+        var remainingTime = Math.floor(Math.max(0, this.totalTime - time));
         if (this._displayedTimeRight !== remainingTime) {
-            this.$totalTime().text("-" + remainingTime);
+            this.$totalTime().text("-" + util.toTimeString(remainingTime));
             this._displayedTimeRight = remainingTime;
         }
     }
     
-
     this.currentTime = time;
 };
 
