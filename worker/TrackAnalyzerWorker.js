@@ -1303,6 +1303,52 @@ util.unicode.decodeUtf8EncodedBinaryString = function(str) {
     return codePoints.join("");
 };
 
+const legacyListeners = Object.create(null);
+var nextLegacyId = 0;
+util.addLegacyListener = function(object, eventName, handler) {
+    var id = object.__legacyId;
+    if (id === undefined) {
+        id = object.__legacyId = nextLegacyId++;
+    }
+
+    var eventCache = legacyListeners[eventName];
+
+    if (!eventCache) {
+        eventCache = legacyListeners[eventName] = Object.create(null);
+    }
+
+    var listeners = eventCache[id];
+
+    if (!listeners) {
+        listeners = eventCache[id] = [];
+        object["on" + eventName] = function(e) {
+            for (var i = 0; i < listeners.length; ++i) {
+                listeners[i].call(this, e);
+            }
+        };
+    }
+
+    if (listeners.indexOf(handler) === -1) {
+        listeners.push(handler);
+    }
+};
+
+util.removeLegacyListener = function(object, eventName, handler) {
+    var eventCache = legacyListeners[eventName];
+
+    if (!eventCache) return;
+
+    var listeners = eventCache[object.__legacyId];
+
+    if (!listeners) return;
+
+    var index = listeners.indexOf(handler);
+
+    if (index >= 0) {
+        listeners.splice(index, 1);
+    }
+};
+
 util.stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };

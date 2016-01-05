@@ -4,6 +4,7 @@ const Animator = require("./Animator");
 const jdenticon = require("../lib/jdenticon");
 const Promise = require("../lib/bluebird");
 const base64 = require("../lib/base64");
+const util = require("./util");
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
@@ -30,10 +31,9 @@ function PlayerPictureManager(dom, player, opts) {
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
     if (this._enabledMediaMatcher) {
-        this._enabledMediaMatcher.addEventListener("change", this._enabledMediaMatchChanged, false);
+        util.addLegacyListener(this._enabledMediaMatcher, "change", this._enabledMediaMatchChanged);
         this._enabledMediaMatchChanged();
     }
-
 }
 
 PlayerPictureManager.prototype.$ = function() {

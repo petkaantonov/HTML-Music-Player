@@ -542,8 +542,8 @@ AudioPlayerSourceNode.prototype._fillBuffers = function() {
         return;
     }
 
-    if (this._bufferQueue.length < PRELOAD_BUFFER_COUNT) {
-        var count = PRELOAD_BUFFER_COUNT - this._bufferQueue.length;
+    if (this._bufferQueue.length < PRELOAD_BUFFER_COUNT * 2) {
+        var count = (PRELOAD_BUFFER_COUNT * 2) - this._bufferQueue.length;
         this._loadingBuffers = true;
         var fillRequestId = ++this._audioBufferFillRequestId;
 

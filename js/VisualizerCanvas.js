@@ -3,6 +3,7 @@
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = "rgb(11,32,53)";
 const Animator = require("./Animator");
+const util = require("./util");
 
 const $ = require("../lib/jquery");
 
@@ -83,12 +84,12 @@ function VisualizerCanvas(targetCanvas, opts) {
     }
 
     if (this.enabledMediaMatcher) {
-        this.enabledMediaMatcher.addEventListener("change", this.enabledMediaMatchChanged, false);
+        util.addLegacyListener(this.enabledMediaMatcher, "change", this.enabledMediaMatchChanged);
         this.enabledMediaMatchChanged();
     }
 
     if (this.binSizeChangeMatcher) {
-        this.binSizeChangeMatcher.addEventListener("change", this.binSizeMediaMatchChanged, false);
+        util.addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
     }
 
     this.enabled = true;
@@ -208,7 +209,8 @@ VisualizerCanvas.prototype.drawIdleBins = function(now) {
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
 
-    this.context.clearRect(0, 0, this.width, this.height);
+    this.context.fillStyle = "rgba(255, 255, 255, 255)";
+    this.context.fillRect(0, 0, this.width, this.height);
     this.needToDraw = true;
 
     var highestY = this.getHighestY();
