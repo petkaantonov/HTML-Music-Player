@@ -24,7 +24,7 @@ Default2dImageRenderer.prototype.drawScene = function() {
 Default2dImageRenderer.prototype.draw = function(sourceX, sourceY, sourceWidth, sourceHeight,
                                                           x, y, destWidth, destHeight) {
     this.context.drawImage(this.image, sourceX, sourceY, sourceWidth, sourceHeight,
-                                       x, this.height - y - destHeight, sourceWidth, sourceHeight);
+                                       x, this.height - y - destHeight, destWidth, destHeight);
 };
 
 Default2dImageRenderer.prototype.setDimensions = function(width, height) {
