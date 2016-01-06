@@ -218,8 +218,8 @@ var visualizerCanvas = new VisualizerCanvas("#visualizer", {
     capSeparator: 2,
     capStyle: "rgb(37,117,197)",
     targetFps: 48,
-    capDropTime: 600,
-    ghostOpacity: 0.25,
+    capDropTime: 750,
+    ghostOpacity: 0.14,
     capInterpolator: "ACCELERATE_CUBIC",
     enabledMediaMatcher: visualizerEnabledMediaMatcher,
     binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
