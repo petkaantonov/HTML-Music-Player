@@ -14,6 +14,7 @@ const GlobalUi = require("./GlobalUi");
 const $ = require("../lib/jquery");
 
 function TransitionInfo(visualizerCanvas) {
+    this.duration = -1;
     this.capStarted = -1;
     this.peakSample = -1;
     this.visualizerCanvas = visualizerCanvas;
@@ -22,7 +23,7 @@ function TransitionInfo(visualizerCanvas) {
 TransitionInfo.prototype.getCapPosition = function(now) {
     if (this.capStarted === -1) return 0;
     var elapsed = now - this.capStarted;
-    var duration = this.visualizerCanvas.capDropTime;
+    var duration = this.duration;
     if (elapsed >= duration) {
         this.capStarted = -1;
     }
@@ -37,11 +38,14 @@ TransitionInfo.prototype.inProgress = function() {
 TransitionInfo.prototype.reset = function() {
     this.capStarted = -1;
     this.peakSample = -1;
+    this.duration = -1;
 };
 
 TransitionInfo.prototype.start = function(peakSample, now) {
     this.capStarted = now;
     this.peakSample = peakSample;
+    var mul = 1 - Math.max(0.36, peakSample);
+    this.duration = (1 - (mul * mul)) * this.visualizerCanvas.capDropTime;
 };
 
 function GraphicsSource(visualizerCanvas) {
