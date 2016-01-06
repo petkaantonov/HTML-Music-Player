@@ -3,8 +3,9 @@ const $ = require("../lib/jquery");
 const Animator = require("./Animator");
 const jdenticon = require("../lib/jdenticon");
 const Promise = require("../lib/bluebird");
-const base64 = require("../lib/base64");
+
 const util = require("./util");
+const domUtil = require("./DomUtil");
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
@@ -181,29 +182,20 @@ const jdenticonSize = (IMAGE_DIMENSIONS * (self.devicePixelRatio || 1))|0;
 jdenticonCanvas.width = jdenticonCanvas.height = jdenticonSize;
 const jdenticonContext = jdenticonCanvas.getContext("2d");
 
-PlayerPictureManager.generateImageForTrack = function(track) {
-    return new Promise(function(resolve) {
-        // Chrome has weird bugs with notifications when image has alpha.
-        var clearRect = jdenticonContext.clearRect;
-        // Prevent clearRect which would reset alpha channel.
-        jdenticonContext.clearRect = function() {};
-        clearRect.call(jdenticonContext, 0, 0, jdenticonSize, jdenticonSize);
-        jdenticonContext.save();
-        jdenticonContext.fillStyle = "rgba(255, 255, 255, 255)";
-        jdenticonContext.fillRect(0, 0, jdenticonSize, jdenticonSize);
-        jdenticonContext.restore();
-        jdenticon.drawIcon(jdenticonContext, track.getUid(), jdenticonSize);
-        jdenticonContext.clearRect = clearRect;
-
-        var data = jdenticonCanvas.toDataURL("image/png").split("base64,")[1];
-        resolve(new Blob([base64.toByteArray(data)], {type: "image/png"}));
-    }).then(function(blob) {
-        var url = URL.createObjectURL(blob);
-        var image = new Image();
-        image.src = url;
-        return image;
-    });
-};
+PlayerPictureManager.generateImageForTrack = Promise.method(function(track) {
+    // Chrome has weird bugs with notifications when image has alpha.
+    var clearRect = jdenticonContext.clearRect;
+    // Prevent clearRect which would reset alpha channel.
+    jdenticonContext.clearRect = function() {};
+    clearRect.call(jdenticonContext, 0, 0, jdenticonSize, jdenticonSize);
+    jdenticonContext.save();
+    jdenticonContext.fillStyle = "rgba(255, 255, 255, 255)";
+    jdenticonContext.fillRect(0, 0, jdenticonSize, jdenticonSize);
+    jdenticonContext.restore();
+    jdenticon.drawIcon(jdenticonContext, track.getUid(), jdenticonSize);
+    jdenticonContext.clearRect = clearRect;
+    return domUtil.canvasToImage(jdenticonCanvas);
+});
 
 const defaultImage = new Image();
 defaultImage.src = "/dist/images/icon.png";

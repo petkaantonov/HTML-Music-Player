@@ -4,6 +4,11 @@ const SHADOW_BLUR = 2;
 const SHADOW_COLOR = "rgb(11,32,53)";
 const Animator = require("./Animator");
 const util = require("./util");
+const domUtil = require("./DomUtil");
+const Default2dImageRenderer = require("./Default2dImageRenderer");
+const WebGl2dImageRenderer = require("./WebGl2dImageRenderer");
+const EventEmitter = require("events");
+const GlobalUi = require("./GlobalUi");
 
 const $ = require("../lib/jquery");
 
@@ -38,21 +43,137 @@ TransitionInfo.prototype.start = function(peakSample, now) {
     this.peakSample = peakSample;
 };
 
+function GraphicsSource(visualizerCanvas) {
+    var gapWidth = visualizerCanvas.gapWidth;
+    var binsNeeded = visualizerCanvas.height * 2 + 1;
+    var binWidthPixels = visualizerCanvas.binWidthSourcePixels();
+    var binHeightPixels = visualizerCanvas.binHeightSourcePixels();
+    var capWidthPixels = 2 + binWidthPixels;
+    var totalWidth = binsNeeded * binWidthPixels * 2 + capWidthPixels;
+    var width = 1024;
+    var rows = 1;
+    var columns = (width / binWidthPixels)|0;
+
+    while (totalWidth > width) {
+        totalWidth -= width;
+        rows++;
+    }
+
+    var height = Math.pow(2, Math.ceil(Math.log(binHeightPixels * rows) * Math.LOG2E));
+    var canvas = document.createElement("canvas");
+    canvas.height = height;
+    canvas.width = width;
+
+
+    var context = canvas.getContext("2d");
+    context.imageSmoothingEnabled = false;
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    var highestBinHeight = visualizerCanvas.getHighestBinHeight();
+
+    context.shadowBlur = SHADOW_BLUR;
+    context.shadowColor = SHADOW_COLOR;
+
+    var col = 0;
+    var row = 0;
+
+    this.binPositions = new Int16Array(200 * 2);
+    this.alphaBinPositions = new Int16Array(200 * 2);
+
+    var positions = this.binPositions;
+    var positionIndex = 0;
+
+    for (var i = 0; i <= 100; i += 0.5) {
+        var width = visualizerCanvas.binWidth;
+        var height = (i / 100 * highestBinHeight);
+        var x = col * binWidthPixels + visualizerCanvas.binWidth;
+        var y = (row * binHeightPixels + SHADOW_BLUR) + (highestBinHeight - height);
+
+        var gradient = context.createLinearGradient(0, y, 0, y + height);
+        gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
+        gradient.addColorStop(0.2, "rgb(219, 241, 251)");
+        gradient.addColorStop(0.8, "rgb(184, 228, 246)");
+        gradient.addColorStop(1, 'rgb(166, 202, 238)');
+
+        context.fillStyle = gradient;
+        context.fillRect(x, y, width, height);
+
+        positions[positionIndex++] = x - gapWidth;
+        positions[positionIndex++] = y;
+
+        col++;
+        if (col >= columns) {
+            col = 0;
+            row++;
+        }
+    }
+
+    positions = this.alphaBinPositions;
+    positionIndex = 0;
+    context.shadowBlur = 0;
+    context.shadowColor = "transparent";
+    context.globalAlpha = visualizerCanvas.ghostOpacity * 2;
+
+    for (var i = 0; i < this.binPositions.length; i += 2) {
+        var width = visualizerCanvas.binWidth;
+        var height = (i / 4 / 100 * highestBinHeight);
+        var x = col * binWidthPixels + visualizerCanvas.binWidth;
+        var y = (row * binHeightPixels + SHADOW_BLUR) + (highestBinHeight - height);
+        var srcX = this.binPositions[i];
+        var srcY = this.binPositions[i + 1];
+
+        context.drawImage(canvas, srcX - gapWidth, srcY - SHADOW_BLUR,
+                                  width + SHADOW_BLUR * 2, height + SHADOW_BLUR * 2,
+                                  x|0, y|0,
+                                  width + SHADOW_BLUR * 2, height + SHADOW_BLUR * 2);
+
+        positions[positionIndex++] = (x|0) + 2 - gapWidth;
+        positions[positionIndex++] = (y|0) + 2;
+
+        col++;
+        if (col >= columns) {
+            col = 0;
+            row++;
+        }
+    }
+
+    context.shadowBlur = SHADOW_BLUR;
+    context.shadowColor = SHADOW_COLOR;
+    context.globalAlpha = 1;
+    context.fillStyle = visualizerCanvas.capStyle;
+    var x = col * binWidthPixels + visualizerCanvas.binWidth + 5;
+    var y = (row * binHeightPixels + SHADOW_BLUR) + 16;
+    context.fillRect(x, y, visualizerCanvas.binWidth, visualizerCanvas.capHeight);
+
+    this.capX = x - SHADOW_BLUR / 2;
+    this.capY = y + SHADOW_BLUR / 2;
+    this.image = null;
+    this.ready = domUtil.canvasToImage(canvas).bind(this).then(function(image) {
+        this.image = image;
+        canvas.width = canvas.height = 0;
+    }).bind();
+}
+
+GraphicsSource.prototype.isReady = function() {
+    return this.image !== null;
+};
+
 function VisualizerCanvas(targetCanvas, opts) {
+    EventEmitter.call(this);
+    this.webglSupported = WebGl2dImageRenderer.isSupported();
     var $targetCanvas = $(targetCanvas);
     targetCanvas = $targetCanvas[0];
     var width = $targetCanvas.width();
     var height = $targetCanvas.height();
     this.needToDraw = true;
-    this.targetCanvas = targetCanvas;
-    this.context = this.targetCanvas.getContext("2d");
+    this.canvas = targetCanvas;
     this.width = targetCanvas.width = width;
     this.height = targetCanvas.height = height;
     this.binWidth = opts.binWidth;
     this.gapWidth = opts.gapWidth;
     this.capHeight = opts.capHeight;
     this.capSeparator = opts.capSeparator;
-    this.gradients = new Array(this.height + 1);
     this.capStyle = opts.capStyle;
     this.targetFps = opts.targetFps;
     this.capInterpolator = null;
@@ -62,22 +183,11 @@ function VisualizerCanvas(targetCanvas, opts) {
     this.currentCapPositions = new Float64Array(this.getNumBins());
     this.emptyBins = new Float64Array(this.getNumBins());
     this.transitionInfoArray = new Array(this.getNumBins());
-
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
-
-    for (var i = 0; i < this.gradients.length; ++i) {
-        var gradient = this.context.createLinearGradient(0, 0, 0, i);
-        gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
-        gradient.addColorStop(0.2, "rgb(219, 241, 251)");
-        gradient.addColorStop(0.8, "rgb(184, 228, 246)");
-        gradient.addColorStop(1, 'rgb(166, 202, 238)');
-        this.gradients[i] = gradient;
-    }
-
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
@@ -93,12 +203,60 @@ function VisualizerCanvas(targetCanvas, opts) {
     }
 
     this.enabled = true;
-    this.binCache = null;
-    this.capCache = null;
-    this.context.imageSmoothingEnabled = false;
-    this.populateCache();
-    this.drawIdleBins(Date.now());
+    this.source = new GraphicsSource(this);
+    this.renderer = null;
+    this.source.ready.bind(this).then(function onSourceReady() {
+        if (this.canUseHardwareRendering()) {
+            this.renderer = new WebGl2dImageRenderer(this.source.image, this);
+        }
+
+        if (!this.renderer) {
+            this.resetCanvas();
+            this.renderer = new Default2dImageRenderer(this.source.image, this);
+        }
+
+        try {
+            this.renderer.init(this.width, this.height);
+        } catch (e) {
+            GlobalUi.snackbar.show(e.message);
+            if (this.canUseHardwareRendering()) {
+                this.webglSupported = false;
+                this.renderer = null;
+                return onSourceReady.call(this);
+            } else {
+                this.enabled = false;
+            }
+        }
+        this.drawIdleBins(Date.now());
+    });
 }
+util.inherits(VisualizerCanvas, EventEmitter);
+
+VisualizerCanvas.prototype.resetCanvas = function() {
+    var canvas = document.createElement("canvas");
+    canvas.className = this.canvas.className;
+    canvas.width = this.width;
+    canvas.height = this.height;
+    this.canvas.parentNode.replaceChild(canvas, this.canvas);
+    this.emit("canvasChange", canvas, this.canvas);
+    this.canvas = canvas;
+};
+
+VisualizerCanvas.prototype.useSoftwareRendering = function() {
+    if (!this.renderer.usesHardwareAcceleration()) return;
+};
+
+VisualizerCanvas.prototype.useHardwareRendering = function() {
+    if (this.renderer.usesHardwareAcceleration() || !this.webglSupported) return;
+};
+
+VisualizerCanvas.prototype.canUseHardwareRendering = function() {
+    return this.webglSupported;
+};
+
+VisualizerCanvas.prototype.isHardwareRendering = function() {
+    return this.renderer.usesHardwareAcceleration();
+};
 
 VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
     this.enabled = !!this.enabledMediaMatcher.matches;
@@ -107,10 +265,10 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
     if (this.isEnabled()) {
-        var width = $(this.targetCanvas).width();
+        var width = $(this.canvas).width();
         if (width !== this.width) {
             this.width = width;
-            this.targetCanvas.width = width;
+            this.canvas.width = width;
 
             this.currentCapPositions = new Float64Array(this.getNumBins());
             this.emptyBins = new Float64Array(this.getNumBins());
@@ -120,6 +278,7 @@ VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
                 this.transitionInfoArray[i] = new TransitionInfo(this);
             }
             this.resetCaps();
+            this.renderer.setDimensions(this.width, this.height);
         }
     }
 };
@@ -134,38 +293,12 @@ VisualizerCanvas.prototype.resetCaps = function() {
     }
 };
 
-VisualizerCanvas.prototype.populateCache = function() {
-    this.binCache = new Array(this.height * 2 + 1);
+VisualizerCanvas.prototype.binWidthSourcePixels = function() {
+    return this.binWidth + this.gapWidth * 2 + SHADOW_BLUR / 2;
+};
 
-    for (var j = 0; j < this.binCache.length; ++j) {
-        var y = j * 0.5;
-        var canvas = document.createElement("canvas");
-        canvas.style.transform = "translate3d(0,0,0)";
-        canvas.height = ((y + 0.5) | 0) + SHADOW_BLUR;
-        canvas.width = this.binWidth + this.gapWidth * 2;
-        var context = canvas.getContext("2d");
-        context.imageSmoothingEnabled = false;
-        context.save();
-        context.fillStyle = this.gradients[y|0];
-        context.shadowBlur = SHADOW_BLUR;
-        context.shadowColor = SHADOW_COLOR
-        context.fillRect(this.gapWidth, SHADOW_BLUR, this.binWidth, y);
-        context.restore();
-        this.binCache[j] = canvas;
-    }
-
-    this.capCache = document.createElement("canvas");
-    this.capCache.style.transform = "translate3d(0,0,0)";
-    this.capCache.width = this.binWidth + this.gapWidth * 2;
-    this.capCache.height = this.capHeight + SHADOW_BLUR;
-    var context = this.capCache.getContext("2d");
-    context.imageSmoothingEnabled = false;
-    context.save();
-    context.fillStyle = this.capStyle;
-    context.shadowBlur = SHADOW_BLUR;
-    context.shadowColor = SHADOW_COLOR;
-    context.fillRect(this.gapWidth, SHADOW_BLUR / 2, this.binWidth, this.capHeight);
-    context.restore();
+VisualizerCanvas.prototype.binHeightSourcePixels = function() {
+    return (this.height + SHADOW_BLUR * 2);
 };
 
 VisualizerCanvas.prototype.setCapInterpolator = function(name) {
@@ -181,16 +314,8 @@ VisualizerCanvas.prototype.getNumBins = function() {
     return Math.floor(this.width / (this.binWidth + this.gapWidth));
 };
 
-VisualizerCanvas.prototype.getHighestY = function() {
+VisualizerCanvas.prototype.getHighestBinHeight = function() {
     return this.height - (this.capSeparator + this.capHeight);
-};
-
-VisualizerCanvas.prototype.drawCap = function(x, y) {
-    this.context.drawImage(this.capCache, x|0, (this.height - y)|0);
-};
-
-VisualizerCanvas.prototype.drawBin = function(x, y) {
-    this.context.drawImage(this.binCache[y << 1], x|0, (this.height - y)|0);
 };
 
 VisualizerCanvas.prototype.drawIdleBins = function(now) {
@@ -202,29 +327,30 @@ VisualizerCanvas.prototype.drawIdleBins = function(now) {
                 return;
             }
         }
+        
         this.needToDraw = false;
     }
 };
 
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
-
-    this.context.fillStyle = "rgba(255, 255, 255, 255)";
-    this.context.fillRect(0, 0, this.width, this.height);
+    if (!this.source.isReady()) return;
+    this.renderer.initScene(bins, 3);
     this.needToDraw = true;
 
-    var highestY = this.getHighestY();
+    var highestY = this.getHighestBinHeight();
     var binSpace = this.binWidth + this.gapWidth;
+    var drawnBinSpace = binSpace + this.gapWidth;
     var context = this.context;
     var height = this.height;
     var capHeight = this.capHeight;
     var capSpace = this.capHeight + this.capSeparator;
     var binWidth = this.binWidth;
-
+    var gapWidth = this.gapWidth;
     var currentCapPositions = this.currentCapPositions;
     var transitionInfoArray = this.transitionInfoArray;
     
-    this.context.globalAlpha = this.ghostOpacity;
+    var binPositions = this.source.alphaBinPositions;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
@@ -237,32 +363,53 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
 
         if (binValue < currentCapBasePosition) {
             currentCapPositions[i] = currentCapBasePosition;
-            var y = Math.round(currentCapBasePosition * this.getHighestY() * 2) / 2;
             var x = i * binSpace;
-            this.drawBin(x, y);
+            var y = Math.round(currentCapBasePosition * highestY * 2) / 2;
+
+            var sourcePositionIndex = Math.min(398, Math.round(currentCapBasePosition * 100 * 2) * 2);
+            var sourcePositionYValue = binPositions[sourcePositionIndex + 1];
+            var sourceHeight = height - (sourcePositionYValue % height) + SHADOW_BLUR;
+            this.renderer.draw(binPositions[sourcePositionIndex], sourcePositionYValue - SHADOW_BLUR,
+                                drawnBinSpace, sourceHeight,
+                                x - gapWidth, 0,
+                                drawnBinSpace, y);
         } else {
             currentCapPositions[i] = -1;
             transitionInfo.start(binValue, now);
         }
     }
 
-    context.fillStyle = this.capStyle;
-    context.globalAlpha = 1;
+    var capSourceX = this.source.capX;
+    var capSourceY = this.source.capY - SHADOW_BLUR;
+    var capWidth = binWidth + SHADOW_BLUR;
+    var capPixelHeight = capHeight + SHADOW_BLUR;
+
+    binPositions = this.source.binPositions;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
-        var y = Math.round(binValue * highestY * 2) / 2;
         var x = i * binSpace;
+        var y = Math.round(binValue * highestY * 2) / 2;
 
         var currentCapBasePosition = currentCapPositions[i];
         if (binValue < currentCapBasePosition) {
             var capY = Math.round((currentCapBasePosition * highestY + capSpace) * 2) / 2;
-            this.drawCap(x, capY);
+            this.renderer.draw(capSourceX, capSourceY, capWidth, capPixelHeight,
+                               x - gapWidth, capY - SHADOW_BLUR, capWidth, capPixelHeight);
         } else {
-            this.drawCap(x, y + capSpace);
+            this.renderer.draw(capSourceX, capSourceY, capWidth, capPixelHeight,
+                               x - gapWidth, y + capSpace - SHADOW_BLUR, capWidth, capPixelHeight);
         }
-        this.drawBin(x, y);
+
+        var sourcePositionIndex = Math.min(398, Math.round(binValue * 100 * 2) * 2);
+        var sourcePositionYValue = binPositions[sourcePositionIndex + 1];
+        var sourceHeight = height - (sourcePositionYValue % height) + SHADOW_BLUR;
+        this.renderer.draw(binPositions[sourcePositionIndex], sourcePositionYValue - SHADOW_BLUR,
+                           drawnBinSpace, sourceHeight,
+                           x - gapWidth, 0,
+                           drawnBinSpace, y);
     }
+    this.renderer.drawScene();
 };
 
 module.exports = VisualizerCanvas;
