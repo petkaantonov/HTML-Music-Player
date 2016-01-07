@@ -1,6 +1,7 @@
 "use strict";
 
 const pixelRatio = window.devicePixelRatio || 1;
+
 const SHADOW_BLUR = 2 * pixelRatio;
 const SHADOW_COLOR = "rgb(11,32,53)";
 const Animator = require("./Animator");
@@ -117,13 +118,17 @@ function GraphicsSource(visualizerCanvas) {
         positions[positionIndex++] = y;
 
         col++;
-        if (col >= columns) {
-            col = 0;
+        if (col >= columns - 1) {
+            col = 1;
             row++;
         }
     }
 
     col++;
+    if (col >= columns - 1) {
+        col = 1;
+        row++;
+    }
 
     context.shadowBlur = SHADOW_BLUR;
     context.shadowColor = SHADOW_COLOR;
@@ -196,6 +201,8 @@ function VisualizerCanvas(targetCanvas, opts) {
     this.source.ready.bind(this).then(function onSourceReady() {
         if (this.canUseHardwareRendering()) {
             this.renderer = new WebGl2dImageRenderer(this.source.image, this);
+        } else {
+            GlobalUi.snackbar.show("Hardware acceleration disabled");
         }
 
         if (!this.renderer) {

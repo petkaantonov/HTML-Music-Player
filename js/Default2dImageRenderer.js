@@ -53,6 +53,8 @@ Default2dImageRenderer.prototype.drawBins = function(bins) {
     var gapWidth = this.visualizerCanvas.gapWidth;
     var fullWidth = binWidth + gapWidth * 2;
     var width = binWidth + gapWidth;
+    // TODO this is actually sourceRowHeight.
+    var canvasHeight = this.height;
     var sourceBinPositions = this.visualizerCanvas.source.binPositions;
 
     for (var i = 0; i < bins.length; ++i) {
@@ -65,7 +67,7 @@ Default2dImageRenderer.prototype.drawBins = function(bins) {
         var srcX1 = sourceBinPositions[y2 * 2];
         var srcY1 = sourceBinPositions[y2 * 2 + 1];
         var srcX2 = srcX1 + fullWidth;
-        var srcY2 = srcY1 + (highestBinHeight - srcY1);
+        var srcY2 = srcY1 + (highestBinHeight - (srcY1 % canvasHeight));
 
         this.context.drawImage(this.image, srcX1, srcY1,
                                            fullWidth, highestBinHeight - srcY1,
