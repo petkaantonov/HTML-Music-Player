@@ -28,6 +28,11 @@ TransitionInfo.prototype.getCapPosition = function(now) {
         this.capStarted = -1;
     }
 
+    if (elapsed < 95) return this.peakSample;
+
+    elapsed -= 95;
+    duration -= 95;
+
     return (1 - this.visualizerCanvas.capInterpolator(elapsed, duration)) * this.peakSample;
 };
 
@@ -51,12 +56,12 @@ TransitionInfo.prototype.start = function(peakSample, now) {
 function GraphicsSource(visualizerCanvas) {
     var gapWidth = visualizerCanvas.gapWidth;
     var highestBinHeight = visualizerCanvas.getHighestBinHeight();
-    var binsNeeded = (highestBinHeight + 1) * 2;
+    var binsNeeded = (highestBinHeight + 1);
     var binWidthPixels = visualizerCanvas.binWidthSourcePixels();
     var binHeightPixels = visualizerCanvas.binHeightSourcePixels();
     var capWidthPixels = 16 * pixelRatio + 2 + binWidthPixels;
     var totalWidth = binsNeeded * binWidthPixels + capWidthPixels;
-    var width = 1024;
+    var width = Math.min(Math.pow(2, Math.ceil(Math.log(totalWidth) * Math.LOG2E)), 1024);
     var rows = 1;
     var columns = (width / binWidthPixels)|0;
     while (totalWidth > width) {
@@ -82,7 +87,6 @@ function GraphicsSource(visualizerCanvas) {
     var row = 0;
 
     this.binPositions = new Int16Array(highestBinHeight * 2);
-    this.alphaBinPositions = new Int16Array(highestBinHeight * 2);
 
     var positions = this.binPositions;
     var positionIndex = 0;
@@ -93,13 +97,18 @@ function GraphicsSource(visualizerCanvas) {
         var y = (row * binHeightPixels + SHADOW_BLUR) + (highestBinHeight - height);
         var gradient = context.createLinearGradient(0, y, 0, y + height);
         gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
+        gradient.addColorStop(0.7, "rgb(189, 196, 204)");
+        gradient.addColorStop(1, "rgb(183, 190, 198)");
+        
+        //context.fillStyle = "rgba(99, 113, 126, 255)";
+        context.fillStyle = gradient; //"rgba(183, 190, 198, 255)";
+        context.fillRect(x - gapWidth, y, width + gapWidth * 2, height + gapWidth);
+
+        gradient = context.createLinearGradient(0, y, 0, y + height);
+        gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
         gradient.addColorStop(0.2, "rgb(219, 241, 251)");
         gradient.addColorStop(0.8, "rgb(184, 228, 246)");
         gradient.addColorStop(1, 'rgb(166, 202, 238)');
-        
-        context.fillStyle = "rgba(99, 113, 126, 255)";
-        context.fillRect(x - gapWidth, y, width + gapWidth * 2, height + gapWidth);
-
         context.fillStyle = gradient;
         context.fillRect(x, y, width, height);
 
@@ -115,46 +124,6 @@ function GraphicsSource(visualizerCanvas) {
     }
 
     col++;
-    positions = this.alphaBinPositions;
-    positionIndex = 0;
-    context.shadowBlur = 0;
-    context.shadowColor = "transparent";
-    context.globalAlpha = visualizerCanvas.ghostOpacity;
-
-    var intermediateCanvas = document.createElement("canvas");
-    intermediateCanvas.width = gapWidth * 2 + width;
-    intermediateCanvas.height = highestBinHeight + SHADOW_BLUR;
-    var intermediateContext = intermediateCanvas.getContext("2d");
-
-    for (var i = 0; i <= highestBinHeight; i++) {
-        intermediateContext.fillStyle = "rgba(255, 255, 255, 255)"
-        intermediateContext.fillRect(0, 0, intermediateCanvas.width, intermediateCanvas.height);
-        var height = i;
-        var x = col * binWidthPixels;
-        var y = (row * binHeightPixels + SHADOW_BLUR) + (highestBinHeight - height);
-        var gradient = intermediateContext.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0.0, 'rgba(250, 250, 250, 0)');
-        gradient.addColorStop(0.1, 'rgb(250, 250, 250)');
-        gradient.addColorStop(0.2, "rgb(219, 241, 251)");
-        gradient.addColorStop(0.8, "rgb(184, 228, 246)");
-        gradient.addColorStop(1, 'rgb(166, 202, 238)');
-        
-        intermediateContext.fillStyle = "rgba(99, 113, 126, 255)";
-        intermediateContext.fillRect(0, 0, width + 2 * gapWidth, height + SHADOW_BLUR);
-        intermediateContext.fillStyle = gradient;
-        intermediateContext.fillRect(gapWidth, gapWidth, width, height);
-
-        context.drawImage(intermediateCanvas, x - gapWidth, y);
-
-        positions[positionIndex++] = x - gapWidth;
-        positions[positionIndex++] = y;
-
-        col++;
-        if (col >= columns) {
-            col = 0;
-            row++;
-        }
-    }
 
     context.shadowBlur = SHADOW_BLUR;
     context.shadowColor = SHADOW_COLOR;
@@ -200,13 +169,13 @@ function VisualizerCanvas(targetCanvas, opts) {
     this.capDropTime = opts.capDropTime;
     this.currentCapPositions = new Float32Array(this.getNumBins());
     this.emptyBins = new Float32Array(this.getNumBins());
-    
     this.transitionInfoArray = new Array(this.getNumBins());
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
+
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
@@ -329,6 +298,10 @@ VisualizerCanvas.prototype.getTargetFps = function() {
     return this.targetFps;
 };
 
+VisualizerCanvas.prototype.getMaxBins = function() {
+    return Math.floor((620 * pixelRatio) / (this.binWidth + this.gapWidth));
+};
+
 VisualizerCanvas.prototype.getNumBins = function() {
     return Math.floor(this.width / (this.binWidth + this.gapWidth));
 };
@@ -351,27 +324,18 @@ VisualizerCanvas.prototype.drawIdleBins = function(now) {
     }
 };
 
+VisualizerCanvas.prototype.objectsPerBin = function() {
+    return 3;
+};
+
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
     if (!this.source.isReady()) return;
-    var prevBins = this.prevBins;
     this.renderer.initScene(bins, 3);
     this.needToDraw = true;
 
-    var highestBinHeight = this.getHighestBinHeight();
-    var binSpace = this.binWidth + this.gapWidth;
-    var drawnBinSpace = binSpace + this.gapWidth;
-    var context = this.context;
-    var height = this.height;
-    var capHeight = this.capHeight;
-    var capSeparator = this.capSeparator;
-    var capSpace = this.capHeight + capSeparator;
-    var binWidth = this.binWidth;
-    var gapWidth = this.gapWidth;
     var currentCapPositions = this.currentCapPositions;
     var transitionInfoArray = this.transitionInfoArray;
-    
-    var binPositions = this.source.alphaBinPositions;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
@@ -384,51 +348,16 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
 
         if (binValue < currentCapBasePosition) {
             currentCapPositions[i] = currentCapBasePosition;
-            var x = i * binSpace;
-            var ghostBinY = (currentCapBasePosition * highestBinHeight)|0;
-            var sourcePositionYValue = binPositions[ghostBinY * 2 + 1];
-            var sourceHeight = highestBinHeight - (sourcePositionYValue % height);
-            this.renderer.draw(binPositions[ghostBinY * 2], sourcePositionYValue,
-                               drawnBinSpace, sourceHeight,
-                               x - gapWidth, 0,
-                               drawnBinSpace, ghostBinY);
         } else {
             currentCapPositions[i] = -1;
             transitionInfo.start(binValue, now);
         }
     }
 
-    var capSourceX = this.source.capX - 1 * pixelRatio;
-    var capSourceY = this.source.capY - 1 * pixelRatio;
-    var capWidth = binWidth + 2 * pixelRatio;
-    var capPixelHeight = capHeight + 2 * pixelRatio;
-
-    binPositions = this.source.binPositions;
-
-    for (var i = 0; i < bins.length; ++i) {
-        var binValue = bins[i];
-        var x = i * binSpace;
-        var y = (binValue * highestBinHeight)|0;
-
-        var currentCapBasePosition = currentCapPositions[i];
-        if (binValue < currentCapBasePosition) {
-            var capY = (currentCapBasePosition * highestBinHeight) | 0;
-            this.renderer.draw(capSourceX, capSourceY, capWidth, capPixelHeight,
-                               x - gapWidth, (capY + capSeparator)|0, capWidth, capPixelHeight);
-        } else {
-            this.renderer.draw(capSourceX, capSourceY, capWidth, capPixelHeight,
-                               x - gapWidth, (y + capSeparator)|0, capWidth, capPixelHeight);
-        }
-
-        var sourcePositionYValue = binPositions[y * 2 + 1];
-        var sourceHeight = highestBinHeight - (sourcePositionYValue % height);
-
-        this.renderer.draw(binPositions[y * 2], sourcePositionYValue,
-                           drawnBinSpace, sourceHeight,
-                           x - gapWidth, 0,
-                           drawnBinSpace, y);
-    }
+    this.renderer.drawCaps(bins);
+    this.renderer.drawBins(bins);
     this.renderer.drawScene();
 };
+
 
 module.exports = VisualizerCanvas;
