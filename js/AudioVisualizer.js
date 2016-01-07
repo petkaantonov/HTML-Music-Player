@@ -158,7 +158,7 @@ AudioVisualizer.prototype.gotFrame = function(now) {
         return this.visualizerCanvas.drawIdleBins(now);
     }
 
-    if (!this.sourceNode.getUpcomingSamples(this.buffer[0], this.multiplier)) {
+    if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
         return;
     }
     
@@ -239,8 +239,9 @@ AudioVisualizer.prototype.fillWindow = function() {
 AudioVisualizer.prototype.forwardFft = function() {
     var samples = this.buffer[0];
     var window = this.buffer[1];
+    var multiplier = this.multiplier;
     for (var i = 0; i < samples.length; ++i) {
-        samples[i] = Math.fround(samples[i] * window[i]);
+        samples[i] = Math.fround(samples[i] * window[i] * multiplier);
     }
     realFft(this.buffer[0]);
 };

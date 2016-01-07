@@ -20,18 +20,28 @@ const audioCtx = (function() {
     if (!window.AudioContext) {
         patchAudioContext(AudioContext, ret);
     }
+
     return ret;
 })();
 
-const audioPlayer = new AudioPlayer(audioCtx);
+const audioPlayer = new AudioPlayer(audioCtx, 20);
 
 function touchPrimer(e) {
+    try {
+        audioCtx.resume().catch(function(){});
+    } catch (e) {}
+
     window.removeEventListener(e.type, touchPrimer, false);
     var buffer = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
     var source = audioCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(audioCtx.destination);
     source.start(0);
+    setTimeout(function() {
+        if (audioCtx.state !== "running") {
+            window.addEventListener("touchend", touchPrimer, false);
+        }
+    }, 0);
 }
 
 window.addEventListener("touchend", touchPrimer, false);
@@ -596,6 +606,7 @@ function Player(dom, playlist, opts) {
     this.$next().click(playlist.next.bind(playlist));
     this.$previous().click(playlist.prev.bind(playlist));
 
+
     this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"
                             : self.isPaused ? "Resume playback" : "Start playback";
@@ -614,6 +625,7 @@ function Player(dom, playlist, opts) {
         if (VOLUME_KEY in values) self.setVolume(values.volume);
         if (MUTED_KEY in values && values.muted) self.toggleMute();
     });
+
 }
 util.inherits(Player, EventEmitter);
 
@@ -964,6 +976,16 @@ Player.prototype.seek = function(seconds, intent) {
 
 Player.prototype.isMuted = function() {
     return this.isMutedValue;
+};
+
+Player.prototype.togglePlayback = function() {
+    if (!this.isStopped) {
+        if (this.isPlaying) {
+            this.pause();
+        } else if (this.isPaused) {
+            this.resume();
+        }
+    }
 };
 
 Player.prototype.toggleMute = function() {

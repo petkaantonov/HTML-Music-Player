@@ -7,6 +7,8 @@ const DraggableSelection = require("./DraggableSelection");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Random = require("./Random");
 const Track = require("./Track");
+const features = require("./features");
+const usePerfectScrollbar = !features.touch;
 
 
 const PLAYLIST_MODE_KEY = "playlist-mode";
@@ -46,13 +48,18 @@ function Playlist(domNode, opts) {
     this._displayedTracks.length = 0;
     this._mayContainUnparsedTracks = false;
     this._errorCount = 0;
+    this.requestedRenderFrame = null;
     this._$domNode = $(domNode);
+
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
     }
 
     this._scrolledUp = this._scrolledUp.bind(this);
     this._scrolledDown = this._scrolledDown.bind(this);
+    this.renderItems = this.renderItems.bind(this);
+    this.windowLayoutChanged = this.windowLayoutChanged.bind(this);
+    this.scrolled = this.scrolled.bind(this);
 
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, {
@@ -60,19 +67,19 @@ function Playlist(domNode, opts) {
         mustMatchSelector: ".track-container"
     });
 
-    this.$().perfectScrollbar({
-        useKeyboard: false,
-        suppressScrollX: true,
-        minScrollbarLength: 20
-    });
+    if (usePerfectScrollbar) {
+        this.$().perfectScrollbar({
+            useKeyboard: false,
+            suppressScrollX: true,
+            minScrollbarLength: 20
+        });
+        this.$().on("ps-scroll-up", this._scrolledUp)
+            .on("ps-scroll-down", this._scrolledDown)
+            .on("ps-scroll-y", this.scrolled);
+    }
 
-    this.requestedRenderFrame = null;
-    this.renderItems = $.proxy(this.renderItems, this);
-
-    $(window).on("resize", $.proxy(this.windowLayoutChanged, this));
-    this.$().on("scroll ps-scroll-y", $.proxy(this.scrolled, this))
-        .on("ps-scroll-up", this._scrolledUp)
-        .on("ps-scroll-down", this._scrolledDown);
+    $(window).on("resize", this.windowLayoutChanged);
+    this.$().on("scroll", this.scrolled);
 
     this._nextTrack = null;
     this._scrollDirection = 1;
@@ -249,7 +256,7 @@ Playlist.prototype.windowLayoutChanged = function() {
     this.trackVisibilityChanged();
 };
 
-Playlist.prototype.scrolled = function() {
+Playlist.prototype.scrolled = function(e) {
     var scrollTop = this.$()[0].scrollTop;
     var itemHeight = this.getItemHeight();
     var remainder = scrollTop % itemHeight;
@@ -419,9 +426,9 @@ Playlist.prototype.removeTracksBySelectionRanges = (function() {
 })();
 
 Playlist.prototype.updateScrollBar = function() {
-    this.$().perfectScrollbar("update");
+    if (usePerfectScrollbar) this.$().perfectScrollbar("update");
     this.renderItems();
-    util.perfectScrollBarPostUpdate(playlist.main.$()[0]);
+    if (usePerfectScrollbar) util.perfectScrollBarPostUpdate(playlist.main.$()[0]);
 };
 
 Playlist.prototype.contentsChanged = function() {

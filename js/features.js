@@ -12,9 +12,10 @@ features.readFiles = typeof FileReader == "function" && new FileReader()
 features.directories = ("webkitdirectory" in input ||
     "directory" in input ||
     "mozdirectory" in input);
-features.touch = ('ontouchstart' in window) ||
+features.touch = (('ontouchstart' in window) ||
     navigator.maxTouchPoints > 0 ||
-    navigator.msMaxTouchPoints > 0;
+    navigator.msMaxTouchPoints > 0 ||
+    (window.DocumentTouch && (document instanceof window.DocumentTouch)));
 
 if (!features.touch) {
     $("body").addClass("no-touch");

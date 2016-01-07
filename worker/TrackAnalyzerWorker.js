@@ -1004,7 +1004,11 @@ util.subClassError = function(name, additional) {
 };
 
 util.formatTagString = function(str) {
-    return str.replace(/[\u0000-\u001F]+/g, "").trim();
+    var ret = str.replace(/[\u0000-\u001F]+/g, "").trim();
+    if (ret.length > 512) {
+        return ret.slice(0, 512);
+    }
+    return ret;
 };
 
 util.internString = (function() {
@@ -2039,6 +2043,13 @@ module.exports = AcoustId;
 
 },{"../lib/realfft":3}],5:[function(require,module,exports){
 "use strict";
+const copy = function(a, b, length) {
+    if (a === b) return a;
+    for (var i = 0; i < length; ++i) {
+        b[i] = a[i];
+    }
+    return b;
+}
 
 const bufferCache = Object.create(null);
 const getBuffer = function(samples) {
@@ -2065,61 +2076,66 @@ ChannelMixer.prototype.getChannels = function() {
     return this.channels;
 };
 
-ChannelMixer.prototype.mix = function(input, length) {
+ChannelMixer.prototype.mix = function(input, length, output) {
+    if (length === undefined) length = input[0].length;
+    if (output === undefined) output = input;
+
     const inputChannels = input.length;
     if (inputChannels === this.channels) {
-        return input;
+        for (var ch = 0; ch < inputChannels; ++ch) {
+            copy(input[ch], output[ch], length);
+        }
+        return output;
     }
-    if (length === undefined) length = input[0].length;
 
     var outputChannels = this.channels;
     if (outputChannels === 1) {
         if (inputChannels === 2) {
-            return this._mix2to1(input, length);
+            return this._mix2to1(input, length, output);
         } else if (inputChannels === 4) {
-            return this._mix4to1(input, length);
+            return this._mix4to1(input, length, output);
         } else if (inputChannels === 6) {
-            return this._mix6to1(input, length);
+            return this._mix6to1(input, length, output);
         }
     } else if (outputChannels === 2) {
         if (inputChannels === 1) {
-            return this._mix1to2(input, length);
+            return this._mix1to2(input, length, output);
         } else if (inputChannels === 4) {
-            return this._mix4to2(input, length);
+            return this._mix4to2(input, length, output);
         } else if (inputChannels === 6) {
-            return this._mix6to2(input, length);            
+            return this._mix6to2(input, length, output);            
         }
     } else if (outputChannels === 4) {
         if (inputChannels === 1) {
-            return this._mix1to4(input, length);
+            return this._mix1to4(input, length, output);
         } else if (inputChannels === 2) {
-            return this._mix2to4(input, length);
+            return this._mix2to4(input, length, output);
         }   else if (inputChannels === 6) {
-            return this._mix6to4(input, length);
+            return this._mix6to4(input, length, output);
         }
     } else if (outputChannels === 6) {
         if (inputChannels === 1) {
-            return this._mix1to6(input, length);
+            return this._mix1to6(input, length, output);
         } else if (inputChannels === 2) {
-            return this._mix2to6(input, length);
+            return this._mix2to6(input, length, output);
         } else if (inputChannels === 4) {
-            return this._mix4to6(input, length);
+            return this._mix4to6(input, length, output);
         }
     }
 
-    return this._mixAnyToAny(input, length);
+    return this._mixAnyToAny(input, length, output);
 };
 
 ChannelMixer.prototype._mix1to2 = function(input) {
     return [input[0], input[0]];
 };
 
-ChannelMixer.prototype._mix1to4 = function(input, length) {
+ChannelMixer.prototype._mix1to4 = function(input, length, output) {
     var silent = getBuffer(length);
     return [input[0], input[0], silent, silent];
 };
 
-ChannelMixer.prototype._mix1to6 = function(input, length) {
+ChannelMixer.prototype._mix1to6 = function(input, length, output) {
     var silent = getBuffer(length);
     return [
         silent,
@@ -2131,35 +2147,36 @@ ChannelMixer.prototype._mix1to6 = function(input, length) {
     ];
 };
 
-ChannelMixer.prototype._mix2to1 = function(input, length) {
-    var ret = input[0];
+ChannelMixer.prototype._mix2to1 = function(input, length, output) {
+    var ret = output[0];
     for (var i = 0; i < length; ++i) {
         ret[i] = Math.fround(Math.fround(input[0][i] + input[1][i]) / 2);
     }
     return [ret];
 };
 
-ChannelMixer.prototype._mix2to4 = function(input, length) {
+ChannelMixer.prototype._mix2to4 = function(input, length, output) {
     var silent = getBuffer(length);
-    return [input[0], input[1], silent, silent];
+    return [copy(input[0], output[0], length), copy(input[1], output[1], length), silent, silent];
 };
 
-ChannelMixer.prototype._mix2to6 = function(input, length) {
+ChannelMixer.prototype._mix2to6 = function(input, length, output) {
     var silent = getBuffer(length);
-    return [input[0], input[1], silent, silent, silent, silent];
+    return [copy(input[0], output[0], length),
+            copy(input[1], output[1], length), silent, silent, silent, silent];
 };
 
-ChannelMixer.prototype._mix4to1 = function(input, length) {
-    var ret = input[0];
+ChannelMixer.prototype._mix4to1 = function(input, length, output) {
+    var ret = output[0];
     for (var i = 0; i < length; ++i) {
         ret[i] = (input[0][i] + input[1][i] + input[2][i] + input[3][i]) / 4;
     }
     return [ret];
 };
 
-ChannelMixer.prototype._mix4to2 = function(input, length) {
-    var ret0 = input[0];
-    var ret1 = input[1];
+ChannelMixer.prototype._mix4to2 = function(input, length, output) {
+    var ret0 = output[0];
+    var ret1 = output[1];
     for (var i = 0; i < length; ++i) {
         ret0[i] = (input[0][i] + input[2][i]) / 2;
         ret1[i] = (input[1][i] + input[3][i]) / 2;
@@ -2167,14 +2184,18 @@ ChannelMixer.prototype._mix4to2 = function(input, length) {
     return [ret0, ret1];
 };
 
-ChannelMixer.prototype._mix4to6 = function(input, length) {
+ChannelMixer.prototype._mix4to6 = function(input, length, output) {
     var silent = getBuffer(length);
-    return [input[0], input[1], silent, silent, input[2], input[3]];
+    return [copy(input[0], output[0], length),
+            copy(input[1], output[1], length),
+            silent, silent,
+            copy(input[2], output[2], length),
+            copy(input[3], output[3], length)];
 };
 
 
-ChannelMixer.prototype._mix6to1 = function(input, length) {
-    var ret = input[0];
+ChannelMixer.prototype._mix6to1 = function(input, length, output) {
+    var ret = output[0];
 
     for (var i = 0; i < length; ++i) {
         var L = input[0][i];
@@ -2187,9 +2208,9 @@ ChannelMixer.prototype._mix6to1 = function(input, length) {
     return [ret];
 };
 
-ChannelMixer.prototype._mix6to2 = function(input, length) {
-    var ret0 = input[0];
-    var ret1 = input[1];
+ChannelMixer.prototype._mix6to2 = function(input, length, output) {
+    var ret0 = output[0];
+    var ret1 = output[1];
 
     for (var i = 0; i < length; ++i) {
         var L = input[0][i];
@@ -2204,11 +2225,11 @@ ChannelMixer.prototype._mix6to2 = function(input, length) {
     return [ret0, ret1];
 };
 
-ChannelMixer.prototype._mix6to4 = function(input, length) {
-    var ret0 = input[0];
-    var ret1 = input[1];
-    var ret2 = input[4];
-    var ret3 = input[5];
+ChannelMixer.prototype._mix6to4 = function(input, length, output) {
+    var ret0 = output[0];
+    var ret1 = output[1];
+    var ret2 = output[4];
+    var ret3 = output[5];
 
     for (var i = 0; i < length; ++i) {
         var L = input[0][i];
@@ -2221,24 +2242,29 @@ ChannelMixer.prototype._mix6to4 = function(input, length) {
     return [ret0, ret1, ret2, ret3];
 };
 
-ChannelMixer.prototype._mixAnyToAny = function(input, length) {
+ChannelMixer.prototype._mixAnyToAny = function(input, length, output) {
     var channels = this.channels;
 
     if (channels < input.length) {
-        return input.slice(0, channels);
+        for (var ch = 0; ch < channels; ++ch) {
+            copy(input[ch], output[ch], length);
+        }
+        return output.slice(0, channels);
     } else if (channels > input.length) {
-        var ret = new Array(channels);
-        var i = 0;
-        for ( ; i < length; ++i) {
-            ret[i] = input[i];
+
+        for (var ch = 0; ch < channels; ++ch) {
+            copy(input[ch], output[ch], length);
         }
         var silent = getBuffer(length);
-        for ( ; i < channels; ++i) {
-            ret[i] = silent;
+        for (; ch < input.length; ++ch) {
+            output[ch] = silent;
         }
-        return ret;
+        return output;
     } else {
-        return input;
+        for (var ch = 0; ch < channels; ++ch) {
+            copy(input[ch], output[ch], length);
+        }
+        return output;
     }
 };
 module.exports = ChannelMixer;
@@ -4408,9 +4434,9 @@ module.exports = {
 "use strict";
 
 const rType =
-    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
+    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/g;
 
-var indices = ["wav", "mp3", "aac", "webm", "ogg"];
+const indices = ["wav", "mp3", "aac", "webm", "ogg"];
 const WAV = 0
 const MP3 = 1;
 const AAC = 2;
@@ -4420,16 +4446,21 @@ const OGG = 4;
 exports.getCodecName = function(blob) {
     var reader = new FileReaderSync();
     var str = reader.readAsBinaryString(blob.slice(0, 8192));
+    rType.lastIndex = 0;
 
-    var match = rType.exec(str);
-    if (match) {
+    var matches = [];
+    var match;
+
+    while ((match = rType.exec(str)) && matches.length < 2) {
         for (var i = 0; i < indices.length; ++i) {
             if (match[i + 1] !== undefined) {
-                return indices[i];
+                matches.push(indices[i]);
             }
         }
     }
-    return null;
+
+    if (!matches.length) return null;
+    return matches.pop();
 };
 
 },{}]},{},[8])(8)

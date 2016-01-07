@@ -5,6 +5,8 @@ const keyValueDatabase = require("./KeyValueDatabase");
 const Hotkeys = require("../lib/hotkeys");
 const shiftKeys = Hotkeys.shiftKeys;
 const GlobalUi = require("./GlobalUi");
+const features = require("./features");
+const usePerfectScrollbar = !features.touch;
 
 const STORAGE_KEY = "hotkey-bindings-1";
 const HOTKEY_TYPE_PERSISTENT = 0;
@@ -201,7 +203,7 @@ var defaults = {
     "Seek forward": "right arrow",
     "Volume down": "-",
     "Volume up": "+",
-    "Center on current track": "space",
+    "Toggle pause": "space",
     "Toggle mute": "alt+ctrl+m",
     "Open directory picker": "alt+d",
     "Open file picker": "alt+f",
@@ -312,7 +314,7 @@ function HotkeyBinder(hotkeyManager, domNode) {
         }, this);
     }, this);
 
-    this.$().find(".ps-container").perfectScrollbar();
+    if (usePerfectScrollbar) this.$().find(".ps-container").perfectScrollbar();
 }
 
 HotkeyBinder.prototype.$ = function() {
@@ -400,7 +402,9 @@ HotkeyBinder.prototype.stopBinding = function() {
 };
 
 HotkeyBinder.prototype.destroy = function() {
-    this.$().find(".ps-container").perfectScrollbar('destroy');
+    if (usePerfectScrollbar) {
+        this.$().find(".ps-container").perfectScrollbar('destroy');
+    }
     $(document).unbind("keydown", this.listenUserHotkeys);
 };
 

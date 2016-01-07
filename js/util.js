@@ -703,7 +703,11 @@ util.subClassError = function(name, additional) {
 };
 
 util.formatTagString = function(str) {
-    return str.replace(/[\u0000-\u001F]+/g, "").trim();
+    var ret = str.replace(/[\u0000-\u001F]+/g, "").trim();
+    if (ret.length > 512) {
+        return ret.slice(0, 512);
+    }
+    return ret;
 };
 
 util.internString = (function() {

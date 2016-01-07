@@ -579,16 +579,10 @@ hotkeyManager.addDescriptor({
 
 hotkeyManager.addDescriptor({
     category: "Playlist management",
-    action: "Center on current track",
-    description: "Center the playlist to the currently plaing track. If no track is playing, the currently selected track is played.",
+    action: "Toggle pause",
+    description: "Toggle pause.",
     handler: function() {
-        if (!playlist.main.getCurrentTrack()) {
-            actions.play();
-        }
-        if (playlist.main.getCurrentTrack()) {
-            playlist.main.centerOnTrack(playlist.main.getCurrentTrack());
-            playlist.main.selectTrack(playlist.main.getCurrentTrack());
-        }
+        player.main.togglePlayback();
 
     }
 });
@@ -598,7 +592,7 @@ hotkeyManager.addDescriptor({
     hotkeyManager.addDescriptor({
         category: "Playlist management",
         action: "Rate " + starWord,
-        description: "Give a rating of " + starWord + " to the currently selected track. To select the currently playing track, press space.",
+        description: "Give a rating of " + starWord + " to the currently selected track.",
         handler: function() {
             var track = playlist.main.getSelection().first();
             if (track) track.rate(ratingValue);

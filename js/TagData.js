@@ -230,9 +230,9 @@ TagData.prototype.getBeginSilenceLength = function() {
 
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId && preferAcoustIdData) {
-        if (acoustId.album && !this.taggedAlbum) this.album = acoustId.album.name;
-        if (acoustId.artist && !this.taggedArtist) this.artist = acoustId.artist.name;
-        if (acoustId.title && !this.taggedTitle) this.title = acoustId.title.name;
+        if (acoustId.album && !this.taggedAlbum) this.album = util.formatTagString(acoustId.album.name);
+        if (acoustId.artist && !this.taggedArtist) this.artist = util.formatTagString(acoustId.artist.name);
+        if (acoustId.title && !this.taggedTitle) this.title = util.formatTagString(acoustId.title.name);
     }
 };
 
