@@ -755,7 +755,9 @@ AudioPlayer.prototype.sourceEndedPing = function(args) {
 }
 
 // Preload mp3.
-codec.getCodec("mp3");
+codec.getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});
 
 },{"./ChannelMixer":3,"./FileView":4,"./codec":6,"./demuxer":7,"./pool":8,"./seeker":9,"./sniffer":10,"events":1}],3:[function(require,module,exports){
 "use strict";

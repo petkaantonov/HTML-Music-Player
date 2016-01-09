@@ -286,4 +286,6 @@ self.onmessage = function(event) {
 };
 
 // Preload mp3.
-codec.getCodec("mp3");
+codec.getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});

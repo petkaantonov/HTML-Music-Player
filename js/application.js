@@ -254,13 +254,12 @@ var databaseInitialValuesLoaded = requiredFeaturesChecked.then(function() {
     return keyValueDatabase.getInitialValues();
 });
 
-Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
-
-$(window).on("beforeunload", function(e) {
-    e.preventDefault();
-    e.originalEvent.returnValue = "Are you sure you want to exit?";
-    return e.originalEvent.returnValue;
-}, false);
+window.onbeforeunload = function(e) {
+    if (playlist.main.length > 0 ||
+        ((player.main.isPlaying  || player.main.isPaused) && !player.main.isStopped)) {
+        return "Are you sure you want to exit?";
+    }
+};
 
 var visualizerCanvas = new VisualizerCanvas("#visualizer", {
     binWidth: 3,
@@ -334,6 +333,8 @@ const trackAnalyzer = new TrackAnalyzer(playlist.main);
 const localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
 new ID3Process(playlist.main, player.main, trackAnalyzer);
 
+
+
 $(document).ready(function() {
     if (features.directories) {
         $('.menul-folder, .add-folder-link').fileInput("create", {
@@ -359,7 +360,6 @@ $(document).ready(function() {
     });
 });
 
-
 $(document)
     .on('dragenter', function() {
         return false;
@@ -381,6 +381,9 @@ $(document)
             e.preventDefault();
         }
     });
+
+Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded,
+             trackAnalyzer.ready, player.main.ready, startApp).catch(function(e){});
 
 
 hotkeyManager.addDescriptor({

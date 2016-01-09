@@ -3221,7 +3221,9 @@ self.onmessage = function(event) {
 };
 
 // Preload mp3.
-codec.getCodec("mp3");
+codec.getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});
 
 },{"./AcoustId":4,"./ChannelMixer":5,"./FileView":6,"./Resampler":7,"./codec":9,"./demuxer":10,"./ebur128":11,"./pool":12,"./sniffer":13,"events":1}],9:[function(require,module,exports){
 (function (global){

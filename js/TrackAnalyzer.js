@@ -23,6 +23,14 @@ function TrackAnalyzer(playlist) {
     this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
     this.trackDestroyed = this.trackDestroyed.bind(this);
     this.abortJobForTrack = this.abortJobForTrack.bind(this);
+
+    this.ready = new Promise(function(resolve) {
+        var ready = function(event) {
+            this._worker.removeEventListener("message", ready, false);
+            resolve();
+        }.bind(this);
+        this._worker.addEventListener("message", ready, false);
+    }.bind(this));
 }
 
 TrackAnalyzer.prototype.trackDestroyed = function(track) {

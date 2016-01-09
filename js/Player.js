@@ -626,6 +626,7 @@ function Player(dom, playlist, opts) {
         if (MUTED_KEY in values && values.muted) self.toggleMute();
     });
 
+    this.ready = audioPlayer.ready;
 }
 util.inherits(Player, EventEmitter);
 

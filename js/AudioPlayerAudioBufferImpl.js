@@ -73,6 +73,14 @@ function AudioPlayer(audioContext, suspensionTimeout) {
 
     this._worker.addEventListener("message", this._messaged, false);
     this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
+
+    this.ready = new Promise(function(resolve) {
+        var ready = function(event) {
+            this._worker.removeEventListener("message", ready, false);
+            resolve();
+        }.bind(this);
+        this._worker.addEventListener("message", ready, false);
+    }.bind(this));
 }
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 

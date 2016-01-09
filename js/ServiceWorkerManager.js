@@ -96,7 +96,7 @@ ServiceWorkerManager.prototype.start = function() {
     navigator.serviceWorker.addEventListener("controllerchange", function() {
         if (reloading) return;
         reloading = true;
-        $(window).off("beforeunload");
+        window.onbeforeunload = null;
         location.reload();
     });
 };
