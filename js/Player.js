@@ -12,39 +12,10 @@ const util = require("./util");
 const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Track = require("./Track");
-const patchAudioContext = require("../lib/audiocontextpatch");
 
-const audioCtx = (function() {
-    var AudioContext = window.AudioContext || window.webkitAudioContext;
-    var ret = new AudioContext();
-    if (!window.AudioContext) {
-        patchAudioContext(AudioContext, ret);
-    }
-
-    return ret;
-})();
-
-const audioPlayer = new AudioPlayer(audioCtx, 20);
-
-function touchPrimer(e) {
-    try {
-        audioCtx.resume().catch(function(){});
-    } catch (e) {}
-
-    window.removeEventListener(e.type, touchPrimer, false);
-    var buffer = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
-    var source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    setTimeout(function() {
-        if (audioCtx.state !== "running") {
-            window.addEventListener("touchend", touchPrimer, false);
-        }
-    }, 0);
-}
-
-window.addEventListener("touchend", touchPrimer, false);
+var audioCtx;
+const audioPlayer = new AudioPlayer(null, 20);
+audioCtx = audioPlayer.getAudioContext();
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
@@ -85,42 +56,17 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.destroyed = false;
     this.intendingToSeek = -1;
     this.track = track;
-    this.sourceNode = audioPlayer.createSourceNode();
-    
-    this.sourceNode.setVolume(1);
-    this.setCurrentTime(0);
-    this.sourceNode.pause();
-
-    this.pauseResumeFadeGain = audioCtx.createGain();
-    this.replayGain = audioCtx.createGain();
-    this.seekGain = audioCtx.createGain();
-    this.volumeGain = audioCtx.createGain();
-    this.muteGain = audioCtx.createGain();
-    this.fadeInGain = audioCtx.createGain();
-    this.fadeOutGain = audioCtx.createGain();
-
-    this.filterNodes = [];
-
-    this.pauseResumeFadeGain.gain.value = 1;
-    this.pauseResumeFadePromise = null;
-    this.muteGain.gain.value = player.isMuted() ? 0 : 1;
-    this.volumeGain.gain.value = player.getVolume();
-
-    this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
-        baseSmoothingConstant: 0.00042,
-        maxFrequency: 12500,
-        minFrequency: 20,
-        multiplier: this.replayGain.gain.value
-    });
-
-    this.sourceNode.node().connect(this.pauseResumeFadeGain);
-    this.pauseResumeFadeGain.connect(this.replayGain);
-    this.connectEqualizerFilters(equalizer.getBands(this.track));
-    this.volumeGain.connect(this.seekGain);
-    this.seekGain.connect(this.muteGain);
-    this.muteGain.connect(this.fadeInGain);
-    this.fadeInGain.connect(this.fadeOutGain);
-    this.fadeOutGain.connect(audioCtx.destination);
+    this.currentTime = 0;
+    this.sourceNode = null;
+    this.pauseResumeFadeGain = null;
+    this.replayGain = null;
+    this.seekGain = null;
+    this.volumeGain = null;
+    this.muteGain = null;
+    this.fadeInGain = null;
+    this.fadeOutGain = null;
+    this.filterNodes = null;
+    this.visualizer = null;
 
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
@@ -139,8 +85,63 @@ function AudioManager(player, track, implicitlyLoaded) {
     equalizer.on("equalizerChange", this.equalizerChanged);
     crossfading.on("crossFadingChange", this.crossFadingChanged);
     player.playlist.on("nextTrackChange", this.nextTrackChanged);
-    this.sourceNode.on("lastBufferQueued", this.lastBufferQueued);
+    
+    this.setupNodes();
 }
+
+AudioManager.prototype.setupNodes = function() {
+    this.sourceNode = audioPlayer.createSourceNode();
+    this.sourceNode.on("lastBufferQueued", this.lastBufferQueued);
+    this.sourceNode.setVolume(1);
+    this.setCurrentTime(this.currentTime);
+    this.sourceNode.pause();
+
+    this.pauseResumeFadeGain = audioCtx.createGain();
+    this.replayGain = audioCtx.createGain();
+    this.seekGain = audioCtx.createGain();
+    this.volumeGain = audioCtx.createGain();
+    this.muteGain = audioCtx.createGain();
+    this.fadeInGain = audioCtx.createGain();
+    this.fadeOutGain = audioCtx.createGain();
+
+    this.filterNodes = [];
+
+    this.pauseResumeFadeGain.gain.value = 1;
+    this.pauseResumeFadePromise = null;
+    this.muteGain.gain.value = this.player.isMuted() ? 0 : 1;
+    this.volumeGain.gain.value = this.player.getVolume();
+
+    this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
+        baseSmoothingConstant: 0.00042,
+        maxFrequency: 12500,
+        minFrequency: 20,
+        multiplier: this.replayGain.gain.value
+    });
+
+    this.sourceNode.node().connect(this.pauseResumeFadeGain);
+    this.pauseResumeFadeGain.connect(this.replayGain);
+    this.connectEqualizerFilters(equalizer.getBands(this.track));
+    this.volumeGain.connect(this.seekGain);
+    this.seekGain.connect(this.muteGain);
+    this.muteGain.connect(this.fadeInGain);
+    this.fadeInGain.connect(this.fadeOutGain);
+    this.fadeOutGain.connect(audioCtx.destination);
+};
+
+AudioManager.prototype.audioContextReset = function() {
+    if (this.destroyed) return;
+    if (this.visualizer) {
+        this.visualizer.destroy();
+    }
+    this.setupNodes();
+    this.normalizeLoudness();
+    this.sourceNode.on("timeUpdate", this.timeUpdated);
+    this.sourceNode.on("ended", this.ended);
+    this.sourceNode.on("error", this.errored);
+    this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
+    this.sourceNode.load(this.track.getFile(), this.track.convertFromSilenceAdjustedTime(this.currentTime));
+    this.sourceNode.play();
+};
 
 AudioManager.prototype._updateNextGaplessTrack = function() {
     this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
@@ -310,13 +311,15 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
 
 AudioManager.prototype.setCurrentTime = function(currentTime) {
     if (this.destroyed) return;
+    this.currentTime = currentTime;
     var adjusted = this.track.convertFromSilenceAdjustedTime(currentTime);
     this.sourceNode.setCurrentTime(adjusted);
 };
 
 AudioManager.prototype.getCurrentTime = function() {
     if (this.destroyed) return 0;
-    return this.track.convertToSilenceAdjustedTime(this.sourceNode.getCurrentTime());
+    this.currentTime = this.track.convertToSilenceAdjustedTime(this.sourceNode.getCurrentTime());
+    return this.currentTime;
 };
 
 AudioManager.prototype.getDuration = function() {
@@ -627,8 +630,38 @@ function Player(dom, playlist, opts) {
     });
 
     this.ready = audioPlayer.ready;
+    this.initAudioContextPrimer();
+    audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
 }
 util.inherits(Player, EventEmitter);
+
+Player.prototype.audioContextReset = function() {
+    audioCtx = audioPlayer.getAudioContext();
+    this.initAudioContextPrimer();
+    if (this.currentAudioManager) this.currentAudioManager.audioContextReset();
+};
+
+Player.prototype.initAudioContextPrimer = function() {
+    function touchPrimer(e) {
+        try {
+            audioCtx.resume().catch(function(){});
+        } catch (e) {}
+
+        window.removeEventListener(e.type, touchPrimer, false);
+        var buffer = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
+        var source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        setTimeout(function() {
+            if (audioCtx.state !== "running") {
+                window.addEventListener("touchend", touchPrimer, false);
+            }
+        }, 0);
+    }
+
+    window.addEventListener("touchend", touchPrimer, false);
+};
 
 Player.prototype.$allButtons = function() {
     return this.$play().add(this.$previous())

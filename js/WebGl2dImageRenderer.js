@@ -66,6 +66,8 @@ function WebGl2dImageRenderer(image, visualizerCanvas) {
     this.sampler = null;
     this.positionBuffer = null;
     this.positions = new Int16Array(this.positionCount());
+    // For applying 2 positions for the price of 1.
+    this.positionsInt32View = new Int32Array(this.positions.buffer);
     this.alphaBuffer = null;
     this.alphaValues = new Uint8Array(this.alphaCount());
     this.alphaStart = new Uint8Array(this.alphaValues.buffer, this.actuallyChangedAlphaValuesStartIndex());
@@ -80,6 +82,8 @@ function WebGl2dImageRenderer(image, visualizerCanvas) {
     this.width = this.height = 0;
     this.draws = 0;
     this.capTexturePositionsPopulatedForLength = 0;
+    this.contextLostCallbackCalled = false;
+    this.contextLostCallbackCheckedTimes = 0;
 
     this.contextLost = this.contextLost.bind(this);
     this.contextRestored = this.contextRestored.bind(this);
@@ -93,16 +97,27 @@ function WebGl2dImageRenderer(image, visualizerCanvas) {
 }
 
 WebGl2dImageRenderer.prototype.contextLost = function(e) {
+    this.contextLostCallbackCheckedTimes = 0;
+    this.contextLostCallbackCalled = true;
     e.preventDefault();
 };
 
 WebGl2dImageRenderer.prototype.contextRestored = function() {
+    this.contextLostCallbackCheckedTimes = 0;
+    this.contextLostCallbackCalled = false;
     this.gl = getContext(this.visualizerCanvas.canvas);
     this.init(this.width, this.height);
 };
 
 WebGl2dImageRenderer.prototype.contextCreationErrored = function() {
 
+};
+
+WebGl2dImageRenderer.prototype.destroy = function() {
+    this.visualizerCanvas.removeEventListener("webglcontextlost", this.contextLost, false);
+    this.visualizerCanvas.removeEventListener("webglcontextrestored", this.contextRestored, false);
+    this.visualizerCanvas.removeEventListener("webglcontextcreationerror", this.contextCreationErrored, false);
+    this.visualizerCanvas.removeListener("canvasChange", this.canvasChanged);
 };
 
 WebGl2dImageRenderer.prototype.canvasChanged = function(newCanvas, oldCanvas) {
@@ -123,7 +138,6 @@ WebGl2dImageRenderer.prototype.usesHardwareAcceleration = function() {
 };
 
 WebGl2dImageRenderer.prototype.init = function(width, height) {
-    //throw new Error("asd");
     var gl = this.gl;
     var maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 
@@ -202,6 +216,16 @@ WebGl2dImageRenderer.prototype.init = function(width, height) {
     this.setDimensions(width, height);
 };
 
+WebGl2dImageRenderer.prototype.reinitBrokenCanvas = function() {
+    this.visualizerCanvas.resetCanvas();
+    this.gl = getContext(this.visualizerCanvas.canvas);
+    if (!this.gl) {
+        this.visualizerCanvas.useSoftwareRenderer();
+    } else {
+        this.init(this.width, this.height);
+    }
+};
+
 WebGl2dImageRenderer.prototype.initScene = function() {
     this.draws = 0;
     this.positionIndex = 0;
@@ -210,7 +234,20 @@ WebGl2dImageRenderer.prototype.initScene = function() {
 
 WebGl2dImageRenderer.prototype.drawScene = function() {
     var gl = this.gl;
-    if (gl.isContextLost()) return;
+    if (!gl) {
+        return this.reinitBrokenCanvas();
+    }
+
+    if (gl.isContextLost()) {
+        if (!this.contextLostCallbackCalled) {
+            this.contextLostCallbackCheckedTimes++;
+            if (this.contextLostCallbackCheckedTimes > 5) {
+                this.contextLostCallbackCheckedTimes = 0;
+                this.reinitBrokenCanvas();
+            }
+        }
+        return;
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.alphaBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, this.actuallyChangedAlphaValuesStartIndex(), this.alphaStart);
@@ -296,8 +333,8 @@ WebGl2dImageRenderer.prototype.drawCaps = function(bins) {
 };
 
 WebGl2dImageRenderer.prototype.drawBins = function(bins) {
-    var positions = this.positions;
-    var j = this.positionIndex;
+    var positions = this.positionsInt32View;
+    var j = this.positionIndex / 2;
 
     var highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
     var binWidth = this.visualizerCanvas.binWidth;
@@ -305,7 +342,7 @@ WebGl2dImageRenderer.prototype.drawBins = function(bins) {
     var fullWidth = binWidth + gapWidth * 2;
     var width = binWidth + gapWidth;
     var sourceBinPositions = this.visualizerCanvas.source.binPositions;
-    // TODO this is actually sourceRowHeight.
+    // TODO: this is actually sourceRowHeight.
     var canvasHeight = this.height;
 
     for (var i = 0; i < bins.length; ++i) {
@@ -319,34 +356,23 @@ WebGl2dImageRenderer.prototype.drawBins = function(bins) {
         var srcX2 = srcX1 + fullWidth;
         var srcY2 = srcY1 + (highestBinHeight - (srcY1 % canvasHeight));
 
-        positions[j + 0] = x1;
-        positions[j + 1] = y1;
-        positions[j + 2] = srcX1;
-        positions[j + 3] = srcY2;
-        positions[j + 4] = x2;
-        positions[j + 5] = y1;
-        positions[j + 6] = srcX2;
-        positions[j + 7] = srcY2;
-        positions[j + 8] = x1;
-        positions[j + 9] = y2;
-        positions[j + 10] = srcX1;
-        positions[j + 11] = srcY1;
-        positions[j + 12] = x1;
-        positions[j + 13] = y2;
-        positions[j + 14] = srcX1;
-        positions[j + 15] = srcY1;
-        positions[j + 16] = x2;
-        positions[j + 17] = y1;
-        positions[j + 18] = srcX2;
-        positions[j + 19] = srcY2;
-        positions[j + 20] = x2;
-        positions[j + 21] = y2;
-        positions[j + 22] = srcX2;
-        positions[j + 23] = srcY1;
-        j += 24;
+        // TODO: This assumes little-endian.
+        positions[j + 0] = (x1 & 0xFFFF) | (y1 << 16);
+        positions[j + 1] = (srcX1 & 0xFFFF) | (srcY2 << 16);
+        positions[j + 2] = (x2 & 0xFFFF) | (y1 << 16);
+        positions[j + 3] = (srcX2 & 0xFFFF) | (srcY2 << 16);
+        positions[j + 4] = (x1 & 0xFFFF) | (y2 << 16);
+        positions[j + 5] = (srcX1 & 0xFFFF) | (srcY1 << 16);
+        positions[j + 6] = (x1 & 0xFFFF) | (y2 << 16);
+        positions[j + 7] = (srcX1 & 0xFFFF) | (srcY1 << 16);
+        positions[j + 8] = (x2 & 0xFFFF) | (y1 << 16);
+        positions[j + 9] = (srcX2 & 0xFFFF) | (srcY2 << 16);
+        positions[j + 10] = (x2 & 0xFFFF) | (y2 << 16);
+        positions[j + 11] = (srcX2 & 0xFFFF) | (srcY1 << 16);
+        j += 12;
     }
 
-    this.positionIndex = j;
+    this.positionIndex = j * 2;
     this.alphaIndex += bins.length * 6;
     this.draws += bins.length;
 };

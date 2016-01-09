@@ -2899,8 +2899,8 @@ Resampler.prototype._resamplerBasicDirectSingle = function(channel_index) {
     const out_values = process_ref.out_values;
 
     while (!(last_sample >= in_len || out_sample >= out_len)) {
-        const sinct_ptr = samp_frac_num * N;
-        const iptr = process_ref.in_ptr + last_sample;
+        var sinct_ptr = samp_frac_num * N;
+        var iptr = process_ref.in_ptr + last_sample;
 
         var a1 = Math.fround(0);
         var a2 = Math.fround(0);

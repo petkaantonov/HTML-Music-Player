@@ -8,6 +8,8 @@ function Default2dImageRenderer(image, visualizerCanvas) {
     this.width = this.height = 0;
 }
 
+Default2dImageRenderer.prototype.destroy = function() {};
+
 Default2dImageRenderer.prototype.init = function(width, height) {
     this.setDimensions(width, height);
 };

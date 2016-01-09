@@ -14,12 +14,23 @@ const Promise = require("../lib/bluebird.js");
 const util = require("./util");
 const EventEmitter = require("events");
 const ChannelMixer = require("../worker/ChannelMixer");
+const patchAudioContext = require("../lib/audiocontextpatch");
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
-// TODO destination changes
+
 const asap = function(fn) {
     fn();
+};
+
+const makeAudioContext = function() {
+    var AudioContext = window.AudioContext || window.webkitAudioContext;
+    var ret = new AudioContext();
+    if (!window.AudioContext) {
+        patchAudioContext(AudioContext, ret);
+    }
+
+    return ret;
 };
 
 function SourceDescriptor(buffer, length, channelData, isLastForTrack) {
@@ -49,10 +60,13 @@ const PRELOAD_BUFFER_COUNT = 2;
 var nodeId = 0;
 var instances = false;
 function AudioPlayer(audioContext, suspensionTimeout) {
+    EventEmitter.call(this);
     if (instances) throw new Error("only 1 AudioPlayer instance can be made");
     if (!suspensionTimeout) suspensionTimeout = 20;
     instances = true;
-    this._audioContext = audioContext || new AudioContext();
+    this._audioContext = audioContext || makeAudioContext();
+    this._audioContextIsNotReallyRunning = false;
+    this._previousAudioContextTime = this._audioContext.currentTime;
     this._worker = new Worker("worker/AudioPlayerWorker.js");
     this._arrayBufferPool = [];
     this._audioBufferPool = [];
@@ -70,6 +84,7 @@ function AudioPlayer(audioContext, suspensionTimeout) {
 
     this._messaged = this._messaged.bind(this);
     this._suspend = this._suspend.bind(this);
+    this._timeProgressChecker = this._timeProgressChecker.bind(this);
 
     this._worker.addEventListener("message", this._messaged, false);
     this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
@@ -81,8 +96,34 @@ function AudioPlayer(audioContext, suspensionTimeout) {
         }.bind(this);
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
+
+    setInterval(this._timeProgressChecker, 1000);
 }
+util.inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
+
+// Android makes an audiocontext completely unusable after 1 min
+// of inactivity. This scenario can be detected by .currentTime
+// not progressing despite state being "running". In suspended
+// and closed state the time doesn't progress even normally.
+AudioPlayer.prototype._timeProgressChecker = function() {
+    var time = this.getCurrentTime();
+
+    if (time === this._previousAudioContextTime &&
+        this._audioContext.state === "running") {
+        this._audioContextIsNotReallyRunning = true;
+    }
+    this._previousAudioContextTime = time;
+    return time;
+};
+
+AudioPlayer.prototype.getCurrentTime = function(timeShouldHaveProgressed) {
+    return this._audioContext.currentTime;
+};
+
+AudioPlayer.prototype.getAudioContext = function() {
+    return this._audioContext;
+};
 
 AudioPlayer.prototype._suspend = function() {
     if (this._audioContext.state === "suspended") return Promise.resolve();
@@ -107,8 +148,48 @@ AudioPlayer.prototype._suspend = function() {
     return this._currentStateModificationAction.promise;
 };
 
+AudioPlayer.prototype._resetAudioContext = function() {
+    this._audioBuffersAllocated = 0;
+    while (this._sourceNodes.length > 0) {
+        this._sourceNodes.shift().destroy();
+    }
+    this._audioBufferPool = [];
+    try {
+        this._audioContext.close();
+    } catch (e) {}
+    this._audioContext = makeAudioContext();
+    this.emit("audioContextReset", this);
+};
+
 AudioPlayer.prototype.resume = function() {
-    if (this._audioContext.state === "running") return Promise.resolve();
+    if (this._audioContextIsNotReallyRunning) {
+        var self = this;
+        this._audioContextIsNotReallyRunning = false;
+        if (this._audioContext.state === "suspended") {
+            return this.resume().then(function() {
+                var now = self.getCurrentTime();
+                self._currentStateModificationAction = {
+                    type: "resume",
+                    promise: Promise.delay(50).then(function() {
+                        if (self._audioContext.state !== "running" || self.getCurrentTime() === now) {
+                            this._audioContextIsNotReallyRunning = false;
+                            this._resetAudioContext();
+                            return Promise.delay(100);
+                        }
+                    })
+                };
+                return self._currentStateModificationAction.promise.finally(function() {
+                    self._currentStateModificationAction = null;
+                });
+            });
+        }
+        this._resetAudioContext();
+        return Promise.resolve();
+    }
+
+    if (this._audioContext.state === "running") {
+        return Promise.resolve();
+    }
     var self = this;
 
     if (!this._currentStateModificationAction) {
@@ -320,7 +401,7 @@ AudioPlayerSourceNode.prototype.destroy = function() {
 AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function() {
     var sourceDescriptor = this._bufferQueue[0];
     if (!sourceDescriptor) return 0;
-    var now = this._audioContext.currentTime;
+    var now = this._player.getCurrentTime();
     var started = sourceDescriptor.started;
     if (now < started || started > (sourceDescriptor.started + sourceDescriptor.duration)) {
         return 0;
@@ -430,7 +511,7 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
 
 AudioPlayerSourceNode.prototype._lastSourceEnds = function() {
     if (this._sourceStopped) throw new Error("sources are stopped");
-    if (this._bufferQueue.length === 0) return this._audioContext.currentTime;
+    if (this._bufferQueue.length === 0) return this._player.getCurrentTime();
     var sourceDescriptor = this._bufferQueue[this._bufferQueue.length - 1];
     return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
 };
@@ -452,7 +533,7 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
 
 AudioPlayerSourceNode.prototype._resumedToStartSources = function(id) {
     if (!this._sourceStopped && id === this._sourceStartRequestId) {
-        var now = this._audioContext.currentTime;
+        var now = this._player.getCurrentTime();
         for (var i = 0; i < this._bufferQueue.length; ++i) {
             now = this._startSource(this._bufferQueue[i], now);
         }
@@ -511,7 +592,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
     var inputBuffer = input.buffer;
 
     if (!this._sourceStopped) {
-        var now = this._audioContext.currentTime;
+        var now = this._player.getCurrentTime();
         var samplesIndex = 0;
         var additionalTime = 0;
         for (var i = 0; i < this._bufferQueue.length; ++i) {
