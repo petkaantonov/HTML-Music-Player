@@ -373,15 +373,13 @@ Resampler.prototype._updateFilter = function() {
     }
 };
 
-const bufferCache = Object.create(null);
+const ALLOCATION_SIZE = 1024 * 1024;
+const bufferCache = new Array(6);
 const getBuffer = function(index, samples) {
-    var key = index + " " + samples;
-    var result = bufferCache[key];
-    if (!result) {
-        result = new Float32Array(samples);
-        bufferCache[key] = result;
+    if (bufferCache[index] === undefined) {
+        bufferCache[index] = new ArrayBuffer(ALLOCATION_SIZE);
     }
-    return result;
+    return new Float32Array(bufferCache[index], 0, samples);
 };
 
 Resampler.prototype.end = function() {
@@ -406,20 +404,28 @@ Resampler.prototype.start = function() {
     this.started = true;
 };
 
-Resampler.prototype.resample = function(channels, length) {
+Resampler.prototype.getLength = function(length) {
+    return Math.ceil((length * this.den_rate) / this.num_rate)|0;
+};
+
+Resampler.prototype.resample = function(channels, length, output) {
     if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
     if (!this.started) throw new Error("start() not called");
-    if (length === undefined) length = channels[0].length;
+    if (length == undefined) length = channels[0].length;
+    
+    const outLength = this.getLength(length);
 
-    const ret = new Array(channels.length);
-    const outLength = Math.ceil((length * this.den_rate) / this.num_rate)|0;
-    for (var i = 0; i < channels.length; ++i) {
-        var inSamples = channels[i];
-        var outSamples = getBuffer(i, outLength);
-        this._processFloat(i, inSamples, length, outSamples);
-        ret[i] = outSamples;
+    if (output == undefined) {
+        output = new Array(channels.length);
+        for (var ch = 0; ch < channels.length; ++ch) {
+            output[ch] = getBuffer(ch, outLength);
+        }
     }
-    return ret;
+
+    for (var ch = 0; ch < channels.length; ++ch) {
+        this._processFloat(ch, channels[ch], length, output[ch]);
+    }
+    return output;
 };
 
 const process_ref = {out_ptr: 0, out_len: 0, in_len: 0, in_ptr: 0, out_values: null};

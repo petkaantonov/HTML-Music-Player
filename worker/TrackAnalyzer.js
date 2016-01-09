@@ -18,7 +18,7 @@ var allocDecoderContext = pool.allocDecoderContext;
 var freeResampler = pool.freeResampler;
 var freeDecoderContext = pool.freeDecoderContext;
 
-const BUFFER_DURATION = 10;
+const BUFFER_DURATION = 1;
 const WORST_RESAMPLER_QUALITY = 0;
 const FINGERPRINT_SAMPLE_RATE = 11025;
 const FINGERPRINT_DURATION = 120;

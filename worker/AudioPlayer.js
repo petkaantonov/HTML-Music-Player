@@ -330,20 +330,24 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
     var gotData = false;
     this.decoderContext.once("data", function(channels) {
         gotData = true;
+        ret.length = channels[0].length;
         channels = channelMixer.mix(channels);
 
-        if (self.metadata.sampleRate !== hardwareSampleRate) {
-            channels = self.resampler.resample(channels);
+        for (var ch = 0; ch < channels.length; ++ch) {
+            ret[ch] = new Float32Array(transferList[transferListIndex++]);
         }
 
-        for (var ch = 0; ch < channels.length; ++ch) {
-            var dst = new Float32Array(transferList[transferListIndex++]);
-            var src = channels[ch];
-            for (var j = 0; j < src.length; ++j) {
-                dst[j] = src[j];
+        if (self.metadata.sampleRate !== hardwareSampleRate) {
+            ret.length = self.resampler.getLength(ret.length);
+            self.resampler.resample(channels, undefined, ret);
+        } else {
+            for (var ch = 0; ch < channels.length; ++ch) {
+                var dst = ret[ch];
+                var src = channels[ch];
+                for (var i = 0; i < src.length; ++i) {
+                    dst[i] = src[i];
+                }
             }
-            ret.channels[ch] = dst;
-            ret.length = src.length;
         }
     });
 

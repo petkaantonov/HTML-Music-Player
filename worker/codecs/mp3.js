@@ -1525,20 +1525,13 @@ Mp3Context.prototype._flush = function() {
 
     if (sampleLength > 0) {
         var targetSampleLength = (this.targetBufferLengthSeconds * this.sample_rate)|0;
-        var samples;
+        var samples = this.samples.slice(0, this.nb_channels);
 
-        if (targetSampleLength === sampleLength) {
-            samples = this.samples.slice(0, this.nb_channels);
-        } else {
-            samples = new Array(this.nb_channels);
-            for (var ch = 0; ch < this.nb_channels; ++ch) {
-                samples[ch] = this.dataType === FLOAT ? new Float32Array(sampleLength) : new Int16Array(sampleLength);
-                var dst = samples[ch];
-                var src = this.samples[ch];
-                for (var i = 0; i < sampleLength; ++i) {
-                    dst[i] = src[i];
-                }
-            }
+        if (targetSampleLength !== sampleLength) {
+            var TypedArrayConstructor = this.dataType === FLOAT ? Float32Array : Int16Array;
+            samples = samples.map(function(v) {
+                return new TypedArrayConstructor(v.buffer, 0, sampleLength);
+            });
         }
 
         this.emit("data", samples);
