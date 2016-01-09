@@ -77,16 +77,13 @@ function AudioPlayer(audioContext, suspensionTimeout) {
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 
 AudioPlayer.prototype._suspend = function() {
-    console.log("called suspend");
     if (this._audioContext.state === "suspended") return Promise.resolve();
     var self = this;
 
     if (!this._currentStateModificationAction) {
-        console.log("current is null");
         this._currentStateModificationAction = {
             type: "suspend",
             promise: Promise.resolve(this._audioContext.suspend()).finally(function() {
-                console.log("suspended");
                 self._currentStateModificationAction = null;
             })
         };
@@ -104,14 +101,12 @@ AudioPlayer.prototype._suspend = function() {
 
 AudioPlayer.prototype.resume = function() {
     if (this._audioContext.state === "running") return Promise.resolve();
-    console.log("resuming");
     var self = this;
 
     if (!this._currentStateModificationAction) {
         this._currentStateModificationAction = {
             type: "resume",
             promise: Promise.resolve(this._audioContext.resume()).finally(function() {
-                console.log("resumed");
                 self._currentStateModificationAction = null;
             })
         };

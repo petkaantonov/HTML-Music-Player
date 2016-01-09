@@ -196,19 +196,70 @@ playlist.main.on("trackChange", function(track) {
     playlist.trackDisplay.setTrack(track);
 });
 
+function startApp() {
+    $("#app-loader").remove();
+    $("#app-container").show();
+    playlist.main.windowLayoutChanged();
+}
 
-$(window).on("load", function() {
-    keyValueDatabase.getInitialValues().then(function() {
-        $("#app-loader").remove();
-        $("#app-container").show();
-        playlist.main.windowLayoutChanged();
-    });
+var windowLoaded = new Promise(function(resolve) {
+    $(window).on("load", resolve);
 });
+
+var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
+    var checker = features.requiredFeatures[description][0];
+    var canIUseUrl = features.requiredFeatures[description][1];
+    var apiName = features.requiredFeatures[description][2];
+    return checker().catch(function(e) {return false}).then(function(result) {
+        return {
+            supported: result,
+            canIUseUrl: canIUseUrl,
+            apiName: apiName,
+            description: description
+        };
+    });
+}).then(function(featureResults) {
+    var featureMissing = featureResults.some(function(v) {return !v.supported;});
+
+    if (featureMissing) {
+        $("#app-load-text").remove();
+        $("#app-loader .missing-features").removeClass("no-display");
+    }
+
+    featureResults.forEach(function(v) {
+        if (!v.supported) {
+            var link = $("<a>", {
+                target: "_blank",
+                class: "link-text",
+                href: v.canIUseUrl
+            }).text(v.apiName);
+
+            var children = [
+                $("<span>").text(v.description),
+                $("<sup>").append(link)
+            ];
+
+            $("<li>", {class: "missing-feature-list-item"})
+                .append(children)
+                .appendTo($("#app-loader .missing-features .missing-feature-list"));
+        }
+    });
+
+    if (featureMissing) {
+        throw new Error("missing features");
+    }
+});
+
+var databaseInitialValuesLoaded = requiredFeaturesChecked.then(function() {
+    return keyValueDatabase.getInitialValues();
+});
+
+Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
 
 $(window).on("beforeunload", function(e) {
     e.preventDefault();
     e.originalEvent.returnValue = "Are you sure you want to exit?";
-    return e.returnValue;
+    return e.originalEvent.returnValue;
 }, false);
 
 var visualizerCanvas = new VisualizerCanvas("#visualizer", {

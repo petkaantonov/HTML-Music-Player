@@ -52,14 +52,23 @@
 <div id="wrapper">
     <div id="app-loader">
         <div id="app-loading-container">
-            <span id="app-load-text">
-                <img onload="this.style.paddingRight = '10px';" src="dist/images/app-load.gif" class="app-load-img" />Loading...
-            </span>
-            <noscript>
-            <div id="noscript">
-                This page requires JavaScript to be enabled, <br />
-                enable javascript and <a href="">reload</a> the page.
+            <div id="app-load-text">
+                <div class="loader-container">
+                    <div class="ball1 ball"></div>
+                    <div class="ball2 ball"></div>
+                    <div class="ball3 ball"></div>
+                </div>
             </div>
+            <div class="missing-features no-display">
+                <p>Your browser is lacking capabilities:</p>
+                <ul class="missing-feature-list"></ul>
+                <p><a href="https://browser-update.org/update.html" class="link-text" target="_blank">Update your browser</a> to the latest version.</p>
+            </div>
+            <noscript>
+                <div id="noscript">
+                    This page requires JavaScript to be enabled, <br />
+                    enable javascript and <a href="">reload</a> the page.
+                </div>
             </noscript>
         </div>
     </div>

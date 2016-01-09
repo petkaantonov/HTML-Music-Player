@@ -2,7 +2,6 @@
 const $ = require("../lib/jquery");
 const Promise = require("../lib/bluebird.js");
 
-const DS = require("../lib/DataStructures.js");
 const Track = require("./Track");
 const metadataRetriever = require("./MetadataRetriever");
 const tagDatabase = require("./TagDatabase");
@@ -11,21 +10,6 @@ const util = require("./util");
 
 const AudioError = require("./AudioError");
 const TrackWasRemovedError = require("./TrackWasRemovedError");
-
-const BlobConstructor = window.Blob ||
-                        window.WebKitBlob ||
-                        window.WebkitBlob ||
-                        window.MozBlob ||
-                        window.MsBlob ||
-                        null;
-
-const BlobSlice = BlobConstructor.prototype.slice ||
-                  BlobConstructor.prototype.webkitSlice ||
-                  BlobConstructor.prototype.webKitSlice ||
-                  BlobConstructor.prototype.mozSlice ||
-                  BlobConstructor.prototype.MsSlice ||
-                  BlobConstructor.prototype.msSlice ||
-                  null;
 
 const XING_FRAMES = 0x0001;
 
@@ -70,7 +54,7 @@ function ID3Process(playlist, player, trackAnalyzer) {
     for (var i = 0; i < this.concurrentParsers; ++i) {
         this.queueProcessors[i] = null;
     }
-    this.queueSet = new DS.Set();
+    this.queueSet = new Set();
     this.jobPollerId = -1;
     playlist.on("lengthChange", this.playlistLengthChanged.bind(this));
     playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
@@ -120,13 +104,13 @@ ID3Process.prototype.playlistLengthChanged = function(newLength, oldLength) {
 };
 
 ID3Process.prototype.placeQueue = function(queue) {
-    if (!BlobSlice || !queue.length) {
+    if (!queue.length) {
         return;
     }
 
     for (var i = 0; i < queue.length; ++i) {
         var track = queue[i];
-        if (this.queueSet.contains(track)) {
+        if (this.queueSet.has(track)) {
             continue;
         }
 
@@ -221,7 +205,7 @@ ID3Process.prototype.loadNext = function() {
         return Promise.resolve(false);
     }
 
-    return util.readAsBinaryString(BlobSlice.call(track.file, 0, 256))
+    return util.readAsBinaryString(track.file.slice(0, 256))
         .then(function(bytes) {
             var format = track.getFormat(bytes);
             if (format === Track.MP3) {
@@ -461,7 +445,7 @@ ID3Process.prototype.parseOggTagData = function(bytes, track) {
     }
 
     var self = this;
-    return util.readAsBinaryString(BlobSlice.call(track.file, index, index + totalSize)).then(function(bytes) {
+    return util.readAsBinaryString(track.file.slice(index, index + totalSize)).then(function(bytes) {
         if (bytes.indexOf("vorbis") === 1) {
             var basicInfo = self.getVorbisBasicInfo(bytes, track.file.size);
             return new TagData(track, null, null, basicInfo);
@@ -493,9 +477,9 @@ ID3Process.prototype.parseMpegTagData = function(bytes, track) {
         var endEnd = fileSize;
 
         var self = this;
-        return util.readAsBinaryString(new BlobConstructor([
-            BlobSlice.call(track.file, startStart,  startEnd),
-            BlobSlice.call(track.file, endStart, endEnd)
+        return util.readAsBinaryString(new Blob([
+            track.file.slice(startStart,  startEnd),
+            track.file.slice(endStart, endEnd)
         ])).then(function(bytes) {
             return self.getID3v2(bytes, track, [
                 [0, startEnd - startStart, startStart],
@@ -509,9 +493,9 @@ ID3Process.prototype.parseMpegTagData = function(bytes, track) {
         var endEnd = fileSize;
 
         var self = this;
-        return util.readAsBinaryString(new BlobConstructor([
-            BlobSlice.call(track.file, startStart,  startEnd),
-            BlobSlice.call(track.file, endStart, endEnd)
+        return util.readAsBinaryString(new Blob([
+            track.file.slice(startStart,  startEnd),
+            track.file.slice(endStart, endEnd)
         ])).then(function(bytes) {
             return self.getID3v1(bytes, track, [
                 [0, startEnd - startStart, startStart],
@@ -610,7 +594,7 @@ ID3Process.prototype.getMpegBasicInfo = Promise.method(function(bytes, offsetMap
         start = Math.min(offsetMap[0][2] + end, track.file.size - 1);
         end = Math.min(start + 1527 * 20, track.file.size);
 
-        return util.readAsBinaryString(BlobSlice.call(track.file, start, end)).then(trial);
+        return util.readAsBinaryString(track.file.slice(start, end)).then(trial);
     })(bytes.slice(start, end));
 });
 
@@ -802,7 +786,7 @@ ID3Process.prototype.parseApe = function(bytes, offset, track, offsetMap) {
         var start = this.translateNegativeOffset(offset, offsetMap, tagSize - 32);
         var end = this.translateNegativeOffset(offset, offsetMap, 0);
     }
-    apeHeader = BlobSlice.call(track.file, start, end);
+    apeHeader = track.file.slice(start, end);
 
     return util.readAsBinaryString(apeHeader).then(function(bytes) {
         var offset = 0;

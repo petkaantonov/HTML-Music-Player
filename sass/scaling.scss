@@ -1,6 +1,8 @@
 @import "variables";
 
-#app-container, .toolbar > .toolbar-items, .track-container {
+#app-container,
+#app-loader,
+.toolbar > .toolbar-items, .track-container {
     @include large-screen {
         width: $large-screen-width;
     }

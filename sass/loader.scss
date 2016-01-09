@@ -1,30 +1,17 @@
+@import "variables";
+
 #app-loader {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    margin: auto;
-    height: 40px;
-    width: 100%
+    margin: 100px auto 0px auto;
+    font-size: 0;
 }
-.app-load-img {
-    padding-right: 36px;
-}
+
 #app-loading-container {
     height: 40px;
     margin: 0px auto;
     position: relative;
     text-align: center;
-    width: 292px;
 }
-#app-load-text {
-    font-size: 13px;
-    letter-spacing: 2px;
-    color: #00003D;
-    text-shadow: 0px 1px 1px #444;
-    display: inline;
-}
+
 #noscript {
     color: #333333;
     font-size: 14px;
@@ -38,4 +25,73 @@
 #app-content-holder {
     cursor: default;
     background-color: #ffffff;
+}
+
+#app-loader .missing-features {
+    text-align: left;
+    font-size: 16px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+#app-loader .missing-features .missing-feature-list {
+    font-size: 15px;
+    margin-left: 40px;
+}
+
+#app-loader .missing-features .missing-feature-list .missing-feature-list-item {
+    margin-bottom: 10px;
+}
+
+
+$ball-size: 12px;
+$ball-gap: $ball-size / 2;
+$animation-duration: 0.85s;
+.loader-container {
+    display: inline-block;
+    width: $ball-gap * 2 + $ball-size * 3;
+    height: $ball-size;
+    position: relative;
+    vertical-align: top;
+    transform: translate3d(0, 0, 0);
+    margin-top: $ball-size/2;
+}
+
+.loader-container .ball {
+  width: $ball-size;
+  height: $ball-size;
+  display: inline-block;
+  vertical-align: top;
+  background-color: #dcdcdc;
+  position: absolute;
+  top: 0px;
+  @include prefix(transform-origin, 50% 50%, webkit ms moz o);
+  @include prefix(border-radius, 50%, webkit ms moz o);
+  @include prefix(animation-fill-mode, both, webkit ms moz o);
+  @include prefix(animation, bounce $animation-duration infinite 0s ease-in-out alternate, webkit ms moz o);
+  @include prefix(box-shadow, 1px 1px 3px #333, webkit ms moz o);
+}
+
+.loader-container .ball.ball1 {
+    left: 0px;
+}
+
+.loader-container .ball.ball2 {
+    left: $ball-size + $ball-gap;
+    @include prefix(animation-delay, $animation-duration * 0.33, webkit ms moz o);
+}
+
+.loader-container .ball.ball3 {
+    left: ($ball-size + $ball-gap) * 2;
+    @include prefix(animation-delay, $animation-duration * 0.66, webkit ms moz o);
+}
+
+@include keyframes('bounce') {
+    0%, 50% {
+        @include prefix(transform, translateY(0px), webkit ms moz o);
+    }
+
+    100% {
+        @include prefix(transform, translateY(-(1.75*$ball-size)), webkit ms moz o);
+    }
 }
