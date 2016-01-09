@@ -32,6 +32,8 @@ var assetsGenerated = browserified.then(function() {
     var rinline = /"(https:\/\/[^"]+)"/g;
     var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(function(v) {
         return v.replace(/(?:^"|"$)/g, "");
+    }).filter(function(v) {
+        return v.indexOf("browser-update.org") === -1;
     }).concat("index.html", "/");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", inlineAssets).sort();
