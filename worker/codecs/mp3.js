@@ -1390,6 +1390,7 @@ function Mp3Context(opts) {
     this.started = false;
     this.flushed = false;
     this.samplesToSkip = 0;
+    this.samplesSkipped = 0;
     this.frame = 0;
     this.frames = (-1 >>> 1)|0;
 
@@ -1571,6 +1572,14 @@ Mp3Context.prototype.decode = function() {
     return false;
 };
 
+Mp3Context.prototype.getCurrentSample = function() {
+    var samplesPerFrame = this.metadata.samplesPerFrame;
+    return Math.max(0, samplesPerFrame * this.frame +
+                       (samplesPerFrame - (this.sampleLength % samplesPerFrame)) -
+                       samplesPerFrame -
+                       this.samplesSkipped);
+};
+
 const tmp_samples_i16 = new Int16Array(1152 * 2);
 const tmp_samples_f32 = new Float32Array(1152 * 2);
 Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
@@ -1590,8 +1599,13 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
     }
 
     var skipped = Math.min(size, this.samplesToSkip);
-    size -= skipped;
-    this.samplesToSkip -= skipped;
+
+    if (skipped > 0) {
+        size -= skipped;
+        this.samplesToSkip -= skipped;
+        this.samplesSkipped += skipped;
+    }
+
     if (this.sampleLength + size > targetSamples) {
         var overflow = size - (targetSamples - this.sampleLength);
         var remaining = targetSamples - this.sampleLength;
@@ -1748,6 +1762,7 @@ Mp3Context.prototype._validHeader = function() {
 };
 
 Mp3Context.prototype._resetState = function() {
+    this.samplesSkipped = 0;
     this.samplesToSkip = 0;
     this.sampleBuffersInitialized = false;
     this.started = false;
@@ -1791,6 +1806,7 @@ Mp3Context.prototype.applySeek = function(mp3SeekResult) {
     var frames = this.frames;
     // TODO: use method that doesn't clear all state.
     this._resetState();
+    this.samplesSkipped = 0;
     this.metadata = metadata;
     this.establishedSampleRate = establishedSampleRate;
     this.establishedChannels = establishedChannels;

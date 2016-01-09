@@ -143,6 +143,17 @@ AudioManager.prototype.audioContextReset = function() {
     this.sourceNode.play();
 };
 
+AudioManager.prototype.hasGaplessPreload = function() {
+    if (this.sourceNode.hasGaplessPreload()) return true;
+
+    if (this.track.hasSilenceAtEnd() &&
+        this.player.getFadeInTimeForNextTrack() === 0 &&
+        !this.gaplessPreloadTrack) {
+        return this.getCurrentTime() >= this.getDuration();
+    }
+    return false;
+};
+
 AudioManager.prototype._updateNextGaplessTrack = function() {
     this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
     var time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
@@ -158,13 +169,15 @@ AudioManager.prototype.isSeekable = function() {
 };
 
 AudioManager.prototype.lastBufferQueued = function() {
-    var gaplessPossible = this.player.currentAudioManager === this &&
-                          this.player.playlist.getNextTrack() &&
-                          this.player.getFadeInTimeForNextTrack() === 0 &&
-                          !this.gaplessPreloadTrack;
+    var shouldPreload = this.player.currentAudioManager === this &&
+                        this.player.playlist.getNextTrack() &&
+                        this.player.getFadeInTimeForNextTrack() === 0 &&
+                        // When track has silence at end, preloading will be done during it.
+                        !this.track.hasSilenceAtEnd() &&
+                        !this.gaplessPreloadTrack;
 
 
-    if (gaplessPossible) {
+    if (shouldPreload) {
         this.player.playlist.on("nextTrackChange", this.nextTrackChangedWhilePreloading);      
         this._updateNextGaplessTrack();
     }
@@ -297,7 +310,6 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
             filterNode.gain.value = band.gain;
             return filterNode;
         }), lastFilterNode);
-
 
         var lastFilter = this.filterNodes.reduce(function(prev, curr) {
             prev.connect(curr);
@@ -734,7 +746,6 @@ Player.prototype.nextTrackImplicitly = function() {
 };
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
-    debugger;
     if (audioManager.track) {
         var trackError;
         if (e.name === "NotFoundError" || e.name === "NotReadableError") {
@@ -918,7 +929,7 @@ Player.prototype.loadTrack = function(track) {
     }
 
     if (this.currentAudioManager &&
-        (!implicit || this.currentAudioManager.sourceNode.hasGaplessPreload())) {
+        (!implicit || this.currentAudioManager.hasGaplessPreload())) {
         this.currentAudioManager.replaceTrack(track);
         this.startedPlay();
         this.emit("trackPlaying");

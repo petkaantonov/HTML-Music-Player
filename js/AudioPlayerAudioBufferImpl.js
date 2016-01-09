@@ -33,11 +33,13 @@ const makeAudioContext = function() {
     return ret;
 };
 
-function SourceDescriptor(buffer, length, channelData, isLastForTrack) {
+function SourceDescriptor(buffer, info, channelData, isLastForTrack) {
     this.buffer = buffer;
     this.playedSoFar = 0;
-    this.length = length;
-    this.duration = length / buffer.sampleRate;
+    this.startTime = info.startTime;
+    this.endTime = info.endTime;
+    this.length = info.length;
+    this.duration = info.length / buffer.sampleRate;
     this.started = -1;
     this.source = null;
     this.channelData = channelData;
@@ -688,7 +690,7 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
             channelData[ch] = data;
         }
         var sourceDescriptor = new SourceDescriptor(audioBuffer,
-                                                    args.lengths[i],
+                                                    args.info[i],
                                                     channelData,
                                                     i === args.trackEndingBufferIndex);
         sources[i] = sourceDescriptor;

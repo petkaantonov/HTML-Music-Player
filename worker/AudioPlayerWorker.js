@@ -462,7 +462,7 @@ AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList
             baseTime: args.baseTime,
             count: args.count,
             channelCount: args.channelCount,
-            lengths: args.lengths
+            info: args.info
         }, transferList);
     break;
 
@@ -624,7 +624,9 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
 
     var ret = {
         channels: new Array(channelMixer.getChannels()),
-        length: 0
+        length: 0,
+        startTime: this.decoderContext.getCurrentSample() / this.metadata.sampleRate,
+        endTime: 0
     };
 
     var self = this;
@@ -665,6 +667,7 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
             }
         }
     }
+    ret.endTime = ret.startTime + (ret.length / hardwareSampleRate);
     return ret;
 };
 
@@ -674,7 +677,7 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
             requestId: requestId,
             channelCount: channelMixer.getChannels(),
             count: 0,
-            lengths: [],
+            info: [],
             trackEndingBufferIndex: -1
         };
 
@@ -682,7 +685,11 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
         for (var i = 0; i < count; ++i) {
             var decodeResult = this._decodeNextBuffer(transferList, transferListIndex);
             transferListIndex += decodeResult.channels.length;
-            result.lengths.push(decodeResult.length);
+            result.info.push({
+                length: decodeResult.length,
+                startTime: decodeResult.startTime,
+                endTime: decodeResult.endTime
+            })
             result.count++;
 
             if (this.ended) {
@@ -697,7 +704,7 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
             requestId: requestId,
             channelCount: channelMixer.getChannels(),
             count: 0,
-            lengths: [],
+            info: [],
             trackEndingBufferIndex: -1
         };
     }

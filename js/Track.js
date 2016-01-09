@@ -635,6 +635,13 @@ Track.prototype.isFromSameAlbumAs = function(otherTrack) {
     return thisAlbum.toLowerCase() === otherAlbum.toLowerCase();
 };
 
+Track.prototype.hasSilenceAtEnd = function() {
+    if (this.tagData && this.tagData.endSilenceLength > 0) {
+        return true;
+    }
+    return false;
+};
+
 Track.prototype.getSearchString = function() {
     if (this._searchString !== null) return this._searchString;
     var searchString = this.formatName().toLowerCase().replace(TagData.stripExtensionPattern, "")
