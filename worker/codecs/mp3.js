@@ -1439,7 +1439,7 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
     if (length === undefined) length = src.length - srcStart;
 
     const buffer = this.source;
-    
+
     if (this.frame >= this.frames) {
         return srcStart + length;
     }
@@ -1482,7 +1482,6 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
                                       (buffer[l - 3] << 16) |
                                       (buffer[l - 2] << 8) |
                                       (buffer[l - 1]))) {
-
                     if (!(this.frame !== -1 && this.frames !== ((-1 >>> 1)|0) &&
                         this.frame >= this.frames - 2)) {
                         length -= (i - HEADER_SIZE);

@@ -9,6 +9,18 @@ const mp3_bitrate_tab = new Uint16Array([
     0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160
 ]);
 
+const RIFF = 1380533830|0;
+const WAVE = 1463899717|0;
+const ID3 = 0x494433|0;
+const VBRI = 0x56425249|0;
+const Xing = 0x58696e67|0;
+const Info = 0x496e666f|0;
+const LAME = 0x4c414d45|0;
+const TAG = 0x544147|0;
+const DATA = 0x64617461|0;
+const FACT = 0x66616374|0;
+
+
 function probablyMp3Header(header) {
     return !(((header & 0xffe00000) !== -2097152)     ||
              ((header & (3 << 17)) !== (1 << 17))     ||
@@ -17,6 +29,74 @@ function probablyMp3Header(header) {
 }
 
 
+function demuxMp3FromWav(offset, view) {
+    var max = offset + 4096;
+
+    var chunkSize = view.getInt32(offset + 4, true);
+    var dataEnd = offset + chunkSize + 8;
+    var subChunkSize = view.getInt32(offset + 16, true);
+    var fmt = view.getInt16(offset + 20, true);
+    var channels = view.getInt16(offset + 22, true);
+    var sampleRate = view.getInt32(offset + 24, true);
+    var lsf = sampleRate < 32000;
+    var samplesPerFrame = lsf ? 576 : 1152;
+    var byteRate = view.getInt32(offset + 28, true);
+    var align = view.getInt16(offset + 32, true);
+    var bitsPerSample = view.getInt16(offset + 34, true);
+    var extraParamSize = view.getInt16(offset + 36, true);
+    var wId = view.getInt16(offset + 38, true);
+    var flags = view.getInt32(offset + 40, true);
+    var blockSize = view.getInt16(offset + 44, true);
+    var framesPerBlock = view.getInt16(offset + 46, true);
+    var encoderDelay = view.getInt16(offset + 48, true);
+    var frames = 0;
+
+    offset += subChunkSize + 16 + 4;
+    var duration = 0;
+    while (offset < max) {
+        var nextChunk = view.getInt32(offset, false);
+        offset += 4;
+        if (nextChunk === FACT) {
+            var size = view.getInt32(offset, true);
+            offset += 4;
+            var samples = view.getInt32(offset, true);
+            duration = samples / sampleRate;
+            frames = (samples / samplesPerFrame)|0;
+            offset += size;
+        } else if (nextChunk === DATA) {
+            var dataStart = offset + 4;
+            if (duration === 0) {
+                duration = Math.max(0, (dataEnd - dataStart)) / byteRate;
+                frames = ((duration * sampleRate) / samplesPerFrame)|0;
+            }
+            if (duration < MINIMUM_DURATION) return null;
+
+            return {
+                frames: frames,
+                encoderDelay: encoderDelay,
+                encoderPadding: 0,
+                paddingStartFrame: -1,
+                lsf: lsf,
+                sampleRate: sampleRate,
+                channels: channels,
+                bitRate: byteRate * 8,
+                dataStart: dataStart,
+                dataEnd: dataEnd,
+                averageFrameSize: blockSize,
+                vbr: false,
+                duration: duration,
+                samplesPerFrame: samplesPerFrame,
+                maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                seekTable: null,
+                toc: null
+            };
+        } else {
+            offset += 2;
+        }
+
+    }
+    return null;
+}
 
 function demuxMp3(view) {
     var offset = 0;
@@ -24,9 +104,7 @@ function demuxMp3(view) {
     var dataEnd = view.file.size;
     var samplesPerFrame = 1152;
 
-    var now = Date.now();
-
-    if ((view.getUint32(0, false) >>> 8) === 0x494433) {
+    if ((view.getUint32(0, false) >>> 8) === ID3) {
         var footer = ((view.getUint8(5) >> 4) & 1) * 10;
         var size = (view.getUint8(6) << 21) | 
                    (view.getUint8(7) << 14) |
@@ -34,10 +112,14 @@ function demuxMp3(view) {
                    view.getUint8(9);
         offset = size + 10 + footer;
         dataStart = offset;
+    } 
+
+    if (view.getInt32(dataStart, false) === RIFF &&
+        view.getInt32(dataStart + 8, false) === WAVE) {
+        return demuxMp3FromWav(dataStart, view);
     }
 
-    var n = Date.now();
-    var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === 0x544147;
+    var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === TAG;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
@@ -115,13 +197,14 @@ function demuxMp3(view) {
                     vbr: false,
                     duration: 0,
                     samplesPerFrame: samplesPerFrame,
+                    maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
                     seekTable: null,
                     toc: null
                 };
             }
             header = 0;
             // VBRI
-        } else if (header === (0x56425249|0)) {
+        } else if (header === VBRI) {
             metadata.vbr = true;
             var offset = index + 4 + 10;
             var frames = view.getUint32(offset, false);
@@ -172,8 +255,8 @@ function demuxMp3(view) {
             metadata.dataStart = dataStart;
             break;
         // Xing | Info
-        } else if (header === (0x58696e67|0) || header === (0x496e666f|0)) {
-            if (header === (0x58696e67|0)) {
+        } else if (header === Xing || header === Info) {
+            if (header === Xing) {
                 metadata.vbr = true;
             }
 
@@ -204,7 +287,7 @@ function demuxMp3(view) {
             }
 
             // LAME
-            if (view.getInt32(offset, false) === (0x4c414d45|0)) {
+            if (view.getInt32(offset, false) === LAME) {
                 offset += (9 + 1 + 1 + 8 + 1 + 1);
                 var padding = (view.getInt32(offset, false) >>> 8);
                 var encoderDelay = padding >> 12;
@@ -228,8 +311,7 @@ function demuxMp3(view) {
     if (!metadata) {
         return null;
     }
-    metadata.maxByteSizePerSample = (2881 * (metadata.samplesPerFrame / 1152)) / 1152;
-
+    
     if (metadata.duration === 0) {
         var size = Math.max(0, metadata.dataEnd - metadata.dataStart);
         if (!metadata.vbr) {

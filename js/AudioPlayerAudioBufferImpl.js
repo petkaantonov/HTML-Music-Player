@@ -336,12 +336,12 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._audioContext = audioContext;
     this._worker = worker;
     this._haveBlob = false;
-    this._loadingBuffers = false;
     this._sourceStopped = true;
     this._node = audioContext.createGain();
 
     this._volume = 1;
     this._muted = false;
+    this._loadingNext = false;
 
     // Due to AudioBuffers not having any timing events and them being long
     // enough to ensure seamless and glitch-free playback, 2 times are tracked as
@@ -414,15 +414,19 @@ AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function()
     return Math.min((now - started) + sourceDescriptor.playedSoFar, this._player.getBufferDuration());
 };
 
-AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
-    this._audioBufferFillRequestId++;
+AudioPlayerSourceNode.prototype._nullifyPendingLoadRequests = function() {
     this._seekRequestId++;
     this._sourceEndedId++;
     this._replacementRequestId++;
 };
 
+AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
+    this._audioBufferFillRequestId++;
+    this._nullifyPendingLoadRequests();
+};
+
 AudioPlayerSourceNode.prototype._timeUpdate = function() {
-    if (this._destroyed) return;
+    if (this._destroyed || this._loadingNext) return;
     var currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
     var currentTime = this._baseTime + currentBufferPlayedSoFar;
     this._currentTime = this._haveBlob ? Math.min(this._duration, currentTime) : currentTime;
@@ -430,7 +434,7 @@ AudioPlayerSourceNode.prototype._timeUpdate = function() {
 };
 
 AudioPlayerSourceNode.prototype._ended = function() {
-    if (this._endedEmitted || this._destroyed) return;
+    if (this._endedEmitted || this._destroyed || this._loadingNext) return;
     this._player.playbackStopped();
     this._endedEmitted = true;
 
@@ -621,6 +625,9 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
             var sampleOffset = (buffer.sampleRate * timeOffset)|0;
             var fillCount = Math.min(totalSamples - sampleOffset, samplesNeeded);
             var channelData = sourceDescriptor.channelData;
+            if (sampleOffset * 4 + fillCount > channelData[0].length) {
+                return false;
+            }
 
             var sampleViews = new Array(channelData.length);
             for (var ch = 0; ch < sampleViews.length; ++ch) {
@@ -653,17 +660,11 @@ AudioPlayerSourceNode.prototype._getBuffersForTransferList = function(count) {
     return buffers;
 };
 
-AudioPlayerSourceNode.prototype._fillBuffers = function() {
-    // Can be suddenly called multiple times if UI was blocked for a long time and multiple
-    // audio buffers ended while the UI was blocked. Only the first request is
-    // necessary, so early return for the others.
-    if (this._loadingBuffers || !this._haveBlob || this._destroyed) {
-        return;
-    }
+AudioPlayerSourceNode.prototype._fillBuffers = function() {    
+    if (!this._haveBlob || this._destroyed) return;
 
     if (this._bufferQueue.length < PRELOAD_BUFFER_COUNT * 2) {
         var count = (PRELOAD_BUFFER_COUNT * 2) - this._bufferQueue.length;
-        this._loadingBuffers = true;
         var fillRequestId = ++this._audioBufferFillRequestId;
 
         this._player._message(this._id, "fillBuffers", {
@@ -717,7 +718,8 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
 };
 
 AudioPlayerSourceNode.prototype._checkIfLastBufferIsQueued = function() {
-    if (this._bufferQueue[this._bufferQueue.length - 1].isLastForTrack &&
+    if (this._bufferQueue.length === 0 ||
+        this._bufferQueue[this._bufferQueue.length - 1].isLastForTrack &&
         !this._lastBufferLoadedEmitted) {
         this._lastBufferLoadedEmitted = true;
         this.emit("lastBufferQueued");
@@ -725,8 +727,8 @@ AudioPlayerSourceNode.prototype._checkIfLastBufferIsQueued = function() {
 };
 
 AudioPlayerSourceNode.prototype._buffersFilled = function(args, transferList) {
-    this._loadingBuffers = false;
     if (args.requestId !== this._audioBufferFillRequestId || this._destroyed) {
+        console.log("ignoring buffers", args.requestId, this._audioBufferFillRequestId);
         return this._freeTransferList(transferList);
     }
 
@@ -864,19 +866,24 @@ AudioPlayerSourceNode.prototype._throttledSeek = util.throttle(function(time) {
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
 AudioPlayerSourceNode.prototype.setCurrentTime = function(time, noThrottle) {
-    if (!this.isSeekable()) return;
+    if (!this.isSeekable()) {
+        return;
+    }
+
     time = +time;
-    if (!isFinite(time)) throw new Error("time is not finite");
+    if (!isFinite(time)) {
+        throw new Error("time is not finite");
+    }
     time = Math.max(0, time);
     if (this._haveBlob) {
         time = Math.min(this._player.getMaximumSeekTime(this._duration), time);
     }
-
+    
     this._currentTime = time;
     this._baseTime = this._currentTime - this._getCurrentAudioBufferBaseTimeDelta();
     this._timeUpdate();
 
-    if (!this._haveBlob) {
+    if (!this._haveBlob || !this.isSeekable()) {
         return;
     }
 
@@ -899,7 +906,6 @@ AudioPlayerSourceNode.prototype.unload = function() {
     this._gaplessPreloadArgs = null;
     this._nullifyPendingRequests();
     this._currentTime = this._duration = this._baseTime = 0;
-    this._loadingBuffers = false;
     this._haveBlob = false;
     this._seeking = false;
     this._initialPlaythroughEmitted = false;
@@ -915,7 +921,7 @@ AudioPlayerSourceNode.prototype.unload = function() {
 };
 
 AudioPlayerSourceNode.prototype.isSeekable = function() {
-    return !(this._destroyed || this._lastBufferLoadedEmitted);
+    return !(this._destroyed || this._lastBufferLoadedEmitted) && !this._loadingNext;
 };
 
 AudioPlayerSourceNode.prototype._error = function(args, transferList) {
@@ -931,6 +937,7 @@ AudioPlayerSourceNode.prototype._error = function(args, transferList) {
 AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     if (this._destroyed) return;
     if (this._replacementRequestId !== args.requestId) return;
+    this._loadingNext = false;
     this._haveBlob = true;
     this._duration = args.metadata.duration;
     this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
@@ -959,7 +966,7 @@ AudioPlayerSourceNode.prototype._applyReplacementLoadedArgs = function(args) {
     this._baseTime = args.baseTime;
     this._currentSeekEmitted = false;
     this._lastBufferLoadedEmitted = false;
-    this._nullifyPendingRequests();
+    this._nullifyPendingLoadRequests();
     this.emit("durationChange", this._duration);
     this._timeUpdate();
 };
@@ -969,12 +976,13 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
         return this._freeTransferList(transferList);
     }
 
+    this._loadingNext = false;
+
     if (args.gaplessPreload) {
         this._gaplessPreloadArgs = args;
         this._applyBuffers(args, transferList);
         return;
     }
-
     this._applyReplacementLoadedArgs(args);
     // Sync so that proper gains nodes are set up already when applying the buffers 
     // for this track.
@@ -1035,7 +1043,8 @@ AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob,
 AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreload) {
     if (this._destroyed) return;
     if (seekTime === undefined) seekTime = 0;
-
+    
+    this._loadingNext = true;
     this._nullifyPendingRequests();
     var now = Date.now();
     if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
@@ -1074,6 +1083,7 @@ AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
 
     this._nullifyPendingRequests();
     var now = Date.now();
+    this._loadingNext = true;
     if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
         this._actualLoad(blob, seekTime);
     } else {

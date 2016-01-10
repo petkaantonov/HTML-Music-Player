@@ -128,11 +128,22 @@ AudioManager.prototype.setupNodes = function() {
     this.fadeOutGain.connect(audioCtx.destination);
 };
 
-AudioManager.prototype.audioContextReset = function() {
-    if (this.destroyed) return;
+AudioManager.prototype.destroyVisualizer = function() {
     if (this.visualizer) {
         this.visualizer.destroy();
+        this.visualizer = null;
     }
+};
+
+// The track is only used for fade out and this audiomanager is otherwise
+// obsolete.
+AudioManager.prototype.background = function() {
+    this.destroyVisualizer();
+};
+
+AudioManager.prototype.audioContextReset = function() {
+    if (this.destroyed) return;
+    this.destroyVisualizer();
     this.setupNodes();
     this.normalizeLoudness();
     this.sourceNode.on("timeUpdate", this.timeUpdated);
@@ -156,8 +167,10 @@ AudioManager.prototype.hasGaplessPreload = function() {
 
 AudioManager.prototype._updateNextGaplessTrack = function() {
     this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
-    var time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
-    this.sourceNode.replace(this.gaplessPreloadTrack.getFile(), time, true);
+    if (this.gaplessPreloadTrack) {
+        var time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
+        this.sourceNode.replace(this.gaplessPreloadTrack.getFile(), time, true);
+    }
 };
 
 AudioManager.prototype.nextTrackChangedWhilePreloading = function() {
@@ -201,11 +214,6 @@ AudioManager.prototype.replaceTrack = function(track) {
         }
     }
 
-    if (track === this.track) {
-        this.resume();
-        return this.setCurrentTime(0);
-    }
-
     this.fadeOutSeekGain();
     this.intendingToSeek = 0;
     this.player.audioManagerSeekIntent(this, 0);
@@ -223,7 +231,8 @@ AudioManager.prototype.replaceTrack = function(track) {
         self.resume();
         self.fadeInSeekGain();
     });
-    this.sourceNode.replace(track.getFile(), track.convertFromSilenceAdjustedTime(0));
+    this.currentTime = track.convertFromSilenceAdjustedTime(0);
+    this.sourceNode.replace(track.getFile(), this.currentTime);
 };
 
 AudioManager.prototype.nextTrackChanged = function() {
@@ -248,7 +257,9 @@ AudioManager.prototype.normalizeLoudness = function() {
     }
 
     this.replayGain.gain.value = replayGain;
-    this.visualizer.setMultiplier(replayGain);
+    if (this.visualizer) {
+        this.visualizer.setMultiplier(replayGain);
+    }
 };
 
 AudioManager.prototype.getImage = function() {
@@ -375,7 +386,9 @@ AudioManager.prototype.pause = function() {
     this.pauseResumeFadePromise = Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
         if (self.destroyed) return;
         self.sourceNode.pause();
-        self.visualizer.pause();
+        if (self.visualizer) {
+            self.visualizer.pause();
+        }
     }).finally(function() {
         self.pauseResumeFadePromise  = null;
     });
@@ -386,7 +399,9 @@ AudioManager.prototype.resume = function() {
     var now = audioCtx.currentTime;
     this.cancelPauseResumeFade();
     this.sourceNode.play();
-    this.visualizer.resume();
+    if (this.visualizer) {
+        this.visualizer.resume();
+    }
     this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
         RESUME_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
@@ -467,7 +482,8 @@ AudioManager.prototype.getFadeInTime = function(track) {
     if (!fadeInEnabled) return 0;
 
     if (!crossFadePreferences.getShouldAlbumCrossFade()) {
-        if (this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
+        if (this.player.playlist.getPreviousTrack() &&
+            this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
             return 0;
         }
     }
@@ -484,7 +500,8 @@ AudioManager.prototype.getFadeOutTime = function() {
     if (!fadeOutEnabled) return 0;
 
     if (!crossFadePreferences.getShouldAlbumCrossFade()) {
-        if (this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
+        if (this.player.playlist.getNextTrack() &&
+            this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
             return 0;
         }
     }
@@ -556,13 +573,12 @@ AudioManager.prototype.destroy = function() {
     this.fadeInGain.disconnect();
     this.fadeOutGain.disconnect();
     this.sourceNode.destroy();
-    this.visualizer.destroy();
+    this.destroyVisualizer();
     this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
     this.seekGain = null;
     this.sourceNode = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
-    this.visualizer = null;
     this.volumeGain = null;
     this.muteGain = null;
     this.pauseResumeFadeGain = null;
@@ -794,6 +810,7 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
     if (!audioManager) return 0;
 
     var nextTrack = this.playlist.getNextTrack();
+    if (!nextTrack) return 0;
     if (!preferences.getShouldAlbumCrossFade() &&
         audioManager.track.comesBeforeInSameAlbum(nextTrack)) {
         return 0;
@@ -935,6 +952,10 @@ Player.prototype.loadTrack = function(track) {
         this.emit("trackPlaying");
         this.emit("newTrackLoad");
         return;
+    }
+
+    if (this.currentAudioManager) {
+        this.currentAudioManager.background();
     }
     this.currentAudioManager = new AudioManager(this, track, implicit);
     this.currentAudioManager.trackTagDataUpdated();
