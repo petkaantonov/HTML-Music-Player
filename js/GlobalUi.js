@@ -10,6 +10,17 @@ const keyValueDatabase = require("./KeyValueDatabase");
 
 const GlobalUi = module.exports;
 
+GlobalUi.contextMenuItem = function(text, icon, iconText) {
+    if (!iconText) iconText = "";
+
+    if (icon) {
+        icon = '<div class="icon-container"><span class="icon '+ icon + '">' + iconText + '</span></div>';
+    } else {
+        icon = '<div class="icon-container"></div>';
+    }
+    return '<div class="action-menu-item-content">' + icon + ' <div class="text-container">' + text + '</div></div>';
+};
+
 GlobalUi.snackbar = new Snackbar({
     transitionInClass: "transition-in",
     transitionOutClass: "transition-out",

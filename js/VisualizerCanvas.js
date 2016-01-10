@@ -11,6 +11,7 @@ const Default2dImageRenderer = require("./Default2dImageRenderer");
 const WebGl2dImageRenderer = require("./WebGl2dImageRenderer");
 const EventEmitter = require("events");
 const GlobalUi = require("./GlobalUi");
+const ContextMenu = require("./ActionMenu").ContextMenu;
 
 const $ = require("../lib/jquery");
 
@@ -151,8 +152,9 @@ GraphicsSource.prototype.isReady = function() {
     return this.image !== null;
 };
 
-function VisualizerCanvas(targetCanvas, opts) {
+function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
+    this.player = player;
     this.webglSupported = WebGl2dImageRenderer.isSupported();
     var $targetCanvas = $(targetCanvas);
     targetCanvas = $targetCanvas[0];
@@ -223,11 +225,66 @@ function VisualizerCanvas(targetCanvas, opts) {
             }
         }
         this.drawIdleBins(Date.now());
+        this.refreshContextMenu();
     });
+
+    this.contextMenu = null;
+    this.setupCanvasContextMenu();
 }
 util.inherits(VisualizerCanvas, EventEmitter);
 
+VisualizerCanvas.prototype.refreshContextMenu = function() {
+    if (this.contextMenu) {
+        this.contextMenu.refreshAll();
+    }
+};
+
+VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
+    this.destroyCanvasContextMenu();
+    var self = this;
+    var canvas = this.canvas;
+    var menuSpec = {
+        menu: [{
+            id: "hardware-acceleration",
+            disabled: true,
+            onClick: function(e) {
+                e.preventDefault()
+            },
+            content: function() {
+                return GlobalUi.contextMenuItem("Hardware acceleration", self.isHardwareRendering() ? "glyphicon glyphicon-ok" : null);
+            }
+        }, {
+            divider: true
+        }, {
+            id: "hardware-latency",
+            content: GlobalUi.contextMenuItem("Synchronize with audio..."),
+            onClick: function(e) {
+                e.preventDefault()
+            }
+        }, {
+            id: "visualizer-enabled",
+            content: function() {
+                return GlobalUi.contextMenuItem("Enabled", self.isEnabled() ? "glyphicon glyphicon-ok" : null);
+            },
+            onClick: function(e) {
+                e.preventDefault();
+                self.enabled = !self.enabled;
+                self.refreshContextMenu();
+            }
+        }]
+    };
+    this.contextMenu = new ContextMenu(canvas, menuSpec);
+};
+
+VisualizerCanvas.prototype.destroyCanvasContextMenu = function() {
+    if (this.contextMenu) {
+        this.contextMenu.destroy();
+        this.contextMenu = null;
+    }
+};
+
 VisualizerCanvas.prototype.resetCanvas = function() {
+    this.destroyCanvasContextMenu();
     var canvas = document.createElement("canvas");
     canvas.className = this.canvas.className;
     canvas.width = this.width;
@@ -235,6 +292,7 @@ VisualizerCanvas.prototype.resetCanvas = function() {
     this.canvas.parentNode.replaceChild(canvas, this.canvas);
     this.emit("canvasChange", canvas, this.canvas);
     this.canvas = canvas;
+    this.setupCanvasContextMenu();
 };
 
 VisualizerCanvas.prototype.useSoftwareRendering = function() {
@@ -255,6 +313,7 @@ VisualizerCanvas.prototype.canUseHardwareRendering = function() {
 };
 
 VisualizerCanvas.prototype.isHardwareRendering = function() {
+    if (!this.renderer) return false;
     return this.renderer.usesHardwareAcceleration();
 };
 
@@ -340,9 +399,16 @@ VisualizerCanvas.prototype.objectsPerBin = function() {
     return 3;
 };
 
+VisualizerCanvas.prototype.needsToDraw = function() {
+    return this.needToDraw || this.isEnabled();
+};
+
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
     if (!this.source.isReady()) return;
+    if (!this.isEnabled()) {
+        bins = this.emptyBins;
+    }
     this.renderer.initScene(bins, 3);
     this.needToDraw = true;
 

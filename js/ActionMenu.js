@@ -180,7 +180,7 @@ ActionMenuItem.prototype._createDom = function(content) {
 
 ActionMenuItem.prototype.refresh = function() {
     if (this.divider || !this.isShown()) return;
-    this.$().html(this.content(this) + "");
+    this.$().html(this._content(this) + "");
     if (this.parent) this.parent.positionSubMenu();
 };
 
@@ -204,7 +204,10 @@ ActionMenuItem.prototype.disable = function() {
 };
 
 ActionMenuItem.prototype.isShown = function() {
-    return this.$container().parent().length > 0;
+    if (this.$container() !== NULL) {
+        return this.$container().parent().length > 0;
+    }
+    return this.$().parent().length > 0;
 };
 
 ActionMenuItem.prototype.getHorizontalDirection = function() {

@@ -15,9 +15,15 @@ const util = require("./util");
 const EventEmitter = require("events");
 const ChannelMixer = require("../worker/ChannelMixer");
 const patchAudioContext = require("../lib/audiocontextpatch");
+const $ = require("../lib/jquery");
+require("../lib/ua-parser");
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
+
+const DESKTOP_LATENCY = 0.01;
+const NEW_ANDROID_LATENCY = 0.028; // Android version >= 5.0
+const OLD_ANDROID_LATENCY = 0.125; // Android version < 5.0
 
 const asap = function(fn) {
     fn();
@@ -91,6 +97,7 @@ function AudioPlayer(audioContext, suspensionTimeout) {
 
     this._worker.addEventListener("message", this._messaged, false);
     this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
+    this._hardwareLatency = 0;
 
     this.ready = new Promise(function(resolve) {
         var ready = function(event) {
@@ -101,9 +108,11 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     }.bind(this));
 
     setInterval(this._timeProgressChecker, 200);
+    this._determineHardwareLatency();
 }
 util.inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
+
 
 // Android makes an audiocontext completely unusable after 1 min
 // of inactivity. This scenario can be detected by .currentTime
@@ -118,14 +127,6 @@ AudioPlayer.prototype._timeProgressChecker = function() {
     }
     this._previousAudioContextTime = time;
     return time;
-};
-
-AudioPlayer.prototype.getCurrentTime = function(timeShouldHaveProgressed) {
-    return this._audioContext.currentTime;
-};
-
-AudioPlayer.prototype.getAudioContext = function() {
-    return this._audioContext;
 };
 
 AudioPlayer.prototype._suspend = function() {
@@ -162,6 +163,129 @@ AudioPlayer.prototype._resetAudioContext = function() {
     } catch (e) {}
     this._audioContext = makeAudioContext();
     this.emit("audioContextReset", this);
+};
+
+AudioPlayer.prototype._clearSuspensionTimer = function() {
+    if (this._suspensionTimeoutId !== -1) {
+        clearTimeout(this._suspensionTimeoutId);
+        this._suspensionTimeoutId = -1;
+    }
+};
+
+AudioPlayer.prototype._messaged = function(event) {
+    if ((event.data.nodeId < 0 || event.data.nodeId === undefined) &&
+        event.data.methodName) {
+        var data = event.data;
+        this[data.methodName].call(this, data.args, data.transferList);
+    }
+};
+
+AudioPlayer.prototype._message = function(nodeId, methodName, args, transferList) {
+    if (transferList === undefined) transferList = [];
+    args = Object(args);
+    transferList = transferList.map(function(v) {
+        if (v.buffer) return v.buffer;
+        return v;
+    });
+    this._worker.postMessage({
+        nodeId: nodeId,
+        methodName: methodName,
+        args: args,
+        transferList: transferList
+    }, transferList);
+};
+
+AudioPlayer.prototype._freeTransferList = function(args, transferList) {
+    while (transferList.length > 0) {
+        this._freeArrayBuffer(transferList.pop());
+    }
+};
+
+AudioPlayer.prototype._freeAudioBuffer = function(audioBuffer) {
+    this._audioBufferPool.push(audioBuffer);
+};
+
+AudioPlayer.prototype._allocAudioBuffer = function() {
+    if (this._audioBufferPool.length > 0) return this._audioBufferPool.shift();
+    var ret = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
+                                              BUFFER_SAMPLES,
+                                              this._audioContext.sampleRate);
+    this._audioBuffersAllocated++;
+    if (this._audioBuffersAllocated > 20) {
+        if (window.console && console.warn) {
+            console.warn("Possible memory leak: over 20 audio buffers allocated");
+        }
+    }
+    return ret;
+};
+
+AudioPlayer.prototype._freeArrayBuffer = function(arrayBuffer) {
+    if (!(arrayBuffer instanceof ArrayBuffer)) {
+        arrayBuffer = arrayBuffer.buffer;
+    }
+    this._arrayBufferPool.push(arrayBuffer);
+};
+
+AudioPlayer.prototype._allocArrayBuffer = function(size) {
+    if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
+    this._arrayBuffersAllocated++;
+    if (this._arrayBuffersAllocated > 40) {
+        if (window.console && console.warn) {
+            console.warn("Possible memory leak: over 40 array buffers allocated");
+        }
+    }
+    var buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
+    return new Float32Array(buffer, 0, size);
+};
+
+AudioPlayer.prototype._determineHardwareLatency = function() {
+    var ua = $.ua;
+    if (ua.os && ua.os.name === "Android") {
+        var version = ua.os.version.split(".");
+        if (version.length === 3) {
+            var major = parseInt(version[0], 10);
+            if (major >= 2 && major <= 4) {
+                this._hardwareLatency = OLD_ANDROID_LATENCY;
+            } else if (major >= 5 && major < 9) {
+                this._hardwareLatency = NEW_ANDROID_LATENCY;
+            } else {
+                this._hardwareLatency = OLD_ANDROID_LATENCY;
+            }
+        } else {
+            this._hardwareLatency = OLD_ANDROID_LATENCY;
+        }
+    } else {
+        this._hardwareLatency = DESKTOP_LATENCY;
+    }
+    this._hardwareLatency = Math.min(this.getMaxLatency(), this._hardwareLatency);
+};
+
+AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
+    var i = this._sourceNodes.indexOf(node);
+    if (i >= 0) this._sourceNodes.splice(i, 1);
+};
+
+AudioPlayer.prototype.getMaxLatency = function() {
+    return BUFFER_SAMPLES / this._audioContext.sampleRate / 2;
+};
+
+AudioPlayer.prototype.getHardwareLatency = function() {
+    return this._hardwareLatency;
+};
+
+AudioPlayer.prototype.setHardwareLatency = function(amount) {
+    amount = +amount;
+    if (!isFinite(amount)) return;
+    amount = Math.min(this.getMaxLatency(), Math.max(amount, 0));
+    this._hardwareLatency = amount;
+};
+
+AudioPlayer.prototype.getCurrentTime = function(timeShouldHaveProgressed) {
+    return this._audioContext.currentTime;
+};
+
+AudioPlayer.prototype.getAudioContext = function() {
+    return this._audioContext;
 };
 
 AudioPlayer.prototype.resume = function() {
@@ -224,13 +348,6 @@ AudioPlayer.prototype.playbackStarted = function() {
     this._clearSuspensionTimer();
 };
 
-AudioPlayer.prototype._clearSuspensionTimer = function() {
-    if (this._suspensionTimeoutId !== -1) {
-        clearTimeout(this._suspensionTimeoutId);
-        this._suspensionTimeoutId = -1;
-    }
-};
-
 AudioPlayer.prototype.getMaximumSeekTime = function(duration) {
     return Math.max(0, duration - (this._audioBufferTime + (2048 / this._audioContext.sampleRate)));
 };
@@ -240,79 +357,8 @@ AudioPlayer.prototype.blockSizedTime = function(time) {
             this._audioContext.sampleRate;
 };
 
-AudioPlayer.prototype._messaged = function(event) {
-    if ((event.data.nodeId < 0 || event.data.nodeId === undefined) &&
-        event.data.methodName) {
-        var data = event.data;
-        this[data.methodName].call(this, data.args, data.transferList);
-    }
-};
-
-AudioPlayer.prototype._message = function(nodeId, methodName, args, transferList) {
-    if (transferList === undefined) transferList = [];
-    args = Object(args);
-    transferList = transferList.map(function(v) {
-        if (v.buffer) return v.buffer;
-        return v;
-    });
-    this._worker.postMessage({
-        nodeId: nodeId,
-        methodName: methodName,
-        args: args,
-        transferList: transferList
-    }, transferList);
-};
-
-AudioPlayer.prototype._freeTransferList = function(args, transferList) {
-    while (transferList.length > 0) {
-        this._freeArrayBuffer(transferList.pop());
-    }
-};
-
 AudioPlayer.prototype.getBufferDuration = function() {
     return this._audioBufferTime;
-};
-
-AudioPlayer.prototype._freeAudioBuffer = function(audioBuffer) {
-    this._audioBufferPool.push(audioBuffer);
-};
-
-AudioPlayer.prototype._allocAudioBuffer = function() {
-    if (this._audioBufferPool.length > 0) return this._audioBufferPool.shift();
-    var ret = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
-                                              BUFFER_SAMPLES,
-                                              this._audioContext.sampleRate);
-    this._audioBuffersAllocated++;
-    if (this._audioBuffersAllocated > 20) {
-        if (window.console && console.warn) {
-            console.warn("Possible memory leak: over 20 audio buffers allocated");
-        }
-    }
-    return ret;
-};
-
-AudioPlayer.prototype._freeArrayBuffer = function(arrayBuffer) {
-    if (!(arrayBuffer instanceof ArrayBuffer)) {
-        arrayBuffer = arrayBuffer.buffer;
-    }
-    this._arrayBufferPool.push(arrayBuffer);
-};
-
-AudioPlayer.prototype._allocArrayBuffer = function(size) {
-    if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
-    this._arrayBuffersAllocated++;
-    if (this._arrayBuffersAllocated > 40) {
-        if (window.console && console.warn) {
-            console.warn("Possible memory leak: over 40 array buffers allocated");
-        }
-    }
-    var buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
-    return new Float32Array(buffer, 0, size);
-};
-
-AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
-    var i = this._sourceNodes.indexOf(node);
-    if (i >= 0) this._sourceNodes.splice(i, 1);
 };
 
 AudioPlayer.prototype.createSourceNode = function() {
@@ -378,6 +424,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     });
 
     this._bufferQueue = [];
+    this._playedBufferQueue = [];
 }
 util.inherits(AudioPlayerSourceNode, EventEmitter);
 
@@ -500,7 +547,13 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
         throw new Error("should not happen");
     }
     this._baseTime += sourceDescriptor.duration;
-    this._destroySourceDescriptor(sourceDescriptor);
+
+    source.onended = null;
+    sourceDescriptor.source = null;
+    this._playedBufferQueue.push(sourceDescriptor);
+    if (this._playedBufferQueue.length > PRELOAD_BUFFER_COUNT) {
+        this._destroySourceDescriptor(this._playedBufferQueue.shift());
+    }
 
     if (this._baseTime >= this._duration ||
         (sourceDescriptor.isLastForTrack && this._bufferQueue.length === 0)) {
@@ -602,45 +655,54 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         var now = this._player.getCurrentTime();
         var samplesIndex = 0;
         var additionalTime = 0;
-        for (var i = 0; i < this._bufferQueue.length; ++i) {
-            var sourceDescriptor = this._bufferQueue[i];
-            if (!sourceDescriptor.source) continue;
+        var bufferQueue = this._bufferQueue;
+        var playedBufferQueue = this._playedBufferQueue;
+        var latency = this._player.getHardwareLatency();
 
-            var timeOffset = sourceDescriptor.started + additionalTime;
-            if (now > timeOffset) {
-                timeOffset = now - (timeOffset - sourceDescriptor.playedSoFar);
-            } else {
-                timeOffset = 0;
-            }
-            var buffer = sourceDescriptor.buffer;
-            var totalSamples = (sourceDescriptor.duration * buffer.sampleRate)|0;
+        if (bufferQueue.length === 0) {
+            return false;
+        }
+        
+        var buffers = [bufferQueue[0]];
+        var sampleRate = this._audioContext.sampleRate;
+        var offsetInCurrentBuffer = this._getCurrentAudioBufferBaseTimeDelta();
 
-            if (Math.ceil(timeOffset * buffer.sampleRate) > BUFFER_SAMPLES) {
-                additionalTime = (timeOffset - (BUFFER_SAMPLES / buffer.sampleRate));
-                continue;
-            } else {
-                additionalTime = 0;
-            }
+        if (Math.ceil((offsetInCurrentBuffer + (samplesNeeded / sampleRate) - latency) * sampleRate) > buffers[0].length &&
+            bufferQueue.length < 2) {
+            return false;
+        } else {
+            buffers.push(bufferQueue[1]);   
+        }
 
-            var sampleOffset = (buffer.sampleRate * timeOffset)|0;
-            var fillCount = Math.min(totalSamples - sampleOffset, samplesNeeded);
-            var channelData = sourceDescriptor.channelData;
-            if (sampleOffset * 4 + fillCount > channelData[0].length) {
-                return false;
-            }
+        if (offsetInCurrentBuffer < latency && playedBufferQueue.length === 0) {
+            return false;
+        } else {
+            buffers.unshift(playedBufferQueue.length > 0 ? playedBufferQueue[0] : null);
+        }
 
+        var bufferIndex = offsetInCurrentBuffer >= latency ? 1 : 0;
+        var bufferDataIndex = bufferIndex === 0 ? (buffers[0].length - (latency * sampleRate))|0
+                                                : ((offsetInCurrentBuffer - latency) * sampleRate)|0;
+
+        for (var i = bufferIndex; i < buffers.length; ++i) {
+            var j = bufferDataIndex;
+            var buffer = buffers[i];
+            var samplesRemainingInBuffer = buffer.length - j;
+            var fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer);
+            var channelData = buffer.channelData;
             var sampleViews = new Array(channelData.length);
             for (var ch = 0; ch < sampleViews.length; ++ch) {
-                sampleViews[ch] = new Float32Array(channelData[ch].buffer, sampleOffset * 4, fillCount);
+                sampleViews[ch] = new Float32Array(channelData[ch].buffer, j * 4, fillCount);
             }
-            
             inputView[0] = new Float32Array(inputBuffer, samplesIndex * 4, samplesNeeded);
             analyserChannelMixer.mix(sampleViews, fillCount, inputView);
             samplesIndex += fillCount;
             samplesNeeded -= fillCount;
+
             if (samplesNeeded <= 0) {
                 return true;
             }
+            bufferDataIndex = 0;
         }
         return false;
     } else {
@@ -728,7 +790,6 @@ AudioPlayerSourceNode.prototype._checkIfLastBufferIsQueued = function() {
 
 AudioPlayerSourceNode.prototype._buffersFilled = function(args, transferList) {
     if (args.requestId !== this._audioBufferFillRequestId || this._destroyed) {
-        console.log("ignoring buffers", args.requestId, this._audioBufferFillRequestId);
         return this._freeTransferList(transferList);
     }
 

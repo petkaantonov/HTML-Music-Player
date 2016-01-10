@@ -128,7 +128,7 @@ AudioVisualizer.prototype.gotFrame = function(now) {
     if (this.destroyed) return;
     this.frameId = requestAnimationFrame(this.gotFrame);
 
-    if (!this.visualizerCanvas.isEnabled()) return;
+    if (!this.visualizerCanvas.needsToDraw()) return;
 
     var elapsed = now - this.lastFrameTimeStamp;
     var targetFps = this.fps();

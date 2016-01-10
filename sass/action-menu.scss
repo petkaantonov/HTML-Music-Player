@@ -5,6 +5,7 @@
     padding: 10px 0px;
     min-width: 150px;
     box-sizing: border-box;
+    will-change: contents;
 }
 
 .action-menu-item.action-menu-sub-menu-item::after {
@@ -16,9 +17,19 @@
     line-height: 12px;
 }
 
-.action-menu-item-content .icon {
-    margin-right: 10px;
-    margin-top: 1px;
+.action-menu-item-content .icon-container {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    margin-right: 12px;
+    vertical-align: top;
+}
+
+.action-menu-item-content .text-container {
+    display: inline-block;
+    vertical-align: top;
+    max-width: 256px;
+    word-wrap: break-word;
 }
 
 .action-menu-item:hover .icon,

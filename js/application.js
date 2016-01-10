@@ -27,7 +27,6 @@ const Playlist = require("./Playlist");
 const ActionMenu = require("./ActionMenu");
 const features = require("./features");
 const PlaylistModeManager = require("./PlaylistModeManager");
-const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const PlayerTimeManager = require("./PlayerTimeManager");
 const Slider = require("./Slider");
@@ -38,6 +37,7 @@ const VisualizerCanvas = require("./VisualizerCanvas");
 const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
+const GlobalUi = require("./GlobalUi");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px) and (min-width: 760px)");
 
@@ -80,56 +80,56 @@ const trackActionsSpec = {
     menu: [{
         id: "select-all",
         disabled: true,
-        content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">select_all</span> Select all</div>',
+        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon", "select_all"),
         onClick: actions.selectAll
     }, {
         id: "filter",
         disabled: true,
-        content: '<div class="action-menu-item-content"><span class="icon glyphicon glyphicon-filter"></span> Filter</div>',
+        content: GlobalUi.contextMenuItem("Filter", "glyphicon glyphicon-filter"),
         onClick: actions.filter
     }, {
         id: "play",
         disabled: true,
-        content: '<div class="action-menu-item-content"><span class="icon glyphicon glyphicon-play-circle"></span> Play</div>',
+        content: GlobalUi.contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
         onClick: actions.play
     }, {
         id: "delete",
         disabled: true,
-        content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">delete</span> Delete</div>',
+        content: GlobalUi.contextMenuItem("Delete", "material-icons small-material-icon", "delete"),
         onClick: actions.delete
     }, {
         id: "sort",
         disabled: true,
-        content: '<div class="action-menu-item-content"><span class="icon glyphicon glyphicon-sort"></span> Sort by</div>',
+        content: GlobalUi.contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
         children: [{
             id: "sort-by-album",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">album</span> Album</div>',
+            content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon", "album"),
             onClick: actions.sortByTitle
 
         }, {
             id: "sort-by-artist",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">mic</span> Artist</div>',
+            content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon", "mic"),
             onClick: actions.sortByArtist
 
         }, {
             id: "sort-by-title",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">music_note</span> Title</div>',
+            content: GlobalUi.contextMenuItem("Title", "material-icons small-material-icon", "music_note"),
             onClick: actions.sortByAlbum
 
         }, {
             id: "sort-by-rating",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">grade</span> Rating</div>',
+            content: GlobalUi.contextMenuItem("Rating", "material-icons small-material-icon", "grade"),
             onClick: actions.sortByRating
 
         }, {
             id: "sort-by-duration",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">access_time</span> Duration</div>',
+            content: GlobalUi.contextMenuItem("Duration", "material-icons small-material-icon", "access_time"),
             onClick: actions.sortByDuration
         }, {
             divider: true
         }, {
             id: "sort-by-reverse-order",
-            content: '<div class="action-menu-item-content"><span class="icon material-icons small-material-icon">undo</span> Reverse order</div>',
+            content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon", "undo"),
             onClick: actions.sortByReverseOrder
         }]
     }]
@@ -261,7 +261,7 @@ window.onbeforeunload = function(e) {
     }
 };
 
-var visualizerCanvas = new VisualizerCanvas("#visualizer", {
+var visualizerCanvas = new VisualizerCanvas("#visualizer", player.main, {
     binWidth: 3,
     gapWidth: 1,
     capHeight: 1,
