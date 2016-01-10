@@ -1337,6 +1337,13 @@ util.addLegacyListener = function(object, eventName, handler) {
     }
 };
 
+util.slugTitle = function(val) {
+    return (val + "").toLowerCase().replace(/[^a-zA-Z0-9 \-_\$]/g, "")
+                            .replace(/[\-_ ]/g, "-")
+                            .replace(/\-+/g, "-")
+                            .replace(/^\-|\-$/g, "");
+};
+
 util.removeLegacyListener = function(object, eventName, handler) {
     var eventCache = legacyListeners[eventName];
 

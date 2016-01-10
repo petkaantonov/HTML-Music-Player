@@ -608,6 +608,7 @@ AudioManager.prototype.destroy = function() {
 
 const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
+const LATENCY_KEY = "audio-hardware-latency";
 
 function Player(dom, playlist, opts) {
     var self = this;
@@ -653,8 +654,9 @@ function Player(dom, playlist, opts) {
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
-        if (VOLUME_KEY in values) self.setVolume(values.volume);
+        if (VOLUME_KEY in values) self.setVolume(values[VOLUME_KEY]);
         if (MUTED_KEY in values && values.muted) self.toggleMute();
+        if (LATENCY_KEY in values) self.setAudioHardwareLatency(+values[LATENCY_KEY]);
     });
 
     this.ready = audioPlayer.ready;
@@ -1101,6 +1103,19 @@ Player.prototype.setVolume = function(val) {
     this.emit("volumeChange");
     keyValueDatabase.set(VOLUME_KEY, volume);
     return this;
+};
+
+Player.prototype.getAudioHardwareLatency = function() {
+    return audioPlayer.getHardwareLatency();
+};
+
+Player.prototype.setAudioHardwareLatency = function(value) {
+    audioPlayer.setHardwareLatency(+value);
+    keyValueDatabase.set(LATENCY_KEY, audioPlayer.getHardwareLatency());
+};
+
+Player.prototype.getMaximumAudioHardwareLatency = function() {
+    return audioPlayer.getMaxLatency();
 };
 
 module.exports = Player;

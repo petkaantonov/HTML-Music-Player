@@ -13,8 +13,6 @@ function showBlocker() {
     blocker = $('<div>')
         .css({
             position: "fixed",
-            width: $(window).width(),
-            height: $(window).height(),
             left: 0,
             top: 0,
             zIndex: 99999
@@ -39,13 +37,6 @@ function hideBlocker() {
     blocker.remove();
     blocker = NULL;
 }
-
-$(window).on("resize", function() {
-    blocker.css({
-        width: $(window).width(),
-        height: $(window).height()
-    });
-});
 
 function Popup(opts) {
     EventEmitter.call(this);
@@ -103,6 +94,8 @@ Popup.prototype.position = function() {
 
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
+
+    
 
     this.$().css({left: x, top: y});
 };
@@ -205,6 +198,7 @@ Popup.prototype.close = function() {
     this._shown = false;
     shownPopups.splice(shownPopups.indexOf(this), 1);
     
+    this.emit("close", this);
     var $node = this._popupDom;
     Promise.resolve(this.beforeTransitionOut(this._popupDom)).finally(function() {
         $node.remove();
@@ -216,7 +210,6 @@ Popup.prototype.close = function() {
     if (shownPopups.length === 0) {
         hideBlocker();
     }
-    this.emit("close", this);
 };
 
 Popup.prototype.getPreferredPosition = function() {

@@ -13,6 +13,19 @@ const EventEmitter = require("events");
 const GlobalUi = require("./GlobalUi");
 const ContextMenu = require("./ActionMenu").ContextMenu;
 
+const LATENCY_POPUP_HTML = '<div class="latency-input-row row"><div class="col-xs-12">                                \
+        <p>If the visualization is not in sync with the audio try changing this setting.</p>                          \
+    <form>                                                                                                            \
+        <div class="form-group">                                                                                      \
+            <div class="input-group">                                                                                 \
+                <input type="number" class="form-control latency-input" placeholder="Latency">                        \
+                <div class="input-group-addon">ms</div>                                                               \
+            </div>                                                                                                    \
+        </div>                                                                                                        \
+    </form>                                                                                                           \
+    </div></div>';
+
+
 const $ = require("../lib/jquery");
 
 function TransitionInfo(visualizerCanvas) {
@@ -182,7 +195,10 @@ function VisualizerCanvas(targetCanvas, player, opts) {
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
+    this.latencyPopupOpened = this.latencyPopupOpened.bind(this);
 
+    this.latencyPopup = GlobalUi.makePopup("Latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+    this.latencyPopup.on("open", this.latencyPopupOpened);
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
@@ -229,6 +245,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     });
 
     this.contextMenu = null;
+
     this.setupCanvasContextMenu();
 }
 util.inherits(VisualizerCanvas, EventEmitter);
@@ -259,7 +276,7 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
             id: "hardware-latency",
             content: GlobalUi.contextMenuItem("Synchronize with audio..."),
             onClick: function(e) {
-                e.preventDefault()
+                self.latencyPopup.open();
             }
         }, {
             id: "visualizer-enabled",
@@ -274,6 +291,26 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
         }]
     };
     this.contextMenu = new ContextMenu(canvas, menuSpec);
+};
+
+VisualizerCanvas.prototype.latencyPopupOpened = function() {
+    var latency = (this.player.getAudioHardwareLatency() * 1000)|0;
+    var maxLatency = (this.player.getMaximumAudioHardwareLatency() * 1000)|0;
+
+    var $input = this.latencyPopup.$().find(".latency-input");
+    $input.val(latency);
+    $input.prop("min", 0);
+    $input.prop("max", maxLatency);
+    var self = this;
+    $input.on("input change", function() {
+        var val = (+$(this).val()) / 1000;
+        self.player.setAudioHardwareLatency(val);
+    });
+    this.latencyPopup.$().find("form").on("submit", function(e) {
+        e.preventDefault();
+        self.latencyPopup.close();
+    });
+    $input.focus();
 };
 
 VisualizerCanvas.prototype.destroyCanvasContextMenu = function() {
@@ -320,23 +357,29 @@ VisualizerCanvas.prototype.isHardwareRendering = function() {
 VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
     this.enabled = !!this.enabledMediaMatcher.matches;
     this.binSizeMediaMatchChanged();
+    this.refreshContextMenu();
+    if (this.source && this.source.isReady()) {
+        this.drawIdleBins(Date.now());
+    }
 };
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
-    if (this.isEnabled()) {
-        var width = $(this.canvas).width() * pixelRatio;
-        if (width !== this.width) {
-            this.width = width;
-            this.canvas.width = width;
+    var width = $(this.canvas).width() * pixelRatio;
+    if (width !== this.width) {
+        this.width = width;
+        this.canvas.width = width;
 
-            this.currentCapPositions = new Float32Array(this.getNumBins());
-            this.emptyBins = new Float32Array(this.getNumBins());
-            this.transitionInfoArray = new Array(this.getNumBins());
+        this.currentCapPositions = new Float32Array(this.getNumBins());
+        this.emptyBins = new Float32Array(this.getNumBins());
+        this.transitionInfoArray = new Array(this.getNumBins());
 
-            for (var i = 0; i < this.transitionInfoArray.length; ++i) {
-                this.transitionInfoArray[i] = new TransitionInfo(this);
-            }
-            this.resetCaps();
+        for (var i = 0; i < this.transitionInfoArray.length; ++i) {
+            this.transitionInfoArray[i] = new TransitionInfo(this);
+        }
+
+        this.resetCaps();
+
+        if (this.renderer) {
             this.renderer.setDimensions(this.width, this.height);
         }
     }

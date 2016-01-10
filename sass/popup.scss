@@ -1,3 +1,9 @@
+@import "variables";
+
+$header-height: 38px;
+$header-margin: 25px;
+$header-size: $header-height + $header-margin;
+
 .popup-container {
     border-radius: 4px;
     background-color: #fcfcfc;
@@ -5,11 +11,58 @@
     transform-origin: 0 0;
 }
 
+
+.popup-body {
+    margin-top: 5px;
+    padding: ($header-margin - 5px) 10px $header-margin 10px;
+    overflow: hidden;
+    box-sizing: border-box;
+    position: relative;
+    font-size: 15px;
+}
+
+.popup-body {
+    @include large-screen {
+        max-width: $large-screen-width;
+    }
+
+    @include small-screen {
+        max-width: $small-screen-width;
+    }
+
+    @include medium-small-screen {
+        max-width: $medium-small-screen-width;
+    }
+
+    @include ultra-small-screen {
+        max-width: $ultra-small-screen-width;
+    }
+
+    @include long-screen {
+        max-height: $large-screen-height - $header-size;
+    }
+
+    @include short-screen {
+        max-height: $small-screen-height - $header-size;
+    }
+
+    @include medium-short-screen {
+        max-height: $medium-small-screen-height - $header-size;
+    }
+
+    @include ultra-short-screen {
+        max-height: $ultra-small-screen-height - $header-size;
+    }
+}
+
 .popup-blocker {
     transform: translate3d(0, 0, 0);
     background-color: #000000;
     opacity: 0.55;
     transition: opacity 0.25s ease-in;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .popup-blocker.initial {
@@ -29,9 +82,9 @@
     font-size: 0;
     position: relative;
     background-color: #fff;
-    height: 38px;
+    height: $header-height;
     width: 100%;
-    margin-bottom: 25px;
+    margin: 0;
     background: rgb(255,255,255);
     background: -moz-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(248,248,248,1) 100%);
     background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
@@ -88,10 +141,6 @@
 
 .popup-closer-container:hover .icon {
     color: #8B0000;
-}
-
-.popup-body {
-    padding: 0px 10px 25px 10px;
 }
 
 .app-popup-button {

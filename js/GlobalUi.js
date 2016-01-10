@@ -7,6 +7,9 @@ const Popup = require("./Popup");
 const Tooltip = require("./Tooltip");
 const Animator = require("./Animator");
 const keyValueDatabase = require("./KeyValueDatabase");
+const features = require("./features");
+const usePerfectScrollbar = !features.touch;
+const util = require("./util");
 
 const GlobalUi = module.exports;
 
@@ -18,7 +21,8 @@ GlobalUi.contextMenuItem = function(text, icon, iconText) {
     } else {
         icon = '<div class="icon-container"></div>';
     }
-    return '<div class="action-menu-item-content">' + icon + ' <div class="text-container">' + text + '</div></div>';
+    var className = "action-menu-item-content " + util.slugTitle(text);
+    return '<div class="' + className + '">' + icon + ' <div class="text-container">' + text + '</div></div>';
 };
 
 GlobalUi.snackbar = new Snackbar({
@@ -65,12 +69,20 @@ GlobalUi.makePopup = function(title, body, opener) {
                 (openerBox.height / 2);
     };
 
+    var openerRect = null;
+    const getOpenerRect = function(popupNode) {
+        var node = $(opener)[0];
+        if (!node) return popupNode.getBoundingClientRect();
+        return node.getBoundingClientRect();
+    };
+
     var ret = new Popup({
         title: title,
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
-            var openerBox = $(opener)[0].getBoundingClientRect();
+            var openerBox = getOpenerRect($node[0]);
+            openerRect = openerBox;
             var popupBox = $node[0].getBoundingClientRect();
 
             var animator = new Animator($node[0], {
@@ -101,7 +113,8 @@ GlobalUi.makePopup = function(title, body, opener) {
                 });
                 animator.on("animationEnd", resolve);
 
-                var openerBox = $(opener)[0].getBoundingClientRect();
+                var openerBox = openerRect || getOpenerRect($node[0]);
+                openerRect = null;
                 var popupBox = $node[0].getBoundingClientRect();
 
                 var path = animator.createPath();
@@ -118,11 +131,21 @@ GlobalUi.makePopup = function(title, body, opener) {
     const hotkeyManager = require("./HotkeyManager");
     ret.on("open", function() {
         hotkeyManager.disableHotkeys();
+
+        if (usePerfectScrollbar) {
+            ret.$().find(".popup-body").perfectScrollbar({
+                suppressScrollX: true
+            });
+        }
     });
 
     ret.on("close", function() {
+        if (usePerfectScrollbar) {
+            ret.$().find(".popup-body").perfectScrollbar("destroy");
+        }
         hotkeyManager.enableHotkeys();
         keyValueDatabase.set(title + "position", ret.getPreferredPosition());
+
     });
 
     keyValueDatabase.getInitialValues().then(function(values) {

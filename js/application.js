@@ -39,7 +39,7 @@ const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
 const GlobalUi = require("./GlobalUi");
 
-const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px) and (min-width: 760px)");
+const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
 
 serviceWorkerManager.start();
 
@@ -261,22 +261,6 @@ window.onbeforeunload = function(e) {
     }
 };
 
-var visualizerCanvas = new VisualizerCanvas("#visualizer", player.main, {
-    binWidth: 3,
-    gapWidth: 1,
-    capHeight: 1,
-    capSeparator: 2,
-    capStyle: "rgb(37,117,197)",
-    targetFps: 48,
-    capDropTime: 750,
-    ghostOpacity: 0.14,
-    capInterpolator: "ACCELERATE_CUBIC",
-    enabledMediaMatcher: visualizerEnabledMediaMatcher,
-    binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
-});
-
-player.visualizerCanvas = visualizerCanvas;
-
 player.main = new Player(".app-player-controls", playlist.main, {
     visualizerCanvas: visualizerCanvas,
     playButtonDom: ".play-button",
@@ -304,6 +288,22 @@ var playerPictureManager = new PlayerPictureManager(".picture-container", player
 });
 
 var playlistNotifications = new PlaylistNotifications(".notification-setting", player.main);
+
+var visualizerCanvas = new VisualizerCanvas("#visualizer", player.main, {
+    binWidth: 3,
+    gapWidth: 1,
+    capHeight: 1,
+    capSeparator: 2,
+    capStyle: "rgb(37,117,197)",
+    targetFps: 48,
+    capDropTime: 750,
+    ghostOpacity: 0.14,
+    capInterpolator: "ACCELERATE_CUBIC",
+    enabledMediaMatcher: visualizerEnabledMediaMatcher,
+    binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
+});
+
+player.visualizerCanvas = visualizerCanvas;
 
 /* To be used both with hotkeys and click binds */
 player.methodPause = function() {

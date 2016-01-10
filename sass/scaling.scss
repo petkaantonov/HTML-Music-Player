@@ -137,19 +137,11 @@
 }
 
 .visualizer-coverart-section-container {
-    @include short-screen {
+    @include ultra-short-screen {
         display: none;
     }
 
-    @include small-screen {
-        display: none;
-    }
-
-    @include medium-small-screen {
-        display: none;
-    }
-
-    @include ultra-small-screen {
+    @include medium-short-screen {
         display: none;
     }
 }
