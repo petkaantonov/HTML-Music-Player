@@ -169,6 +169,7 @@ GraphicsSource.prototype.isReady = function() {
 function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
     this.player = player;
+    player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported();
     var $targetCanvas = $(targetCanvas);
     targetCanvas = $targetCanvas[0];

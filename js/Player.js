@@ -620,7 +620,7 @@ function Player(dom, playlist, opts) {
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
     this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
 
-    this.visualizerCanvas = opts.visualizerCanvas;
+    this.visualizerCanvas = null;
     this.currentAudioManager = null;
     this.volume = 0.15;
     this.isStopped = true;
@@ -691,6 +691,10 @@ Player.prototype.initAudioContextPrimer = function() {
     }
 
     window.addEventListener("touchend", touchPrimer, false);
+};
+
+Player.prototype.setVisualizerCanvas = function(value) {
+    this.visualizerCanvas = value;
 };
 
 Player.prototype.$allButtons = function() {
