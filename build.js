@@ -27,7 +27,8 @@ var assetsGenerated = browserified.then(function() {
     var assets = ["dist/css/app-css-public.min.css"]
                     .concat(glob.sync("dist/images/**/*.*"))
                     .concat(glob.sync("dist/fonts/**/*.woff*"))
-                    .concat(glob.sync("worker/**/*.*"));
+                    .concat(glob.sync("worker/codecs/**/*.*"))
+                    .concat("worker/AudioPlayerWorker.js", "worker/TrackAnalyzerWorker.js");
 
     var rinline = /"(https:\/\/[^"]+)"/g;
     var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(function(v) {
