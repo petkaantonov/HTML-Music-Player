@@ -53,7 +53,7 @@ features.requiredFeatures = {
     "Multi-core utilization capability": [Promise.method(function() {
         var worker, url;
         return new Promise(function(resolve, reject) {
-            var code = "self.onmessage = function(e) {self.postMessage({transferList: e.data.transferList}, e.data.transferList);};";
+            var code = "var abc;";
             var blob = new Blob([code], {type: "application/javascript"});
             url = URL.createObjectURL(blob);
             worker = new Worker(url);
@@ -67,22 +67,11 @@ features.requiredFeatures = {
             worker.postMessage({
                 transferList: transferList
             }, transferList);
-            worker.addEventListener("error", reject, false);
-            worker.addEventListener("message", function(event) {
-                try {
-                    var tList = event.data.transferList.map(function(v) {
-                        return new Uint8Array(v);
-                    }).filter(function(v) {
-                        return v[0] === 0xFF;
-                    });
-                    var originalBuffersWereNeutered = buffers.filter(function(v) {
-                        return v.buffer.byteLength === 0;
-                    }).length === 2;
-                    resolve(tList.length === 2);
-                } catch (e) {
-                    resolve(false);
-                }
-            }, false);
+
+            var buffersAreNeutered = buffers.filter(function(v) {
+                return v.buffer.byteLength === 0;
+            }).length === 2;
+            resolve(buffersAreNeutered);
         }).timeout(2500).finally(function() {
             if (url) URL.revokeObjectURL(url);
             if (worker) worker.terminate();
