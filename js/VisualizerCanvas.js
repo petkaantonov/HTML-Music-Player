@@ -14,7 +14,7 @@ const GlobalUi = require("./GlobalUi");
 const ContextMenu = require("./ActionMenu").ContextMenu;
 
 const LATENCY_POPUP_HTML = '<div class="latency-input-row row"><div class="col-xs-12">                                \
-        <p>If the visualization is not in sync with the audio try changing this setting.</p>                          \
+        <p>Increase this value if the visualization is too early or decrease this value if it is too late.</p>        \
     <form>                                                                                                            \
         <div class="form-group">                                                                                      \
             <div class="input-group">                                                                                 \
@@ -23,6 +23,7 @@ const LATENCY_POPUP_HTML = '<div class="latency-input-row row"><div class="col-x
             </div>                                                                                                    \
         </div>                                                                                                        \
     </form>                                                                                                           \
+    <p>Changes are effective in real time.</p>                                                                        \
     </div></div>';
 
 
