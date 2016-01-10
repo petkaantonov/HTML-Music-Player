@@ -54,6 +54,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.implicitlyLoaded = implicitlyLoaded;
     this.player = player;
     this.destroyed = false;
+    this.suspendedTime = 0;
     this.intendingToSeek = -1;
     this.track = track;
     this.currentTime = 0;
@@ -141,8 +142,13 @@ AudioManager.prototype.background = function() {
     this.destroyVisualizer();
 };
 
+AudioManager.prototype.audioContextSuspended = function() {
+    this.suspendedTime = this.currentTime;
+};
+
 AudioManager.prototype.audioContextReset = function() {
     if (this.destroyed) return;
+    this.currentTime = this.suspendedTime;
     this.destroyVisualizer();
     this.setupNodes();
     this.normalizeLoudness();
@@ -150,8 +156,12 @@ AudioManager.prototype.audioContextReset = function() {
     this.sourceNode.on("ended", this.ended);
     this.sourceNode.on("error", this.errored);
     this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
-    this.sourceNode.load(this.track.getFile(), this.track.convertFromSilenceAdjustedTime(this.currentTime));
-    this.sourceNode.play();
+    this.sourceNode.load(this.track.getFile(), this.track.convertFromSilenceAdjustedTime(this.suspendedTime));
+    if (this.player.isPaused) {
+        this.sourceNode.pause();
+    } else {
+        this.sourceNode.play();
+    }
 };
 
 AudioManager.prototype.hasGaplessPreload = function() {
@@ -335,8 +345,8 @@ AudioManager.prototype.connectEqualizerFilters = function(bands) {
 AudioManager.prototype.setCurrentTime = function(currentTime) {
     if (this.destroyed) return;
     this.currentTime = currentTime;
-    var adjusted = this.track.convertFromSilenceAdjustedTime(currentTime);
-    this.sourceNode.setCurrentTime(adjusted);
+    var rawTime = this.track.convertFromSilenceAdjustedTime(currentTime);
+    this.sourceNode.setCurrentTime(rawTime);
 };
 
 AudioManager.prototype.getCurrentTime = function() {
@@ -662,8 +672,13 @@ function Player(dom, playlist, opts) {
     this.ready = audioPlayer.ready;
     this.initAudioContextPrimer();
     audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
+    audioPlayer.on("audioContextSuspend", this.audioContextSuspended.bind(this));
 }
 util.inherits(Player, EventEmitter);
+
+Player.prototype.audioContextSuspended = function() {
+    if (this.currentAudioManager) this.currentAudioManager.audioContextSuspended();
+};
 
 Player.prototype.audioContextReset = function() {
     audioCtx = audioPlayer.getAudioContext();

@@ -74,7 +74,6 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     if (!suspensionTimeout) suspensionTimeout = 20;
     instances = true;
     this._audioContext = audioContext || makeAudioContext();
-    this._audioContextIsNotReallyRunning = false;
     this._previousAudioContextTime = this._audioContext.currentTime;
     this._worker = new Worker("worker/AudioPlayerWorker.js");
     this._arrayBufferPool = [];
@@ -121,11 +120,20 @@ AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 AudioPlayer.prototype._timeProgressChecker = function() {
     var time = this.getCurrentTime();
 
+
     if (time === this._previousAudioContextTime &&
         this._audioContext.state === "running") {
-        this._audioContextIsNotReallyRunning = true;
+        this._previousAudioContextTime = -1;
+        this._resetAudioContext();
+        return;
     }
-    this._previousAudioContextTime = time;
+
+    if (this._audioContext.state === "running") {
+        this._previousAudioContextTime = time;
+    } else {
+        // Always guaranteed to be different
+        this._previousAudioContextTime = -1;
+    }
     return time;
 };
 
@@ -137,6 +145,7 @@ AudioPlayer.prototype._suspend = function() {
         this._currentStateModificationAction = {
             type: "suspend",
             promise: Promise.resolve(this._audioContext.suspend()).finally(function() {
+                self.emit("audioContextSuspend", self);
                 self._currentStateModificationAction = null;
             })
         };
@@ -145,6 +154,7 @@ AudioPlayer.prototype._suspend = function() {
         this._currentStateModificationAction.promise = this._currentStateModificationAction.promise.finally(function() {
             return self._suspend();
         }).finally(function() {
+            self.emit("audioContextSuspend", self);
             self._currentStateModificationAction = null;
         });
         return this._currentStateModificationAction.promise;
@@ -289,31 +299,6 @@ AudioPlayer.prototype.getAudioContext = function() {
 };
 
 AudioPlayer.prototype.resume = function() {
-    if (this._audioContextIsNotReallyRunning) {
-        var self = this;
-        this._audioContextIsNotReallyRunning = false;
-        if (this._audioContext.state === "suspended") {
-            return this.resume().then(function() {
-                var now = self.getCurrentTime();
-                self._currentStateModificationAction = {
-                    type: "resume",
-                    promise: Promise.delay(50).then(function() {
-                        if (self._audioContext.state !== "running" || self.getCurrentTime() === now) {
-                            this._audioContextIsNotReallyRunning = false;
-                            this._resetAudioContext();
-                            return Promise.delay(100);
-                        }
-                    })
-                };
-                return self._currentStateModificationAction.promise.finally(function() {
-                    self._currentStateModificationAction = null;
-                });
-            });
-        }
-        this._resetAudioContext();
-        return Promise.resolve();
-    }
-
     if (this._audioContext.state === "running") {
         return Promise.resolve();
     }
@@ -1123,7 +1108,7 @@ AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime) {
     }
 
     this.unload();
-    this.setCurrentTime(seekTime, NO_THROTTLE);
+    this._currentTime = this._baseTime = seekTime;
     var fillRequestId = ++this._replacementRequestId;
     this._player._message(this._id, "loadBlob", {
         blob: blob,
