@@ -4,6 +4,8 @@ const Promise = require("../lib/bluebird.js");
 
 const EventEmitter = require("events");
 const util = require("./util");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const NO_TAG = {};
 
@@ -24,6 +26,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this._domNode = this._createDom(message, opts);
     this._visibilityChanged = this._visibilityChanged.bind(this);
     this._clicked = this._clicked.bind(this);
+    this._clickedTouch = domUtil.tapHandler(this._clicked);
     this._timeoutChecker = this._timeoutChecker.bind(this);
     this._mouseEntered = this._mouseEntered.bind(this);
     this._mouseLeft = this._mouseLeft.bind(this);
@@ -31,6 +34,11 @@ function SnackbarInstance(snackbar, message, opts) {
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
+
+    if (touch) {
+        this.$().on("touchstart touchend", this._clickedTouch);
+    }
+
     util.documentHidden.on("change", this._visibilityChanged);
     this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
 

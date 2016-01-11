@@ -40,6 +40,7 @@ const ID3Process = require("./ID3Process");
 const GlobalUi = require("./GlobalUi");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const gestureScreenFlasher = require("./GestureScreenFlasher");
 
 if (touch) {
     util.onCapture(document, "touchstart touchend touchmove", function(e) {
@@ -157,6 +158,11 @@ const trackActionsSpec = {
 };
 
 var trackContextMenu = new ActionMenu.ContextMenu(playlist.main.$(), trackActionsSpec);
+trackContextMenu.on("beforeOpen", function(e) {
+    if ($(e.originalEvent.target).closest(".unclickable").length > 0) {
+        e.preventDefault();
+    }
+});
 
 playlist.main.on("tracksSelected", function(selectable) {
     var selectedItemsCount = selectable.getSelectedItemCount();
@@ -861,10 +867,18 @@ if (touch) {
     }.bind(playlist.main));
 
     const toggleGesture = domUtil.verticalSwipeHandler(function() {
+        var gesture = player.main.isPlaying ? "pause" : "play";
+        gestureScreenFlasher.flashGesture(gesture);
         player.main.togglePlayback();
     }, 1);
-    const nextTrackGesture = domUtil.horizontalSwipeHandler(player.methodNext, 1);
-    const previousTrackGesture = domUtil.horizontalSwipeHandler(player.methodPrev, -1);
+    const nextTrackGesture = domUtil.horizontalSwipeHandler(function() {
+        gestureScreenFlasher.flashGesture("next");
+        player.methodNext()
+    }, 1);
+    const previousTrackGesture = domUtil.horizontalSwipeHandler(function() {
+        gestureScreenFlasher.flashGesture("previous");
+        player.methodPrev();
+    }, -1);
 
     const enableGestures = function() {
         util.onCapture(document, "touchstart touchend", clearGesture);
@@ -875,7 +889,7 @@ if (touch) {
 
     const disableGestures = function() {
         util.offCapture(document, "touchstart touchend", clearGesture);
-        util.onCapture(document, "touchstart touchend touchmove", toggleGesture);
+        util.offCapture(document, "touchstart touchend touchmove", toggleGesture);
         util.offCapture(document, "touchstart touchend touchmove", nextTrackGesture);
         util.offCapture(document, "touchstart touchend touchmove", previousTrackGesture);
     };

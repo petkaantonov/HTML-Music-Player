@@ -198,9 +198,9 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     this._anchorDistanceY = e.clientY - box.top;
     util.onCapture(document, "mouseup", this.draggingEnd);
     util.onCapture(document, "mousemove", this.mousemoved);
-
+    
     if (touch) {
-        util.onCapture(document, "touchstart touchmove touchend", this.touchDragHandler);
+        util.onBubble(document, "touchstart touchmove touchend", this.touchDragHandler);
     }
 
     this.$().addClass("popup-dragging");
@@ -211,7 +211,7 @@ Popup.prototype.draggingEnd = function() {
     util.offCapture(document, "mousemove", this.mousemoved);
 
     if (touch) {
-        util.offCapture(document, "touchstart touchmove touchend", this.touchDragHandler);
+        util.offBubble(document, "touchstart touchmove touchend", this.touchDragHandler);
     }
 
     this.$().removeClass("popup-dragging");

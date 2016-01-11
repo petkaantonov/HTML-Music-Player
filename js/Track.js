@@ -50,7 +50,7 @@ Track.prototype._ensureDomNode = function() {
     this._domNode = $("<div>", {
         class: "track-container"
     }).html("<div class='track'>                                                                    \
-        <div class='track-status'>                                                                  \
+        <div class='track-status'>                                                      \
             <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                   \
         </div>                                                                                      \
         <div class='track-number'></div>                                                            \
@@ -371,7 +371,7 @@ Track.prototype.analysisProgress = function(progress) {
 Track.prototype.initializeAnalysisProgressBar = function() {
     if (!this._analysisProgressBarInitialized) {
         this._analysisProgressBarInitialized = true;
-        this.$().addClass(".track-container-progress");
+        this.$().addClass("track-container-progress");
         $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
     }
 };
@@ -388,9 +388,10 @@ Track.prototype.unsetAnalysisStatus = function() {
     if (this._analysisTooltip) {
         this._analysisTooltip.destroy();
         this._analysisTooltip = null;
-        this.$().removeClass(".track-container-progress");
+        this.$().removeClass("track-container-progress");
         this.$().find(".track-progress-bar").remove();
         this.$trackStatus().find(".track-analysis-status").remove();
+        this.$trackStatus().removeClass("unclickable");
     }
 };
 
@@ -403,14 +404,15 @@ Track.prototype.showAnalysisStatus = function() {
 
     this._analysisTooltip = new Tooltip({
         transitionClass: "fade-in",
-        preferredDirection: "right",
+        preferredDirection: "top",
         preferredAlign: "middle",
         container: $("body"),
-        target: this.$trackStatus().find(".track-analysis-status"),
+        target: this.$trackStatus(),
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
         arrow: false,
         content: ANALYSIS_TOOLTIP_MESSAGE
     });
+    this.$trackStatus().addClass("unclickable");
 };
 
 Track.prototype.showErrorStatus = function() {
@@ -422,14 +424,15 @@ Track.prototype.showErrorStatus = function() {
 
     this._errorTooltip = new Tooltip({
         transitionClass: "fade-in",
-        preferredDirection: "right",
+        preferredDirection: "top",
         preferredAlign: "middle",
         container: $("body"),
-        target: this.$trackStatus().find(".track-error-status"),
+        target: this.$trackStatus(),
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
         arrow: false,
         content: ERROR_HEADER + this._error
     });
+    this.$trackStatus().addClass("unclickable");
 };
 
 Track.prototype.unsetError = function() {
@@ -439,6 +442,7 @@ Track.prototype.unsetError = function() {
         this._errorTooltip.destroy();
         this._errorTooltip = null;
         this.$trackStatus().find(".track-error-status").remove();
+        this.$trackStatus().removeClass("unclickable");
     }
 };
 

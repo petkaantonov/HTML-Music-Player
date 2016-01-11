@@ -209,48 +209,67 @@ Tooltip.prototype.position = function() {
     var targetSizeY = this._activationStyle === "hover" ? 0 : targetBox.height;
 
     // Keep trying configurations in preferred order until it is fully visible.
-    for (var i = 0; i < configurations.length; ++i) {
-        var configuration = configurations[i];
-        direction = configuration.direction;
-        align = configuration.align;
-        var left = 0;
-        var top = 0;
+    var positionFound = false;
+    var tryMinMax = false;
+    while (!positionFound) {
+        for (var i = 0; i < configurations.length; ++i) {
+            var configuration = configurations[i];
+            direction = configuration.direction;
+            align = configuration.align;
+            var left = 0;
+            var top = 0;
 
-        if (direction === "up" || direction === "down") {
-            if (align === "begin") {
-                left = baseX - gap;
-            } else if (align === "middle") {
-                left = baseX - box.width / 2;
-            } else if (align === "end") {
-                left = baseX - box.width + gap;
-            }
+            if (direction === "up" || direction === "down") {
+                if (align === "begin") {
+                    left = baseX - gap;
+                } else if (align === "middle") {
+                    left = baseX - box.width / 2;
+                } else if (align === "end") {
+                    left = baseX - box.width + gap;
+                }
 
-            if (direction === "up") {
-                top = baseY + gap + cursorSize + targetSizeY;
+                if (direction === "up") {
+                    top = baseY + gap + cursorSize + targetSizeY;
+                } else {
+                    top = baseY - gap - cursorSize - box.height;
+                }
             } else {
-                top = baseY - gap - cursorSize - box.height;
-            }
-        } else {
-            if (align === "begin") {
-                top = baseY - gap;
-            } else if (align === "middle") {
-                top = baseY - box.height / 2;
-            } else if (align === "end") {
-                top = baseY - box.height + gap;
+                if (align === "begin") {
+                    top = baseY - gap;
+                } else if (align === "middle") {
+                    top = baseY - box.height / 2;
+                } else if (align === "end") {
+                    top = baseY - box.height + gap;
+                }
+
+                if (direction === "left") {
+                    left = baseX + gap + cursorSize + targetSizeX;
+                } else {
+                    left = baseX - gap - cursorSize - box.width;
+                }
             }
 
-            if (direction === "left") {
-                left = baseX + gap + cursorSize + targetSizeX;
-            } else {
-                left = baseX - gap - cursorSize - box.width;
+            if (tryMinMax) {
+                left = Math.min(maxX - box.width, Math.max(0, left));
+                top = Math.min(maxY - box.height, Math.max(0, top));
+                if (left >= 0 && left + box.width <= maxX &&
+                    top >= 0 && top + box.height <= maxY) {
+                    $node.css({left: left, top: top});
+                    positionFound = true;
+                    break;
+                }
+            } else if (left >= 0 && left + box.width <= maxX &&
+                top >= 0 && top + box.height <= maxY) {
+                $node.css({left: left, top: top});
+                positionFound = true;
+                break;
             }
         }
 
-        if (left >= 0 && left + box.width <= maxX &&
-            top >= 0 && top + box.height <= maxY) {
-            $node.css({left: left, top: top});
+        if (tryMinMax) {
             break;
         }
+        tryMinMax = true;
     }
 
     if (this._arrow) {

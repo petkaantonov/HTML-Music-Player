@@ -1,0 +1,19 @@
+.gesture-flash {
+    pointer-events: none;
+    touch-action: none;
+    position: fixed;
+    top: 50px;
+    left: 0px;
+    font-size: 100px;
+    line-height: 100px;
+    width: 100%;
+    z-index: 1000000000;
+    height: 200px;
+    transform: translate3d(0, 0, 0);
+    text-shadow: 2px 2px 3px #333;
+    color: #212121;
+    will-change: opacity;
+    text-align: center;
+    opacity: 0;
+}
+

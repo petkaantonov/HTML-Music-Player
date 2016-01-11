@@ -66,6 +66,7 @@ Slider.prototype._onMousemove = function(e) {
     if (!domUtil.isTouchEvent(e) && e.which !== 1) {
         return this._onMouseup(this._lastEvent);
     }
+
     this._lastEvent = e;
     this.emit("slide", this._percentage(e));
 };

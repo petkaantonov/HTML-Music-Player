@@ -44,6 +44,7 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseleave", this.containerMouseLeft);
 
         if (touch) {
+            this.$container().on("touchstart", domUtil.touchDownHandler(this.containerMouseEntered));
             this.$().on("touchstart", domUtil.touchDownHandler(this.itemMouseEntered));
         }
     }
@@ -588,6 +589,13 @@ ActionMenu.ContextMenu.prototype.position = function() {
 
 ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
     this.hide();
+    var defaultPrevented = false;
+    var ev = {
+        preventDefault: function() {defaultPrevented = true;},
+        originalEvent: e
+    };
+    this.emit("beforeOpen", ev);
+    if (defaultPrevented) return;
     this.show(e);
     if (this._shown) {
         e.preventDefault();

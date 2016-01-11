@@ -386,7 +386,7 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
 
     if (current > total) {
         if (this.repeat === "none") {
-            return null;
+            current = total;
         } else if (this.repeat === "cycle") {
             if (Math.floor(current / total) % 2 === 1) {
                 current = total - (current % total);
@@ -595,7 +595,6 @@ Animator.prototype._applyDirectProperties = function(node, current, total) {
 };
 
 Animator.prototype._progress = function(current, total) {
-    current = Math.min(current, total);
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
     if (transforms) {
@@ -606,7 +605,6 @@ Animator.prototype._progress = function(current, total) {
 };
 
 Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
-    current = Math.min(current, total);
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
 
