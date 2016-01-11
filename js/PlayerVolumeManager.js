@@ -31,11 +31,12 @@ function PlayerVolumeManager(dom, player, opts) {
     this.player.on("volumeChange", this.volumeChanged);
     this.player.on("muted", this.muteChanged);
 
-    if (!touch) {
-        this.$mute().click(this.muteClicked);
-    } else {
+    this.$mute().click(this.muteClicked);
+
+    if (touch) {
         this.$mute().on("touchstart touchend", domUtil.tapHandler(this.muteClicked));
     }
+
     this.volumeChanged();
     this.muteChanged(this.player.isMuted());
 }

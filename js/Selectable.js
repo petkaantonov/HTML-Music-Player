@@ -2,10 +2,6 @@
 const EventEmitter = require("events");
 const util = require("./util");
 const DS = require("../lib/DataStructures");
-const touch = require("./features").touch;
-const domUtil = require("./DomUtil");
-
-
 
 const modifierKeyProp = util.modifierKeyProp;
 

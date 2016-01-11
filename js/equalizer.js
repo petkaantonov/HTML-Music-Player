@@ -502,9 +502,10 @@ equalizer.getBands = function() {
     return equalizer.equalizer;
 };
 
-if (!touch) {
-    $(".menul-equalizer").click(openEditor);
-} else {
+
+$(".menul-equalizer").click(openEditor);
+
+if (touch) {
     $(".menul-equalizer").on("touchstart touchend", domUtil.tapHandler(openEditor));
 }
 

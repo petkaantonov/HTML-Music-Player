@@ -7,7 +7,7 @@ function clicked() {
     $(this).data("file_input").click();
 }
 
-if (touch) clicked = domUtil.tapHandler(clicked);
+const clickedTouch = domUtil.tapHandler(clicked);
 
 function createInput(atts) {
     var input = document.createElement("input");
@@ -35,7 +35,8 @@ $.fn.fileInput = function(action, atts) {
             $(this).data("file_input", input);
             $(this).data("file_input_atts", Object(atts));
 
-            $(this).on("click touchstart touchend", clicked);
+            $(this).on("click", clicked);
+            if (touch) $(this).on("touchstart touchend", clickedTouch)
         } else if (action === "delete") {
             if (!$(this).data("file_input")) {
                 return;
@@ -43,7 +44,8 @@ $.fn.fileInput = function(action, atts) {
             var input = $(this).data("file_input");
             $(this).data("file_input", null);
             $(this).data("file_input_atts", null);
-            $(this).off("click touchstart touchend", clicked);
+            $(this).off("click", clicked);
+            if (touch) $(this).off("touchstart touchend", clickedTouch)
             $(input).remove();
         } else if (action === "clearFiles") {
             if (!$(this).data("file_input")) {

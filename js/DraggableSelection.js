@@ -24,17 +24,17 @@ function DraggableSelection(dom, playlist, opts) {
     this._onTouchmove = this._onTouchmove.bind(this);
     this._onTouchend = this._onTouchend.bind(this);
     this._touchDragHandler = domUtil.dragHandler(this._onTouchmove, this._onTouchend);
+    this._onTrackMouseDownTouch = domUtil.touchDownHandler(this._onTrackMouseDown);
 
     this._scrollUp = this._scrollUp.bind(this);
     this._scrollDown = this._scrollDown.bind(this);
 
     this._scrollIntervalId = -1;
 
-    if (!touch) {
-        this.$().on("mousedown", this._onTrackMouseDown);
-    } else {
-        this._onTrackMouseDown = domUtil.touchDownHandler(this._onTrackMouseDown);
-        this.$().on("touchstart", this._onTrackMouseDown);
+    this.$().on("mousedown", this._onTrackMouseDown);
+
+    if (touch) {
+        this.$().on("touchstart", this._onTrackMouseDownTouch);
     }
     this.$().bind("selectstart", function(e) {e.preventDefault();});
 }
@@ -113,10 +113,10 @@ DraggableSelection.prototype._onTouchend = function(e) {
 
 DraggableSelection.prototype._onMouseRelease = function() {
     this.$().unbind("scroll", this._onMovement);
-    if (!touch) {
-        $(document).off("mousemove", this._onMovement)
-                    .off("mouseup", this._onMouseRelease);
-    } else {
+    
+    $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
+
+    if (touch) {
         $(document).off("touchstart touchmove touchend", this._touchDragHandler);
     }
     this._playlist.removeListener("tracksSelected", this._restart);
@@ -137,6 +137,7 @@ DraggableSelection.prototype._onMovement = function(e) {
     if (!domUtil.isTouchEvent(e) && e.type !== "scroll" && e.which !== 1) {
         return this._onMouseRelease();
     }
+
     this._maybeStartDownScroller();
     this._maybeStartUpScroller();
 
@@ -193,9 +194,8 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
         return;
     }
 
-    if (touch &&
+    if (domUtil.isTouchEvent(e) &&
         !this._playlist.selectionContainsAnyTracksBetween(e.clientY, e.clientY + this._playlist.getItemHeight())) {
-        console.log("no tracks");
         return;
     }
 
@@ -204,12 +204,14 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     this._onReLayout();
 
     this.$().on("scroll", this._onMovement);
-    if (!touch) {
-        $(document).on("mousemove", this._onMovement);
-        $(document).on("mouseup", this._onMouseRelease);
-    } else {
+
+    $(document).on("mousemove", this._onMovement);
+    $(document).on("mouseup", this._onMouseRelease);
+
+    if (touch) {
         $(document).on("touchstart touchmove touchend", this._touchDragHandler);
     }
+
     $(window).on("relayout", this._onReLayout);
     this._playlist.on("tracksSelected", this._restart);
     this._playlist.on("lengthChange", this._restart);

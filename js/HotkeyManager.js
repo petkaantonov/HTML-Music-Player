@@ -427,9 +427,9 @@ function openHotkeyManager() {
     });
 }
 
-if (!touch) {
-    $(".menul-hotkeys").click(openHotkeyManager);
-} else {
+$(".menul-hotkeys").click(openHotkeyManager);
+
+if (touch) {
     $(".menul-hotkeys").on("touchstart touchend", domUtil.tapHandler(openHotkeyManager));
 }
 

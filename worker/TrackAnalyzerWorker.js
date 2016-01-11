@@ -2512,7 +2512,7 @@ const sinc = function(cutoff, x, N, table) {
 };
 
 function Resampler(nb_channels, in_rate, out_rate, quality) {
-    if (quality === undefined) quality = 2;
+    if (quality === undefined) quality = 0;
     this.initialised = 0;
     this.started = false;
     this.in_rate = 0;

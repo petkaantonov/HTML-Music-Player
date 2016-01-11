@@ -39,12 +39,12 @@ function PlaylistNotifications(dom, player) {
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
     this.actionNext = this.actionNext.bind(this);
     
-
-    if (!touch) {
-        this.$().on("click", this.settingClicked);
-    } else {
+    this.$().on("click", this.settingClicked);
+    
+    if (touch) {
         this.$().on("touchstart touchend", domUtil.tapHandler(this.settingClicked));
     }
+
     util.documentHidden.on("change", this.visibilityChanged);
     this.player.on("newTrackLoad", this.newTrackLoaded);
     serviceWorkerManager.on("actionNext", this.actionNext);

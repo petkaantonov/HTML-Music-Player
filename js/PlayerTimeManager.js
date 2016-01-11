@@ -44,9 +44,9 @@ function PlayerTimeManager(dom, player, opts) {
     this.player.on("progress", this.playerTimeProgressed);
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
-    if (!touch) {
-        this.$timeContainer().click(this.containerClicked);
-    } else {
+    this.$timeContainer().click(this.containerClicked);
+
+    if (touch) {
         this.$timeContainer().on("touchstart touchend", domUtil.tapHandler(this.containerClicked));
     }
 

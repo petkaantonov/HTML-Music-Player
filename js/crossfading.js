@@ -299,9 +299,10 @@ const openPopup = function() {
     });
 };
 
-if (!touch) {
-    $(".menul-crossfade").click(openPopup);
-} else {
+
+$(".menul-crossfade").click(openPopup);
+
+if (touch) {
     $(".menul-crossfade").on("touchstart touchend", domUtil.tapHandler(openPopup));
 }
 

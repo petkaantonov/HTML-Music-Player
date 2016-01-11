@@ -8,8 +8,6 @@ const TagData = require("./TagData");
 const Tooltip = require("./Tooltip");
 const sha1 = require("../lib/sha1");
 const Promise = require("../lib/bluebird");
-const touch = require("./features").touch;
-const domUtil = require("./DomUtil");
 
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +

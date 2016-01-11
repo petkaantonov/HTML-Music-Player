@@ -33,10 +33,11 @@ function PlaylistModeManager(dom, playlist) {
 
     playlist.on("modeChange", this.update);
 
-    if (!touch) {
-        this.$shuffle().on("click", this.shuffleClicked);
-        this.$repeat().on("click", this.repeatClicked);
-    } else {
+    
+    this.$shuffle().on("click", this.shuffleClicked);
+    this.$repeat().on("click", this.repeatClicked);
+
+    if (touch) {
         this.$shuffle().on("touchstart touchend", domUtil.tapHandler(this.shuffleClicked));
         this.$repeat().on("touchstart touchend", domUtil.tapHandler(this.repeatClicked));
     }

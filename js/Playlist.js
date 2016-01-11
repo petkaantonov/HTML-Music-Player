@@ -93,6 +93,25 @@ function Playlist(domNode, opts) {
         }
     });
 
+    this.$().on("click mousedown dblclick", function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+        var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        switch (e.type) {
+            case "click": return this._selectable.trackClick(e, track);
+            case "mousedown": return this._selectable.trackMouseDown(e, track);
+            case "dblclick": return track.doubleClicked(e);
+        }
+    }.bind(this));
+
+    this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+        e.stopImmediatePropagation();
+        var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
+        if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
+        if (e.type === "click") return track.ratingInputClicked(e);
+        if (e.type === "dblclick") return track.ratingInputDoubleClicked(e);
+    }.bind(this));
+
     if (touch) {
         this.selectTracksBetween = this.selectTracksBetween.bind(this);
         this.$().on("touchstart touchend touchmove", domUtil.verticalPincerSelectionHandler(function(y1, y2) {
@@ -128,26 +147,7 @@ function Playlist(domNode, opts) {
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
             return track.ratingInputClicked(e);
         }.bind(this)));
-    } else {
-        this.$().on("click mousedown dblclick", function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
-            switch (e.type) {
-                case "click": return this._selectable.trackClick(e, track);
-                case "mousedown": return this._selectable.trackMouseDown(e, track);
-                case "dblclick": return track.doubleClicked(e);
-            }
-        }.bind(this));
-
-        this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
-            e.stopImmediatePropagation();
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
-            if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
-            if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
-            if (e.type === "click") return track.ratingInputClicked(e);
-            if (e.type === "dblclick") return track.ratingInputDoubleClicked(e);
-        }.bind(this));
-    }
+    }    
 }
 util.inherits(Playlist, EventEmitter);
 

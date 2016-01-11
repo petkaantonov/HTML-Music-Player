@@ -58,7 +58,6 @@ const baseSingleTouchHandler = function(fn) {
         var targetTouches = e.targetTouches || e.originalEvent.targetTouches;
 
         if (touches.length === 1 && targetTouches.length === 1) {
-            e.preventDefault();
             copyTouchProps(e, touches[0]);
             return fn.apply(this, arguments);
         }
@@ -71,7 +70,6 @@ const noTouchHandler = function(fn) {
         var touches = e.touches || e.originalEvent.touches;
 
         if (touches.length === 0) {
-            e.preventDefault();
             touches = e.changedTouches || e.originalEvent.changedTouches;
             copyTouchProps(e, touches[0]);
             return fn.apply(this, arguments);
@@ -113,7 +111,6 @@ util.tapHandler = function(fn) {
                     currentTouch = null;
                     started = -1;
                     if (elapsed > 30 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
-                        e.preventDefault();
                         copyTouchProps(e, touch);
                         fn.call(this, e);
                     }
@@ -334,7 +331,6 @@ util.longTapHandler = function(fn) {
     }
 
     return function(e) {
-        e.preventDefault();
         var touches = e.touches || e.originalEvent.touches;
         var targetTouches = e.targetTouches || e.originalEvent.targetTouches;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
@@ -356,7 +352,6 @@ util.longTapHandler = function(fn) {
                     clear();
                     fn.call(self, e);
                 }, LONG_TAP_TIME);
-                e.preventDefault();
             } else if (currentTouch !== null) {
                 clear();
             }
@@ -377,7 +372,6 @@ util.longTapHandler = function(fn) {
             if (currentTouch !== null) {
                 for (var i = 0; i < changedTouches.length; ++i) {
                     if (changedTouches[i].identifier === currentTouch.identifier) {
-                        e.preventDefault();
                         return clear();
                     }
                 }

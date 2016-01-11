@@ -41,6 +41,12 @@ const GlobalUi = require("./GlobalUi");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 
+if (touch) {
+    util.onCapture(document, "touchstart touchend touchmove", function(e) {
+        e.preventDefault();
+    });
+}
+
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
 
 serviceWorkerManager.start();

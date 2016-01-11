@@ -649,11 +649,11 @@ function Player(dom, playlist, opts) {
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
-    if (!touch) {
-        this.$play().click(this.playButtonClicked.bind(this));
-        this.$next().click(playlist.next.bind(playlist));
-        this.$previous().click(playlist.prev.bind(playlist));
-    } else {
+    this.$play().click(this.playButtonClicked.bind(this));
+    this.$next().click(playlist.next.bind(playlist));
+    this.$previous().click(playlist.prev.bind(playlist));
+    
+    if (touch) {
         this.$play().on("touchstart touchend", domUtil.tapHandler(this.playButtonClicked.bind(this)));
         this.$next().on("touchstart touchend", domUtil.tapHandler(playlist.next.bind(playlist)));
         this.$previous().on("touchstart touchend", domUtil.tapHandler(playlist.prev.bind(playlist)));

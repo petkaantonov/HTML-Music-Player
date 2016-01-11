@@ -110,29 +110,27 @@ function Tooltip(opts) {
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
     this.targetClicked = this.targetClicked.bind(this);
+    this.mouseEnteredTouch = domUtil.touchDownHandler(this.mouseEntered);
+    this.mouseLeftTouch = domUtil.touchUpHandler(this.mouseLeft);
+    this.targetClickedTouch = domUtil.tapHandler(this.targetClicked);
+    this.clickedTouch = domUtil.tapHandler(this.clicked);
+    this.documentClickedTouch = domUtil.touchDownHandler(this.documentClicked);
 
     if (this._activationStyle === "hover") {
-        if (!touch) {
-            this._target.on("mouseenter", this.mouseEntered);
-            this._target.on("mouseleave", this.mouseLeft);
-            this._target.on("click", this.targetClicked);
-        } else {
-            this.mouseEntered = domUtil.touchDownHandler(this.mouseEntered);
-            this.mouseLeft = domUtil.touchUpHandler(this.mouseLeft);
-            this.targetClicked = domUtil.tapHandler(this.targetClicked);
-            this._target.on("touchstart", this.mouseEntered);
-            this._target.on("touchend", this.mouseLeft);
-            this._target.on("touchstart touchend", this.targetClicked);
+        this._target.on("mouseenter", this.mouseEntered);
+        this._target.on("mouseleave", this.mouseLeft);
+        this._target.on("click", this.targetClicked);
+        if (touch) {
+            this._target.on("touchstart", this.mouseEnteredTouch);
+            this._target.on("touchend", this.mouseLeftTouch);
+            this._target.on("touchstart touchend", this.targetClickedTouch);
         }
     } else if (this._activationStyle === "click") {
-        if (!touch) {
-            this._target.on("click", this.clicked);
-            util.onCapture(document, "click", this.documentClicked);
-        } else {
-            this.clicked = domUtil.tapHandler(this.clicked);
-            this.documentClicked = domUtil.touchDownHandler(this.documentClicked);
-            this._target.on("touchstart touchend", this.clicked);
-            util.onCapture(document, "touchstart", this.documentClicked);
+        this._target.on("click", this.clicked);
+        util.onCapture(document, "click", this.documentClicked);
+        if (touch) {
+            this._target.on("touchstart touchend", this.clickedTouch);
+            util.onCapture(document, "touchstart", this.documentClickedTouch);
         }
     }
     $(window).on("resize", this.position);
@@ -478,9 +476,7 @@ Tooltip.prototype.mousemoved = function(e) {
 };
 
 Tooltip.prototype.mouseEntered = function(e) {
-    if (!touch) {
-        this._target.on("mousemove", this.mousemoved);
-    }
+    this._target.on("mousemove", this.mousemoved);
     this.mousemoved(e);
 };
 
@@ -492,13 +488,18 @@ Tooltip.prototype.destroy = function() {
     $(window).off("resize", this.position);
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
-    util.offCapture(document, "click touchstart touchend", this.documentClicked);
+    util.offCapture(document, "click", this.documentClicked);
+    util.offCapture(document, "touchstart touchend", this.documentClickedTouch);
     if (this._target) {
         this.hide();
-        this._target.off("mouseenter touchstart touchend", this.mouseEntered);
-        this._target.off("mouseleave touchstart touchend", this.mouseLeft);
-        this._target.off("click touchstart touchend", this.targetClicked);
-        this._target.off("click touchstart touchend", this.clicked);
+        this._target.off("mouseenter", this.mouseEntered);
+        this._target.off("touchstart touchend", this.mouseEnteredTouch);
+        this._target.off("mouseleave", this.mouseLeft);
+        this._target.off("touchstart touchend", this.mouseLeftTouch);
+        this._target.off("click", this.targetClicked);
+        this._target.off("touchstart touchend", this.targetClickedTouch);
+        this._target.off("click", this.clicked);
+        this._target.off("touchstart touchend", this.clickedTouch);
         this._target = this._domNode = null;
     }
 };

@@ -12,6 +12,12 @@ const NULL = $(null);
 var blocker = NULL;
 
 function showBlocker() {
+    function closePopups() {
+        shownPopups.forEach(function(v) {
+            v.close();
+        });
+    }
+
     blocker = $('<div>')
         .css({
             position: "fixed",
@@ -21,11 +27,11 @@ function showBlocker() {
         })
         .addClass("popup-blocker")
         .appendTo("body")
-        .on("mousedown touchstart", util.fastClickEventHandler(function() {
-            shownPopups.forEach(function(v) {
-                v.close();
-            });
-        }));
+        .on("click", closePopups);
+
+    if (touch) {
+        blocker.on("touchstart touchend", domUtil.tapHandler(closePopups));
+    }
 
     blocker.addClass("initial");
     blocker[0].offsetWidth;
@@ -67,15 +73,9 @@ function Popup(opts) {
     this.draggingEnd = this.draggingEnd.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
     this.closerClicked = this.closerClicked.bind(this);
-
-    if (touch) {
-        this.mousemoved = domUtil.touchMoveHandler(this.mousemoved);
-        this.headerMouseDowned = domUtil.touchDownHandler(this.headerMouseDowned);
-        this.closerClicked = domUtil.tapHandler(this.closerClicked);
-    } else {
-        this.headerMouseDowned = util.fastClickEventHandler(this.headerMouseDowned);
-        this.closerClicked = util.fastClickEventHandler(this.closerClicked);
-    }
+    this.closerClickedTouch = domUtil.tapHandler(this.closerClicked);
+    this.headerMouseDownedTouch = domUtil.touchDownHandler(this.headerMouseDowned);
+    this.touchDragHandler = domUtil.dragHandler(this.mousemoved, this.draggingEnd);
 
     $(window).on("resize blur", this.draggingEnd);
     $(window).on("resize", this.position);
@@ -151,12 +151,12 @@ Popup.prototype.open = function() {
 
         this.$().appendTo("body");
         
-        if (!touch) {
-            closer.on("mousedown", this.closerClicked);
-            header.on("mousedown", this.headerMouseDowned);
-        } else {
-            closer.on("touchstart touchend", this.closerClicked);
-            header.on("touchstart", this.headerMouseDowned);
+        closer.on("click", this.closerClicked);
+        header.on("mousedown", this.headerMouseDowned);
+        
+        if (touch) {
+            closer.on("touchstart touchend", this.closerClickedTouch);
+            header.on("touchstart", this.headerMouseDownedTouch);
         }
 
         this.position();
@@ -196,19 +196,24 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     var box = this.$()[0].getBoundingClientRect();
     this._anchorDistanceX = e.clientX - box.left;
     this._anchorDistanceY = e.clientY - box.top;
-    if (!touch) {
-        util.onCapture(document, "mouseup", this.draggingEnd);
-        util.onCapture(document, "mousemove", this.mousemoved);
-    } else {
-        util.onCapture(document, "touchend touchcancel", this.draggingEnd);
-        util.onCapture(document, "touchmove", this.mousemoved);
+    util.onCapture(document, "mouseup", this.draggingEnd);
+    util.onCapture(document, "mousemove", this.mousemoved);
+
+    if (touch) {
+        util.onCapture(document, "touchstart touchmove touchend", this.touchDragHandler);
     }
+
     this.$().addClass("popup-dragging");
 };
 
 Popup.prototype.draggingEnd = function() {
-    util.offCapture(document, "mouseup touchend touchcancel", this.draggingEnd);
-    util.offCapture(document, "mousemove touchmove", this.mousemoved);
+    util.offCapture(document, "mouseup", this.draggingEnd);
+    util.offCapture(document, "mousemove", this.mousemoved);
+
+    if (touch) {
+        util.offCapture(document, "touchstart touchmove touchend", this.touchDragHandler);
+    }
+
     this.$().removeClass("popup-dragging");
 };
 
