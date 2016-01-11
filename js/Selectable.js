@@ -396,6 +396,13 @@ Selectable.prototype.getSelection = function() {
     return this._selection.toArray();
 };
 
+Selectable.prototype.selectTrack = function(track) {
+    var index = track.getIndex();
+    if (index >= 0) {
+        this.selectRange(index, index);
+    }
+};
+
 Selectable.prototype.selectRange = function(start, end) {
     this._resetPointers();
     this._clearSelection();

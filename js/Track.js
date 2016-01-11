@@ -112,7 +112,7 @@ Track.prototype._ensureDomNode = function() {
 
         this.$().on("touchstart touchend", domUtil.doubleTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            selectable.addTrack(self);
+            selectable.selectTrack(self);
             return self.doubleClicked(e);
         }));
     }
