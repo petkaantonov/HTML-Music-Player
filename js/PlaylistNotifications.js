@@ -4,9 +4,10 @@ const Promise = require("../lib/bluebird.js");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 
+
 const util = require("./util");
 const GlobalUi = require("./GlobalUi");
-const Notification = window.Notification;
+const serviceWorkerManager = require("./ServiceWorkerManager");
 
 const NOTIFICATIONS_EXPLANATION = "<p>When this browser window is not active, " +
         "a notification will be shown when the current track changes. The notification " +
@@ -36,8 +37,8 @@ function PlaylistNotifications(dom, player) {
     this.settingClicked = this.settingClicked.bind(this);
     this.visibilityChanged = this.visibilityChanged.bind(this);
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
-    this.notificationErrored = this.notificationErrored.bind(this);
-    this.notificationClicked = this.notificationClicked.bind(this);
+    this.actionNext = this.actionNext.bind(this);
+    
 
     if (!touch) {
         this.$().on("click", this.settingClicked);
@@ -46,6 +47,7 @@ function PlaylistNotifications(dom, player) {
     }
     util.documentHidden.on("change", this.visibilityChanged);
     this.player.on("newTrackLoad", this.newTrackLoaded);
+    serviceWorkerManager.on("actionNext", this.actionNext);
 
     this.update();
 }
@@ -67,36 +69,8 @@ PlaylistNotifications.prototype.update = function() {
     this.tooltip.refresh();
 };
 
-PlaylistNotifications.prototype.clearTimers = function() {
-    if (this.currentNotificationCloseTimeout !== -1) {
-        clearTimeout(this.currentNotificationCloseTimeout);
-        this.currentNotificationCloseTimeout = -1;
-    }
-};
-
-PlaylistNotifications.prototype.destroyCurrentNotification = function() {
-    if (this.currentNotificationCloseTimeout !== -1) {
-        clearTimeout(this.currentNotificationCloseTimeout);
-        this.currentNotificationCloseTimeout = -1;
-    }
-
-    if (this.currentNotification) {
-        var notification = this.currentNotification;
-        this.currentNotification = null;
-        notification.removeEventListener("error", this.notificationErrored, false);
-        notification.removeEventListener("click", this.notificationClicked, false);
-        notification.close();
-    }
-};
-
-PlaylistNotifications.prototype.notificationClicked = function(e) {
-    e.preventDefault();
-    this.clearTimers();
+PlaylistNotifications.prototype.actionNext = function(data) {
     this.playlist.next();
-};
-
-PlaylistNotifications.prototype.notificationErrored = function() {
-    this.destroyCurrentNotification();
 };
 
 PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
@@ -110,32 +84,23 @@ PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
         var body = info.artist;
         var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
 
-        var notification = new Notification(title, {
+        return serviceWorkerManager.showNotification(title, {
             tag: "track-change-notification",
             body: body,
             icon: imageUrl,
             requireInteraction: true,
             renotify: false,
-            sticky: true
+            sticky: true,
+            actions: [
+                {action: "Next", title: "Next track"}
+            ]
         });
-
-        this.currentNotification = notification;
-        notification.addEventListener("click", this.notificationClicked, false);
-        notification.addEventListener("error", this.notificationErrored, false);
     });
 };
 
 PlaylistNotifications.prototype.newTrackLoaded = function() {
-    this.clearTimers();
     if (this.shouldNotify()) {
-        var self = this;
-        self.showNotificationForCurrentTrack();
-        self.currentNotificationCloseTimeout = setTimeout(function() {
-            self.currentNotificationCloseTimeout = -1;
-            self.destroyCurrentNotification();
-        }, 10000);
-    } else {
-        this.destroyCurrentNotification();
+        this.showNotificationForCurrentTrack();
     }
 };
 

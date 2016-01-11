@@ -1,41 +1,22 @@
 "use strict";
 
 const $ = require("../lib/jquery");
+const util = require("./util");
+const Promise = require("../lib/bluebird");
 const GlobalUi = require("./GlobalUi");
 const Snackbar = require("./Snackbar");
-
-/*var timing = window.performance && window.performance.timing || {};
-const TAB_ID = sha1(timing.connectEnd + "" +
-                timing.connectStart + "" +
-                timing.domComplete + "" +
-                timing.domContentLoadedEventEnd + "" +
-                timing.domContentLoadedEventStart + "" +
-                timing.domInteractive + "" +
-                timing.domLoading + "" +
-                timing.domainLookupEnd + "" +
-                timing.domainLookupStart + "" +
-                timing.fetchStart + "" +
-                timing.loadEventEnd + "" +
-                timing.loadEventStart + "" +
-                timing.navigationStart + "" +
-                timing.redirectEnd + "" +
-                timing.redirectStart + "" +
-                timing.requestStart + "" +
-                timing.responseEnd + "" +
-                timing.responseStart + "" +
-                timing.secureConnectionStart + "" +
-                timing.unloadEventEnd + "" +
-                timing.unloadEventStart + "" +
-                Date.now() + "" +
-               Math.random());*/
+const EventEmitter = require("events");
 
 function ServiceWorkerManager() {
+    EventEmitter.call(this);
     this._registration = null;
     this._started = false;
 
     this._updateAvailable = this._updateAvailable.bind(this);
     this._updateFound = this._updateFound.bind(this);
+    this._messaged = this._messaged.bind(this);
 }
+util.inherits(ServiceWorkerManager, EventEmitter);
 
 ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeout) {
     var self = this;
@@ -78,7 +59,7 @@ ServiceWorkerManager.prototype.start = function() {
     if (this._started || !navigator.serviceWorker) return;
     this._started = true;
     var self = this;
-    this._registration = navigator.serviceWorker.register("/sw.js").then(function(reg) {
+    this._registration = Promise.resolve(navigator.serviceWorker.register("/sw.js").then(function(reg) {
         if (!navigator.serviceWorker.controller) return;
 
         if (reg.waiting) {
@@ -90,7 +71,13 @@ ServiceWorkerManager.prototype.start = function() {
                 self._updateFound(reg.installing);
             });
         }
-    });
+
+        navigator.serviceWorker.addEventListener("message", self._messaged);
+        navigator.serviceWorker.addEventListener("ServiceWorkerMessageEvent", self._messaged);
+        window.addEventListener("message", self._messaged);
+        window.addEventListener("ServiceWorkerMessageEvent", self._messaged);
+        return reg;
+    }));
 
     var reloading = false;
     navigator.serviceWorker.addEventListener("controllerchange", function() {
@@ -98,6 +85,29 @@ ServiceWorkerManager.prototype.start = function() {
         reloading = true;
         window.onbeforeunload = null;
         location.reload();
+    });
+};
+
+ServiceWorkerManager.prototype._messaged = function(e) {
+    if (e.data.eventType !== "swEvent") return;
+    var data = e.data;
+    if (data.type === "notificationClick") {
+        this.emit("action" + data.action, {
+            data: data.data,
+            tag: data.tag
+        });
+    }
+};
+
+ServiceWorkerManager.prototype.showNotification = function(title, options) {
+    if (!this._started) return Promise.resolve();
+    return this._registration.then(function(reg) {
+        return Promise.resolve(reg.showNotification(title, options)).then(function() {
+            var opts = options && options.tag ? {tag: options.tag} : {};
+            return Promise.resolve(reg.getNotifications(opts)).then(function(notifications) {
+                return notifications[0];
+            });
+        });
     });
 };
 

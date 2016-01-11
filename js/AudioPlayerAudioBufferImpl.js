@@ -130,6 +130,8 @@ AudioPlayer.prototype._timeProgressChecker = function() {
             this._resetAudioContext();
             return;
         }
+    } else {
+        this._currentTimeNotProgressedCount = 0;
     }
 
     if (this._audioContext.state === "running") {
@@ -399,6 +401,10 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._lastBufferLoadedEmitted = false;
     this._endedEmitted = false;
 
+    this._previousAudioContextTime = -1;
+    this._previousHighResTime = -1;
+    this._previousCombinedTime = -1;
+
     this._gaplessPreloadArgs = null;
 
     this._messaged = this._messaged.bind(this);
@@ -438,10 +444,10 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     this._destroyed = true;
 };
 
-AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function() {
+AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function(now) {
     var sourceDescriptor = this._bufferQueue[0];
     if (!sourceDescriptor) return 0;
-    var now = this._player.getCurrentTime();
+    if (now === undefined) now = this._player.getCurrentTime();
     var started = sourceDescriptor.started;
     if (now < started || started > (sourceDescriptor.started + sourceDescriptor.duration)) {
         return 0;
@@ -630,6 +636,7 @@ AudioPlayerSourceNode.prototype._stopSources = function() {
     }
 };
 
+var prevWithElapsed = -1;
 const MAX_ANALYSER_SIZE = 65536;
 const analyserChannelMixer = new ChannelMixer(1);
 // When visualizing audio it is better to visualize samples that will play right away
@@ -643,6 +650,23 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
 
     if (!this._sourceStopped) {
         var now = this._player.getCurrentTime();
+        var hr = performance.now();
+        var prevHr = this._previousHighResTime;
+
+        // This happens even on desktops....
+        if (now === this._previousAudioContextTime) {
+            var reallyElapsed = Math.round(((hr - prevHr) * 1000)) / 1e6;
+            now += reallyElapsed;
+            this._previousCombinedTime = now;
+        } else {
+            this._previousAudioContextTime = now;
+            this._previousHighResTime = hr;
+        }
+
+        if (now < this._previousCombinedTime) {
+            now = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
+        }
+
         var samplesIndex = 0;
         var additionalTime = 0;
         var bufferQueue = this._bufferQueue;
@@ -655,7 +679,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         
         var buffers = [bufferQueue[0]];
         var sampleRate = this._audioContext.sampleRate;
-        var offsetInCurrentBuffer = this._getCurrentAudioBufferBaseTimeDelta();
+        var offsetInCurrentBuffer = this._getCurrentAudioBufferBaseTimeDelta(now);
 
         if (Math.ceil((offsetInCurrentBuffer + (samplesNeeded / sampleRate) - latency) * sampleRate) > buffers[0].length &&
             bufferQueue.length < 2) {

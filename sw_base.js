@@ -130,3 +130,20 @@ self.addEventListener('message', function(e) {
         self.skipWaiting();
     }
 });
+
+self.addEventListener("notificationclick", function(event) {
+    event.waitUntil(clients.matchAll({type: "window"}).then(function(clientList) {
+        for (var i = 0; i < clientList.length; i++) {
+            var client = clientList[i];
+            if ('focus' in client) {
+                return client.postMessage({
+                    eventType: "swEvent",
+                    type: "notificationClick",
+                    action: event.action,
+                    data: event.notification.data,
+                    tag: event.notification.tag
+                });
+            }
+        }
+    }));
+});
