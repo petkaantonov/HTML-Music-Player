@@ -50,6 +50,8 @@ function Playlist(domNode, opts) {
     this._errorCount = 0;
     this.requestedRenderFrame = null;
     this._$domNode = $(domNode);
+    this._rect = this.$()[0].getBoundingClientRect();
+    this._scrollTop = 0;
 
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
@@ -90,6 +92,62 @@ function Playlist(domNode, opts) {
             self.tryChangeMode(values[PLAYLIST_MODE_KEY]);
         }
     });
+
+    if (touch) {
+        this.selectTracksBetween = this.selectTracksBetween.bind(this);
+        this.$().on("touchstart touchend touchmove", domUtil.verticalPincerSelectionHandler(function(y1, y2) {
+            y1 += this.getItemHeight();
+            y2 -= this.getItemHeight();
+            this.selectTracksBetween(y1, y2);
+        }.bind(this)));
+        
+        this.$().on("touchstart touchend", ".track-container", domUtil.tapHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            this._selectable.selectTrack(track);
+        }.bind(this)));
+
+        this.$().on("touchstart touchend touchmove", ".track-container", domUtil.longTapHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            this._selectable.setPriorityTrack(track);
+        }.bind(this)));
+
+        this.$().on("touchstart touchend", ".track-container", domUtil.doubleTapHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            track.doubleClicked(e);
+        }.bind(this)));
+
+        this.$().on("touchstart touchend", ".rating-input", domUtil.doubleTapHandler(function(e) {
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            return track.ratingInputDoubleClicked(e);
+        }.bind(this)));
+
+        this.$().on("touchstart touchend", ".rating-input", domUtil.tapHandler(function(e) {
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            return track.ratingInputClicked(e);
+        }.bind(this)));
+    } else {
+        this.$().on("click mousedown dblclick", function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            switch (e.type) {
+                case "click": return this._selectable.trackClick(e, track);
+                case "mousedown": return this._selectable.trackMouseDown(e, track);
+                case "dblclick": return track.doubleClicked(e);
+            }
+        }.bind(this));
+
+        this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+            e.stopImmediatePropagation();
+            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
+            if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
+            if (e.type === "click") return track.ratingInputClicked(e);
+            if (e.type === "dblclick") return track.ratingInputDoubleClicked(e);
+        }.bind(this));
+    }
 }
 util.inherits(Playlist, EventEmitter);
 
@@ -167,6 +225,12 @@ Playlist.Modes = {
     }
 };
 
+Playlist.prototype._trackRectToTrack = function(rect) {
+    var index = ((rect.top - this._rect.top + this._scrollTop) / this.getItemHeight())|0;
+    index = Math.min(this.length - 1, Math.max(0, index))
+    return this._trackList[index];
+};
+
 Playlist.prototype._scrolledDown = function() {
     this._scrollDirection = 1;
 };
@@ -240,7 +304,8 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
 };
 
 Playlist.prototype.windowLayoutChanged = function() {
-    const USED_HEIGHT = this.$()[0].getBoundingClientRect().top
+    this._rect = this.$()[0].getBoundingClientRect();
+    const USED_HEIGHT = this._rect.top;
 
     var itemHeight = this.getItemHeight();
     var height = $(window).height() - USED_HEIGHT;
@@ -265,6 +330,8 @@ Playlist.prototype.scrolled = function(e) {
                                                 : scrollTop - remainder;
         this.$()[0].scrollTop = scrollTop;
     }
+    this._rect = this.$()[0].getBoundingClientRect();
+    this._scrollTop = scrollTop;
     this.trackVisibilityChanged();
 };
 
@@ -276,8 +343,8 @@ Playlist.prototype.halfOfTracksVisibleInContainer = function() {
     return Math.ceil(this.tracksVisibleInContainer() / 2);
 };
 
-Playlist.prototype.selectTracksBetween = function(startY, endY) {
-    var rect = this.$()[0].getBoundingClientRect();
+Playlist.prototype._coordsToIndexRange = function(startY, endY) {
+    var rect = this._rect;
     var scrollTop = this.$()[0].scrollTop;
     var itemHeight = this.getItemHeight();
 
@@ -287,13 +354,32 @@ Playlist.prototype.selectTracksBetween = function(startY, endY) {
     var startIndex = Math.min(this.length - 1, Math.max(0, (startY / itemHeight)|0));
     var endIndex = Math.min(this.length - 1, Math.max(0, (endY / itemHeight + 1)|0));
 
+    if (startIndex < 0 || endIndex < 0) {
+        return null;
+    }
+
     if (startIndex > endIndex) {
         var tmp = startIndex;
         startIndex = endIndex;
         endIndex = startIndex
     }
 
-    this._selectable.selectRange(startIndex, endIndex);
+    return {
+        startIndex: startIndex,
+        endIndex: endIndex
+    };
+};
+
+Playlist.prototype.selectionContainsAnyTracksBetween = function(startY, endY) {
+    var indices = this._coordsToIndexRange(startY, endY);
+    if (!indices) return false;
+    return this._selectable.containsAnyInRange(indices.startIndex, indices.endIndex);
+};
+
+Playlist.prototype.selectTracksBetween = function(startY, endY) {
+    var indices = this._coordsToIndexRange(startY, endY);
+    if (!indices) return;
+    this._selectable.selectRange(indices.startIndex, indices.endIndex);
 };
 
 Playlist.prototype.renderItems = function() {
@@ -303,7 +389,7 @@ Playlist.prototype.renderItems = function() {
     var $bottomSpacer= this.$().find(".bottom-spacer");
     var tracks = this.getTracks();
     var itemHeight = this._itemHeight;
-    var scrollTop = container.scrollTop;
+    var scrollTop = this._scrollTop;
     var displayedTracks = this._displayedTracks;
 
     var tracksBefore = Math.min(tracks.length, Math.ceil(scrollTop / itemHeight));
@@ -356,6 +442,14 @@ Playlist.prototype.hidePlaylistEmptyIndicator = function() {
 Playlist.prototype.showPlaylistEmptyIndicator = function() {
     this.$().find(".playlist-spacer").hide();
     this.$().find(".playlist-empty").show();
+};
+
+Playlist.prototype.playPrioritySelection = function() {
+    if (!this.length) return;
+
+    var track = this._selectable.getPriorityTrack();
+    if (!track) return;
+    this.changeTrackExplicitly(track);
 };
 
 Playlist.prototype.playFirstSelected = function() {

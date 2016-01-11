@@ -21,8 +21,9 @@ function DraggableSelection(dom, playlist, opts) {
     this._onTrackMouseDown = this._onTrackMouseDown.bind(this);
     this._onReLayout = this._onReLayout.bind(this);
     this._restart = this._restart.bind(this);
-    this._onTouchmove = domUtil.touchMoveHandler(this._onTouchmove.bind(this));
-    this._onTouchend = domUtil.touchUpHandler(this._onTouchend.bind(this));
+    this._onTouchmove = this._onTouchmove.bind(this);
+    this._onTouchend = this._onTouchend.bind(this);
+    this._touchDragHandler = domUtil.dragHandler(this._onTouchmove, this._onTouchend);
 
     this._scrollUp = this._scrollUp.bind(this);
     this._scrollDown = this._scrollDown.bind(this);
@@ -116,8 +117,7 @@ DraggableSelection.prototype._onMouseRelease = function() {
         $(document).off("mousemove", this._onMovement)
                     .off("mouseup", this._onMouseRelease);
     } else {
-        $(document).off("touchmove", this._onTouchmove)
-                    .off("touchend", this._onTouchend);
+        $(document).off("touchstart touchmove touchend", this._touchDragHandler);
     }
     this._playlist.removeListener("tracksSelected", this._restart);
     this._playlist.removeListener("lengthChange", this._restart);
@@ -193,6 +193,12 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
         return;
     }
 
+    if (touch &&
+        !this._playlist.selectionContainsAnyTracksBetween(e.clientY, e.clientY + this._playlist.getItemHeight())) {
+        console.log("no tracks");
+        return;
+    }
+
     this._selection = this._playlist.getSelection();
     this._previousRawY = e.clientY;
     this._onReLayout();
@@ -202,8 +208,7 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
         $(document).on("mousemove", this._onMovement);
         $(document).on("mouseup", this._onMouseRelease);
     } else {
-        $(document).on("touchmove", this._onTouchmove);
-        $(document).on("touchend", this._onTouchend);
+        $(document).on("touchstart touchmove touchend", this._touchDragHandler);
     }
     $(window).on("relayout", this._onReLayout);
     this._playlist.on("tracksSelected", this._restart);

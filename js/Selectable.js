@@ -16,13 +16,19 @@ function Selectable(playlist) {
     this._lastIdx = null;
     this._lastStart = null;
     this._lastEnd = null;
+    this._prioritySelection = null;
     this._selection = new DS.SortedSet(util.TRACK_SORTER);
 }
 util.inherits(Selectable, EventEmitter);
 
 Selectable.prototype.trackMouseDown = function(e, track) {
-    if (!domUtil.isTouchEvent(e) && (e.which !== 1 && e.which !== 3)) {
+    if (e.which !== 1 && e.which !== 3) {
         return true;
+    }
+
+    if (e.which === 3) {
+        this._clearSelection();
+        return this.setPriorityTrack(track);
     }
 
     var idx = track.getIndex();
@@ -165,6 +171,9 @@ Selectable.prototype._appendingShiftSelection = function(idx) {
 
 Selectable.prototype._remove = function(idx) {
     var track = this._playlist.getTrackByIndex(idx);
+    if (track === this._prioritySelection) {
+        this._prioritySelection = null;
+    }
     track.unselected();
     this._selection.remove(track);
 };
@@ -184,18 +193,20 @@ Selectable.prototype.contains = function(track) {
 };
 
 Selectable.prototype.removeTrack = function(track) {
-    if (track.getIndex() >= 0) {
-        this._remove(track.getIndex());
+    var index = track.getIndex();
+    if (index >= 0) {
+        this._remove(index);
         this._playlist.emit("tracksSelected", this);
     }
 };
 
 Selectable.prototype.addTrack = function(track) {
-    if (track.getIndex() >= 0) {
+    var index = track.getIndex();
+    if (index >= 0) {
         if (this._selection.contains(track)) {
             return false;
         }
-        this._add(track.getIndex());
+        this._add(index);
         this._playlist.emit("tracksSelected", this);
         return true;
     }
@@ -403,7 +414,43 @@ Selectable.prototype.selectTrack = function(track) {
     }
 };
 
+Selectable.prototype.setPriorityTrack = function(track) {
+    var index = track.getIndex();
+    if (index >= 0) {
+        if (!this._selection.contains(track)) {
+            this._add(index);
+            this._playlist.emit("tracksSelected", this);
+        }
+        this._prioritySelection = track;
+    }
+};
+
+Selectable.prototype.getPriorityTrack = function() {
+    if (this._prioritySelection && this._prioritySelection.getIndex() < 0) {
+        this._prioritySelection = null;
+        return null;
+    }
+    return this._prioritySelection;
+};
+
+Selectable.prototype.containsAnyInRange = function(start, end) {
+    for (var i = start; i <= end; ++i) {
+        if (this._selection.contains(this._playlist.getTrackByIndex(i))) {
+            return true;
+        }
+    }
+    return false;
+};
+
 Selectable.prototype.selectRange = function(start, end) {
+    var first = this.first();
+    var last = this.last();
+
+    if (first !== null && first.getIndex() === start &&
+        last !== null && last.getIndex() === end) {
+        return;
+    }
+
     this._resetPointers();
     this._clearSelection();
     for (var i = start; i <= end; ++i) {
@@ -413,6 +460,7 @@ Selectable.prototype.selectRange = function(start, end) {
     this._lastEnd = end;
     this._lastStart = start;
     this._selectionPointer = end;
+    this._playlist.emit("tracksSelected", this);
 };
 
 Selectable.prototype.first = function() {

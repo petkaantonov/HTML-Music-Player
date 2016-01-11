@@ -38,6 +38,8 @@ const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
 const ID3Process = require("./ID3Process");
 const GlobalUi = require("./GlobalUi");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
 
@@ -71,7 +73,7 @@ const actions = {
     },
     filter: function() { filter.show(); },
     play: function() {
-        playlist.main.playFirstSelected();
+        playlist.main.playPrioritySelection();
     },
     delete: function() { playlist.main.removeSelected(); },
     sortByTitle: function() { playlist.main.sortByTitle(); },
@@ -657,7 +659,6 @@ hotkeyManager.addDescriptor({
     description: "Toggle pause.",
     handler: function() {
         player.main.togglePlayback();
-
     }
 });
 
@@ -845,3 +846,35 @@ hotkeyManager.addDescriptor({
 
 hotkeyManager.enableHotkeys();
 hotkeyManager.enablePersistentHotkeys();
+
+if (touch) {
+    const clearGesture = domUtil.tapHandler(function(e) {
+        if ($(e.target).closest(".track-container, .action-menu-item").length === 0) {
+            this.clearSelection();
+        }
+    }.bind(playlist.main));
+
+    const toggleGesture = domUtil.verticalSwipeHandler(function() {
+        player.main.togglePlayback();
+    }, 1);
+    const nextTrackGesture = domUtil.horizontalSwipeHandler(player.methodNext, 1);
+    const previousTrackGesture = domUtil.horizontalSwipeHandler(player.methodPrev, -1);
+
+    const enableGestures = function() {
+        util.onCapture(document, "touchstart touchend", clearGesture);
+        util.onCapture(document, "touchstart touchend touchmove", toggleGesture);
+        util.onCapture(document, "touchstart touchend touchmove", nextTrackGesture);
+        util.onCapture(document, "touchstart touchend touchmove", previousTrackGesture);
+    };
+
+    const disableGestures = function() {
+        util.offCapture(document, "touchstart touchend", clearGesture);
+        util.onCapture(document, "touchstart touchend touchmove", toggleGesture);
+        util.offCapture(document, "touchstart touchend touchmove", nextTrackGesture);
+        util.offCapture(document, "touchstart touchend touchmove", previousTrackGesture);
+    };
+
+    enableGestures();
+    hotkeyManager.on("disable", disableGestures);
+    hotkeyManager.on("enable", enableGestures);
+}

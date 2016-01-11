@@ -129,6 +129,7 @@ AudioManager.prototype.setupNodes = function() {
     this.muteGain.connect(this.fadeInGain);
     this.fadeInGain.connect(this.fadeOutGain);
     this.fadeOutGain.connect(audioCtx.destination);
+    this.intendingToSeek = -1;
 };
 
 AudioManager.prototype.destroyVisualizer = function() {
@@ -216,6 +217,7 @@ AudioManager.prototype.replaceTrack = function(track) {
 
     if (this.sourceNode.hasGaplessPreload()) {
         if (track === gaplessPreloadTrack) {
+            this.intendingToSeek = -1;
             this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
             this.track = track;
             this.track.on("tagDataUpdate", this.trackTagDataUpdated);
@@ -236,8 +238,8 @@ AudioManager.prototype.replaceTrack = function(track) {
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
     this.sourceNode.once("replacementLoaded", function() {
-        if (self.destroyed || self.player.currentAudioManager !== self) return;
         self.intendingToSeek = -1;
+        if (self.destroyed || self.player.currentAudioManager !== self) return;
         self.normalizeLoudness();
         self.updateSchedules();
         self.resume();
@@ -421,6 +423,7 @@ AudioManager.prototype.resume = function() {
 
 AudioManager.prototype.start = function() {
     if (this.destroyed || this.started) return;
+    this.intendingToSeek = -1;
     this.started = true;
     this.normalizeLoudness();
     this.sourceNode.on("timeUpdate", this.timeUpdated);

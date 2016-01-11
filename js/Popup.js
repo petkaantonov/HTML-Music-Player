@@ -71,7 +71,7 @@ function Popup(opts) {
     if (touch) {
         this.mousemoved = domUtil.touchMoveHandler(this.mousemoved);
         this.headerMouseDowned = domUtil.touchDownHandler(this.headerMouseDowned);
-        this.closerClicked = domUtil.touchDownHandler(this.closerClicked);
+        this.closerClicked = domUtil.tapHandler(this.closerClicked);
     } else {
         this.headerMouseDowned = util.fastClickEventHandler(this.headerMouseDowned);
         this.closerClicked = util.fastClickEventHandler(this.closerClicked);
@@ -155,7 +155,7 @@ Popup.prototype.open = function() {
             closer.on("mousedown", this.closerClicked);
             header.on("mousedown", this.headerMouseDowned);
         } else {
-            closer.on("touchstart", this.closerClicked);
+            closer.on("touchstart touchend", this.closerClicked);
             header.on("touchstart", this.headerMouseDowned);
         }
 

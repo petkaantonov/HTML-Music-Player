@@ -1,5 +1,6 @@
 "use strict";
 const $ = require("../lib/jquery");
+const EventEmitter = require("events");
 const util = require("./util");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Hotkeys = require("../lib/hotkeys");
@@ -47,11 +48,13 @@ var HOTKEY_HTML = "<div class='clear app-hotkey-container'>                   \
 </div>";
 
 function HotkeyManager(bindingMap, categories) {
+    EventEmitter.call(this);
     this._descriptors = [];
     this._bindingMap = bindingMap;
     this._categories = categories;
     this._enabled = false;
 }
+util.inherits(HotkeyManager, EventEmitter);
 
 HotkeyManager.prototype.setBindingMap = function(bindingMap) {
     this.disablePersistentHotkeys();
@@ -65,6 +68,7 @@ HotkeyManager.prototype._enableHotkeys = function(type) {
     if (type === HOTKEY_TYPE_NORMAL) {
         if (this._enabled) return;
         this._enabled = true;
+        this.emit("enable", this);
     }
     Object.keys(this._bindingMap).forEach(function(action) {
         var keyCombination = this._bindingMap[action];
@@ -81,6 +85,7 @@ HotkeyManager.prototype._disableHotkeys = function(type) {
     if (type === HOTKEY_TYPE_NORMAL) {
         if (!this._enabled) return;
         this._enabled = false;
+        this.emit("disable", this);
     }
     Object.keys(this._bindingMap).forEach(function(action) {
         var keyCombination = this._bindingMap[action];
