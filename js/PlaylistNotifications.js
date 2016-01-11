@@ -90,6 +90,8 @@ PlaylistNotifications.prototype.showNotificationForCurrentTrack = function() {
             icon: imageUrl,
             requireInteraction: true,
             renotify: false,
+            noscreen: true,
+            silent: true,
             sticky: true,
             actions: [
                 {action: "Next", title: "Next track"}

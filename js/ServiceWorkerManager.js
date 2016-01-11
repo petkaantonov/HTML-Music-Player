@@ -101,6 +101,8 @@ ServiceWorkerManager.prototype._messaged = function(e) {
 
 ServiceWorkerManager.prototype.showNotification = function(title, options) {
     if (!this._started) return Promise.resolve();
+    if (!options) options = Object(options);
+
     return this._registration.then(function(reg) {
         return Promise.resolve(reg.showNotification(title, options)).then(function() {
             var opts = options && options.tag ? {tag: options.tag} : {};
