@@ -8,7 +8,8 @@ const hotkeyManager = require("./HotkeyManager");
 const Slider = require("./Slider");
 var equalizer = new EventEmitter();
 module.exports = equalizer;
-
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const STORAGE_KEY = "equalizer";
 equalizer.amplitudeRatioToDecibelChange = function(ratio) {
@@ -501,7 +502,11 @@ equalizer.getBands = function() {
     return equalizer.equalizer;
 };
 
-$(".menul-equalizer").click(openEditor);
+if (!touch) {
+    $(".menul-equalizer").click(openEditor);
+} else {
+    $(".menul-equalizer").on("touchstart touchend", domUtil.tapHandler(openEditor));
+}
 
 hotkeyManager.addDescriptor({
     category: "General actions",

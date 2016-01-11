@@ -1,6 +1,8 @@
 "use strict";
 const $ = require("../lib/jquery");
 const GlobalUi = require("./GlobalUi");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
@@ -30,8 +32,14 @@ function PlaylistModeManager(dom, playlist) {
     this.update = this.update.bind(this);
 
     playlist.on("modeChange", this.update);
-    this.$shuffle().on("click", this.shuffleClicked);
-    this.$repeat().on("click", this.repeatClicked);
+
+    if (!touch) {
+        this.$shuffle().on("click", this.shuffleClicked);
+        this.$repeat().on("click", this.repeatClicked);
+    } else {
+        this.$shuffle().on("touchstart touchend", domUtil.tapHandler(this.shuffleClicked));
+        this.$repeat().on("touchstart touchend", domUtil.tapHandler(this.repeatClicked));
+    }
 
     this.update();
 }

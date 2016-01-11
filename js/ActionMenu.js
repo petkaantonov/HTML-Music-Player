@@ -3,6 +3,8 @@ const $ = require("../lib/jquery");
 const util = require("./util");
 const EventEmitter = require("events");
 const NULL = $(null);
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 function ActionMenuItem(root, spec, children, level) {
     this.root = root;
@@ -34,14 +36,23 @@ function ActionMenuItem(root, spec, children, level) {
         this.children.forEach(function(child) {
             child.setParent(this);
         }, this);
-        this.$().on("mouseenter", this.itemMouseEntered);
-        this.$().on("mouseleave", this.itemMouseLeft);
-        this.$container().on("mouseenter", this.containerMouseEntered);
-        this.$container().on("mouseleave", this.containerMouseLeft);
+
+        if (!touch) {
+            this.$().on("mouseenter", this.itemMouseEntered);
+            this.$().on("mouseleave", this.itemMouseLeft);
+            this.$container().on("mouseenter", this.containerMouseEntered);
+            this.$container().on("mouseleave", this.containerMouseLeft);
+        } else {
+            this.$().on("touchstart", domUtil.touchDownHandler(this.itemMouseEntered));
+        }
     }
 
     if (!this.divider) {
-        this.$().on("click", this.itemClicked);
+        if (!touch) {
+            this.$().on("click", this.itemClicked);
+        } else {
+            this.$().on("touchstart touchend", domUtil.tapHandler(this.itemClicked));
+        }
     }
 }
 
@@ -487,11 +498,20 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
 
     this.preventDefault = $.noop;
 
-    this._targetDom.on("contextmenu", this.rightClicked);
+    if (!touch) {
+        this._targetDom.on("contextmenu", this.rightClicked);
+    } else {
+        this.rightClicked = domUtil.longTapHandler(this.rightClicked);
+        this._targetDom.on("touchstart touchend touchmove", this.rightClicked);
+    }
     // Use event capturing so that these are handled even if stopPropagation()
     // is called.
-    document.addEventListener("click", this.documentClicked, true);
-    document.addEventListener("mousedown", this.documentClicked, true);
+    if (!touch) {
+        document.addEventListener("click", this.documentClicked, true);
+        document.addEventListener("mousedown", this.documentClicked, true);
+    } else {
+        document.addEventListener("touchstart", this.documentClicked, true);
+    }
     document.addEventListener("keydown", this.keypressed, true);
     window.addEventListener("blur", this.hide, true);
     window.addEventListener("scroll", this.position, true);
@@ -509,10 +529,14 @@ ActionMenu.ContextMenu.prototype.destroy = function() {
     window.removeEventListener("blur", this.hide, true);
     window.removeEventListener("scroll", this.position, true);
     window.removeEventListener("resize", this.position, true);
-    document.removeEventListener("click", this.documentClicked, true);
-    document.removeEventListener("mousedown", this.documentClicked, true);
+    if (!touch) {
+        document.removeEventListener("click", this.documentClicked, true);
+        document.removeEventListener("mousedown", this.documentClicked, true);
+    } else {
+        document.removeEventListener("touchstart", this.documentClicked, true);
+    }
     document.removeEventListener("keydown", this.keypressed, true);
-    this._targetDom.off("contextmenu", this.rightClicked);
+    this._targetDom.off("contextmenu touchstart touchend touchmove", this.rightClicked);
     this.removeAllListeners();
     this._menu.destroy();
 };

@@ -1,6 +1,8 @@
 "use strict";
 const $ = require("../lib/jquery");
 const Promise = require("../lib/bluebird.js");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const util = require("./util");
 const GlobalUi = require("./GlobalUi");
@@ -37,7 +39,11 @@ function PlaylistNotifications(dom, player) {
     this.notificationErrored = this.notificationErrored.bind(this);
     this.notificationClicked = this.notificationClicked.bind(this);
 
-    this.$().on("click", this.settingClicked);
+    if (!touch) {
+        this.$().on("click", this.settingClicked);
+    } else {
+        this.$().on("touchstart touchend", domUtil.tapHandler(this.settingClicked));
+    }
     util.documentHidden.on("change", this.visibilityChanged);
     this.player.on("newTrackLoad", this.newTrackLoaded);
 

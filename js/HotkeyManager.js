@@ -7,6 +7,8 @@ const shiftKeys = Hotkeys.shiftKeys;
 const GlobalUi = require("./GlobalUi");
 const features = require("./features");
 const usePerfectScrollbar = !features.touch;
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const STORAGE_KEY = "hotkey-bindings-1";
 const HOTKEY_TYPE_PERSISTENT = 0;
@@ -420,6 +422,10 @@ function openHotkeyManager() {
     });
 }
 
-$(".menul-hotkeys").click(openHotkeyManager);
+if (!touch) {
+    $(".menul-hotkeys").click(openHotkeyManager);
+} else {
+    $(".menul-hotkeys").on("touchstart touchend", domUtil.tapHandler(openHotkeyManager));
+}
 
 module.exports = hotkeyManager;

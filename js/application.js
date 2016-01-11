@@ -61,12 +61,18 @@ $(window).on("clear", function() {
 });
 
 const actions = {
+    selectNone: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.clearSelection();
+    },
     selectAll: function(e) {
         if (e && e.preventDefault) e.preventDefault();
         playlist.main.selectAll();
     },
     filter: function() { filter.show(); },
-    play: function() { playlist.main.playFirstSelected(); },
+    play: function() {
+        playlist.main.playFirstSelected();
+    },
     delete: function() { playlist.main.removeSelected(); },
     sortByTitle: function() { playlist.main.sortByTitle(); },
     sortByArtist: function() { playlist.main.sortByArtist(); },
@@ -78,10 +84,17 @@ const actions = {
 
 const trackActionsSpec = {
     menu: [{
+        id: "clear-selection",
+        disabled: true,
+        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon", "crop_square"),
+        onClick: actions.selectNone
+    }, {
         id: "select-all",
         disabled: true,
         content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon", "select_all"),
         onClick: actions.selectAll
+    }, {
+        divider: true,
     }, {
         id: "filter",
         disabled: true,
@@ -153,6 +166,12 @@ playlist.main.on("tracksSelected", function(selectable) {
         actionsToEnable.push("play", "delete", "sort");
     }
 
+    if (playlist.main.getSelectedTrackCount() === 0) {
+        actionsToDisable.push("clear-selection");
+    } else {
+        actionsToEnable.push("clear-selection");
+    }
+
     if (playlist.main.length === playlist.main.getSelectedTrackCount()) {
         actionsToDisable.push("select-all");
     } else {
@@ -176,7 +195,7 @@ playlist.main.on("lengthChange", function(newLength) {
         }
         actionsToEnable.push("filter");
     } else {
-        actionsToDisable.push("select-all", "filter");
+        actionsToDisable.push("select-all", "filter", "clear-selection");
     }
 
     trackContextMenu.enable(actionsToEnable);
@@ -385,6 +404,7 @@ $(document)
 Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded,
              trackAnalyzer.ready, player.main.ready, startApp).catch(function(e){});
 
+GlobalUi.setHotkeyManager(hotkeyManager);
 
 hotkeyManager.addDescriptor({
     category: "General actions",

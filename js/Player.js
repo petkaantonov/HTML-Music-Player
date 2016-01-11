@@ -12,6 +12,8 @@ const util = require("./util");
 const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Track = require("./Track");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 var audioCtx;
 const audioPlayer = new AudioPlayer(null, 20);
@@ -644,10 +646,15 @@ function Player(dom, playlist, opts) {
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
-    this.$play().click(this.playButtonClicked.bind(this));
-    this.$next().click(playlist.next.bind(playlist));
-    this.$previous().click(playlist.prev.bind(playlist));
-
+    if (!touch) {
+        this.$play().click(this.playButtonClicked.bind(this));
+        this.$next().click(playlist.next.bind(playlist));
+        this.$previous().click(playlist.prev.bind(playlist));
+    } else {
+        this.$play().on("touchstart touchend", domUtil.tapHandler(this.playButtonClicked.bind(this)));
+        this.$next().on("touchstart touchend", domUtil.tapHandler(playlist.next.bind(playlist)));
+        this.$previous().on("touchstart touchend", domUtil.tapHandler(playlist.prev.bind(playlist)));
+    }
 
     this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"

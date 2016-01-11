@@ -128,7 +128,6 @@ GlobalUi.makePopup = function(title, body, opener) {
         containerClass: "ui-text"
     });
 
-    const hotkeyManager = require("./HotkeyManager");
     ret.on("open", function() {
         hotkeyManager.disableHotkeys();
 
@@ -154,4 +153,9 @@ GlobalUi.makePopup = function(title, body, opener) {
 
     $(window).on("clear", ret.close.bind(ret));
     return ret;
+};
+
+var hotkeyManager;
+GlobalUi.setHotkeyManager = function(value) {
+    hotkeyManager = value;
 };

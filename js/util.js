@@ -9,9 +9,11 @@ Function.prototype.bind = function(ctx) {
         return FunctionBind.apply(this, arguments);
     }
     var fn = this;
-    return function() {
+    var ret = function() {
         return fn.apply(ctx, arguments);
     };
+    if (DEBUGGING) ret.fn = fn;
+    return ret;
 };
 
 if (typeof Math.denormz !== "function") {

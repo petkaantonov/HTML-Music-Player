@@ -87,6 +87,7 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     });
     this._audioBuffersAllocated = 0;
     this._arrayBuffersAllocated = 0;
+    this._currentTimeNotProgressedCount = 0;
     this._suspensionTimeoutMs = suspensionTimeout * 1000;
     this._currentStateModificationAction = null;
 
@@ -124,8 +125,11 @@ AudioPlayer.prototype._timeProgressChecker = function() {
     if (time === this._previousAudioContextTime &&
         this._audioContext.state === "running") {
         this._previousAudioContextTime = -1;
-        this._resetAudioContext();
-        return;
+        this._currentTimeNotProgressedCount++;
+        if (this._currentTimeNotProgressedCount >= 3) {
+            this._resetAudioContext();
+            return;
+        }
     }
 
     if (this._audioContext.state === "running") {
@@ -163,6 +167,7 @@ AudioPlayer.prototype._suspend = function() {
 };
 
 AudioPlayer.prototype._resetAudioContext = function() {
+    this._currentTimeNotProgressedCount = 0;
     this._audioBuffersAllocated = 0;
     while (this._sourceNodes.length > 0) {
         this._sourceNodes.shift().destroy();
@@ -1089,7 +1094,6 @@ AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob,
 AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreload) {
     if (this._destroyed) return;
     if (seekTime === undefined) seekTime = 0;
-    
     this._loadingNext = true;
     this._nullifyPendingRequests();
     var now = Date.now();
@@ -1126,7 +1130,6 @@ AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
     if (!(blob instanceof Blob) && !(blob instanceof File)) {
         throw new Error("blob must be a blob");
     }
-
     this._nullifyPendingRequests();
     var now = Date.now();
     this._loadingNext = true;

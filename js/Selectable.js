@@ -2,6 +2,9 @@
 const EventEmitter = require("events");
 const util = require("./util");
 const DS = require("../lib/DataStructures");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
+
 
 
 const modifierKeyProp = util.modifierKeyProp;
@@ -18,9 +21,10 @@ function Selectable(playlist) {
 util.inherits(Selectable, EventEmitter);
 
 Selectable.prototype.trackMouseDown = function(e, track) {
-    if (e.which !== 1 && e.which !== 3) {
+    if (!domUtil.isTouchEvent(e) && (e.which !== 1 && e.which !== 3)) {
         return true;
     }
+
     var idx = track.getIndex();
 
     if (e.shiftKey && e[modifierKeyProp]) {
@@ -179,11 +183,23 @@ Selectable.prototype.contains = function(track) {
     return this._selection.contains(track);
 };
 
-Selectable.prototype.addTrack = function(track) {
+Selectable.prototype.removeTrack = function(track) {
     if (track.getIndex() >= 0) {
-        this._add(track.getIndex());
+        this._remove(track.getIndex());
         this._playlist.emit("tracksSelected", this);
     }
+};
+
+Selectable.prototype.addTrack = function(track) {
+    if (track.getIndex() >= 0) {
+        if (this._selection.contains(track)) {
+            return false;
+        }
+        this._add(track.getIndex());
+        this._playlist.emit("tracksSelected", this);
+        return true;
+    }
+    return false;
 };
 
 Selectable.prototype.moveUp = function(distance) {
@@ -378,6 +394,18 @@ Selectable.prototype.clearSelection = function() {
 
 Selectable.prototype.getSelection = function() {
     return this._selection.toArray();
+};
+
+Selectable.prototype.selectRange = function(start, end) {
+    this._resetPointers();
+    this._clearSelection();
+    for (var i = start; i <= end; ++i) {
+        this._add(i);
+    }
+    this._lastStart = start;
+    this._lastEnd = end;
+    this._lastStart = start;
+    this._selectionPointer = end;
 };
 
 Selectable.prototype.first = function() {

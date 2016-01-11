@@ -1,6 +1,9 @@
 "use strict";
 const $ = require("../lib/jquery");
 const GlobalUi = require("./GlobalUi");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
+
 
 function PlayerVolumeManager(dom, player, opts) {
     var self = this;
@@ -27,7 +30,12 @@ function PlayerVolumeManager(dom, player, opts) {
     this.volumeSlider.on("slide", this.slided);
     this.player.on("volumeChange", this.volumeChanged);
     this.player.on("muted", this.muteChanged);
-    this.$mute().click(this.muteClicked);
+
+    if (!touch) {
+        this.$mute().click(this.muteClicked);
+    } else {
+        this.$mute().on("touchstart touchend", domUtil.tapHandler(this.muteClicked));
+    }
     this.volumeChanged();
     this.muteChanged(this.player.isMuted());
 }

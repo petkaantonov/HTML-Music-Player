@@ -3,6 +3,8 @@ const $ = require("../lib/jquery");
 
 const keyValueDatabase = require("./KeyValueDatabase");
 const util = require("./util");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
@@ -41,8 +43,12 @@ function PlayerTimeManager(dom, player, opts) {
     this.seekSlider.on("slide", this.slided);
     this.player.on("progress", this.playerTimeProgressed);
     this.player.on("newTrackLoad", this.newTrackLoaded);
-    this.$timeContainer().click(this.containerClicked);
 
+    if (!touch) {
+        this.$timeContainer().click(this.containerClicked);
+    } else {
+        this.$timeContainer().on("touchstart touchend", domUtil.tapHandler(this.containerClicked));
+    }
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {

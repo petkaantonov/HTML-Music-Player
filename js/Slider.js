@@ -2,6 +2,9 @@
 const $ = require("../lib/jquery");
 const EventEmitter = require("events");
 const util = require("./util");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
+
 
 function Slider(domNode, opts) {
     EventEmitter.call(this);
@@ -53,9 +56,15 @@ Slider.prototype.__createMouseUp = function() {
     var self = this;
     return function(e) {
         self.emit("slideEnd", self.__percentage(e));
-        $(document)
-            .off("mousemove", self.__onmousemove)
-            .off("mouseup", self.__onmouseup);
+        if (!touch) {
+            $(document)
+                .off("mousemove", self.__onmousemove)
+                .off("mouseup", self.__onmouseup);
+        } else {
+            $(document)
+                .off("touchmove", self.__onmousemove)
+                .off("touchend", self.__onmouseup);
+        }
         $(window).off("relayout", self._onReLayout);
     };
 };
@@ -63,7 +72,7 @@ Slider.prototype.__createMouseUp = function() {
 Slider.prototype.__createMouseMover = function() {
     var self = this;
     return function(e) {
-        if (typeof e.which === "number" && e.which !== 1) {
+        if (!domUtil.isTouchEvent(e) && typeof e.which === "number" && e.which !== 1) {
             return self.__onmouseup(self._lastEvent);
         }
         self._lastEvent = e;
@@ -75,8 +84,13 @@ Slider.prototype._init = function() {
     var self = this;
     this.__onmouseup = this.__createMouseUp();
     this.__onmousemove = this.__createMouseMover();
-    this.$().on("mousedown", function(e) {
-        if (e.which !== 1) {
+    if (touch) {
+        this.__onmousemove = domUtil.touchMoveHandler(this.__onmousemove);
+        this.__onmouseup = domUtil.touchUpHandler(this.__onmouseup);
+    }
+
+    var handler = function(e) {
+        if (!domUtil.isTouchEvent(e) && e.which !== 1) {
             return true;
         }
 
@@ -87,13 +101,26 @@ Slider.prototype._init = function() {
             self.emit("slide", self.__percentage(e));
         }
 
-        $(document)
-            .on("mousemove", self.__onmousemove)
-            .on("mouseup", self.__onmouseup);
+        if (!touch) {
+            $(document)
+                .on("mousemove", self.__onmousemove)
+                .on("mouseup", self.__onmouseup);
+        } else {
+            $(document)
+                .on("touchmove", self.__onmousemove)
+                .on("touchend", self.__onmouseup);
+        }
         $(window).on("relayout", self._onReLayout);
         e.preventDefault();
         return false;
-    });
+    };
+
+
+    if (!touch) {
+        this.$().on("mousedown", handler);
+    } else {
+        this.$().on("touchstart", domUtil.touchDownHandler(handler));
+    }
 
 };
 

@@ -4,6 +4,8 @@ const Promise = require("../lib/bluebird.js");
 
 const EventEmitter = require("events");
 const util = require("./util");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const shownPopups = [];
 const NULL = $(null);
@@ -64,6 +66,16 @@ function Popup(opts) {
     this.headerMouseDowned = this.headerMouseDowned.bind(this);
     this.draggingEnd = this.draggingEnd.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
+    this.closerClicked = this.closerClicked.bind(this);
+
+    if (touch) {
+        this.mousemoved = domUtil.touchMoveHandler(this.mousemoved);
+        this.headerMouseDowned = domUtil.touchDownHandler(this.headerMouseDowned);
+        this.closerClicked = domUtil.touchDownHandler(this.closerClicked);
+    } else {
+        this.headerMouseDowned = util.fastClickEventHandler(this.headerMouseDowned);
+        this.closerClicked = util.fastClickEventHandler(this.closerClicked);
+    }
 
     $(window).on("resize blur", this.draggingEnd);
     $(window).on("resize", this.position);
@@ -106,6 +118,10 @@ Popup.prototype.refresh = function() {
     this.position();
 };
 
+Popup.prototype.closerClicked = function() {
+    this.close();
+};
+
 Popup.prototype.open = function() {
     if (this._shown) return;
     this._shown = true;
@@ -134,9 +150,14 @@ Popup.prototype.open = function() {
         body.appendTo(this.$());
 
         this.$().appendTo("body");
-
-        closer.on("mousedown touchstart", util.fastClickEventHandler(this.close));
-        header.on("mousedown touchstart", util.fastClickEventHandler(this.headerMouseDowned));
+        
+        if (!touch) {
+            closer.on("mousedown", this.closerClicked);
+            header.on("mousedown", this.headerMouseDowned);
+        } else {
+            closer.on("touchstart", this.closerClicked);
+            header.on("touchstart", this.headerMouseDowned);
+        }
 
         this.position();
 
@@ -161,10 +182,8 @@ Popup.prototype.open = function() {
 
 Popup.prototype.mousemoved = function(e) {
     if (!this._shown) return;
-    if (e.type === "mousemove" && e.which !== 1) {
+    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
         return this.draggingEnd();
-    } else if (e.type === "touchmove" && e.touches && e.touches.length !== 1) {
-        return;
     }
     this._x = Math.max(0, e.clientX - this._anchorDistanceX);
     this._y = Math.max(0, e.clientY - this._anchorDistanceY);
@@ -177,10 +196,10 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     var box = this.$()[0].getBoundingClientRect();
     this._anchorDistanceX = e.clientX - box.left;
     this._anchorDistanceY = e.clientY - box.top;
-    if (isClick && e.which === 1) {
+    if (!touch) {
         util.onCapture(document, "mouseup", this.draggingEnd);
         util.onCapture(document, "mousemove", this.mousemoved);
-    } else if (isTouch) {
+    } else {
         util.onCapture(document, "touchend touchcancel", this.draggingEnd);
         util.onCapture(document, "touchmove", this.mousemoved);
     }

@@ -7,9 +7,9 @@ const DraggableSelection = require("./DraggableSelection");
 const keyValueDatabase = require("./KeyValueDatabase");
 const Random = require("./Random");
 const Track = require("./Track");
-const features = require("./features");
-const usePerfectScrollbar = !features.touch;
-
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
+const usePerfectScrollbar = !touch;
 
 const PLAYLIST_MODE_KEY = "playlist-mode";
 
@@ -274,6 +274,26 @@ Playlist.prototype.tracksVisibleInContainer = function() {
 
 Playlist.prototype.halfOfTracksVisibleInContainer = function() {
     return Math.ceil(this.tracksVisibleInContainer() / 2);
+};
+
+Playlist.prototype.selectTracksBetween = function(startY, endY) {
+    var rect = this.$()[0].getBoundingClientRect();
+    var scrollTop = this.$()[0].scrollTop;
+    var itemHeight = this.getItemHeight();
+
+    startY = startY - rect.top + scrollTop;
+    endY = endY - rect.top + scrollTop;
+
+    var startIndex = Math.min(this.length - 1, Math.max(0, (startY / itemHeight)|0));
+    var endIndex = Math.min(this.length - 1, Math.max(0, (endY / itemHeight + 1)|0));
+
+    if (startIndex > endIndex) {
+        var tmp = startIndex;
+        startIndex = endIndex;
+        endIndex = startIndex
+    }
+
+    this._selectable.selectRange(startIndex, endIndex);
 };
 
 Playlist.prototype.renderItems = function() {

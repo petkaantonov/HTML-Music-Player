@@ -1,8 +1,13 @@
 const $ = require("../lib/jquery");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
+
 
 function clicked() {
     $(this).data("file_input").click();
 }
+
+if (touch) clicked = domUtil.tapHandler(clicked);
 
 function createInput(atts) {
     var input = document.createElement("input");
@@ -29,7 +34,8 @@ $.fn.fileInput = function(action, atts) {
             var input = createInput(atts);
             $(this).data("file_input", input);
             $(this).data("file_input_atts", Object(atts));
-            $(this).bind("click", clicked);
+
+            $(this).on("click touchstart touchend", clicked);
         } else if (action === "delete") {
             if (!$(this).data("file_input")) {
                 return;
@@ -37,7 +43,7 @@ $.fn.fileInput = function(action, atts) {
             var input = $(this).data("file_input");
             $(this).data("file_input", null);
             $(this).data("file_input_atts", null);
-            $(this).unbind("click", clicked);
+            $(this).off("click touchstart touchend", clicked);
             $(input).remove();
         } else if (action === "clearFiles") {
             if (!$(this).data("file_input")) {

@@ -8,6 +8,8 @@ const TagData = require("./TagData");
 const Tooltip = require("./Tooltip");
 const sha1 = require("../lib/sha1");
 const Promise = require("../lib/bluebird");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
@@ -68,23 +70,52 @@ Track.prototype._ensureDomNode = function() {
         </div>                                                                                      \
     </div>");
 
-    this.$().find(".track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
-        e.stopImmediatePropagation();
-        if (e.type === "mouseenter") return self.ratingInputMouseEntered(e);
-        if (e.type === "mouseleave") return self.ratingInputMouseLeft(e);
-        if (e.type === "click") return self.ratingInputClicked(e);
-        if (e.type === "dblclick") return self.ratingInputDoubleClicked(e);
-    });
+    if (!touch) {
+        this.$().find(".track-rating").on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+            e.stopImmediatePropagation();
+            if (e.type === "mouseenter") return self.ratingInputMouseEntered(e);
+            if (e.type === "mouseleave") return self.ratingInputMouseLeft(e);
+            if (e.type === "click") return self.ratingInputClicked(e);
+            if (e.type === "dblclick") return self.ratingInputDoubleClicked(e);
+        });
+    } else {
+        this.$().find(".track-rating").on("touchstart touchend", ".rating-input", domUtil.doubleTapHandler(function(e) {
+            return self.ratingInputDoubleClicked(e);
+        })).on("touchstart touchend", ".rating-input", domUtil.tapHandler(function(e) {
+            return self.ratingInputClicked(e);
+        }));
+    }
 
-    this.$().on("click mousedown dblclick", function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
+    if (!touch) {
+        this.$().on("click mousedown dblclick", function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
 
-        switch (e.type) {
-            case "click": return selectable.trackClick(e, self);
-            case "mousedown": return selectable.trackMouseDown(e, self);
-            case "dblclick": return self.doubleClicked(e);
-        }
-    });
+            switch (e.type) {
+                case "click": return selectable.trackClick(e, self);
+                case "mousedown": return selectable.trackMouseDown(e, self);
+                case "dblclick": return self.doubleClicked(e);
+            }
+        });
+    } else {
+        var lastTouchStartedAddedToSelection = false;
+        this.$().on("touchstart", domUtil.touchDownHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            lastTouchStartedAddedToSelection = selectable.addTrack(self);
+        }));
+        this.$().on("touchstart touchend", domUtil.tapHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            if (!lastTouchStartedAddedToSelection) {
+                selectable.removeTrack(self);
+            }
+            lastTouchStartedAddedToSelection = false;
+        }));
+
+        this.$().on("touchstart touchend", domUtil.doubleTapHandler(function(e) {
+            if ($(e.target).closest(".unclickable").length > 0) return;
+            selectable.addTrack(self);
+            return self.doubleClicked(e);
+        }));
+    }
 
     this.setTrackDuration();
     this.setTrackInfo();
@@ -302,11 +333,11 @@ Track.prototype.ratingInputClicked = function(e) {
     this.tagDataUpdated();
 };
 
-Track.prototype.ratingInputDoubleClicked = function() {
+Track.prototype.ratingInputDoubleClicked = util.throttle(function() {
     if (!this.isRated()) return;
     this.tagData.unsetRating();
     this.tagDataUpdated();
-};
+}, 100);
 
 Track.prototype.isAttachedToDom = function() {
     return this._isAttached;

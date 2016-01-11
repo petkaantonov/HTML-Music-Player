@@ -2,6 +2,8 @@
 const $ = require("../lib/jquery");
 const EventEmitter = require("events");
 const util = require("./util");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const getLongestTransitionDuration = function(node) {
     var $node = $(node);
@@ -107,14 +109,31 @@ function Tooltip(opts) {
     this.hide = this.hide.bind(this);
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
+    this.targetClicked = this.targetClicked.bind(this);
 
     if (this._activationStyle === "hover") {
-        this._target.on("mouseenter", this.mouseEntered);
-        this._target.on("mouseleave", this.mouseLeft);
-        this._target.on("click", this.hide);
+        if (!touch) {
+            this._target.on("mouseenter", this.mouseEntered);
+            this._target.on("mouseleave", this.mouseLeft);
+            this._target.on("click", this.targetClicked);
+        } else {
+            this.mouseEntered = domUtil.touchDownHandler(this.mouseEntered);
+            this.mouseLeft = domUtil.touchUpHandler(this.mouseLeft);
+            this.targetClicked = domUtil.tapHandler(this.targetClicked);
+            this._target.on("touchstart", this.mouseEntered);
+            this._target.on("touchend", this.mouseLeft);
+            this._target.on("touchstart touchend", this.targetClicked);
+        }
     } else if (this._activationStyle === "click") {
-        this._target.on("click", this.clicked);
-        util.onCapture(document, "click", this.documentClicked);
+        if (!touch) {
+            this._target.on("click", this.clicked);
+            util.onCapture(document, "click", this.documentClicked);
+        } else {
+            this.clicked = domUtil.tapHandler(this.clicked);
+            this.documentClicked = domUtil.touchDownHandler(this.documentClicked);
+            this._target.on("touchstart touchend", this.clicked);
+            util.onCapture(document, "touchstart", this.documentClicked);
+        }
     }
     $(window).on("resize", this.position);
     $(window).on("blur", this.hide);
@@ -419,6 +438,10 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
     }
 };
 
+Tooltip.prototype.targetClicked = function() {
+    return this.hide();
+};
+
 Tooltip.prototype.hide = function() {
     this._target.off("mousemove", this.mousemoved);
     this._clearDelay();
@@ -455,7 +478,9 @@ Tooltip.prototype.mousemoved = function(e) {
 };
 
 Tooltip.prototype.mouseEntered = function(e) {
-    this._target.on("mousemove", this.mousemoved);
+    if (!touch) {
+        this._target.on("mousemove", this.mousemoved);
+    }
     this.mousemoved(e);
 };
 
@@ -467,13 +492,13 @@ Tooltip.prototype.destroy = function() {
     $(window).off("resize", this.position);
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
-    util.offCapture(document, "click", this.documentClicked);
+    util.offCapture(document, "click touchstart touchend", this.documentClicked);
     if (this._target) {
         this.hide();
-        this._target.off("mouseenter", this.mouseEntered);
-        this._target.off("mouseleave", this.mouseLeft);
-        this._target.off("click", this.hide);
-        this._target.off("click", this.clicked);
+        this._target.off("mouseenter touchstart touchend", this.mouseEntered);
+        this._target.off("mouseleave touchstart touchend", this.mouseLeft);
+        this._target.off("click touchstart touchend", this.targetClicked);
+        this._target.off("click touchstart touchend", this.clicked);
         this._target = this._domNode = null;
     }
 };

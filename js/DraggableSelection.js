@@ -2,6 +2,8 @@
 const $ = require("../lib/jquery");
 const util = require("./util");
 const Selectable = require("./Selectable");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 function DraggableSelection(dom, playlist, opts) {
     opts = Object(opts);
@@ -14,18 +16,25 @@ function DraggableSelection(dom, playlist, opts) {
     this._listOffset = 0;
     this._listHeight = 0;
     this._currentReferenceTrack = -1;
-    this._onMovement = $.proxy(this._onMovement, this);
-    this._onMouseRelease = $.proxy(this._onMouseRelease, this);
-    this._onTrackMouseDown = $.proxy(this._onTrackMouseDown, this);
-    this._onReLayout = $.proxy(this._onReLayout, this);
-    this._restart = $.proxy(this._restart, this);
+    this._onMovement = this._onMovement.bind(this);
+    this._onMouseRelease = this._onMouseRelease.bind(this);
+    this._onTrackMouseDown = this._onTrackMouseDown.bind(this);
+    this._onReLayout = this._onReLayout.bind(this);
+    this._restart = this._restart.bind(this);
+    this._onTouchmove = domUtil.touchMoveHandler(this._onTouchmove.bind(this));
+    this._onTouchend = domUtil.touchUpHandler(this._onTouchend.bind(this));
 
     this._scrollUp = this._scrollUp.bind(this);
     this._scrollDown = this._scrollDown.bind(this);
 
     this._scrollIntervalId = -1;
 
-    this.$().bind("mousedown", this._onTrackMouseDown);
+    if (!touch) {
+        this.$().on("mousedown", this._onTrackMouseDown);
+    } else {
+        this._onTrackMouseDown = domUtil.touchDownHandler(this._onTrackMouseDown);
+        this.$().on("touchstart", this._onTrackMouseDown);
+    }
     this.$().bind("selectstart", function(e) {e.preventDefault();});
 }
 
@@ -40,14 +49,16 @@ DraggableSelection.prototype._shouldScrollUp = function() {
     var box = this.$()[0].getBoundingClientRect();
     var lastY = this._previousRawY;
     var itemHeight = this._playlist.getItemHeight();
-    return lastY <= box.top + itemHeight / 2;
+    var wiggleArea = touch ? itemHeight : itemHeight / 2;
+    return lastY <= box.top + wiggleArea;
 };
 
 DraggableSelection.prototype._shouldScrollDown = function() {
     var box = this.$()[0].getBoundingClientRect();
     var lastY = this._previousRawY;
     var itemHeight = this._playlist.getItemHeight();
-    return lastY >= box.bottom - itemHeight / 2;
+    var wiggleArea = touch ? itemHeight : itemHeight / 2;
+    return lastY >= box.bottom - wiggleArea;
 };
 
 DraggableSelection.prototype._scrollUp = function() {
@@ -91,10 +102,23 @@ DraggableSelection.prototype._onReLayout = function() {
     this._currentReferenceTrack = this._coordinateToTrackIndex(this._previousRawY);
 };
 
+DraggableSelection.prototype._onTouchmove = function(e) {
+    return this._onMovement(e);
+};
+
+DraggableSelection.prototype._onTouchend = function(e) {
+    return this._onMouseRelease(e);
+};
+
 DraggableSelection.prototype._onMouseRelease = function() {
     this.$().unbind("scroll", this._onMovement);
-    $(document).unbind("mousemove", this._onMovement)
-            .unbind("mouseup", this._onMouseRelease);
+    if (!touch) {
+        $(document).off("mousemove", this._onMovement)
+                    .off("mouseup", this._onMouseRelease);
+    } else {
+        $(document).off("touchmove", this._onTouchmove)
+                    .off("touchend", this._onTouchend);
+    }
     this._playlist.removeListener("tracksSelected", this._restart);
     this._playlist.removeListener("lengthChange", this._restart);
     this._playlist.removeListener("trackOrderChange", this._restart);
@@ -110,7 +134,7 @@ DraggableSelection.prototype._translateYCoordinate = function(rawY) {
 };
 
 DraggableSelection.prototype._onMovement = function(e) {
-    if (typeof e.which === "number" && e.which !== 1) {
+    if (!domUtil.isTouchEvent(e) && e.type !== "scroll" && e.which !== 1) {
         return this._onMouseRelease();
     }
     this._maybeStartDownScroller();
@@ -174,8 +198,13 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     this._onReLayout();
 
     this.$().on("scroll", this._onMovement);
-    $(document).on("mousemove", this._onMovement);
-    $(document).on("mouseup", this._onMouseRelease);
+    if (!touch) {
+        $(document).on("mousemove", this._onMovement);
+        $(document).on("mouseup", this._onMouseRelease);
+    } else {
+        $(document).on("touchmove", this._onTouchmove);
+        $(document).on("touchend", this._onTouchend);
+    }
     $(window).on("relayout", this._onReLayout);
     this._playlist.on("tracksSelected", this._restart);
     this._playlist.on("lengthChange", this._restart);

@@ -6,6 +6,8 @@ const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const hotkeyManager = require("./HotkeyManager");
 const Slider = require("./Slider");
+const touch = require("./features").touch;
+const domUtil = require("./DomUtil");
 
 const crossfading = new EventEmitter();
 module.exports = crossfading;
@@ -297,7 +299,11 @@ const openPopup = function() {
     });
 };
 
-$(".menul-crossfade").click(openPopup);
+if (!touch) {
+    $(".menul-crossfade").click(openPopup);
+} else {
+    $(".menul-crossfade").on("touchstart touchend", domUtil.tapHandler(openPopup));
+}
 
 hotkeyManager.addDescriptor({
     category: "General actions",
