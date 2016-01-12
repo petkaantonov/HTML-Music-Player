@@ -30,6 +30,7 @@ function PlayerTimeManager(dom, player, opts) {
     this._timeSeparatorDomNode = this.$().find(opts.timeSeparatorDom);
     this._updateProgress = this._updateProgress.bind(this);
     this.hidden = true;
+    this.frameId = -1;
 
     this.slideBegun = this.slideBegun.bind(this);
     this.slideEnded = this.slideEnded.bind(this);
@@ -57,7 +58,7 @@ function PlayerTimeManager(dom, player, opts) {
         }
     });
 
-    this.frameId = requestAnimationFrame(this._updateProgress);
+    this._scheduleUpdate();
 }
 
 
@@ -122,6 +123,7 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
 };
 
 PlayerTimeManager.prototype.setTotalTime = function(time) {
+    this._scheduleUpdate();
     this.checkVisibility(time);
 
     if (this.displayMode === DISPLAY_ELAPSED) {
@@ -136,7 +138,7 @@ PlayerTimeManager.prototype.setTotalTime = function(time) {
 };
 
 PlayerTimeManager.prototype.setCurrentTime = function(time) {
-    
+    this._scheduleUpdate();
     var currentTime = Math.floor(time);
 
     if (this._displayedTimeLeft !== currentTime) {
@@ -160,8 +162,9 @@ for (var i = 0; i < progressValues.length; ++i) {
     var percentage = -((1 - (i / 1024)) * 100) + "%"
     progressValues[i] = util.internString("translate3d(" + percentage + ",0,0)");
 }
+
 PlayerTimeManager.prototype._updateProgress = function() {
-    this.frameId = requestAnimationFrame(this._updateProgress);
+    this.frameId = -1;
 
     var transform;
     if (this.currentTime === 0 || this.totalTime === 0) {
@@ -174,6 +177,12 @@ PlayerTimeManager.prototype._updateProgress = function() {
     this.$timeProgress()[0].style.transform = transform;
 };
 
+PlayerTimeManager.prototype._scheduleUpdate = function() {
+    if (this.frameId === -1) {
+        this.frameId = requestAnimationFrame(this._updateProgress);
+    }
+};
+
 PlayerTimeManager.prototype.forceUpdate = function() {
     var currentTime = this.currentTime;
     var totalTime = this.totalTime;
@@ -181,6 +190,7 @@ PlayerTimeManager.prototype.forceUpdate = function() {
     this.totalTime = totalTime + 1;
     this.setTotalTime(totalTime);
     this.setCurrentTime(currentTime);
+    this._scheduleUpdate();
 };
 
 PlayerTimeManager.prototype.toggleDisplayMode = function() {
@@ -226,6 +236,7 @@ PlayerTimeManager.prototype.newTrackLoaded = function() {
     this.setTotalTime(duration);
     this.currentTime = -1;
     this.setCurrentTime(0);
+    this._scheduleUpdate();
 };
 
 module.exports = PlayerTimeManager;

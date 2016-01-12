@@ -110,19 +110,17 @@ function Tooltip(opts) {
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
     this.targetClicked = this.targetClicked.bind(this);
-    this.mouseEnteredTouch = domUtil.touchDownHandler(this.mouseEntered);
-    this.mouseLeftTouch = domUtil.touchUpHandler(this.mouseLeft);
+    this.touchHoverHandler = domUtil.hoverHandler(this.mouseEntered, this.mouseLeft);
     this.targetClickedTouch = domUtil.tapHandler(this.targetClicked);
     this.clickedTouch = domUtil.tapHandler(this.clicked);
-    this.documentClickedTouch = domUtil.touchDownHandler(this.documentClicked);
+    this.documentClickedTouch = domUtil.tapHandler(this.documentClicked);
 
     if (this._activationStyle === "hover") {
         this._target.on("mouseenter", this.mouseEntered);
         this._target.on("mouseleave", this.mouseLeft);
         this._target.on("click", this.targetClicked);
         if (touch) {
-            this._target.on("touchstart", this.mouseEnteredTouch);
-            this._target.on("touchend", this.mouseLeftTouch);
+            this._target.on("touchstart touchend touchmove", this.touchHoverHandler);
             this._target.on("touchstart touchend", this.targetClickedTouch);
         }
     } else if (this._activationStyle === "click") {
@@ -130,7 +128,7 @@ function Tooltip(opts) {
         util.onCapture(document, "click", this.documentClicked);
         if (touch) {
             this._target.on("touchstart touchend", this.clickedTouch);
-            util.onCapture(document, "touchstart", this.documentClickedTouch);
+            util.onCapture(document, "touchstart touchend", this.documentClickedTouch);
         }
     }
     $(window).on("resize", this.position);
@@ -512,9 +510,8 @@ Tooltip.prototype.destroy = function() {
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
-        this._target.off("touchstart touchend", this.mouseEnteredTouch);
         this._target.off("mouseleave", this.mouseLeft);
-        this._target.off("touchstart touchend", this.mouseLeftTouch);
+        this._target.off("touchstart touchend touchmove", this.touchHoverHandler);
         this._target.off("click", this.targetClicked);
         this._target.off("touchstart touchend", this.targetClickedTouch);
         this._target.off("click", this.clicked);

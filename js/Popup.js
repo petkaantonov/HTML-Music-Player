@@ -66,6 +66,7 @@ function Popup(opts) {
     this._anchorDistanceY = -1;
     this._popupDom = NULL;
     this._shown = false;
+    this._dragging = false;
 
     this.position = this.position.bind(this);
     this.close = this.close.bind(this);
@@ -156,7 +157,7 @@ Popup.prototype.open = function() {
         
         if (touch) {
             closer.on("touchstart touchend", this.closerClickedTouch);
-            header.on("touchstart", this.headerMouseDownedTouch);
+            header.on("touchstart touchend", this.headerMouseDownedTouch);
         }
 
         this.position();
@@ -191,8 +192,9 @@ Popup.prototype.mousemoved = function(e) {
 };
 
 Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
-    if (!this._shown) return;
+    if (!this._shown || this._dragging || (domUtil.isTouchEvent(e) && e.isFirst === false)) return;
     if ($(e.target).closest(this.closerContainerClass).length > 0) return;
+    this._dragging = true;
     var box = this.$()[0].getBoundingClientRect();
     this._anchorDistanceX = e.clientX - box.left;
     this._anchorDistanceY = e.clientY - box.top;
@@ -207,6 +209,8 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
 };
 
 Popup.prototype.draggingEnd = function() {
+    if (!this._dragging) return;
+    this._dragging = false;
     util.offCapture(document, "mouseup", this.draggingEnd);
     util.offCapture(document, "mousemove", this.mousemoved);
 

@@ -30,21 +30,25 @@ function Slider(domNode, opts) {
     this.$().on("mousedown", this._onMousedown);
 
     if (touch) {
-        this.$().on("touchstart", this._onMousedownTouch);
+        this.$().on("touchstart touchend", this._onMousedownTouch);
     }
 
     this._clickMove = opts && opts.clickMove || true;
     this._offset = 0;
     this._dimension = 0;
+    this._sliding = false;
     this._onReLayout = $.proxy(this._onReLayout, this);
 }
 util.inherits(Slider, EventEmitter);
 
 Slider.prototype._onMousedown = function(e) {
-    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
-        return
+    var isTouchEvent = domUtil.isTouchEvent(e);
+    if (this._sliding ||
+        (!isTouchEvent && e.which !== 1) ||
+        (isTouchEvent && e.isFirst === false)) {
+        return;
     }
-
+    this._sliding = true;
     this._calculateDimensions();
     this.emit("slideBegin", e);
 
@@ -72,6 +76,8 @@ Slider.prototype._onMousemove = function(e) {
 };
 
 Slider.prototype._onMouseup = function(e) {
+    if (!this._sliding) return;
+    this._sliding = false;
     this.emit("slideEnd", this._percentage(e));
 
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);

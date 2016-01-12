@@ -866,7 +866,7 @@ if (touch) {
         }
     }.bind(playlist.main));
 
-    const toggleGesture = domUtil.verticalSwipeHandler(function() {
+    const toggleGesture = domUtil.twoFingerTapHandler(function() {
         var gesture = player.main.isPlaying ? "pause" : "play";
         gestureScreenFlasher.flashGesture(gesture);
         player.main.togglePlayback();

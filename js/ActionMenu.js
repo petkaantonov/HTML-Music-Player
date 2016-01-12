@@ -44,8 +44,8 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseleave", this.containerMouseLeft);
 
         if (touch) {
-            this.$container().on("touchstart", domUtil.touchDownHandler(this.containerMouseEntered));
-            this.$().on("touchstart", domUtil.touchDownHandler(this.itemMouseEntered));
+            this.$container().on("touchstart touchend", domUtil.touchDownHandler(this.containerMouseEntered));
+            this.$().on("touchstart touchend", domUtil.touchDownHandler(this.itemMouseEntered));
         }
     }
 
@@ -498,14 +498,14 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this.keypressed = this.keypressed.bind(this);
     this.position = this.position.bind(this);
     this.rightClickedTouch = domUtil.longTapHandler(this.rightClicked);
-    this.documentClickedTouch = domUtil.tapHandler(this.documentClicked);
+    this.documentClickedTouch = domUtil.touchDownHandler(this.documentClicked);
 
     this.preventDefault = $.noop;
 
     // Use event capturing so that these are handled even if stopPropagation()
     // is called.
     this._targetDom.on("contextmenu", this.rightClicked);
-    util.onCapture(document, "click", this.documentClicked);
+    util.onCapture(document, "mousedown", this.documentClicked);
 
     if (touch) {
         this._targetDom.on("touchstart touchend touchmove", this.rightClickedTouch);
@@ -530,7 +530,7 @@ ActionMenu.ContextMenu.prototype.destroy = function() {
     window.removeEventListener("scroll", this.position, true);
     window.removeEventListener("resize", this.position, true);
     
-    util.offCapture(document, "click", this.documentClicked);
+    util.offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
 
     if (touch) {
