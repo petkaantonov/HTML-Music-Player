@@ -6,44 +6,59 @@ const EventEmitter = require("events");
 const util = require("./util");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const Animator = require("./Animator");
 
 const shownPopups = [];
 const NULL = $(null);
-var blocker = NULL;
 
+const blocker = $(".popup-blocker");
+
+function closePopups() {
+    shownPopups.forEach(function(v) {
+        v.close();
+    });
+}
+
+blocker.on("click", closePopups);
+
+if (touch) {
+    blocker.on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(closePopups));
+}
+var anim;
 function showBlocker() {
-    function closePopups() {
-        shownPopups.forEach(function(v) {
-            v.close();
-        });
+    if (anim) {
+        anim.cancel();
+        anim = null;
     }
-
-    blocker = $('<div>')
-        .css({
-            position: "fixed",
-            left: 0,
-            top: 0,
-            zIndex: 99999
-        })
-        .addClass("popup-blocker")
-        .appendTo("body")
-        .on("click", closePopups);
-
-    if (touch) {
-        blocker.on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(closePopups));
-    }
-
-    blocker.addClass("initial");
-    blocker[0].offsetWidth;
-    blocker.detach();
-    blocker.appendTo("body");
-    blocker[0].offsetWidth;
-    blocker.removeClass("initial");
+    blocker.css("transform", "translate3d(0, 0, 0)");
+    var animator = new Animator(blocker[0], {
+        properties: [{
+            name: "opacity",
+            start: 0,
+            end: 55,
+            unit: "%",
+            duration: 300
+        }],
+        interpolate: Animator.DECELERATE_CUBIC
+    });
+    animator.animate();
 }
 
 function hideBlocker() {
-    blocker.remove();
-    blocker = NULL;
+    var animator = new Animator(blocker[0], {
+        properties: [{
+            name: "opacity",
+            start: 55,
+            end: 0,
+            unit: "%",
+            duration: 300
+        }],
+        interpolate: Animator.DECELERATE_CUBIC
+    });
+    anim = animator.animate().then(function() {
+        blocker.css("transform", "translate3d(-1000%, 0, 0)");
+        anim = null;
+    });
 }
 
 function Popup(opts) {
@@ -62,11 +77,12 @@ function Popup(opts) {
     this.closer = util.toFunction(opts.closer || "");
     this._x = -1;
     this._y = -1;
+    this._rect = null;
     this._anchorDistanceX = -1;
     this._anchorDistanceY = -1;
-    this._popupDom = NULL;
     this._shown = false;
     this._dragging = false;
+    this._frameId = -1;
 
     this.position = this.position.bind(this);
     this.close = this.close.bind(this);
@@ -81,26 +97,70 @@ function Popup(opts) {
     $(window).on("resize blur", this.draggingEnd);
     $(window).on("resize", this.position);
     util.documentHidden.on("change", this.draggingEnd);
+
+    this._popupDom = this._initDom();
+    this._rect = this._popupDom[0].getBoundingClientRect();
+    this._viewPort = this._getViewPort();
 }
 util.inherits(Popup, EventEmitter);
+
+Popup.prototype._initDom = function() {
+    var ret = $("<div>", {
+        class: this.containerClass,
+    }).css({
+        zIndex: 100001,
+        position: "absolute",
+        transform: "translate3d(-1000%, 0, 0)"
+    }).appendTo("body");
+
+    var headerText = $("<h2>").text(this.title() + "");
+    var header = $("<div>", {class: this.headerClass});
+    var body = $("<div>", {class: this.bodyClass}).html(this.body() + "");
+    var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
+
+    headerText.appendTo(header);
+    closer.appendTo(header);
+    header.appendTo(ret);
+    body.appendTo(ret);
+
+    closer.on("click", this.closerClicked);
+    header.on("mousedown", this.headerMouseDowned);
+    
+    if (touch) {
+        closer.on(domUtil.TOUCH_EVENTS, this.closerClickedTouch);
+        header.on(domUtil.TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
+    }
+
+    return ret;
+};
 
 Popup.prototype.destroy = function() {
     $(window).off("resize blur", this.draggingEnd);
     $(window).off("resize", this.position);
     util.documentHidden.removeListener("change", this.draggingEnd);
+    this.$().remove();
 };
 
 Popup.prototype.$ = function() {
     return this._popupDom;
 };
 
+Popup.prototype._getViewPort = function() {
+    return {
+        width: $(window).width(),
+        height: $(window).height()
+    };
+};
+
+
 Popup.prototype.position = function() {
+    this._frameId = -1;
     if (!this._shown) return;
     var x = this._x;
     var y = this._y;
-    var box = this.$()[0].getBoundingClientRect();
-    var maxX = $(window).width() - box.width;
-    var maxY = $(window).height() - box.height;
+    var box = this._rect;
+    var maxX = this._viewPort.width - box.width;
+    var maxY = this._viewPort.height - box.height;
 
     if (x === -1) x = ((maxX + box.width) / 2) -  (box.width / 2);
     if (y === -1) y = ((maxY + box.height) / 2) -  (box.height / 2);
@@ -108,9 +168,9 @@ Popup.prototype.position = function() {
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
 
-    
-
-    this.$().css({left: x, top: y});
+    this._x = x;
+    this._y = y;
+    this._renderCssPosition();
 };
 
 Popup.prototype.refresh = function() {
@@ -123,6 +183,12 @@ Popup.prototype.closerClicked = function() {
     this.close();
 };
 
+Popup.prototype._renderCssPosition = function() {
+    this.$().css("transform", "translate3d(" +
+        (this._x /*- this._rect.width / 2*/) + "px, " +
+        (this._y /*- this._rect.height / 2*/) + "px, 0");
+};
+
 Popup.prototype.open = function() {
     if (this._shown) return;
     this._shown = true;
@@ -132,34 +198,7 @@ Popup.prototype.open = function() {
         if (shownPopups.length === 1) {
             showBlocker();
         }
-
-        this._popupDom = $("<div>", {
-            class: this.containerClass,
-        }).css({
-            zIndex: 100000 + shownPopups.length,
-            position: "fixed"
-        });
-
-        var headerText = $("<h2>").text(this.title() + "");
-        var header = $("<div>", {class: this.headerClass});
-        var body = $("<div>", {class: this.bodyClass}).html(this.body() + "");
-        var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
-
-        headerText.appendTo(header);
-        closer.appendTo(header);
-        header.appendTo(this.$());
-        body.appendTo(this.$());
-
-        this.$().appendTo("body");
         
-        closer.on("click", this.closerClicked);
-        header.on("mousedown", this.headerMouseDowned);
-        
-        if (touch) {
-            closer.on(domUtil.TOUCH_EVENTS, this.closerClickedTouch);
-            header.on(domUtil.TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
-        }
-
         this.position();
 
         if (this.transitionClass) {
@@ -188,24 +227,25 @@ Popup.prototype.mousemoved = function(e) {
     }
     this._x = Math.max(0, e.clientX - this._anchorDistanceX);
     this._y = Math.max(0, e.clientY - this._anchorDistanceY);
-    this.position();
+    if (this._frameId === -1) {
+        this._frameId = requestAnimationFrame(this.position);
+    }
 };
 
 Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     if (!this._shown || this._dragging || (domUtil.isTouchEvent(e) && e.isFirst === false)) return;
     if ($(e.target).closest(this.closerContainerClass).length > 0) return;
     this._dragging = true;
-    var box = this.$()[0].getBoundingClientRect();
-    this._anchorDistanceX = e.clientX - box.left;
-    this._anchorDistanceY = e.clientY - box.top;
+    this._anchorDistanceX = e.clientX - this._x;
+    this._anchorDistanceY = e.clientY - this._y;
+    this._rect = this._popupDom[0].getBoundingClientRect();
+    this._viewPort = this._getViewPort();
     util.onCapture(document, "mouseup", this.draggingEnd);
     util.onCapture(document, "mousemove", this.mousemoved);
     
     if (touch) {
         util.onBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
-
-    this.$().addClass("popup-dragging");
 };
 
 Popup.prototype.draggingEnd = function() {
@@ -217,8 +257,6 @@ Popup.prototype.draggingEnd = function() {
     if (touch) {
         util.offBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
-
-    this.$().removeClass("popup-dragging");
 };
 
 Popup.prototype.close = function() {
@@ -229,11 +267,10 @@ Popup.prototype.close = function() {
     this.emit("close", this);
     var $node = this._popupDom;
     Promise.resolve(this.beforeTransitionOut(this._popupDom)).finally(function() {
-        $node.remove();
+        $node.css("transform", "translate3d(-1000%, 0, 0");
     });
 
     this.draggingEnd();
-    this._popupDom = NULL;
 
     if (shownPopups.length === 0) {
         hideBlocker();

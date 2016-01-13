@@ -10,7 +10,7 @@ const domUtil = require("./DomUtil");
 const START_SCALE = 0.95;
 const END_SCALE = 1;
 const START_ALPHA = 0;
-const END_ALPHA = 1;
+const END_ALPHA = 100;
 const IMAGE_DIMENSIONS = 116;
 
 function PlayerPictureManager(dom, player, opts) {
@@ -63,7 +63,8 @@ PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
             name: "opacity",
             start: startState ? startState.alpha : END_ALPHA,
             end: START_ALPHA,
-            duration: 300
+            duration: 300,
+            unit: "%"
         }, {
             name: "scale",
             start: [startState ? startState.scale : END_SCALE,
@@ -93,7 +94,8 @@ PlayerPictureManager.prototype._startTransitioningIn = function(image) {
             name: "opacity",
             start: START_ALPHA,
             end: END_ALPHA,
-            duration: 300
+            duration: 300,
+            unit: "%"
         }, {
             name: "scale",
             start: [START_SCALE, START_SCALE],

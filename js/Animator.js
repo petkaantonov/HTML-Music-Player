@@ -332,24 +332,37 @@ Animation.prototype.animate = function(now) {
     return ret;
 };
 
+const filterProp = (function() {
+    var div = document.createElement("div");
+    return (("webkitFilter" in div.style) ? "webkitFilter" : "filter");
+})();
+
 const validProperties = [
     "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
     "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
     "translateX", "translateY", "translateZ", "translate", "translate3d",
     "skew", "skewX", "skewY",
-    "opacity"
+    "opacity",
+    "blur", "brightness", "contrast", "drop-shadow", "greyscale", "hue-rotate",
+    "invert", "saturate", "sepia"
 ];
 
-const multiProperties = ["scale", "skew", "translate", "scale3d", "translate3d", "rotate3d"];
+const multiProperties = ["scale", "skew", "translate", "scale3d", "translate3d", "rotate3d", "drop-shadow"];
 const transformProperties = [
     "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
     "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
     "translateX", "translateY", "translateZ", "translate", "translate3d",
     "skew", "skewX", "skewY"
 ];
+const filterProperties = [
+    "blur", "brightness", "contrast",
+    "drop-shadow", "greyscale", "hue-rotate",
+    "invert", "saturate", "sepia", "opacity"];
+
 function AdditionalAnimationProperty(animator, property) {
     this.name = property.name + "";
     this.isTransform = transformProperties.indexOf(this.name) >= 0;
+    this.isFilter = filterProperties.indexOf(this.name) >= 0;
     this.isMulti = multiProperties.indexOf(this.name) >= 0;
 
     if (validProperties.indexOf(this.name) === -1) {
@@ -404,7 +417,8 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
         for (var i = 0; i < this.start.length; ++i) {
             var startValue = this.start[i];
             var endValue = this.end[i];
-            result += ((progress * (endValue - startValue)) + startValue) + this.unit;
+            result += (Math.round(((progress * (endValue - startValue)) + startValue) * 1e6)/1e6) +
+                        this.unit;
 
             if (i < this.start.length - 1) {
                 result += ",";
@@ -413,10 +427,10 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     } else {
         var startValue = this.start;
         var endValue = this.end;
-        result = ((progress * (endValue - startValue)) + startValue) + this.unit;
+        result = (Math.round(((progress * (endValue - startValue)) + startValue) * 1e6)/1e6) + this.unit;
     }
 
-    if (this.isTransform) {
+    if (this.isTransform || this.isFilter) {
         return this.name + "(" + result + ")";
     } else {
         return result;
@@ -438,9 +452,22 @@ function Animator(dom, opts) {
         return value.isTransform;
     });
 
+    this._filters = this._additionalProperties.filter(function(value) {
+        return value.isFilter;
+    });
+
     this._directProperties = this._additionalProperties.filter(function(value) {
         return !value.isTransform;
     });
+
+    var baseFilter = $(this._domNode).css(filterProp);
+    baseFilter = baseFilter === "none" ? "" : baseFilter;
+    this._baseFilter = baseFilter + " ";
+    var baseTransform = $(this._domNode).css("transform");
+    baseTransform = baseTransform === "none" ? "" : baseTransform;
+    this._baseTransform = baseTransform + " ";
+    this._baseStyleFilter = this._domNode.style[filterProp] || "";
+    this._baseStyleTransform = this._domNode.style.transform || "";
 
     this._hasCycles = this._additionalProperties.filter(function(value) {
         return value.repeat !== "none";
@@ -574,12 +601,20 @@ Animator.prototype.stop = function() {
     if (this.isAnimating()) {
         cancelAnimationFrame(this._frameId);
     }
+    this._domNode.style[filterProp] = this._baseStyleFilter;
+    this._domNode.style.transform = this._baseStyleTransform;
     this._animations = [];
     this.emit("animationEnd", this);
 };
 
 Animator.prototype.isAnimating = function() {
     return this._frameId !== -1;
+};
+
+Animator.prototype._getFilters = function(current, total) {
+    return this._filters.map(function(v) {
+        return v.getCssValue(current, total);
+    }).join(" ");
 };
 
 Animator.prototype._getTransforms = function(current, total) {
@@ -596,9 +631,15 @@ Animator.prototype._applyDirectProperties = function(node, current, total) {
 
 Animator.prototype._progress = function(current, total) {
     var node = this._domNode;
+
     var transforms = this._getTransforms(current, total);
     if (transforms) {
-        node.style.transform = transforms;
+        node.style.transform = this._baseTransform + transforms;
+    }
+
+    var filters = this._getFilters(current, total);
+    if (filters) {
+        node.style[filterProp] = this._baseFilter + filters;
     }
 
     this._applyDirectProperties(node, current, total);
@@ -607,8 +648,12 @@ Animator.prototype._progress = function(current, total) {
 Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     var node = this._domNode;
     var transforms = this._getTransforms(current, total);
+    var filters = this._getFilters(current, total);
 
-    node.style.transform = "translate3d("+x+"px, "+y+"px, 0) " + transforms;
+    node.style.transform = this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms;
+    if (filters) {
+        node.style[filterProp] = this._baseFilter + filters;
+    }
     this._applyDirectProperties(node, current, total);
 };
 
@@ -629,6 +674,8 @@ Animator.prototype._gotAnimationFrame = function() {
     if (newFrameNeeded) {
         this._scheduleFrame();
     } else {
+        this._domNode.style[filterProp] = this._baseStyleFilter;
+        this._domNode.style.transform = this._baseStyleTransform;
         this.emit("animationEnd");
     }
 };

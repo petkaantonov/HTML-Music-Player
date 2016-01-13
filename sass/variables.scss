@@ -12,6 +12,11 @@ $scrollbar-width: 8px;
 $border-width: 1px;
 $minimum-visualizer-height: 568px;
 
+@mixin css-filter($filter...) {
+  -webkit-filter: $filter;
+          filter: $filter;
+}
+
 /* <= 359 */
 @mixin ultra-small-screen {
     @media (max-width: #{$medium-small-screen-width - 1px}) {
@@ -489,7 +494,6 @@ $link-hover-decoration: underline !default;
       -ms-transform-origin: $origin; // IE9 only
           transform-origin: $origin;
 }
-
 
 // Transitions
 

@@ -361,7 +361,86 @@ var html = (function() {
                 "+presetContainerHtml+"                                  \
             </div>";
 })();
+
+
 const equalizerPopup = GlobalUi.makePopup("Equalizer", html, ".menul-equalizer");
+
+var currentGain =  $("#equalizer-current-gain");
+var currentGainSign = currentGain.find(".equalizer-current-gain-sign");
+var currentGainValue = currentGain.find(".equalizer-current-gain-value");
+var currentGainUnit = currentGain.find(".equalizer-current-gain-unit");
+
+var sliders = equalizer.bands.map(function(band) {
+    var currentValue = null;
+    var freq = band[0];
+    var db = equalizer.equalizer[freq];
+    var sliderSelector = "#equalizer-band-" + freq + "-slider";
+    var knob = document.getElementById("equalizer-band-" + freq + "-knob");
+
+
+    var slider = new Slider(sliderSelector, {
+        direction: "vertical"
+    });
+
+    function updateKnob(p) {
+        knob.style.top = (p * 110 - 5) + "px";
+    }
+
+    slider.on("slideBegin", function() {
+        currentValue = null;
+        currentGain.show();
+    });
+
+    slider.on("slide", function(p) {
+        selectCustomPreset();
+        updateKnob(p);
+        var value = equalizer.toGainValue(progressToGainValue(1 - p));
+        var formatting = formatGainValue(value);
+
+        currentGainSign.text(formatting[0]);
+        currentGainValue.text(formatting[1]);
+        currentGainUnit.text(formatting[2]);
+        currentValue = value;
+        equalizer.equalizer[freq] = value;
+        equalizer.equalizer.preamp = null;
+        triggerEqualizerChange();
+    });
+
+    slider.on("slideEnd", function() {
+        var value = currentValue;
+        currentValue = null;
+        currentGain.hide();
+        equalizer.equalizer[freq] = value;
+        keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
+        triggerEqualizerChange();
+    });
+
+    updateKnob(1 - gainValueToProgress(db));
+
+    return {
+        update: function(db) {
+            updateKnob(1 - gainValueToProgress(db));
+        }
+    };
+});
+
+$("#equalizer-preset-selector").bind("change", function() {
+    var presetName = $(this).val();
+
+    if (presetName !== "Custom") {
+        var preset = presets[presetName];
+        Object.keys(equalizer.equalizer).forEach(function(freq, index) {
+            // Check for "preamp".
+            if (!isFinite(+freq)) return;
+            var db = preset[freq];
+            sliders[index].update(db);
+            equalizer.equalizer[freq] = db;
+        });
+        equalizer.equalizer.preamp = preset.preamp;
+        keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
+        triggerEqualizerChange();
+    }
+});
 
 function gainValueToProgress(gainValue) {
     var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -403,84 +482,7 @@ var triggerEqualizerChange = util.throttle(function() {
 
 function openEditor() {
     equalizerPopup.open();
-
     selectCurrentlyMatchingPreset();
-    var currentGain =  $("#equalizer-current-gain");
-    var currentGainSign = currentGain.find(".equalizer-current-gain-sign");
-    var currentGainValue = currentGain.find(".equalizer-current-gain-value");
-    var currentGainUnit = currentGain.find(".equalizer-current-gain-unit");
-
-    var sliders = equalizer.bands.map(function(band) {
-        var currentValue = null;
-        var freq = band[0];
-        var db = equalizer.equalizer[freq];
-        var sliderSelector = "#equalizer-band-" + freq + "-slider";
-        var knob = document.getElementById("equalizer-band-" + freq + "-knob");
-
-
-        var slider = new Slider(sliderSelector, {
-            direction: "vertical"
-        });
-
-        function updateKnob(p) {
-            knob.style.top = (p * 110 - 5) + "px";
-        }
-
-        slider.on("slideBegin", function() {
-            currentValue = null;
-            currentGain.show();
-        });
-
-        slider.on("slide", function(p) {
-            selectCustomPreset();
-            updateKnob(p);
-            var value = equalizer.toGainValue(progressToGainValue(1 - p));
-            var formatting = formatGainValue(value);
-
-            currentGainSign.text(formatting[0]);
-            currentGainValue.text(formatting[1]);
-            currentGainUnit.text(formatting[2]);
-            currentValue = value;
-            equalizer.equalizer[freq] = value;
-            equalizer.equalizer.preamp = null;
-            triggerEqualizerChange();
-        });
-
-        slider.on("slideEnd", function() {
-            var value = currentValue;
-            currentValue = null;
-            currentGain.hide();
-            equalizer.equalizer[freq] = value;
-            keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
-            triggerEqualizerChange();
-        });
-
-        updateKnob(1 - gainValueToProgress(db));
-
-        return {
-            update: function(db) {
-                updateKnob(1 - gainValueToProgress(db));
-            }
-        };
-    });
-
-    $("#equalizer-preset-selector").bind("change", function() {
-        var presetName = $(this).val();
-
-        if (presetName !== "Custom") {
-            var preset = presets[presetName];
-            Object.keys(equalizer.equalizer).forEach(function(freq, index) {
-                // Check for "preamp".
-                if (!isFinite(+freq)) return;
-                var db = preset[freq];
-                sliders[index].update(db);
-                equalizer.equalizer[freq] = db;
-            });
-            equalizer.equalizer.preamp = preset.preamp;
-            keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
-            triggerEqualizerChange();
-        }
-    });
 }
 
 keyValueDatabase.getInitialValues().then(function(values) {

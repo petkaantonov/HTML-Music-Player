@@ -1,7 +1,9 @@
+@import "variables";
+
 .gesture-flash {
     pointer-events: none;
     touch-action: none;
-    position: fixed;
+    position: absolute;
     top: 50px;
     left: 0px;
     font-size: 100px;
@@ -11,8 +13,6 @@
     height: 200px;
     transform: translate3d(0, 0, 0);
     color: #ccc;
-    will-change: opacity;
     text-align: center;
-    opacity: 0;
 }
 

@@ -10,7 +10,6 @@ try {
 window.$ = window.jQuery = require("../lib/jquery");
 window.Promise = require("../lib/bluebird");
 require("./BluebirdConfig");
-require("../lib/perfect-scrollbar.jquery.min");
 require("./jquery.fileinput");
 
 const $ = window.$;
@@ -226,7 +225,7 @@ playlist.main.on("trackChange", function(track) {
 function startApp() {
     $("#app-loader").remove();
     $("#app-container").show();
-    playlist.main.windowLayoutChanged();
+    $(window).trigger("resize");
 }
 
 var windowLoaded = new Promise(function(resolve) {

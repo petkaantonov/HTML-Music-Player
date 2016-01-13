@@ -4483,17 +4483,18 @@ const freeBuffer = function(size, channels, buffer) {
     bufferPool[key].push(buffer);
 }
 
-const allocResampler = function(channels, from, to) {
+const allocResampler = function(channels, from, to, quality) {
+    quality = quality || 0;
     var key = channels + " " + from + " " + to;
     var entry = resamplers[key];
     if (!entry) {
         entry = resamplers[key] = {
             allocationCount: 2,
-            instances: [new Resampler(channels, from, to), new Resampler(channels, from, to)]
+            instances: [new Resampler(channels, from, to, quality), new Resampler(channels, from, to, quality)]
         };
     }
     if (entry.instances.length === 0) {
-        entry.instances.push(new Resampler(channels, from, to));
+        entry.instances.push(new Resampler(channels, from, to, quality));
         entry.allocationCount++;
         if (entry.allocationCount > 6) {
             throw new Error("memory leak");

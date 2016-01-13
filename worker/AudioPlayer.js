@@ -18,6 +18,7 @@ var freeDecoderContext = pool.freeDecoderContext;
 const channelMixer = new ChannelMixer(2);
 var hardwareSampleRate = 0;
 var bufferTime = 0;
+var resamplerQuality = 0;
 
 const audioPlayerMap = Object.create(null);
 
@@ -43,6 +44,7 @@ self.onmessage = function(event) {
     var args = data.args;
     if (receiver === -1) {
         if (data.methodName === "audioConfiguration") {
+            resamplerQuality = args.resamplerQuality || 0;
             channelMixer.setChannels(args.channels);
             hardwareSampleRate = args.sampleRate;
             if (args.bufferTime) {
@@ -258,8 +260,9 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
         this.decoderContext.on("error", this.errored);
         if (this.metadata.sampleRate !== hardwareSampleRate) {
             this.resampler = allocResampler(this.metadata.channels,
-                                          this.metadata.sampleRate,
-                                          hardwareSampleRate);
+                                            this.metadata.sampleRate,
+                                            hardwareSampleRate,
+                                            resamplerQuality);
         } else {
             if (this.resampler) freeResampler(this.resampler);
             this.resampler = null;

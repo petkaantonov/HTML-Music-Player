@@ -8,7 +8,6 @@ const Tooltip = require("./Tooltip");
 const Animator = require("./Animator");
 const keyValueDatabase = require("./KeyValueDatabase");
 const features = require("./features");
-const usePerfectScrollbar = !features.touch;
 const util = require("./util");
 
 const GlobalUi = module.exports;
@@ -81,48 +80,35 @@ GlobalUi.makePopup = function(title, body, opener) {
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
-            var openerBox = getOpenerRect($node[0]);
-            openerRect = openerBox;
-            var popupBox = $node[0].getBoundingClientRect();
-
             var animator = new Animator($node[0], {
-                interpolate: Animator.EASE_IN,
+                interpolate: Animator.DECELERATE_CUBIC,
                 properties: [{
+                    name: "opacity",
+                    start: 0,
+                    end: 100,
+                    unit: "%"
+                }, {
                     name: "scale",
-                    start: [INITIAL_SCALE, INITIAL_SCALE],
+                    start: [0.95, 0.95],
                     end: [1, 1]
                 }]
             });
 
-            var path = animator.createPath();
-            path.moveTo(xPos(openerBox, popupBox), yPos(openerBox, popupBox));
-            path.fastOutLinearInCurveTo(0, 0);
-            path.close();
-            animator.animate(400, path);
+            return animator.animate(300);
         },
 
         beforeTransitionOut: function($node) {
-            return new Promise(function(resolve) {
-                var animator = new Animator($node[0], {
-                    interpolate: Animator.EASE_IN,
-                    properties: [{
-                        name: "scale",
-                        start: [1, 1],
-                        end: [INITIAL_SCALE, INITIAL_SCALE]
-                    }]
-                });
-                animator.on("animationEnd", resolve);
-
-                var openerBox = openerRect || getOpenerRect($node[0]);
-                openerRect = null;
-                var popupBox = $node[0].getBoundingClientRect();
-
-                var path = animator.createPath();
-                path.moveTo(0, 0);
-                path.fastOutLinearInCurveTo(xPos(openerBox, popupBox), yPos(openerBox, popupBox));
-                path.close();
-                animator.animate(400, path);
+            var animator = new Animator($node[0], {
+                interpolate: Animator.DECELERATE_CUBIC,
+                properties: [{
+                    name: "opacity",
+                    start: 100,
+                    end: 0,
+                    unit: "%"
+                }]
             });
+
+            return animator.animate(300);
         },
 
         containerClass: "ui-text"
@@ -130,18 +116,9 @@ GlobalUi.makePopup = function(title, body, opener) {
 
     ret.on("open", function() {
         hotkeyManager.disableHotkeys();
-
-        if (usePerfectScrollbar) {
-            ret.$().find(".popup-body").perfectScrollbar({
-                suppressScrollX: true
-            });
-        }
     });
 
     ret.on("close", function() {
-        if (usePerfectScrollbar) {
-            ret.$().find(".popup-body").perfectScrollbar("destroy");
-        }
         hotkeyManager.enableHotkeys();
         keyValueDatabase.set(title + "position", ret.getPreferredPosition());
 

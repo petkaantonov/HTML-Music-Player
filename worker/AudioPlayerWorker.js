@@ -319,6 +319,7 @@ var freeDecoderContext = pool.freeDecoderContext;
 const channelMixer = new ChannelMixer(2);
 var hardwareSampleRate = 0;
 var bufferTime = 0;
+var resamplerQuality = 0;
 
 const audioPlayerMap = Object.create(null);
 
@@ -344,6 +345,7 @@ self.onmessage = function(event) {
     var args = data.args;
     if (receiver === -1) {
         if (data.methodName === "audioConfiguration") {
+            resamplerQuality = args.resamplerQuality || 0;
             channelMixer.setChannels(args.channels);
             hardwareSampleRate = args.sampleRate;
             if (args.bufferTime) {
@@ -559,8 +561,9 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
         this.decoderContext.on("error", this.errored);
         if (this.metadata.sampleRate !== hardwareSampleRate) {
             this.resampler = allocResampler(this.metadata.channels,
-                                          this.metadata.sampleRate,
-                                          hardwareSampleRate);
+                                            this.metadata.sampleRate,
+                                            hardwareSampleRate,
+                                            resamplerQuality);
         } else {
             if (this.resampler) freeResampler(this.resampler);
             this.resampler = null;
@@ -2222,17 +2225,18 @@ const freeBuffer = function(size, channels, buffer) {
     bufferPool[key].push(buffer);
 }
 
-const allocResampler = function(channels, from, to) {
+const allocResampler = function(channels, from, to, quality) {
+    quality = quality || 0;
     var key = channels + " " + from + " " + to;
     var entry = resamplers[key];
     if (!entry) {
         entry = resamplers[key] = {
             allocationCount: 2,
-            instances: [new Resampler(channels, from, to), new Resampler(channels, from, to)]
+            instances: [new Resampler(channels, from, to, quality), new Resampler(channels, from, to, quality)]
         };
     }
     if (entry.instances.length === 0) {
-        entry.instances.push(new Resampler(channels, from, to));
+        entry.instances.push(new Resampler(channels, from, to, quality));
         entry.allocationCount++;
         if (entry.allocationCount > 6) {
             throw new Error("memory leak");

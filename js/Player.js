@@ -761,11 +761,13 @@ Player.prototype.nextTrackChanged = function() {
 };
 
 Player.prototype.audioManagerDestroyed = function(audioManager) {
-    if (audioManager === this.currentAudioManager &&
-        !this.playlist.getCurrentTrack() &&
-        !this.playlist.getNextTrack() &&
-        this.isPlaying) {
-        this.stop();
+    if (audioManager === this.currentAudioManager) {
+        this.currentAudioManager = null;
+        if (!this.playlist.getCurrentTrack() &&
+            !this.playlist.getNextTrack() &&
+            this.isPlaying) {
+            this.stop();
+        }
     }
 };
 
@@ -974,6 +976,11 @@ Player.prototype.loadTrack = function(track) {
         this.implicitLoading = false;
     } else {
         destroyAudioManagers(this.currentAudioManager);
+    }
+
+    // Should never be true but there are too many moving parts to figure it out.
+    if (this.currentAudioManager && this.currentAudioManager.destroyed) {
+        this.currentAudioManager = null;
     }
 
     if (this.currentAudioManager &&

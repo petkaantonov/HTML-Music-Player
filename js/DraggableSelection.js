@@ -5,16 +5,15 @@ const Selectable = require("./Selectable");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 
-function DraggableSelection(dom, playlist, opts) {
+function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     opts = Object(opts);
     this._mustMatchSelector = opts.mustMatchSelector || null;
     this._mustNotMatchSelector = opts.mustNotMatchSelector || null;
+    this._fixedItemListScroller = fixedItemListScroller;
     this._domNode = $(dom);
     this._selection = null;
     this._playlist = playlist;
     this._previousRawY = -1;
-    this._listOffset = 0;
-    this._listHeight = 0;
     this._currentReferenceTrack = -1;
     this._onMovement = this._onMovement.bind(this);
     this._onMouseRelease = this._onMouseRelease.bind(this);
@@ -26,11 +25,8 @@ function DraggableSelection(dom, playlist, opts) {
     this._touchDragHandler = domUtil.dragHandler(this._onTouchmove, this._onTouchend);
     this._onTrackMouseDownTouch = domUtil.touchDownHandler(this._onTrackMouseDown);
     this._isDragging = false;
-    this._lastDragStopped = -1;
 
-    this._scrollUp = this._scrollUp.bind(this);
-    this._scrollDown = this._scrollDown.bind(this);
-
+    this._scroll = this._scroll.bind(this);
     this._scrollIntervalId = -1;
 
     this.$().on("mousedown", this._onTrackMouseDown);
@@ -39,11 +35,8 @@ function DraggableSelection(dom, playlist, opts) {
         this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onTrackMouseDownTouch);
     }
     this.$().bind("selectstart", function(e) {e.preventDefault();});
-}
 
-DraggableSelection.prototype.hasDraggedRecently = function() {
-    return Date.now() - this._lastDragStopped < 350 || this._isDragging;
-};
+}
 
 DraggableSelection.prototype.isDragging = function() {
     return this._isDragging;
@@ -56,52 +49,14 @@ DraggableSelection.prototype._clearScrollInterval = function() {
     }
 };
 
-DraggableSelection.prototype._shouldScrollUp = function() {
-    var box = this.$()[0].getBoundingClientRect();
-    var lastY = this._previousRawY;
-    var itemHeight = this._playlist.getItemHeight();
-    var wiggleArea = touch ? itemHeight : itemHeight / 2;
-    return lastY <= box.top + wiggleArea;
-};
-
-DraggableSelection.prototype._shouldScrollDown = function() {
-    var box = this.$()[0].getBoundingClientRect();
-    var lastY = this._previousRawY;
-    var itemHeight = this._playlist.getItemHeight();
-    var wiggleArea = touch ? itemHeight : itemHeight / 2;
-    return lastY >= box.bottom - wiggleArea;
-};
-
-DraggableSelection.prototype._scrollUp = function() {
-    if (this._shouldScrollUp()) {
-        this._playlist.scrollBy(-this._playlist.getItemHeight());
-    } else {
-        this._clearScrollInterval();
+DraggableSelection.prototype._scroll = function() {
+    var edge = this._fixedItemListScroller.getEdgeByCoordinateWithinMargin(this._previousRawY,
+                                                                           this._fixedItemListScroller.itemHeight());
+    this._fixedItemListScroller.scrollBy(edge * this._fixedItemListScroller.itemHeight());
+    
+    if (edge !== 0) {
+        this._onMovement({clientY: this._previousRawY, type: "scroll", which: 1});
     }
-};
-
-DraggableSelection.prototype._scrollDown = function() {
-    if (this._shouldScrollDown()) {
-        this._playlist.scrollBy(this._playlist.getItemHeight());
-    } else {
-        this._clearScrollInterval();
-    }
-};
-
-DraggableSelection.prototype._maybeStartUpScroller = function() {
-    if (this._scrollIntervalId === -1 && this._shouldScrollUp()) {
-        this._scrollIntervalId = setInterval(this._scrollUp, 100);
-    }
-};
-
-DraggableSelection.prototype._maybeStartDownScroller = function() {
-    if (this._scrollIntervalId === -1 && this._shouldScrollDown()) {
-        this._scrollIntervalId = setInterval(this._scrollDown, 100);
-    }
-};
-
-DraggableSelection.prototype._coordinateToTrackIndex = function(y) {
-    return Math.floor(this._translateYCoordinate(y) / this._playlist.getItemHeight());
 };
 
 DraggableSelection.prototype.$ = function() {
@@ -109,8 +64,7 @@ DraggableSelection.prototype.$ = function() {
 };
 
 DraggableSelection.prototype._onReLayout = function() {
-    this._calculateDimensions();
-    this._currentReferenceTrack = this._coordinateToTrackIndex(this._previousRawY);
+    this._currentReferenceTrack = this._fixedItemListScroller.indexByYCoordinate(this._previousRawY);
 };
 
 DraggableSelection.prototype._onTouchmove = function(e) {
@@ -124,7 +78,6 @@ DraggableSelection.prototype._onTouchend = function(e) {
 DraggableSelection.prototype._onMouseRelease = function() {
     if (!this._isDragging) return;
     this._isDragging = false;
-    this._lastDragStopped = Date.now();
     this.$().unbind("scroll", this._onMovement);
     
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
@@ -141,22 +94,19 @@ DraggableSelection.prototype._onMouseRelease = function() {
     this._selection = null;
 };
 
-DraggableSelection.prototype._translateYCoordinate = function(rawY) {
-    return Math.max(0, Math.min(rawY - this._listOffset, this._listHeight)) + this._playlist._scrollTop;
-};
-
 DraggableSelection.prototype._onMovement = function(e) {
-    if (!domUtil.isTouchEvent(e) && e.type !== "scroll" && e.which !== 1) {
+    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
         return this._onMouseRelease();
     }
 
-    this._maybeStartDownScroller();
-    this._maybeStartUpScroller();
-
-    var itemHeight = this._playlist.getItemHeight();
+    if (this._scrollIntervalId === -1) {
+        this._scrollIntervalId = setInterval(this._scroll, 100);
+    }
+    
+    var itemHeight = this._fixedItemListScroller.itemHeight();
     var clientY = typeof e.clientY === "number" ? e.clientY : this._previousRawY;
     this._previousRawY = clientY;
-    var y = this._translateYCoordinate(clientY);
+    var y = this._fixedItemListScroller.mapYCoordinate(clientY);
     var selection = this._selection;
     var tracks = this._playlist.getTracks();
     var referenceY = this._currentReferenceTrack * itemHeight;
@@ -175,13 +125,7 @@ DraggableSelection.prototype._onMovement = function(e) {
 
     if (changed) {
         this._playlist.trackIndexChanged();
-        this._playlist.trackVisibilityChanged();
     }
-};
-
-DraggableSelection.prototype._calculateDimensions = function() {
-    this._listOffset = this.$()[0].offsetTop;
-    this._listHeight = this.$()[0].offsetHeight;
 };
 
 DraggableSelection.prototype._restart = function() {
@@ -220,8 +164,6 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     this._selection = this._playlist.getSelection();
     this._previousRawY = e.clientY;
     this._onReLayout();
-
-    this.$().on("scroll", this._onMovement);
 
     $(document).on("mousemove", this._onMovement);
     $(document).on("mouseup", this._onMouseRelease);

@@ -3,6 +3,7 @@
 const jsUtil = require("./util");
 const Promise = require("../lib/bluebird");
 const base64 = require("../lib/base64");
+const $ = require("../lib/jquery");
 
 const touch = require("./features").touch;
 const TOUCH_START = "touchstart";
@@ -53,8 +54,6 @@ ActiveTouchList.prototype.contains = function(touch) {
     return false;
 };
 
-
-
 ActiveTouchList.prototype.update = function(e, changedTouches) {
     var activeTouches = this.activeTouches;
     var addedTouches = [];
@@ -97,6 +96,23 @@ if (touch) {
         }
         documentActives.update(e, e.changedTouches);
     });
+
+    jsUtil.onCapture(document, [
+        "gesturestart",
+        "gesturechange",
+        "gestureend",
+        "MSGestureStart",
+        "MSGestureEnd",
+        "MSGestureTap",
+        "MSGestureHold",
+        "MSGestureChange",
+        "MSInertiaStart"
+    ].join(" "), function(e) {
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+    });
+
 }
 
 const approxPhysical = (function() {
@@ -284,7 +300,7 @@ util.tapHandler = function(fn) {
             var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
             var elapsed = Date.now() - started;
 
-            if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 5 && yDelta <= 5) {
+            if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
                 copyTouchProps(e, touch);
                 fn.call(this, e);
             }
@@ -787,9 +803,10 @@ util.doubleTapHandler = function(fn) {
     });
 };
 
-util.bindScrollerEvents = function(target, scroller, shouldScroll) {
+util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     if (!shouldScroll) shouldScroll = function() {return true; };
-    var events = "touchstart touchend touchmove touchcancel mousedown mouseup mousemove".split(" ").map(function(v) {
+    scrollbar = $($(scrollbar)[0]);
+    var events = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
     }).join(" ");
 
@@ -842,31 +859,40 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll) {
                 return scroller.doTouchMove([touch], timeStamp, e.scale || e.originalEvent.scale);
             }
             return;
-        case "mousedown":
-            mousedown = true;
-            scroller.doTouchStart([{pageX: e.pageX, pageY: e.pageY}], timeStamp);
-            return;
-        case "mouseup":
-            if (mousedown) {
-                mousedown = false;
-                scroller.doTouchEnd(timeStamp);
-            }
-            return;
-        case "mousemove":
-            if (!mousedown) return;
-            if (e.which !== 1) {
-                mousedown = false;
-                scroller.doTouchEnd(timeStamp);
-                return;
-            }
-            scroller.doTouchMove([{pageX: e.pageX, pageY: e.pageY}], timeStamp);
-            return;
         }
     });
+
+    var wheelEvents = "wheel mousewheel DOMMouseScroll".split(" ").map(function(v) {
+        return v + ".scrollerns";
+    }).join(" ");
+
+    target.on(wheelEvents, util.mouseWheelScrollHandler(function(delta) {
+        scroller.scrollBy(0, delta, true);
+    }));
 };
 
-util.unbindScrollerEvents = function(target, scroller) {
+util.unbindScrollerEvents = function(target, scrollbar, scroller) {
     target.off(".scrollerns");
+};
+
+util.mouseWheelScrollHandler = function(fn) {
+    return function(e) {
+        if (e.originalEvent) e = e.originalEvent;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var delta;
+        if (e.deltaY !== undefined) {
+            delta = -e.deltaY * (e.deltaMode === 1 ? 20 : 1);
+        } else if (e.wheelDeltaY !== undefined) {
+            delta = e.wheelDeltaY / 6;
+        } else if (e.wheelDelta !== undefined) {
+            delta = e.wheelDelta / 6;
+        } else {
+            delta = -e.detail * 6.67;
+        }
+        fn(delta * -1);
+    };
 };
 
 

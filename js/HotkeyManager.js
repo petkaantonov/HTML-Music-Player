@@ -7,7 +7,6 @@ const Hotkeys = require("../lib/hotkeys");
 const shiftKeys = Hotkeys.shiftKeys;
 const GlobalUi = require("./GlobalUi");
 const features = require("./features");
-const usePerfectScrollbar = !features.touch;
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 
@@ -320,8 +319,6 @@ function HotkeyBinder(hotkeyManager, domNode) {
             this._hotkeyBindings.push(binding);
         }, this);
     }, this);
-
-    if (usePerfectScrollbar) this.$().find(".ps-container").perfectScrollbar();
 }
 
 HotkeyBinder.prototype.$ = function() {
@@ -409,9 +406,6 @@ HotkeyBinder.prototype.stopBinding = function() {
 };
 
 HotkeyBinder.prototype.destroy = function() {
-    if (usePerfectScrollbar) {
-        this.$().find(".ps-container").perfectScrollbar('destroy');
-    }
     $(document).unbind("keydown", this.listenUserHotkeys);
 };
 

@@ -92,7 +92,8 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     this._message(-1, "audioConfiguration", {
         channels: this._audioContext.destination.channelCount,
         sampleRate: this._audioContext.sampleRate,
-        bufferTime: this._audioBufferTime
+        bufferTime: this._audioBufferTime,
+        resamplerQuality: this._determineResamplerQuality()
     });
     this._audioBuffersAllocated = 0;
     this._arrayBuffersAllocated = 0;
@@ -262,6 +263,23 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
     }
     var buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
     return new Float32Array(buffer, 0, size);
+};
+
+const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
+const LOWEST = 0;
+const DESKTOP = 4;
+AudioPlayer.prototype._determineResamplerQuality = function() {
+    var ua = $.ua;
+
+    if (ua.device && ua.device.type) {
+        return /^(console|mobile|tablet|smarttv|wearable|embedded)$/.test(ua.device.type) ? LOWEST : LOWEST;
+    } else if (ua.cpu && ua.cpu.architecture) {
+        return /^(amd64|ia32|ia64)$/.test(ua.cpu.architecture) ? DESKTOP : LOWEST;
+    } else if (ua.os && ua.os.name) {
+        return desktopOs.test(ua.os.name) ? DESKTOP : LOWEST;
+    } else {
+        return LOWEST;
+    }
 };
 
 AudioPlayer.prototype._determineHardwareLatency = function() {

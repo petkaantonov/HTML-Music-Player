@@ -1,5 +1,5 @@
 .slider-active {
-    box-shadow: 0px 0px 7px #A8B7FF;
+    @include css-filter(drop-shadow(0px 0px 7px #A8B7FF));
 }
 
 .slider-inactive, .inactive-section {

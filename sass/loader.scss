@@ -69,7 +69,7 @@ $animation-duration: 0.85s;
   @include prefix(border-radius, 50%, webkit ms moz o);
   @include prefix(animation-fill-mode, both, webkit ms moz o);
   @include prefix(animation, bounce $animation-duration infinite 0s ease-in-out alternate, webkit ms moz o);
-  @include prefix(box-shadow, 1px 1px 3px #333, webkit ms moz o);
+  @include css-filter(drop-shadow(1px 1px 3px #333));
 }
 
 .loader-container .ball.ball1 {

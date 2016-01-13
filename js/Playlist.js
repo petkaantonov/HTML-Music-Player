@@ -9,9 +9,7 @@ const Random = require("./Random");
 const Track = require("./Track");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
-const usePerfectScrollbar = !touch;
-const Scroller = require("../lib/scroller.js");
-
+const FixedItemListScroller = require("./FixedItemListScroller");
 const PLAYLIST_MODE_KEY = "playlist-mode";
 
 const KIND_IMPLICIT = 0;
@@ -41,67 +39,34 @@ function Playlist(domNode, opts) {
     EventEmitter.call(this);
     this._trackList = [];
     this._mode = Playlist.Modes.hasOwnProperty(opts.mode) ? opts.mode : "normal";
-    this._itemHeight = opts && opts.itemHeight || 19;
     this._currentTrack = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
-    this._displayedTracks = new Array(100);
-    this._displayedTracks.length = 0;
     this._mayContainUnparsedTracks = false;
     this._errorCount = 0;
-    this.requestedRenderFrame = null;
     this._$domNode = $(domNode);
-    this._$trackContainer = usePerfectScrollbar ? this._$domNode : this._$domNode.find(".tracklist-transform-container");
-    this._rect = this.$()[0].getBoundingClientRect();
-    this._scrollTop = 0;
+    this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
+    this._nextTrack = null;
 
-    if (!this.length) {
-        this.showPlaylistEmptyIndicator();
-    }
-
-    this._scrollTopAnimationFrameId = -1;
-    this._scrollTopAnimationHandler = this._scrollTopAnimationHandler.bind(this);
-    this._scrolledUp = this._scrolledUp.bind(this);
-    this._scrolledDown = this._scrolledDown.bind(this);
-    this._renderScroller = this._renderScroller.bind(this);
-    this.renderItems = this.renderItems.bind(this);
-    this.windowLayoutChanged = this.windowLayoutChanged.bind(this);
-    this.scrolled = this.scrolled.bind(this);
-
+    this._fixedItemListScroller = new FixedItemListScroller(this.$trackContainer(), this._trackList, opts.itemHeight, {
+        shouldScroll: function() {
+            return !this._draggable.isDragging()
+        }.bind(this),
+        scrollingX: false,
+        snapping: true,
+        zooming: false,
+        paging: false,
+        minPrerenderedItems: 15,
+        maxPrerenderedItems: 100,
+        scrollbar: this.$().find("scrollbar")
+    });
     this._selectable = new Selectable(this);
-    this._draggable = new DraggableSelection(this.$(), this, {
+    this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
         mustNotMatchSelector: ".track-rating",
         mustMatchSelector: ".track-container"
     });
 
-    this._scroller = null;
-
-    if (usePerfectScrollbar) {
-        this.$().perfectScrollbar({
-            useKeyboard: false,
-            suppressScrollX: true,
-            minScrollbarLength: 20
-        });
-        this.$().on("ps-scroll-up", this._scrolledUp)
-            .on("ps-scroll-down", this._scrolledDown)
-            .on("ps-scroll-y", this.scrolled)
-            .on("scroll", this.scrolled);
-    } else {
-        this._scroller = new Scroller(this._renderScroller, {
-            scrollingX: false,
-            snapping: true,
-            zooming: false,
-            paging: false
-        });
-        domUtil.bindScrollerEvents(this.$(), this._scroller, function shouldScroll() {
-            return !this._draggable.isDragging();
-        }.bind(this));
-    }
-
-    $(window).on("resize", this.windowLayoutChanged);
-    
-    this._nextTrack = null;
-    this._scrollDirection = 1;
+    $(window).on("resize", this._windowLayoutChanged.bind(this));
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
@@ -112,7 +77,7 @@ function Playlist(domNode, opts) {
 
     this.$().on("click mousedown dblclick", function(e) {
         if ($(e.target).closest(".unclickable").length > 0) return;
-        var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
         if (!track) return;
         switch (e.type) {
             case "click": return this._selectable.trackClick(e, track);
@@ -123,7 +88,7 @@ function Playlist(domNode, opts) {
 
     this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
-        var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
         if (!track) return;
         if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
@@ -139,37 +104,40 @@ function Playlist(domNode, opts) {
         
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
             this._selectable.selectTrack(track);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.longTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
             this._selectable.setPriorityTrack(track);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.doubleTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
             track.doubleClicked(e);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.doubleTapHandler(function(e) {
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
             return track.ratingInputDoubleClicked(e);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.tapHandler(function(e) {
-            var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
             return track.ratingInputClicked(e);
         }.bind(this)));
-    }    
+    }
+    if (!this.length) {
+        this.showPlaylistEmptyIndicator();
+    }
 }
 util.inherits(Playlist, EventEmitter);
 
@@ -247,22 +215,34 @@ Playlist.Modes = {
     }
 };
 
+Playlist.prototype._windowLayoutChanged = function() {
+    var rect = this.$()[0].getBoundingClientRect();
+    const USED_HEIGHT = rect.top;
+
+    var itemHeight = this._fixedItemListScroller.itemHeight();
+    var height = $(window).height() - USED_HEIGHT;
+    height = Math.max(height - 22, itemHeight + 22);
+
+    var remainder = height % itemHeight;
+    if (remainder !== 0) {
+        height -= remainder;
+    }
+
+    this.$().css("height", height + "px");
+    this._fixedItemListScroller.resize();
+};
+
+Playlist.prototype._listContentsChanged = function() {
+    this._fixedItemListScroller.resize();
+    if (this._fixedItemListScroller.needScrollbar()) {
+        this.$().removeClass("has-scrollbar");
+    } else {
+        this.$().addClass("has-scrollbar");
+    }
+};
+
 Playlist.prototype.$trackContainer = function() {
     return this._$trackContainer;
-};
-
-Playlist.prototype._trackRectToTrack = function(rect) {
-    var index = ((rect.top - this._rect.top + this._scrollTop) / this.getItemHeight())|0;
-    index = Math.min(this.length - 1, Math.max(0, index))
-    return this._trackList[index];
-};
-
-Playlist.prototype._scrolledDown = function() {
-    this._scrollDirection = 1;
-};
-
-Playlist.prototype._scrolledUp = function() {
-    this._scrollDirection = -1;
 };
 
 Playlist.prototype._updateNextTrack = function(forced) {
@@ -329,206 +309,20 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     return true;
 };
 
-Playlist.prototype.windowLayoutChanged = function() {
-    this._rect = this.$()[0].getBoundingClientRect();
-    const USED_HEIGHT = this._rect.top;
-
-    var itemHeight = this.getItemHeight();
-    var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height - 22, itemHeight + 22);
-
-    var remainder = height % itemHeight;
-    if (remainder !== 0) {
-        height -= remainder;
-    }
-
-    this.$().css("height", height + "px");
-    this.updateScrollBar();
-    this.trackVisibilityChanged();
-};
-
-Playlist.prototype.scrollBy = function(amount) {
-    if (usePerfectScrollbar) {
-        if (amount < 0) {
-            util.scrollUp(this.$()[0], amount);
-        } else {
-            util.scrollDown(this.$()[0], amount);
-        }
-    } else {
-        var top = this._scrollTop + amount;
-        var maxTop = this.length * this.getItemHeight() - this.getContentHeight();
-        top = Math.max(0, Math.min(Math.round(top), maxTop));
-        // TODO: Snapping.
-
-        if (this._scrollTop !== top) {
-            this._scrollTop = top;
-            this._scheduleScrollTopAnimation();
-            this.trackVisibilityChanged();
-            this._scroller.scrollTo(null, top, false, null);
-        }
-    }
-};
-
-Playlist.prototype._scrollTopAnimationHandler = function() {
-    this._scrollTopAnimationFrameId = -1
-
-    if (usePerfectScrollbar) {
-        this.$()[0].scrollTop = this._scrollTop;
-    } else {
-        var y = -this._scrollTop;
-        this.$trackContainer().css("transform", "translate3d(0px, "+y+"px, 0px)");
-    }
-};
-
-Playlist.prototype._scheduleScrollTopAnimation = function() {
-    if (this._scrollTopAnimationFrameId === -1) {
-        this._scrollTopAnimationFrameId = requestAnimationFrame(this._scrollTopAnimationHandler);
-    }
-};
-
-Playlist.prototype._renderScroller = function(left, top, zoom) {
-    var maxTop = this.length * this.getItemHeight() - this.getContentHeight();
-    top = Math.max(0, Math.min(Math.round(top), maxTop));
-
-    if (this._scrollTop !== top) {
-        this._scrollTop = top;
-        this._scheduleScrollTopAnimation();
-        this.trackVisibilityChanged();
-    }
-};
-
-Playlist.prototype.getContentHeight = function() {
-    var rect = this._rect;
-    if (rect.height === 0) {
-        this._rect = rect = this.$()[0].getBoundingClientRect();
-    }
-    return rect.height;
-};
-
-// From PerfectScrollbar. TODO replace since it doesn't support snapping.
-Playlist.prototype.scrolled = function(e) {
-    var scrollTop = this.$()[0].scrollTop;
-    var itemHeight = this.getItemHeight();
-    var remainder = scrollTop % itemHeight;
-    if (remainder !== 0) {
-        scrollTop = this._scrollDirection === 1 ? scrollTop + (itemHeight - remainder)
-                                                : scrollTop - remainder;
-        var maxTop = this.length * this.getItemHeight() - this.getContentHeight();
-        scrollTop = Math.min(maxTop, Math.max(0, scrollTop));
-        this._scheduleScrollTopAnimation();
-    }
-    this._scrollTop = scrollTop;
-    this.trackVisibilityChanged();
-};
-
-Playlist.prototype.tracksVisibleInContainer = function() {
-    return Math.ceil(this.$().height() / this._itemHeight);
-};
-
-Playlist.prototype.halfOfTracksVisibleInContainer = function() {
-    return Math.ceil(this.tracksVisibleInContainer() / 2);
-};
-
-Playlist.prototype._coordsToIndexRange = function(startY, endY) {
-    var rect = this._rect;
-    var scrollTop = this._scrollTop;
-    var itemHeight = this.getItemHeight();
-
-    startY = startY - rect.top + scrollTop;
-    endY = endY - rect.top + scrollTop;
-
-    var startIndex = Math.min(this.length - 1, Math.max(0, (startY / itemHeight)|0));
-    var endIndex = Math.min(this.length - 1, Math.max(0, (endY / itemHeight)|0));
-
-    if (startIndex < 0 || endIndex < 0) {
-        return null;
-    }
-
-    if (startIndex > endIndex) {
-        var tmp = startIndex;
-        startIndex = endIndex;
-        endIndex = startIndex
-    }
-
-    return {
-        startIndex: startIndex,
-        endIndex: endIndex
-    };
-};
-
 Playlist.prototype.selectionContainsAnyTracksBetween = function(startY, endY) {
-    var indices = this._coordsToIndexRange(startY, endY);
+    var indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
     if (!indices) return false;
     return this._selectable.containsAnyInRange(indices.startIndex, indices.endIndex);
 };
 
 Playlist.prototype.selectTracksBetween = function(startY, endY) {
-    var indices = this._coordsToIndexRange(startY, endY);
+    var indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
     if (!indices) return;
     this._selectable.selectRange(indices.startIndex, indices.endIndex);
 };
 
-Playlist.prototype.renderItems = function() {
-    this.requestedRenderFrame = null;
-    var container = this.$trackContainer();
-    var $topSpacer = this.$().find(".top-spacer");
-    var $bottomSpacer= this.$().find(".bottom-spacer");
-    var tracks = this.getTracks();
-    var itemHeight = this._itemHeight;
-    var scrollTop = this._scrollTop;
-    var displayedTracks = this._displayedTracks;
-
-    if (displayedTracks.length > 2) {
-        var virtualStart = displayedTracks[0].getIndex();
-        var virtualEnd = displayedTracks[displayedTracks.length - 1].getIndex();
-        // Figure out which tracks
-        var screenStart = Math.floor(scrollTop / itemHeight);
-        var screenEnd = Math.ceil((scrollTop + this._rect.height) / itemHeight);
-
-        if (screenStart > (virtualStart + 15) &&
-            screenEnd < (virtualEnd - 15)) {
-            return;
-        }
-    }
-
-    var tracksBefore = Math.min(tracks.length, Math.ceil(scrollTop / itemHeight));
-    var tracksWithin = Math.min(tracks.length, this.tracksVisibleInContainer());
-    var tracksAfter = Math.max(0, this.length - tracksWithin - tracksBefore);
-
-    if (usePerfectScrollbar) {
-        $topSpacer.css("height", tracksBefore * itemHeight);
-        $bottomSpacer.css({
-            height: tracksAfter * itemHeight,
-            top: tracksWithin * itemHeight + tracksBefore * itemHeight
-        });
-    }
-
-    var start = Math.max(tracksBefore - 100, 0);
-    var end = Math.min(this.length - 1, tracksWithin + tracksBefore + 100);
-
-    for (var i = 0; i < displayedTracks.length; ++i) {
-        var index = displayedTracks[i].getIndex();
-        if (!(start <= index && index <= end) &&
-            displayedTracks[i].isVisible()) {
-            displayedTracks[i].detach();
-        }
-    }
-
-    for (var i = start; i <= end; ++i) {
-        var track = tracks[i];
-        if (!track.isAttachedToDom()) {
-            track.attach(container);
-        }
-        displayedTracks[i - start] = track;
-    }
-    displayedTracks.length = end - start + 1;
-};
-
-Playlist.prototype.trackVisibilityChanged = function() {
-    if (this.requestedRenderFrame) {
-        cancelAnimationFrame(this.requestedRenderFrame);
-    }
-    this.requestedRenderFrame = requestAnimationFrame(this.renderItems);
+Playlist.prototype.getItemHeight = function() {
+    return this._fixedItemListScroller.itemHeight();
 };
 
 Playlist.prototype.$ = function() {
@@ -602,15 +396,7 @@ Playlist.prototype.getUnparsedTracks = function(maxCount) {
 
 Playlist.prototype.centerOnTrack = function(track) {
     if (track && !track.isDetachedFromPlaylist()) {
-        var scrollTop = (track.getIndex() * this._itemHeight) +
-                        (this.halfOfTracksVisibleInContainer() * this._itemHeight) -
-                        ((this._itemHeight / 2) | 0) -
-                        this.$().height();
-        var maxTop = this.length * this.getItemHeight() - this.getContentHeight();
-        scrollTop = Math.min(maxTop, Math.max(0, scrollTop));
-        this._scrollTop = MscrollTop;   
-        this._scheduleScrollTopAnimation();
-        this.trackVisibilityChanged();
+        // TODO
     }
 };
 
@@ -643,36 +429,6 @@ Playlist.prototype.removeTracksBySelectionRanges = (function() {
     };
 })();
 
-Playlist.prototype.updateScrollBar = function() {
-    if (usePerfectScrollbar) {
-        this.$().perfectScrollbar("update");
-    } else {
-        var rect = this._rect;
-        this._scroller.setPosition(rect.left, rect.top);
-        this._scroller.setDimensions(rect.width, rect.height, rect.width, this.getItemHeight() * this.length);
-        this._scroller.setSnapSize(rect.width, this.getItemHeight());
-    }
-
-    this.renderItems();
-
-    if (usePerfectScrollbar) {
-        util.perfectScrollBarPostUpdate(playlist.main.$()[0]);
-    }
-};
-
-Playlist.prototype.contentsChanged = function() {
-    this.updateScrollBar();
-    this.trackVisibilityChanged();
-
-    if (usePerfectScrollbar) {
-        var dom = this.$()[0];
-        if (dom.scrollHeight === dom.offsetHeight) {
-            this.$().removeClass("has-scrollbar");
-        } else {
-            this.$().addClass("has-scrollbar");
-        }
-    }
-};
 
 Playlist.prototype.removeTrack = function(track) {
     this._selectable.remove(track);
@@ -703,7 +459,7 @@ Playlist.prototype.removeTracks = function(tracks) {
 
     this.emit("trackChange", this.getCurrentTrack());
     this._updateNextTrack();
-    this.contentsChanged();
+    this._listContentsChanged();
 };
 
 Playlist.prototype.removeSelected = function() {
@@ -743,7 +499,7 @@ Playlist.prototype.add = function(tracks) {
 
     this.emit("lengthChange", this.length, oldLength);
     this._updateNextTrack();
-    this.contentsChanged();
+    this._listContentsChanged();
 };
 
 Playlist.prototype.stop = function() {
@@ -1139,17 +895,9 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
         track.setIndex(index);
     }
     this._selectable.updateOrder(selectedTracks);
-    this.trackVisibilityChanged();
+    this._trackVisibilityChanged();
     this.emit("trackChange", this.getCurrentTrack());
     this.emit("trackOrderChange");
-};
-
-Playlist.prototype.setItemHeight = function() {
-    throw new Error("Not implemented");
-};
-
-Playlist.prototype.getItemHeight = function() {
-    return this._itemHeight;
 };
 
 Object.defineProperty(Playlist.prototype, "length", {
