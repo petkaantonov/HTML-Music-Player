@@ -317,7 +317,7 @@ AudioPlayer.prototype.loadBlob = function(args) {
 };
 
 const EMPTY_F32 = new Float32Array(0);
-AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListIndex) {
+AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListIndex, _startTime) {
     var offset = this.offset;
     var samplesNeeded = bufferTime * this.metadata.sampleRate;
     var bytesNeeded = Math.ceil(this.metadata.maxByteSizePerSample * samplesNeeded);
@@ -327,7 +327,7 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
     var ret = {
         channels: new Array(channelMixer.getChannels()),
         length: 0,
-        startTime: this.decoderContext.getCurrentSample() / this.metadata.sampleRate,
+        startTime: _startTime || this.decoderContext.getCurrentSample() / this.metadata.sampleRate,
         endTime: 0
     };
 
@@ -360,6 +360,11 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
     this.offset += (srcEnd - srcStart);
 
     if (!gotData) {
+        if (this.metadata.dataEnd - this.offset >
+            this.metadata.maxByteSizePerSample * this.metadata.samplesPerFrame * 10) {
+            return this._decodeNextBuffer(transferList, transferListIndex, ret.startTime);
+        }
+
         this.decoderContext.end();
         this.ended = true;
 

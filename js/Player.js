@@ -874,12 +874,12 @@ Player.prototype.trackFinished = function() {
 Player.prototype.audioManagerEnded = function(audioManager, haveGaplessPreloadPending) {
     if (audioManager === this.currentAudioManager) {
         var alreadyFinished = haveGaplessPreloadPending && !audioManager.sourceNode.hasGaplessPreload();
-        if (!alreadyFinished) {
-            this.trackFinished();
-        }
-
         if (!haveGaplessPreloadPending) {
             audioManager.destroy();
+        }
+
+        if (!alreadyFinished) {
+            this.trackFinished();
         }
     } else {
         audioManager.destroy();
