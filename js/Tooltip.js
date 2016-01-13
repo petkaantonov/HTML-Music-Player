@@ -120,15 +120,15 @@ function Tooltip(opts) {
         this._target.on("mouseleave", this.mouseLeft);
         this._target.on("click", this.targetClicked);
         if (touch) {
-            this._target.on("touchstart touchend touchmove", this.touchHoverHandler);
-            this._target.on("touchstart touchend", this.targetClickedTouch);
+            this._target.on(domUtil.TOUCH_EVENTS, this.touchHoverHandler);
+            this._target.on(domUtil.TOUCH_EVENTS, this.targetClickedTouch);
         }
     } else if (this._activationStyle === "click") {
         this._target.on("click", this.clicked);
         util.onCapture(document, "click", this.documentClicked);
         if (touch) {
-            this._target.on("touchstart touchend", this.clickedTouch);
-            util.onCapture(document, "touchstart touchend", this.documentClickedTouch);
+            this._target.on(domUtil.TOUCH_EVENTS, this.clickedTouch);
+            util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
         }
     }
     $(window).on("resize", this.position);
@@ -506,16 +506,16 @@ Tooltip.prototype.destroy = function() {
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
     util.offCapture(document, "click", this.documentClicked);
-    util.offCapture(document, "touchstart touchend", this.documentClickedTouch);
+    util.offCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
-        this._target.off("touchstart touchend touchmove", this.touchHoverHandler);
+        this._target.off(domUtil.TOUCH_EVENTS, this.touchHoverHandler);
         this._target.off("click", this.targetClicked);
-        this._target.off("touchstart touchend", this.targetClickedTouch);
+        this._target.off(domUtil.TOUCH_EVENTS, this.targetClickedTouch);
         this._target.off("click", this.clicked);
-        this._target.off("touchstart touchend", this.clickedTouch);
+        this._target.off(domUtil.TOUCH_EVENTS, this.clickedTouch);
         this._target = this._domNode = null;
     }
 };

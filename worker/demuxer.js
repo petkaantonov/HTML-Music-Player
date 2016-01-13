@@ -86,7 +86,7 @@ function demuxMp3FromWav(offset, view) {
                 vbr: false,
                 duration: duration,
                 samplesPerFrame: samplesPerFrame,
-                maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                 seekTable: null,
                 toc: null
             };
@@ -119,11 +119,13 @@ function demuxMp3(view) {
         return demuxMp3FromWav(dataStart, view);
     }
 
+    var id3v1AtEnd = false;
+    /* Takes way too long.
     var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === TAG;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
-    }
+    }*/
 
     var max = 2314 * 20;
     var header = 0;
@@ -197,7 +199,7 @@ function demuxMp3(view) {
                     vbr: false,
                     duration: 0,
                     samplesPerFrame: samplesPerFrame,
-                    maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                    maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                     seekTable: null,
                     toc: null
                 };

@@ -44,8 +44,8 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseleave", this.containerMouseLeft);
 
         if (touch) {
-            this.$container().on("touchstart touchend", domUtil.touchDownHandler(this.containerMouseEntered));
-            this.$().on("touchstart touchend", domUtil.touchDownHandler(this.itemMouseEntered));
+            this.$container().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.containerMouseEntered));
+            this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.itemMouseEntered));
         }
     }
 
@@ -53,7 +53,7 @@ function ActionMenuItem(root, spec, children, level) {
         this.$().on("click", this.itemClicked);
 
         if (touch) {
-            this.$().on("touchstart touchend", domUtil.tapHandler(this.itemClicked));
+            this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.itemClicked));
         }
     }
 }
@@ -508,8 +508,8 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     util.onCapture(document, "mousedown", this.documentClicked);
 
     if (touch) {
-        this._targetDom.on("touchstart touchend touchmove", this.rightClickedTouch);
-        util.onCapture(document, "touchstart touchend", this.documentClickedTouch);
+        this._targetDom.on(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
+        util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
     }
 
     document.addEventListener("keydown", this.keypressed, true);
@@ -534,8 +534,8 @@ ActionMenu.ContextMenu.prototype.destroy = function() {
     this._targetDom.off("contextmenu", this.rightClicked);
 
     if (touch) {
-        util.offCapture(document, "touchstart touchend", this.documentClickedTouch);
-        this._targetDom.off("touchstart touchend touchmove", this.rightClickedTouch);
+        util.offCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
+        this._targetDom.off(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
     }
 
     document.removeEventListener("keydown", this.keypressed, true);

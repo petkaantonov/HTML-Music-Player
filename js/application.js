@@ -42,12 +42,6 @@ const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const gestureScreenFlasher = require("./GestureScreenFlasher");
 
-if (touch) {
-    util.onCapture(document, "touchstart touchend touchmove", function(e) {
-        e.preventDefault();
-    });
-}
-
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
 
 serviceWorkerManager.start();
@@ -871,27 +865,27 @@ if (touch) {
         gestureScreenFlasher.flashGesture(gesture);
         player.main.togglePlayback();
     }, 1);
-    const nextTrackGesture = domUtil.horizontalSwipeHandler(function() {
+    const nextTrackGesture = domUtil.horizontalTwoFingerSwipeHandler(function() {
         gestureScreenFlasher.flashGesture("next");
         player.methodNext()
     }, 1);
-    const previousTrackGesture = domUtil.horizontalSwipeHandler(function() {
+    const previousTrackGesture = domUtil.horizontalTwoFingerSwipeHandler(function() {
         gestureScreenFlasher.flashGesture("previous");
         player.methodPrev();
     }, -1);
 
     const enableGestures = function() {
-        util.onCapture(document, "touchstart touchend", clearGesture);
-        util.onCapture(document, "touchstart touchend touchmove", toggleGesture);
-        util.onCapture(document, "touchstart touchend touchmove", nextTrackGesture);
-        util.onCapture(document, "touchstart touchend touchmove", previousTrackGesture);
+        util.onCapture(document, domUtil.TOUCH_EVENTS, clearGesture);
+        util.onCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
+        util.onCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
+        util.onCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
     };
 
     const disableGestures = function() {
-        util.offCapture(document, "touchstart touchend", clearGesture);
-        util.offCapture(document, "touchstart touchend touchmove", toggleGesture);
-        util.offCapture(document, "touchstart touchend touchmove", nextTrackGesture);
-        util.offCapture(document, "touchstart touchend touchmove", previousTrackGesture);
+        util.offCapture(document, domUtil.TOUCH_EVENTS, clearGesture);
+        util.offCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
+        util.offCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
+        util.offCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
     };
 
     enableGestures();

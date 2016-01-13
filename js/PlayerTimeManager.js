@@ -48,7 +48,7 @@ function PlayerTimeManager(dom, player, opts) {
     this.$timeContainer().click(this.containerClicked);
 
     if (touch) {
-        this.$timeContainer().on("touchstart touchend", domUtil.tapHandler(this.containerClicked));
+        this.$timeContainer().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.containerClicked));
     }
 
     var self = this;

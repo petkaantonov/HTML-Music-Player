@@ -42,7 +42,7 @@ function PlaylistNotifications(dom, player) {
     this.$().on("click", this.settingClicked);
     
     if (touch) {
-        this.$().on("touchstart touchend", domUtil.tapHandler(this.settingClicked));
+        this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.settingClicked));
     }
 
     util.documentHidden.on("change", this.visibilityChanged);

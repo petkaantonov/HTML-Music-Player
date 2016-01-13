@@ -36,7 +36,7 @@ $.fn.fileInput = function(action, atts) {
             $(this).data("file_input_atts", Object(atts));
 
             $(this).on("click", clicked);
-            if (touch) $(this).on("touchstart touchend", clickedTouch)
+            if (touch) $(this).on(domUtil.TOUCH_EVENTS, clickedTouch)
         } else if (action === "delete") {
             if (!$(this).data("file_input")) {
                 return;
@@ -45,7 +45,7 @@ $.fn.fileInput = function(action, atts) {
             $(this).data("file_input", null);
             $(this).data("file_input_atts", null);
             $(this).off("click", clicked);
-            if (touch) $(this).off("touchstart touchend", clickedTouch)
+            if (touch) $(this).off(domUtil.TOUCH_EVENTS, clickedTouch)
             $(input).remove();
         } else if (action === "clearFiles") {
             if (!$(this).data("file_input")) {

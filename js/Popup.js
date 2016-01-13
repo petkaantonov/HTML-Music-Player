@@ -30,7 +30,7 @@ function showBlocker() {
         .on("click", closePopups);
 
     if (touch) {
-        blocker.on("touchstart touchend", domUtil.tapHandler(closePopups));
+        blocker.on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(closePopups));
     }
 
     blocker.addClass("initial");
@@ -156,8 +156,8 @@ Popup.prototype.open = function() {
         header.on("mousedown", this.headerMouseDowned);
         
         if (touch) {
-            closer.on("touchstart touchend", this.closerClickedTouch);
-            header.on("touchstart touchend", this.headerMouseDownedTouch);
+            closer.on(domUtil.TOUCH_EVENTS, this.closerClickedTouch);
+            header.on(domUtil.TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
         }
 
         this.position();
@@ -202,7 +202,7 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     util.onCapture(document, "mousemove", this.mousemoved);
     
     if (touch) {
-        util.onBubble(document, "touchstart touchmove touchend", this.touchDragHandler);
+        util.onBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
 
     this.$().addClass("popup-dragging");
@@ -215,7 +215,7 @@ Popup.prototype.draggingEnd = function() {
     util.offCapture(document, "mousemove", this.mousemoved);
 
     if (touch) {
-        util.offBubble(document, "touchstart touchmove touchend", this.touchDragHandler);
+        util.offBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
 
     this.$().removeClass("popup-dragging");

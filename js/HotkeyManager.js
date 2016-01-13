@@ -430,7 +430,7 @@ function openHotkeyManager() {
 $(".menul-hotkeys").click(openHotkeyManager);
 
 if (touch) {
-    $(".menul-hotkeys").on("touchstart touchend", domUtil.tapHandler(openHotkeyManager));
+    $(".menul-hotkeys").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openHotkeyManager));
 }
 
 module.exports = hotkeyManager;

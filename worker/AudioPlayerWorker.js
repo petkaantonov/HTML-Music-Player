@@ -545,7 +545,6 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
         if (this.destroyed) return;
         this.fileView = new FileView(this.blob);
         var metadata = demuxer(codec.name, this.fileView);
-    
         if (!metadata) {
             return this.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
         }
@@ -566,6 +565,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
             if (this.resampler) freeResampler(this.resampler);
             this.resampler = null;
         }
+
         this.offset = this.metadata.dataStart;
         this.sendMessage("_blobLoaded", {
             requestId: requestId,
@@ -1070,6 +1070,7 @@ FileView.prototype.getInt8 = function(offset) {
 };
 
 FileView.prototype.bufferOfSizeAt = function(size, start) {
+    size = Math.ceil(size);
     var start = Math.min(this.file.size - 1, Math.max(0, start));
     var end = Math.min(this.file.size, start + size);
 
@@ -1078,7 +1079,7 @@ FileView.prototype.bufferOfSizeAt = function(size, start) {
         return this.buffer;
     }
 
-    end = Math.min(this.file.size, start + size * 10);
+    end = Math.min(this.file.size, start + size * 3);
     this.start = start;
     this.end = end;
     var reader = new FileReaderSync();
@@ -1825,7 +1826,7 @@ function demuxMp3FromWav(offset, view) {
                 vbr: false,
                 duration: duration,
                 samplesPerFrame: samplesPerFrame,
-                maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                 seekTable: null,
                 toc: null
             };
@@ -1858,11 +1859,13 @@ function demuxMp3(view) {
         return demuxMp3FromWav(dataStart, view);
     }
 
+    var id3v1AtEnd = false;
+    /* Takes way too long.
     var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === TAG;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
-    }
+    }*/
 
     var max = 2314 * 20;
     var header = 0;
@@ -1936,7 +1939,7 @@ function demuxMp3(view) {
                     vbr: false,
                     duration: 0,
                     samplesPerFrame: samplesPerFrame,
-                    maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                    maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                     seekTable: null,
                     toc: null
                 };

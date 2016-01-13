@@ -34,7 +34,7 @@ function PlayerVolumeManager(dom, player, opts) {
     this.$mute().click(this.muteClicked);
 
     if (touch) {
-        this.$mute().on("touchstart touchend", domUtil.tapHandler(this.muteClicked));
+        this.$mute().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.muteClicked));
     }
 
     this.volumeChanged();

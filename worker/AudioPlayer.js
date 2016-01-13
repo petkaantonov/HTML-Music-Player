@@ -244,7 +244,6 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
         if (this.destroyed) return;
         this.fileView = new FileView(this.blob);
         var metadata = demuxer(codec.name, this.fileView);
-    
         if (!metadata) {
             return this.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
         }
@@ -265,6 +264,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
             if (this.resampler) freeResampler(this.resampler);
             this.resampler = null;
         }
+
         this.offset = this.metadata.dataStart;
         this.sendMessage("_blobLoaded", {
             requestId: requestId,

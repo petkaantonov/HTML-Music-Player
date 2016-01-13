@@ -654,9 +654,9 @@ function Player(dom, playlist, opts) {
     this.$previous().click(playlist.prev.bind(playlist));
     
     if (touch) {
-        this.$play().on("touchstart touchend", domUtil.tapHandler(this.playButtonClicked.bind(this)));
-        this.$next().on("touchstart touchend", domUtil.tapHandler(playlist.next.bind(playlist)));
-        this.$previous().on("touchstart touchend", domUtil.tapHandler(playlist.prev.bind(playlist)));
+        this.$play().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.playButtonClicked.bind(this)));
+        this.$next().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(playlist.next.bind(playlist)));
+        this.$previous().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(playlist.prev.bind(playlist)));
     }
 
     this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {

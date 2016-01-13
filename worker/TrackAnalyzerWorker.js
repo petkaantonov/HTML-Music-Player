@@ -2350,6 +2350,7 @@ FileView.prototype.getInt8 = function(offset) {
 };
 
 FileView.prototype.bufferOfSizeAt = function(size, start) {
+    size = Math.ceil(size);
     var start = Math.min(this.file.size - 1, Math.max(0, start));
     var end = Math.min(this.file.size, start + size);
 
@@ -2358,7 +2359,7 @@ FileView.prototype.bufferOfSizeAt = function(size, start) {
         return this.buffer;
     }
 
-    end = Math.min(this.file.size, start + size * 10);
+    end = Math.min(this.file.size, start + size * 3);
     this.start = start;
     this.end = end;
     var reader = new FileReaderSync();
@@ -3106,17 +3107,28 @@ function nextJob() {
 
         var offset = metadata.dataStart;
         var aborted = false;
+        var started = Date.now();
 
         return Promise.resolve(offset).then(function loop(offset) {
-            if (offset < metadata.dataEnd && error === undefined) {
+            var now = Date.now();
+
+            while (offset < metadata.dataEnd && error === undefined) {
                 flushed = false;
                 var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
                 var srcStart = view.toBufferOffset(offset);
                 var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
                 var bytesRead = (srcEnd - srcStart);
                 offset += bytesRead;
-                progress(id, (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart));
 
+                var progress = (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart);
+
+                if (progress > 0.10 && started > 0) {
+                    var elapsed = Date.now() - started;
+                    var estimate = Math.round(elapsed / progress - elapsed);
+                    started = -1;
+                    reportEstimate(id, estimate);
+                }
+            
                 if (!flushed) {
                     return;
                 }
@@ -3125,7 +3137,10 @@ function nextJob() {
                     aborted = true;
                     return reportAbort(id);
                 }
-                return delay(offset, 0).then(loop);
+                
+                if (Date.now() - now > 1000) {
+                    return delay(offset, 0).then(loop);
+                }
             }
         }).then(function() {
             if (aborted) {
@@ -3197,11 +3212,11 @@ function reportAbort(id) {
     });
 }
 
-function progress(id, amount) {
+function reportEstimate(id, value) {
     self.postMessage({
         id: id,
-        type: "progress",
-        progress: amount
+        type: "estimate",
+        value: value
     });
 }
 
@@ -3398,7 +3413,7 @@ function demuxMp3FromWav(offset, view) {
                 vbr: false,
                 duration: duration,
                 samplesPerFrame: samplesPerFrame,
-                maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                 seekTable: null,
                 toc: null
             };
@@ -3431,11 +3446,13 @@ function demuxMp3(view) {
         return demuxMp3FromWav(dataStart, view);
     }
 
+    var id3v1AtEnd = false;
+    /* Takes way too long.
     var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === TAG;
 
     if (id3v1AtEnd) {
         dataEnd -= 128;
-    }
+    }*/
 
     var max = 2314 * 20;
     var header = 0;
@@ -3509,7 +3526,7 @@ function demuxMp3(view) {
                     vbr: false,
                     duration: 0,
                     samplesPerFrame: samplesPerFrame,
-                    maxByteSizePerSample: Math.ceil((2881 * (samplesPerFrame / 1152)) / 1152),
+                    maxByteSizePerSample: Math.ceil(((320 * 144000) / ((sampleRate << lsf)) |0) + 1) / samplesPerFrame,
                     seekTable: null,
                     toc: null
                 };

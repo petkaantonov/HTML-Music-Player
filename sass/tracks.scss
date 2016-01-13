@@ -13,6 +13,8 @@
     height: 1px;
     background-color: #6BC5E1;
     transform: translateX(-100%);
+    transition-property: transform;
+    transition-timing-function: linear;
 }
 
 .track-container {
@@ -26,7 +28,16 @@
     border-top: 1px solid #F6F6F6;
     background-color: #FFF;
     overflow: hidden;
-/*    transform: translate3d(0, 0, 0); */
+}
+
+.tracklist-transform-container {
+    transform-origin: left top 0px;
+    transform: translate3d(0px, 0px, 0px);
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
 }
 
 .track-container.track-active {

@@ -36,7 +36,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.$().on("mouseleave", this._mouseLeft);
 
     if (touch) {
-        this.$().on("touchstart touchend", this._clickedTouch);
+        this.$().on(domUtil.TOUCH_EVENTS, this._clickedTouch);
     }
 
     util.documentHidden.on("change", this._visibilityChanged);

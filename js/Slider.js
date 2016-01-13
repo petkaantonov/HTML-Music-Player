@@ -30,7 +30,7 @@ function Slider(domNode, opts) {
     this.$().on("mousedown", this._onMousedown);
 
     if (touch) {
-        this.$().on("touchstart touchend", this._onMousedownTouch);
+        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
     }
 
     this._clickMove = opts && opts.clickMove || true;
@@ -59,7 +59,7 @@ Slider.prototype._onMousedown = function(e) {
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
 
     if (touch) {
-        $(document).on("touchstart touchmove touchend", this._touchDragHandler);
+        $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
 
     $(window).on("relayout", this._onReLayout);
@@ -83,7 +83,7 @@ Slider.prototype._onMouseup = function(e) {
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
 
     if (touch) {
-        $(document).off("touchstart touchmove touchend", this._touchDragHandler);
+        $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
 
     $(window).off("relayout", this._onReLayout);

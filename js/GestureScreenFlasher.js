@@ -33,7 +33,7 @@ GestureScreenFlasher.prototype._next = function() {
         properties: [{
             name: "opacity",
             start: 0,
-            end: 0.15,
+            end: 0.8,
             duration: 100
         }],
         interpolate: Animator.DECELERATE_CUBIC
@@ -42,8 +42,8 @@ GestureScreenFlasher.prototype._next = function() {
     var fadeOut = new Animator($dom[0], {
         properties: [{
             name: "opacity",
-            start: 0.15,
-            end: 0,
+            start: 0.8,
+            end: 0.0,
             duration: 250
         }],
         interpolate: Animator.DECELERATE_CUBIC

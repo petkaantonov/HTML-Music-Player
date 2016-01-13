@@ -36,7 +36,7 @@ function DraggableSelection(dom, playlist, opts) {
     this.$().on("mousedown", this._onTrackMouseDown);
 
     if (touch) {
-        this.$().on("touchstart touchend", this._onTrackMouseDownTouch);
+        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onTrackMouseDownTouch);
     }
     this.$().bind("selectstart", function(e) {e.preventDefault();});
 }
@@ -130,7 +130,7 @@ DraggableSelection.prototype._onMouseRelease = function() {
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
 
     if (touch) {
-        $(document).off("touchstart touchmove touchend", this._touchDragHandler);
+        $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
     this._playlist.removeListener("tracksSelected", this._restart);
     this._playlist.removeListener("lengthChange", this._restart);
@@ -227,7 +227,7 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     $(document).on("mouseup", this._onMouseRelease);
 
     if (touch) {
-        $(document).on("touchstart touchmove touchend", this._touchDragHandler);
+        $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
 
     $(window).on("relayout", this._onReLayout);

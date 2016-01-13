@@ -65,6 +65,15 @@ function webAudioBlockSize(value) {
 const BUFFER_SAMPLES = webAudioBlockSize(48000 * 1);
 const BUFFER_ALLOCATION_SIZE = 1048576;
 const PRELOAD_BUFFER_COUNT = 2;
+const SUSTAINED_BUFFER_COUNT = 4;
+
+var codeIsCold = true;
+const getPreloadBufferCount = function() {
+    if (codeIsCold) {
+        return (PRELOAD_BUFFER_COUNT * 1.5)|0;
+    }
+    return PRELOAD_BUFFER_COUNT;
+}
 
 var nodeId = 0;
 var instances = false;
@@ -702,7 +711,8 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
             var j = bufferDataIndex;
             var buffer = buffers[i];
             var samplesRemainingInBuffer = buffer.length - j;
-            var fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer);
+            var byteLength = buffer.channelData[0].buffer.byteLength - j * 4;
+            var fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, byteLength / 4);
             var channelData = buffer.channelData;
             var sampleViews = new Array(channelData.length);
             for (var ch = 0; ch < sampleViews.length; ++ch) {
@@ -739,8 +749,8 @@ AudioPlayerSourceNode.prototype._getBuffersForTransferList = function(count) {
 AudioPlayerSourceNode.prototype._fillBuffers = function() {    
     if (!this._haveBlob || this._destroyed) return;
 
-    if (this._bufferQueue.length < PRELOAD_BUFFER_COUNT * 2) {
-        var count = (PRELOAD_BUFFER_COUNT * 2) - this._bufferQueue.length;
+    if (this._bufferQueue.length < SUSTAINED_BUFFER_COUNT) {
+        var count = SUSTAINED_BUFFER_COUNT - this._bufferQueue.length;
         var fillRequestId = ++this._audioBufferFillRequestId;
 
         this._player._message(this._id, "fillBuffers", {
@@ -790,6 +800,10 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
         }
     } else if (this._sourceStopped) {
         this._ended();
+    }
+
+    if (args.count > 0 && args.trackEndingBufferIndex !== -1) {
+        this._fillBuffers();
     }
 };
 
@@ -926,10 +940,10 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
     var requestId = ++this._seekRequestId;
     this._player._message(this._id, "seek", {
         requestId : requestId,
-        count: PRELOAD_BUFFER_COUNT,
+        count: getPreloadBufferCount(),
         time: time,
         isUserSeek: isUserSeek
-    }, this._getBuffersForTransferList(PRELOAD_BUFFER_COUNT));
+    }, this._getBuffersForTransferList(getPreloadBufferCount()));
     if (!this._currentSeekEmitted && isUserSeek) {
         this._currentSeekEmitted = true;
         this.emit("seeking", this._currentTime);
@@ -1017,6 +1031,7 @@ AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     this._duration = args.metadata.duration;
     this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
     this._seek(this._currentTime, false);
+    codeIsCold = false;
     this.emit("timeUpdate", this._currentTime, this._duration);
     this.emit("durationChange", this._duration);
     this.emit("canPlay");
@@ -1050,7 +1065,6 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
     if (args.requestId !== this._replacementRequestId || this._destroyed) {
         return this._freeTransferList(transferList);
     }
-
     this._loadingNext = false;
 
     if (args.gaplessPreload) {
@@ -1062,6 +1076,7 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
     // Sync so that proper gains nodes are set up already when applying the buffers 
     // for this track.
     this.emit("replacementLoaded");
+
     this._stopSources();
     var sourceDescriptor;
     while (sourceDescriptor = this._bufferQueue.shift()) {
@@ -1105,9 +1120,9 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
         blob: blob,
         requestId: requestId,
         seekTime: seekTime,
-        count: PRELOAD_BUFFER_COUNT,
+        count: getPreloadBufferCount(),
         gaplessPreload: !!gaplessPreload
-    }, this._getBuffersForTransferList(PRELOAD_BUFFER_COUNT));
+    }, this._getBuffersForTransferList(getPreloadBufferCount()));
 };
 
 AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime, gaplessPreload) {

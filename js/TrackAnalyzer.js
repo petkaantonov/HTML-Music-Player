@@ -93,9 +93,8 @@ TrackAnalyzer.prototype._messaged = function(event) {
             var job = this._jobs[i];
 
             switch (event.data.type) {
-                case "progress":
-                    var progress = event.data.progress;
-                    job.track.analysisProgress(progress);
+                case "estimate":
+                    job.track.analysisEstimate(event.data.value);
                 break;
 
                 case "error":

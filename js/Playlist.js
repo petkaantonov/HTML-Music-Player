@@ -51,6 +51,7 @@ function Playlist(domNode, opts) {
     this._errorCount = 0;
     this.requestedRenderFrame = null;
     this._$domNode = $(domNode);
+    this._$trackContainer = usePerfectScrollbar ? this._$domNode : this._$domNode.find(".tracklist-transform-container");
     this._rect = this.$()[0].getBoundingClientRect();
     this._scrollTop = 0;
 
@@ -112,6 +113,7 @@ function Playlist(domNode, opts) {
     this.$().on("click mousedown dblclick", function(e) {
         if ($(e.target).closest(".unclickable").length > 0) return;
         var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        if (!track) return;
         switch (e.type) {
             case "click": return this._selectable.trackClick(e, track);
             case "mousedown": return this._selectable.trackMouseDown(e, track);
@@ -122,6 +124,7 @@ function Playlist(domNode, opts) {
     this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
         var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+        if (!track) return;
         if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
         if (e.type === "click") return track.ratingInputClicked(e);
@@ -130,35 +133,40 @@ function Playlist(domNode, opts) {
 
     if (touch) {
         this.selectTracksBetween = this.selectTracksBetween.bind(this);
-        this.$().on("touchstart touchend touchmove", domUtil.verticalPincerSelectionHandler(function(y1, y2) {
+        this.$().on(domUtil.TOUCH_EVENTS, domUtil.verticalPincerSelectionHandler(function(y1, y2) {
             this.selectTracksBetween(y1, y2);
         }.bind(this)));
         
-        this.$().on("touchstart touchend", ".track-container", domUtil.tapHandler(function(e) {
+        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (!track) return;
             this._selectable.selectTrack(track);
         }.bind(this)));
 
-        this.$().on("touchstart touchend touchmove", ".track-container", domUtil.longTapHandler(function(e) {
+        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.longTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (!track) return;
             this._selectable.setPriorityTrack(track);
         }.bind(this)));
 
-        this.$().on("touchstart touchend", ".track-container", domUtil.doubleTapHandler(function(e) {
+        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.doubleTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (!track) return;
             track.doubleClicked(e);
         }.bind(this)));
 
-        this.$().on("touchstart touchend", ".rating-input", domUtil.doubleTapHandler(function(e) {
+        this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.doubleTapHandler(function(e) {
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (!track) return;
             return track.ratingInputDoubleClicked(e);
         }.bind(this)));
 
-        this.$().on("touchstart touchend", ".rating-input", domUtil.tapHandler(function(e) {
+        this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.tapHandler(function(e) {
             var track = this._trackRectToTrack(e.target.getBoundingClientRect());
+            if (!track) return;
             return track.ratingInputClicked(e);
         }.bind(this)));
     }    
@@ -237,6 +245,10 @@ Playlist.Modes = {
         }
         return track;
     }
+};
+
+Playlist.prototype.$trackContainer = function() {
+    return this._$trackContainer;
 };
 
 Playlist.prototype._trackRectToTrack = function(rect) {
@@ -350,7 +362,7 @@ Playlist.prototype.scrollBy = function(amount) {
 
         if (this._scrollTop !== top) {
             this._scrollTop = top;
-            this.$()[0].scrollTop = top;
+            this._scheduleScrollTopAnimation();
             this.trackVisibilityChanged();
             this._scroller.scrollTo(null, top, false, null);
         }
@@ -359,7 +371,13 @@ Playlist.prototype.scrollBy = function(amount) {
 
 Playlist.prototype._scrollTopAnimationHandler = function() {
     this._scrollTopAnimationFrameId = -1
-    this.$()[0].scrollTop = this._scrollTop;
+
+    if (usePerfectScrollbar) {
+        this.$()[0].scrollTop = this._scrollTop;
+    } else {
+        var y = -this._scrollTop;
+        this.$trackContainer().css("transform", "translate3d(0px, "+y+"px, 0px)");
+    }
 };
 
 Playlist.prototype._scheduleScrollTopAnimation = function() {
@@ -387,6 +405,7 @@ Playlist.prototype.getContentHeight = function() {
     return rect.height;
 };
 
+// From PerfectScrollbar. TODO replace since it doesn't support snapping.
 Playlist.prototype.scrolled = function(e) {
     var scrollTop = this.$()[0].scrollTop;
     var itemHeight = this.getItemHeight();
@@ -451,7 +470,7 @@ Playlist.prototype.selectTracksBetween = function(startY, endY) {
 
 Playlist.prototype.renderItems = function() {
     this.requestedRenderFrame = null;
-    var container = this.$()[0];
+    var container = this.$trackContainer();
     var $topSpacer = this.$().find(".top-spacer");
     var $bottomSpacer= this.$().find(".bottom-spacer");
     var tracks = this.getTracks();
@@ -476,11 +495,13 @@ Playlist.prototype.renderItems = function() {
     var tracksWithin = Math.min(tracks.length, this.tracksVisibleInContainer());
     var tracksAfter = Math.max(0, this.length - tracksWithin - tracksBefore);
 
-    $topSpacer.css("height", tracksBefore * itemHeight);
-    $bottomSpacer.css({
-        height: tracksAfter * itemHeight,
-        top: tracksWithin * itemHeight + tracksBefore * itemHeight
-    });
+    if (usePerfectScrollbar) {
+        $topSpacer.css("height", tracksBefore * itemHeight);
+        $bottomSpacer.css({
+            height: tracksAfter * itemHeight,
+            top: tracksWithin * itemHeight + tracksBefore * itemHeight
+        });
+    }
 
     var start = Math.max(tracksBefore - 100, 0);
     var end = Math.min(this.length - 1, tracksWithin + tracksBefore + 100);
@@ -585,8 +606,11 @@ Playlist.prototype.centerOnTrack = function(track) {
                         (this.halfOfTracksVisibleInContainer() * this._itemHeight) -
                         ((this._itemHeight / 2) | 0) -
                         this.$().height();
-        this.$()[0].scrollTop = scrollTop;
-        this.$().trigger("scroll");
+        var maxTop = this.length * this.getItemHeight() - this.getContentHeight();
+        scrollTop = Math.min(maxTop, Math.max(0, scrollTop));
+        this._scrollTop = MscrollTop;   
+        this._scheduleScrollTopAnimation();
+        this.trackVisibilityChanged();
     }
 };
 

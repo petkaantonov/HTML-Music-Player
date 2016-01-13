@@ -303,7 +303,7 @@ const openPopup = function() {
 $(".menul-crossfade").click(openPopup);
 
 if (touch) {
-    $(".menul-crossfade").on("touchstart touchend", domUtil.tapHandler(openPopup));
+    $(".menul-crossfade").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openPopup));
 }
 
 hotkeyManager.addDescriptor({

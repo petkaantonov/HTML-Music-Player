@@ -156,17 +156,28 @@ function nextJob() {
 
         var offset = metadata.dataStart;
         var aborted = false;
+        var started = Date.now();
 
         return Promise.resolve(offset).then(function loop(offset) {
-            if (offset < metadata.dataEnd && error === undefined) {
+            var now = Date.now();
+
+            while (offset < metadata.dataEnd && error === undefined) {
                 flushed = false;
                 var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
                 var srcStart = view.toBufferOffset(offset);
                 var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
                 var bytesRead = (srcEnd - srcStart);
                 offset += bytesRead;
-                progress(id, (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart));
 
+                var progress = (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart);
+
+                if (progress > 0.10 && started > 0) {
+                    var elapsed = Date.now() - started;
+                    var estimate = Math.round(elapsed / progress - elapsed);
+                    started = -1;
+                    reportEstimate(id, estimate);
+                }
+            
                 if (!flushed) {
                     return;
                 }
@@ -175,7 +186,10 @@ function nextJob() {
                     aborted = true;
                     return reportAbort(id);
                 }
-                return delay(offset, 0).then(loop);
+                
+                if (Date.now() - now > 1000) {
+                    return delay(offset, 0).then(loop);
+                }
             }
         }).then(function() {
             if (aborted) {
@@ -247,11 +261,11 @@ function reportAbort(id) {
     });
 }
 
-function progress(id, amount) {
+function reportEstimate(id, value) {
     self.postMessage({
         id: id,
-        type: "progress",
-        progress: amount
+        type: "estimate",
+        value: value
     });
 }
 

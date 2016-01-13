@@ -506,7 +506,7 @@ equalizer.getBands = function() {
 $(".menul-equalizer").click(openEditor);
 
 if (touch) {
-    $(".menul-equalizer").on("touchstart touchend", domUtil.tapHandler(openEditor));
+    $(".menul-equalizer").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
 }
 
 hotkeyManager.addDescriptor({

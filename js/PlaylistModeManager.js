@@ -38,8 +38,8 @@ function PlaylistModeManager(dom, playlist) {
     this.$repeat().on("click", this.repeatClicked);
 
     if (touch) {
-        this.$shuffle().on("touchstart touchend", domUtil.tapHandler(this.shuffleClicked));
-        this.$repeat().on("touchstart touchend", domUtil.tapHandler(this.repeatClicked));
+        this.$shuffle().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.shuffleClicked));
+        this.$repeat().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.repeatClicked));
     }
 
     this.update();

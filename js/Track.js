@@ -38,8 +38,7 @@ function Track(audioFile) {
     // Todo extract to a class.
     this._analysisTooltip = null;
     this._isBeingAnalyzed = false;
-    this._analysisProgress = 0;
-    this._analysisProgressBarInitialized = false;
+    this._analysisCompletionEstimate = -1;
 }
 util.inherits(Track, EventEmitter);
 
@@ -87,7 +86,7 @@ Track.prototype._ensureDomNode = function() {
 
     if (this._isBeingAnalyzed) {
         this.showAnalysisStatus();
-        this.updateAnalysisProgress();
+        this.updateAnalysisEstimate();
     }
 
     if (this._error) {
@@ -337,7 +336,7 @@ Track.prototype.indexChanged = function() {
     var index = this.index;
     if (index >= 0) {
         this.setTrackNumber();
-        this.$().css("top", index * playlist.main.getItemHeight());
+        this.$().css("transform", "translateY(" + index * playlist.main.getItemHeight() + "px");
     }
 };
 
@@ -361,25 +360,28 @@ Track.prototype.startPlaying = function() {
     this.$().addClass("track-playing");
 };
 
-Track.prototype.analysisProgress = function(progress) {
-    this._analysisProgress = progress;
+Track.prototype.analysisEstimate = function(analysisEstimate) {
+    this._analysisCompletionEstimate = analysisEstimate + Date.now();
     if (this._domNode !== NULL) {
-        this.updateAnalysisProgress();
+        this.updateAnalysisEstimate();
     }
 };
 
-Track.prototype.initializeAnalysisProgressBar = function() {
-    if (!this._analysisProgressBarInitialized) {
-        this._analysisProgressBarInitialized = true;
-        this.$().addClass("track-container-progress");
-        $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
-    }
-};
+Track.prototype.updateAnalysisEstimate = function() {
+    if (this._analysisCompletionEstimate === -1) return;
+    var transitionDuration = this._analysisCompletionEstimate - Date.now();
+    if (transitionDuration < 0) return;
 
-Track.prototype.updateAnalysisProgress = function() {
-    this.initializeAnalysisProgressBar();
-    var p = (-1 * Math.round((1 - this._analysisProgress) * 100)) + "%";
-    this.$().find(".track-progress-bar").css("transform", "translateX("+p+")");
+    this.$().addClass("track-container-progress");
+    var bar = $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
+
+    bar.css({
+        "transitionDuration": (transitionDuration / 1000) + "s"
+    });
+    bar.width();
+    requestAnimationFrame(function() {
+        bar.css("transform", "translateX(0)");    
+    });
 };
 
 Track.prototype.unsetAnalysisStatus = function() {

@@ -1,5 +1,10 @@
 "use strict";
 
+const jsUtil = require("./util");
+const Promise = require("../lib/bluebird");
+const base64 = require("../lib/base64");
+
+const touch = require("./features").touch;
 const TOUCH_START = "touchstart";
 const TOUCH_END = "touchend";
 const TOUCH_MOVE = "touchmove";
@@ -8,17 +13,15 @@ const TAP_TIME = 270;
 const LONG_TAP_TIME = 475;
 
 const SWIPE_LENGTH = 0.0875;
-const SWIPE_VELOCITY = 0.512;
-const VERTICAL_SCROLL_MAX_HORIZONTAL_VELOCITY = 1.024;
+const SWIPE_VELOCITY = 0.412;
 const TWO_FINGER_TAP_MINIMUM_DISTANCE = 0.0625;
 const TAP_MAX_MOVEMENT = 0.015625;
 const PINCER_MINIMUM_MOVEMENT = 0.015625;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 0.015625;
 
-const jsUtil = require("./util");
-
-const Promise = require("../lib/bluebird");
-const base64 = require("../lib/base64");
+var util = {};
+util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
+util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
 function ActiveTouchList() {
     this.activeTouches = [];
@@ -50,6 +53,8 @@ ActiveTouchList.prototype.contains = function(touch) {
     return false;
 };
 
+
+
 ActiveTouchList.prototype.update = function(e, changedTouches) {
     var activeTouches = this.activeTouches;
     var addedTouches = [];
@@ -69,7 +74,7 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
                 addedTouches.push(touch);
             }
         }
-    } else if (e.type === TOUCH_END) {
+    } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         for (var i = 0; i < changedTouches.length; ++i) {
             var touch = changedTouches[i];
             var id = touch.identifier;
@@ -84,7 +89,15 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
     return addedTouches;
 };
 
-var util = {};
+const documentActives = new ActiveTouchList();
+if (touch) {
+    jsUtil.onCapture(document, util.TOUCH_EVENTS, function(e) {
+        if (e.cancelable) {
+            e.preventDefault();
+        }
+        documentActives.update(e, e.changedTouches);
+    });
+}
 
 const approxPhysical = (function() {
     var stride = 5;
@@ -175,7 +188,7 @@ util.touchDownHandler =  function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         var newTouches = actives.update(e, changedTouches);
 
-        if (e.type === TOUCH_START) {
+        if (e.type === TOUCH_START && documentActives.length() <= 1) {
             for (var i = 0; i < newTouches.length; ++i) {
                 var touch = newTouches[i];
                 copyTouchProps(e, touch);
@@ -202,6 +215,11 @@ util.hoverHandler = function(fnStart, fnEnd) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
+        if (documentActives.length() > 1) {
+            end(this, e);
+            return;
+        }
+
         if (e.type === TOUCH_START) {
             if (actives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
@@ -210,7 +228,7 @@ util.hoverHandler = function(fnStart, fnEnd) {
             } else {
                 end(this, e);
             }
-        } else if (e.type === TOUCH_END) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (actives.length() !== 0 || currentTouch === null) {
                 end(this, e);
                 return;
@@ -247,11 +265,6 @@ util.tapHandler = function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (actives.length() > 1) {
-            clear();
-            return;
-        }
-
         if (e.type === TOUCH_START) {
             if (actives.length() <= 1) {
                 started = Date.now();
@@ -260,11 +273,12 @@ util.tapHandler = function(fn) {
                 clear();
             }
 
-        } else if (e.type === TOUCH_END) {
-            if (actives.length() !== 0 || currentTouch === null) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (actives.length() !== 0 || currentTouch === null || documentActives.length() !== 0) {
                 clear();
                 return;
             }
+
             var touch = changedTouches[0];
             var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
             var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
@@ -275,6 +289,10 @@ util.tapHandler = function(fn) {
                 fn.call(this, e);
             }
             clear();
+        } else if (e.type === TOUCH_MOVE) {
+            if (documentActives.length() > 1) {
+                clear();
+            }
         }
     };
 };
@@ -334,6 +352,11 @@ util.twoFingerTapHandler = function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
+        if (documentActives.length() > 2) {
+            clear();
+            return;
+        }
+
         if (e.type === TOUCH_START) {
             if (actives.length() <= 2) {
                 currentATouch = actives.first() || null;
@@ -349,7 +372,7 @@ util.twoFingerTapHandler = function(fn) {
             } else if (currentATouch !== null && currentBTouch !== null) {
                 maybeStart();
             }
-        } else if (e.type === TOUCH_END) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (currentATouch === null || currentBTouch === null) {
                 clear();
                 return;
@@ -357,7 +380,7 @@ util.twoFingerTapHandler = function(fn) {
 
             if (actives.length() <= 1 && !checkDelta(changedTouches)) {
                 return;
-            } else if (actives.length() > 1) {
+            } else if (actives.length() > 1 || documentActives.length() > 1) {
                 clear();
                 return;
             }
@@ -369,6 +392,10 @@ util.twoFingerTapHandler = function(fn) {
                 fn.call(this, currentATouch, currentBTouch);
             }
             clear();
+        } else if (e.type === TOUCH_MOVE) {
+            if (documentActives.length() > 2) {
+                clear();
+            }
         }
     };
 };
@@ -389,9 +416,14 @@ util.dragHandler = function(fnMove, fnEnd) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
+        if (documentActives.length() > 1) {
+            end(this, e);
+            return;
+        }
+
         if (e.type === TOUCH_START) {
             currentTouch = actives.first();
-        } else if (e.type === TOUCH_END) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (actives.length() > 0) {
                 currentTouch = actives.first();
             } else {
@@ -399,7 +431,7 @@ util.dragHandler = function(fnMove, fnEnd) {
                 currentTouch = null;
             }
         } else if (e.type === TOUCH_MOVE) {
-            if (!actives.contains(currentTouch) || actives.length() > 1) {
+            if (!actives.contains(currentTouch) || actives.length() > 1 || documentActives.length() > 1) {
                 return;
             }
 
@@ -434,8 +466,12 @@ util.verticalPincerSelectionHandler = function(fn) {
     return function(e) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         var selecting = false;
-
         actives.update(e, changedTouches);
+
+        if (documentActives.length() > 2) {
+            clear();
+            return;
+        }
 
         if (e.type === TOUCH_START) {
             if (actives.length() <= 2) {
@@ -445,12 +481,15 @@ util.verticalPincerSelectionHandler = function(fn) {
                 }
             }
             started = currentATouch !== null && currentBTouch !== null ? (e.timeStamp || e.originalEvent.timeStamp) : -1;
-        } else if (e.type === TOUCH_END) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (!actives.contains(currentATouch) || !actives.contains(currentBTouch)) {
                 clear();
             }
         } else if (e.type === TOUCH_MOVE) {
-            if (actives.length() !== 2 || !actives.contains(currentATouch) || !actives.contains(currentBTouch)) {
+            if (actives.length() !== 2 ||
+                !actives.contains(currentATouch) ||
+                !actives.contains(currentBTouch) ||
+                documentActives.length() > 2) {
                 return;
             }
 
@@ -459,11 +498,17 @@ util.verticalPincerSelectionHandler = function(fn) {
                     var touch = changedTouches[i];
 
                     if (touch.identifier === currentATouch.identifier) {
-                        aChanged = true;
-                        currentATouch = touch;
+                        var delta = Math.abs(touch.clientY - currentATouch.clientY);
+                        if (delta > 25) {
+                            aChanged = true;
+                            currentATouch = touch;
+                        }
                     } else if (touch.identifier === currentBTouch.identifier) {
-                        bChanged = true;
-                        currentBTouch = touch;
+                        var delta = Math.abs(touch.clientY - currentATouch.clientY);
+                        if (delta > 25) {
+                            bChanged = true;
+                            currentBTouch = touch;
+                        }
                     }
 
                     if (aChanged && bChanged) {
@@ -472,9 +517,9 @@ util.verticalPincerSelectionHandler = function(fn) {
                 }
             }
 
-            if (aChanged && bChanged &&
+            if ((aChanged || bChanged) &&
                 started !== -1 &&
-                ((e.timeStamp || e.originalEvent.timeStamp) - started) > TAP_TIME) {
+                ((e.timeStamp || e.originalEvent.timeStamp) - started) > (TAP_TIME * 2)) {
                 aChanged = bChanged = false;
                 var start, end;
 
@@ -535,6 +580,130 @@ util.horizontalSwipeHandler = function(fn, direction) {
     });
 };
 
+util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
+    var actives = new ActiveTouchList();
+    var currentATouch = null;
+    var currentBTouch = null;
+
+    var startAX = -1;
+    var startBX = -1;
+    var lastAY = -1;
+    var lastAX = -1;
+    var lastBX = -1;
+    var lastBY = -1;
+
+    var previousTime = -1;
+    var elapsedTotal = 0;
+
+    const clear = function() {
+        previousTime = -1;
+        currentATouch = currentBTouch = null;
+        lastAY = lastBY = startAX = startBX = lastAX = lastBX = -1;
+        elapsedTotal = 0;
+    };
+
+    const checkCompletion = function() {
+        if (startAX !== -1 && startBX !== -1 && documentActives.length() === 0) {
+            var aDiff = lastAX - startAX;
+            var bDiff = lastBX - startBX;
+            var aAbsDiff = Math.abs(aDiff);
+            var bAbsDiff = Math.abs(bDiff);
+            var aVelocity = (aAbsDiff / elapsedTotal * 1000)|0;
+            var bVelocity = (bAbsDiff / elapsedTotal * 1000)|0;
+
+            var minSwipeLength = approxPhysical(SWIPE_LENGTH);
+
+            if (aAbsDiff > minSwipeLength &&
+                bAbsDiff > minSwipeLength &&
+                aVelocity > approxPhysical(SWIPE_VELOCITY) &&
+                bVelocity > approxPhysical(SWIPE_VELOCITY) &&
+                (aDiff < 0 && bDiff < 0 && direction < 0 ||
+                aDiff > 0 && bDiff > 0 && direction > 0) &&
+                Math.abs(aAbsDiff - bAbsDiff) <= 150) {
+                fn.call(this);
+            }
+        }
+        clear();
+    };
+
+    return function(e) {
+        var now = (e.timeStamp || e.originalEvent.timeStamp);
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+        actives.update(e, changedTouches);
+
+        if (documentActives.length() > 2) {
+            clear();
+            return;
+        }
+
+        if (e.type === TOUCH_START) {
+            if (actives.length() === 1) {
+                currentATouch = actives.first();
+                startAX = currentATouch.clientX;
+                lastAX = startAX;
+                lastAY = currentATouch.clientY;
+                previousTime = now;
+            } else if (actives.length() === 2 && currentATouch !== null) {
+                elapsedTotal += (now - previousTime);
+                previousTime = now;
+                currentBTouch = actives.nth(1);
+                startBX = currentBTouch.clientX;
+                lastBX = startBX;
+                lastBY = currentBTouch.clientY;
+                if (lastAX !== -1 &&
+                    (Math.abs(lastAX - lastBX) > 150 &&
+                        Math.abs(lastAY - lastBY) > 150)) {
+                    clear();
+                }
+            } else {
+                clear();
+            }
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (currentATouch === null || currentBTouch === null) return;
+            for (var i = 0; i < changedTouches.length; ++i) {
+                var touch = changedTouches[i];
+                if (touch.identifier === currentATouch.identifier) {
+                    lastAX = touch.clientX;
+                } else if (touch.identifier === currentBTouch.identifier) {
+                    lastBX = touch.clientX;
+                }
+            }
+            if (actives.length() === 0) {
+                checkCompletion();
+                clear();
+            }
+        } else if (e.type === TOUCH_MOVE) {
+            if (documentActives.length() > 2) {
+                clear();
+                return;
+            };
+            if (currentATouch !== null || currentBTouch !== null) {
+                var now = (e.timeStamp || e.originalEvent.timeStamp);
+                elapsedTotal += (now - previousTime);
+
+                for (var i = 0; i < changedTouches.length; ++i) {
+                    var touch = changedTouches[i];
+
+                    if (currentATouch !== null && touch.identifier === currentATouch.identifier) {
+                        lastAX = touch.clientX;
+                        lastAY = touch.clientY;
+                    } else if (currentBTouch !== null && touch.identifier === currentBTouch.identifier) {
+                        lastBX = touch.clientX;
+                        lastBY = touch.clientY;
+                    } 
+                }
+
+                if (lastAX !== -1 && lastBX !== -1 && 
+                    (Math.abs(lastAX - lastBX) > 150 &&
+                     Math.abs(lastAY - lastBY) > 150)) {
+                    clear();
+                }
+                previousTime = now;
+            }
+        }
+    };
+};
+
 util.longTapHandler = function(fn) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
@@ -552,14 +721,18 @@ util.longTapHandler = function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
+
+
         if (e.type === TOUCH_START) {
             if (actives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
                 timeoutId = setTimeout(function() {
-                    var touch = currentTouch;
-                    copyTouchProps(e, touch);
-                    clear();
-                    fn.call(self, e);
+                    if (documentActives.length() <= 1) {
+                        var touch = currentTouch;
+                        copyTouchProps(e, touch);
+                        clear();
+                        fn.call(self, e);
+                    }
                 }, LONG_TAP_TIME);
             } else {
                 clear();
@@ -577,8 +750,12 @@ util.longTapHandler = function(fn) {
             if (xDelta > 2 || yDelta > 2) {
                 clear();
             }
-        } else if (e.type === TOUCH_END) {
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             clear();
+        } else if (e.type === TOUCH_MOVE) {
+            if (documentActives.length() > 1) {
+                clear();
+            }
         }
     };
 };
@@ -612,7 +789,7 @@ util.doubleTapHandler = function(fn) {
 
 util.bindScrollerEvents = function(target, scroller, shouldScroll) {
     if (!shouldScroll) shouldScroll = function() {return true; };
-    var events = "touchstart touchend touchmove mousedown mouseup mousemove".split(" ").map(function(v) {
+    var events = "touchstart touchend touchmove touchcancel mousedown mouseup mousemove".split(" ").map(function(v) {
         return v + ".scrollerns";
     }).join(" ");
 
@@ -620,7 +797,7 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll) {
     var scrollerTouch = null;
     var mousedown = false;
     var prevTimestamp = 0;
-    var previousDeltaX = 0;
+
     target.on(events, function(e) {
         if (!shouldScroll()) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
@@ -631,36 +808,38 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll) {
         actives.update(e, changedTouches);
     
         switch (e.type) {
-        case "touchstart":
+        case TOUCH_START:
             if (actives.length() === 1) {
                 scrollerTouch = actives.first();
                 return scroller.doTouchStart([scrollerTouch], timeStamp);
             }
             return;
-        case "touchend":
+        case TOUCH_END:
+        case TOUCH_CANCEL:
             if (scrollerTouch !== null && !actives.contains(scrollerTouch)) {
                 scroller.doTouchEnd(timeStamp);
                 scrollerTouch = null;
             }
             return;
-        case "touchmove":
-            if (actives.length() !== 1 || !actives.contains(scrollerTouch)) return;
+        case TOUCH_MOVE:
+            if (!actives.contains(scrollerTouch)) return;
+            if (documentActives.length() > 1) {
+                scroller.doTouchEnd(timeStamp);
+                scroller.doTouchStart([scrollerTouch], timeStamp);
+                scroller.doTouchEnd(timeStamp);
+                return;
+            }
             var touch;
             for (var i = 0; i < changedTouches.length; ++i) {
                 var cTouch = changedTouches[i];
                 if (cTouch.identifier === scrollerTouch.identifier) {
-                    touch = cTouch
+                    touch = cTouch;
+                    scrollerTouch = touch;
                     break;
                 }
             }
             if (touch) {
-                var deltaX = Math.abs(scrollerTouch.clientX - touch.clientX);
-                var deltaDeltaX = Math.abs(deltaX - previousDeltaX);
-                var velocityX = Math.round(deltaDeltaX / elapsed * 1000);
-                previousDeltaX = deltaX;
-                if (velocityX < approxPhysical(VERTICAL_SCROLL_MAX_HORIZONTAL_VELOCITY)) {
-                    return scroller.doTouchMove([touch], timeStamp, e.scale || e.originalEvent.scale);
-                }
+                return scroller.doTouchMove([touch], timeStamp, e.scale || e.originalEvent.scale);
             }
             return;
         case "mousedown":
@@ -691,19 +870,9 @@ util.unbindScrollerEvents = function(target, scroller) {
 };
 
 
-var rtouchevent = /^(?:touchstart|touchend|touchcancel|touchmove)$/;
+var rtouchevent = /^touch/;
 util.isTouchEvent = function(e) {
     return rtouchevent.test(e.type);
 };
-
-if (typeof window !== "undefined" && window.DEBUGGING) {
-    console.log("SWIPE_LENGTH", approxPhysical(SWIPE_LENGTH));
-    console.log("SWIPE_VELOCITY", approxPhysical(SWIPE_VELOCITY));
-    console.log("TWO_FINGER_TAP_MINIMUM_DISTANCE", approxPhysical(TWO_FINGER_TAP_MINIMUM_DISTANCE));
-    console.log("TAP_MAX_MOVEMENT", approxPhysical(TAP_MAX_MOVEMENT));
-    console.log("PINCER_MINIMUM_MOVEMENT", approxPhysical(PINCER_MINIMUM_MOVEMENT));
-    console.log("DOUBLE_TAP_MINIMUM_MOVEMENT", approxPhysical(DOUBLE_TAP_MINIMUM_MOVEMENT));
-    console.log("VERTICAL_SCROLL_MAX_HORIZONTAL_VELOCITY", approxPhysical(VERTICAL_SCROLL_MAX_HORIZONTAL_VELOCITY));
-}
 
 module.exports = util;
