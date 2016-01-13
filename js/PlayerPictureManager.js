@@ -6,6 +6,7 @@ const Promise = require("../lib/bluebird");
 
 const util = require("./util");
 const domUtil = require("./DomUtil");
+const filterProp = domUtil.filterProp;
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
@@ -120,10 +121,7 @@ PlayerPictureManager.prototype._next = function() {
 
 PlayerPictureManager.prototype._attachCurrentImage = function() {
     var image = this._currentImage;
-    $(image).css({
-        opacity: START_ALPHA,
-        transform: "scale(" + START_SCALE + "," +  START_SCALE + ")"
-    }).appendTo(this.$());
+    $(image).appendTo(this.$());
 
     if (!image.complete) {
         $(image).one("error", function() {

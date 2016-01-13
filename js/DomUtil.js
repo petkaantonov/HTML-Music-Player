@@ -24,6 +24,12 @@ var util = {};
 util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
+util.filterProp = (function() {
+    var div = document.createElement("div");
+    return (("webkitFilter" in div.style) ? "webkitFilter" : "filter");
+})();
+
+
 function ActiveTouchList() {
     this.activeTouches = [];
 }

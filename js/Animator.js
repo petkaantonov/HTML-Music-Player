@@ -3,6 +3,8 @@ const Promise = require("../lib/bluebird.js");
 const util = require("./util");
 const EventEmitter = require("events");
 const unitBezier = require("../lib/bezier");
+const domUtil = require("./DomUtil");
+const filterProp = domUtil.filterProp;
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -331,11 +333,6 @@ Animation.prototype.animate = function(now) {
 
     return ret;
 };
-
-const filterProp = (function() {
-    var div = document.createElement("div");
-    return (("webkitFilter" in div.style) ? "webkitFilter" : "filter");
-})();
 
 const validProperties = [
     "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
