@@ -141,17 +141,17 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
     if (!$img.length) {
         return {
             alpha: START_ALPHA,
-            opacity: START_OPACITY
+            scale: START_SCALE
         };
     }
 
     var scaleMatch = $img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i);
-    var opacityMatch = $img[0][filterProp].match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
+    var opacityMatch = $img.css(filterProp).match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
 
     if (!scaleMatch || !opacityMatch) {
         return {
             alpha: START_ALPHA,
-            opacity: START_OPACITY
+            scale: START_SCALE
         };
     }
 
