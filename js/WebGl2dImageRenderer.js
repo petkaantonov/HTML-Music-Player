@@ -114,9 +114,9 @@ WebGl2dImageRenderer.prototype.contextCreationErrored = function() {
 };
 
 WebGl2dImageRenderer.prototype.destroy = function() {
-    this.visualizerCanvas.removeEventListener("webglcontextlost", this.contextLost, false);
-    this.visualizerCanvas.removeEventListener("webglcontextrestored", this.contextRestored, false);
-    this.visualizerCanvas.removeEventListener("webglcontextcreationerror", this.contextCreationErrored, false);
+    this.visualizerCanvas.canvas.removeEventListener("webglcontextlost", this.contextLost, false);
+    this.visualizerCanvas.canvas.removeEventListener("webglcontextrestored", this.contextRestored, false);
+    this.visualizerCanvas.canvas.removeEventListener("webglcontextcreationerror", this.contextCreationErrored, false);
     this.visualizerCanvas.removeListener("canvasChange", this.canvasChanged);
 };
 

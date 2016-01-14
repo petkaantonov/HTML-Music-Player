@@ -335,9 +335,11 @@ VisualizerCanvas.prototype.resetCanvas = function() {
 };
 
 VisualizerCanvas.prototype.useSoftwareRendering = function() {
-    if (!this.renderer.usesHardwareAcceleration()) return;
-    if (this.renderer && (this.renderer instanceof Default2dImageRenderer)) return;
-    if (this.renderer) this.renderer.destroy();
+    if (this.renderer) {
+        if (!this.renderer.usesHardwareAcceleration()) return;
+        if (this.renderer instanceof Default2dImageRenderer) return;
+        this.renderer.destroy();
+    }
     this.resetCanvas();
     this.renderer = new Default2dImageRenderer(this.source.image, this);
     GlobalUi.snackbar.show("Hardware acceleration disabled");

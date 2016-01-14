@@ -58,7 +58,9 @@ function Playlist(domNode, opts) {
         paging: false,
         minPrerenderedItems: 15,
         maxPrerenderedItems: 100,
-        scrollbar: this.$().find("scrollbar")
+        scrollbar: this.$().find(".scrollbar-container"),
+        railSelector: ".scrollbar-rail",
+        knobSelector: ".scrollbar-knob"
     });
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
@@ -396,7 +398,9 @@ Playlist.prototype.getUnparsedTracks = function(maxCount) {
 
 Playlist.prototype.centerOnTrack = function(track) {
     if (track && !track.isDetachedFromPlaylist()) {
-        // TODO
+        var y = this._fixedItemListScroller.yByIndex(track.getIndex());
+        y -= (this._fixedItemListScroller.contentHeight() / 2);
+        this._fixedItemListScroller.scrollToUnsnapped(y, false);
     }
 };
 

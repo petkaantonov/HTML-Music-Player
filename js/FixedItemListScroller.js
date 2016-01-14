@@ -2,7 +2,8 @@
 
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
-const Scroller = require("../lib/scroller.js");
+const Scroller = require("../lib/scroller");
+const Scrollbar = require("./Scrollbar");
 
 function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
@@ -22,7 +23,8 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
     this._renderItems = this._renderItems.bind(this);
 
     this._scroller = new Scroller(this._renderScroller, opts);
-    domUtil.bindScrollerEvents(this.$(), this._scroller, opts.shouldScroll || null, opts.scrollbar);
+    this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
+    domUtil.bindScrollerEvents(this.$(), this._scroller, opts.shouldScroll || null);
 }
 
 FixedItemListScroller.prototype._forceRenderItems = function() {
@@ -32,6 +34,7 @@ FixedItemListScroller.prototype._forceRenderItems = function() {
 FixedItemListScroller.prototype._renderScrollTop = function() {
     var y = -this._scrollTop;
     this.$().css("transform", "translate3d(0px, "+y+"px, 0px)");
+    this._scrollbar.render(this._scrollTop);
 };
 
 FixedItemListScroller.prototype._renderItems = function(now, forced) {
@@ -102,7 +105,7 @@ FixedItemListScroller.prototype.length = function() {
     return this._itemList.length;
 };
 
-FixedItemListScroller.prototype.maxHeight = function() {
+FixedItemListScroller.prototype.physicalHeight = function() {
     return this.length() * this.itemHeight();
 };
 
@@ -111,7 +114,13 @@ FixedItemListScroller.prototype.itemHeight = function() {
 };
 
 FixedItemListScroller.prototype.needScrollbar = function() {
-    return this.maxHeight() > this.contentHeight();
+    return this.physicalHeight() > this.contentHeight();
+};
+
+FixedItemListScroller.prototype.scrollToUnsnapped = function(top, animate) {
+    this._scrollTop = top;
+    this._scroller.scrollTo(null, top, !!animate);
+    this._scheduleRender();
 };
 
 FixedItemListScroller.prototype.scrollBy = function(amount) {
@@ -129,8 +138,9 @@ FixedItemListScroller.prototype.scrollBy = function(amount) {
 FixedItemListScroller.prototype.resize = function() {
     var rect = this._rect = this.$()[0].getBoundingClientRect();
     this._scroller.setPosition(rect.left, rect.top);
-    this._scroller.setDimensions(rect.width, rect.height, rect.width, this.maxHeight());
+    this._scroller.setDimensions(rect.width, rect.height, rect.width, this.physicalHeight());
     this._scroller.setSnapSize(rect.width, this.itemHeight());
+    this._scrollbar.resize();
     this._forceRenderItems();
 };
 
@@ -212,6 +222,13 @@ FixedItemListScroller.prototype.itemByYCoordinate = function(y) {
 FixedItemListScroller.prototype.itemByRect = function(rect) {
     return this.itemByYCoordinate(rect.top);
 };
+
+FixedItemListScroller.prototype.yByIndex = function(index) {
+    index = Math.min(this.length() - 1, Math.max(0, index));
+    if (index <= 0) return 0;
+    return index * this.itemHeight();
+};
+
 
 
 module.exports = FixedItemListScroller;

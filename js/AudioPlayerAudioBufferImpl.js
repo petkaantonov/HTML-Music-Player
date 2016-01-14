@@ -505,6 +505,7 @@ AudioPlayerSourceNode.prototype._timeUpdate = function() {
 
 AudioPlayerSourceNode.prototype._ended = function() {
     if (this._endedEmitted || this._destroyed || this._loadingNext) return;
+    
     this._player.playbackStopped();
     this._endedEmitted = true;
 
@@ -522,7 +523,6 @@ AudioPlayerSourceNode.prototype._ended = function() {
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
-
     if (this._loop) {
         this.setCurrentTime(0, NO_THROTTLE);
     } else {

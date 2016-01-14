@@ -20,22 +20,6 @@
     }
 }
 
-.ps-container>.ps-scrollbar-x-rail>.ps-scrollbar-x {
-    height: $scrollbar-width;
-}
-
-.ps-container>.ps-scrollbar-y-rail>.ps-scrollbar-y {
-    width: $scrollbar-width;
-}
-
-.ps-container>.ps-scrollbar-x-rail {
-    height: $scrollbar-width;
-}
-
-.ps-container>.ps-scrollbar-y-rail {
-    width: $scrollbar-width;
-}
-
 .tracks-list-container.has-scrollbar .track-container {
     @include large-screen {
         width: $large-screen-width - $scrollbar-width;

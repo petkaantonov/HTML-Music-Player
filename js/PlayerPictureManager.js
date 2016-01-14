@@ -138,9 +138,26 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
 
     var $img = $(this._currentImage);
 
+    if (!$img.length) {
+        return {
+            alpha: START_ALPHA,
+            opacity: START_OPACITY
+        };
+    }
+
+    var scaleMatch = $img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i);
+    var opacityMatch = $img[0][filterProp].match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
+
+    if (!scaleMatch || !opacityMatch) {
+        return {
+            alpha: START_ALPHA,
+            opacity: START_OPACITY
+        };
+    }
+
     return {
-        alpha: $img.css("opacity"),
-        scale: +($img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i)[1])
+        alpha: +(opacityMatch[1]),
+        scale: +(scaleMatch[1])
     };
 };
 

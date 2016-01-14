@@ -1,4 +1,48 @@
-/* perfect-scrollbar v0.6.7 */
+@import "variables";
+
+.scrollbar-container {
+    position: absolute;
+    width: $scrollbar-width;
+    top: 0px;
+    right: 0px;
+    height: 100%;
+    transform: translate3d(0, 0, 0);
+}
+
+.scrollbar-rail, .scrollbar-knob {
+    position: absolute;
+    width: $scrollbar-width;
+    top: 0px;
+    left: 0px;
+    @include border-top-radius(7px);
+    @include border-bottom-radius(7px);
+    will-change: transform;
+    transition: filter 0.3s ease-in;
+    transition: -webkit-filter 0.3s ease-in;
+}
+
+.scrollbar-container:hover .scrollbar-rail,
+.scrollbar-container:hover .scrollbar-knob {
+    @include css-filter(opacity(100%));
+}
+
+.scrollbar-rail {
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.15);
+    @include css-filter(opacity(0%));
+}
+
+.scrollbar-knob {
+    background-color: rgba(0, 0, 0, 0.35);
+    @include css-filter(opacity(0%));
+    transform-origin: top left 0;
+    transform: translate3d(0, 0, 0);
+}
+
+.scrollbar-container.scrolling .scrollbar-knob,
+.scrollbar-scrollarea:hover .scrollbar-container .scrollbar-knob {
+    @include css-filter(opacity(100%));
+}
 
 .ps-container {
     -ms-touch-action: none;
