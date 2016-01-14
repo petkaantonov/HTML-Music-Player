@@ -12,3 +12,5 @@ dist/main.js.map
 sw.js
 .sass-cache/*
 dist/css/*
+worker/AudioPlayerWorker.js
+worker/TrackAnalyzerWorker.js
