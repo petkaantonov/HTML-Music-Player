@@ -34,7 +34,7 @@ function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onTrackMouseDownTouch);
     }
-    this.$().bind("selectstart", function(e) {e.preventDefault();});
+    this.$().on("selectstart", function(e) {e.preventDefault();});
 
 }
 
@@ -78,7 +78,7 @@ DraggableSelection.prototype._onTouchend = function(e) {
 DraggableSelection.prototype._onMouseRelease = function() {
     if (!this._isDragging) return;
     this._isDragging = false;
-    this.$().unbind("scroll", this._onMovement);
+    this.$().off("scroll", this._onMovement);
     
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
 

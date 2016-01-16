@@ -84,7 +84,7 @@ TrackSearchResult.prototype.attach = function($parent) {
                         .replace(/\x02/g, "</strong>");
     this.$().html(highlighted);
     $parent.append(this.$());
-    this.$().bind("click", function() {
+    this.$().on("click", function() {
         self.trackSearcher.selectResult(self);
     });
 };
@@ -105,8 +105,8 @@ function TrackSearcher(playlist, domNode) {
         "<div class='track-searcher-header'>Results</div>" +
         "<div class='track-searcher-results'></div>");
 
-    this.input().bind("keydown", this._onKeyDown);
-    this.input().bind("input", this._onInput);
+    this.input().on("keydown", this._onKeyDown);
+    this.input().on("input", this._onInput);
 }
 util.inherits(TrackSearcher, EventEmitter);
 

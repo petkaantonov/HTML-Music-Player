@@ -31,7 +31,7 @@ filter.show = function() {
     }
 };
 
-$(".menul-filter").bind("click", filter.show);
+$(".menul-filter").on("click", filter.show);
 hotkeyManager.addDescriptor({
     category: "Playlist management",
     action: "Filter",

@@ -254,9 +254,9 @@ function HotkeyBinding(hotkeyManager, hotkeyBinder, descriptor) {
 
     var dom = $(HOTKEY_HTML);
 
-    dom.bind("mouseenter", $.proxy(this.onMouseEnter, this));
-    dom.bind("mouseleave", $.proxy(this.onMouseLeave, this));
-    dom.bind("click", $.proxy(this.onClick, this));
+    dom.on("mouseenter", $.proxy(this.onMouseEnter, this));
+    dom.on("mouseleave", $.proxy(this.onMouseLeave, this));
+    dom.on("click", $.proxy(this.onClick, this));
 
     dom.find(".app-hotkey-name").text(this.descriptor.action);
     dom.find(".app-hotkey-binding").text(this.binding);
@@ -297,10 +297,10 @@ function HotkeyBinder(hotkeyManager, domNode) {
     this.listenUserHotkeys = $.proxy(this.listenUserHotkeys, this);
 
 
-    this.$().find(".app-accept-bind").bind("click", this.applyBinding);
-    this.$().find(".app-deny-bind").bind("click", this.cancelBinding);
-    this.$().find(".app-hotkey-unbind").bind("click", this.unbindBinding);
-    $(document).bind("keydown", this.listenUserHotkeys);
+    this.$().find(".app-accept-bind").on("click", this.applyBinding);
+    this.$().find(".app-deny-bind").on("click", this.cancelBinding);
+    this.$().find(".app-hotkey-unbind").on("click", this.unbindBinding);
+    $(document).on("keydown", this.listenUserHotkeys);
 
     this._hotkeyBindings = [];
     hotkeyManager.getCategories().forEach(function(category) {
@@ -406,7 +406,7 @@ HotkeyBinder.prototype.stopBinding = function() {
 };
 
 HotkeyBinder.prototype.destroy = function() {
-    $(document).unbind("keydown", this.listenUserHotkeys);
+    $(document).off("keydown", this.listenUserHotkeys);
 };
 
 

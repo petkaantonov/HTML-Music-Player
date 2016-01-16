@@ -425,7 +425,7 @@ equalizerPopup.on("open", function() {
         };
     });
 
-    $("#equalizer-preset-selector").bind("change", function() {
+    $("#equalizer-preset-selector").on("change", function() {
         var presetName = $(this).val();
 
         if (presetName !== "Custom") {
