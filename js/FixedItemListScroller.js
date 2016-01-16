@@ -163,6 +163,7 @@ FixedItemListScroller.prototype.contentHeight = function() {
 };
 
 FixedItemListScroller.prototype.settledScrollTop = function() {
+    if (!this.needScrollbar()) return 0;
     var ret = this._scrollTop|0;
     var itemHeight = this.itemHeight();
     var maxTop = this.length() * itemHeight - this.contentHeight();
