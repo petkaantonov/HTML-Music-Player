@@ -338,29 +338,85 @@ const validProperties = [
     "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
     "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
     "translateX", "translateY", "translateZ", "translate", "translate3d",
-    "skew", "skewX", "skewY",
+    "skew", "skewX", "skewY", "matrix", "matrix3d",
     "opacity",
     "blur", "brightness", "contrast", "drop-shadow", "greyscale", "hue-rotate",
     "invert", "saturate", "sepia"
 ];
-
-const multiProperties = ["scale", "skew", "translate", "scale3d", "translate3d", "rotate3d", "drop-shadow"];
+var rNames = new RegExp("(" + validProperties.join("|") +  ")\\((?:[^()]*|\\([^()]*\\))*\\)\s*", "g");
+const multiProperties = ["matrix", "matrix3d", "scale", "skew", "translate", "scale3d", "translate3d", "rotate3d", "drop-shadow"];
 const transformProperties = [
     "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
     "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
     "translateX", "translateY", "translateZ", "translate", "translate3d",
-    "skew", "skewX", "skewY"
+    "skew", "skewX", "skewY", "matrix", "matrix3d"
 ];
 const filterProperties = [
     "blur", "brightness", "contrast",
     "drop-shadow", "greyscale", "hue-rotate",
     "invert", "saturate", "sepia", "opacity"];
 
+const merge = function(baseStr, topStr) {
+    var baseValues = [];
+    var match;
+    rNames.lastIndex = 0;
+    var i = 0;
+    while ((match = rNames.exec(baseStr))) {
+        baseValues.push(match[1], match[0]);
+    }
+
+    rNames.lastIndex = 0;
+    matches: while ((match = rNames.exec(topStr))) {
+        for (var i = 0; i < baseValues.length; i += 2) {
+            if (baseValues[i] === match[1]) {
+                baseValues[i + 1] = match[0];
+                continue matches;
+            }
+        }
+        baseValues.push(match[1], match[0]);
+    }
+
+    var ret = "";
+    for (var i = 0; i < baseValues.length; i += 2) {
+        ret += (baseValues[i + 1] + " ");
+    }
+
+    return ret;
+};
+
+const replace = function(baseStr, topStr) {
+    var baseValues = [];
+    var match;
+    rNames.lastIndex = 0;
+    var i = 0;
+    while ((match = rNames.exec(baseStr))) {
+        baseValues.push(match[1], match[0]);
+    }
+
+    rNames.lastIndex = 0;
+    matches: while ((match = rNames.exec(topStr))) {
+        for (var i = 0; i < baseValues.length; i += 2) {
+            if (baseValues[i] === match[1]) {
+                baseValues.splice(i, 2);
+                continue matches;
+            }
+        }
+    }
+
+    var ret = "";
+    for (var i = 0; i < baseValues.length; i += 2) {
+        ret += (baseValues[i + 1] + " ");
+    }
+
+    return ret;
+};
+
 function AdditionalAnimationProperty(animator, property) {
     this.name = property.name + "";
     this.isTransform = transformProperties.indexOf(this.name) >= 0;
     this.isFilter = filterProperties.indexOf(this.name) >= 0;
     this.isMulti = multiProperties.indexOf(this.name) >= 0;
+    this.isPersistent = "persist" in property ? !!property.persist : true;
 
     if (validProperties.indexOf(this.name) === -1) {
         throw new Error(this.name + " is not an animatable property");
@@ -457,15 +513,18 @@ function Animator(dom, opts) {
         return !value.isTransform;
     });
 
+    var havePersistentTransforms = this._transforms.filter(filterIsPersistent).length > 0;
+    var havePersistentFilters = this._filters.filter(filterIsPersistent).length > 0;
     var baseFilter = $(this._domNode).css(filterProp);
     baseFilter = baseFilter === "none" ? "" : baseFilter;
     this._baseFilter = baseFilter + " ";
     var baseTransform = $(this._domNode).css("transform");
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
-    this._baseStyleFilter = this._domNode.style[filterProp] || "";
-    this._baseStyleTransform = this._domNode.style.transform || "";
+    this._baseStyleFilter = (havePersistentFilters ? baseFilter : this._domNode.style[filterProp]) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : this._domNode.style.transform) || "";
 
+    this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {
         return value.repeat !== "none";
     }).length > 0;
@@ -598,8 +657,7 @@ Animator.prototype.stop = function() {
     if (this.isAnimating()) {
         cancelAnimationFrame(this._frameId);
     }
-    this._domNode.style[filterProp] = this._baseStyleFilter;
-    this._domNode.style.transform = this._baseStyleTransform;
+    this._applyEndValues();
     this._animations = [];
     this.emit("animationEnd", this);
 };
@@ -654,6 +712,50 @@ Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     this._applyDirectProperties(node, current, total);
 };
 
+const filterIsPersistent = function(v) {return v.isPersistent;};
+const mapEndValue = function(v) {
+    var total = v.duration === -1 ? 1 : v.duration;
+    return v.getCssValue(total, total);
+};
+const mapStartValue = function(v) {
+    var total = v.duration === -1 ? 1 : v.duration;
+    return v.getCssValue(0, total);
+};
+
+Animator.prototype._applyEndValues = function() {
+    var persistentFilters = this._filters.filter(filterIsPersistent).map(mapEndValue).join(" ").trim();
+    var persistentTransforms = this._transforms.filter(filterIsPersistent).map(mapEndValue).join(" ").trim();
+    var baseFilters = this._baseStyleFilter.trim();
+    var baseTransforms = this._baseStyleTransform.trim();
+
+    if (baseFilters.length > 0 && persistentFilters.length > 0) {
+        this._domNode.style[filterProp] = merge(baseFilters, persistentFilters);
+    } else {
+        this._domNode.style[filterProp] = baseFilters + " " + persistentFilters;
+    }
+
+    if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
+        this._domNode.style.transform = merge(baseTransforms, persistentTransforms);
+    } else {
+        this._domNode.style.transform = baseTransforms + " " + persistentTransforms;
+    }
+};
+
+Animator.prototype._applyStartValues = function() {
+    var persistentFilters = this._filters.filter(filterIsPersistent).map(mapStartValue).join(" ").trim();
+    var persistentTransforms = this._transforms.filter(filterIsPersistent).map(mapStartValue).join(" ").trim();
+    var baseFilters = this._baseFilter.trim();
+    var baseTransforms = this._baseTransform.trim();
+
+    if (baseFilters.length > 0 && persistentFilters.length > 0) {
+        this._baseFilter = replace(baseFilters, persistentFilters);
+    }
+
+    if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
+        this._baseTransform = replace(baseTransforms, persistentTransforms);
+    }
+};
+
 Animator.prototype._gotAnimationFrame = function() {
     this._frameId = -1;
     var newFrameNeeded = false;
@@ -671,8 +773,7 @@ Animator.prototype._gotAnimationFrame = function() {
     if (newFrameNeeded) {
         this._scheduleFrame();
     } else {
-        this._domNode.style[filterProp] = this._baseStyleFilter;
-        this._domNode.style.transform = this._baseStyleTransform;
+        this._applyEndValues();
         this.emit("animationEnd");
     }
 };
@@ -694,6 +795,7 @@ Animator.prototype.animationEnd = function() {
 Animator.prototype.animate = function(duration, path) {
     if (path && !path._closed) throw new Error("path is not closed");
     if (!duration) duration = 300;
+    if (this._animations.length > 0) throw new Error("already animated");
     this._animations.push(new Animation(this, path, duration));
     if (this._frameId === -1) {
         this.emit("animationStart");

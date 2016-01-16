@@ -27,12 +27,6 @@ GlobalUi.contextMenuItem = function(text, icon, iconText) {
 GlobalUi.snackbar = new Snackbar({
     transitionInClass: "transition-in",
     transitionOutClass: "transition-out",
-    beforeTransitionIn: function($root) {
-        $root.find(".snackbar-title, .snackbar-action").css("opacity", 0).animate({opacity: 1}, 400, "easeIn");
-    },
-    beforeTransitionOut: function($root) {
-        $root.find(".snackbar-title, .snackbar-action").css("opacity", 1).animate({opacity: 0}, 400, "easeOut");
-    },
     nextDelay: 400,
     visibilityTime: 4400
 });

@@ -10,38 +10,44 @@ const Animator = require("./Animator");
 
 const shownPopups = [];
 const NULL = $(null);
-
-const blocker = $(".popup-blocker");
-
-function closePopups() {
-    shownPopups.forEach(function(v) {
-        v.close();
-    });
-}
-
-blocker.on("click", closePopups);
-
-if (touch) {
-    blocker.on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(closePopups));
-}
-var anim;
+var blocker = NULL;
+var anim = null;
 function showBlocker() {
     if (anim) {
         anim.cancel();
         anim = null;
+        domUtil.changeDom(function() {
+            blocker.remove();
+        });
     }
-    blocker.css("transform", "translate3d(0, 0, 0)");
-    var animator = new Animator(blocker[0], {
-        properties: [{
-            name: "opacity",
-            start: 0,
-            end: 55,
-            unit: "%",
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
+
+    function closePopups() {
+        shownPopups.forEach(function(v) {
+            v.close();
+        });
+    }
+
+    domUtil.changeDom(function() {
+        blocker = $("<div>", {class: "popup-blocker"}).appendTo("body");
+
+        blocker.on("click", closePopups);
+
+        if (touch) {
+            blocker.on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(closePopups));
+        }
+
+        var animator = new Animator(blocker[0], {
+            properties: [{
+                name: "opacity",
+                start: 0,
+                end: 55,
+                unit: "%",
+                duration: 300
+            }],
+            interpolate: Animator.DECELERATE_CUBIC
+        });
+        animator.animate();
     });
-    animator.animate();
 }
 
 function hideBlocker() {
@@ -55,9 +61,13 @@ function hideBlocker() {
         }],
         interpolate: Animator.DECELERATE_CUBIC
     });
+
     anim = animator.animate().then(function() {
-        blocker.css("transform", "translate3d(-1000%, 0, 0)");
-        anim = null;
+        domUtil.changeDom(function() {
+            blocker.remove();
+            blocker = NULL;
+            anim = null;
+        });
     });
 }
 
@@ -98,19 +108,23 @@ function Popup(opts) {
     $(window).on("resize", this.position);
     util.documentHidden.on("change", this.draggingEnd);
 
-    this._popupDom = this._initDom();
-    this._rect = this._popupDom[0].getBoundingClientRect();
-    this._viewPort = this._getViewPort();
+    this._popupDom = NULL;
+    this._rect = null;
+    this._viewPort = null;
 }
 util.inherits(Popup, EventEmitter);
+
+Popup.prototype._deinitDom = function() {
+    this.$().remove();
+    this._popupDom = NULL;
+};
 
 Popup.prototype._initDom = function() {
     var ret = $("<div>", {
         class: this.containerClass,
     }).css({
         zIndex: 100001,
-        position: "absolute",
-        transform: "translate3d(-1000%, 0, 0)"
+        position: "absolute"    
     }).appendTo("body");
 
     var headerText = $("<h2>").text(this.title() + "");
@@ -131,14 +145,14 @@ Popup.prototype._initDom = function() {
         header.on(domUtil.TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
     }
 
-    return ret;
+    this._popupDom = ret;
 };
 
 Popup.prototype.destroy = function() {
     $(window).off("resize blur", this.draggingEnd);
     $(window).off("resize", this.position);
     util.documentHidden.removeListener("change", this.draggingEnd);
-    this.$().remove();
+    this._deinitDom();
 };
 
 Popup.prototype.$ = function() {
@@ -199,6 +213,10 @@ Popup.prototype.open = function() {
             showBlocker();
         }
         
+        this._initDom();
+        this.emit("open", this);
+        this._rect = this.$()[0].getBoundingClientRect();
+        this._viewPort = this._getViewPort();
         this.position();
 
         if (this.transitionClass) {
@@ -217,7 +235,6 @@ Popup.prototype.open = function() {
         this.close();
         throw e;
     }
-    this.emit("open", this);
 };
 
 Popup.prototype.mousemoved = function(e) {
@@ -265,9 +282,9 @@ Popup.prototype.close = function() {
     shownPopups.splice(shownPopups.indexOf(this), 1);
     
     this.emit("close", this);
-    var $node = this._popupDom;
+    var self = this;
     Promise.resolve(this.beforeTransitionOut(this._popupDom)).finally(function() {
-        $node.css("transform", "translate3d(-1000%, 0, 0");
+        self._deinitDom();
     });
 
     this.draggingEnd();

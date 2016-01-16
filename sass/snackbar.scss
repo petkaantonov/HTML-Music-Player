@@ -1,3 +1,5 @@
+@import "variables";
+
 .snackbar-container {
     z-index: 100000;
     position: absolute;
@@ -41,21 +43,25 @@
 
 .snackbar-container.transition-in,
 .snackbar-container.transition-out {
-    transition: transform 0.4s cubic-bezier(.55, 0, .1, 1);
+    transition: all 0.4s cubic-bezier(.55, 0, .1, 1);
 }
 
 .snackbar-container.transition-in {
     transform: translate(-50%, 0);
+    @include css-filter(opacity(100%));
 }
 
 .snackbar-container.transition-in.initial {
     transform: translate(-50%, 100%);
+    @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out {
     transform: translate(-50%, 100%);
+    @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out.initial {
     transform: translate(-50%, 0);
+    @include css-filter(opacity(100%));
 }
