@@ -48,7 +48,7 @@ function Playlist(domNode, opts) {
     this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
     this._nextTrack = null;
 
-    this._fixedItemListScroller = new FixedItemListScroller(this.$trackContainer(), this._trackList, opts.itemHeight, {
+    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackList, opts.itemHeight, {
         shouldScroll: function() {
             return !this._draggable.isDragging()
         }.bind(this),
@@ -58,6 +58,7 @@ function Playlist(domNode, opts) {
         paging: false,
         minPrerenderedItems: 15,
         maxPrerenderedItems: 100,
+        contentContainer: this.$trackContainer(),
         scrollbar: this.$().find(".scrollbar-container"),
         railSelector: ".scrollbar-rail",
         knobSelector: ".scrollbar-knob"
