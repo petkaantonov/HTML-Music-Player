@@ -213,6 +213,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
 
     if (this.binSizeChangeMatcher) {
         util.addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
+        $(window).on("resize", this.binSizeMediaMatchChanged);
     }
 
     this.enabled = true;
@@ -386,6 +387,12 @@ VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
         if (this.renderer) {
             this.renderer.setDimensions(this.width, this.height);
         }
+
+        if (!this.needToDraw) {
+            this.needToDraw = true;
+            this.drawIdleBins(Date.now());
+        }
+
     }
 };
 
