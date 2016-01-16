@@ -1154,4 +1154,8 @@ Player.prototype.getMaximumAudioHardwareLatency = function() {
     return audioPlayer.getMaxLatency();
 };
 
+Player.prototype.setEffects = function(spec) {
+    audioPlayer.setEffects(spec);
+};
+
 module.exports = Player;

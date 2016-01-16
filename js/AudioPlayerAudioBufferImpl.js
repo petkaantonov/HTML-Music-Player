@@ -123,7 +123,6 @@ function AudioPlayer(audioContext, suspensionTimeout) {
 util.inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 
-
 // Android makes an audiocontext completely unusable after 1 min
 // of inactivity. This scenario can be detected by .currentTime
 // not progressing despite state being "running". In suspended
@@ -266,7 +265,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
 };
 
 const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
-const LOWEST = 0;
+const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
     var ua = $.ua;
@@ -384,6 +383,17 @@ AudioPlayer.prototype.createSourceNode = function() {
     var ret = new AudioPlayerSourceNode(this, nodeId++, this._audioContext, this._worker);
     this._sourceNodes.push(ret);
     return ret;
+};
+
+AudioPlayer.prototype.setEffects = function(spec) {
+    if (!Array.isArray(spec)) spec = [spec];
+    this._worker.postMessage({
+        nodeId: -1,
+        args: {
+            effects: spec
+        },
+        methodName: "setEffects"
+    });
 };
 
 function AudioPlayerSourceNode(player, id, audioContext, worker) {

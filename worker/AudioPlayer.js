@@ -1,18 +1,20 @@
 "use strict";
 self.EventEmitter = require("events");
 
-var ChannelMixer = require("./ChannelMixer");
-var sniffer = require("./sniffer");
-var codec = require("./codec");
-var demuxer = require("./demuxer");
-var FileView = require("./FileView");
-var seeker = require("./seeker");
-var pool = require("./pool");
+const ChannelMixer = require("./ChannelMixer");
+const sniffer = require("./sniffer");
+const codec = require("./codec");
+const demuxer = require("./demuxer");
+const FileView = require("./FileView");
+const seeker = require("./seeker");
+const pool = require("./pool");
+const Effect = require("./Effect");
 
-var allocResampler = pool.allocResampler;
-var allocDecoderContext = pool.allocDecoderContext;
-var freeResampler = pool.freeResampler;
-var freeDecoderContext = pool.freeDecoderContext;
+
+const allocResampler = pool.allocResampler;
+const allocDecoderContext = pool.allocDecoderContext;
+const freeResampler = pool.freeResampler;
+const freeDecoderContext = pool.freeDecoderContext;
 
 
 const channelMixer = new ChannelMixer(2);
@@ -22,6 +24,31 @@ var resamplerQuality = 0;
 
 const audioPlayerMap = Object.create(null);
 
+const effects = [];
+const setEffects = function(spec) {
+    effectLoop: for (var i = 0; i < spec.length; ++i) {
+        try {
+            var effect = Effect.create(spec[i]);
+        } catch (e) {
+            continue effectLoop;
+        }
+
+        for (var j = 0; j < effects.length; ++j) {
+            if (effects[j] instanceof effect.constructor) {
+                if (effect.isEffective()) {
+                    effects[j] = effect;
+                } else {
+                    effects.splice(j, 1);
+                }
+                continue effectLoop;
+            }
+        }
+
+        if (effect.isEffective()) {
+            effects.push(effect);
+        }
+    }
+};
 
 const message = function(nodeId, methodName, args, transferList) {
     if (transferList === undefined) transferList = [];
@@ -56,6 +83,8 @@ self.onmessage = function(event) {
             }
         } else if (data.methodName === "register") {
             audioPlayerMap[args.id] = new AudioPlayer(args.id);
+        } else if (data.methodName === "setEffects") {
+            setEffects(args.effects);
         }
     } else {
         var obj = audioPlayerMap[receiver];
@@ -339,19 +368,26 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
         channels = channelMixer.mix(channels);
 
         for (var ch = 0; ch < channels.length; ++ch) {
-            ret[ch] = new Float32Array(transferList[transferListIndex++]);
+            ret.channels[ch] = new Float32Array(transferList[transferListIndex++]);
         }
 
         if (self.metadata.sampleRate !== hardwareSampleRate) {
             ret.length = self.resampler.getLength(ret.length);
-            self.resampler.resample(channels, undefined, ret);
+            self.resampler.resample(channels, undefined, ret.channels);
         } else {
             for (var ch = 0; ch < channels.length; ++ch) {
-                var dst = ret[ch];
+                var dst = ret.channels[ch];
                 var src = channels[ch];
                 for (var i = 0; i < src.length; ++i) {
                     dst[i] = src[i];
                 }
+            }
+        }
+
+        for (var e = 0; e < effects.length; ++e) {
+            var effect = effects[e];
+            for (var ch = 0; ch < channels.length; ++ch) {
+                effect.applyToChannel(ch, ret.channels[ch]);
             }
         }
     });
