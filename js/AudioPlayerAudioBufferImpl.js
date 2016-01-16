@@ -809,6 +809,13 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
                                                     channelData,
                                                     i === args.trackEndingBufferIndex);
         sources[i] = sourceDescriptor;
+
+        if (sourceDescriptor.isLastForTrack &&
+            sourceDescriptor.endTime < this._duration - this._player.getBufferDuration()) {
+            this._duration = sourceDescriptor.endTime;
+            this.emit("timeUpdate", this._currentTime, this._duration);
+            this.emit("durationChange", this._duration);
+        }
     }
 
     this._freeTransferList(transferList);
@@ -1061,7 +1068,6 @@ AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     this._seek(this._currentTime, false);
     codeIsCold = false;
     this.emit("timeUpdate", this._currentTime, this._duration);
-    this.emit("durationChange", this._duration);
     this.emit("canPlay");
 };
 
@@ -1085,7 +1091,6 @@ AudioPlayerSourceNode.prototype._applyReplacementLoadedArgs = function(args) {
     this._currentSeekEmitted = false;
     this._lastBufferLoadedEmitted = false;
     this._nullifyPendingLoadRequests();
-    this.emit("durationChange", this._duration);
     this._timeUpdate();
 };
 
