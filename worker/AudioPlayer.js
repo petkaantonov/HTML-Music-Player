@@ -364,6 +364,14 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
     var gotData = false;
     this.decoderContext.once("data", function(channels) {
         gotData = true;
+
+        for (var e = 0; e < effects.length; ++e) {
+            var effect = effects[e];
+            for (var ch = 0; ch < channels.length; ++ch) {
+                effect.applyToChannel(ch, channels[ch]);
+            }
+        }
+
         ret.length = channels[0].length;
         channels = channelMixer.mix(channels);
 
@@ -381,13 +389,6 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
                 for (var i = 0; i < src.length; ++i) {
                     dst[i] = src[i];
                 }
-            }
-        }
-
-        for (var e = 0; e < effects.length; ++e) {
-            var effect = effects[e];
-            for (var ch = 0; ch < channels.length; ++ch) {
-                effect.applyToChannel(ch, ret.channels[ch]);
             }
         }
     });
