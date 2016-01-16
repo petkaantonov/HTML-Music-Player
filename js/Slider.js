@@ -9,16 +9,8 @@ function Slider(domNode, opts) {
     EventEmitter.call(this);
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
-
-    if (this._direction == "vertical") {
-        this._mouseCoordinateProp = "clientY";
-        this._offsetDirectionProp = "top";
-        this._offsetDimensionFunc = "outerHeight";
-    } else {
-        this._mouseCoordinateProp = "clientX";
-        this._offsetDirectionProp = "left";
-        this._offsetDimensionFunc = "outerWidth";
-    }
+    this._rect = null;
+    this._sliding = false;
 
     this._onMousemove = this._onMousemove.bind(this);
     this._onMouseup = this._onMouseup.bind(this);
@@ -33,10 +25,7 @@ function Slider(domNode, opts) {
         this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
     }
 
-    this._clickMove = opts && opts.clickMove || true;
-    this._offset = 0;
-    this._dimension = 0;
-    this._sliding = false;
+
     this._onReLayout = $.proxy(this._onReLayout, this);
 }
 util.inherits(Slider, EventEmitter);
@@ -51,10 +40,7 @@ Slider.prototype._onMousedown = function(e) {
     this._sliding = true;
     this._calculateDimensions();
     this.emit("slideBegin", e);
-
-    if (this._clickMove) {
-        this.emit("slide", this._percentage(e));
-    }
+    this.emit("slide", this._percentage(e));
 
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
 
@@ -95,8 +81,7 @@ Slider.prototype.$ = function() {
 };
 
 Slider.prototype._calculateDimensions = function() {
-    this._offset = this.$().offset()[this._offsetDirectionProp];
-    this._dimension = this.$()[this._offsetDimensionFunc]();
+    this._rect = this.$()[0].getBoundingClientRect();
 };
 
 Slider.prototype._onReLayout = function() {
@@ -104,10 +89,12 @@ Slider.prototype._onReLayout = function() {
 };
 
 Slider.prototype._percentage = function(e) {
-    var r = (e[this._mouseCoordinateProp] - this._offset) / this._dimension;
-    r = r > 1 ? 1 : r;
-    r = r < 0 ? 0 : r;
-    return r;
+    if (this._direction === "vertical") {
+        var r = (e.clientY - this._rect.top) / this._rect.height;
+    } else {
+        var r = (e.clientX - this._rect.left) / this._rect.width;
+    }
+    return Math.max(0, Math.min(1, r));
 };
 
 module.exports = Slider;
