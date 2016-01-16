@@ -346,23 +346,10 @@ AudioPlayer.prototype.loadBlob = function(args) {
 };
 
 const EMPTY_F32 = new Float32Array(0);
-AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListIndex, _startTime) {
-    var offset = this.offset;
-    var samplesNeeded = bufferTime * this.metadata.sampleRate;
-    var bytesNeeded = Math.ceil(this.metadata.maxByteSizePerSample * samplesNeeded);
-    var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset);
-    var srcStart = offset - this.fileView.start;
-
-    var ret = {
-        channels: new Array(channelMixer.getChannels()),
-        length: 0,
-        startTime: _startTime || this.decoderContext.getCurrentSample() / this.metadata.sampleRate,
-        endTime: 0
-    };
-
+AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListIndex) {
     var self = this;
     var gotData = false;
-    this.decoderContext.once("data", function(channels) {
+    function dataListener(channels) {
         gotData = true;
 
         for (var e = 0; e < effects.length; ++e) {
@@ -391,26 +378,46 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
                 }
             }
         }
-    });
+    }
+    this.decoderContext.once("data", dataListener);
+    
+    var samplesNeeded = bufferTime * this.metadata.sampleRate;
+    var bytesNeeded = Math.ceil(this.metadata.maxByteSizePerSample * samplesNeeded);
 
-    var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
-    this.offset += (srcEnd - srcStart);
+    var ret = {
+        channels: new Array(channelMixer.getChannels()),
+        length: 0,
+        startTime: this.decoderContext.getCurrentSample() / this.metadata.sampleRate,
+        endTime: 0
+    };
 
-    if (!gotData) {
-        if (this.metadata.dataEnd - this.offset >
-            this.metadata.maxByteSizePerSample * this.metadata.samplesPerFrame * 10) {
-            return this._decodeNextBuffer(transferList, transferListIndex, ret.startTime);
-        }
-
-        this.decoderContext.end();
-        this.ended = true;
+    while (!gotData) {
+        var offset = this.offset;
+        var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset);
+        var srcStart = offset - this.fileView.start;
+        var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
+        this.offset += (srcEnd - srcStart);
 
         if (!gotData) {
-            for (var ch = 0; ch < ret.channels.length; ++ch) {
-                ret.channels[ch] = EMPTY_F32;
+            if (this.metadata.dataEnd - this.offset >
+                this.metadata.maxByteSizePerSample * this.metadata.samplesPerFrame * 10) {
+                continue;
+            } else {
+                this.decoderContext.end();
+                this.ended = true;
+
+                if (!gotData) {
+                    gotData = true;
+                    for (var ch = 0; ch < ret.channels.length; ++ch) {
+                        ret.channels[ch] = EMPTY_F32;
+                    }
+                    ret.length = EMPTY_F32.length;
+                }
             }
         }
     }
+
+    this.decoderContext.removeListener("data", dataListener);
     ret.endTime = ret.startTime + (ret.length / hardwareSampleRate);
     return ret;
 };

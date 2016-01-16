@@ -194,13 +194,19 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     this.transitionInfoArray = new Array(this.getNumBins());
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
+    this.emptyBinDrawerFrameId = -1;
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
     this.latencyPopupOpened = this.latencyPopupOpened.bind(this);
+    this.playerStopped = this.playerStopped.bind(this);
+    this.playerStarted = this.playerStarted.bind(this);
+    this.emptyBinDraw = this.emptyBinDraw.bind(this);
 
     this.latencyPopup = GlobalUi.makePopup("Latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
     this.latencyPopup.on("open", this.latencyPopupOpened);
+    this.player.on("stop", this.playerStopped);
+    this.player.on("play", this.playerStarted);
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
@@ -455,6 +461,26 @@ VisualizerCanvas.prototype.objectsPerBin = function() {
 
 VisualizerCanvas.prototype.needsToDraw = function() {
     return this.needToDraw || this.isEnabled();
+};
+
+VisualizerCanvas.prototype.emptyBinDraw = function(now) {
+    this.emptyBinDrawerFrameId = -1;
+    this.drawIdleBins(now);
+    if (this.needToDraw) {
+        this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
+    }
+};
+
+VisualizerCanvas.prototype.playerStarted = function() {
+    if (this.emptyBinDrawerFrameId !== -1) {
+        cancelAnimationFrame(this.emptyBinDrawerFrameId);
+        this.emptyBinDrawerFrameId = -1;
+    }
+};
+
+VisualizerCanvas.prototype.playerStopped = function() {
+    this.needToDraw = true;
+    this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
 };
 
 VisualizerCanvas.prototype.drawBins = function(now, bins) {

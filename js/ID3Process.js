@@ -283,14 +283,17 @@ ID3Process.prototype.loadNext = function() {
                     tagData.setDataFromTagDatabase(value);
                     return tagDatabase.insert(id, value);
                 }
-            }).catch(AudioError, function() {
-                track.setError(Track.DECODE_ERROR);
-            }).catch(TrackWasRemovedError, function() {});
-
+            })
+            .catch(AudioError, function() {})
+            .catch(TrackWasRemovedError, function() {});
             return tagData;
         })
         .catch(AudioError, function(e) {
-            track.setError(Track.DECODE_ERROR);
+            track.setTagData(new TagData(track, null, null, {
+                channels: 2,
+                sampleRate: 44100,
+                duration: NaN
+            }));
         })
         .catch(function(e) {
             if (e instanceof Error) {

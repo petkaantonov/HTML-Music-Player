@@ -287,12 +287,12 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     }
 
     this.setCurrentTrack(track, trackChangeKind);
-
-    if (track.hasError()) {
+    var trackHasError = track.hasError();
+    if (trackHasError && trackChangeKind === KIND_IMPLICIT) {
         this._errorCount++;
         if (this._mode === "repeat" && this.length > 1) {
             track = Playlist.Modes.normal.call(this, track);
-            this.setCurrentTrack(track, trackChangeKind);
+            this.setCurrentTrack(track, KIND_IMPLICIT);
         } else {
             return this.next();
         }
@@ -302,7 +302,7 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     this._currentPlayId = playlistRunningPlayId++;
     this.emit("trackChange", track);
 
-    if (!doNotRecordHistory) {
+    if (!doNotRecordHistory && !trackHasError) {
         if (this._trackHistory.push(this.getCurrentTrack()) > MAX_HISTORY) {
             this._trackHistory.shift();
         }
@@ -509,7 +509,9 @@ Playlist.prototype.add = function(tracks) {
 
 Playlist.prototype.stop = function() {
     this.setCurrentTrack(null, KIND_EXPLICIT);
+    this._errorCount = 0;
     this._updateNextTrack();
+    this.emit("playlistEmpty");
 };
 
 Playlist.prototype.trackIndexChanged = function() {

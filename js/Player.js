@@ -862,11 +862,6 @@ Player.prototype.audioManagerSeekIntent = function(audioManager, time) {
 };
 
 Player.prototype.trackFinished = function() {
-    if (this.currentAudioManager &&
-        this.currentAudioManager.track &&
-        this.currentAudioManager.track.hasError()) {
-        this.currentAudioManager.track.unsetError();
-    }
     this.playlist.trackPlayedSuccessfully();
     this.nextTrackImplicitly();
 };

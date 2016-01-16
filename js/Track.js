@@ -639,6 +639,7 @@ Track.prototype.getSearchString = function() {
 };
 
 Track.prototype.played = function() {
+    this.unsetError();
     this._lastPlayed = Date.now();
 };
 

@@ -20,6 +20,9 @@ const TAG = 0x544147|0;
 const DATA = 0x64617461|0;
 const FACT = 0x66616374|0;
 
+const LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP = 5 * 1024 * 1024;
+const NETWORK_FILE_MAX_BYTES_UNTIL_GIVEUP = 50 * 1024;
+
 
 function probablyMp3Header(header) {
     return !(((header & 0xffe00000) !== -2097152)     ||
@@ -119,6 +122,8 @@ function demuxMp3(view) {
         return demuxMp3FromWav(dataStart, view);
     }
 
+
+
     var id3v1AtEnd = false;
     /* Takes way too long.
     var id3v1AtEnd = (view.getUint32(view.file.size - 128) >>> 8) === TAG;
@@ -127,7 +132,7 @@ function demuxMp3(view) {
         dataEnd -= 128;
     }*/
 
-    var max = 2314 * 20;
+    var max = Math.min(dataEnd, LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP);
     var header = 0;
     var metadata = null;
     var headersFound = 0;
@@ -175,7 +180,7 @@ function demuxMp3(view) {
                     continue;
                 }
             }
-        
+
             headersFound++;
             if (metadata) {
                 if (metadata.bitRate !== bitRate) {
@@ -193,7 +198,7 @@ function demuxMp3(view) {
                     sampleRate: sampleRate,
                     channels: ((header >> 6) & 3) === 3 ? 1 : 2,
                     bitRate: bitRate,
-                    dataStart: dataStart,
+                    dataStart: index,
                     dataEnd: dataEnd,
                     averageFrameSize: ((bitRate / 1000) * 144000) / (sampleRate << lsf),
                     vbr: false,
