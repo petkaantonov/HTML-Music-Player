@@ -214,7 +214,7 @@ var defaults = {
     "Open directory picker": "alt+d",
     "Open file picker": "alt+f",
     "Open hotkey manager": "alt+z",
-    "Open equalizer": "alt+x",
+    "Open effects": "alt+x",
     "Open crossfading options": "alt+c",
     "Toggle time display mode": "alt+t"
 };

@@ -5,7 +5,7 @@ const Promise = require("../lib/bluebird.js");
 const MINIMUM_DURATION = 3;
 const AudioPlayer = require("./AudioPlayerAudioBufferImpl");
 const AudioVisualizer = require("./AudioVisualizer");
-const equalizer = require("./equalizer");
+const effects = require("./effects");
 const crossfading = require("./crossfading");
 const EventEmitter = require("events");
 const util = require("./util");
@@ -85,7 +85,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
     track.on("tagDataUpdate", this.trackTagDataUpdated);
-    equalizer.on("equalizerChange", this.equalizerChanged);
+    effects.on("equalizerChange", this.equalizerChanged);
     crossfading.on("crossFadingChange", this.crossFadingChanged);
     player.playlist.on("nextTrackChange", this.nextTrackChanged);
     
@@ -123,7 +123,7 @@ AudioManager.prototype.setupNodes = function() {
 
     this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
-    this.connectEqualizerFilters(equalizer.getBands(this.track));
+    this.connectEqualizerFilters(effects.getEqualizerBands(this.track));
     this.volumeGain.connect(this.seekGain);
     this.seekGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
@@ -263,7 +263,7 @@ AudioManager.prototype.trackTagDataUpdated = function() {
 AudioManager.prototype.normalizeLoudness = function() {
     if (this.destroyed) return;
     var track = this.track;
-    var replayGain = equalizer.decibelChangeToAmplitudeRatio(
+    var replayGain = effects.decibelChangeToAmplitudeRatio(
         track.getTrackGain() || track.getAlbumGain() || -6);
 
     if (track.getTrackPeak() * replayGain > 1) {
@@ -282,7 +282,7 @@ AudioManager.prototype.getImage = function() {
 
 AudioManager.prototype.equalizerChanged = function() {
     if (this.destroyed) return;
-    this.connectEqualizerFilters(equalizer.getBands(this.track));
+    this.connectEqualizerFilters(effects.getEqualizerBands(this.track));
 };
 
 AudioManager.prototype.crossFadingChanged = function() {
@@ -573,7 +573,7 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    equalizer.removeListener("equalizerChange", this.equalizerChanged);
+    effects.removeListener("equalizerChange", this.equalizerChanged);
     crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);

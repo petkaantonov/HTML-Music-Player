@@ -213,9 +213,9 @@ var playlistModeManager = new PlaylistModeManager(".playlist-controls-container"
 
 GlobalUi.makeTooltip($(".menul-folder"), "Add a folder");
 GlobalUi.makeTooltip($(".menul-files"), "Add files");
-GlobalUi.makeTooltip($(".menul-hotkeys"), "Configure shortcuts");
-GlobalUi.makeTooltip($(".menul-crossfade"), "Configure crossfading");
-GlobalUi.makeTooltip($(".menul-equalizer"), "Configure equalizer");
+GlobalUi.makeTooltip($(".menul-hotkeys"), "Customize shortcuts");
+GlobalUi.makeTooltip($(".menul-crossfade"), "Customize crossfading");
+GlobalUi.makeTooltip($(".menul-effects"), "Customize effects");
 
 playlist.main.on("trackChange", function(track) {
     if (!track) return;

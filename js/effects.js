@@ -363,7 +363,7 @@ var html = (function() {
 })();
 
 
-const equalizerPopup = GlobalUi.makePopup("Equalizer", html, ".menul-equalizer");
+const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects");
 
 equalizerPopup.on("open", function() {
     var currentGain =  $("#equalizer-current-gain");
@@ -503,20 +503,20 @@ keyValueDatabase.getInitialValues().then(function(values) {
     }
 });
 
-equalizer.getBands = function() {
+equalizer.getBands = equalizer.getEqualizerBands = function() {
     return equalizer.equalizer;
 };
 
 
-$(".menul-equalizer").click(openEditor);
+$(".menul-effects").click(openEditor);
 
 if (touch) {
-    $(".menul-equalizer").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
+    $(".menul-effects").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
 }
 
 hotkeyManager.addDescriptor({
     category: "General actions",
-    action: "Open equalizer",
-    description: "Opens the equalizer popup.",
+    action: "Open effects",
+    description: "Opens the effects customization popup.",
     handler: openEditor
 });
