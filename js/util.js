@@ -359,7 +359,8 @@ util.truncateUp = function(num) {
 
 util.toTimeString = function(secs) {
     if (!isFinite(secs) || secs == null) return "";
-    secs = Math.floor(secs);
+    var sign = secs < 0 ? -1 : 1;
+    secs = Math.floor(Math.abs(secs));
     var days, hours, minutes, seconds;
 
     days = (secs / 86400) >> 0;
@@ -370,7 +371,7 @@ util.toTimeString = function(secs) {
     minutes = minutes < 10 ? "0" + minutes : minutes;
     hours = hours && hours < 10 ? "0" + hours : hours;
 
-    return "" + (days ? days + " - " : "") + (hours ? hours + ":" : "") +
+    return (sign === -1 ? "-" : "") + (days ? days + " - " : "") + (hours ? hours + ":" : "") +
         minutes + ":" + seconds;
 };
 

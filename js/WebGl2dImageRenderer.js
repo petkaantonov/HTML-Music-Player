@@ -36,7 +36,7 @@ const FRAGMENT_SHADER_SOURCE = "                                            \n\
 function getContext(canvas) {
     var gl;
     try {
-        gl = canvas.getContext("webgl", {premultipliedAlpha: true});
+        gl = canvas.getContext("webgl", {premultipliedAlpha: true, alpha: false});
     } catch (e) {
         gl = null;
     }
@@ -248,6 +248,7 @@ WebGl2dImageRenderer.prototype.drawScene = function() {
         }
         return;
     }
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.alphaBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, this.actuallyChangedAlphaValuesStartIndex(), this.alphaStart);

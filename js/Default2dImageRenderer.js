@@ -4,7 +4,7 @@
 function Default2dImageRenderer(image, visualizerCanvas) {
     this.image = image;
     this.visualizerCanvas = visualizerCanvas;
-    this.context = visualizerCanvas.canvas.getContext("2d");
+    this.context = visualizerCanvas.canvas.getContext("2d", {alpha: false});
     this.width = this.height = 0;
 }
 

@@ -901,6 +901,27 @@ util.mouseWheelScrollHandler = function(fn) {
     };
 };
 
+var rafCallbacks = [];
+var rafId = -1;
+var rafCallback = function(now) {
+    rafId = -1;
+    for (var i = 0; i < rafCallbacks.length; ++i) {
+        rafCallbacks[i].call(null, now);
+    }
+    rafCallbacks.length = 0;
+};
+
+util.changeDom = function(callback) {
+    if (typeof callback !== "function") throw new Error("callback must be a function");
+    for (var i = 0; i < rafCallbacks.length; ++i) {
+        if (rafCallbacks[i] === callback) return;
+    }
+    rafCallbacks.push(callback);
+    if (rafId === -1) {
+        rafId = requestAnimationFrame(rafCallback);
+    }
+};
+
 
 var rtouchevent = /^touch/;
 util.isTouchEvent = function(e) {

@@ -7,7 +7,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="description" content="noindex, no follow" />
 <meta name="robots" content="noindex, nofollow" />
-<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>HTML Music Player</title>
 </head>
 <body class="ui-text">
@@ -74,10 +74,10 @@
         <div class="player-upper-container">
             <div class="playback-status-wrapper">
                 <div class="hidden time-container slanted left-side-slant right-side-slant current-time-container">
-                    <span class="current-time">00:00</span>
+                    <canvas class="current-time"></canvas>
                 </div>
                 <div class="hidden time-container slanted left-side-slant right-side-slant total-time-container">
-                    <span class="total-time">00:00</span>
+                    <canvas class="total-time"></canvas>
                 </div>
             </div>
 
@@ -172,7 +172,6 @@
         </div>
     </div>
 </div>
-<div class="popup-blocker"></div>
 <script type="text/javascript">
 var DEBUGGING = true;
 var __PROJECT__TITLE = "HTML Music Player";

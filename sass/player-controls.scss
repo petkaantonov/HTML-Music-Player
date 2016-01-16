@@ -332,7 +332,6 @@
     bottom: 0px;
     transform: translateY(0);
     transition: transform .4s cubic-bezier(.55, 0, .1, 1);
-    will-change: contents;
 }
 
 .playback-status-wrapper .time-container.hidden {
@@ -348,6 +347,12 @@
     padding: 4px 4px 0px 4px;
     position: absolute;
     right: 35px;
+}
+
+.playback-status-wrapper .time-container .total-time,
+.playback-status-wrapper .time-container .current-time {
+    width: 40px;
+    height: 16px;
 }
 
 .slanted {

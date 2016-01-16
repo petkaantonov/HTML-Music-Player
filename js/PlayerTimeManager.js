@@ -5,6 +5,7 @@ const keyValueDatabase = require("./KeyValueDatabase");
 const util = require("./util");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const pixelRatio = window.devicePixelRatio || 1;
 
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
@@ -20,8 +21,7 @@ function PlayerTimeManager(dom, player, opts) {
     this.totalTime = 0;
     this.currentTime = 0;
     this.seekSlider = opts.seekSlider;
-    this._displayedTimeRight = 0;
-    this._displayedTimeLeft = 0;
+    this._displayedTimeRight = this._displayedTimeLeft = -1;
     this._transitionEnabled = false;
     this._totalTimeDomNode = this.$().find(opts.totalTimeDom);
     this._currentTimeDomNode = this.$().find(opts.currentTimeDom);
@@ -38,6 +38,7 @@ function PlayerTimeManager(dom, player, opts) {
     this.playerTimeProgressed = this.playerTimeProgressed.bind(this);
     this.containerClicked = this.containerClicked.bind(this);
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
+    this._updateTimeText = this._updateTimeText.bind(this);
 
     this.seekSlider.on("slideBegin", this.slideBegun);
     this.seekSlider.on("slideEnd", this.slideEnded);
@@ -50,6 +51,25 @@ function PlayerTimeManager(dom, player, opts) {
     if (touch) {
         this.$timeContainer().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.containerClicked));
     }
+
+    var currentTimeDom = this.$currentTime()[0];
+    var totalTimeDom = this.$totalTime()[0];
+    var width = this.$currentTime().width() * pixelRatio;
+    var height = this.$currentTime().height() * pixelRatio;
+
+    this.timeDisplayWidth = width;
+    this.timeDisplayHeight = height;
+    totalTimeDom.width = currentTimeDom.width = width;
+    totalTimeDom.height = currentTimeDom.height = height;
+
+
+    this.currentTimeCtx = currentTimeDom.getContext("2d");
+    this.totalTimeCtx = totalTimeDom.getContext("2d");
+    this.totalTimeCtx.font = this.currentTimeCtx.font = ((14 * devicePixelRatio)|0) + "px Droid Sans";
+    this.totalTimeCtx.fillStyle = this.currentTimeCtx.fillStyle = "#7a7a7a";
+    this.totalTimeCtx.textAlign = this.currentTimeCtx.textAlign = "center";
+    this.totalTimeCtx.textBaseline = this.currentTimeCtx.textBaseline = "bottom";
+
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
@@ -103,7 +123,7 @@ PlayerTimeManager.prototype.slideEnded = function(percentage) {
     if (this.player.isStopped) return;
     var duration = this.player.getDuration();
     if (duration) {
-        this.setCurrentTime(duration * percentage);
+        this.setTimes(duration * percentage, null);
         this.player.seek(duration * percentage);
     }
 };
@@ -112,69 +132,65 @@ PlayerTimeManager.prototype.slided = function(percentage) {
     if (this.player.isStopped) return;
     var duration = this.player.getDuration();
     if (duration) {
-        this.setCurrentTime(duration * percentage);
+        this.setTimes(duration * percentage, null);
     }
 };
 
 PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTime) {
     if (this.seeking) return;
-    this.setCurrentTime(playedTime);
-    this.setTotalTime(totalTime);
+    this.setTimes(playedTime, totalTime);
 };
 
-PlayerTimeManager.prototype.setTotalTime = function(time) {
+PlayerTimeManager.prototype._updateTimeText = function(now) {
+    this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
+    this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
+    this.currentTimeCtx.fillText(util.toTimeString(this._displayedTimeLeft),
+                                ((this.timeDisplayWidth - 1 * devicePixelRatio) / 2)|0,
+                                (this.timeDisplayHeight + 2 * devicePixelRatio)|0);
+    this.totalTimeCtx.fillText(util.toTimeString(this._displayedTimeRight),
+                                ((this.timeDisplayWidth - 1 * devicePixelRatio) / 2)|0,
+                                (this.timeDisplayHeight + 2 * devicePixelRatio)|0);
+};
+
+PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
     this._scheduleUpdate();
-    this.checkVisibility(time);
-
-    if (this.displayMode === DISPLAY_ELAPSED) {
-        var totalTime = Math.floor(time);
-        if (this._displayedTimeRight !== totalTime) {
-            this.$totalTime().text(util.toTimeString(totalTime));
-            this._displayedTimeRight = totalTime;
+    if (totalTime !== null) {
+        this.checkVisibility(totalTime);
+        if (this.displayMode === DISPLAY_ELAPSED) {
+            var totalTimeFloored = Math.floor(totalTime);
+            if (this._displayedTimeRight !== totalTimeFloored) {
+                this._displayedTimeRight = totalTimeFloored;
+                domUtil.changeDom(this._updateTimeText);
+            }
         }
+
+        this.totalTime = totalTime;
     }
 
-    this.totalTime = time;
-};
+    if (currentTime !== null) {
+        var currentTimeFloored = Math.floor(currentTime);
 
-PlayerTimeManager.prototype.setCurrentTime = function(time) {
-    this._scheduleUpdate();
-    var currentTime = Math.floor(time);
+        if (this._displayedTimeLeft !== currentTimeFloored) {
+            this._displayedTimeLeft = currentTimeFloored;
+            domUtil.changeDom(this._updateTimeText);
 
-    if (this._displayedTimeLeft !== currentTime) {
-        this._displayedTimeLeft = currentTime;
-        this.$currentTime().text(util.toTimeString(currentTime));
-    }
-
-    if (this.displayMode === DISPLAY_REMAINING) {
-        var remainingTime = Math.floor(Math.max(0, this.totalTime - time));
-        if (this._displayedTimeRight !== remainingTime) {
-            this.$totalTime().text("-" + util.toTimeString(remainingTime));
-            this._displayedTimeRight = remainingTime;
+            if (this.displayMode === DISPLAY_REMAINING) {
+                this._displayedTimeRight = -(Math.floor(Math.max(0, this.totalTime - currentTime)));
+            }
         }
+        this.currentTime = currentTime;
     }
-    
-    this.currentTime = time;
 };
-
-const progressValues = new Array(1025);
-for (var i = 0; i < progressValues.length; ++i) {
-    var percentage = -((1 - (i / 1024)) * 100) + "%"
-    progressValues[i] = util.internString("translate3d(" + percentage + ",0,0)");
-}
 
 PlayerTimeManager.prototype._updateProgress = function() {
     this.frameId = -1;
-
-    var transform;
+    var percentage;
     if (this.currentTime === 0 || this.totalTime === 0) {
-        transform = progressValues[0];
+        percentage = 0;
     } else {
-        var progressIndex = ((this.currentTime / this.totalTime * 1024)|0);
-        transform = progressValues[progressIndex];
+        percentage = this.currentTime / this.totalTime * 100;
     }
-    
-    this.$timeProgress()[0].style.transform = transform;
+    this.$timeProgress()[0].style.transform = "translate3d(" + (percentage - 100) + "%,0,0)";
 };
 
 PlayerTimeManager.prototype._scheduleUpdate = function() {
@@ -186,10 +202,10 @@ PlayerTimeManager.prototype._scheduleUpdate = function() {
 PlayerTimeManager.prototype.forceUpdate = function() {
     var currentTime = this.currentTime;
     var totalTime = this.totalTime;
+    this._displayedTimeRight = this._displayedTimeLeft = -1;
     this.currentTime = currentTime + 1;
     this.totalTime = totalTime + 1;
-    this.setTotalTime(totalTime);
-    this.setCurrentTime(currentTime);
+    this.setTimes(currentTime, totalTime);
     this._scheduleUpdate();
 };
 
@@ -231,11 +247,11 @@ PlayerTimeManager.prototype.checkVisibility = function(duration) {
 
 PlayerTimeManager.prototype.newTrackLoaded = function() {
     if (this.seeking) return;
+    this._displayedTimeRight = this._displayedTimeLeft = -1;
     var duration = Math.max(this.player.getProbableDuration() || 0, 0);
     this.checkVisibility(duration);
-    this.setTotalTime(duration);
     this.currentTime = -1;
-    this.setCurrentTime(0);
+    this.setTimes(0, duration);
     this._scheduleUpdate();
 };
 
