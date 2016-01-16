@@ -23,7 +23,6 @@ Selectable.prototype.trackMouseDown = function(e, track) {
     }
 
     if (e.which === 3) {
-        this._clearSelection();
         return this.setPriorityTrack(track);
     }
 

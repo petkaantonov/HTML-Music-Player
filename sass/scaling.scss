@@ -19,7 +19,7 @@
         width: $medium-small-screen-width;
     }
 }
-
+/*
 .tracks-list-container.has-scrollbar .track-container {
     @include large-screen {
         width: $large-screen-width - $scrollbar-width;
@@ -37,6 +37,27 @@
         width: $medium-small-screen-width - $scrollbar-width;
     }
 }
+*/
+
+/*
+.tracks-list-container.has-scrollbar .track-info {
+    @include large-screen {
+        width: $large-screen-width - 242px - $scrollbar-width;
+    }
+
+    @include small-screen {
+        width: $small-screen-width - 242px - $scrollbar-width;
+    }
+
+    @include medium-small-screen {
+        width: $medium-small-screen-width - 242px - $scrollbar-width + 109px;
+    }
+
+    @include ultra-small-screen {
+        width: $ultra-small-screen-width - 242px - $scrollbar-width + 109px;
+    }
+}
+*/
 
 .track .track-info {
     @include large-screen {
@@ -53,24 +74,6 @@
 
     @include ultra-small-screen {
         width: $ultra-small-screen-width - 242px + 109px;
-    }
-}
-
-.tracks-list-container.has-scrollbar .track-info {
-    @include large-screen {
-        width: $large-screen-width - 242px - $scrollbar-width;
-    }
-
-    @include small-screen {
-        width: $small-screen-width - 242px - $scrollbar-width;
-    }
-
-    @include medium-small-screen {
-        width: $medium-small-screen-width - 242px - $scrollbar-width + 109px;
-    }
-
-    @include ultra-small-screen {
-        width: $ultra-small-screen-width - 242px - $scrollbar-width + 109px;
     }
 }
 

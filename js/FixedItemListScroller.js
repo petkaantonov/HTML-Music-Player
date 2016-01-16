@@ -93,6 +93,7 @@ FixedItemListScroller.prototype._scheduleRender = function() {
 };
 
 FixedItemListScroller.prototype._renderScroller = function(left, top, zoom) {
+    if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
     this._scheduleRender();
 };
@@ -118,6 +119,7 @@ FixedItemListScroller.prototype.needScrollbar = function() {
 };
 
 FixedItemListScroller.prototype.scrollToUnsnapped = function(top, animate) {
+    if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
     this._scroller.scrollTo(null, top, !!animate);
     this._scheduleRender();
@@ -141,6 +143,10 @@ FixedItemListScroller.prototype.resize = function() {
     this._scroller.setDimensions(rect.width, rect.height, rect.width, this.physicalHeight());
     this._scroller.setSnapSize(rect.width, this.itemHeight());
     this._scrollbar.resize();
+    this._forceRenderItems();
+};
+
+FixedItemListScroller.prototype.refresh = function() {
     this._forceRenderItems();
 };
 

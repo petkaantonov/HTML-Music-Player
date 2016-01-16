@@ -13,6 +13,7 @@ function Scrollbar(container, scrollerInfo, opts) {
     this._scrolling = false;
     this._timerId = -1;
     this._anchorDistance = -1;
+    this._hasScroll = false;
 
     this._stopScrolling = this._stopScrolling.bind(this);
     this._railMousedowned = this._railMousedowned.bind(this);
@@ -61,15 +62,17 @@ Scrollbar.prototype._scrollByCoordinate = function(y, animate) {
 };
 
 Scrollbar.prototype._railMousedowned = function(e) {
+    if (!this._hasScroll) return;
     if ($(e.target).closest(this.$knob()[0]).length > 0) return;
     if (e.which !== 1) return;
     e.stopImmediatePropagation();
-    this._scrollByCoordinate(e.clientY, true);
+    this._scrollByCoordinate(e.clientY, false);
     this.$rail().off("mousedown", this._railMousedowned);
     util.onCapture(document, "click dblclick", this._clicked);
 };
 
 Scrollbar.prototype._knobMousedowned = function(e) {
+    if (!this._hasScroll) return;
     if (e.which !== 1) return;
     e.stopImmediatePropagation();
     this._rect = this.$()[0].getBoundingClientRect();
@@ -92,19 +95,23 @@ Scrollbar.prototype._clicked = function(e) {
 };
 
 Scrollbar.prototype._stopScrolling = function() {
+    if (this._timerId !== -1) {
+        clearTimeout(this._timerId);
+    }
     this._scrolling = false;
     this.$().removeClass("scrolling");
     this._timerId = -1;
 };
 
 Scrollbar.prototype._knobMousemoved = function(e) {
-    if (e.which !== 1) {
+    if (e.which !== 1 || !this._hasScroll) {
         return this._knobMousereleased();
     }
     this._scrollByCoordinate(Math.max(0, e.clientY - this._anchorDistance), false);
 };
 
-Scrollbar.prototype.render = function(y) {
+Scrollbar.prototype.render = function(y, dimensionsChanged) {
+    if (!dimensionsChanged && !this._hasScroll) return;
     var percentage;
     var physicalHeight = Math.max(this._scrollerInfo.physicalHeight() - this._scrollerInfo.contentHeight(), 0);
     if (physicalHeight === 0) {
@@ -112,18 +119,20 @@ Scrollbar.prototype.render = function(y) {
     } else {
         percentage = y / physicalHeight;
     }
-    
+    percentage = Math.min(1, Math.max(0, percentage));
     var room = this._rect.height - this._knobRect.height;
     var px = Math.round(room * percentage);
 
-    if (!this._scrolling) {
-        this._scrolling = true;
-        this.$().addClass("scrolling");
+    if (!dimensionsChanged) {
+        if (!this._scrolling) {
+            this._scrolling = true;
+            this.$().addClass("scrolling");
+        }
+        if (this._timerId !== -1) {
+            clearTimeout(this._timerId);
+        }
+        this._timerId = setTimeout(this._stopScrolling, 450);
     }
-    if (this._timerId !== -1) {
-        clearTimeout(this._timerId);
-    }
-    this._timerId = setTimeout(this._stopScrolling, 450);
 
     this.$knob()[0].style.transform = "translate3d(0, " + px + "px, 0)";
 };
@@ -133,14 +142,17 @@ Scrollbar.prototype.resize = function() {
     var rect = this._rect = this.$()[0].getBoundingClientRect();
     if (rect.height >= physicalHeight) {
         this.$knob().css("height", 0);
+        this._hasScroll = false;
+        this._stopScrolling();
     } else {
         var percentage = rect.height / physicalHeight;
         var pxHeight = Math.max(20, percentage * rect.height|0);
         this.$knob().css("height", pxHeight);
+        this._hasScroll = true;
     }
 
     this._knobRect = this.$knob()[0].getBoundingClientRect();
-    this.render(this._scrollerInfo.settledScrollTop());
+    this.render(this._scrollerInfo.settledScrollTop(), true);
 };
 
 

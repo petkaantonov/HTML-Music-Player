@@ -729,15 +729,15 @@ Animator.prototype._applyEndValues = function() {
     var baseTransforms = this._baseStyleTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        this._domNode.style[filterProp] = merge(baseFilters, persistentFilters);
+        this._domNode.style[filterProp] = merge(baseFilters, persistentFilters).trim();
     } else {
-        this._domNode.style[filterProp] = baseFilters + " " + persistentFilters;
+        this._domNode.style[filterProp] = (baseFilters + " " + persistentFilters).trim();
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        this._domNode.style.transform = merge(baseTransforms, persistentTransforms);
+        this._domNode.style.transform = merge(baseTransforms, persistentTransforms).trim();
     } else {
-        this._domNode.style.transform = baseTransforms + " " + persistentTransforms;
+        this._domNode.style.transform = (baseTransforms + " " + persistentTransforms).trim();
     }
 };
 
@@ -748,11 +748,11 @@ Animator.prototype._applyStartValues = function() {
     var baseTransforms = this._baseTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        this._baseFilter = replace(baseFilters, persistentFilters);
+        this._baseFilter = replace(baseFilters, persistentFilters).trim();
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        this._baseTransform = replace(baseTransforms, persistentTransforms);
+        this._baseTransform = replace(baseTransforms, persistentTransforms).trim();
     }
 };
 

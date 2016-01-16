@@ -104,9 +104,7 @@ function Popup(opts) {
     this.headerMouseDownedTouch = domUtil.touchDownHandler(this.headerMouseDowned);
     this.touchDragHandler = domUtil.dragHandler(this.mousemoved, this.draggingEnd);
 
-    $(window).on("resize blur", this.draggingEnd);
     $(window).on("resize", this.position);
-    util.documentHidden.on("change", this.draggingEnd);
 
     this._popupDom = NULL;
     this._rect = null;
@@ -198,9 +196,16 @@ Popup.prototype.closerClicked = function() {
 };
 
 Popup.prototype._renderCssPosition = function() {
-    this.$().css("transform", "translate3d(" +
-        (this._x /*- this._rect.width / 2*/) + "px, " +
-        (this._y /*- this._rect.height / 2*/) + "px, 0");
+    if (this._dragging) {
+        this.$().css("transform", "translate(" +
+            (this._x /*- this._rect.width / 2*/) + "px, " +
+            (this._y /*- this._rect.height / 2*/) + "px");
+    } else {
+        this.$().css({
+            left: this._x,
+            top: this._y
+        });
+    }
 };
 
 Popup.prototype.open = function() {
@@ -259,10 +264,15 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     this._viewPort = this._getViewPort();
     util.onCapture(document, "mouseup", this.draggingEnd);
     util.onCapture(document, "mousemove", this.mousemoved);
-    
     if (touch) {
         util.onBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
+
+    this.$().css({
+        transform: "translate("+this._x+"px,"+this._y+"px)",
+        left: 0,
+        top: 0
+    });
 };
 
 Popup.prototype.draggingEnd = function() {
@@ -274,6 +284,12 @@ Popup.prototype.draggingEnd = function() {
     if (touch) {
         util.offBubble(document, domUtil.TOUCH_EVENTS, this.touchDragHandler);
     }
+
+    this.$().css({
+        transform: "none",
+        left: this._x,
+        top: this._y
+    });
 };
 
 Popup.prototype.close = function() {

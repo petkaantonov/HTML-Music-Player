@@ -80,11 +80,13 @@ GlobalUi.makePopup = function(title, body, opener) {
                     name: "opacity",
                     start: 0,
                     end: 100,
-                    unit: "%"
+                    unit: "%",
+                    persist: false
                 }, {
                     name: "scale",
                     start: [0.95, 0.95],
-                    end: [1, 1]
+                    end: [1, 1],
+                    persist: false
                 }]
             });
 

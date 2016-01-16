@@ -237,9 +237,9 @@ Playlist.prototype._windowLayoutChanged = function() {
 Playlist.prototype._listContentsChanged = function() {
     this._fixedItemListScroller.resize();
     if (this._fixedItemListScroller.needScrollbar()) {
-        this.$().removeClass("has-scrollbar");
-    } else {
         this.$().addClass("has-scrollbar");
+    } else {
+        this.$().removeClass("has-scrollbar");
     }
 };
 
@@ -899,7 +899,7 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
         track.setIndex(index);
     }
     this._selectable.updateOrder(selectedTracks);
-    this._trackVisibilityChanged();
+    this._fixedItemListScroller.refresh();
     this.emit("trackChange", this.getCurrentTrack());
     this.emit("trackOrderChange");
 };
