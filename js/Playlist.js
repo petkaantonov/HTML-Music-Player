@@ -345,7 +345,7 @@ Playlist.prototype.playPrioritySelection = function() {
     if (!this.length) return;
 
     var track = this._selectable.getPriorityTrack();
-    if (!track) return;
+    if (!track) return this.playFirstSelected();
     this.changeTrackExplicitly(track);
 };
 
