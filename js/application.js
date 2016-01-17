@@ -40,7 +40,6 @@ const GlobalUi = require("./GlobalUi");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const gestureScreenFlasher = require("./GestureScreenFlasher");
-const Rippler = require("./Rippler");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
 

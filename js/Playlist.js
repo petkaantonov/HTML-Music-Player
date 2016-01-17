@@ -5,7 +5,6 @@ const util = require("./util");
 const Selectable = require("./Selectable");
 const DraggableSelection = require("./DraggableSelection");
 const keyValueDatabase = require("./KeyValueDatabase");
-const Random = require("./Random");
 const Track = require("./Track");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
