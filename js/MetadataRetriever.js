@@ -207,14 +207,13 @@ MetadataRetriever.prototype.acoustIdQuery = function(track, duration, fingerprin
     this._lastAcoustIdRequest = Date.now();
 
     var jqXhr = $.ajax({
-        dataType: "jsonp",
-        jsonp: "jsoncallback",
+        dataType: "json",
         url: "https://api.acoustId.org/v2/lookup",
         timeout: 5000,
         // jQuery escaping is not supported by acoustid
         data: util.queryString({
             client: "djbbrJFK",
-            format: "jsonp",
+            format: "json",
             duration: duration,
             meta: "recordings+releasegroups+compress",
             fingerprint: fingerprint

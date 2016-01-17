@@ -89,11 +89,6 @@ self.addEventListener("fetch", function(e) {
     var isQuery = requestURL.search && requestURL.search.length > 1 && isCors;
     var isCorsFont = isCors && rfonts.test(request.url);
 
-    if (isCors && requestURL.hostname === "api.acoustid.org") {
-        var fetchRequest = e.request.clone();
-        return fetch(fetchRequest, {mode: "cors"});
-    }
-
     if (!isHttp || (!isCoverArt && (isCorsFont || isQuery))) {
         return;
     }
