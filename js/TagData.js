@@ -277,6 +277,7 @@ TagData.prototype.hasAcoustIdImage = function() {
 
 TagData.prototype.shouldRetrieveAcoustIdImage = function() {
     return this.acoustId &&
+           !this._embeddedImageOffsets &&
            this._coverArtImageState === INITIAL &&
            !albumNameToCoverArtUrlMap[this.album.toLowerCase()];
 };

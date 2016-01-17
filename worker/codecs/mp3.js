@@ -39,8 +39,10 @@ const MAX_MP3_SAMPLE_RATE = 48000;
 const NULL = null;
 const MP3_FRAME_SIZE = 1152;
 const SBLIMIT = 32;
+const SB_HYBRID_SIZE = SBLIMIT * 18;
 
 const MP3_MONO = 3;
+const MPA_JSTEREO = 1;
 
 const FRAC_BITS = 15;
 const WFRAC_BITS = 14;
@@ -76,6 +78,7 @@ const ISQRT2 = FIXR(0.70710678118654752440);
 const HEADER_SIZE = 4;
 const BACKSTEP_SIZE = 512;
 const EXTRABYTES = 24;
+const LAST_BUF_SIZE = 2 * BACKSTEP_SIZE + EXTRABYTES;
 const TABLE_4_3_SIZE = (8191 + 16) * 4;
 
 var libc_frexp_result_e = 0;
@@ -1294,7 +1297,7 @@ function Granule() {
     this.short_start = 0;
     this.long_end = 0;
     this.scale_factors = new Uint8Array(40);
-    this.sb_hybrid = new Int32Array(SBLIMIT * 18);
+    this.sb_hybrid = new Int32Array(SB_HYBRID_SIZE);
 }
 
 Granule.prototype.toJSON = function() {
@@ -1348,7 +1351,7 @@ function Mp3Context(opts) {
     this.targetBufferLengthSeconds = targetBufferLengthSeconds;
     this.dataType = dataType;
     this.granules = [new Granule(), new Granule(), new Granule(), new Granule()];
-    this.last_buf = new Uint8Array(2 * BACKSTEP_SIZE * EXTRABYTES);
+    this.last_buf = new Uint8Array(LAST_BUF_SIZE);
     this.last_buf_size = 0;
     this.frame_size = 0;
     this.free_format_next_header = 0;
@@ -1647,7 +1650,6 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
 
 Mp3Context.prototype.decodeMain = function() {
     var gb = this.gb;
-    var in_gb = this.in_gb;
     gb.init(this.source, Math.imul(this.sourceByteLength, 8), 0);
     var CRC;
 
@@ -1659,9 +1661,11 @@ Mp3Context.prototype.decodeMain = function() {
     this.last_buf_size = 0;
 
     var i;
+    gb = this.gb;
+    var in_gb = this.in_gb;
     if (in_gb.buffer !== null) {
         gb.alignGetBits();
-        i = (gb.bitSize - gb.getBitsCount()) >> 3;
+        i = gb.getBitsLeft() >> 3;
 
         if (i >= 0 && i <= BACKSTEP_SIZE) {
             var gb_ptr = gb.buffer_ptr + (gb.getBitsCount() >> 3);
@@ -1671,14 +1675,14 @@ Mp3Context.prototype.decodeMain = function() {
             this.last_buf_size = i;
         }
         gb.assign(in_gb);
+        in_gb.buffer = null;
     }
 
     gb.alignGetBits();
-    i = (gb.bitSize - gb.getBitsCount()) >> 3;
+    i = gb.getBitsLeft() >> 3;
 
     if (i < 0 || i > BACKSTEP_SIZE || nb_frames < 0) {
-        i = this.sourceByteLength;
-        if (BACKSTEP_SIZE < i) i = BACKSTEP_SIZE;
+        i = Math.min(BACKSTEP_SIZE, this.sourceByteLength);
     }
 
     var last_buf_ptr = this.last_buf_size;
@@ -1936,7 +1940,11 @@ Mp3Context.prototype._granuleLoop2 = function(g, gb) {
         g.subblock_gain2 = gb.getBits(3);
 
         if (block_type === 2) {
-            g.region_size0 = 18;
+            if (this.sample_rate_index !== 8) {
+                g.region_size0 = 18;
+            } else {
+                g.region_size0 = 36;
+            }
         } else {
             if (this.sample_rate_index <= 2) {
                 g.region_size0 = 18;
@@ -1998,16 +2006,15 @@ Mp3Context.prototype._granuleLoop4 = function(g, gb) {
     if (g.block_type == 2) {
         if (g.switch_point !== 0) {
             /* if switched mode, we handle the 36 first samples as
-               long blocks.  For 8000Hz, we handle the 48 first
-               exponents as long blocks (XXX: check this!) */
-            if (this.sample_rate_index <= 2)
+               long blocks.  For 8000Hz, we handle the 72 first
+               exponents as long blocks. */
+            if (this.sample_rate_index <= 2) {
                 g.long_end = 8;
-            else if (this.sample_rate_index != 8)
+            } else {
                 g.long_end = 6;
-            else
-                g.long_end = 4; /* 8000 Hz */
+            }
 
-            g.short_start = 2 + (this.sample_rate_index != 8);
+            g.short_start = 3;
         } else {
             g.long_end = 0;
             g.short_start = 0;
@@ -2708,7 +2715,7 @@ Mp3Context.prototype.reorderBlock = function(g) {
         if (this.sample_rate_index !== 8) {
             ptr = 36;
         } else {
-            ptr = 48;
+            ptr = 72;
         }
     } else {
         ptr = 0;
@@ -2814,22 +2821,51 @@ Mp3Context.prototype.decodeLayer3 = function() {
     }
 
     var ptr_ptr = (gb.buffer_ptr + gb.getBitsCount() >> 3);
+    var gr = 0;
+    var remainingSpace = Math.max(0, LAST_BUF_SIZE - this.last_buf_size);
+    var extrasize = Math.min(remainingSpace, Math.max(0, gb.getBitsLeft() >> 3));
 
+    /*
     if (main_data_begin > this.last_buf_size) {
         this.last_buf_size = main_data_begin;
     }
+    */
 
-    // memcpy(s->last_buf + s->last_buf_size, ptr, EXTRABYTES);
+    // memcpy(s->last_buf + s->last_buf_size, ptr, extrasize);
     var gb_buffer = gb.buffer;
     var last_buf_ptr = this.last_buf_size;
-    for (var u = 0; u < EXTRABYTES; ++u) {
+    for (var u = 0; u < extrasize; ++u) {
         this.last_buf[last_buf_ptr + u] = gb_buffer[ptr_ptr + u];
     }
 
     this.in_gb.assign(this.gb);
-    this.gb.init(this.last_buf, main_data_begin * 8, this.last_buf_size - main_data_begin);
+    this.gb.init(this.last_buf, this.last_buf_size * 8, 0);
+    this.last_buf_size <<= 3;
 
-    for (var gr = 0; gr < nb_granules; ++gr) {
+    for (gr = 0; gr < nb_granules && (this.last_buf_size >> 3) < main_data_begin; ++gr) {
+        for (var ch = 0; ch < this.nb_channels; ++ch) {
+            var g = this.granules[ch * 2 + gr];
+            this.last_buf_size += g.part2_3_length;
+            var hb = g.sb_hybrid;
+            for (var u = 0; u < SB_HYBRID_SIZE; ++u) {
+                hb[u] = 0;
+            }
+            var sb_samples_ptr = (18 * gr) * SBLIMIT;
+            this.computeImdct(g, this.sb_samples[ch], sb_samples_ptr, this.mdct_buf[ch]);
+        }
+    }
+    var skip = this.last_buf_size - 8 * main_data_begin;
+    if (skip >= this.gb.bitSize && this.in_gb.buffer !== null) {
+        this.in_gb.skipBits(skip - this.gb.bitSize);
+        this.gb.assign(this.in_gb);
+        this.in_gb.buffer = null;
+    } else {
+        this.gb.skipBits(skip);
+    }
+
+    gb = this.gb;
+
+    for ( ;gr < nb_granules; ++gr) {
         for (var ch = 0; ch < nb_channels; ++ch) {
             var g = this.granules[ch * 2 + gr];
             var bits_pos = gb.getBitsCount();
@@ -2848,7 +2884,7 @@ Mp3Context.prototype.decodeLayer3 = function() {
 
         }
 
-        if (this.nb_channels === 2) {
+        if (this.mode === MPA_JSTEREO) {
             this.computeStereo(this.granules[gr], this.granules[2 + gr]);
         }
 
@@ -3137,6 +3173,10 @@ BitStream.prototype.skipBits = function(count) {
 
 BitStream.prototype.getBitsCount = function() {
     return this.index;
+};
+
+BitStream.prototype.getBitsLeft = function() {
+    return this.bitSize - this.index;
 };
 
 BitStream.prototype.alignGetBits = function() {
