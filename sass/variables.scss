@@ -12,6 +12,8 @@ $scrollbar-width: 8px;
 $border-width: 1px;
 $minimum-visualizer-height: 568px;
 
+$touch-hover-color: #ececec;
+
 @mixin css-filter($filter...) {
   -webkit-filter: $filter;
           filter: $filter;

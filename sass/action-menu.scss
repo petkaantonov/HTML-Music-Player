@@ -1,3 +1,5 @@
+@import "variables";
+
 .action-menu-submenu, .action-menu-root.action-menu-context-root {
     border-radius: 4px;
     background-color: #fff;
@@ -45,6 +47,10 @@
     padding: 7px 20px 7px 10px;
     width: 100%;
     box-sizing: border-box;
+}
+
+.action-menu-item.touch-hover {
+    background-color: $touch-hover-color !important;
 }
 
 .action-menu-divider {

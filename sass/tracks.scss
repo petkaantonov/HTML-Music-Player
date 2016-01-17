@@ -40,6 +40,10 @@
     height: 100%;
 }
 
+.track-container.touch-hover {
+    background-color: $touch-hover-color;
+}
+
 .track-container.track-active {
     background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
     border-bottom: 1px solid #B0D1F8;

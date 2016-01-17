@@ -103,6 +103,10 @@
     text-align: center;
 }
 
+.button-group .button-group-button.touch-hover {
+    background-color: $touch-hover-color !important;
+}
+
 .button-group .button-group-button.play-button {
 }
 

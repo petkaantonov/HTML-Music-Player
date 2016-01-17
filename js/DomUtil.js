@@ -4,7 +4,6 @@ const jsUtil = require("./util");
 const Promise = require("../lib/bluebird");
 const base64 = require("../lib/base64");
 const $ = require("../lib/jquery");
-
 const touch = require("./features").touch;
 const TOUCH_START = "touchstart";
 const TOUCH_END = "touchend";
@@ -20,6 +19,8 @@ const TAP_MAX_MOVEMENT = 0.015625;
 const PINCER_MINIMUM_MOVEMENT = 0.015625;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 0.015625;
 
+
+
 var util = {};
 util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
@@ -28,7 +29,6 @@ util.filterProp = (function() {
     var div = document.createElement("div");
     return (("webkitFilter" in div.style) ? "webkitFilter" : "filter");
 })();
-
 
 function ActiveTouchList() {
     this.activeTouches = [];
@@ -216,6 +216,52 @@ util.touchDownHandler =  function(fn) {
                 copyTouchProps(e, touch);
                 e.isFirst = touch.identifier === actives.first().identifier;
                 fn.call(this, e);
+            }
+        }
+    };
+};
+
+util.targetHoverHandler = function(fnStart, fnEnd) {
+    var actives = new ActiveTouchList();
+    var currentTouch = null;
+    var bounds = null;
+
+    function end(self, e, touch) {
+        if (currentTouch !== null) {
+            copyTouchProps(e, touch || currentTouch)
+            bounds = currentTouch = null;
+            fnEnd.call(self, e);
+        }
+    }
+
+    return function(e) {
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+        var targetTouches = e.targetTouches || e.originalEvent.targetTouches;
+
+        if (e.type === TOUCH_START) {
+            if (currentTouch === null && targetTouches.length > 0) {
+                currentTouch = targetTouches[0];
+                bounds = fnStart.call(this, e);
+            }
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL || e.type === TOUCH_MOVE) {
+            if (currentTouch !== null) {
+                if (targetTouches.length === 0) {
+                    end(this, e);
+                    return;
+                }
+                for (var i = 0; i < changedTouches.length; ++i) {
+                    if (changedTouches[i].identifier === currentTouch.identifier) {
+                        var touch = changedTouches[i];
+                        var x = touch.clientX;
+                        var y = touch.clientY;
+
+                        if (!(x >= bounds.left && x <= bounds.right &&
+                            y >= bounds.top && y <= bounds.bottom)) {
+                            end(this, e);
+                        }
+                        return;
+                    }
+                }
             }
         }
     };

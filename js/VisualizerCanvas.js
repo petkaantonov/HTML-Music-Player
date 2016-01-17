@@ -317,6 +317,7 @@ VisualizerCanvas.prototype.latencyPopupOpened = function() {
     });
     this.latencyPopup.$().find("form").on("submit", function(e) {
         e.preventDefault();
+        $input.blur();
         self.latencyPopup.close();
     });
     $input.focus();
