@@ -178,7 +178,8 @@ function nextJob() {
                     reportEstimate(id, estimate);
                 }
             
-                if (!flushed) {
+                if (!flushed &&
+                    (metadata.dataEnd - offset <= metadata.maxByteSizePerSample * metadata.samplesPerFrame * 10)) {
                     return;
                 }
 
