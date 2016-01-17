@@ -1797,6 +1797,20 @@ Mp3Context.prototype._resetState = function() {
     this.frame = 0;
     this.frames = (-1 >>> 1)|0;
     this.metadata = null;
+
+    var data;
+    for (var ch = 0; ch < 2; ++ch) {
+        data = this.synth_buf[ch];
+        for (var i = 0; i < data.length; ++i) data[i] = 0;
+        data = this.sb_samples[ch];
+        for (var i = 0; i < data.length; ++i) data[i] = 0;
+        data = this.mdct_buf[ch];
+        for (var i = 0; i < data.length; ++i) data[i] = 0;
+    }
+    data = this.last_buf;
+    for (var i = 0; i < data.length; ++i) data[i] = 0;
+    data = this.source;
+    for (var i = 0; i < data.length; ++i) data[i] = 0;
 };
 
 Mp3Context.prototype.applySeek = function(mp3SeekResult) {
