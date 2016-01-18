@@ -87,6 +87,7 @@ const actions = {
     delete: function() { playlist.main.removeSelected(); },
     sortByTitle: function() { playlist.main.sortByTitle(); },
     sortByArtist: function() { playlist.main.sortByArtist(); },
+    sortByAlbumArtist: function() { playlist.main.sortByAlbumArtist(); },
     sortByAlbum: function() { playlist.main.sortByAlbum(); },
     sortByRating: function() { playlist.main.sortByRating(); },
     sortByDuration: function() { playlist.main.sortByDuration(); },
@@ -134,6 +135,11 @@ const trackActionsSpec = {
             id: "sort-by-artist",
             content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon", "mic"),
             onClick: actions.sortByArtist
+
+        }, {
+            id: "sort-by-album-artist",
+            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon", "mic"),
+            onClick: actions.sortByAlbumArtist
 
         }, {
             id: "sort-by-title",

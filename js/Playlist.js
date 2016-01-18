@@ -801,6 +801,10 @@ const compareTitle = function(a, b) {
     return a.getTitleForSort().localeCompare(b.getTitleForSort());
 };
 
+const compareAlbumArtist = function(a, b) {
+    return a.getAlbumArtistForSort().localeCompare(b.getAlbumArtistForSort());
+};
+
 const compareArtist = function(a, b) {
     return a.getArtistForSort().localeCompare(b.getArtistForSort());
 };
@@ -828,6 +832,7 @@ const compareRating = function(a, b) {
 const compareOrder = [
     compareAlbum,
     compareAlbumIndex,
+    compareAlbumArtist,
     compareArtist,
     compareTitle,
     compareRating,
@@ -874,6 +879,7 @@ const makeComparer = function(mainComparer) {
 };
 
 Playlist.prototype.sortByAlbum = makeComparer(compareAlbum);
+Playlist.prototype.sortByAlbumArtist = makeComparer(compareAlbumArtist);
 Playlist.prototype.sortByArtist = makeComparer(compareArtist);
 Playlist.prototype.sortByTitle = makeComparer(compareTitle);
 Playlist.prototype.sortByRating = makeComparer(compareRating);

@@ -620,7 +620,8 @@ Track.prototype.isFromSameAlbumAs = function(otherTrack) {
         return false;
     }
 
-    return thisAlbum.toLowerCase() === otherAlbum.toLowerCase();
+    return thisAlbum === otherAlbum &&
+           thisTagData.albumArtist === otherTagData.albumArtist;
 };
 
 Track.prototype.hasSilenceAtEnd = function() {

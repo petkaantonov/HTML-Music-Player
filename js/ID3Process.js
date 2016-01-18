@@ -23,8 +23,11 @@ const ID3Encoding = {
 const ID3Artist = ["TP1", "TP1", "TP1", "TPE1", "TPE1"];
 const ID3Title = ["TT2", "TT2", "TT2", "TIT2", "TIT2"];
 const ID3Album = ["TAL", "TAL", "TAL", "TALB", "TALB"];
+const ID3AlbumArtist = ["TP2", "TP2", "TP2", "TPE2", "TPE2"];
+const ID3AlbumArtistAlt = ["TS2", "TS2", "TS2", "TSO2", "TSO2"];
 const ID3TrackIndex = ["TRK", "TRK", "TRK", "TRCK", "TRCK"];
 const ID3Picture = ["PIC", "PIC", "PIC", "APIC", "APIC"];
+const ID3CompilationFlag = ["TCP", "TCP", "TCP", "TCMP", "TCMP"];
 
 const MPEGSyncWord = /\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF]/;
 
@@ -697,6 +700,16 @@ ID3Process.prototype.getID3v2 = Promise.method(function(bytes, track, offsetMap)
     var title = this.getID3v2String(bytes, ID3Title[version], version);
     var album = this.getID3v2String(bytes, ID3Album[version], version);
     var trackIndex = this.getID3v2String(bytes, ID3TrackIndex[version], version);
+    var albumArtist = this.getID3v2String(bytes, ID3AlbumArtist[version], version) ||
+                      this.getID3v2String(bytes, ID3AlbumArtistAlt[version], version);
+
+    if (!albumArtist) {
+        var isCompilation = this.getID3v2String(bytes, ID3CompilationFlag[version], version) === "1\x00";
+        if (isCompilation) {
+            albumArtist = "Various Artists";
+        }
+    }
+
     var pictures = this.getPictures(bytes, version, offsetMap);
     var picture = null;
 
@@ -731,7 +744,7 @@ ID3Process.prototype.getID3v2 = Promise.method(function(bytes, track, offsetMap)
     }
 
     return this.getMpegBasicInfo(bytes, offsetMap, track).then(function(basicInfo) {
-        return new TagData(track, title, artist, basicInfo, album, trackIndex, picture);
+        return new TagData(track, title, artist, basicInfo, album, trackIndex, albumArtist, picture);
     });
 });
 
