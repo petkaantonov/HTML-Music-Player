@@ -797,6 +797,10 @@ const compareAlbumIndex = function(a, b) {
     return a.getAlbumIndexForSort() - b.getAlbumIndexForSort();
 };
 
+const compareDiscNumber = function(a, b) {
+    return a.getDiscNumberForSort() - b.getDiscNumberForSort();
+};
+
 const compareTitle = function(a, b) {
     return a.getTitleForSort().localeCompare(b.getTitleForSort());
 };
@@ -831,6 +835,7 @@ const compareRating = function(a, b) {
 
 const compareOrder = [
     compareAlbum,
+    compareDiscNumber,
     compareAlbumIndex,
     compareAlbumArtist,
     compareArtist,

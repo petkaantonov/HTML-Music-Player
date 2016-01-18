@@ -18,7 +18,8 @@ var tagDatasRetainingBlobUrls = [];
 const albumNameToCoverArtUrlMap = Object.create(null);
 
 
-function TagData(track, title, artist, basicInfo, album, albumIndex, albumArtist, embeddedImageOffsets) {
+function TagData(track, title, artist, basicInfo, album,
+                 albumIndex, albumArtist, discNumber, embeddedImageOffsets) {
     this.track = track;
     
     this.title = title || null;
@@ -32,7 +33,7 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, albumArtist
 
     this.albumArtist = albumArtist || null;
     if (this.albumArtist) this.albumArtist = util.formatTagString(this.albumArtist);
- 
+
     this.basicInfo = basicInfo || {
         duration: NaN,
         sampleRate: 44100,
@@ -43,6 +44,7 @@ function TagData(track, title, artist, basicInfo, album, albumIndex, albumArtist
     this.basicInfo.channels = Math.min(Math.max(1, this.basicInfo.channels));
 
     this.albumIndex = albumIndex || -1;
+    this.discNumber = discNumber || -1;
     this.trackGain = 0;
     this.albumGain = 0;
     this.trackPeak = 1;
@@ -230,6 +232,10 @@ TagData.prototype.getAlbumForSort = function() {
 TagData.prototype.getArtistForSort = function() {
     this.ensureArtistAndTitle();
     return this.artist;
+};
+
+TagData.prototype.getDiscNumberForSort = function() {
+    return this.discNumber;
 };
 
 TagData.prototype.getAlbumIndexForSort = function() {
