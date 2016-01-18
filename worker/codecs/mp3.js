@@ -1474,6 +1474,8 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
 
             if (i < bytesNeeded) {
                 this.sourceByteLength = bytesIndex + i;
+                srcStart += i;
+                length -= i;
                 break;
             } else {
                 // Include's next frame's header.

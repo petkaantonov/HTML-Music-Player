@@ -393,8 +393,9 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
 
     while (!gotData) {
         var offset = this.offset;
-        var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset);
+        var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset, 2);
         var srcStart = offset - this.fileView.start;
+
         var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
         this.offset += (srcEnd - srcStart);
 

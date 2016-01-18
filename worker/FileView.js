@@ -68,7 +68,8 @@ FileView.prototype.getInt8 = function(offset) {
     return this.dataview.getInt8(offset - this.start);
 };
 
-FileView.prototype.bufferOfSizeAt = function(size, start) {
+FileView.prototype.bufferOfSizeAt = function(size, start, paddingFactor) {
+    if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
     size = Math.ceil(size);
     var start = Math.min(this.file.size - 1, Math.max(0, start));
     var end = Math.min(this.file.size, start + size);
@@ -78,7 +79,7 @@ FileView.prototype.bufferOfSizeAt = function(size, start) {
         return this.buffer;
     }
 
-    end = Math.min(this.file.size, start + size * 3);
+    end = Math.min(this.file.size, start + size * paddingFactor);
     this.start = start;
     this.end = end;
     var reader = new FileReaderSync();

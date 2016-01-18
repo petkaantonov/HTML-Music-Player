@@ -163,7 +163,7 @@ function nextJob() {
 
             while (offset < metadata.dataEnd && error === undefined) {
                 flushed = false;
-                var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset);
+                var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2);
                 var srcStart = view.toBufferOffset(offset);
                 var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
                 var bytesRead = (srcEnd - srcStart);

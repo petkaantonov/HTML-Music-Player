@@ -394,7 +394,7 @@ Mp3SeekTable.prototype.fillUntil = function(time, metadata, fileView) {
     }
 
     mainLoop: while (offset < end && frames < maxFrames) {
-        var buffer = fileView.bufferOfSizeAt(bufferSize, offset);
+        var buffer = fileView.bufferOfSizeAt(bufferSize, offset, 10);
         var header = 0;
 
         do {
