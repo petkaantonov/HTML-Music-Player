@@ -129,7 +129,7 @@ const trackActionsSpec = {
         children: [{
             id: "sort-by-album",
             content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon", "album"),
-            onClick: actions.sortByTitle
+            onClick: actions.sortByAlbum
 
         }, {
             id: "sort-by-artist",
