@@ -1,5 +1,6 @@
 "use strict";
 
+const Promise = require("../lib/bluebird");
 const EventEmitter = require("events");
 var util = module.exports;
 

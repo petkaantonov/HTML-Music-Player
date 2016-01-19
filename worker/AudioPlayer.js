@@ -1,6 +1,15 @@
 "use strict";
 self.EventEmitter = require("events");
 
+const Promise = require("../lib/bluebird");
+Promise.setScheduler(function(fn) {
+    fn();
+});
+Promise.config({
+    cancellation: false,
+    warnings: false,
+    longStackTraces: false
+});
 const ChannelMixer = require("./ChannelMixer");
 const sniffer = require("./sniffer");
 const codec = require("./codec");
@@ -57,6 +66,22 @@ const message = function(nodeId, methodName, args, transferList) {
         if (v.buffer) return v.buffer;
         return v;
     });
+
+    // Check for already neutered array buffers.
+    if (transferList && transferList.length > 0) {
+        for (var i = 0; i < transferList.length; ++i) {
+            var item = transferList[i];
+
+            if (!(item instanceof ArrayBuffer)) {
+                item = item.buffer;
+            }
+
+            if (item.byteLength === 0) {
+                return;
+            }
+        }
+    }
+
     postMessage({
         nodeId: nodeId,
         methodName: methodName,
@@ -88,9 +113,19 @@ self.onmessage = function(event) {
         }
     } else {
         var obj = audioPlayerMap[receiver];
-        obj[data.methodName].call(obj, data.args, data.transferList);
+        obj.newMessage({
+            methodName: data.methodName,
+            args: data.args,
+            transferList: data.transferList
+        });
     }
 };
+
+// Preload mp3.
+codec.getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});
+
 
 function AudioPlayer(id, parent) {
     EventEmitter.call(this);
@@ -104,10 +139,14 @@ function AudioPlayer(id, parent) {
     this.metadata = null;
     this.fileView = null;
     this.resampler = null;
-    this.errored = this.errored.bind(this);
     this.replacementPlayer = null;
     this.replacementSpec = null;
     this.parent = parent || null;
+    this.messageQueue = [];
+    this.bufferFillId = 0;
+
+    this._errored = this._errored.bind(this);
+    this._next = this._next.bind(this);
 }
 AudioPlayer.prototype = Object.create(EventEmitter.prototype);
 AudioPlayer.prototype.constructor = AudioPlayer;
@@ -121,12 +160,15 @@ AudioPlayer.prototype.transfer = function(other) {
         freeResampler(this.resampler);
         this.resampler = null;
     }
+
     this.ended = other.ended;
     this.blob = other.blob;
     this.fileView = other.fileView;
     this.metadata = other.metadata;
     this.codecName = other.codecName;
     this.decoderContext = other.decoderContext;
+    this.decoderContext.removeAllListeners();
+    this.decoderContext.on("error", this._errored);
     this.offset = other.offset;
     this.resampler = other.resampler;
 
@@ -136,6 +178,91 @@ AudioPlayer.prototype.transfer = function(other) {
     other.blob = null;
     other.metadata = null;
     other.destroy();
+};
+
+AudioPlayer.prototype._abortPendingBufferFills = function() {
+    this.bufferFillId++;
+};
+
+AudioPlayer.prototype._clearAllRequestsExceptFirst = function() {
+    for (var i = 1; i < this.messageQueue.length; ++i) {
+        var spec = this.messageQueue[i];
+        message(-1, "_freeTransferList", null, spec.transferList);
+    }
+    this.messageQueue.length = Math.min(this.messageQueue.length, 1);
+};
+
+AudioPlayer.prototype._clearFillRequests = function() {
+    for (var i = 0; i < this.messageQueue.length; ++i) {
+        if (this.messageQueue[i].methodName === "fillBuffers") {
+            var spec = this.messageQueue[i];
+            message(-1, "_freeTransferList", null, spec.transferList);
+            this.messageQueue.splice(i, 1);
+            i--;
+        }
+    }
+};
+
+AudioPlayer.prototype._clearLoadReplacementRequests = function() {
+    for (var i = 0; i < this.messageQueue.length; ++i) {
+        if (this.messageQueue[i].methodName === "loadReplacement") {
+            var spec = this.messageQueue[i];
+            message(-1, "_freeTransferList", null, spec.transferList);
+            this.messageQueue.splice(i, 1);
+            i--;
+        }
+    }
+};
+
+AudioPlayer.prototype._processMessage = function(spec) {
+    var that = this;
+    Promise.try(function() {
+        return that[spec.methodName](spec.args, spec.transferList);
+    }).finally(function() {
+        if (that.messageQueue.length > 0 &&
+            that.messageQueue[0] === spec) {
+            that.messageQueue.shift();
+        }
+        that._next();
+    });
+};
+
+AudioPlayer.prototype._next = function() {
+    if (this.messageQueue.length > 0) {
+        this._processMessage(this.messageQueue[0]);
+    }
+};
+
+const noDelayMessageMap = {
+    "sourceEndedPing": true
+};
+const obsoletesOtherMessagesMap = {
+    "seek": true,
+    "loadBlob": true
+};
+const priorityMessageMap = {
+    "loadReplacement": true
+};
+AudioPlayer.prototype.newMessage = function(spec) {
+    if (noDelayMessageMap[spec.methodName] === true) {
+        this[spec.methodName](spec.args, spec.transferList);
+        return;
+    }
+
+    if (obsoletesOtherMessagesMap[spec.methodName] === true) {
+        this._abortPendingBufferFills();
+        this._clearAllRequestsExceptFirst();
+        this.messageQueue.push(spec);
+    } else if (priorityMessageMap[spec.methodName] === true) {
+        this._clearLoadReplacementRequests();
+        this.messageQueue.splice(1, 0, spec);
+    } else {
+        this.messageQueue.push(spec);    
+    }
+
+    if (this.messageQueue.length === 1) {
+        this._next();
+    }
 };
 
 AudioPlayer.prototype.getBlobSize = function() {
@@ -181,6 +308,8 @@ AudioPlayer.prototype.messageFromReplacement = function(name, args, transferList
     case "_seeked":
         var spec = this.replacementSpec;
         this.replacementSpec = null;
+        this._abortPendingBufferFills();
+        this._clearAllRequestsExceptFirst();
         this.transfer(this.replacementPlayer);
         this.replacementPlayer.parent = null;
         this.replacementPlayer = null;
@@ -237,6 +366,8 @@ AudioPlayer.prototype.loadReplacement = function(args, transferList) {
 
 AudioPlayer.prototype.destroy = function() {
     if (this.destroyed) return;
+    this._abortPendingBufferFills();
+    this._clearAllRequestsExceptFirst();
     this.parent = null;
     this.destroyReplacement();
     this.destroyed = true;
@@ -266,89 +397,99 @@ AudioPlayer.prototype.passError = function(errorMessage, stack, name) {
     });
 }
 
-AudioPlayer.prototype.errored = function(e) {
+AudioPlayer.prototype._errored = function(e) {
     this.passError(e.message, e.stack, e.name);
 };
 
 AudioPlayer.prototype.gotCodec = function(codec, requestId) {
-    try {
-        if (this.destroyed) return;
-        this.fileView = new FileView(this.blob);
-        var metadata = demuxer(codec.name, this.fileView);
-        if (!metadata) {
-            return this.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
-        }
-        this.decoderContext = allocDecoderContext(codec.name, codec.Context, {
-            seekable: true,
-            dataType: codec.Context.FLOAT,
-            targetBufferLengthSeconds: bufferTime
-        });
+    var that = this;
+    return Promise.try(function() {
+        if (that.destroyed) return;
+        return demuxer(codec.name, that.fileView).then(function(metadata) {
+            if (!metadata) {
+                that.fileView = that.blob = null;
+                that.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
+                return;
+            }
+            that.metadata = metadata;
+            that.decoderContext = allocDecoderContext(codec.name, codec.Context, {
+                seekable: true,
+                dataType: codec.Context.FLOAT,
+                targetBufferLengthSeconds: bufferTime
+            });
 
-        this.metadata = metadata;
-        this.decoderContext.start(metadata);
-        this.decoderContext.on("error", this.errored);
-        if (this.metadata.sampleRate !== hardwareSampleRate) {
-            this.resampler = allocResampler(this.metadata.channels,
-                                            this.metadata.sampleRate,
-                                            hardwareSampleRate,
-                                            resamplerQuality);
-        } else {
-            if (this.resampler) freeResampler(this.resampler);
-            this.resampler = null;
-        }
+            that.decoderContext.start(metadata);
+            that.decoderContext.on("error", that._errored);
+            if (that.metadata.sampleRate !== hardwareSampleRate) {
+                that.resampler = allocResampler(that.metadata.channels,
+                                                that.metadata.sampleRate,
+                                                hardwareSampleRate,
+                                                resamplerQuality);
+            } else {
+                if (that.resampler) freeResampler(that.resampler);
+                that.resampler = null;
+            }
 
-        this.offset = this.metadata.dataStart;
-        this.sendMessage("_blobLoaded", {
-            requestId: requestId,
-            metadata: this.metadata
+            that.offset = that.metadata.dataStart;
+            that.sendMessage("_blobLoaded", {
+                requestId: requestId,
+                metadata: that.metadata
+            });
         });
-    } catch (e) {
-        this.passError(e.message, e.stack, e.name);
-    }
+    }).catch(function(e) {
+        that.passError(e.message, e.stack, e.name);
+    });
 };
 
 AudioPlayer.prototype.loadBlob = function(args) {
-    try {
-        if (this.destroyed) return;
-        if (this.decoderContext) {
-            freeDecoderContext(this.codecName, this.decoderContext);
-            this.decoderContext = null;
+    var that = this;
+    return Promise.try(function() {
+        if (that.destroyed) return;
+        if (that.decoderContext) {
+            freeDecoderContext(that.codecName, that.decoderContext);
+            that.decoderContext = null;
         }
-        if (this.resampler) {
-            freeResampler(this.resampler);
-            this.resampler = null;
+        if (that.resampler) {
+            freeResampler(that.resampler);
+            that.resampler = null;
         }
-        this.ended = false;
-        this.resampler = this.fileView = this.decoderContext = this.blob = this.metadata = null;
-        this.offset = 0;
-        this.codecName = "";
+        that.ended = false;
+        that.resampler = that.fileView = that.decoderContext = that.blob = that.metadata = null;
+        that.offset = 0;
+        that.codecName = "";
 
         var blob = args.blob;
         if (!(blob instanceof Blob) && !(blob instanceof File)) {
-            return this.sendMessage("_error", {message: "Blob must be a file or blob"});
+            return that.sendMessage("_error", {message: "Blob must be a file or blob"});
         }
-
-        var codecName = sniffer.getCodecName(blob);
-        if (!codecName) {
-            return this.sendMessage("_error", {message: "Codec not supported"});
-        }
-        this.codecName = codecName;
-        var self = this;
-        return codec.getCodec(codecName).then(function(codec) {
-            self.blob = blob;
-            self.gotCodec(codec, args.requestId);
-        }).catch(function(e) {
-            self.sendMessage("_error", {message: "Unable to load codec: " + e.message});
+        that.fileView = new FileView(blob);
+        that.blob = blob;
+        return sniffer.getCodecName(that.fileView).then(function(codecName) {
+            if (!codecName) {
+                that.fileView = that.blob = null;
+                that.sendMessage("_error", {message: "Codec not supported"});
+                return;
+            }
+            that.codecName = codecName;
+            return codec.getCodec(codecName).then(function(codec) {
+                that.blob = blob;
+                return that.gotCodec(codec, args.requestId);
+            }).catch(function(e) {
+                that.fileView = that.blob = null;
+                that.sendMessage("_error", {message: "Unable to load codec: " + e.message});
+            });
         });
-    } catch (e) {
-        this.passError(e.message, e.stack, e.name);
-    }
+    }).catch(function(e) {
+        that.passError(e.message, e.stack, e.name);
+    });
 };
 
 const EMPTY_F32 = new Float32Array(0);
-AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListIndex) {
-    var self = this;
+AudioPlayer.prototype._decodeNextBuffer = Promise.method(function(transferList, transferListIndex) {
+    var that = this;
     var gotData = false;
+    var id = this.bufferFillId;
+
     function dataListener(channels) {
         gotData = true;
 
@@ -366,9 +507,9 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
             ret.channels[ch] = new Float32Array(transferList[transferListIndex++]);
         }
 
-        if (self.metadata.sampleRate !== hardwareSampleRate) {
-            ret.length = self.resampler.getLength(ret.length);
-            self.resampler.resample(channels, undefined, ret.channels);
+        if (that.metadata.sampleRate !== hardwareSampleRate) {
+            ret.length = that.resampler.getLength(ret.length);
+            that.resampler.resample(channels, undefined, ret.channels);
         } else {
             for (var ch = 0; ch < channels.length; ++ch) {
                 var dst = ret.channels[ch];
@@ -391,21 +532,23 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
         endTime: 0
     };
 
-    while (!gotData) {
-        var offset = this.offset;
-        var src = this.fileView.bufferOfSizeAt(bytesNeeded, offset, 2);
-        var srcStart = offset - this.fileView.start;
-
-        var srcEnd = this.decoderContext.decodeUntilFlush(src, srcStart);
-        this.offset += (srcEnd - srcStart);
+    return this.fileView.readBlockOfSizeAt(bytesNeeded, this.offset, 3).then(function loop() {
+        if (id !== that.bufferFillId) {
+            ret = null;
+            return;
+        }
+        var src = that.fileView.block();
+        var srcStart = that.offset - that.fileView.start;
+        var srcEnd = that.decoderContext.decodeUntilFlush(src, srcStart);
+        that.offset += (srcEnd - srcStart);
 
         if (!gotData) {
-            if (this.metadata.dataEnd - this.offset >
-                this.metadata.maxByteSizePerSample * this.metadata.samplesPerFrame * 10) {
-                continue;
+            if (that.metadata.dataEnd - that.offset >
+                that.metadata.maxByteSizePerSample * that.metadata.samplesPerFrame * 10) {
+                return that.fileView.readBlockOfSizeAt(bytesNeeded, that.offset, 3).then(loop);
             } else {
-                this.decoderContext.end();
-                this.ended = true;
+                that.decoderContext.end();
+                that.ended = true;
 
                 if (!gotData) {
                     gotData = true;
@@ -416,14 +559,20 @@ AudioPlayer.prototype._decodeNextBuffer = function(transferList, transferListInd
                 }
             }
         }
-    }
 
-    this.decoderContext.removeListener("data", dataListener);
-    ret.endTime = ret.startTime + (ret.length / hardwareSampleRate);
-    return ret;
-};
+    }).finally(function() {
+        that.decoderContext.removeListener("data", dataListener);
+    }).then(function() {
+        if (ret) {
+            ret.endTime = ret.startTime + (ret.length / hardwareSampleRate);
+            return ret;
+        }
+    });
+});
 
-AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
+AudioPlayer.prototype._fillBuffers = Promise.method(function(count, requestId, transferList) {
+    var that = this;
+    var id = this.bufferFillId;
     if (!this.ended) {
         var result = {
             requestId: requestId,
@@ -434,23 +583,37 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
         };
 
         var transferListIndex = 0;
-        for (var i = 0; i < count; ++i) {
-            var decodeResult = this._decodeNextBuffer(transferList, transferListIndex);
-            transferListIndex += decodeResult.channels.length;
-            result.info.push({
-                length: decodeResult.length,
-                startTime: decodeResult.startTime,
-                endTime: decodeResult.endTime
-            })
-            result.count++;
+        return (function loop(i) {
+            if (i < count) {
+                return that._decodeNextBuffer(transferList, transferListIndex).then(function(decodeResult) {
+                    if (!decodeResult) {
+                        return;
+                    }
+                    transferListIndex += decodeResult.channels.length;
+                    result.info.push({
+                        length: decodeResult.length,
+                        startTime: decodeResult.startTime,
+                        endTime: decodeResult.endTime
+                    })
+                    result.count++;
 
-            if (this.ended) {
-                result.trackEndingBufferIndex = i;
-                break;
+                    if (that.ended) {
+                        result.trackEndingBufferIndex = i;
+                        return result;
+                    }
+
+                    if (that.bufferFillId === id) {
+                        return loop(i + 1);
+                    }
+                });
+            } else if (that.bufferFillId === id) {
+                return result;
             }
-        }
-
-        return result;
+        })(0).tap(function(result) {
+            if (!result) {
+                message(-1, "_freeTransferList", null, transferList);
+            }
+        });
     } else {
         return {
             requestId: requestId,
@@ -460,64 +623,83 @@ AudioPlayer.prototype._fillBuffers = function(count, requestId, transferList) {
             trackEndingBufferIndex: -1
         };
     }
-};
+});
 
 AudioPlayer.prototype.fillBuffers = function(args, transferList) {
-    try {
-        var requestId = args.requestId;
+    var that = this;
+    return Promise.try(function() {
         var count = args.count;
-        if (this.destroyed) {
-            return this.sendMessage("_error", {message: "Destroyed"}, transferList);
+        if (that.destroyed) {
+            that.sendMessage("_error", {message: "Destroyed"}, transferList);
+            return;
         }
-        if (!this.blob) {
-            return this.sendMessage("_error", {message: "No blob loaded"}, transferList);
+        if (!that.blob) {
+            that.sendMessage("_error", {message: "No blob loaded"}, transferList);
+            return;
         }
-        var result = this._fillBuffers(count, requestId, transferList);
-        this.sendMessage("_buffersFilled", result, transferList);
-    } catch (e) {
-        this.passError(e.message, e.stack, e.name);
-    }
+        
+        return that._fillBuffers(count, -1, transferList).then(function(result) {
+            if (result) {
+                that.sendMessage("_buffersFilled", result, transferList);
+            }
+        });
+    }).catch(function(e) {
+        that.passError(e.message, e.stack, e.name);
+    });
 };
 
 AudioPlayer.prototype.seek = function(args, transferList) {
-    try {
+    var that = this;
+    return Promise.try(function() {
         var requestId = args.requestId;
         var count = args.count;
         var time = args.time;
-        if (this.destroyed) {
-            return this.sendMessage("_error", {message: "Destroyed"}, transferList);
-        }
-        if (!this.blob) {
-            return this.sendMessage("_error", {message: "No blob loaded"}, transferList);
-        }
-        if (this.resampler) {
-            this.resampler.end();
-            this.resampler.start();
+
+        if (that.destroyed) {
+            that.sendMessage("_error", {message: "Destroyed"}, transferList);
+            return;
         }
 
-        this.ended = false;
-        var seekerResult = seeker(this.codecName, time, this.metadata, this.decoderContext, this.fileView);
-        this.offset = seekerResult.offset;
-        this.decoderContext.applySeek(seekerResult);
-        var result = this._fillBuffers(count, requestId, transferList);
-        result.baseTime = seekerResult.time;
-        result.isUserSeek = args.isUserSeek;
-        this.sendMessage("_seeked", result, transferList);
-    } catch (e) {
-        this.passError(e.message, e.stack, e.name);
-    }
+        if (!that.blob) {
+            that.sendMessage("_error", {message: "No blob loaded"}, transferList);
+            return;
+        }
+
+        that.ended = false;
+
+        if (that.resampler) {
+            that.resampler.end();
+            that.resampler.start();
+        }
+
+
+
+        return seeker(that.codecName, time, that.metadata, that.decoderContext, that.fileView).then(function(seekerResult) {
+            that.offset = seekerResult.offset;
+            
+            that.decoderContext.applySeek(seekerResult);
+            return that._fillBuffers(count, requestId, transferList).then(function(result) {
+                if (result) {
+                    result.baseTime = seekerResult.time;
+                    result.isUserSeek = args.isUserSeek;
+                    that._clearFillRequests();
+                    that.sendMessage("_seeked", result, transferList);
+
+                }
+            });
+        });
+    }).catch(function (e) {
+        that.passError(e.message, e.stack, e.name);
+    });
 };
 
 AudioPlayer.prototype.sourceEndedPing = function(args) {
-    if (this.destroyed) return;
-    try {
-        this.sendMessage("_sourceEndedPong", {requestId: args.requestId});
-    } catch (e) {
-        this.passError(e.message, e.stack, e.name);
-    }
+    var that = this;
+    return Promise.try(function() {
+        if (that.destroyed) return;
+        that.sendMessage("_sourceEndedPong", {requestId: args.requestId});
+    }).catch(function (e) {
+        that.passError(e.message, e.stack, e.name);
+    });
 }
 
-// Preload mp3.
-codec.getCodec("mp3").then(function() {
-    self.postMessage({type: "ready"});
-});

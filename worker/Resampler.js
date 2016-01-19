@@ -139,8 +139,10 @@ const sinc = function(cutoff, x, N, table) {
     return cutoff * Math.sin(Math.PI * xx) / (Math.PI * xx) * computeFunc(Math.fround(Math.abs(2*x/N)), table);
 };
 
+var id = 0;
 function Resampler(nb_channels, in_rate, out_rate, quality) {
     if (quality === undefined) quality = 0;
+    this.id = id++;
     this.initialised = 0;
     this.started = false;
     this.in_rate = 0;

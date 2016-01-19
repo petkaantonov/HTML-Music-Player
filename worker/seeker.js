@@ -1,8 +1,10 @@
 "use strict";
+const Promise = require("../lib/bluebird");
 const FileView = require("./FileView");
 const Mp3SeekTable = require("./demuxer").Mp3SeekTable;
 
-function seekMp3(time, metadata, context, fileView) {
+const seekMp3 = Promise.method(function(time, metadata, context, fileView) {
+    var promise = Promise.resolve();
     time = Math.min(metadata.duration, Math.max(0, time));
     var frames = ((metadata.duration * metadata.sampleRate) / metadata.samplesPerFrame)|0;
     var frame = (time / metadata.duration * frames) | 0;
@@ -30,33 +32,34 @@ function seekMp3(time, metadata, context, fileView) {
         if (!table) {
             table = metadata.seekTable = new Mp3SeekTable();
         }
-        table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate),
-                metadata, fileView);
+        promise = table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate), metadata, fileView).then(function() {
+            // Trust that the seek offset given by VBRI metadata will not be to a frame that has bit
+            // reservoir. VBR should have little need for bit reservoir anyway.
+            if (table.isFromMetaData) {
+                frame = table.closestFrameOf(frame);
+                currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
+                samplesToSkip = metadata.samplesPerFrame;
+                offset = table.offsetOfFrame(frame);
+                targetFrame = frame;
+            } else {
+                offset = table.offsetOfFrame(targetFrame);
+            }
+        });
+    }
 
-        // Trust that the seek offset given by VBRI metadata will not be to a frame that has bit
-        // reservoir. VBR should have little need for bit reservoir anyway.
-        if (table.isFromMetaData) {
-            frame = table.closestFrameOf(frame);
-            currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
-            samplesToSkip = metadata.samplesPerFrame;
-            offset = table.offsetOfFrame(frame);
-            targetFrame = frame;
-        } else {
-            offset = table.offsetOfFrame(targetFrame);
+    return promise.then(function() {
+        if (targetFrame === 0) {
+            samplesToSkip = metadata.encoderDelay;
         }
-    }
 
-    if (targetFrame === 0) {
-        samplesToSkip = metadata.encoderDelay;
-    }
-
-    return {
-        time: currentTime,
-        offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
-        samplesToSkip: samplesToSkip,
-        frame: targetFrame
-    };
-}
+        return {
+            time: currentTime,
+            offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
+            samplesToSkip: samplesToSkip,
+            frame: targetFrame
+        };
+    });
+});
 
 function seek(type, time, metadata, context, fileView) {
     if (type === "mp3") {
@@ -65,4 +68,4 @@ function seek(type, time, metadata, context, fileView) {
     throw new Error("unsupported type");
 }
 
-module.exports = seek;
+module.exports = Promise.method(seek);

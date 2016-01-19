@@ -23,10 +23,10 @@ const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 
-const SEEK_START_CURVE = new Float32Array([1, 0.0]);
-const SEEK_END_CURVE = new Float32Array([0.0, 1]);
-const SEEK_START_FADE_TIME = audioPlayer.blockSizedTime(0.04);
-const SEEK_END_FADE_TIME = audioPlayer.blockSizedTime(0.065);
+const SEEK_START_CURVE = new Float32Array([1, 0.001]);
+const SEEK_END_CURVE = new Float32Array([0.001, 1]);
+const SEEK_START_FADE_TIME = audioPlayer.blockSizedTime(0.5);
+const SEEK_END_FADE_TIME = audioPlayer.blockSizedTime(0.5);
 
 const audioManagers = [];
 // Supports deletion mid-iteration.
@@ -443,14 +443,16 @@ AudioManager.prototype.initialPlaythrough = function() {
 AudioManager.prototype.fadeOutSeekGain = function() {
     var now = audioCtx.currentTime;
     this.seekGain.gain.cancelScheduledValues(0);
+    this.seekGain.gain.value = 1;
     this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, now, SEEK_START_FADE_TIME);
 };
 
 AudioManager.prototype.fadeInSeekGain = function() {
     var now = audioCtx.currentTime;
     this.seekGain.gain.cancelScheduledValues(0);
+    this.seekGain.gain.value = 0.001;
     this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
-};
+}
 
 AudioManager.prototype.willSeek = function() {
     this.intendingToSeek = -1;
@@ -795,6 +797,7 @@ Player.prototype.nextTrackImplicitly = function() {
 };
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
+    debugger;
     if (audioManager.track) {
         var trackError;
         if (e.name === "NotFoundError" || e.name === "NotReadableError") {

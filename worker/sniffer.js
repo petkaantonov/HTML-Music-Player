@@ -1,9 +1,13 @@
 "use strict";
 
-const rType =
-    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/g;
+const RIFF = 1380533830|0;
+const WAVE = 1463899717|0;
+const ID3 = 0x494433|0;
+const OGGS = 0x4f676753|0;
+const WEBM = 0x1A45DFA3|0;
+const AAC_1 = 0xFFF1|0;
+const AAC_2 = 0xFFF9|0;
 
-const indices = ["wav", "mp3", "aac", "webm", "ogg"];
 const mimeMap = {
     "audio/mp3": "mp3",
     "audio/mpeg": "mp3"
@@ -11,11 +15,13 @@ const mimeMap = {
 const extMap = {
     "mp3": "mp3"
 };
-const WAV = 0
-const MP3 = 1;
-const AAC = 2;
-const WEBM = 3;
-const OGG = 4;
+
+const probablyMp3Header = function(header) {
+    return !(((header & 0xffe00000) !== -2097152)     ||
+             ((header & (3 << 17)) !== (1 << 17))     ||
+             ((header & (0xF << 12)) === (0xF << 12)) ||
+             ((header & (3 << 10)) === (3 << 10)));
+};
 
 const rext = /\.([a-z0-9]+)$/i;
 const getExtension = function(str) {
@@ -24,10 +30,12 @@ const getExtension = function(str) {
     return null;
 };
 
-function refine(type, str, matchIndex) {
-    if (type === "wav") { 
-        var fmt = (str.charCodeAt(matchIndex + 20 + 0) & 0xFF) |
-                  (str.charCodeAt(matchIndex + 20 + 1) << 8);
+function refine(type, fileView, index) {
+    if (type === "wav") {
+        if (index >= fileView.end - 22) {
+            return "wav";
+        }
+        var fmt = fileView.getUint16(index + 20, true);
         switch (fmt) {
             case 0x0055: return "mp3";
             case 0x0001: return "wav";
@@ -40,28 +48,37 @@ function refine(type, str, matchIndex) {
     }
 }
 
-exports.getCodecName = function(blob) {
-    var reader = new FileReaderSync();
-    var str = reader.readAsBinaryString(blob.slice(0, 8192));
-    rType.lastIndex = 0;
+exports.getCodecName = function(fileView) {
+    return fileView.readBlockOfSizeAt(8192, 0).then(function() {
+        const end = fileView.end;
+        for (var i = 0; i < end - 4; ++i) {
+            var value = fileView.getInt32(i, false);
 
-    var match = rType.exec(str);
-    
-    if (match) {
-        for (var i = 0; i < indices.length; ++i) {
-            if (match[i + 1] !== undefined) {
-                return refine(indices[i], str, rType.lastIndex - match[0].length);
+            if (value === RIFF &&
+                i < end - 12 &&
+                fileView.getInt32(i + 8) === WAVE) {
+                return refine("wav", fileView, i);
+            } else if ((value >>> 8) === ID3 || probablyMp3Header(value)) {
+                return refine("mp3", fileView, i);
+            } else if ((value >>> 16) === AAC_1 || (value >>> 16) === AAC_2) {
+                return refine("aac", fileView, i);
+            } else if (value === WEBM) {
+                return refine("webm", fileView, i);
+            } else if (value === OGGS) {
+                return refine("ogg", fileView, i);
             }
         }
-    }
 
-    if (mimeMap[blob.type]) {
-        return mimeMap[blob.type];
-    }
+        var file = fileView.file;
 
-    var ext = getExtension(blob.name);
+        if (mimeMap[file.type]) {
+            return mimeMap[file.type];
+        }
 
-    if (ext) return extMap[etx] || null;
-    
-    return null;
+        var ext = getExtension(file.name);
+
+        if (ext) return extMap[etx] || null;
+        
+        return null;
+    });
 };

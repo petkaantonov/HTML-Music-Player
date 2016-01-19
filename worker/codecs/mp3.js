@@ -1339,8 +1339,10 @@ const getBuffer = function(channelIndex, type, length, id) {
 
 const PENDING_HEADER = 0;
 const PENDING_DATA = 1;
+var id = 0;
 function Mp3Context(opts) {
     EventEmitter.call(this);
+    this.id = id++;
     opts = Object(opts);
     var targetBufferLengthSeconds = "targetBufferLengthSeconds" in opts ? (
       Math.max(Math.min(opts.targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS),

@@ -1,5 +1,8 @@
 "use strict";
 
+const Promise = require("../lib/bluebird");
+const util = require("../js/util");
+
 function FileView(file) {
     this.file = file;
     this.dataview = null;
@@ -14,79 +17,77 @@ FileView.prototype.toBufferOffset = function(fileOffset) {
 
 FileView.prototype.ensure = function(offset, length) {
     if (!(this.start <= offset && offset + length <= this.end)) {
-        const max = this.file.size;
-        if (offset + length > max) {
-            throw new Error("EOF");
-        }
-        this.start = Math.max(Math.min(max - 1, offset), 0);
-        var end = (offset + length + 65536)
-        this.end = Math.max(Math.min(max, end), 0);
-        var reader = new FileReaderSync();
-        var result = reader.readAsArrayBuffer(
-                this.file.slice(this.start, this.end));
-        this.dataview = new DataView(result);
+        throw new Error("read out of bounds");
     }
 };
 
 FileView.prototype.getFloat64 = function(offset, le) {
-    this.ensure(offset, 8);
     return this.dataview.getFloat64(offset - this.start, le);
 };
 
 FileView.prototype.getFloat32 = function(offset, le) {
-    this.ensure(offset, 4);
     return this.dataview.getFloat32(offset - this.start, le);
 };
 
 FileView.prototype.getUint32 = function(offset, le) {
-    this.ensure(offset, 4);
     return this.dataview.getUint32(offset - this.start, le);
 };
 
 FileView.prototype.getInt32 = function(offset, le) {
-    this.ensure(offset, 4);
     return this.dataview.getInt32(offset - this.start, le);
 };
 
 FileView.prototype.getUint16 = function(offset, le) {
-    this.ensure(offset, 2);
     return this.dataview.getUint16(offset - this.start, le);
 };
 
 FileView.prototype.getInt16 = function(offset, le) {
-    this.ensure(offset, 2);
     return this.dataview.getInt16(offset - this.start, le);
 };
 
 FileView.prototype.getUint8 = function(offset) {
-    this.ensure(offset, 1);
     return this.dataview.getUint8(offset - this.start);
 };
 
 FileView.prototype.getInt8 = function(offset) {
-    this.ensure(offset, 1);
     return this.dataview.getInt8(offset - this.start);
 };
 
-FileView.prototype.bufferOfSizeAt = function(size, start, paddingFactor) {
-    if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
-    size = Math.ceil(size);
-    var start = Math.min(this.file.size - 1, Math.max(0, start));
-    var end = Math.min(this.file.size, start + size);
-
-    if (this.buffer && 
-        (this.start <= start && end <= this.end)) {
-        return this.buffer;
-    }
-
-    end = Math.min(this.file.size, start + size * paddingFactor);
-    this.start = start;
-    this.end = end;
-    var reader = new FileReaderSync();
-    var result = reader.readAsArrayBuffer(
-            this.file.slice(this.start, this.end));
-    this.buffer = new Uint8Array(result);
+FileView.prototype.block = function() {
+    if (!this.buffer) throw new Error("no block available");
     return this.buffer;
+};
+
+FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
+        size = Math.ceil(size);
+        var maxSize = self.file.size;
+        var start = Math.min(maxSize - 1, Math.max(0, startOffset));
+        var end = Math.min(maxSize, start + size);
+
+        if (self.buffer && 
+            (self.start <= start && end <= self.end)) {
+            return resolve();
+        }
+
+        end = Math.min(maxSize, start + size * paddingFactor);
+        self.start = start;
+        self.end = end;
+        self.buffer = null;
+        self.dataview = null;
+
+        resolve(util.readAsArrayBuffer(self.file.slice(self.start, self.end)).then(function(result) {
+            self.buffer = new Uint8Array(result);
+            self.dataview = new DataView(result);
+        }).catch(function(e) {
+            self.start = self.end = -1;
+            self.buffer = null;
+            self.dataview = null;
+            throw e;
+        }));
+    });
 };
 
 

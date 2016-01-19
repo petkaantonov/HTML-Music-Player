@@ -1,22 +1,30 @@
 "use strict";
 self.EventEmitter = require("events");
 
-var Resampler = require("./Resampler");
-var ChannelMixer = require("./ChannelMixer");
-var FileView = require("./FileView");
-var demuxer = require("./demuxer");
-var codec = require("./codec");
-var sniffer = require("./sniffer");
-var pool = require("./pool");
-var AcoustId = require("./AcoustId");
-var Ebur128 = require("./ebur128");
+const Promise = require("../lib/bluebird");
+Promise.setScheduler(function(fn) { fn(); });
+Promise.config({
+    cancellation: false,
+    warnings: false,
+    longStackTraces: false
+});
 
-var allocBuffer = pool.allocBuffer;
-var freeBuffer = pool.freeBuffer;
-var allocResampler = pool.allocResampler;
-var allocDecoderContext = pool.allocDecoderContext;
-var freeResampler = pool.freeResampler;
-var freeDecoderContext = pool.freeDecoderContext;
+const Resampler = require("./Resampler");
+const ChannelMixer = require("./ChannelMixer");
+const FileView = require("./FileView");
+const demuxer = require("./demuxer");
+const codec = require("./codec");
+const sniffer = require("./sniffer");
+const pool = require("./pool");
+const AcoustId = require("./AcoustId");
+const Ebur128 = require("./ebur128");
+
+const allocBuffer = pool.allocBuffer;
+const freeBuffer = pool.freeBuffer;
+const allocResampler = pool.allocResampler;
+const allocDecoderContext = pool.allocDecoderContext;
+const freeResampler = pool.freeResampler;
+const freeDecoderContext = pool.freeDecoderContext;
 
 const BUFFER_DURATION = 1;
 const WORST_RESAMPLER_QUALITY = 0;
@@ -61,109 +69,111 @@ function nextJob() {
     var file = job.file;
     var fingerprint = job.fingerprint;
     var loudness = job.loudness;
-    var codecName = sniffer.getCodecName(file);
+    
     var decoder;
     var resamplerFingerprint;
     var fingerprintBuffers;
     var fingerprintSource;
     var sampleRate;
     var channels;
+    var codecName;
     currentJobId = id;
-
-    if (!codecName) {
-        return error(id, new Error("file type not supported"));
-    }
 
     var view = new FileView(file);
 
-    codec.getCodec(codecName).then(function(codec) {
-        var metadata = demuxer(codec.name, view);
-
-        if (!metadata) {
-            return error(id, new Error("file type not supported"));
+    sniffer.getCodecName(view).then(function(codecName) {
+        if (!codecName) {
+            error(id, new Error("file type not supported"));
+            return;
         }
-
-        decoder = allocDecoderContext(codec.name, codec.Context, {
-            seekable: false,
-            dataType: codec.Context.FLOAT,
-            targetBufferLengthSeconds: BUFFER_DURATION
-        });
-
-        sampleRate = metadata.sampleRate;
-        channels = metadata.channels;
-
-        var samplesDecoded = 0;
-        var fingerprintSamples = sampleRate * FINGERPRINT_DURATION;
-        var fingerprintBufferLength = 0;
-        fingerprint = fingerprint && metadata.duration >= 7;
-        var ebur128;
-
-        if (fingerprint) {
-            fingerprintBuffers = allocBuffer(BUFFER_DURATION * sampleRate, channels);
-            fingerprintSource = allocBuffer(FINGERPRINT_DURATION * FINGERPRINT_SAMPLE_RATE, 1);
-
-            if (sampleRate !== FINGERPRINT_SAMPLE_RATE) {
-                resamplerFingerprint = allocResampler(1, sampleRate, FINGERPRINT_SAMPLE_RATE, WORST_RESAMPLER_QUALITY);    
+        return codec.getCodec(codecName);
+    }).then(function(codec) {
+        if (!codec) return;
+        
+        return demuxer(codec.name, view).then(function(metadata) {
+            if (!metadata) {
+                error(id, new Error("file type not supported"));
+                return;
             }
-        }
+            codecName = codec.name;
+            decoder = allocDecoderContext(codec.name, codec.Context, {
+                seekable: false,
+                dataType: codec.Context.FLOAT,
+                targetBufferLengthSeconds: BUFFER_DURATION
+            });
 
-        if (loudness) {
-            ebur128 = new Ebur128(channels, sampleRate, Ebur128.EBUR128_MODE_I | Ebur128.EBUR128_MODE_SAMPLE_PEAK);
-        }
+            sampleRate = metadata.sampleRate;
+            channels = metadata.channels;
 
-        decoder.start(metadata);
-
-        var flushed = false;
-        decoder.on("data", function(channels) {
-            flushed = true;
-            var sampleCount = channels[0].length;
-            samplesDecoded += sampleCount;
-            fingerprint = fingerprint && samplesDecoded <= fingerprintSamples;
+            var samplesDecoded = 0;
+            var fingerprintSamples = sampleRate * FINGERPRINT_DURATION;
+            var fingerprintBufferLength = 0;
+            fingerprint = fingerprint && metadata.duration >= 7;
+            var ebur128;
 
             if (fingerprint) {
-                for (var ch = 0; ch < channels.length; ++ch) {
-                    var src = channels[ch];
-                    var dst = fingerprintBuffers[ch];
-                    for (var i = 0; i < src.length; ++i) {
-                        dst[i] = src[i];
+                fingerprintBuffers = allocBuffer(BUFFER_DURATION * sampleRate, channels);
+                fingerprintSource = allocBuffer(FINGERPRINT_DURATION * FINGERPRINT_SAMPLE_RATE, 1);
+
+                if (sampleRate !== FINGERPRINT_SAMPLE_RATE) {
+                    resamplerFingerprint = allocResampler(1, sampleRate, FINGERPRINT_SAMPLE_RATE, WORST_RESAMPLER_QUALITY);    
+                }
+            }
+
+            if (loudness) {
+                ebur128 = new Ebur128(channels, sampleRate, Ebur128.EBUR128_MODE_I | Ebur128.EBUR128_MODE_SAMPLE_PEAK);
+            }
+
+            decoder.start(metadata);
+
+            var flushed = false;
+            decoder.on("data", function(channels) {
+                flushed = true;
+                var sampleCount = channels[0].length;
+                samplesDecoded += sampleCount;
+                fingerprint = fingerprint && samplesDecoded <= fingerprintSamples;
+
+                if (fingerprint) {
+                    for (var ch = 0; ch < channels.length; ++ch) {
+                        var src = channels[ch];
+                        var dst = fingerprintBuffers[ch];
+                        for (var i = 0; i < src.length; ++i) {
+                            dst[i] = src[i];
+                        }
                     }
+
+                    var samples = fingerprintMixer.mix(fingerprintBuffers, sampleCount);
+                    var len = sampleCount;
+                    if (resamplerFingerprint) {
+                        samples = resamplerFingerprint.resample([samples[0]], sampleCount);
+                        len = samples[0].length;
+                    }
+
+                    var src = samples[0];
+                    var dst = fingerprintSource[0];
+                    for (var i = 0; i < len; ++i) {
+                        dst[i + fingerprintBufferLength] = src[i];
+                    }
+                    fingerprintBufferLength += len;
                 }
 
-                var samples = fingerprintMixer.mix(fingerprintBuffers, sampleCount);
-                var len = sampleCount;
-                if (resamplerFingerprint) {
-                    samples = resamplerFingerprint.resample([samples[0]], sampleCount);
-                    len = samples[0].length;
+                if (loudness && ebur128) {
+                    ebur128.add_frames(channels, sampleCount);
                 }
+            });
 
-                var src = samples[0];
-                var dst = fingerprintSource[0];
-                for (var i = 0; i < len; ++i) {
-                    dst[i + fingerprintBufferLength] = src[i];
-                }
-                fingerprintBufferLength += len;
-            }
+            var error;
+            decoder.on("error", function(e) {
+                error = e;
+            });
 
-            if (loudness && ebur128) {
-                ebur128.add_frames(channels, sampleCount);
-            }
-        });
-
-        var error;
-        decoder.on("error", function(e) {
-            error = e;
-        });
-
-        var offset = metadata.dataStart;
-        var aborted = false;
-        var started = Date.now();
-
-        return Promise.resolve(offset).then(function loop(offset) {
-            var now = Date.now();
-
-            while (offset < metadata.dataEnd && error === undefined) {
+            var offset = metadata.dataStart;
+            var aborted = false;
+            var started = Date.now();
+            
+            return view.readBlockOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2).then(function loop() {
                 flushed = false;
-                var buffer = view.bufferOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2);
+                var buffer = view.block();
                 var srcStart = view.toBufferOffset(offset);
                 var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
                 var bytesRead = (srcEnd - srcStart);
@@ -185,49 +195,48 @@ function nextJob() {
 
                 if (shouldAbort) {
                     aborted = true;
-                    return reportAbort(id);
+                    reportAbort(id);
+                    return;
                 }
-                
-                if (Date.now() - now > 1000) {
-                    return delay(offset, 0).then(loop);
+
+                return view.readBlockOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2).then(loop);
+            }).then(function() {
+                if (aborted) {
+                    return;
                 }
-            }
-        }).then(function() {
-            if (aborted) {
-                return;
-            }
 
-            if (error === undefined) {
-                decoder.end();
-            }
+                if (error === undefined) {
+                    decoder.end();
+                }
 
-            if (error) {
-                return error(id, error);
-            }
-            var result = {
-                loudness: null,
-                fingerprint: null,
-                duration: metadata.duration
-            };
-
-            if (fingerprintSource && fingerprintBufferLength > 0) {
-                var fpcalc = new AcoustId(fingerprintSource[0], fingerprintBufferLength);
-                result.fingerprint = {
-                    fingerprint: fpcalc.calculate(false)
+                if (error) {
+                    return error(id, error);
+                }
+                var result = {
+                    loudness: null,
+                    fingerprint: null,
+                    duration: metadata.duration
                 };
-            }
 
-            if (loudness && ebur128) {
-                var trackGain = Ebur128.REFERENCE_LUFS - ebur128.loudness_global();
-                var trackPeak = Math.max.apply(Math, ebur128.getSamplePeak());
-                var silence = ebur128.getSilence();
-                result.loudness = {
-                    trackGain: trackGain,
-                    trackPeak: trackPeak,
-                    silence: silence
-                };
-            }
-            success(id, result);
+                if (fingerprintSource && fingerprintBufferLength > 0) {
+                    var fpcalc = new AcoustId(fingerprintSource[0], fingerprintBufferLength);
+                    result.fingerprint = {
+                        fingerprint: fpcalc.calculate(false)
+                    };
+                }
+
+                if (loudness && ebur128) {
+                    var trackGain = Ebur128.REFERENCE_LUFS - ebur128.loudness_global();
+                    var trackPeak = Math.max.apply(Math, ebur128.getSamplePeak());
+                    var silence = ebur128.getSilence();
+                    result.loudness = {
+                        trackGain: trackGain,
+                        trackPeak: trackPeak,
+                        silence: silence
+                    };
+                }
+                success(id, result);
+            });
         });
     }).catch(function(e) {
         error(id, e);

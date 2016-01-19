@@ -319,7 +319,7 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
                             0;
     this.acoustId = data.acoustId || this.acoustId|| null;
     if (this.acoustId) this.updateFieldsFromAcoustId(this.acoustId);
-    if (data.coverArt) {
+    if (data.coverArt && !this._embeddedImageOffsets) {
         albumNameToCoverArtUrlMap[this.albumNameKey()] = data.coverArt.url;
         this._coverArtImageState = HAS_IMAGE;
     }

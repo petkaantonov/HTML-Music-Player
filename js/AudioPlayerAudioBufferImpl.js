@@ -52,6 +52,20 @@ function SourceDescriptor(buffer, info, channelData, isLastForTrack) {
     this.isLastForTrack = isLastForTrack;
 }
 
+SourceDescriptor.prototype.hash = function() {
+    var channels = this.channelData.length;
+    var ret = [];
+    for (var ch = 0; ch < channels; ++ch) {
+        var sum = 0;
+        var data = this.channelData[ch];
+        for (var i = 0; i < this.length; ++i) {
+            sum += data[i];
+        }
+        ret.push(sum);
+    }
+    return ret;
+};
+
 SourceDescriptor.prototype.getRemainingDuration = function() {
     return this.duration - this.playedSoFar;
 };
@@ -222,8 +236,17 @@ AudioPlayer.prototype._message = function(nodeId, methodName, args, transferList
 };
 
 AudioPlayer.prototype._freeTransferList = function(args, transferList) {
+    if (!transferList) return;
+
     while (transferList.length > 0) {
-        this._freeArrayBuffer(transferList.pop());
+        var item = transferList.pop();
+        if (!(item instanceof ArrayBuffer)) {
+            item = item.buffer;
+        }
+
+        if (item.byteLength > 0) {
+            this._freeArrayBuffer(item);
+        }
     }
 };
 
@@ -779,10 +802,8 @@ AudioPlayerSourceNode.prototype._fillBuffers = function() {
 
     if (this._bufferQueue.length < SUSTAINED_BUFFER_COUNT) {
         var count = SUSTAINED_BUFFER_COUNT - this._bufferQueue.length;
-        var fillRequestId = ++this._audioBufferFillRequestId;
-
+    
         this._player._message(this._id, "fillBuffers", {
-            requestId : fillRequestId,
             count: count
         }, this._getBuffersForTransferList(count));
     }
@@ -852,7 +873,7 @@ AudioPlayerSourceNode.prototype._checkIfLastBufferIsQueued = function() {
 };
 
 AudioPlayerSourceNode.prototype._buffersFilled = function(args, transferList) {
-    if (args.requestId !== this._audioBufferFillRequestId || this._destroyed) {
+    if (this._destroyed) {
         return this._freeTransferList(transferList);
     }
 
@@ -943,9 +964,7 @@ AudioPlayerSourceNode.prototype.getDuration = function() {
 };
 
 AudioPlayerSourceNode.prototype._freeTransferList = function(transferList) {
-    while (transferList.length > 0) {
-        this._player._freeArrayBuffer(transferList.pop());
-    }
+    this._player._freeTransferList(transferList);
 };
 
 AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
@@ -957,6 +976,7 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
     this._endedEmitted = false;
     this._baseTime = args.baseTime;
     this._stopSources();
+    
     var sourceDescriptor;
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
@@ -968,6 +988,7 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
     if (args.isUserSeek) {
         this.emit("seekComplete", this._currentTime);
     }
+    this._fillBuffers();
 };
 
 AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
@@ -1082,6 +1103,7 @@ AudioPlayerSourceNode.prototype.replaceUsingGaplessPreload = function() {
     this._gaplessPreloadArgs = null;
     this._lastBufferLoadedEmitted = false;
     this._applyReplacementLoadedArgs(args);
+    this._fillBuffers();
 };
 
 AudioPlayerSourceNode.prototype._applyReplacementLoadedArgs = function(args) {
@@ -1109,13 +1131,13 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
     // Sync so that proper gains nodes are set up already when applying the buffers 
     // for this track.
     this.emit("replacementLoaded");
-
     this._stopSources();
     var sourceDescriptor;
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
     this._applyBuffers(args, transferList);
+    this._fillBuffers();
 };
 
 AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaplessPreload) {
