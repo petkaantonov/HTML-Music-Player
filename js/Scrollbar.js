@@ -1,6 +1,7 @@
 "use strict";
 
-var util = require("./util");
+const util = require("./util");
+const domUtil = require("./DomUtil");
 
 function Scrollbar(container, scrollerInfo, opts) {
     opts = Object(opts);
@@ -134,7 +135,7 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
         this._timerId = setTimeout(this._stopScrolling, 450);
     }
 
-    this.$knob()[0].style.transform = "translate3d(0, " + px + "px, 0)";
+    domUtil.setTransform(this.$knob()[0], "translate3d(0, " + px + "px, 0)");
 };
 
 Scrollbar.prototype.resize = function() {

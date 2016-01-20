@@ -190,7 +190,7 @@ PlayerTimeManager.prototype._updateProgress = function() {
     } else {
         percentage = this.currentTime / this.totalTime * 100;
     }
-    this.$timeProgress()[0].style.transform = "translate3d(" + (percentage - 100) + "%,0,0)";
+    domUtil.setTransform(this.$timeProgress()[0], "translate3d(" + (percentage - 100) + "%,0,0)");
 };
 
 PlayerTimeManager.prototype._scheduleUpdate = function() {

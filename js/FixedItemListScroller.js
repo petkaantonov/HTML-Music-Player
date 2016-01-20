@@ -39,7 +39,7 @@ FixedItemListScroller.prototype._forceRenderItems = function() {
 
 FixedItemListScroller.prototype._renderScrollTop = function() {
     var y = -this._scrollTop;
-    this.$contentContainer().css("transform", "translate3d(0px, "+y+"px, 0px)");
+    domUtil.setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop);
 };
 

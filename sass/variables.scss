@@ -446,11 +446,29 @@ $link-hover-decoration: underline !default;
        -o-transform: scaleY($ratio);
           transform: scaleY($ratio);
 }
+@mixin translateX($ratio) {
+  -webkit-transform: translateX($ratio);
+      -ms-transform: translateX($ratio); // IE9 only
+       -o-transform: translateX($ratio);
+          transform: translateX($ratio);
+}
+@mixin translateY($ratio) {
+  -webkit-transform: translateY($ratio);
+      -ms-transform: translateY($ratio); // IE9 only
+       -o-transform: translateY($ratio);
+          transform: translateY($ratio);
+}
 @mixin skew($x, $y) {
   -webkit-transform: skewX($x) skewY($y);
       -ms-transform: skewX($x) skewY($y); // See https://github.com/twbs/bootstrap/issues/4885; IE9+
        -o-transform: skewX($x) skewY($y);
           transform: skewX($x) skewY($y);
+}
+@mixin skew1($x) {
+  -webkit-transform: skewX($x);
+      -ms-transform: skewX($x); // See https://github.com/twbs/bootstrap/issues/4885; IE9+
+       -o-transform: skewX($x);
+          transform: skewX($x);
 }
 @mixin translate($x, $y) {
   -webkit-transform: translate($x, $y);
@@ -458,6 +476,7 @@ $link-hover-decoration: underline !default;
        -o-transform: translate($x, $y);
           transform: translate($x, $y);
 }
+
 @mixin translate3d($x, $y, $z) {
   -webkit-transform: translate3d($x, $y, $z);
           transform: translate3d($x, $y, $z);

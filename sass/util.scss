@@ -33,7 +33,7 @@
 }
 
 .rotate-90 {
-    transform: rotate(90deg);
+    @include rotate(90deg);
 }
 
 .notextflow {

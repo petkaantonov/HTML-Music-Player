@@ -197,7 +197,7 @@ Popup.prototype.closerClicked = function() {
 
 Popup.prototype._renderCssPosition = function() {
     if (this._dragging) {
-        this.$().css("transform", "translate(" +
+        domUtil.setTransform(this.$()[0], "translate(" +
             (this._x /*- this._rect.width / 2*/) + "px, " +
             (this._y /*- this._rect.height / 2*/) + "px");
     } else {
@@ -269,10 +269,10 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     }
 
     this.$().css({
-        transform: "translate("+this._x+"px,"+this._y+"px)",
         left: 0,
         top: 0
     });
+    domUtil.setTransform(this.$()[0], "translate("+this._x+"px,"+this._y+"px)");
 };
 
 Popup.prototype.draggingEnd = function() {
@@ -286,10 +286,10 @@ Popup.prototype.draggingEnd = function() {
     }
 
     this.$().css({
-        transform: "none",
         left: this._x,
         top: this._y
     });
+    domUtil.setTransform(this.$()[0], "none");
 };
 
 Popup.prototype.close = function() {

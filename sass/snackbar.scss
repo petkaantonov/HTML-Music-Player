@@ -5,7 +5,7 @@
     position: absolute;
     bottom: 0px;
     left: 50%;
-    transform: translate(-50%, 0);
+    @include translate(-50%, 0);
     margin: 0px auto;
     min-width: 288px;
     max-width: 568px;
@@ -47,21 +47,21 @@
 }
 
 .snackbar-container.transition-in {
-    transform: translate(-50%, 0);
+    @include translate(-50%, 0);
     @include css-filter(opacity(100%));
 }
 
 .snackbar-container.transition-in.initial {
-    transform: translate(-50%, 100%);
+    @include translate(-50%, 100%);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out {
-    transform: translate(-50%, 100%);
+    @include translate(-50%, 100%);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out.initial {
-    transform: translate(-50%, 0);
+    @include translate(-50%, 0);
     @include css-filter(opacity(100%));
 }

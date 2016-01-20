@@ -8,6 +8,7 @@ const TagData = require("./TagData");
 const Tooltip = require("./Tooltip");
 const sha1 = require("../lib/sha1");
 const Promise = require("../lib/bluebird");
+const domUtil = require("./DomUtil");
 
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
@@ -334,9 +335,10 @@ Track.prototype.setIndex = function(index) {
 
 Track.prototype.indexChanged = function() {
     var index = this.index;
-    if (index >= 0) {
+    if (index >= 0 && this._domNode !== NULL) {
         this.setTrackNumber();
-        this.$().css("transform", "translateY(" + index * playlist.main.getItemHeight() + "px");
+        domUtil.setTransform(this.$()[0],
+                             "translateY(" + index * playlist.main.getItemHeight() + "px");
     }
 };
 
@@ -380,7 +382,7 @@ Track.prototype.updateAnalysisEstimate = function() {
     });
     bar.width();
     requestAnimationFrame(function() {
-        bar.css("transform", "translateX(0)");    
+        domUtil.setTransform(bar[0], "translateX(0)");
     });
 };
 

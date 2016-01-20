@@ -6,7 +6,7 @@
     top: 0px;
     right: 0px;
     height: 100%;
-    transform: translate3d(0, 0, 0);
+    @include translate3d(0, 0, 0);
 }
 
 .scrollbar-rail, .scrollbar-knob {
@@ -35,8 +35,8 @@
 .scrollbar-knob {
     background-color: rgba(0, 0, 0, 0.35);
     @include css-filter(opacity(0%));
-    transform-origin: top left 0;
-    transform: translate3d(0, 0, 0);
+    @include transform-origin(top left 0);
+    @include translate3d(0, 0, 0);
 }
 
 .scrollbar-container.scrolling .scrollbar-knob,

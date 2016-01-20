@@ -6,7 +6,6 @@ const Promise = require("../lib/bluebird");
 
 const util = require("./util");
 const domUtil = require("./DomUtil");
-const filterProp = domUtil.filterProp;
 
 const START_SCALE = 0.95;
 const END_SCALE = 1;
@@ -145,8 +144,8 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
         };
     }
 
-    var scaleMatch = $img.css("transform").match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i);
-    var opacityMatch = $img.css(filterProp).match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
+    var scaleMatch = domUtil.getTransform($img).match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i);
+    var opacityMatch = domUtil.getFilter($img).match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
 
     if (!scaleMatch || !opacityMatch) {
         return {

@@ -22,7 +22,7 @@
     z-index: 3;
     position: absolute;
     left: 0;
-    transform: translate3d(-100%, 0, 0);
+    @include translate3d(-100%, 0, 0);
     will-change: transform;
     height: 20px;
     background-image: url('../images/seek_fill_gradient.png');
@@ -139,24 +139,24 @@
 }
 
 .play-pause-morph-icon .glyphicon-play {
-    transform: translateY(0);
+    @include translateY(0);
 }
 
 .play-pause-morph-icon .glyphicon-pause {
-    transform: translateY(-16px);
+    @include translateY(-16px);
 }
 
 .play-pause-morph-icon {
     transition: transform 0.4s ease;
-    transform: translateY(0);
+    @include translateY(0);
 }
 
 .play-pause-morph-icon.pause {
-    transform: translateY(16px);
+    @include translateY(16px);
 }
 
 .play-pause-morph-icon.play {
-    transform: translateY(0);
+    @include translateY(0);
 }
 
 .button-group .button-group-button {
@@ -334,12 +334,12 @@
     text-align: center;
     position: absolute;
     bottom: 0px;
-    transform: translateY(0);
+    @include translateY(0);
     transition: transform .4s cubic-bezier(.55, 0, .1, 1);
 }
 
 .playback-status-wrapper .time-container.hidden {
-    transform: translateY(20px);
+    @include translateY(20px);
 }
 
 .playback-status-wrapper .current-time-container {
@@ -390,14 +390,14 @@
     left: -12px;
     border-right: none;
     border-top-left-radius: 6px;
-    transform: skew(-23deg);
+    @include skew1(-23deg);
 }
 
 .slanted.right-side-slant:after {
     right: -12px;
     border-left: none;
     border-top-right-radius: 6px;
-    transform: skew(23deg);
+    @include skew1(23deg);
 }
 
 .mode-active,

@@ -29,7 +29,7 @@ $visualizer-height: 118px;
 .visualizer {
     height: $visualizer-height;
     display: block;
-    transform: translate3d(0, 0, 0);
+    @include translate3d(0, 0, 0);
 }
 
 .latency-input-row {

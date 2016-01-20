@@ -4,7 +4,6 @@ const util = require("./util");
 const EventEmitter = require("events");
 const unitBezier = require("../lib/bezier");
 const domUtil = require("./DomUtil");
-const filterProp = domUtil.filterProp;
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -515,14 +514,14 @@ function Animator(dom, opts) {
 
     var havePersistentTransforms = this._transforms.filter(filterIsPersistent).length > 0;
     var havePersistentFilters = this._filters.filter(filterIsPersistent).length > 0;
-    var baseFilter = $(this._domNode).css(filterProp);
+    var baseFilter = domUtil.getFilter($(this._domNode));
     baseFilter = baseFilter === "none" ? "" : baseFilter;
     this._baseFilter = baseFilter + " ";
-    var baseTransform = $(this._domNode).css("transform");
+    var baseTransform = domUtil.getTransform($(this._domNode));
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
-    this._baseStyleFilter = (havePersistentFilters ? baseFilter : this._domNode.style[filterProp]) || "";
-    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : this._domNode.style.transform) || "";
+    this._baseStyleFilter = (havePersistentFilters ? baseFilter : domUtil.getTransform(this._domNode)) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : domUtil.getTransform(this._domNode)) || "";
 
     this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {
@@ -689,12 +688,12 @@ Animator.prototype._progress = function(current, total) {
 
     var transforms = this._getTransforms(current, total);
     if (transforms) {
-        node.style.transform = this._baseTransform + transforms;
+        domUtil.setTransform(node, this._baseTransform + transforms);
     }
 
     var filters = this._getFilters(current, total);
     if (filters) {
-        node.style[filterProp] = this._baseFilter + filters;
+        domUtil.setFilter(node, this._baseFilter + filters);
     }
 
     this._applyDirectProperties(node, current, total);
@@ -705,9 +704,9 @@ Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     var transforms = this._getTransforms(current, total);
     var filters = this._getFilters(current, total);
 
-    node.style.transform = this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms;
+    domUtil.setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
     if (filters) {
-        node.style[filterProp] = this._baseFilter + filters;
+        domUtil.setFilter(node, this._baseFilter + filters);
     }
     this._applyDirectProperties(node, current, total);
 };
@@ -729,15 +728,15 @@ Animator.prototype._applyEndValues = function() {
     var baseTransforms = this._baseStyleTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        this._domNode.style[filterProp] = merge(baseFilters, persistentFilters).trim();
+        domUtil.setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
     } else {
-        this._domNode.style[filterProp] = (baseFilters + " " + persistentFilters).trim();
+        domUtil.setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        this._domNode.style.transform = merge(baseTransforms, persistentTransforms).trim();
+        domUtil.setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
     } else {
-        this._domNode.style.transform = (baseTransforms + " " + persistentTransforms).trim();
+        domUtil.setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
     }
 };
 

@@ -1,5 +1,6 @@
 "use strict";
 const $ = require("../lib/jquery");
+const domUtil = require("./DomUtil");
 
 function TrackDisplay(target, opts) {
     var parent;
@@ -40,7 +41,7 @@ function TrackDisplay(target, opts) {
 
 TrackDisplay.prototype._windowResized = function() {
     this._needRecalc = true;
-    document.getElementById(this._target).style.transform = "";
+    domUtil.setTransform(document.getElementById(this._target), "");
     this._amounts = 0;
     this.beginMarquee();
 };
@@ -65,9 +66,12 @@ TrackDisplay.prototype.update = function() {
     var index = track.getIndex();
     var trackNumber = index >= 0 ? (index + 1) + ". " : "";
     var title = trackNumber + track.formatFullName();
-    $(document.getElementById(this._target)).text(title);
+    var target = document.getElementById(this._target);
+    $(target).text(title);
+    domUtil.setTransform(target, "");
     document.title = title;
     this._needRecalc = true;
+
     return this;
 };
 
@@ -99,7 +103,7 @@ TrackDisplay.prototype.__marquer = function() {
         last = now;
         self._amounts += (diff / updateTime) * progress;
         var translate3d = "translate3d("+self._amounts+"px,0,0)";
-        target.style.transform = translate3d;
+        domUtil.setTransform(target, translate3d);
 
         if (self._amounts > 0 ||
             self._amounts <= -self._textHiddenWidth) {

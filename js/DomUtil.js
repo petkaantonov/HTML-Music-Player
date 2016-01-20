@@ -25,9 +25,80 @@ var util = {};
 util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
-util.filterProp = (function() {
+util.setFilter = (function() {
     var div = document.createElement("div");
-    return (("webkitFilter" in div.style) ? "webkitFilter" : "filter");
+    
+    if ("webkitFilter" in (document.createElement("div").style)) {
+        return function(elem, value) {
+            elem.style.webkitFilter = value;
+        };
+    }
+
+    if ("mozFilter" in (document.createElement("div").style)) {
+        return function(elem, value) {
+            elem.style.mozFilter = value;
+        };
+    }
+
+    return function(elem, value) {
+        elem.style.mozFilter = value;
+    };
+})();
+
+util.getFilter = (function() {
+    var div = document.createElement("div");
+
+    if ("webkitFilter" in (document.createElement("div").style)) {
+        return function(elem) {
+            return elem.style ? elem.style.webkitFilter : elem.css("webkitFilter");
+        };
+    }
+
+    if ("mozFilter" in (document.createElement("div").style)) {
+        return function(elem) {
+            return elem.style ? elem.style.mozFilter : elem.css("mozFilter");
+        };
+    }
+
+    return function(elem) {
+        return elem.style ? elem.style.filter : elem.css("filter");
+    };
+})();
+
+util.setTransform = (function() {
+    var div = document.createElement("div");
+    if ("transform" in (document.createElement("div").style)) {
+        return function(elem, value) {
+            elem.style.transform = value;
+        };
+    }
+    if ("webkitTransform" in (document.createElement("div").style)) {
+        return function(elem, value) {
+            elem.style.webkitTransform = value;
+        };
+    }
+
+    return function(elem, value) {
+        elem.style.mozTransform = value;
+    };
+})();
+
+util.getTransform = (function() {
+    var div = document.createElement("div");
+    if ("transform" in (document.createElement("div").style)) {
+        return function(elem) {
+            return elem.style ? elem.style.transform : elem.css("transform");
+        };
+    }
+    if ("webkitTransform" in (document.createElement("div").style)) {
+        return function(elem) {
+            return elem.style ? elem.style.webkitTransform : elem.css("webkitTransform");
+        };
+    }
+
+    return function(elem) {
+        return elem.style ? elem.style.mozTransform : elem.css("mozTransform");
+    };
 })();
 
 function ActiveTouchList() {
