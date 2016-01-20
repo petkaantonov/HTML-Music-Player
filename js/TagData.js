@@ -225,8 +225,7 @@ TagData.prototype.getAlbumArtistForSort = function() {
 };
 
 TagData.prototype.getAlbumForSort = function() {
-    if (this.album === null) return NULL_STRING;
-    return this.album;
+    return this.albumNameKey();
 };
 
 TagData.prototype.getArtistForSort = function() {
