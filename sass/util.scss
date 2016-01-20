@@ -1,3 +1,5 @@
+@import "variables";
+
 .unselectable, .ui-text, input[type=file] {
     cursor: default;
     -moz-user-select: none;
