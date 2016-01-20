@@ -88,10 +88,14 @@ function Playlist(domNode, opts) {
         }
     }.bind(this));
 
-    this.$().on("mouseenter mouseleave click mousedown dblclick", ".rating-input", function(e) {
+    this.$().on("mouseenter mouseleave click dblclick", ".rating-input", function(e) {
         e.stopImmediatePropagation();
-        var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        var $trackContainer = $(e.target).closest(".track-container");
+        if ($trackContainer.length === 0) return;
+
+        var track = this._fixedItemListScroller.itemByRect($trackContainer[0].getBoundingClientRect());
         if (!track) return;
+
         if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
         if (e.type === "click") return track.ratingInputClicked(e);
