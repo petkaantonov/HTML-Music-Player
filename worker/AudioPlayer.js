@@ -193,6 +193,9 @@ AudioPlayer.prototype._clearAllRequestsExceptFirst = function() {
 };
 
 AudioPlayer.prototype._clearFillRequests = function() {
+    if (typeof this.fillBuffers !== "function") {
+        throw new Error("fillBuffers not found");
+    }
     for (var i = 0; i < this.messageQueue.length; ++i) {
         if (this.messageQueue[i].methodName === "fillBuffers") {
             var spec = this.messageQueue[i];
@@ -204,6 +207,9 @@ AudioPlayer.prototype._clearFillRequests = function() {
 };
 
 AudioPlayer.prototype._clearLoadReplacementRequests = function() {
+    if (typeof this.loadReplacement !== "function") {
+        throw new Error("loadReplacement not found");
+    }
     for (var i = 0; i < this.messageQueue.length; ++i) {
         if (this.messageQueue[i].methodName === "loadReplacement") {
             var spec = this.messageQueue[i];

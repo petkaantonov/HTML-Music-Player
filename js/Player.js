@@ -28,6 +28,8 @@ const SEEK_END_CURVE = new Float32Array([0.001, 1]);
 const SEEK_START_FADE_TIME = audioPlayer.blockSizedTime(0.5);
 const SEEK_END_FADE_TIME = audioPlayer.blockSizedTime(0.5);
 
+const VOLUME_RATIO = 2;
+
 const audioManagers = [];
 // Supports deletion mid-iteration.
 function forEachAudioManager(fn) {
@@ -112,7 +114,7 @@ AudioManager.prototype.setupNodes = function() {
     this.pauseResumeFadeGain.gain.value = 1;
     this.pauseResumeFadePromise = null;
     this.muteGain.gain.value = this.player.isMuted() ? 0 : 1;
-    this.volumeGain.gain.value = this.player.getVolume();
+    this.volumeGain.gain.value = this.player.getVolume() * VOLUME_RATIO;
 
     this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
         baseSmoothingConstant: 0.00042,
@@ -489,7 +491,7 @@ AudioManager.prototype.seek = function(time) {
 
 AudioManager.prototype.updateVolume = function(volume) {
     if (this.destroyed) return;
-    this.volumeGain.gain.value = volume;
+    this.volumeGain.gain.value = volume * VOLUME_RATIO;
 };
 
 AudioManager.prototype.getFadeInTime = function(track) {
