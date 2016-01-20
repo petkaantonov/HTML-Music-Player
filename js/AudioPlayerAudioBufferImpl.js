@@ -821,7 +821,7 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
         var audioBuffer = this._player._allocAudioBuffer();
         var channelData = new Array(channelCount);
         for (var ch = 0; ch < channelCount; ++ch) {
-            var data = new Float32Array(transferList.shift());
+            var data = new Float32Array(transferList.shift(), 0, args.info[i].length);
             audioBuffer.copyToChannel(data, ch);
             channelData[ch] = data;
         }

@@ -158,7 +158,6 @@ HotkeyManager.prototype.saveBindings = function() {
 
 var defaults = {
     "Select all": "ctrl+a",
-    "Filter": "j",
     "Next track": "ctrl+right arrow",
     "Previous track": "ctrl+left arrow",
     "Play selected": "enter",

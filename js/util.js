@@ -658,6 +658,12 @@ util.once = function(eventTarget, eventName, handler) {
 };
 
 util.readAsBinaryString = function(file) {
+    if (typeof FileReader !== "function") {
+        return new Promise(function(resolve) {
+            var reader = new FileReaderSync();
+            resolve(reader.readAsBinaryString(file));
+        });
+    }
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {
@@ -675,6 +681,13 @@ util.readAsBinaryString = function(file) {
 };
 
 util.readAsArrayBuffer = function(file) {
+    if (typeof FileReader !== "function") {
+        return new Promise(function(resolve) {
+            var reader = new FileReaderSync();
+            resolve(reader.readAsArrayBuffer(file));
+        });
+    }
+
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {

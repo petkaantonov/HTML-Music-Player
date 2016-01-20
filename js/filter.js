@@ -32,9 +32,3 @@ filter.show = function() {
 };
 
 $(".menul-filter").on("click", filter.show);
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Filter",
-    description: "Shortcut for activating filter.",
-    handler: filter.show
-});
