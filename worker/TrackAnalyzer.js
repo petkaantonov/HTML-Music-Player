@@ -83,7 +83,7 @@ function nextJob() {
 
     sniffer.getCodecName(view).then(function(codecName) {
         if (!codecName) {
-            error(id, new Error("file type not supported"));
+            reportError(id, new Error("file type not supported"));
             return;
         }
         return codec.getCodec(codecName);
@@ -92,7 +92,7 @@ function nextJob() {
         
         return demuxer(codec.name, view).then(function(metadata) {
             if (!metadata) {
-                error(id, new Error("file type not supported"));
+                reportError(id, new Error("file type not supported"));
                 return;
             }
             codecName = codec.name;
@@ -210,7 +210,7 @@ function nextJob() {
                 }
 
                 if (error) {
-                    return error(id, error);
+                    return reportError(id, error);
                 }
                 var result = {
                     loudness: null,
@@ -235,11 +235,11 @@ function nextJob() {
                         silence: silence
                     };
                 }
-                success(id, result);
+                reportSuccess(id, result);
             });
         });
     }).catch(function(e) {
-        error(id, e);
+        reportError(id, e);
     }).then(cleanup, cleanup);
 
     function cleanup() {
@@ -279,7 +279,7 @@ function reportEstimate(id, value) {
     });
 }
 
-function error(id, e) {
+function reportError(id, e) {
     self.postMessage({
         id: id,
         type: "error",
@@ -290,7 +290,7 @@ function error(id, e) {
     });
 }
 
-function success(id, result) {
+function reportSuccess(id, result) {
     self.postMessage({
         id: id,
         type: "success",
