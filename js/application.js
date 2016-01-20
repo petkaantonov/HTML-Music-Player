@@ -19,7 +19,6 @@ window.__PROJECT__TITLE = "HTML Music Player";
 const util = require("./util");
 const serviceWorkerManager = require("./ServiceWorkerManager");
 const hotkeyManager = require("./HotkeyManager");
-const filter = require("./filter");
 const TrackDisplay = require("./TrackDisplay");
 const Player = require("./Player");
 const Playlist = require("./Playlist");
@@ -80,39 +79,48 @@ const actions = {
         if (e && e.preventDefault) e.preventDefault();
         playlist.main.selectAll();
     },
-    filter: function() { filter.show(); },
     play: function() {
         playlist.main.playPrioritySelection();
     },
-    delete: function() { playlist.main.removeSelected(); },
-    sortByTitle: function() { playlist.main.sortByTitle(); },
-    sortByArtist: function() { playlist.main.sortByArtist(); },
-    sortByAlbumArtist: function() { playlist.main.sortByAlbumArtist(); },
-    sortByAlbum: function() { playlist.main.sortByAlbum(); },
-    sortByRating: function() { playlist.main.sortByRating(); },
-    sortByDuration: function() { playlist.main.sortByDuration(); },
-    sortByReverseOrder: function() { playlist.main.sortByReverseOrder(); },
+    delete: function() {
+        playlist.main.removeSelected();
+    },
+    sortByTitle: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByTitle();
+    },
+    sortByArtist: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByArtist();
+    },
+    sortByAlbumArtist: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByAlbumArtist();
+    },
+    sortByAlbum: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByAlbum();
+    },
+    sortByRating: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByRating();
+    },
+    sortByDuration: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByDuration();
+    },
+    sortByReverseOrder: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByReverseOrder();
+    },
+    sortByShuffling: function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        playlist.main.sortByShuffling();
+    }
 };
 
 const trackActionsSpec = {
     menu: [{
-        id: "clear-selection",
-        disabled: true,
-        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon", "crop_square"),
-        onClick: actions.selectNone
-    }, {
-        id: "select-all",
-        disabled: true,
-        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon", "select_all"),
-        onClick: actions.selectAll
-    }, {
-        divider: true,
-    }, {
-        id: "filter",
-        disabled: true,
-        content: GlobalUi.contextMenuItem("Filter", "glyphicon glyphicon-filter"),
-        onClick: actions.filter
-    }, {
         id: "play",
         disabled: true,
         content: GlobalUi.contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
@@ -123,6 +131,18 @@ const trackActionsSpec = {
         content: GlobalUi.contextMenuItem("Delete", "material-icons small-material-icon", "delete"),
         onClick: actions.delete
     }, {
+        divider: true,
+    }, {
+        id: "clear-selection",
+        disabled: true,
+        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon", "crop_square"),
+        onClick: actions.selectNone
+    }, {
+        id: "select-all",
+        disabled: true,
+        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon", "select_all"),
+        onClick: actions.selectAll
+    }, {
         id: "sort",
         disabled: true,
         content: GlobalUi.contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
@@ -130,7 +150,6 @@ const trackActionsSpec = {
             id: "sort-by-album",
             content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon", "album"),
             onClick: actions.sortByAlbum
-
         }, {
             id: "sort-by-artist",
             content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon", "mic"),
@@ -138,7 +157,7 @@ const trackActionsSpec = {
 
         }, {
             id: "sort-by-album-artist",
-            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon", "mic"),
+            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon", "perm_camera_mic"),
             onClick: actions.sortByAlbumArtist
 
         }, {
@@ -157,6 +176,10 @@ const trackActionsSpec = {
             onClick: actions.sortByDuration
         }, {
             divider: true
+        }, {
+            id: "sort-by-shuffling",
+            content: GlobalUi.contextMenuItem("Shuffle", "material-icons small-material-icon", "shuffle"),
+            onClick: actions.sortByShuffling
         }, {
             id: "sort-by-reverse-order",
             content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon", "undo"),
@@ -215,9 +238,8 @@ playlist.main.on("lengthChange", function(newLength) {
         } else {
             actionsToEnable.push("select-all");
         }
-        actionsToEnable.push("filter");
     } else {
-        actionsToDisable.push("select-all", "filter", "clear-selection");
+        actionsToDisable.push("select-all", "clear-selection");
     }
 
     trackContextMenu.enable(actionsToEnable);

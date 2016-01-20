@@ -896,6 +896,17 @@ Playlist.prototype.sortByReverseOrder = function() {
     });
 };
 
+Playlist.prototype.sortByShuffling = function() {
+    return this.changeTrackOrderWithinSelection(function(tracks) {
+        for (var i = tracks.length; i > 0; --i) {
+            var index = (Math.random() * i)|0;
+            var tmp = tracks[i - 1];
+            tracks[i - 1] = tracks[index];
+            tracks[index] = tmp;
+        }
+    });
+};
+
 Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
     var selectedTracks = this.getSelection();
     if (selectedTracks.length <= 1) return;
