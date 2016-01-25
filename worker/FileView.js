@@ -60,9 +60,10 @@ FileView.prototype.block = function() {
 
 FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
     var self = this;
+    size = Math.ceil(size);
+    startOffset = Math.ceil(startOffset);
     return new Promise(function(resolve, reject) {
         if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
-        size = Math.ceil(size);
         var maxSize = self.file.size;
         var start = Math.min(maxSize - 1, Math.max(0, startOffset));
         var end = Math.min(maxSize, start + size);

@@ -173,7 +173,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         });
     }.bind(this)).finally(function() {
         track.removeListener("destroy", self.abortJobForTrack);
-        Promise.delay(1000).then(function() {
+        Promise.delay(500).then(function() {
             self._next();
         });
         return null;

@@ -26,7 +26,7 @@ const allocDecoderContext = pool.allocDecoderContext;
 const freeResampler = pool.freeResampler;
 const freeDecoderContext = pool.freeDecoderContext;
 
-const BUFFER_DURATION = 1;
+const BUFFER_DURATION = 20;
 const WORST_RESAMPLER_QUALITY = 0;
 const FINGERPRINT_SAMPLE_RATE = 11025;
 const FINGERPRINT_DURATION = 120;
@@ -181,7 +181,7 @@ function nextJob() {
 
                 var progress = (offset - metadata.dataStart) / (metadata.dataEnd - metadata.dataStart);
 
-                if (progress > 0.10 && started > 0) {
+                if (progress > 0.15 && started > 0) {
                     var elapsed = Date.now() - started;
                     var estimate = Math.round(elapsed / progress - elapsed);
                     started = -1;
@@ -212,6 +212,7 @@ function nextJob() {
                 if (error) {
                     return reportError(id, error);
                 }
+
                 var result = {
                     loudness: null,
                     fingerprint: null,
