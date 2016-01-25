@@ -11,7 +11,7 @@ const START_SCALE = 0.95;
 const END_SCALE = 1;
 const START_ALPHA = 0;
 const END_ALPHA = 100;
-const IMAGE_DIMENSIONS = 116;
+const IMAGE_DIMENSIONS = 64;
 
 function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);

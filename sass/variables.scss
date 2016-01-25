@@ -6,11 +6,11 @@ $large-screen-height: 768px;
 $small-screen-height: 568px;
 $medium-small-screen-height: 360px;
 $ultra-small-screen-height: 320px;
-$visualizer-gap: 28px;
-$picture-size: 116px;
+$visualizer-gap: 22px;
+$picture-size: 64px;
+$visualizer-height: $picture-size + 2px;
 $scrollbar-width: 8px;
 $border-width: 1px;
-$minimum-visualizer-height: 568px;
 
 $touch-hover-color: #ececec;
 
@@ -866,3 +866,9 @@ $link-hover-decoration: underline !default;
   border-bottom-left-radius: $radius;
   border-top-left-radius: $radius;
 }
+
+@mixin calc($property, $expression) { 
+  #{$property}: -webkit-calc(#{$expression});
+  #{$property}: -moz-calc(#{$expression});
+  #{$property}: calc(#{$expression}); 
+} 

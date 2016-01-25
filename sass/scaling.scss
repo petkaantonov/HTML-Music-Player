@@ -8,56 +8,17 @@
     }
 
     @include small-screen {
-        width: $small-screen-width;
+        width: 100%;
     }
 
     @include ultra-small-screen {
-        width: $ultra-small-screen-width;
+        width: 100%;
     }
 
     @include medium-small-screen {
-        width: $medium-small-screen-width;
+        width: 100%;
     }
 }
-/*
-.tracks-list-container.has-scrollbar .track-container {
-    @include large-screen {
-        width: $large-screen-width - $scrollbar-width;
-    }
-
-    @include small-screen {
-        width: $small-screen-width - $scrollbar-width;
-    }
-
-    @include ultra-small-screen {
-        width: $ultra-small-screen-width - $scrollbar-width;
-    }
-
-    @include medium-small-screen {
-        width: $medium-small-screen-width - $scrollbar-width;
-    }
-}
-*/
-
-/*
-.tracks-list-container.has-scrollbar .track-info {
-    @include large-screen {
-        width: $large-screen-width - 242px - $scrollbar-width;
-    }
-
-    @include small-screen {
-        width: $small-screen-width - 242px - $scrollbar-width;
-    }
-
-    @include medium-small-screen {
-        width: $medium-small-screen-width - 242px - $scrollbar-width + 109px;
-    }
-
-    @include ultra-small-screen {
-        width: $ultra-small-screen-width - 242px - $scrollbar-width + 109px;
-    }
-}
-*/
 
 .track .track-info {
     @include large-screen {
@@ -65,15 +26,15 @@
     }
 
     @include small-screen {
-        width: $small-screen-width - 242px;
+        @include calc(width, "100% - 242px");
     }
 
     @include medium-small-screen {
-        width: $medium-small-screen-width - 242px + 109px;
+        @include calc(width, "100% - #{242px - 109px}");
     }
 
     @include ultra-small-screen {
-        width: $ultra-small-screen-width - 242px + 109px;
+        @include calc(width, "100% - #{242px - 109px}");
     }
 }
 
@@ -89,46 +50,28 @@
 .visualizer-section-container {
     margin-left: $visualizer-gap;
     @include large-screen {
-        width: $large-screen-width - $visualizer-gap - $picture-size - (2 * $border-width);
+        @include calc(width, "#{$large-screen-width} - #{$visualizer-gap + $picture-size + (2 * $border-width)}");
     }
 
     @include small-screen {
-        width: $small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width);
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width)}");
     }
 
     @include medium-small-screen {
-        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width)}");
     }
 
     @include ultra-small-screen {
-        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width)}");
     }
 }
 
 .visualizer {
-    @include large-screen {
-        width: $large-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
-    }
-
-    @include small-screen {
-        width: $small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
-    }
-
-    @include medium-small-screen {
-        width: $medium-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
-    }
-
-    @include ultra-small-screen {
-        width: $ultra-small-screen-width - $visualizer-gap - $picture-size - (2 * $border-width) - (2 * $border-width);
-    }
+    width: 100%;
 }
 
 .visualizer-coverart-section-container {
     @include ultra-short-screen {
-        display: none;
-    }
-
-    @include medium-short-screen {
         display: none;
     }
 }

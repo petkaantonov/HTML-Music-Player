@@ -1,33 +1,119 @@
+/**
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @import "variables";
+
+$shadow-key-umbra-opacity: 0.2 !default;
+$shadow-key-penumbra-opacity: 0.14 !default;
+$shadow-ambient-shadow-opacity: 0.12 !default;
+
+// Focus shadow mixin.
+@mixin focus-shadow() {
+  @include box-shadow(0 0 8px rgba(0,0,0,.18),0 8px 16px rgba(0,0,0,.36));
+}
+
+@mixin shadow-2dp() {
+  @include box-shadow(0 2px 2px 0 rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 3px 1px -2px rgba(0, 0, 0, $shadow-key-umbra-opacity),
+              0 1px 5px 0 rgba(0, 0, 0, $shadow-ambient-shadow-opacity));
+}
+@mixin shadow-3dp() {
+  @include box-shadow(0 3px 4px 0 rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 3px 3px -2px rgba(0, 0, 0, $shadow-key-umbra-opacity),
+              0 1px 8px 0 rgba(0, 0, 0, $shadow-ambient-shadow-opacity));
+}
+@mixin shadow-4dp() {
+  @include box-shadow(0 4px 5px 0 rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 1px 10px 0 rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
+              0 2px 4px -1px rgba(0, 0, 0, $shadow-key-umbra-opacity));
+}
+@mixin shadow-6dp() {
+  @include box-shadow(0 6px 10px 0 rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 1px 18px 0 rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
+              0 3px 5px -1px rgba(0, 0, 0, $shadow-key-umbra-opacity));
+}
+@mixin shadow-8dp() {
+  @include box-shadow(0 8px 10px 1px rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 3px 14px 2px rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
+              0 5px 5px -3px rgba(0, 0, 0, $shadow-key-umbra-opacity));
+}
+
+@mixin shadow-16dp() {
+  @include box-shadow(0 16px 24px 2px rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0  6px 30px 5px rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
+              0  8px 10px -5px rgba(0, 0, 0, $shadow-key-umbra-opacity));
+}
+
+@mixin shadow-24dp() {
+  @include box-shadow(0  9px 46px  8px rgba(0, 0, 0, $shadow-key-penumbra-opacity),
+              0 11px 15px -7px rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
+              0 24px 38px  3px rgba(0, 0, 0, $shadow-key-umbra-opacity));
+}
 
 .action-menu-level-1,
 .action-menu-context-root,
 .depth-level-1 {
-    /*@include css-filter(drop-shadow(0 2px 5px rgba(0, 0, 0, 0.16)) drop-shadow(0 2px 10px rgba(0, 0, 0, 0.12)));*/
-    @include box-shadow(0 2px 5px rgba(0, 0, 0, 0.16), 0 2px 10px rgba(0, 0, 0, 0.12));
+    @include shadow-4dp();
 }
 
 .action-menu-level-2,
 .depth-level-2 {
-    /*@include css-filter(drop-shadow(0 8px 17px rgba(0, 0, 0, 0.2)) drop-shadow(0 6px 20px rgba(0, 0, 0, 0.19)));*/
-    @include box-shadow(0 8px 17px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.19));
+    @include shadow-6dp();
 }
 
 .action-menu-level-3,
 .depth-level-3,
 .popup-container {
-    /*@include css-filter(drop-shadow(0 12px 15px rgba(0, 0, 0, 0.24)) drop-shadow(0 17px 50px rgba(0, 0, 0, 0.19)));*/
-    @include box-shadow(0 12px 15px rgba(0, 0, 0, 0.24), 0 17px 50px rgba(0, 0, 0, 0.19));
+    @include shadow-8dp();
 }
 
 .action-menu-level-4,
 .depth-level-4 {
-    /*@include css-filter(drop-shadow(0 16px 28px rgba(0, 0, 0, 0.22)) drop-shadow(0 25px 55px rgba(0, 0, 0, 0.21)));*/
-    @include box-shadow(0 16px 28px rgba(0, 0, 0, 0.22), 0 25px 55px rgba(0, 0, 0, 0.21));
+    @include shadow-16dp();
 }
 
 .action-menu-level-5,
 .depth-level-5 {
-    /*@include css-filter(drop-shadow(0 27px 24px rgba(0, 0, 0, 0.2)) drop-shadow(0 40px 77px rgba(0, 0, 0, 0.22)));*/
-    @include box-shadow(0 27px 24px rgba(0, 0, 0, 0.2), 0 40px 77px rgba(0, 0, 0, 0.22));
+    @include shadow-24dp();
+}
+
+.shadow-2dp {
+  @include shadow-2dp();
+}
+
+.shadow-3dp {
+  @include shadow-3dp();
+}
+
+.shadow-4dp {
+  @include shadow-4dp();
+}
+
+.shadow-6dp {
+  @include shadow-6dp();
+}
+
+.shadow-8dp {
+  @include shadow-8dp();
+}
+
+.shadow-16dp {
+  @include shadow-16dp();
+}
+
+.shadow-24dp {
+  @include shadow-24dp();
 }

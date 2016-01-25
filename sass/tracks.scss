@@ -149,6 +149,10 @@
     @include ultra-small-screen {
         display: none !important;
     }
+
+    @include medium-small-screen {
+        display: none !important;   
+    }
 }
 
 
