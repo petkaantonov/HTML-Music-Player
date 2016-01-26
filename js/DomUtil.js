@@ -12,12 +12,12 @@ const TOUCH_CANCEL = "touchcancel";
 const TAP_TIME = 270;
 const LONG_TAP_TIME = 475;
 
-const SWIPE_LENGTH = 0.0875;
-const SWIPE_VELOCITY = 0.412;
-const TWO_FINGER_TAP_MINIMUM_DISTANCE = 0.0625;
-const TAP_MAX_MOVEMENT = 0.015625;
-const PINCER_MINIMUM_MOVEMENT = 0.015625;
-const DOUBLE_TAP_MINIMUM_MOVEMENT = 0.015625;
+const SWIPE_LENGTH = 140;
+const SWIPE_VELOCITY = 650;
+const TWO_FINGER_TAP_MINIMUM_DISTANCE = 100;
+const TAP_MAX_MOVEMENT = 24;
+const PINCER_MINIMUM_MOVEMENT = 24;
+const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
 
 
 
@@ -244,51 +244,6 @@ if (touch) {
     });
 }
 
-const approxPhysical = (function() {
-    var stride = 5;
-    var map = [];
-    var indices = [];
-    var dpi;
-
-    for (var i = 1; i < ((600/stride) + stride); ++i) {
-        var min = i * stride;
-        var max = (i + 1) * stride;
-        var query = matchMedia("(min-resolution: "+min+"dpi) and (max-resolution: "+max+"dpi)");
-        map[max] = query;
-        indices.push(max);
-    }
-
-    var dimension;
-
-    function refreshValues() {
-        dimension = Math.min(screen.width, screen.height);
-        dpi = undefined;
-
-        for (var i = 0; i < indices.length; ++i) {
-            var max = indices[i];
-            var query = map[max];
-            if (query.matches) {
-                dpi = max - stride;
-                break;
-            }
-        }
-
-        if (dpi === undefined) dpi = map[indices[indices.length - 1]];
-    }
-
-
-
-    $(window).on("resize", jsUtil.throttle(function() {
-        refreshValues();
-    }, 350));
-
-    refreshValues();
-
-    return function(relativeValue) {
-        return ((relativeValue * dimension / (1 / (dpi / 96)))|0);
-    };
-})();
-
 util.canvasToImage = function(canvas) {
     return new Promise(function(resolve) {
         var data = canvas.toDataURL("image/png").split("base64,")[1];
@@ -503,8 +458,8 @@ util.twoFingerTapHandler = function(fn) {
         var deltaX = Math.abs(currentATouch.clientX - currentBTouch.clientX);
         var deltaY = Math.abs(currentATouch.clientY - currentBTouch.clientY);
         // Fingers are too close together.
-        if (deltaX > approxPhysical(TWO_FINGER_TAP_MINIMUM_DISTANCE) ||
-            deltaY > approxPhysical(TWO_FINGER_TAP_MINIMUM_DISTANCE)) {
+        if (deltaX > TWO_FINGER_TAP_MINIMUM_DISTANCE ||
+            deltaY > TWO_FINGER_TAP_MINIMUM_DISTANCE) {
             if (started === -1) {
                 started = Date.now();
             }
@@ -520,8 +475,8 @@ util.twoFingerTapHandler = function(fn) {
                 var yDelta = Math.abs(touch.clientY - currentATouch.clientY);
                 var xDelta = Math.abs(touch.clientX - currentATouch.clientX);
                 // First finger moved too much while tapping.
-                if (xDelta > approxPhysical(TAP_MAX_MOVEMENT) ||
-                    yDelta > approxPhysical(TAP_MAX_MOVEMENT)) {
+                if (xDelta > TAP_MAX_MOVEMENT ||
+                    yDelta > TAP_MAX_MOVEMENT) {
                     clear();
                     return false;
                 }
@@ -529,8 +484,8 @@ util.twoFingerTapHandler = function(fn) {
                 var yDelta = Math.abs(touch.clientY - currentBTouch.clientY);
                 var xDelta = Math.abs(touch.clientX - currentBTouch.clientX);
                 // Second finger moved too much while tapping.
-                if (xDelta > approxPhysical(TAP_MAX_MOVEMENT) ||
-                    yDelta > approxPhysical(TAP_MAX_MOVEMENT)) {
+                if (xDelta > TAP_MAX_MOVEMENT ||
+                    yDelta > TAP_MAX_MOVEMENT) {
                     clear();
                     return false;
                 }
@@ -895,11 +850,11 @@ util.horizontalSwipeHandler = function(fn, direction) {
         if (startX !== -1 && elapsedTotal > 10) {
             var diff = e.clientX - startX;
             var absDiff = Math.abs(diff);
-            var minSwipeLength = approxPhysical(SWIPE_LENGTH);
+            var minSwipeLength = SWIPE_LENGTH;
             var velocity = (absDiff / elapsedTotal * 1000)|0;
 
             if (absDiff > minSwipeLength &&
-                velocity > approxPhysical(SWIPE_VELOCITY) &&
+                velocity > SWIPE_VELOCITY &&
                 (diff < 0 && direction < 0 ||
                 diff > 0 && direction > 0)) {
                 fn.call(this, e);
@@ -940,12 +895,12 @@ util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
             var aVelocity = (aAbsDiff / elapsedTotal * 1000)|0;
             var bVelocity = (bAbsDiff / elapsedTotal * 1000)|0;
 
-            var minSwipeLength = approxPhysical(SWIPE_LENGTH);
+            var minSwipeLength = SWIPE_LENGTH;
 
             if (aAbsDiff > minSwipeLength &&
                 bAbsDiff > minSwipeLength &&
-                aVelocity > approxPhysical(SWIPE_VELOCITY) &&
-                bVelocity > approxPhysical(SWIPE_VELOCITY) &&
+                aVelocity > SWIPE_VELOCITY &&
+                bVelocity > SWIPE_VELOCITY &&
                 (aDiff < 0 && bDiff < 0 && direction < 0 ||
                 aDiff > 0 && bDiff > 0 && direction > 0) &&
                 Math.abs(aAbsDiff - bAbsDiff) <= 150) {
@@ -1103,8 +1058,8 @@ util.doubleTapHandler = function(fn) {
             var yDelta = Math.abs(touch.clientY - changedTouches[0].clientY);
             var xDelta = Math.abs(touch.clientX - changedTouches[0].clientX);
             lastTap = -1;
-            if (yDelta < approxPhysical(DOUBLE_TAP_MINIMUM_MOVEMENT) &&
-                xDelta < approxPhysical(DOUBLE_TAP_MINIMUM_MOVEMENT)) {
+            if (yDelta < DOUBLE_TAP_MINIMUM_MOVEMENT &&
+                xDelta < DOUBLE_TAP_MINIMUM_MOVEMENT) {
                 return fn.apply(this, arguments);
             }
         } else {
