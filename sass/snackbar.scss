@@ -3,12 +3,10 @@
 .snackbar-container {
     z-index: 100000;
     position: absolute;
-    bottom: 0px;
-    left: 50%;
-    @include translate(-50%, 0);
-    margin: 0px auto;
-    min-width: 288px;
-    max-width: 568px;
+    bottom: 0;
+    left: 0;
+    @include translate(0, 0);
+    margin: 0;
     border-radius: 3px;
     border-bottom-right-radius: 0px;
     border-bottom-left-radius: 0px;
@@ -22,16 +20,15 @@
     vertical-align: top;
     font-size: 15px;
     color: #fcfcfc;
-    padding: 14px 0px 14px 24px;
+    padding: 14px 0px 14px 24px;    
 }
 
 .snackbar-container .snackbar-action {
     min-width: 58px;
     padding: 14px 24px 14px 48px;
-    text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
-    max-width: 140px;
+    max-width: $snackbar-action-width;
     display: inline-block;
     height: 100%;
     vertical-align: top;
@@ -39,29 +36,40 @@
     text-transform: uppercase;
     color: #EED202;
     cursor: pointer;
+    box-sizing: border-box;
+}
+
+.snackbar-container .snackbar-action .text-container {
+    display: table;
+    height: 100%;
+}
+
+.snackbar-container .snackbar-action .text-container .text {
+    display: table-cell;
+    vertical-align: middle;
 }
 
 .snackbar-container.transition-in,
 .snackbar-container.transition-out {
-    transition: all 0.4s cubic-bezier(.55, 0, .1, 1);
+    @include transition-transform-filter(0.4s cubic-bezier(.55, 0, .1, 1));
 }
 
 .snackbar-container.transition-in {
-    @include translate(-50%, 0);
+    @include translate(0, 0);
     @include css-filter(opacity(100%));
 }
 
 .snackbar-container.transition-in.initial {
-    @include translate(-50%, 100%);
+    @include translate(0, 100%);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out {
-    @include translate(-50%, 100%);
+    @include translate(0, 100%);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out.initial {
-    @include translate(-50%, 0);
+    @include translate(0, 0);
     @include css-filter(opacity(100%));
 }

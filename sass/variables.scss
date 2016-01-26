@@ -11,6 +11,10 @@ $picture-size: 64px;
 $visualizer-height: $picture-size + 2px;
 $scrollbar-width: 8px;
 $border-width: 1px;
+$snackbar-container-min-width: 288px;
+$snackbar-action-width: 140px;
+$snackbar-gutter: 24px;
+
 
 $touch-hover-color: #ececec;
 
@@ -546,6 +550,13 @@ $link-hover-decoration: underline !default;
           transition: transform $transition;
 }
 
+@mixin transition-transform-filter($transition...) {
+  -webkit-transition: -webkit-transform $transition;
+  -webkit-transition: -webkit-transform, -webkit-filter $transition;
+  transition: transform $transition;
+  transition: transform, filter $transition;
+  transition: transform, -webkit-filter $transition;
+}
 
 // User select
 // For selecting text on the page

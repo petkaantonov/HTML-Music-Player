@@ -53,7 +53,7 @@ $animation-duration: 0.85s;
     height: $ball-size;
     position: relative;
     vertical-align: top;
-    transform: translate3d(0, 0, 0);
+    @include translate3d(0, 0, 0);
     margin-top: $ball-size/2;
 }
 

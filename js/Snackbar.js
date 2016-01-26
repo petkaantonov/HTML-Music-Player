@@ -30,10 +30,12 @@ function SnackbarInstance(snackbar, message, opts) {
     this._timeoutChecker = this._timeoutChecker.bind(this);
     this._mouseEntered = this._mouseEntered.bind(this);
     this._mouseLeft = this._mouseLeft.bind(this);
+    this._resized = this._resized.bind(this);
 
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
+    $(window).on("resize", this._resized);
 
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS, this._clickedTouch);
@@ -45,14 +47,25 @@ function SnackbarInstance(snackbar, message, opts) {
     if (this._snackbar.transitionInClass) {
         this.$().addClass(this._snackbar.transitionInClass + " initial");
         this.$().appendTo("body");
+        this._resized();
         this.$().width();
         this.$().removeClass("initial");
         this._snackbar.beforeTransitionIn(this.$());
     } else {
-        this.$().appendTo("body");    
+        this.$().appendTo("body");
+        this._resized();
     }
 }
 util.inherits(SnackbarInstance, EventEmitter);
+
+SnackbarInstance.prototype._resized = function() {
+    var box = this.$()[0].getBoundingClientRect();
+    var maxWidth = $(window).width();
+    this.$().css({
+        left: Math.max(0, maxWidth - box.width) / 2,
+        height: box.height
+    });
+};
 
 SnackbarInstance.prototype.$ = function() {
     return this._domNode;
@@ -69,9 +82,11 @@ SnackbarInstance.prototype._createDom = function(message, opts) {
     var action = $(null);
     if (opts.action) {
         action = $("<div>", {
-            class: this._snackbar.actionClass + " snackbar-action-" + this._initialShowing,
-            text: opts.action + ""
+            class: this._snackbar.actionClass + " snackbar-action-" + this._initialShowing
         });
+
+        action.html('<div class="text-container"><div class="text"></div></div>');
+        action.find(".text").text(opts.action + "");
     }
     var title = $("<div>", {
         class: this._snackbar.titleClass + " snackbar-title-" + this._initialShowing,
@@ -172,6 +187,7 @@ SnackbarInstance.prototype._hide = function() {
 
 SnackbarInstance.prototype._removeListeners = function() {
     this.$().off("click", this._clicked);
+    $(window).off("resize", this._resized);
     util.documentHidden.removeListener("change", this._visibilityChanged);
     this._clearTimer();
 };

@@ -373,7 +373,6 @@ Track.prototype.updateAnalysisEstimate = function() {
     if (this._analysisCompletionEstimate === -1) return;
     var transitionDuration = this._analysisCompletionEstimate - Date.now();
     if (transitionDuration < 0) return;
-
     this.$().addClass("track-container-progress");
     var bar = $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
 
