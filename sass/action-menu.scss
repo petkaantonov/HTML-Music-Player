@@ -7,7 +7,7 @@
     padding: 10px 0px;
     min-width: 150px;
     box-sizing: border-box;
-    will-change: contents;
+    will-change: transform;
 }
 
 .action-menu-item.action-menu-sub-menu-item::after {
@@ -63,7 +63,7 @@
 
 .action-menu-item:hover,
 .action-menu-item.action-menu-sub-menu-item.action-menu-active {
-    background-color: #f7f7f7;
+    background-color: #e6e6e6;
 }
 
 .action-menu-item.action-menu-disabled {
@@ -79,4 +79,41 @@
 
 .action-menu-item-content {
     font-size: 14px;
+}
+
+.action-menu-context-root,
+.action-menu-submenu {
+    will-change: -webkit-transform;
+    will-change: transform;
+    @include transition-transform-filter-separate(0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                                                  0.2s cubic-bezier(0.4, 0, 0.2, 1));
+    @include transform-origin(top left 0);
+}
+
+.action-menu-context-root.transition-in,
+.action-menu-submenu.transition-in {
+    filter: opacity(100%);
+    -webkit-filter: opacity(100%);
+    @include scale(1, 1);
+}
+
+.action-menu-context-root.transition-in.initial,
+.action-menu-submenu.transition-in.initial {
+    filter: opacity(0%);
+    -webkit-filter: opacity(0%);
+    @include scale(0, 0);
+}
+
+.action-menu-context-root.transition-out,
+.action-menu-submenu.transition-out {
+    filter: opacity(0%);
+    -webkit-filter: opacity(0%);
+    @include scale(1, 1);
+}
+
+.action-menu-context-root.transition-out.initial,
+.action-menu-submenu.transition-out.initial {
+    filter: opacity(100%);
+    -webkit-filter: opacity(100%);
+    @include scale(1, 1);
 }

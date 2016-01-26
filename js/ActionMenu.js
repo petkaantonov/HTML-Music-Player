@@ -7,6 +7,8 @@ const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const GlobalUi = require("./GlobalUi");
 
+const TRANSITION_OUT_DURATION = 200;
+
 function ActionMenuItem(root, spec, children, level) {
     this.root = root;
     this.parent = null;
@@ -94,7 +96,10 @@ ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
     }
 };
 
-ActionMenuItem.prototype.itemMouseEntered = function() {
+ActionMenuItem.prototype.itemMouseEntered = function(e) {
+    if (domUtil.isTouchEvent(e)) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    }
     this.addActiveClass();
     this.root.clearDelayTimer();
     this._clearDelayTimer();
@@ -246,6 +251,7 @@ ActionMenuItem.prototype.positionSubMenu = function() {
     var xMax = $(window).width();
     var yMax = $(window).height();
     // Fits within the viewport
+    var origin = {x: 0, y: 0};
     if (xMax > containerBox.width && yMax > containerBox.height) {
         var left = -1;
         var top = -1;
@@ -271,34 +277,39 @@ ActionMenuItem.prototype.positionSubMenu = function() {
         }
         this._preferredHorizontalDirection = preferredDirection;
 
-    preferredDirection = this.getVerticalDirection();
+        preferredDirection = this.getVerticalDirection();
 
-    while (top < 0 || top + containerBox.height > yMax) {
-        if (preferredDirection === "down") {
-            top = Math.max(0, itemBox.top + 3);
+        while (top < 0 || top + containerBox.height > yMax) {
+            if (preferredDirection === "down") {
+                top = Math.max(0, itemBox.top + 3);
 
-            if (top + containerBox.height > yMax) {
-                top = yMax - containerBox.height;
-                preferredDirection = "up";
-            }
-        } else {
-            top = itemBox.bottom - 3 - containerBox.height;
+                if (top + containerBox.height > yMax) {
+                    top = yMax - containerBox.height;
+                    preferredDirection = "up";
+                }
+            } else {
+                top = itemBox.bottom - 3 - containerBox.height;
 
-            if (top < 0) {
-                top = 0;
-                preferredDirection = "down";
-            } else if (top + containerBox.height > yMax) {
-                top = yMax - containerBox.height;
+                if (top < 0) {
+                    top = 0;
+                    preferredDirection = "down";
+                } else if (top + containerBox.height > yMax) {
+                    top = yMax - containerBox.height;
+                }
             }
         }
-    }
-    this._preferredVerticalDirection = preferredDirection;
+        this._preferredVerticalDirection = preferredDirection;
 
         this.$container().css({
             top: top,
             left: left
         });
+
+        origin.x = this._preferredHorizontalDirection === "right" ? 0 : containerBox.width;
+        origin.y = this._preferredVerticalDirection === "down" ? 0
+                                                               : Math.max(itemBox.top - top, 0);
     }
+    return origin;
 };
 
 ActionMenuItem.prototype.addActiveClass = function() {
@@ -313,14 +324,32 @@ ActionMenuItem.prototype.removeActiveClass = function() {
 ActionMenuItem.prototype.showContainer = function() {
     this.addActiveClass();
     this.$container().appendTo("body");
-    this.positionSubMenu();
+    var origin = this.positionSubMenu();
+    this.$container().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$container().detach();
+    this.$container().removeClass("transition-out").addClass("initial transition-in");
+    this.$container().appendTo("body");
+    this.$container().width();
+    var self = this;
+    domUtil.changeDom(function() {
+        self.$container().removeClass("initial");
+    });
 };
 
 ActionMenuItem.prototype.hideContainer = function() {
     this._preferredVerticalDirection = "down";
     this._preferredHorizontalDirection = "right";
     this._clearDelayTimer();
-    this.$container().detach();
+    this.$container().removeClass("transition-in").addClass("initial transition-out");
+    this.$container().width();
+    var self = this;
+    domUtil.changeDom(function() {
+        self.$container().removeClass("initial");
+        self._delayTimerId = setTimeout(function() {
+            self._delayTimerId = -1;
+            self.$container().detach();
+        }, TRANSITION_OUT_DURATION);
+    });
     this.removeActiveClass();
     if (this.children) {
         this.children.forEach(function(child) {
@@ -497,6 +526,7 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this._y = 0;
     this._xMax = 0;
     this._yMax = 0;
+    this._delayTimerId = -1;
 
     this.documentClicked = this.documentClicked.bind(this);
     this.hide = this.hide.bind(this);
@@ -572,14 +602,18 @@ ActionMenu.ContextMenu.prototype.position = function() {
         positionChanged = true;
     }
 
+    var origin = {x: 0, y: 0};
+
     if (x + box.width > xMax) {
         positionChanged = true;
         x = Math.max(0, xMax - box.width);
+        origin.x = Math.max(0, this._x - x);
     }
 
     if (y + box.height > yMax) {
         positionChanged = true;
         y = Math.max(0, yMax - box.height);
+        origin.y = Math.max(0, this._y - y);
     }
 
     this.$().css({left: x, top: y});
@@ -591,6 +625,7 @@ ActionMenu.ContextMenu.prototype.position = function() {
             }
         });
     }
+    return origin;
 };
 
 ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
@@ -605,22 +640,35 @@ ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
     this.show(e);
     if (this._shown) {
         e.preventDefault();
-        this._x = e.clientX;
-        this._y = e.clientY;
-        this._xMax = $(window).width();
-        this._yMax = $(window).height();
-        this.position();
     }
 };
 
 ActionMenu.ContextMenu.prototype.show = function(e) {
     if (this._shown) return;
+    if (this._delayTimerId !== -1) {
+        clearTimeout(this._delayTimerId);
+        this._delayTimerId = -1;
+    }
     var prevented = false;
     this.preventDefault = function() {prevented = true;};
     this.emit("willShowMenu", e, this);
     if (prevented) return;
     this._shown = true;
     this.$().appendTo("body");
+    this._x = e.clientX;
+    this._y = e.clientY;
+    this._xMax = $(window).width();
+    this._yMax = $(window).height();
+    var origin = this.position();
+    this.$().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$().detach();
+    this.$().removeClass("transition-out").addClass("initial transition-in");
+    this.$().appendTo("body");
+    this.$().width();
+    var self = this;
+    domUtil.changeDom(function() {
+        self.$().removeClass("initial");
+    });
     this.emit("didShowMenu", e, this);
 
 };
@@ -628,7 +676,16 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
 ActionMenu.ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
     this._shown = false;
-    this.$().detach();
+    this.$().removeClass("transition-in").addClass("initial transition-out");
+    this.$().width();
+    var self = this;
+    domUtil.changeDom(function() {
+        self.$().removeClass("initial");
+        self._delayTimerId = setTimeout(function() {
+            self._delayTimerId = -1;
+            self.$().detach();
+        }, TRANSITION_OUT_DURATION);
+    });
     this._menu.hideContainer();
 };
 

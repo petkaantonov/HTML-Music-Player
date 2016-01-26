@@ -582,6 +582,14 @@ $link-hover-decoration: underline !default;
   transition: transform, -webkit-filter $transition;
 }
 
+@mixin transition-transform-filter-separate($transformt, $filtert) {
+  -webkit-transition: -webkit-transform $transformt;
+  -webkit-transition: -webkit-transform $transformt, -webkit-filter $filtert;
+  transition: transform $transformt;
+  transition: transform $transformt, filter $filtert;
+  transition: transform $transformt, -webkit-filter $filtert;
+}
+
 // User select
 // For selecting text on the page
 
