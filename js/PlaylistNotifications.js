@@ -4,7 +4,6 @@ const Promise = require("../lib/bluebird.js");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 
-
 const util = require("./util");
 const GlobalUi = require("./GlobalUi");
 const serviceWorkerManager = require("./ServiceWorkerManager");
@@ -129,7 +128,8 @@ PlaylistNotifications.prototype.visibilityChanged = function() {
     this.tabVisible = !util.documentHidden.value();
 };
 
-PlaylistNotifications.prototype.settingClicked = function() {
+PlaylistNotifications.prototype.settingClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleSetting();
 };
 

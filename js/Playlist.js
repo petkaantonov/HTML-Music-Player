@@ -10,6 +10,7 @@ const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const FixedItemListScroller = require("./FixedItemListScroller");
 const PLAYLIST_MODE_KEY = "playlist-mode";
+const GlobalUi = require("./GlobalUi");
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -79,10 +80,14 @@ function Playlist(domNode, opts) {
 
     this.$().on("click mousedown dblclick", function(e) {
         if ($(e.target).closest(".unclickable").length > 0) return;
+        if ($(e.target).closest(".track-container").length === 0) return;
         var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
         if (!track) return;
         switch (e.type) {
-            case "click": return this._selectable.trackClick(e, track);
+            case "click": {
+                GlobalUi.rippler.rippleElement(track.$()[0], e.clientX, e.clientY);
+                return this._selectable.trackClick(e, track);
+            }
             case "mousedown": return this._selectable.trackMouseDown(e, track);
             case "dblclick": return track.doubleClicked(e);
         }
@@ -98,7 +103,10 @@ function Playlist(domNode, opts) {
 
         if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
         if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
-        if (e.type === "click") return track.ratingInputClicked(e);
+        if (e.type === "click") {
+            GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+            return track.ratingInputClicked(e);
+        }
         if (e.type === "dblclick") return track.ratingInputDoubleClicked(e);
     }.bind(this));
 
@@ -112,6 +120,7 @@ function Playlist(domNode, opts) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
+            GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
             this._selectable.selectTrack(track);
         }.bind(this)));
 
@@ -138,6 +147,7 @@ function Playlist(domNode, opts) {
         this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.tapHandler(function(e) {
             var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
+            GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
             return track.ratingInputClicked(e);
         }.bind(this)));
     }

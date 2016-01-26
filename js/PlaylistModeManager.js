@@ -61,7 +61,8 @@ PlaylistModeManager.prototype.$repeat = function() {
     return this.$().find(".repeat-mode-button");
 };
 
-PlaylistModeManager.prototype.shuffleClicked = function() {
+PlaylistModeManager.prototype.shuffleClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
 
@@ -73,7 +74,8 @@ PlaylistModeManager.prototype.shuffleClicked = function() {
     });
 };
 
-PlaylistModeManager.prototype.repeatClicked = function() {
+PlaylistModeManager.prototype.repeatClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
 

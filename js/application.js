@@ -50,15 +50,6 @@ window.GlobalUi = GlobalUi;
 
 const DEFAULT_ITEM_HEIGHT = 44;
 
-if (touch) {
-    $(document).on(domUtil.TOUCH_EVENTS, ".toolbar-item, .button-group-button, .action-menu-item, .track-container", domUtil.targetHoverHandler(function(e) {
-        $(this).addClass("touch-hover");
-        return this.getBoundingClientRect();
-    }, function() {
-        $(this).removeClass("touch-hover");
-    }));
-}
-
 playlist.trackDisplay = new TrackDisplay("track-display", {
     delay: 5
 });
@@ -928,4 +919,8 @@ if (touch) {
     enableGestures();
     hotkeyManager.on("disable", disableGestures);
     hotkeyManager.on("enable", enableGestures);
+
+    util.onCapture(document, domUtil.TOUCH_EVENTS, domUtil.tapHandler(function(e) {
+        GlobalUi.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
+    }));
 }

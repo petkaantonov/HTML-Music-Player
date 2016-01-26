@@ -1,9 +1,11 @@
 const $ = require("../lib/jquery");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const GlobalUi = require("./GlobalUi");
 
 
-function clicked() {
+function clicked(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     $(this).data("file_input").click();
 }
 

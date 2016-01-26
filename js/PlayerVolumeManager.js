@@ -74,7 +74,8 @@ PlayerVolumeManager.prototype.slided = function(percentage) {
     this.player.setVolume(percentage);
 };
 
-PlayerVolumeManager.prototype.muteClicked = function() {
+PlayerVolumeManager.prototype.muteClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.player.toggleMute();
 };
 

@@ -9,6 +9,7 @@ const Animator = require("./Animator");
 const keyValueDatabase = require("./KeyValueDatabase");
 const features = require("./features");
 const util = require("./util");
+const Rippler = require("./Rippler");
 
 const GlobalUi = module.exports;
 
@@ -132,3 +133,5 @@ var hotkeyManager;
 GlobalUi.setHotkeyManager = function(value) {
     hotkeyManager = value;
 };
+
+GlobalUi.rippler = new Rippler(".rippler-container");

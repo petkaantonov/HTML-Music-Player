@@ -410,7 +410,8 @@ HotkeyBinder.prototype.destroy = function() {
 
 
 const hotkeyPopup = GlobalUi.makePopup("Shortcuts", POPUP_HTML, ".menul-hotkeys");
-function openHotkeyManager() {
+function openHotkeyManager(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     hotkeyPopup.open();
 
     var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$().find(".popup-content-container"));

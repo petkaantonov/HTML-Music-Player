@@ -483,7 +483,8 @@ var triggerEqualizerChange = util.throttle(function() {
     equalizer.emit("equalizerChange");
 }, 50);
 
-function openEditor() {
+function openEditor(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     equalizerPopup.open();
     selectCurrentlyMatchingPreset();
 }

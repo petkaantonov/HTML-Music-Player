@@ -4,6 +4,7 @@ const $ = require("../lib/jquery");
 const keyValueDatabase = require("./KeyValueDatabase");
 const util = require("./util");
 const touch = require("./features").touch;
+const GlobalUi = require("./GlobalUi");
 const domUtil = require("./DomUtil");
 const pixelRatio = window.devicePixelRatio || 1;
 
@@ -16,7 +17,7 @@ function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
-    this.displayMode = DISPLAY_ELAPSED;
+    this.displayMode = DISPLAY_REMAINING;
     this.seeking = false;
     this.totalTime = 0;
     this.currentTime = 0;
@@ -46,10 +47,10 @@ function PlayerTimeManager(dom, player, opts) {
     this.player.on("progress", this.playerTimeProgressed);
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
-    this.$timeContainer().click(this.containerClicked);
+    this.$totalTime().click(this.containerClicked);
 
     if (touch) {
-        this.$timeContainer().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.containerClicked));
+        this.$totalTime().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.containerClicked));
     }
 
     var currentTimeDom = this.$currentTime()[0];
@@ -219,7 +220,8 @@ PlayerTimeManager.prototype.toggleDisplayMode = function() {
     this.forceUpdate();
 };
 
-PlayerTimeManager.prototype.containerClicked = function() {
+PlayerTimeManager.prototype.containerClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleDisplayMode();
 };
 

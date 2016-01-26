@@ -654,13 +654,13 @@ function Player(dom, playlist, opts) {
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
     this.$play().click(this.playButtonClicked.bind(this));
-    this.$next().click(playlist.next.bind(playlist));
-    this.$previous().click(playlist.prev.bind(playlist));
+    this.$next().click(this.nextButtonClicked.bind(this));
+    this.$previous().click(this.prevButtonClicked.bind(this));
     
     if (touch) {
         this.$play().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.playButtonClicked.bind(this)));
-        this.$next().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(playlist.next.bind(playlist)));
-        this.$previous().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(playlist.prev.bind(playlist)));
+        this.$next().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.nextButtonClicked.bind(this)));
+        this.$previous().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.prevButtonClicked.bind(this)));
     }
 
     this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
@@ -1003,7 +1003,18 @@ Player.prototype.loadTrack = function(track) {
     this.currentAudioManager.start();
 };
 
-Player.prototype.playButtonClicked = function() {
+Player.prototype.nextButtonClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.playlist.next();
+};
+
+Player.prototype.prevButtonClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.playlist.prev();
+};
+
+Player.prototype.playButtonClicked = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     if (this.isPlaying) {
         this.pause();
     } else {

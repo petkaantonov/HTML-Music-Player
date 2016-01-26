@@ -288,7 +288,8 @@ const savePreferences = function(preferences) {
     crossfading.emit("crossFadingChange", preferences);
 };
 
-const openPopup = function() {
+const openPopup = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     crossfadingPopup.open();
     var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
     crossfadingPopup.once("close", function() {

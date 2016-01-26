@@ -5,6 +5,7 @@ const EventEmitter = require("events");
 const NULL = $(null);
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const GlobalUi = require("./GlobalUi");
 
 function ActionMenuItem(root, spec, children, level) {
     this.root = root;
@@ -145,8 +146,11 @@ ActionMenuItem.prototype.containerMouseEntered = function(e) {
     }
 };
 
-ActionMenuItem.prototype.itemClicked = function() {
-    if (this.disabled) return;
+ActionMenuItem.prototype.itemClicked = function(e) {
+    if (this.disabled) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        return;
+    }
     if (this.children) {
         this._clearDelayTimer();
         this.showContainer();
@@ -158,6 +162,8 @@ ActionMenuItem.prototype.itemClicked = function() {
             if (!prevented) {
                 this.root.hideContainer();
                 this.root.emit("itemClick", this.id);
+            } else {
+                GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
             }
         }
     }
