@@ -32,6 +32,7 @@ ul.app-empty-playlist-ul li {
     overflow: hidden;
     width: 100%;
     transform: translate3d(0, 0, 0);
+    border-radius: $subtle-radius;
 }
 
 .playlist-empty {
@@ -70,5 +71,6 @@ ul.app-empty-playlist-ul li {
 
 .playlist-section-container {
     width: 100%;
-    margin-top: 15px;
+    margin-top: $module-gutter-height;
+    border-radius: $subtle-radius;
 }

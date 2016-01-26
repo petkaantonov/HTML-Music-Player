@@ -185,6 +185,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     this.capSeparator = opts.capSeparator * pixelRatio;
     this.capStyle = opts.capStyle;
     this.targetFps = opts.targetFps;
+    this.sectionContainerSelector = opts.sectionContainerSelector || ".visualizer-section-container";
     this.capInterpolator = null;
     this.setCapInterpolator(opts.capInterpolator || "ACCELERATE_QUAD");
     this.ghostOpacity = opts.ghostOpacity || 0.25;
@@ -223,6 +224,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     }
 
     this.enabled = true;
+    this.shown = true;
     this.source = new GraphicsSource(this);
     this.renderer = null;
     this.source.ready.bind(this).then(function onSourceReady() {
@@ -247,6 +249,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
                 return onSourceReady.call(this);
             } else {
                 this.enabled = false;
+                this.hide();
             }
         }
         this.drawIdleBins(Date.now());
@@ -376,6 +379,7 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 };
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
+    if (!this.shown) return;
     var width = $(this.canvas).width() * pixelRatio;
     if (width !== this.width) {
         this.width = width;
@@ -431,7 +435,7 @@ VisualizerCanvas.prototype.getTargetFps = function() {
 };
 
 VisualizerCanvas.prototype.getMaxBins = function() {
-    return Math.floor((620 * pixelRatio) / (this.binWidth + this.gapWidth));
+    return Math.floor((762 * pixelRatio) / (this.binWidth + this.gapWidth));
 };
 
 VisualizerCanvas.prototype.getNumBins = function() {
@@ -469,6 +473,8 @@ VisualizerCanvas.prototype.emptyBinDraw = function(now) {
     this.drawIdleBins(now);
     if (this.needToDraw) {
         this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
+    } else {
+        this.hide();
     }
 };
 
@@ -484,17 +490,38 @@ VisualizerCanvas.prototype.playerStopped = function() {
     this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
 };
 
+VisualizerCanvas.prototype.show = function() {
+    if (this.shown) return;
+    if (!this.enabled || this.enabledMediaMatcher && !this.enabledMediaMatcher.matches) {
+        return this.hide();
+    }
+    this.shown = true;
+    $(this.canvas).closest(this.sectionContainerSelector).show();
+    $(window).trigger("resize");
+};
+
+VisualizerCanvas.prototype.hide = function() {
+    if (!this.shown || (this.enabled && (this.enabledMediaMatcher && this.enabledMediaMatcher.matches))) return;
+    this.shown = false;
+    $(this.canvas).closest(this.sectionContainerSelector).hide();
+    $(window).trigger("resize");
+};
+
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
     if (!this.source.isReady()) return;
     if (!this.isEnabled()) {
         bins = this.emptyBins;
     }
+    this.show();
+    if (!this.shown) {
+        return;
+    }
     this.renderer.initScene(bins, 3);
-    this.needToDraw = true;
 
     var currentCapPositions = this.currentCapPositions;
     var transitionInfoArray = this.transitionInfoArray;
+    var anythingToDraw = false;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
@@ -507,15 +534,25 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
 
         if (binValue < currentCapBasePosition) {
             currentCapPositions[i] = currentCapBasePosition;
+            anythingToDraw = true;
         } else {
             currentCapPositions[i] = -1;
             transitionInfo.start(binValue, now);
+            if (binValue !== 0) {
+                anythingToDraw = true;
+            }
         }
     }
 
-    this.renderer.drawCaps(bins);
-    this.renderer.drawBins(bins);
+    this.needToDraw = anythingToDraw;
+    if (anythingToDraw) {
+        this.renderer.drawCaps(bins);
+        this.renderer.drawBins(bins);
+    }
     this.renderer.drawScene();
+    if (!anythingToDraw) {
+        this.hide();
+    }
 };
 
 

@@ -1,5 +1,29 @@
 @import "variables";
 
+.player-control-panel-container.module-container,
+.picture-module-container.module-container {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-sizing: border-box;
+    display: inline-block;
+    vertical-align: top;
+}
+
+.player-control-panel-container.module-container {
+    @include border-right-radius($subtle-radius);
+}
+
+.coverart-and-controls-container {
+    border-bottom: 1px solid #fbfbfb;
+    @include border-right-radius($subtle-radius);
+}
+
+.coverart-section-container {
+    width: $picture-size;
+}
+
 #track-display-container {
     z-index: 5;
     position: relative;
@@ -44,8 +68,10 @@
     width: 100%;
     background: linear-gradient(to bottom, #FFF 0%,#F6F6F6 47%,#EDEDED 100%);
     border-bottom: 1px solid #ccc;
-}
 
+    border-top-right-radius: $subtle-radius;
+}
+;
 .smoothness-separator {
     width: 100%;
     height: 1px;
@@ -56,24 +82,16 @@
     background-color: #FFFFFF;
 }
 
-.player-control-panel-container.module-container {
-    margin: 0px 0px 5px 0px;
-    padding: 0px;
-    background-color: #fff;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    border-bottom: 1px solid #fbfbfb;
-    border-top-left-radius: 0px;
-    border-top-right-radius: 0px;
-    box-sizing: border-box;
-}
-
-.button-groups-container {
+.player-control-panel-container .button-groups-container {
     font-size: 0;
     position: relative;
     height: 36px;
     margin: 0;
+    border-bottom-right-radius: $subtle-radius;
+}
+
+.picture-module-container.module-container,
+.player-control-panel-container .button-groups-container {
     background: #FFF;
     background: -moz-linear-gradient(top, #FAFAFA 0%, #FAFAFA 100%);
     background: -webkit-linear-gradient(top, #FFF 0%,#FAFAFA 100%);
@@ -199,7 +217,7 @@
     vertical-align: top;
     display: inline-block;
     border: 1px solid #E6E6E6;
-    border-radius: 4px;
+    border-radius: $subtle-radius;
     height: 100%;
     box-sizing: border-box;
 }
@@ -224,6 +242,12 @@
     }
 }
 
+.player-controls-container.button-group .next-button {
+    @include ultra-small-screen {
+        border-bottom-right-radius: $subtle-radius;
+    }
+}
+
 .playlist-controls-container.button-group {
     box-sizing: border-box;
     position: absolute;
@@ -235,6 +259,11 @@
     @include ultra-small-screen {
         display: none;
     }
+}
+
+.playlist-controls-container.button-group,
+.playlist-controls-container.button-group .repeat-mode-button {
+    border-bottom-right-radius: $subtle-radius;
 }
 
 .volume-controls-container.button-group {
@@ -339,7 +368,7 @@
 }
 
 .playback-status-wrapper .time-container.hidden {
-    @include translateY(20px);
+    @include translateY(100%);
 }
 
 .playback-status-wrapper .current-time-container {

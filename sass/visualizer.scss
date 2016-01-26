@@ -1,10 +1,5 @@
 @import "variables";
 
-.visualizer-coverart-section-container {
-    margin: 15px 0px;
-    width: 100%;
-}
-
 .picture-module-container {
     display: inline-block;
 }
@@ -22,6 +17,12 @@
 
 .visualizer-container {
     height: $visualizer-height;
+}
+
+.visualizer-section-container {
+    width: 100%;
+    margin-top: $module-gutter-height;
+    border-radius: $subtle-radius;
 }
 
 .visualizer {

@@ -3,7 +3,9 @@
 #app-container,
 #app-loader,
 .toolbar > .toolbar-items,
-.track-container {
+.track-container,
+.visualizer-section-container,
+.coverart-and-controls-container {
     @include large-screen {
         width: $large-screen-width - $total-app-border;
     }
@@ -20,6 +22,30 @@
         @include calc(width, "100% - #{$total-app-border}");
     }
 }
+
+.player-control-panel-container {
+    @include large-screen {
+        width: $large-screen-width - $total-app-border - $picture-size;
+    }
+
+    @include small-screen {
+        @include calc(width, "100% - #{$total-app-border + $picture-size}");
+    }
+
+    @include ultra-small-screen {
+        @include calc(width, "100% - #{$total-app-border + $picture-size}");
+    }
+
+    @include medium-small-screen {
+        @include calc(width, "100% - #{$total-app-border + $picture-size}");
+    }
+}
+
+.picture-container {
+    height: $picture-size;
+    width: $picture-size;
+}
+
 
 .snackbar-container {
     @include large-screen {
@@ -79,39 +105,15 @@
     }
 }
 
-.coverart-section-container {
-    width: $picture-size + (2 * $border-width);
-}
-
-.picture-container {
-    height: $picture-size;
-    width: $picture-size;
-}
-
-.visualizer-section-container {
-    margin-left: $visualizer-gap;
-    @include large-screen {
-        @include calc(width, "#{$large-screen-width} - #{$visualizer-gap + $picture-size + (2 * $border-width) + $total-app-border}");
-    }
-
-    @include small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + $total-app-border}");
-    }
-
-    @include medium-small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width) + $total-app-border}");
-    }
-
-    @include ultra-small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width) + $total-app-border}");
-    }
-}
-
 .visualizer {
     width: 100%;
 }
 
-.visualizer-coverart-section-container {
+.visualizer-section-container {
+    @include medium-short-screen {
+        display: none;
+    }
+
     @include ultra-short-screen {
         display: none;
     }

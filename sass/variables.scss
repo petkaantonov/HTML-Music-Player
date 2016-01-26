@@ -1,26 +1,31 @@
 $total-app-border: 4px;
+$subtle-radius: 4px;
 
 $large-screen-width: 768px;
 $small-screen-width: 568px;
 $medium-small-screen-width: 360px;
 $ultra-small-screen-width: 320px;
+
 $large-screen-height: 768px;
 $small-screen-height: 568px;
 $medium-small-screen-height: 360px;
 $ultra-small-screen-height: 320px;
-$visualizer-gap: 22px;
-$picture-size: 64px;
-$visualizer-height: $picture-size + 2px;
+
+$track-width-left-for-text: 242px;
+$track-rating-width: 109px;
+$track-item-height: 44px;
+
+$picture-size: 58px;
+
+$visualizer-height: $picture-size + 2px + $track-item-height;
+
 $scrollbar-width: 8px;
 $border-width: 1px;
 $snackbar-container-min-width: 288px;
 $snackbar-action-width: 140px;
 $snackbar-gutter: 24px;
 
-$track-width-left-for-text: 242px;
-$track-rating-width: 109px;
-
-
+$module-gutter-height: 15px;
 
 $touch-hover-color: #ececec;
 

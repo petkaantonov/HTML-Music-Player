@@ -250,13 +250,15 @@ WebGl2dImageRenderer.prototype.drawScene = function() {
     }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.alphaBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, this.actuallyChangedAlphaValuesStartIndex(), this.alphaStart);
+    if (this.draws > 0) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.alphaBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, this.actuallyChangedAlphaValuesStartIndex(), this.alphaStart);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.positions);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.positions);
 
-    gl.drawArrays(gl.TRIANGLES, 0, this.draws * 6);
+        gl.drawArrays(gl.TRIANGLES, 0, this.draws * 6);
+    }
 };
 
 WebGl2dImageRenderer.prototype.populateCapTexturePositions = function(bins) {
@@ -307,7 +309,7 @@ WebGl2dImageRenderer.prototype.drawCaps = function(bins) {
         var currentCapBasePosition = currentCapPositions[i];
         var x1 = i * binSpace - gapWidth;
         var y1 = (binValue < currentCapBasePosition ? (currentCapBasePosition * highestBinHeight)
-                                                  : (binValue * highestBinHeight))|0;
+                                                    : (binValue * highestBinHeight))|0;
         y1 += capSeparator;
         var x2 = x1 + capWidth;
         var y2 = y1 + capHeight;
