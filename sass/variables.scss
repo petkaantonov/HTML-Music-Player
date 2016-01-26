@@ -3,16 +3,29 @@ $subtle-radius: 4px;
 
 $large-screen-width: 768px;
 $small-screen-width: 568px;
-$medium-small-screen-width: 360px;
+$medium-small-screen-width: 400px;
 $ultra-small-screen-width: 320px;
 
 $large-screen-height: 768px;
 $small-screen-height: 568px;
-$medium-small-screen-height: 360px;
+$medium-small-screen-height: 400px;
 $ultra-small-screen-height: 320px;
 
+$track-info-gutter: 6px;
+
+$track-rating-star-size: 28px;
+$track-rating-star-gutter: 2px;
+$track-rating-container-gutter: 9px;
+
+$track-status-width: 36px;
+$track-number-width: 42px;
+$track-duration-width: 38px;
+$track-rating-width: 5 * ($track-rating-star-gutter + $track-rating-star-size) + $track-rating-container-gutter * 2;
+
+$track-width-used-with-rating: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width + $track-rating-width;
+$track-width-used-without-rating: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width;
+
 $track-width-left-for-text: 242px;
-$track-rating-width: 109px;
 $track-item-height: 44px;
 
 $picture-size: 58px;

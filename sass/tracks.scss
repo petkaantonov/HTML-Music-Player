@@ -50,7 +50,7 @@
 }
 
 .track .track-status {
-    width: 36px;
+    width: $track-status-width;
     height: 100%;
     font-size: 14px;
     line-height: 14px;
@@ -124,11 +124,11 @@
 }
 
 .track .track-number {
-    width: 42px;
+    width: $track-number-width;
 }
 
 .track .track-duration {
-    width: 38px;
+    width: $track-duration-width;
     text-align: center;
     margin-left: 6px;
     overflow: hidden;
@@ -143,19 +143,20 @@
 
 .track > .track-rating {
     display: none;
-    margin: 0px 9px;
+    margin-bottom: 0px;
+    margin-top: 0px;
+    margin-left: $track-rating-container-gutter;
+    margin-right: $track-rating-container-gutter;
     height: 100%;
 
     @include ultra-small-screen {
         display: none !important;
     }
-
-    @include medium-small-screen {
-        display: none !important;   
-    }
 }
 
-
+.ratings-disabled .track > .track-rating {
+    display: none !important;
+}
 
 .track-container:hover .track > .track-rating.visible {
     display: inline-block;
@@ -170,11 +171,12 @@
     color: #aaa;
     text-shadow: 1px 1px 1px #333;
     opacity: 0.22;
-    font-size: 18px;
-    line-height: 18px;
+    font-size: $track-rating-star-size;
+    line-height: $track-rating-star-size;
+    width: $track-rating-star-size + $track-rating-star-gutter;
     height: 100%;
-    padding-top: 11px;
-    padding-right: 2px;
+    padding-top: ($track-item-height - 2px - $track-rating-star-size) / 2;
+    padding-right: $track-rating-star-gutter;
 }
 
 .track-rating.already-rated > .rating-input {
