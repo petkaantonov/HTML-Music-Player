@@ -85,7 +85,6 @@ function Playlist(domNode, opts) {
         if (!track) return;
         switch (e.type) {
             case "click": {
-                GlobalUi.rippler.rippleElement(track.$()[0], e.clientX, e.clientY);
                 return this._selectable.trackClick(e, track);
             }
             case "mousedown": return this._selectable.trackMouseDown(e, track);

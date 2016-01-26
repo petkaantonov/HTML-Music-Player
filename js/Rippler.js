@@ -152,16 +152,35 @@ Ripple.prototype.end = function() {
     this.$ripple().remove();
     this.rippleNode = NULL;
     this.bounderNode = NULL;
-    this.rippler._freeRipples.push(this);
+    this.rippler.rippleEnded(this);
 };
 
 function Rippler(dom) {
     this._domNode = $($(dom)[0]);
     this._freeRipples = [];
+    this._shown = false;
+    this._rippleCount = 0;
+    this.$().remove();
 }
 
 Rippler.prototype.$ = function() {
     return this._domNode;
+};
+
+Rippler.prototype.rippleStarted = function() {
+    this._rippleCount++;
+    if (this._shown) return;
+    this._shown = true;
+    this.$().appendTo("body");
+};
+
+Rippler.prototype.rippleEnded = function(ripple) {
+    this._freeRipples.push(ripple);
+    this._rippleCount--;
+    if (this._rippleCount === 0) {
+        this._shown = false;
+        this.$().remove();
+    }
 };
 
 Rippler.prototype.rippleElement = function(elem, x, y, color) {
@@ -170,12 +189,14 @@ Rippler.prototype.rippleElement = function(elem, x, y, color) {
     if (!color) color = "#000";
 
     var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+    this.rippleStarted();
     ripple.initBounded(x, y, rect, color);
 };
 
 Rippler.prototype.rippleAt = function(x, y, size, color) {
     if (!color) color = "#777";
     var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+    this.rippleStarted();
     ripple.initUnbounded(x, y, size, color);
 }
 
