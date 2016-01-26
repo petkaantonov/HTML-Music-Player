@@ -943,7 +943,7 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
     }
     this._selectable.updateOrder(selectedTracks);
     this._fixedItemListScroller.refresh();
-    this.emit("trackChange", this.getCurrentTrack());
+    this.trackIndexChanged();
     this.emit("trackOrderChange");
 };
 
