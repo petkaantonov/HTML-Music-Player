@@ -256,7 +256,7 @@ Popup.prototype.mousemoved = function(e) {
 
 Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     if (!this._shown || this._dragging || (domUtil.isTouchEvent(e) && e.isFirst === false)) return;
-    if ($(e.target).closest(this.closerContainerClass).length > 0) return;
+    if ($(e.target).closest("." + this.closerContainerClass).length > 0) return;
     this._dragging = true;
     this._anchorDistanceX = e.clientX - this._x;
     this._anchorDistanceY = e.clientY - this._y;
