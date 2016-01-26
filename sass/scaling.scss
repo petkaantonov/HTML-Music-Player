@@ -2,21 +2,22 @@
 
 #app-container,
 #app-loader,
-.toolbar > .toolbar-items, .track-container {
+.toolbar > .toolbar-items,
+.track-container {
     @include large-screen {
-        width: $large-screen-width;
+        width: $large-screen-width - $total-app-border;
     }
 
     @include small-screen {
-        width: 100%;
+        @include calc(width, "100% - #{$total-app-border}");
     }
 
     @include ultra-small-screen {
-        width: 100%;
+        @include calc(width, "100% - #{$total-app-border}");
     }
 
     @include medium-small-screen {
-        width: 100%;
+        @include calc(width, "100% - #{$total-app-border}");
     }
 }
 
@@ -62,19 +63,19 @@
 
 .track .track-info {
     @include large-screen {
-        width: $large-screen-width - 242px;
+        width: $large-screen-width - $track-width-left-for-text - $total-app-border;
     }
 
     @include small-screen {
-        @include calc(width, "100% - 242px");
+        @include calc(width, "100% - #{$track-width-left-for-text + $total-app-border}");
     }
 
     @include medium-small-screen {
-        @include calc(width, "100% - #{242px - 109px}");
+        @include calc(width, "100% - #{$track-width-left-for-text - $track-rating-width + $total-app-border}");
     }
 
     @include ultra-small-screen {
-        @include calc(width, "100% - #{242px - 109px}");
+        @include calc(width, "100% - #{$track-width-left-for-text - $track-rating-width + $total-app-border}");
     }
 }
 
@@ -90,19 +91,19 @@
 .visualizer-section-container {
     margin-left: $visualizer-gap;
     @include large-screen {
-        @include calc(width, "#{$large-screen-width} - #{$visualizer-gap + $picture-size + (2 * $border-width)}");
+        @include calc(width, "#{$large-screen-width} - #{$visualizer-gap + $picture-size + (2 * $border-width) + $total-app-border}");
     }
 
     @include small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width)}");
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + $total-app-border}");
     }
 
     @include medium-small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width)}");
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width) + $total-app-border}");
     }
 
     @include ultra-small-screen {
-        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width)}");
+        @include calc(width, "100% - #{$visualizer-gap + $picture-size + (2 * $border-width) + (2 * $border-width) + $total-app-border}");
     }
 }
 
