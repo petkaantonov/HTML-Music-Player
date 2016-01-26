@@ -121,7 +121,6 @@ Popup.prototype._initDom = function() {
     var ret = $("<div>", {
         class: this.containerClass,
     }).css({
-        zIndex: 100001,
         position: "absolute"    
     }).appendTo("body");
 

@@ -134,4 +134,4 @@ GlobalUi.setHotkeyManager = function(value) {
     hotkeyManager = value;
 };
 
-GlobalUi.rippler = new Rippler(".rippler-container");
+GlobalUi.rippler = new Rippler();

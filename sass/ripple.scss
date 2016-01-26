@@ -1,10 +1,8 @@
 @import "variables";
 
-.rippler-container {
-    position: absolute;
+.bounder-node {
     overflow: hidden;
-    width: 100%;
-    height: 100%;
+    position: absolute;
     top: 0;
     left: 0;
     -webkit-pointer-events: none;
@@ -13,23 +11,21 @@
     -ms-touch-action: none;
     touch-action: none;
     @include translate3d(0,0,0);
-    z-index: 9999999;
-}
-
-.rippler-container .bounder-node {
-    overflow: hidden;
-    position: absolute;
-    top: 0;
-    left: 0;
-    @include translate3d(0,0,0);
     will-change: transform;
+    z-index: 1000;
 }
 
-.rippler-container .ripple-node {
+.ripple-node {
+    -webkit-pointer-events: none;
+    pointer-events: none;
+    -webkit-touch-action: none;
+    -ms-touch-action: none;
+    touch-action: none;
     position: absolute;
     top: 0;
     left: 0;
     border-radius: 50%;
     @include translate3d(0,0,0);
     will-change: transform;
+    z-index: 1000;
 }

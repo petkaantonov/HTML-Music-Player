@@ -11,6 +11,7 @@ $header-size: $header-height + $header-margin;
     will-change: transform;
     top: 0px;
     left: 0px;
+    z-index: 960;
 }
 
 .popup-body {
@@ -64,7 +65,7 @@ $header-size: $header-height + $header-margin;
     top: 0px;
     left: 0px;
     position: absolute;
-    z-index: 99999;
+    z-index: 940;
     will-change: filter;
     will-change: -webkit-filter;
     @include css-filter(opacity(0%));

@@ -33,6 +33,7 @@ function ActionMenuItem(root, spec, children, level) {
     this.containerMouseLeft = this.containerMouseLeft.bind(this);
     this.itemClicked = this.itemClicked.bind(this);
     this.positionSubMenu = this.positionSubMenu.bind(this);
+    this.itemTouchStarted = this.itemTouchStarted.bind(this);
 
     if (this.children) {
         this._containerDom = this._createContainerDom(level);
@@ -40,7 +41,6 @@ function ActionMenuItem(root, spec, children, level) {
             child.setParent(this);
         }, this);
 
-        
         this.$().on("mouseenter", this.itemMouseEntered);
         this.$().on("mouseleave", this.itemMouseLeft);
         this.$container().on("mouseenter", this.containerMouseEntered);
@@ -48,7 +48,6 @@ function ActionMenuItem(root, spec, children, level) {
 
         if (touch) {
             this.$container().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.containerMouseEntered));
-            this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.itemMouseEntered));
         }
     }
 
@@ -57,6 +56,7 @@ function ActionMenuItem(root, spec, children, level) {
 
         if (touch) {
             this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.itemClicked));
+            this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.itemTouchStarted));
         }
     }
 }
@@ -96,10 +96,26 @@ ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
     }
 };
 
-ActionMenuItem.prototype.itemMouseEntered = function(e) {
-    if (domUtil.isTouchEvent(e)) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
+    for (var i = 0; i < this.children.length; ++i) {
+        var otherChild = this.children[i];
+        if (child !== otherChild) {
+            otherChild.removeActiveClass();
+            otherChild.hideContainer();
+        }
     }
+};
+
+ActionMenuItem.prototype.itemTouchStarted = function(e) {
+    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+    var parent = this.parent ? this.parent : this.root;
+    parent.menuItemTouchStarted(this);
+    if (this.children) {
+        this.initSubMenuShowing(0);
+    }
+};
+
+ActionMenuItem.prototype.initSubMenuShowing = function(delay) {
     this.addActiveClass();
     this.root.clearDelayTimer();
     this._clearDelayTimer();
@@ -112,7 +128,11 @@ ActionMenuItem.prototype.itemMouseEntered = function(e) {
     this._delayTimerId = setTimeout(function() {
         self._delayTimerId = -1;
         self.showContainer();
-    }, this.root.showDelay);
+    }, delay);
+};
+
+ActionMenuItem.prototype.itemMouseEntered = function() {
+    this.initSubMenuShowing(this.root.showDelay);
 };
 
 ActionMenuItem.prototype.itemMouseLeft = function(e) {
@@ -122,6 +142,11 @@ ActionMenuItem.prototype.itemMouseLeft = function(e) {
         this.removeActiveClass();
         this.startHideTimer();
     }
+};
+
+ActionMenuItem.prototype.zIndex = function() {
+    var container = this.parent ? this.parent.$container() : this.root.$();
+    return +container.css("zIndex");
 };
 
 ActionMenuItem.prototype.containerMouseLeft = function(e) {
@@ -153,7 +178,7 @@ ActionMenuItem.prototype.containerMouseEntered = function(e) {
 
 ActionMenuItem.prototype.itemClicked = function(e) {
     if (this.disabled) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
         return;
     }
     if (this.children) {
@@ -168,7 +193,7 @@ ActionMenuItem.prototype.itemClicked = function(e) {
                 this.root.hideContainer();
                 this.root.emit("itemClick", this.id);
             } else {
-                GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+                GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
             }
         }
     }
@@ -419,7 +444,16 @@ ActionMenu.prototype.destroy = function() {
     this.hideContainer();
     this.$().remove();
     this.removeAllListeners();
+};
 
+ActionMenu.prototype.menuItemTouchStarted = function(child) {
+    for (var i = 0; i < this._menuItems.length; ++i) {
+        var otherChild = this._menuItems[i];
+        if (child !== otherChild) {
+            otherChild.removeActiveClass();
+            otherChild.hideContainer();
+        }
+    }
 };
 
 ActionMenu.prototype.$containers = function() {
@@ -670,7 +704,6 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
         self.$().removeClass("initial");
     });
     this.emit("didShowMenu", e, this);
-
 };
 
 ActionMenu.ContextMenu.prototype.hide = function() {

@@ -49,10 +49,10 @@ window.player = {};
 window.GlobalUi = GlobalUi;
 
 const DEFAULT_ITEM_HEIGHT = 44;
-
 playlist.trackDisplay = new TrackDisplay("track-display", {
     delay: 5
 });
+
 
 playlist.main = new Playlist("#app-playlist-container", {
     itemHeight: DEFAULT_ITEM_HEIGHT
@@ -882,12 +882,6 @@ hotkeyManager.enableHotkeys();
 hotkeyManager.enablePersistentHotkeys();
 
 if (touch) {
-    const clearGesture = domUtil.tapHandler(function(e) {
-        if ($(e.target).closest(".track-container, .action-menu-item").length === 0) {
-            this.clearSelection();
-        }
-    }.bind(playlist.main));
-
     const toggleGesture = domUtil.twoFingerTapHandler(function() {
         var gesture = player.main.isPlaying ? "pause" : "play";
         gestureScreenFlasher.flashGesture(gesture);
@@ -903,14 +897,12 @@ if (touch) {
     }, -1);
 
     const enableGestures = function() {
-        util.onCapture(document, domUtil.TOUCH_EVENTS, clearGesture);
         util.onCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
         util.onCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
         util.onCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
     };
 
     const disableGestures = function() {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, clearGesture);
         util.offCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
         util.offCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
         util.offCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
