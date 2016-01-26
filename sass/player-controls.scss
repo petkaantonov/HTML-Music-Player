@@ -232,9 +232,7 @@
     box-sizing: border-box;
 
     @include ultra-small-screen {
-        margin-left: 0px;
-        left: auto;
-        right: 0px;
+        display: none;
     }
 
     @include medium-small-screen {
@@ -255,10 +253,6 @@
     right: 0px;
     border-radius: 0px;
     border: none;
-
-    @include ultra-small-screen {
-        display: none;
-    }
 }
 
 .playlist-controls-container.button-group,
