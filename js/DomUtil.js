@@ -165,13 +165,66 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
     return addedTouches;
 };
 
+var modifierTouch = null;
+var currentSingleTapTimeout = null;
 const documentActives = new ActiveTouchList();
+
+const setSingleTapTimeout = function(successHandler, clearHandler, timeout) {
+    if (currentSingleTapTimeout !== null) {
+        currentSingleTapTimeout.clear();
+        currentSingleTapTimeout = null;
+    }
+    var item = {
+        id: setTimeout(function() {
+            currentSingleTapTimeout = null;
+            successHandler();
+        }, timeout),
+        clear: function() {
+            clearTimeout(item.id);
+            clearHandler();
+        }
+    };
+    currentSingleTapTimeout = item;
+    return item.id;
+};
+
 if (touch) {
     jsUtil.onCapture(document, util.TOUCH_EVENTS, function(e) {
         if (e.cancelable) {
             e.preventDefault();
         }
-        documentActives.update(e, e.changedTouches);
+        var changedTouches = e.changedTouches;
+        documentActives.update(e, changedTouches);
+
+        if (documentActives.length() > 1 && currentSingleTapTimeout !== null) {
+            currentSingleTapTimeout.clear();
+            currentSingleTapTimeout = null;
+        }
+
+        if (e.type === TOUCH_START) {
+            if (modifierTouch === null) {
+                modifierTouch = documentActives.first();
+            }
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (!documentActives.contains(modifierTouch)) {
+                modifierTouch = null;
+            }
+        } else if (e.type === TOUCH_MOVE) {
+            if (modifierTouch !== null) {
+                for (var i = 0; i < changedTouches.length; ++i) {
+                    var touch = changedTouches[i];
+
+                    if (touch.identifier === modifierTouch.identifier) {
+                        var deltaX = Math.abs(modifierTouch.clientX - touch.clientX);
+                        var deltaY = Math.abs(modifierTouch.clientY - touch.clientY);
+                        if (deltaX > 35 || deltaY > 35) {
+                            modifierTouch = null;
+                        }
+                        return;
+                    }
+                }
+            }
+        }
     });
 
     jsUtil.onCapture(document, [
@@ -189,7 +242,6 @@ if (touch) {
             e.preventDefault();
         }
     });
-
 }
 
 const approxPhysical = (function() {
@@ -539,6 +591,144 @@ util.twoFingerTapHandler = function(fn) {
     };
 };
 
+util.modifierTapHandler = function(fn) {
+    var currentTouch = null;
+    var started = -1;
+
+    function clear() {
+        currentTouch = null;
+        started = -1;
+    }
+
+    return function(e) {
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+
+        if (modifierTouch === null) {
+            return clear();
+        }
+
+        if (e.type === TOUCH_START) {
+            if (documentActives.length() !== 2) {
+                return clear();
+            }
+
+            for (var i = 0; i < changedTouches.length; ++i) {
+                if (changedTouches[i].identifier !== modifierTouch.identifier) {
+                    started = Date.now();
+                    currentTouch = changedTouches[i];
+                    return;
+                }
+            }
+            clear();
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (currentTouch === null) return;
+            if (documentActives.length() !== 1) {
+                return clear();
+            }
+            var touch = null;
+            for (var i = 0; i < changedTouches.length; ++i) {
+                if (changedTouches[i].identifier === currentTouch.identifier) {
+                    touch = changedTouches[i];
+                    break;
+                }
+            }
+
+            if (!touch) {
+                return clear();
+            }
+
+            var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
+            var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
+            var elapsed = Date.now() - started;
+
+            if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
+                copyTouchProps(e, touch);
+                fn.call(this, e);
+            }
+            clear();
+        } else if (e.type === TOUCH_MOVE) {
+            if (documentActives.length() !== 2) {
+                return clear();
+            }
+        }
+    };
+};
+
+util.modifierDragHandler = function(fnMove, fnEnd) {
+    var currentTouch = null;
+
+    function end(self, e, touch) {
+        if (currentTouch !== null) {
+            copyTouchProps(e, touch || currentTouch);
+            currentTouch = null;
+            fnEnd.call(self, e);
+        }
+    }
+
+    return function(e) {
+        if (modifierTouch === null || documentActives.length() > 2) {
+            return end(this, e);
+        }
+        
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+
+        if (e.type === TOUCH_START) {
+            for (var i = 0; i < changedTouches.length; ++i) {
+                if (changedTouches[i].identifier !== modifierTouch.identifier) {
+                    currentTouch = changedTouches[i];
+                    return;
+                }
+            }
+            end(this, e);
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            end(this, e);
+        } else if (e.type === TOUCH_MOVE) {
+            if (currentTouch === null) return;
+
+            var touch = null;
+            for (var i = 0; i < changedTouches.length; ++i) {
+                if (changedTouches[i].identifier === currentTouch.identifier) {
+                    touch = changedTouches[i];
+                    break;
+                }
+            }
+
+            if (touch === null) return;
+
+            var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
+            var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
+
+            if (yDelta > 0 || xDelta > 0) {
+                currentTouch = touch;
+                copyTouchProps(e, currentTouch);
+                fnMove.call(this, e);
+            }
+        }
+    };
+};
+
+util.modifierTouchDownHandler = function(fn) {
+    return function(e) {
+        if (modifierTouch === null || documentActives.length() > 2) return;
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+
+
+
+        if (e.type === TOUCH_START) {
+            for (var i = 0; i < changedTouches.length; ++i) {
+                var touch = changedTouches[i];
+                if (touch.identifier !== modifierTouch.identifier) {
+                    copyTouchProps(e, touch);
+                    e.isFirst = true;
+                    fn.call(this, e);
+                    break;
+                }
+            }
+        }
+    };
+};
+
+
 util.dragHandler = function(fnMove, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
@@ -860,19 +1050,17 @@ util.longTapHandler = function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-
-
         if (e.type === TOUCH_START) {
-            if (actives.length() === 1 && currentTouch === null) {
+            if (documentActives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
-                timeoutId = setTimeout(function() {
+                timeoutId = setSingleTapTimeout(function() {
                     if (documentActives.length() <= 1) {
                         var touch = currentTouch;
                         copyTouchProps(e, touch);
                         clear();
                         fn.call(self, e);
                     }
-                }, LONG_TAP_TIME);
+                }, clear, LONG_TAP_TIME);
             } else {
                 clear();
             }
@@ -939,14 +1127,15 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     var prevTimestamp = 0;
 
     target.on(events, function(e) {
-        if (!shouldScroll()) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         var timeStamp = e.timeStamp || e.originalEvent.timeStamp;
         var elapsed = timeStamp - prevTimestamp;
         prevTimestamp = timeStamp;
 
         actives.update(e, changedTouches);
-    
+        if (!shouldScroll()) {
+            return;
+        }
         switch (e.type) {
         case TOUCH_START:
             if (actives.length() === 1) {

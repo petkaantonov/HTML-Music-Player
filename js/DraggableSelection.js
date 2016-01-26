@@ -22,8 +22,8 @@ function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     this._restart = this._restart.bind(this);
     this._onTouchmove = this._onTouchmove.bind(this);
     this._onTouchend = this._onTouchend.bind(this);
-    this._touchDragHandler = domUtil.dragHandler(this._onTouchmove, this._onTouchend);
-    this._onTrackMouseDownTouch = domUtil.touchDownHandler(this._onTrackMouseDown);
+    this._touchDragHandler = domUtil.modifierDragHandler(this._onTouchmove, this._onTouchend);
+    this._onTrackMouseDownTouch = domUtil.modifierTouchDownHandler(this._onTrackMouseDown);
     this._isDragging = false;
 
     this._scroll = this._scroll.bind(this);

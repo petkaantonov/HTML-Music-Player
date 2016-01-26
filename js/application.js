@@ -350,7 +350,7 @@ var visualizerCanvas = new VisualizerCanvas("#visualizer", player.main, {
     capHeight: 1,
     capSeparator: 2,
     capStyle: "rgb(37,117,197)",
-    targetFps: 48,
+    targetFps: 60,
     capDropTime: 750,
     ghostOpacity: 0.14,
     capInterpolator: "ACCELERATE_CUBIC",
