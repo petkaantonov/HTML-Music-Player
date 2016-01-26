@@ -133,6 +133,9 @@ function Playlist(domNode, opts) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!track) return;
+            if (!this._selectable.contains(track)) {
+                this._selectable.selectTrack(track);
+            }
             this._selectable.setPriorityTrack(track);
         }.bind(this)));
 

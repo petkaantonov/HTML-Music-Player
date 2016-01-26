@@ -23,7 +23,11 @@ Selectable.prototype.trackMouseDown = function(e, track) {
     }
 
     if (e.which === 3) {
-        return this.setPriorityTrack(track);
+        if (!this.contains(track)) {
+            this.selectTrack(track);
+        }
+        this.setPriorityTrack(track);
+        return;
     }
 
     var idx = track.getIndex();

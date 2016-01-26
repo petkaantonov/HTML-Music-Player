@@ -101,6 +101,14 @@ util.getTransform = (function() {
     };
 })();
 
+util.originProperty = (function() {
+    var div = document.createElement("div");
+    var candidates = "webkitTransformOrigin mozTransformOrigin oTransformOrigin msTransformOrigin MSTransformOrigin transformOrigin".split(" ").filter(function(v) {
+        return (v in div.style);
+    });
+    return candidates[candidates.length - 1];
+})();
+
 function ActiveTouchList() {
     this.activeTouches = [];
 }
@@ -166,26 +174,32 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
 };
 
 var modifierTouch = null;
-var currentSingleTapTimeout = null;
+const singleTapTimeouts = [];
 const documentActives = new ActiveTouchList();
 
-const setSingleTapTimeout = function(successHandler, clearHandler, timeout) {
-    if (currentSingleTapTimeout !== null) {
-        currentSingleTapTimeout.clear();
-        currentSingleTapTimeout = null;
+function SingleTapTimeout(successHandler, clearHandler, timeout) {
+    this.id = setTimeout(this.timeoutHandler.bind(this), timeout);
+    this.successHandler = successHandler;
+    this.clearHandler = clearHandler;
+    singleTapTimeouts.push(this);
+}
+
+SingleTapTimeout.prototype.timeoutHandler = function() {
+    this.remove();
+    this.successHandler.call(null);
+};
+
+SingleTapTimeout.prototype.clear = function() {
+    this.remove();
+    clearTimeout(this.id);
+    this.clearHandler.call(null);
+};
+
+SingleTapTimeout.prototype.remove = function() {
+    var i = singleTapTimeouts.indexOf(this);
+    if (i >= 0) {
+        singleTapTimeouts.splice(i, 1);
     }
-    var item = {
-        id: setTimeout(function() {
-            currentSingleTapTimeout = null;
-            successHandler();
-        }, timeout),
-        clear: function() {
-            clearTimeout(item.id);
-            clearHandler();
-        }
-    };
-    currentSingleTapTimeout = item;
-    return item.id;
 };
 
 if (touch) {
@@ -196,9 +210,10 @@ if (touch) {
         var changedTouches = e.changedTouches;
         documentActives.update(e, changedTouches);
 
-        if (documentActives.length() > 1 && currentSingleTapTimeout !== null) {
-            currentSingleTapTimeout.clear();
-            currentSingleTapTimeout = null;
+        if (documentActives.length() > 1 && singleTapTimeouts.length > 0) {
+            for (var i = 0; i < singleTapTimeouts.length; ++i) {
+                singleTapTimeouts[i].clear();
+            }
         }
 
         if (e.type === TOUCH_START) {
@@ -1008,7 +1023,7 @@ util.longTapHandler = function(fn) {
         if (e.type === TOUCH_START) {
             if (documentActives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
-                timeoutId = setSingleTapTimeout(function() {
+                var timeout = new SingleTapTimeout(function() {
                     if (documentActives.length() <= 1) {
                         var touch = currentTouch;
                         copyTouchProps(e, touch);
@@ -1016,6 +1031,7 @@ util.longTapHandler = function(fn) {
                         fn.call(self, e);
                     }
                 }, clear, LONG_TAP_TIME);
+                timeoutId = timeout.id;
             } else {
                 clear();
             }
