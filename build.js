@@ -30,14 +30,7 @@ var assetsGenerated = browserified.then(function() {
                     .concat(glob.sync("worker/codecs/**/*.*"))
                     .concat("worker/AudioPlayerWorker.js", "worker/TrackAnalyzerWorker.js");
 
-    var rinline = /"(https:\/\/[^"]+)"/g;
-    var inlineAssets = fs.readFileSync("./dev.html", "utf8").match(rinline).map(function(v) {
-        return v.replace(/(?:^"|"$)/g, "");
-    }).filter(function(v) {
-        return v.indexOf("browser-update.org") === -1;
-    }).concat("index.html", "/");
-
-    var serviceWorkerAssetsList = assets.concat("dist/main.min.js", inlineAssets).sort();
+    var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
 
     var hash = crypto.createHash('sha256');
     var filesToRead = assets.concat("dist/main.js", "index.html");
