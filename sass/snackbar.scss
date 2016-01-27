@@ -5,7 +5,8 @@
     position: absolute;
     bottom: 0;
     left: 0;
-    @include translate(0, 0);
+    @include translate3d(0, 0, 0);
+    will-change: transform;
     margin: 0;
     border-radius: 3px;
     border-bottom-right-radius: 0px;
@@ -51,25 +52,26 @@
 
 .snackbar-container.transition-in,
 .snackbar-container.transition-out {
-    @include transition-transform-filter(0.4s cubic-bezier(.55, 0, .1, 1));
+    @include transition-transform-filter-separate(0.33s cubic-bezier(.55, 0, .1, 1),
+                                                  0.47s cubic-bezier(0.4, 0, 0.2, 1));
 }
 
 .snackbar-container.transition-in {
-    @include translate(0, 0);
+    @include translate3d(0, 0, 0);
     @include css-filter(opacity(100%));
 }
 
 .snackbar-container.transition-in.initial {
-    @include translate(0, 100%);
+    @include translate3d(0, 100%, 0);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out {
-    @include translate(0, 100%);
+    @include translate3d(0, 100%, 0);
     @include css-filter(opacity(0%));
 }
 
 .snackbar-container.transition-out.initial {
-    @include translate(0, 0);
+    @include translate3d(0, 0, 0);
     @include css-filter(opacity(100%));
 }

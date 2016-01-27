@@ -48,9 +48,14 @@ function SnackbarInstance(snackbar, message, opts) {
         this.$().addClass(this._snackbar.transitionInClass + " initial");
         this.$().appendTo("body");
         this._resized();
+        this.$().detach();
+        this.$().appendTo("body");
         this.$().width();
-        this.$().removeClass("initial");
         this._snackbar.beforeTransitionIn(this.$());
+        var self = this;
+        domUtil.changeDom(function() {
+            self.$().removeClass("initial");
+        });
     } else {
         this.$().appendTo("body");
         this._resized();
@@ -174,8 +179,11 @@ SnackbarInstance.prototype._hide = function() {
         this.$().addClass(this._snackbar.transitionOutClass + " initial");
         this.$().appendTo("body");
         this.$().height();
-        this.$().removeClass("initial");
         this._snackbar.beforeTransitionOut(this.$());
+        var self = this;
+        domUtil.changeDom(function() {
+            self.$().removeClass("initial");
+        });
     }
     var self = this;
     setTimeout(function() {
