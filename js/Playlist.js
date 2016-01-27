@@ -196,7 +196,7 @@ Playlist.Modes = {
             }
 
             var rating = track.isRated() ? track.getRating() : 3;
-            var weight = Math.pow(3, rating - 1);
+            var weight = Math.pow(1.5, rating - 1);
 
             if (track.hasBeenPlayedWithin(lastHour)) {
                 weight = weight / Math.pow(3, 2);
