@@ -231,6 +231,12 @@ Rippler.prototype.rippleAt = function(x, y, size, color) {
         var ongoingRipple = this._ongoingRipples[i];
         if (ongoingRipple.type === "bounded") {
             return;
+        } else {
+            var deltaX = Math.abs(x - ongoingRipple.x);
+            var deltaY = Math.abs(y - ongoingRipple.y);
+            if (deltaX < 24 && deltaY < 24) {
+                return;
+            }
         }
     }
 
