@@ -348,7 +348,7 @@ ActionMenuItem.prototype.removeActiveClass = function() {
 
 ActionMenuItem.prototype.showContainer = function() {
     this.addActiveClass();
-    this.$container().appendTo("body");
+    this.$container().removeClass("transition-out transition-in initial").appendTo("body");
     var origin = this.positionSubMenu();
     this.$container().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
     this.$container().detach();
@@ -688,7 +688,7 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this.emit("willShowMenu", e, this);
     if (prevented) return;
     this._shown = true;
-    this.$().appendTo("body");
+    this.$().removeClass("transition-out transition-in initial").appendTo("body");
     this._x = e.clientX;
     this._y = e.clientY;
     this._xMax = $(window).width();
