@@ -16,6 +16,11 @@ const isCors = function(url) {
     return new URL(url).origin !== location.origin;
 };
 
+const ricon = /(?:android-chrome|icon|safari-pinned|mstile)/;
+const isUnnecessary = function(url) {
+    return url.indexOf("dist/images") >= 0 && ricon.test(url);
+};
+
 self.addEventListener("install", function(e) {
     if (IS_DEVELOPMENT) return;
 
@@ -25,6 +30,10 @@ self.addEventListener("install", function(e) {
 
             if (isCors(url)) {
                 return cache.add(url);
+            }
+
+            if (isUnnecessary(url)) {
+                return Promise.resolve();
             }
 
             return (function loop(retries) {
