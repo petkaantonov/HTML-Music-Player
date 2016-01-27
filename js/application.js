@@ -40,7 +40,7 @@ const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const gestureScreenFlasher = require("./GestureScreenFlasher");
 
-const visualizerEnabledMediaMatcher = matchMedia("(min-height: 568px)");
+const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 
 serviceWorkerManager.start();
 
