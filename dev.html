@@ -20,7 +20,8 @@
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <!--<link rel="apple-touch-startup-image" sizes="640x1096" href="">-->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-status-bar-style" content="black">
 
     <link rel="apple-touch-icon" sizes="57x57" href="/dist/images/apple-touch-icon-57x57.png">
     <link rel="apple-touch-icon" sizes="60x60" href="/dist/images/apple-touch-icon-60x60.png">
@@ -214,7 +215,25 @@
         </div>
     </div>
 </div>
+<div class="spinner-wrapper clockwise" id="clockwise-spinner">
+    <div class="arc-1-container arc-container">
+        <div class="arc"></div>
+    </div>
+    <div class="arc-2-container arc-container">
+        <div class="arc"></div>
+        <div class="arc nogap"></div>
+    </div>
+</div>
 
+<div class="spinner-wrapper counterclockwise" id="counterclockwise-spinner">
+    <div class="arc-1-container arc-container">
+        <div class="arc"></div>
+        <div class="arc nogap"></div>
+    </div>
+    <div class="arc-2-container arc-container">
+        <div class="arc"></div>
+    </div>
+</div>
 <script type="text/javascript">
 var DEBUGGING = true;
 var __PROJECT__TITLE = "Soita";

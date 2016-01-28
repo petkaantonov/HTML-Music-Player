@@ -10,6 +10,7 @@ const keyValueDatabase = require("./KeyValueDatabase");
 const features = require("./features");
 const util = require("./util");
 const Rippler = require("./Rippler");
+const domUtil = require("./DomUtil");
 
 const GlobalUi = module.exports;
 
@@ -135,3 +136,86 @@ GlobalUi.setHotkeyManager = function(value) {
 };
 
 GlobalUi.rippler = new Rippler();
+
+GlobalUi.spinner = (function() {
+    const LONG_PRESS_DURATION = 475;
+    const SPINNER_TRANSITION_OUT_DELAY = 300;
+    const SPINNER_DELAY = LONG_PRESS_DURATION * 0.25 | 0;
+    const SPINNER_SIZE = 142;
+
+    var $clockwise = $("#clockwise-spinner");
+    var $counterclockwise = $("#counterclockwise-spinner");
+
+    var currentSpinner = null;
+    var timerId = -1;
+    var spinnerRemovalId = 0;
+
+    function clear() {
+        ++spinnerRemovalId;
+        if (currentSpinner) {
+            currentSpinner.find(".arc, .arc-container").each(function() {
+                $(this).addClass("clear-transition");
+                domUtil.setTransform(this, "");
+                $(this).removeClass("clear-transition");
+            });
+
+            currentSpinner.removeClass("visible");
+            currentSpinner = null;
+        }
+    }
+
+    function stop() {
+        if (timerId !== -1) {
+            clearTimeout(timerId);
+            timerId = -1;
+
+            if (currentSpinner) {
+                var id = ++spinnerRemovalId;
+                currentSpinner.addClass("initial transition-out");
+                currentSpinner.reflow();
+                currentSpinner.removeClass("initial");
+                setTimeout(function() {
+                    if (id === spinnerRemovalId) clear();
+                }, SPINNER_TRANSITION_OUT_DELAY);
+            }
+        }
+    }
+
+    function initSpinner(x, y) {
+        // TODO: touch.{radiusX,radiusY,rotationAngle} can be used
+        // to determine which one will be more visible at the start of the animation.
+        currentSpinner = (x - SPINNER_SIZE / 2) > 0 ? $counterclockwise : $clockwise;
+
+        currentSpinner.removeClass("initial transition-out").addClass("visible").css({
+            left: x - SPINNER_SIZE / 2,
+            top: y - SPINNER_SIZE / 2
+        });
+
+        requestAnimationFrame(function() {
+            if (currentSpinner === $clockwise) {
+                domUtil.setTransform(currentSpinner.find(".arc-1-container, .arc").reflow(), "rotate(180deg)");
+                domUtil.setTransform(currentSpinner.find(".nogap").reflow(), "rotate(360deg)");
+            } else if (currentSpinner === $counterclockwise) {
+                domUtil.setTransform(currentSpinner.find(".arc-2-container, .arc").reflow(), "rotate(-180deg)");
+                domUtil.setTransform(currentSpinner.find(".nogap").reflow(), "rotate(-360deg)");
+            }
+        });
+
+        timerId = setTimeout(function() {
+            timerId = -1;
+            stop();
+        }, LONG_PRESS_DURATION - SPINNER_DELAY);
+    }
+
+    return {
+        spinAt: function(x, y) {
+            if (timerId !== -1) return;
+            clear();
+            timerId = setTimeout(function() {
+                timerId = -1;
+                initSpinner(x, y);
+            }, SPINNER_DELAY);
+        },
+        stop: stop
+    };
+})();

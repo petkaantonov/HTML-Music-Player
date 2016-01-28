@@ -47,3 +47,7 @@
 .no-display {
     display: none !important;
 }
+
+.clear-transition {
+    @include transition(none !important);
+}

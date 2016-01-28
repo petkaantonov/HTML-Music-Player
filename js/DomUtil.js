@@ -19,8 +19,6 @@ const TAP_MAX_MOVEMENT = 24;
 const PINCER_MINIMUM_MOVEMENT = 24;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
 
-
-
 var util = {};
 util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
@@ -30,18 +28,30 @@ util.setFilter = (function() {
     
     if ("webkitFilter" in (document.createElement("div").style)) {
         return function(elem, value) {
-            elem.style.webkitFilter = value;
+            if (elem.style) {
+                elem.style.webkitFilter = value;
+            } else {
+                elem.css("webkitFilter", value);
+            }
         };
     }
 
     if ("mozFilter" in (document.createElement("div").style)) {
         return function(elem, value) {
-            elem.style.mozFilter = value;
+            if (elem.style) {
+                elem.style.mozFilter = value;
+            } else {
+                elem.css("mozFilter", value);
+            }
         };
     }
 
     return function(elem, value) {
-        elem.style.mozFilter = value;
+        if (elem.style) {
+            elem.style.filter = value;
+        } else {
+            elem.css("filter", value);
+        }
     };
 })();
 
@@ -69,17 +79,29 @@ util.setTransform = (function() {
     var div = document.createElement("div");
     if ("transform" in (document.createElement("div").style)) {
         return function(elem, value) {
-            elem.style.transform = value;
+            if (elem.style) {
+                elem.style.transform = value;
+            } else {
+                elem.css("transform", value);
+            }
         };
     }
     if ("webkitTransform" in (document.createElement("div").style)) {
         return function(elem, value) {
-            elem.style.webkitTransform = value;
+            if (elem.style) {
+                elem.style.webkitTransform = value;
+            } else {
+                elem.css("webkitTransform", value);
+            }
         };
     }
 
     return function(elem, value) {
-        elem.style.mozTransform = value;
+        if (elem.style) {
+            elem.style.mozTransform = value;
+        } else {
+            elem.css("mozTransform", value);
+        }
     };
 })();
 
@@ -1003,7 +1025,7 @@ util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
     };
 };
 
-util.longTapHandler = function(fn) {
+util.longTapHandler = function(fn, noTrigger) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var timeoutId = -1;
@@ -1013,7 +1035,12 @@ util.longTapHandler = function(fn) {
             clearTimeout(timeoutId);
             timeoutId = -1;
         }
-        currentTouch = null;
+        if (currentTouch !== null) {
+            if (!noTrigger) {
+                $(document).trigger("longPressEnd");
+            }
+            currentTouch = null;
+        }
     }
 
     return function(e) {
@@ -1032,6 +1059,9 @@ util.longTapHandler = function(fn) {
                     }
                 }, clear, LONG_TAP_TIME);
                 timeoutId = timeout.id;
+                if (!noTrigger) {
+                    $(document).trigger("longPressStart", currentTouch);
+                }
             } else {
                 clear();
             }

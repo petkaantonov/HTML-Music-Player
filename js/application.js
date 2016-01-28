@@ -11,6 +11,7 @@ window.$ = window.jQuery = require("../lib/jquery");
 window.Promise = require("../lib/bluebird");
 require("./BluebirdConfig");
 require("./jquery.fileinput");
+require("../lib/jquery.reflow");
 
 const $ = window.$;
 
@@ -60,6 +61,14 @@ playlist.main = new Playlist("#app-playlist-container", {
 
 $(window).on("clear", function() {
     playlist.main.clearSelection();
+});
+
+$(document).on("longPressStart", function(e, touch) {
+    GlobalUi.spinner.spinAt(touch.clientX|0, touch.clientY|0);
+});
+
+$(document).on("longPressEnd", function() {
+    GlobalUi.spinner.stop();
 });
 
 const actions = {
