@@ -219,3 +219,28 @@ GlobalUi.spinner = (function() {
         stop: stop
     };
 })();
+
+
+const gestureEducationMessages = {
+    "playpause": "Tap the screen with two fingers to toggle play/pause",
+    "next": "Swipe right with two fingers to play the next track",
+    "previous": "Swip left with two fingers to play the previous track"
+};
+
+GlobalUi.gestureEducation = function(gesture) {
+    var msg = gestureEducationMessages[gesture];
+    var tag = gesture + "-gesture-education";
+
+    if (msg) {
+        GlobalUi.snackbar.show(msg, {
+            action: "got it",
+            visibilityTime: 6500,
+            tag: tag
+        }).then(function(outcome) {
+            if (outcome === Snackbar.ACTION_CLICKED ||
+                outcome === Snackbar.DISMISSED) {
+                // TODO: Don't notify about this again
+            }
+        });
+    }
+};

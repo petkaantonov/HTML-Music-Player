@@ -1006,11 +1006,17 @@ Player.prototype.loadTrack = function(track) {
 Player.prototype.nextButtonClicked = function(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.next();
+    if (domUtil.isTouchEvent(e)) {
+        GlobalUi.gestureEducation("next");
+    }
 };
 
 Player.prototype.prevButtonClicked = function(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.prev();
+    if (domUtil.isTouchEvent(e)) {
+        GlobalUi.gestureEducation("previous");
+    }
 };
 
 Player.prototype.playButtonClicked = function(e) {
@@ -1019,6 +1025,9 @@ Player.prototype.playButtonClicked = function(e) {
         this.pause();
     } else {
         this.play();
+    }
+    if (domUtil.isTouchEvent(e)) {
+        GlobalUi.gestureEducation("playpause");
     }
 };
 
