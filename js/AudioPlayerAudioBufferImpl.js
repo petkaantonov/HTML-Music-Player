@@ -144,7 +144,6 @@ AudioPlayer.prototype._suspend = function() {
         this._currentStateModificationAction = {
             type: "suspend",
             promise: Promise.resolve(this._audioContext.suspend()).finally(function() {
-                self.emit("audioContextSuspend", self);
                 self._currentStateModificationAction = null;
             })
         };
@@ -153,7 +152,6 @@ AudioPlayer.prototype._suspend = function() {
         this._currentStateModificationAction.promise = this._currentStateModificationAction.promise.finally(function() {
             return self._suspend();
         }).finally(function() {
-            self.emit("audioContextSuspend", self);
             self._currentStateModificationAction = null;
         });
         return this._currentStateModificationAction.promise;
@@ -162,13 +160,13 @@ AudioPlayer.prototype._suspend = function() {
 };
 
 AudioPlayer.prototype._resetAudioContext = function() {
-    while (this._sourceNodes.length > 0) {
-        this._sourceNodes.shift().destroy();
-    }
     try {
         this._audioContext.close();
     } catch (e) {}
     this._audioContext = makeAudioContext();
+    for (var i = 0; i < this._sourceNodes.length; ++i) {
+        this._sourceNodes[i].adoptNewAudioContext(this._audioContext);
+    }
     this.emit("audioContextReset", this);
 };
 
@@ -314,7 +312,7 @@ AudioPlayer.prototype.setHardwareLatency = function(amount) {
     this._hardwareLatency = amount;
 };
 
-AudioPlayer.prototype.getCurrentTime = function(timeShouldHaveProgressed) {
+AudioPlayer.prototype.getCurrentTime = function() {
     return this._audioContext.currentTime;
 };
 
@@ -330,21 +328,17 @@ AudioPlayer.prototype.resume = function() {
             this.emit("audioContextSuspend", this);
             this._resetAudioContext();
         }
-        return Promise.resolve();
+        return;
     }
 
     // Reset AudioContext as it's probably ruined despite of suspension efforts.
     if (!this._currentStateModificationAction) {
         this._resetAudioContext();
-        return Promise.resolve();
     } else if (this._currentStateModificationAction.type === "suspend") {
-        var self = this;
-        this._currentStateModificationAction.promise = this._currentStateModificationAction.promise.finally(function() {
-            self._currentStateModificationAction = null;
-            this._resetAudioContext();
-        });
+        this._currentStateModificationAction = null;
+        this._resetAudioContext();
     }
-    return this._currentStateModificationAction.promise;
+    return;
 };
 
 AudioPlayer.prototype.playbackStopped = function() {
@@ -394,7 +388,6 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._seekRequestId = 0;
     this._audioBufferFillRequestId = 0;
     this._replacementRequestId = 0;
-    this._sourceStartRequestId = 0;
 
     this._lastExpensiveCall = 0;
 
@@ -470,6 +463,25 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     this._sourceEnded =
     this._ended = null;
     this._destroyed = true;
+};
+
+AudioPlayerSourceNode.prototype.adoptNewAudioContext = function(audioContext) {
+    if (!this._sourceStopped) {
+        throw new Error("sources must be stopped while adopting new audio context");
+    }
+    this._audioContext = audioContext;
+    this._node = audioContext.createGain();
+    this._previousAudioContextTime = -1;
+    this._previousHighResTime = -1;
+    this._previousCombinedTime = -1;
+
+    if (this._bufferQueue.length > 0) {
+        this._bufferQueue[0].started = audioContext.currentTime - this._bufferQueue[0].playedSoFar;
+        for (var i = 1; i < this._bufferQueue.length; ++i) {
+            var prev = this._bufferQueue[i - 1];
+            this._bufferQueue[i].started = prev.started + prev.duration;
+        }
+    }
 };
 
 AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function(now) {
@@ -615,27 +627,22 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
     return when + duration;
 };
 
-AudioPlayerSourceNode.prototype._resumedToStartSources = function(id) {
-    if (!this._sourceStopped && id === this._sourceStartRequestId) {
-        var now = this._player.getCurrentTime();
-        for (var i = 0; i < this._bufferQueue.length; ++i) {
-            now = this._startSource(this._bufferQueue[i], now);
-        }
-
-        if (!this._initialPlaythroughEmitted) {
-            this._initialPlaythroughEmitted = true;
-            this.emit("initialPlaythrough");
-        }
-    }
-};
-
 AudioPlayerSourceNode.prototype._startSources = function() {
     if (this._destroyed || this._paused) return;
     if (!this._sourceStopped) throw new Error("sources are not stopped");
     this._player.playbackStarted();
+    this._player.resume();
     this._sourceStopped = false;
-    var id = ++this._sourceStartRequestId;
-    this._player.resume().return(id).then(this._resumedToStartSources.bind(this));
+    var now = this._player.getCurrentTime();
+    
+    for (var i = 0; i < this._bufferQueue.length; ++i) {
+        now = this._startSource(this._bufferQueue[i], now);
+    }
+
+    if (!this._initialPlaythroughEmitted) {
+        this._initialPlaythroughEmitted = true;
+        this.emit("initialPlaythrough");
+    }
 };
 
 AudioPlayerSourceNode.prototype._stopSources = function() {
