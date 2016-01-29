@@ -3,8 +3,8 @@
 $spinner-size: 142px;
 $spinner-color: rgba(189, 223, 255, 0.7);
 $spinner-weight: 3px;
-$spinner-duration: 0.475s;
-$spinner-delay: $spinner-duration * 0.25;
+$spinner-duration: 0.750s;
+$spinner-delay: $spinner-duration * 0.15;
 $spinner-transition-out-time: 0.3s;
 
 .spinner-wrapper {
@@ -56,6 +56,8 @@ $spinner-transition-out-time: 0.3s;
   position: absolute;
   top: 0;
   left: 0;
+  filter: blur(2px);
+  -webkit-filter: blur(2px);
 }
 
 .spinner-wrapper.clockwise .arc-container .arc {

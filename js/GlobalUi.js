@@ -138,9 +138,9 @@ GlobalUi.setHotkeyManager = function(value) {
 GlobalUi.rippler = new Rippler();
 
 GlobalUi.spinner = (function() {
-    const LONG_PRESS_DURATION = 475;
+    const LONG_PRESS_DURATION = 750;
     const SPINNER_TRANSITION_OUT_DELAY = 300;
-    const SPINNER_DELAY = LONG_PRESS_DURATION * 0.25 | 0;
+    const SPINNER_DELAY = LONG_PRESS_DURATION * 0.15 | 0;
     const SPINNER_SIZE = 142;
 
     var $clockwise = $("#clockwise-spinner");
