@@ -111,13 +111,13 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     });
     this._audioBuffersAllocated = 0;
     this._arrayBuffersAllocated = 0;
-    this._currentTimeNotProgressedCount = 0;
     this._suspensionTimeoutMs = suspensionTimeout * 1000;
     this._currentStateModificationAction = null;
+    this._lastAudioContextRefresh = 0;
+    this._playbackStoppedTime = Date.now();
 
     this._messaged = this._messaged.bind(this);
     this._suspend = this._suspend.bind(this);
-    this._timeProgressChecker = this._timeProgressChecker.bind(this);
 
     this._worker.addEventListener("message", this._messaged, false);
     this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
@@ -131,40 +131,10 @@ function AudioPlayer(audioContext, suspensionTimeout) {
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
 
-    setInterval(this._timeProgressChecker, 200);
     this._determineHardwareLatency();
 }
 util.inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
-
-// Android makes an audiocontext completely unusable after 1 min
-// of inactivity. This scenario can be detected by .currentTime
-// not progressing despite state being "running". In suspended
-// and closed state the time doesn't progress even normally.
-AudioPlayer.prototype._timeProgressChecker = function() {
-    var time = this.getCurrentTime();
-
-
-    if (time === this._previousAudioContextTime &&
-        this._audioContext.state === "running") {
-        this._previousAudioContextTime = -1;
-        this._currentTimeNotProgressedCount++;
-        if (this._currentTimeNotProgressedCount >= 15) {
-            this._resetAudioContext();
-            return;
-        }
-    } else {
-        this._currentTimeNotProgressedCount = 0;
-    }
-
-    if (this._audioContext.state === "running") {
-        this._previousAudioContextTime = time;
-    } else {
-        // Always guaranteed to be different
-        this._previousAudioContextTime = -1;
-    }
-    return time;
-};
 
 AudioPlayer.prototype._suspend = function() {
     if (this._audioContext.state === "suspended") return Promise.resolve();
@@ -192,12 +162,9 @@ AudioPlayer.prototype._suspend = function() {
 };
 
 AudioPlayer.prototype._resetAudioContext = function() {
-    this._currentTimeNotProgressedCount = 0;
-    this._audioBuffersAllocated = 0;
     while (this._sourceNodes.length > 0) {
         this._sourceNodes.shift().destroy();
     }
-    this._audioBufferPool = [];
     try {
         this._audioContext.close();
     } catch (e) {}
@@ -206,6 +173,7 @@ AudioPlayer.prototype._resetAudioContext = function() {
 };
 
 AudioPlayer.prototype._clearSuspensionTimer = function() {
+    this._playbackStoppedTime = -1;
     if (this._suspensionTimeoutId !== -1) {
         clearTimeout(this._suspensionTimeoutId);
         this._suspensionTimeoutId = -1;
@@ -356,32 +324,32 @@ AudioPlayer.prototype.getAudioContext = function() {
 
 AudioPlayer.prototype.resume = function() {
     if (this._audioContext.state === "running") {
+        if (this._playbackStoppedTime !== -1 &&
+            Date.now() - this._playbackStoppedTime > this._suspensionTimeoutMs) {
+            this._playbackStoppedTime = -1;
+            this.emit("audioContextSuspend", this);
+            this._resetAudioContext();
+        }
         return Promise.resolve();
     }
-    var self = this;
 
+    // Reset AudioContext as it's probably ruined despite of suspension efforts.
     if (!this._currentStateModificationAction) {
-        this._currentStateModificationAction = {
-            type: "resume",
-            promise: Promise.resolve(this._audioContext.resume()).finally(function() {
-                self._currentStateModificationAction = null;
-            })
-        };
-        return this._currentStateModificationAction.promise;
+        this._resetAudioContext();
+        return Promise.resolve();
     } else if (this._currentStateModificationAction.type === "suspend") {
         var self = this;
         this._currentStateModificationAction.promise = this._currentStateModificationAction.promise.finally(function() {
-            return self.resume();
-        }).finally(function() {
             self._currentStateModificationAction = null;
+            this._resetAudioContext();
         });
-        return this._currentStateModificationAction.promise;
     }
     return this._currentStateModificationAction.promise;
 };
 
 AudioPlayer.prototype.playbackStopped = function() {
     this._clearSuspensionTimer();
+    this._playbackStoppedTime = Date.now();
     this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
 };
 
