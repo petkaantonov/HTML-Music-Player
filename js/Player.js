@@ -872,7 +872,7 @@ Player.prototype.audioManagerProgressed = function(audioManager) {
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
-        } else if (this.isPlaying) {
+        } else if (this.isPlaying && !util.documentHidden.isBackgrounded()) {
             this.emit("progress", currentTime, totalTime);
         }
     }

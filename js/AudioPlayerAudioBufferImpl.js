@@ -571,6 +571,8 @@ AudioPlayerSourceNode.prototype._stopSource = function(sourceDescriptor) {
 };
 
 AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
+    // This is the only way to update the timers when screen is off on mobile.
+    this._timeUpdate();
     if (this._sourceEndedId !== args.requestId) return;
     this._fillBuffers();
 };
@@ -634,7 +636,7 @@ AudioPlayerSourceNode.prototype._startSources = function() {
     this._player.resume();
     this._sourceStopped = false;
     var now = this._player.getCurrentTime();
-    
+
     for (var i = 0; i < this._bufferQueue.length; ++i) {
         now = this._startSource(this._bufferQueue[i], now);
     }

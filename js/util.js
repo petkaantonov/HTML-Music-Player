@@ -461,6 +461,11 @@ util.throttle = function(callback, delay) {
     var callId = 0;
 
     return function() {
+        if (util.documentHidden.isBackgrounded()) {
+            callback.apply(this, arguments);
+            return;
+        }
+
         if (timerId !== -1) {
             clearTimeout(timerId);
             timerId = -1;
@@ -1118,6 +1123,10 @@ util.documentHidden = (function() {
     ret.value = function() {
         if (blurred === undefined) return document[prop];
         if (blurred === true) return true;
+        return document[prop];
+    };
+
+    ret.isBackgrounded = function() {
         return document[prop];
     };
 
