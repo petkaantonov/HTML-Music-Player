@@ -3,12 +3,17 @@
 const Promise = require("../lib/bluebird");
 const util = require("../js/util");
 
+function isRetryable(e) {
+    return e && e.name === "NotReadableError";
+}
+
 function FileView(file) {
     this.file = file;
     this.dataview = null;
     this.buffer = null;
     this.start = -1;
     this.end = -1;
+    this._readInProgress = false;
 }
 
 FileView.prototype.toBufferOffset = function(fileOffset) {
@@ -59,6 +64,10 @@ FileView.prototype.block = function() {
 };
 
 FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
+    if (this._readInProgress) {
+        return Promise.reject(new Error("invalid parallel read"));
+    }
+    this._readInProgress = true;
     var self = this;
     size = Math.ceil(size);
     startOffset = Math.ceil(startOffset);
@@ -79,15 +88,24 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
         self.buffer = null;
         self.dataview = null;
 
-        resolve(util.readAsArrayBuffer(self.file.slice(self.start, self.end)).then(function(result) {
-            self.buffer = new Uint8Array(result);
-            self.dataview = new DataView(result);
-        }).catch(function(e) {
-            self.start = self.end = -1;
-            self.buffer = null;
-            self.dataview = null;
-            throw e;
-        }));
+        resolve(function loop(retries) {
+            return util.readAsArrayBuffer(self.file.slice(self.start, self.end)).then(function(result) {
+                self.buffer = new Uint8Array(result);
+                self.dataview = new DataView(result);
+            }).catch(function(e) {
+                if (isRetryable(e) && retries < 5) {
+                    return Promise.delay(500).then(function() {
+                        return loop(retries + 1);
+                    });
+                }
+                self.start = self.end = -1;
+                self.buffer = null;
+                self.dataview = null;
+                throw e;
+            })
+        }(0));
+    }).finally(function() {
+        self._readInProgress = false;
     });
 };
 

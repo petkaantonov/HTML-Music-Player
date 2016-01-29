@@ -776,7 +776,6 @@ Player.prototype.nextTrackImplicitly = function() {
 };
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
-    debugger;
     if (audioManager.track) {
         var trackError;
         if (e.name === "NotFoundError" || e.name === "NotReadableError") {
