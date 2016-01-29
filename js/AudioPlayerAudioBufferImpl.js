@@ -149,7 +149,7 @@ AudioPlayer.prototype._timeProgressChecker = function() {
         this._audioContext.state === "running") {
         this._previousAudioContextTime = -1;
         this._currentTimeNotProgressedCount++;
-        if (this._currentTimeNotProgressedCount >= 3) {
+        if (this._currentTimeNotProgressedCount >= 15) {
             this._resetAudioContext();
             return;
         }
