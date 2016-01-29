@@ -5,7 +5,6 @@ gh-pages
 test/browser/bundle.js
 zalgo.js
 coverage/*
-server.pem
 dist/main.js
 dist/main.min.js
 dist/main.js.map

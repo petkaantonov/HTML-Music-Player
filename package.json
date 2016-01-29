@@ -10,7 +10,7 @@
     "watch-app": "watchify js/application.js --standalone Application -o dist/main.js",
     "watch-css": "node-sass -w sass/ --recursive sass/app-css-public.scss -o dist/css/",
     "compile-css": "node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/app-public-css.css",
-    "start": "npm run watch-player-worker | npm run watch-analyzer-worker | npm run watch-app | npm run watch-css"
+    "start": "npm run compile-css && npm run watch-player-worker | npm run watch-analyzer-worker | npm run watch-app | npm run watch-css | ./https-server"
   },
   "repository": {
     "type": "git",
