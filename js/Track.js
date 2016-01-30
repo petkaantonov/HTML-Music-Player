@@ -201,10 +201,7 @@ Track.prototype.willBeReplaced = function() {
     }
 };
 
-Track.prototype.remove = function() {
-    this.index = -1;
-    this._isAttached = false;
-
+Track.prototype.destroyTooltips = function() {
     if (this._analysisTooltip) {
         this._analysisTooltip.destroy();
         this._analysisTooltip = null;
@@ -214,6 +211,26 @@ Track.prototype.remove = function() {
         this._errorTooltip.destroy();
         this._errorTooltip = null;
     }
+};
+
+Track.prototype.stageRemoval = function() {
+    this.detach();
+    this.setIndex(-1);
+    this.unsetAnalysisStatus();
+    this.unsetError();
+    this.$().remove();
+    this._domNode = NULL;
+    this.emit("destroy", this);
+};
+
+Track.prototype.unstageRemoval = function() {
+    this._ensureDomNode();
+};
+
+Track.prototype.remove = function() {
+    this.index = -1;
+    this._isAttached = false;
+    this.destroyTooltips();
 
     if (this.tagData) {
         this.tagData.destroy();
@@ -387,6 +404,7 @@ Track.prototype.updateAnalysisEstimate = function() {
 
 Track.prototype.unsetAnalysisStatus = function() {
     this._isBeingAnalyzed = false;
+    this._analysisCompletionEstimate = -1;
 
     if (this._analysisTooltip) {
         this._analysisTooltip.destroy();
@@ -508,7 +526,7 @@ Track.prototype.formatTime = function() {
 };
 
 Track.prototype.needsParsing = function() {
-    return this.tagData === null && !this._error;
+    return (this.tagData === null || !this.tagData.hasBeenAnalyzed()) && !this._error;
 };
 
 Track.prototype.getBasicInfo = function() {
@@ -641,7 +659,6 @@ Track.prototype.getSearchString = function() {
 };
 
 Track.prototype.played = function() {
-    this.unsetError();
     this._lastPlayed = Date.now();
 };
 

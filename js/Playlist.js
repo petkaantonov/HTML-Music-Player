@@ -11,9 +11,12 @@ const domUtil = require("./DomUtil");
 const FixedItemListScroller = require("./FixedItemListScroller");
 const PLAYLIST_MODE_KEY = "playlist-mode";
 const GlobalUi = require("./GlobalUi");
+const Snackbar = require("./Snackbar");
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
+
+const PLAYLIST_TRACKS_REMOVED_TAG = "playlist-tracks-removed";
 
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
@@ -34,15 +37,36 @@ const DUMMY_TRACK = {
 
 const SHUFFLE_MODE = "shuffle";
 
+function TrackListDeletionUndo(playlist) {
+    this.trackList = playlist.getTracks().slice();
+    this.selectionIndices = playlist.getSelection().map(function(v) {
+        return v.getIndex();
+    });
+    var priorityTrack =  playlist._selectable.getPriorityTrack();
+    this.priorityTrackIndex = priorityTrack ? priorityTrack.getIndex() : -1;
+}
+
+TrackListDeletionUndo.prototype.destroy = function() {
+    GlobalUi.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
+    for (var i = 0; i < this.trackList.length; ++i) {
+        if (this.trackList[i].isDetachedFromPlaylist()) {
+            this.trackList[i].remove();
+        }
+    }
+};
+
 var playlistRunningPlayId = 0;
 function Playlist(domNode, opts) {
     EventEmitter.call(this);
     this._trackList = [];
+    this._unparsedTrackList = [];
+
     this._mode = Playlist.Modes.hasOwnProperty(opts.mode) ? opts.mode : "normal";
     this._currentTrack = null;
+    this._trackListDeletionUndo = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
-    this._mayContainUnparsedTracks = false;
+    
     this._errorCount = 0;
     this._$domNode = $(domNode);
     this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
@@ -305,6 +329,17 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
 
     if (currentTrack && currentTrack !== DUMMY_TRACK) {
         currentTrack.willBeReplaced();
+        if (!doNotRecordHistory) {
+            if (this._trackHistory.push(currentTrack) > MAX_HISTORY) {
+                this._trackHistory.shift();
+            }
+            this.emit("historyChange");
+        }
+
+        if (currentTrack.hasError()) {
+            currentTrack.unsetError();
+            this._unparsedTrackList.push(currentTrack);
+        }
     }
 
     this.setCurrentTrack(track, trackChangeKind);
@@ -322,13 +357,6 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     track.played();
     this._currentPlayId = playlistRunningPlayId++;
     this.emit("trackChange", track);
-
-    if (!doNotRecordHistory && !trackHasError) {
-        if (this._trackHistory.push(this.getCurrentTrack()) > MAX_HISTORY) {
-            this._trackHistory.shift();
-        }
-        this.emit("historyChange");
-    }
     this.emit("loadNeed", track);
     return true;
 };
@@ -402,19 +430,16 @@ Playlist.prototype.getTracks = function() {
 };
 
 Playlist.prototype.getUnparsedTracks = function(maxCount) {
-    if (!this._mayContainUnparsedTracks) return EMPTY_ARRAY;
-    var ret = [];
-
-    for (var i = 0; i < this._trackList.length; ++i) {
-        var track = this._trackList[i];
-        if (track.needsParsing() && !track.hasError()) {
+    if (!this._unparsedTrackList.length) return EMPTY_ARRAY;
+    var count = Math.min(this._unparsedTrackList.length, maxCount);
+    var ret = new Array(count);
+    ret.length = 0;
+    for (var i = 0; i < count; ++i) {
+        var track = this._unparsedTrackList.shift();
+        if (!track.isDetachedFromPlaylist() && track.needsParsing()) {
             ret.push(track);
-            if (ret.length >= maxCount) {
-                break;
-            }
         }
     }
-    if (!ret.length) this._mayContainUnparsedTracks = false;
     return ret;
 };
 
@@ -457,24 +482,86 @@ Playlist.prototype.removeTracksBySelectionRanges = (function() {
 
 
 Playlist.prototype.removeTrack = function(track) {
-    this._selectable.remove(track);
     this.removeTracks([track]);
+};
+
+Playlist.prototype._edited = function() {
+    if (this._trackListDeletionUndo) {
+        this._trackListDeletionUndo.destroy();
+        this._trackListDeletionUndo = null;
+    }
+};
+
+Playlist.prototype._saveStateForUndo = function() {
+    if (this._trackListDeletionUndo) throw new Error("already saved");
+    this._trackListDeletionUndo = new TrackListDeletionUndo(this);
+};
+
+Playlist.prototype._restoreStateForUndo = function() {
+    if (!this._trackListDeletionUndo) return;
+    var oldLength = this.length;
+
+    if (oldLength === 0) {
+        this.hidePlaylistEmptyIndicator();
+    }
+
+    var previousTrackList = this._trackListDeletionUndo.trackList;
+    var selectionIndices = this._trackListDeletionUndo.selectionIndices;
+    var priorityTrackIndex = this._trackListDeletionUndo.priorityTrackIndex;
+
+    for (var i = 0; i < previousTrackList.length; ++i) {
+        this._trackList[i] = previousTrackList[i];
+    }
+    this._trackList.length = previousTrackList.length;
+    this._trackListDeletionUndo = null;
+
+    for (var i = 0; i < this._trackList.length; ++i) {
+        var track = this._trackList[i];
+        if (track.isDetachedFromPlaylist()) {
+            this._unparsedTrackList.push(track);
+            track.unstageRemoval();
+        }
+        track.setIndex(i);
+    }
+
+    this.emit("trackChange", this.getCurrentTrack());
+    this.emit("lengthChange", this.length, oldLength);
+    this._updateNextTrack();
+    this._fixedItemListScroller.refresh();
+    this._listContentsChanged();
+    this._selectable.selectIndices(selectionIndices);
+
+    if (priorityTrackIndex >= 0) {
+        this._selectable.setPriorityTrack(this._trackList[priorityTrackIndex]);
+        this.centerOnTrack(this._trackList[priorityTrackIndex]);
+    } else {
+        var mid = selectionIndices[selectionIndices.length / 2 | 0];
+        this.centerOnTrack(this._trackList[mid]);
+    }
 };
 
 Playlist.prototype.removeTracks = function(tracks) {
     tracks = tracks.filter(function(track) {
         return !track.isDetachedFromPlaylist();
     });
+    if (tracks.length === 0) return;
     var oldLength = this.length;
-
     var tracksIndexRanges = util.buildConsecutiveRanges(tracks.map(util.indexMapper));
 
+    this._edited();
+    this._saveStateForUndo();
+
+    this._selectable.removeIndices(tracks.map(function(track) {
+        return track.getIndex();
+    }));
+
     for (var i = 0; i < tracks.length; ++i) {
-        tracks[i].remove();
+        tracks[i].stageRemoval();
     }
 
     this.removeTracksBySelectionRanges(tracksIndexRanges);
     this.emit("lengthChange", this.length, oldLength);
+    
 
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
@@ -485,13 +572,28 @@ Playlist.prototype.removeTracks = function(tracks) {
 
     this.emit("trackChange", this.getCurrentTrack());
     this._updateNextTrack();
+    this._fixedItemListScroller.refresh();
     this._listContentsChanged();
+    var tracksRemoved = oldLength - this.length;
+
+    var tracksWord = tracksRemoved === 1 ? "track" : "tracks";
+    var self = this;
+    GlobalUi.snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
+        action: "undo",
+        visibilityTime: 10000,
+        tag: PLAYLIST_TRACKS_REMOVED_TAG
+    }).then(function(outcome) {
+        if (outcome === Snackbar.ACTION_CLICKED) {
+            self._restoreStateForUndo();
+        } else if (self._trackListDeletionUndo) {
+            self._trackListDeletionUndo.destroy();
+        }
+    });
 };
 
 Playlist.prototype.removeSelected = function() {
     var selection = this.getSelection();
     if (!selection.length) return;
-    this.clearSelection();
     this.removeTracks(selection);
 };
 
@@ -511,15 +613,17 @@ Playlist.prototype.getSelectable = function() {
 Playlist.prototype.add = function(tracks) {
     if (!tracks.length) return;
 
+    this._edited();
+
     if (!this.length) {
         this.hidePlaylistEmptyIndicator();
     }
 
-    this._mayContainUnparsedTracks = true;
     var oldLength = this.length;
 
     tracks.forEach(function(track) {
         var len = this._trackList.push(track);
+        this._unparsedTrackList.push(track);
         track.setIndex(len - 1);
     }, this);
 
@@ -536,6 +640,7 @@ Playlist.prototype.stop = function() {
 };
 
 Playlist.prototype.trackIndexChanged = function() {
+    this._edited();
     this.emit("trackChange", this.getCurrentTrack());
     this._updateNextTrack();
 };
@@ -608,7 +713,8 @@ Playlist.prototype.hasHistory = function() {
 
 Playlist.prototype.prev = function() {
     var history = this._trackHistory;
-    if (history.length > 0) {
+    var length = history.length;
+    if (length > 0) {
         var i = history.length - 1;
         var track;
         do {
@@ -622,10 +728,13 @@ Playlist.prototype.prev = function() {
             i--;
         } while (i >= 0 && track == null);
 
+        if (length !== history.length) {
+            this.emit("historyChange");
+        }
+
         if (!track) {
             return this.prev();
         } else if (!track.isDetachedFromPlaylist()) {
-            this.emit("historyChange");
             return this.changeTrackExplicitly(track, true);
         }
     }
@@ -946,6 +1055,7 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
     }
     this._selectable.updateOrder(selectedTracks);
     this._fixedItemListScroller.refresh();
+    this._edited();
     this.trackIndexChanged();
     this.emit("trackOrderChange");
 };

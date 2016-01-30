@@ -61,6 +61,8 @@ function TagData(track, title, artist, basicInfo, album,
     this._formattedName = null;
     this._coverArtImageState = INITIAL;
 
+    this._hasBeenAnalyzed = false;
+
     this.beginSilenceLength = 0;
     this.endSilenceLength = 0;
 
@@ -315,7 +317,12 @@ TagData.prototype.setAcoustId = function(acoustId) {
     this.track.tagDataUpdated();
 };
 
+TagData.prototype.hasBeenAnalyzed = function() {
+    return this._hasBeenAnalyzed;
+};
+
 TagData.prototype.setDataFromTagDatabase = function(data) {
+    this._hasBeenAnalyzed = true;
     this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
                               this.beginSilenceLength ||
                               0;

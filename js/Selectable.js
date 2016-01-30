@@ -382,6 +382,26 @@ Selectable.prototype.getSelectedItemCount = function() {
     return this._selection.size();
 };
 
+Selectable.prototype.removeIndices = function(indices) {
+    for (var i = 0; i < indices.length; ++i) {
+        this._remove(indices[i]);
+    }
+    this._playlist.emit("tracksSelected", this);
+};
+
+Selectable.prototype.addIndices = function(indices) {
+    for (var i = 0; i < indices.length; ++i) {
+        this._add(indices[i]);
+    }
+    this._playlist.emit("tracksSelected", this);
+};
+
+Selectable.prototype.selectIndices = function(indices) {
+    this._resetPointers();
+    this._clearSelection();
+    this.addIndices(indices);
+};
+
 Selectable.prototype._resetPointers = function() {
     this._selectionPointer = null;
     this._lastEnd = null;

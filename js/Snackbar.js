@@ -185,12 +185,18 @@ SnackbarInstance.prototype._hide = function() {
             self.$().removeClass("initial");
         });
     }
+
     var self = this;
-    setTimeout(function() {
+    function doHide() {
         self.emit("hide", self);
         self._destroy();
-    }, this._snackbar.nextDelay);
-    
+    }
+
+    if (this.outcome !== Snackbar.ACTION_CLICKED) {
+        setTimeout(doHide, this._snackbar.nextDelay);    
+    } else {
+        doHide();
+    }
 };
 
 SnackbarInstance.prototype._removeListeners = function() {
@@ -241,6 +247,23 @@ Snackbar.prototype._next = function() {
     }, this.nextDelay);
 };
 
+Snackbar.prototype.removeByTag = function(tag) {
+    var queue = this._queue;
+    for (var i = 0; i < queue.length; ++i) {
+        if (queue[i].opts.tag === tag) {
+            queue.splice(i, 1);
+            i--;
+        }
+    }
+
+    if (this._currentInstance &&
+        !this._currentInstance._exiting &&
+        this._currentInstance.tag === tag) {
+        this._currentInstance.outcome = Snackbar.DISMISSED;
+        this._currentInstance._hide();
+    }
+};
+
 Snackbar.prototype.show = function(message, opts) {
     opts = Object(opts);
     var self = this;
@@ -248,7 +271,10 @@ Snackbar.prototype.show = function(message, opts) {
     if (opts.tag && self._currentInstance &&
         opts.tag === self._currentInstance.tag &&
         !self._currentInstance._exiting) {
-        return self._currentInstance.replace(message);
+        self._currentInstance.removeAllListeners("hide");
+        return self._currentInstance.replace(message).finally(function() {
+            self._next();
+        });
     }
 
     var queue = self._queue;
