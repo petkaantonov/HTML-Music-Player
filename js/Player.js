@@ -666,7 +666,9 @@ function Player(dom, playlist, opts) {
         if (LATENCY_KEY in values) self.setAudioHardwareLatency(+values[LATENCY_KEY]);
     });
 
-    this.ready = audioPlayer.ready;
+    this.ready = audioPlayer.ready.then(function() {
+        self.ready = null;
+    });
     this.initAudioContextPrimer(audioCtx);
     audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
 }
@@ -942,6 +944,14 @@ Player.prototype.stop = function() {
 };
 
 Player.prototype.loadTrack = function(track) {
+    if (this.ready && !this.ready.isResolved()) {
+        var self = this;
+        this.ready = this.ready.then(function() {
+            self.loadTrack(track);
+        });
+        return;
+    }
+
     this.isStopped = false;
     this.isPlaying = true;
     this.isPaused = false;

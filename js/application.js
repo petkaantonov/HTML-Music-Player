@@ -446,8 +446,7 @@ $(document)
         }
     });
 
-Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded,
-             trackAnalyzer.ready, player.main.ready, startApp).catch(function(e){});
+Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
 
 GlobalUi.setHotkeyManager(hotkeyManager);
 

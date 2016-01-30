@@ -24,13 +24,16 @@ function TrackAnalyzer(playlist) {
     this.trackDestroyed = this.trackDestroyed.bind(this);
     this.abortJobForTrack = this.abortJobForTrack.bind(this);
 
+    var self = this;
     this.ready = new Promise(function(resolve) {
         var ready = function(event) {
-            this._worker.removeEventListener("message", ready, false);
+            self._worker.removeEventListener("message", ready, false);
             resolve();
-        }.bind(this);
-        this._worker.addEventListener("message", ready, false);
-    }.bind(this));
+        };
+        self._worker.addEventListener("message", ready, false);
+    }).then(function() {
+        self.ready = null;
+    });
 }
 
 TrackAnalyzer.prototype.trackDestroyed = function(track) {
@@ -134,6 +137,14 @@ TrackAnalyzer.prototype.abortJobForTrack = function(track) {
 
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
+
+    if (this.ready && !this.ready.isResolved()) {
+        this.ready = this.ready.then(function() {
+            return self.analyzeTrack(track, opts);
+        });
+        return this.ready;
+    }
+
     if (this._currentlyAnalysing) {
         track.once("destroy", this.trackDestroyed);
         return new Promise(function(resolve, reject) {
