@@ -695,14 +695,19 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this._yMax = $(window).height();
     var origin = this.position();
     this.$().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
-    this.$().detach();
-    this.$().removeClass("transition-out").addClass("initial transition-in");
-    this.$().appendTo("body");
-    this.$().width();
-    var self = this;
-    domUtil.changeDom(function() {
-        self.$().removeClass("initial");
-    });
+
+    // Transition from desktop right click feels weird so only do it on touch.
+    if (domUtil.isTouchEvent(e)) {
+        this.$().detach();
+        this.$().addClass("initial transition-in");
+        this.$().appendTo("body");
+        this.$().width();
+        var self = this;
+        domUtil.changeDom(function() {
+            self.$().removeClass("initial");
+        });
+    }
+
     this.emit("didShowMenu", e, this);
 };
 
