@@ -8,6 +8,8 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
+const blobPatch = require("../lib/blobpatch");
+blobPatch();
 
 const Resampler = require("./Resampler");
 const ChannelMixer = require("./ChannelMixer");

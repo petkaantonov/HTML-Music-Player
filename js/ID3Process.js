@@ -7,6 +7,8 @@ const metadataRetriever = require("./MetadataRetriever");
 const tagDatabase = require("./TagDatabase");
 const TagData = require("./TagData");
 const util = require("./util");
+const blobPatch = require("../lib/blobpatch");
+blobPatch();
 
 const AudioError = require("./AudioError");
 const TrackWasRemovedError = require("./TrackWasRemovedError");
@@ -209,7 +211,11 @@ ID3Process.prototype.loadNext = function() {
         return Promise.resolve(false);
     }
 
-    return util.readAsBinaryString(track.file.slice(0, 256))
+    var blob = track.file.slice(0, 256);
+    return util.readAsBinaryString(blob)
+        .finally(function() {
+            blob.close();
+        })
         .then(function(bytes) {
             var format = track.getFormat(bytes);
             if (format === Track.MP3) {
@@ -452,7 +458,10 @@ ID3Process.prototype.parseOggTagData = function(bytes, track) {
     }
 
     var self = this;
-    return util.readAsBinaryString(track.file.slice(index, index + totalSize)).then(function(bytes) {
+    var blob = track.file.slice(index, index + totalSize);
+    return util.readAsBinaryString(blob).finally(function() {
+        blob.close();
+    }).then(function(bytes) {
         if (bytes.indexOf("vorbis") === 1) {
             var basicInfo = self.getVorbisBasicInfo(bytes, track.file.size);
             return new TagData(track, null, null, basicInfo);
@@ -484,10 +493,14 @@ ID3Process.prototype.parseMpegTagData = function(bytes, track) {
         var endEnd = fileSize;
 
         var self = this;
-        return util.readAsBinaryString(new Blob([
-            track.file.slice(startStart,  startEnd),
-            track.file.slice(endStart, endEnd)
-        ])).then(function(bytes) {
+        var blob1 = track.file.slice(startStart,  startEnd);
+        var blob2 = track.file.slice(endStart, endEnd);
+        var blob3 = new Blob([blob1, blob2]);
+        return util.readAsBinaryString(blob3).finally(function() {
+            blob1.close();
+            blob2.close();
+            blob3.close();
+        }).then(function(bytes) {
             return self.getID3v2(bytes, track, [
                 [0, startEnd - startStart, startStart],
                 [startEnd - startStart, (startEnd - startStart) + (endEnd - endStart), endStart]
@@ -500,10 +513,14 @@ ID3Process.prototype.parseMpegTagData = function(bytes, track) {
         var endEnd = fileSize;
 
         var self = this;
-        return util.readAsBinaryString(new Blob([
-            track.file.slice(startStart,  startEnd),
-            track.file.slice(endStart, endEnd)
-        ])).then(function(bytes) {
+        var blob1 = track.file.slice(startStart,  startEnd);
+        var blob2 = track.file.slice(endStart, endEnd);
+        var blob3 = new Blob([blob1, blob2]);
+        return util.readAsBinaryString(blob3).finally(function() {
+            blob1.close();
+            blob2.close();
+            blob3.close();
+        }).then(function(bytes) {
             return self.getID3v1(bytes, track, [
                 [0, startEnd - startStart, startStart],
                 [startEnd - startStart, (startEnd - startStart) + (endEnd - endStart), endStart]
@@ -601,7 +618,10 @@ ID3Process.prototype.getMpegBasicInfo = Promise.method(function(bytes, offsetMap
         start = Math.min(offsetMap[0][2] + end, track.file.size - 1);
         end = Math.min(start + 1527 * 20, track.file.size);
 
-        return util.readAsBinaryString(track.file.slice(start, end)).then(trial);
+        var blob = track.file.slice(start, end);
+        return util.readAsBinaryString(blob).finally(function() {
+            blob.close();
+        }).then(trial);
     })(bytes.slice(start, end));
 });
 
@@ -817,7 +837,9 @@ ID3Process.prototype.parseApe = function(bytes, offset, track, offsetMap) {
     }
     apeHeader = track.file.slice(start, end);
 
-    return util.readAsBinaryString(apeHeader).then(function(bytes) {
+    return util.readAsBinaryString(apeHeader).finally(function() {
+        apeHeader.close();
+    }).then(function(bytes) {
         var offset = 0;
         var ret = Object.create(null);
         for (var i = 0; i < itemCount; ++i) {

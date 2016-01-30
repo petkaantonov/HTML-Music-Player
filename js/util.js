@@ -667,19 +667,22 @@ util.readAsBinaryString = function(file) {
         return new Promise(function(resolve) {
             var reader = new FileReaderSync();
             resolve(reader.readAsBinaryString(file));
+            file = null;
         });
     }
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {
-            resolve(e.target.result);
             reader = null;
+            file = null;
+            resolve(e.target.result);
         });
         util.once(reader, "error", function() {
+            reader = null;
+            file = null;
             var e = new Error(this.error.message);
             e.name = this.error.name;
             reject(e);
-            reader = null;
         });
         reader.readAsBinaryString(file);
     });
@@ -690,20 +693,23 @@ util.readAsArrayBuffer = function(file) {
         return new Promise(function(resolve) {
             var reader = new FileReaderSync();
             resolve(reader.readAsArrayBuffer(file));
+            file = null;
         });
     }
 
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
         util.once(reader, "load", function(e) {
-            resolve(e.target.result);
             reader = null;
+            file = null;
+            resolve(e.target.result);
         });
         util.once(reader, "error", function() {
+            reader = null;
+            file = null;
             var e = new Error(this.error.message);
             e.name = this.error.name;
             reject(e);
-            reader = null;
         });
         reader.readAsArrayBuffer(file);
     });

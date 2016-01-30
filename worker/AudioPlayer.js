@@ -10,6 +10,9 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
+const blobPatch = require("../lib/blobpatch");
+blobPatch();
+
 const ChannelMixer = require("./ChannelMixer");
 const sniffer = require("./sniffer");
 const codec = require("./codec");

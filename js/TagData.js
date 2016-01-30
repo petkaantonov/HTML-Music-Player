@@ -55,6 +55,7 @@ function TagData(track, title, artist, basicInfo, album,
     // Image embedded in the audio file.
     this._embeddedImageOffsets = embeddedImageOffsets;
     this._embeddedImageUrl = null;
+    this._embeddedImageBlob = null;
 
     this._formattedTime = null;
     this._formattedName = null;
@@ -195,6 +196,7 @@ TagData.prototype.getImage = function() {
                                           this._embeddedImageOffsets.type);
     var url = URL.createObjectURL(blob);
     this._embeddedImageUrl = url;
+    this._embeddedImageBlob = blob;
     tagDatasRetainingBlobUrls.push(this);
     checkTagDatasRetainingBlobUrls();
     return this.getImage();
@@ -204,6 +206,10 @@ TagData.prototype.clearBlobUrl = function() {
     try {
         URL.revokeObjectURL(this._embeddedImageUrl.src);
     } catch (e) {}
+    try {
+        this._embeddedImageBlob.close();
+    } catch (e) {}
+    this._embeddedImageBlob = null;
     this._embeddedImageUrl = null;
 };
 

@@ -1,6 +1,8 @@
 "use strict";
 
 const Promise = require("../lib/bluebird");
+const blobPatch = require("../lib/blobpatch");
+blobPatch();
 const util = require("../js/util");
 
 function isRetryable(e) {
@@ -89,7 +91,10 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
         self.dataview = null;
 
         resolve(function loop(retries) {
-            return util.readAsArrayBuffer(self.file.slice(self.start, self.end)).then(function(result) {
+            var blob = self.file.slice(self.start, self.end);
+            return util.readAsArrayBuffer(blob).finally(function() {
+                blob.close();
+            }).then(function(result) {
                 self.buffer = new Uint8Array(result);
                 self.dataview = new DataView(result);
             }).catch(function(e) {
