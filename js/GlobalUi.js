@@ -226,21 +226,26 @@ const gestureEducationMessages = {
     "next": "Swipe right with two fingers to play the next track",
     "previous": "Swip left with two fingers to play the previous track"
 };
+const GESTURE_EDUCATION_KEY = "gesture-education";
+const gestureEducationPreferences = keyValueDatabase.getInitialValues().get(GESTURE_EDUCATION_KEY).then(Object);
 
 GlobalUi.gestureEducation = function(gesture) {
     var msg = gestureEducationMessages[gesture];
     var tag = gesture + "-gesture-education";
+    if (!msg) return;
 
-    if (msg) {
-        GlobalUi.snackbar.show(msg, {
+    gestureEducationPreferences.then(function(values) {
+        if (values[gesture] === true) return;
+        return GlobalUi.snackbar.show(msg, {
             action: "got it",
             visibilityTime: 6500,
             tag: tag
         }).then(function(outcome) {
             if (outcome === Snackbar.ACTION_CLICKED ||
                 outcome === Snackbar.DISMISSED) {
-                // TODO: Don't notify about this again
+                values[gesture] = true;
+                return keyValueDatabase.set(GESTURE_EDUCATION_KEY, values);
             }
         });
-    }
+    });
 };
