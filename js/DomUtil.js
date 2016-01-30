@@ -304,6 +304,10 @@ util.canvasToImage = function(canvas) {
                 cleanup();
                 reject(new Error("cannot load image"));
             };
+        }).finally(function() {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {}
         });
     });
 };
