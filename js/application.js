@@ -266,8 +266,8 @@ function startApp() {
     $(window).trigger("resize");
 }
 
-var windowLoaded = new Promise(function(resolve) {
-    $(window).on("load", resolve);
+var documentReady = new Promise(function(resolve) {
+    $(resolve);
 });
 
 var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
@@ -446,7 +446,7 @@ $(document)
         }
     });
 
-Promise.join(windowLoaded, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
+Promise.join(documentReady, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
 
 GlobalUi.setHotkeyManager(hotkeyManager);
 
