@@ -18,6 +18,7 @@ const domUtil = require("./DomUtil");
 var audioCtx;
 const audioPlayer = new AudioPlayer(null, 20);
 audioCtx = audioPlayer.getAudioContext();
+const SILENT_BUFFER = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
@@ -666,38 +667,36 @@ function Player(dom, playlist, opts) {
     });
 
     this.ready = audioPlayer.ready;
-    this.initAudioContextPrimer();
+    this.initAudioContextPrimer(audioCtx);
     audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
 }
 util.inherits(Player, EventEmitter);
 
 Player.prototype.audioContextReset = function() {
     audioCtx = audioPlayer.getAudioContext();
-    this.initAudioContextPrimer();
+    this.initAudioContextPrimer(audioCtx);
     if (this.currentAudioManager) this.currentAudioManager.audioContextReset();
 };
 
-Player.prototype.initAudioContextPrimer = function() {
-    function touchPrimer(e) {
+var unprimedAudioContext;
+Player.prototype.initAudioContextPrimer = function(audioCtx) {
+    unprimedAudioContext = audioCtx;
+};
+
+document.addEventListener("touchend", function(e) {
+    if (unprimedAudioContext) {
+        var audioCtx = unprimedAudioContext;
         try {
             audioCtx.resume().catch(function(){});
         } catch (e) {}
-
-        window.removeEventListener(e.type, touchPrimer, false);
-        var buffer = audioCtx.createBuffer(audioCtx.destination.channelCount, 8192, audioCtx.sampleRate);
+        
         var source = audioCtx.createBufferSource();
-        source.buffer = buffer;
+        source.buffer = SILENT_BUFFER;
         source.connect(audioCtx.destination);
         source.start(0);
-        setTimeout(function() {
-            if (audioCtx.state !== "running") {
-                window.addEventListener("touchend", touchPrimer, false);
-            }
-        }, 0);
+        unprimedAudioContext = null;
     }
-
-    window.addEventListener("touchend", touchPrimer, false);
-};
+}, false);
 
 Player.prototype.setVisualizerCanvas = function(value) {
     this.visualizerCanvas = value;
