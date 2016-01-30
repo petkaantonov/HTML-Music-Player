@@ -10,7 +10,7 @@ const TOUCH_END = "touchend";
 const TOUCH_MOVE = "touchmove";
 const TOUCH_CANCEL = "touchcancel";
 const TAP_TIME = 270;
-const LONG_TAP_TIME = 750;
+const LONG_TAP_TIME = 600;
 
 const SWIPE_LENGTH = 100;
 const SWIPE_VELOCITY = 200;

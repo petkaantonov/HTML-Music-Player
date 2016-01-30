@@ -3,8 +3,8 @@
 $spinner-size: 142px;
 $spinner-color: rgba(189, 223, 255, 0.7);
 $spinner-weight: 3px;
-$spinner-duration: 0.750s;
-$spinner-delay: $spinner-duration * 0.15;
+$spinner-duration: 0.600s;
+$spinner-delay: $spinner-duration * 0.2;
 $spinner-transition-out-time: 0.3s;
 
 .spinner-wrapper {
