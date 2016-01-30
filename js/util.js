@@ -662,12 +662,35 @@ util.once = function(eventTarget, eventName, handler) {
     }, false);
 };
 
+const checkSize = function(expectedSize, resultSize) {
+    if (expectedSize !== resultSize) {
+        var e;
+        if (resultSize === 0) {
+            e = new Error("file not found");
+            e.name = "NotFoundError";
+        } else {
+            e = new Error("read failed");
+            e.name = "NotReadableError";
+        }
+        return e;
+    }
+    return null;
+};
+
 util.readAsBinaryString = function(file) {
+    var expectedSize = file.size;
+
     if (typeof FileReader !== "function") {
         return new Promise(function(resolve) {
             var reader = new FileReaderSync();
-            resolve(reader.readAsBinaryString(file));
+            result = reader.readAsBinaryString(file);
             file = null;
+            var e = checkSize(expectedSize, result.length);
+            if (e) {
+                throw e;
+            } else {
+                resolve(result);
+            }
         });
     }
     return new Promise(function(resolve, reject) {
@@ -675,7 +698,13 @@ util.readAsBinaryString = function(file) {
         util.once(reader, "load", function(e) {
             reader = null;
             file = null;
-            resolve(e.target.result);
+            var result = e.target.result;
+            var e = checkSize(expectedSize, result.length);
+            if (e) {
+                reject(e);
+            } else {
+                resolve(result);
+            }
         });
         util.once(reader, "error", function() {
             reader = null;
@@ -689,11 +718,18 @@ util.readAsBinaryString = function(file) {
 };
 
 util.readAsArrayBuffer = function(file) {
+    var expectedSize = file.size;
     if (typeof FileReader !== "function") {
         return new Promise(function(resolve) {
             var reader = new FileReaderSync();
-            resolve(reader.readAsArrayBuffer(file));
+            var result = reader.readAsArrayBuffer(file);
             file = null;
+            var e = checkSize(expectedSize, result.byteLength);
+            if (e) {
+                throw e;
+            } else {
+                resolve(result);
+            }
         });
     }
 
@@ -702,7 +738,13 @@ util.readAsArrayBuffer = function(file) {
         util.once(reader, "load", function(e) {
             reader = null;
             file = null;
-            resolve(e.target.result);
+            var result = e.target.result;
+            var e = checkSize(expectedSize, result.byteLength);
+            if (e) {
+                reject(e);
+            } else {
+                resolve(result);
+            }
         });
         util.once(reader, "error", function() {
             reader = null;
