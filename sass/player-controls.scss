@@ -1,5 +1,95 @@
 @import "variables";
 
+$slider-width: 76px;
+$slider-margin: 3px;
+
+@include ultra-small-screen {
+    $button-width: 28px;
+    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
+    $player-controls-container-space: $button-width * 3;
+    $playlist-controls-container-space: $button-width * 2;
+    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
+    $group-margin: "(100% - #{$total-space)}) / 2";
+
+    .player-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .playlist-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .button-group .button-group-button,
+    .button-group .button-group-item {
+        width: $button-width;
+    }
+}
+
+@include medium-small-screen {
+    $button-width: 36px;
+    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
+    $player-controls-container-space: $button-width * 3;
+    $playlist-controls-container-space: $button-width * 2;
+    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
+    $group-margin: "(100% - #{$total-space)}) / 2";
+
+    .player-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .playlist-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .button-group .button-group-button,
+    .button-group .button-group-item {
+        width: $button-width;
+    }
+}
+
+@include small-screen {
+    $button-width: 36px;
+    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
+    $player-controls-container-space: $button-width * 3;
+    $playlist-controls-container-space: $button-width * 2;
+    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
+    $group-margin: "(100% - #{$total-space)}) / 2";
+
+    .player-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .playlist-controls-container.button-group {
+        @include calc(margin-left, $group-margin);
+    }
+
+    .button-group .button-group-button,
+    .button-group .button-group-item {
+        width: $button-width;
+    }
+}
+
+@include large-screen {
+    $button-width: 36px;
+    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
+    $player-controls-container-space: $button-width * 3;
+    $playlist-controls-container-space: $button-width * 2;
+    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
+
+    .player-controls-container.button-group {
+        @include calc(margin-left, "(50% - #{$volume-controls-container-space + $player-controls-container-space/2})");
+    }
+
+    .playlist-controls-container.button-group {
+        @include calc(margin-left, "100% - (#{$total-space} + (50% - #{$volume-controls-container-space + $player-controls-container-space/2}))");
+    }
+
+    .button-group .button-group-button,
+    .button-group .button-group-item {
+        width: $button-width;
+    }
+}
+
 .player-control-panel-container.module-container,
 .picture-module-container.module-container {
     margin: 0;
@@ -113,10 +203,8 @@
     display: inline-block;
     font-size: 16px;
     line-height: 16px;
-
     vertical-align: top;
     height: 100%;
-    width: 36px;
     box-sizing: border-box;
     text-align: center;
 }
@@ -223,34 +311,15 @@
 }
 
 .player-controls-container.button-group {
-    position: absolute;
-    bottom: 0px;
-    left: 50%;
+    position: relative;
     border-radius: 0px;
-    margin-left: -54px;
     border: none;
     box-sizing: border-box;
-
-    @include ultra-small-screen {
-        display: none;
-    }
-
-    @include medium-small-screen {
-        left: 62%;
-    }
-}
-
-.player-controls-container.button-group .next-button {
-    @include ultra-small-screen {
-        border-bottom-right-radius: $subtle-radius;
-    }
 }
 
 .playlist-controls-container.button-group {
     box-sizing: border-box;
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
+    position: relative;
     border-radius: 0px;
     border: none;
 }
@@ -261,9 +330,7 @@
 }
 
 .volume-controls-container.button-group {
-    position: absolute;
-    bottom: 0px;
-    left: 0px;
+    position: relative;
     border-radius: 0px;
     border: none;
 }
@@ -272,9 +339,6 @@
     top: 13px;
 }
 
-.volume-controls-container .button-group-item.volume-slider-container {
-    margin-right: 10px;
-}
 
 .volume-controls-container.button-group .button-group-button {
     border-right: none;
@@ -285,11 +349,11 @@
 }
 
 .volume-controls-container .volume-slider-container {
-    width: 112px;
+    width: $slider-width + 2px;
     height: 30px;
     display: inline-block;
     margin-top: 1px;
-    margin-left: 3px;
+    margin-left: $slider-margin;
 }
 
 .volume-slider-knob,
@@ -318,7 +382,7 @@
 }
 .volume-slider-wrap,
 .app-general-slider-wrap {
-    width: 110px;
+    width: $slider-width;
     height: 3px;
     background: white;
     position: relative;
