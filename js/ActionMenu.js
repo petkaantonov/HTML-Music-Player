@@ -18,8 +18,8 @@ function ActionMenuItem(root, spec, children, level) {
     this.disabled = !!spec.disabled;
     this.handler = typeof spec.onClick === "function" ? spec.onClick : $.noop;
 
-    this._preferredHorizontalDirection = "right";
-    this._preferredVerticalDirection = "down";
+    this._preferredHorizontalDirection = "end";
+    this._preferredVerticalDirection = "end";
     this._delayTimerId = -1;
     this._content = util.toFunction(spec.content);
     this._containerDom = NULL;
@@ -269,71 +269,87 @@ ActionMenuItem.prototype.getVerticalDirection = function() {
                        : this._preferredVerticalDirection;
 };
 
+ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
+                                                        coordStart,
+                                                        coordEnd,
+                                                        dimensionValue,
+                                                        maxValue) {
+    var roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
+    var roomOnStart = coordStart + 3 - dimensionValue;
+    var ret = -1;
+
+    // Doesn't fit anywhere.
+    if (roomOnStart < 0 && roomOnEnd < 0) {
+        if (roomOnStart > roomOnEnd) {
+            preferredDirection = "end";
+            ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+        } else {
+            preferredDirection = "start";
+            ret = Math.max(0, coordEnd - 3);
+            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+        }
+    } else {
+        while (ret < 0 || ret + dimensionValue > maxValue) {
+            if (preferredDirection === "end") {
+                ret = Math.max(0, coordEnd - 3);
+
+                if (ret + dimensionValue > maxValue) {
+                    ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+
+                    preferredDirection = "start";
+                }
+            } else {
+                ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                ret = Math.min(maxValue - dimensionValue, ret);
+
+                if (ret < 0) {
+                    ret = Math.max(0, coordEnd - 3);
+                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+                    preferredDirection = "end";
+                }
+            } 
+        }
+    }
+
+    return {
+        coordStart: ret,
+        preferredDirection: preferredDirection
+    };
+};
+
 ActionMenuItem.prototype.positionSubMenu = function() {
     if (!this.isShown()) return;
     var itemBox = this.$()[0].getBoundingClientRect();
     var containerBox = this.$container()[0].getBoundingClientRect();
     var xMax = $(window).width();
     var yMax = $(window).height();
-    // Fits within the viewport
+
     var origin = {x: 0, y: 0};
-    if (xMax > containerBox.width && yMax > containerBox.height) {
-        var left = -1;
-        var top = -1;
+    var left = -1;
+    var top = -1;
 
-        var preferredDirection = this.getHorizontalDirection();
+    var preferredDirection = this.getHorizontalDirection();
+    var positionResult =
+        this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
+    left = positionResult.coordStart;
+    this._preferredHorizontalDirection = positionResult.preferredDirection;
+    
+    preferredDirection = this.getVerticalDirection();
+    positionResult =
+        this.positionInDimension(preferredDirection, itemBox.top, itemBox.bottom, containerBox.height, yMax);
+    top = positionResult.coordStart;
+    this._preferredVerticalDirection = positionResult.preferredDirection;
 
-        while (left < 0 || left + containerBox.width > xMax) {
-            if (preferredDirection === "right") {
-                left = Math.max(0, itemBox.right - 3);
+    this.$container().css({
+        top: top,
+        left: left
+    });
 
-                if (left + containerBox.width > xMax) {
-                    left = itemBox.left + 3 - containerBox.width;
-                    preferredDirection = "left";
-                }
-            } else {
-                left = itemBox.left + 3 - containerBox.width;
-
-                if (left < 0) {
-                    left = Math.max(0, itemBox.right - 3);
-                    preferredDirection = "right";
-                }
-            }
-        }
-        this._preferredHorizontalDirection = preferredDirection;
-
-        preferredDirection = this.getVerticalDirection();
-
-        while (top < 0 || top + containerBox.height > yMax) {
-            if (preferredDirection === "down") {
-                top = Math.max(0, itemBox.top + 3);
-
-                if (top + containerBox.height > yMax) {
-                    top = itemBox.bottom - 3 - containerBox.height;
-                    preferredDirection = "up";
-                }
-            } else {
-                top = itemBox.bottom - 3 - containerBox.height;
-
-                if (top < 0) {
-                    top = Math.max(0, itemBox.top + 3);
-                    preferredDirection = "down";
-                } else if (top + containerBox.height > yMax) {
-                    top = yMax - containerBox.height;
-                }
-            }
-        }
-        this._preferredVerticalDirection = preferredDirection;
-
-        this.$container().css({
-            top: top,
-            left: left
-        });
-
-        origin.x = this._preferredHorizontalDirection === "right" ? 0 : containerBox.width;
-        origin.y = this._preferredVerticalDirection === "down" ? 0
-                                                               : Math.max(itemBox.top - top, 0);
-    }
+    origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
+    origin.y = top > itemBox.top + 3 ? 0 : Math.max(itemBox.top - top, 0);
+    
     return origin;
 };
 
@@ -362,8 +378,8 @@ ActionMenuItem.prototype.showContainer = function() {
 };
 
 ActionMenuItem.prototype.hideContainer = function() {
-    this._preferredVerticalDirection = "down";
-    this._preferredHorizontalDirection = "right";
+    this._preferredVerticalDirection = "end";
+    this._preferredHorizontalDirection = "end";
     this._clearDelayTimer();
     this.$container().removeClass("transition-in").addClass("initial transition-out");
     this.$container().width();
