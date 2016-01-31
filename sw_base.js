@@ -83,7 +83,8 @@ self.addEventListener("activate", function(e) {
     e.waitUntil(oldAssetsRemoved);
 }, false);
 
-var rfonts = /\.(woff2?)$/
+var rfonts = /\.(woff2?)$/;
+var rswjs = /sw\.js$/;
 self.addEventListener("fetch", function(e) {
     var request = e.request;
 
@@ -98,12 +99,9 @@ self.addEventListener("fetch", function(e) {
     var isQuery = requestURL.search && requestURL.search.length > 1 && isCors;
     var isCorsFont = isCors && rfonts.test(request.url);
 
-    if (!isHttp || (!isCoverArt && (isCorsFont || isQuery))) {
-        return;
-    }
-
-    // Cache coverart even in development.
-    if (IS_DEVELOPMENT && !isCoverArt) {
+    if ((!isHttp || (!isCoverArt && (isCorsFont || isQuery))) ||
+        (IS_DEVELOPMENT && !isCoverArt) ||
+        (rswjs.test(requestURL.pathname))) {
         return;
     }
 
