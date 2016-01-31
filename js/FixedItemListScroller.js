@@ -30,7 +30,10 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    domUtil.bindScrollerEvents(this.$contentContainer(), this._scroller, opts.shouldScroll || null);
+    domUtil.bindScrollerEvents(this.$contentContainer(),
+                               this._scroller,
+                               opts.shouldScroll || null,
+                               this._scrollbar);
 }
 
 FixedItemListScroller.prototype._forceRenderItems = function() {

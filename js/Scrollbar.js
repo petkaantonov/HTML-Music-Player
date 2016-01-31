@@ -3,6 +3,30 @@
 const util = require("./util");
 const domUtil = require("./DomUtil");
 
+const NO_PREFERENCE = -1;
+const NO_INVERSION = 0;
+const INVERT = 1;
+var invertedScrolling = NO_PREFERENCE;
+
+const isInverted = function(e) {
+    if (invertedScrolling === NO_PREFERENCE) {
+        var directionInvertedFromDevice;
+
+        if ("webkitDirectionInvertedFromDevice" in e) {
+            directionInvertedFromDevice = e.webkitDirectionInvertedFromDevice;
+        } else if ("directionInvertedFromDevice" in e) {
+            directionInvertedFromDevice = e.directionInvertedFromDevice;
+        } else if (e.sourceCapabilities && ("directionInvertedFromDevice" in e.sourceCapabilities)) {
+            directionInvertedFromDevice = e.sourceCapabilities.directionInvertedFromDevice;
+        }
+
+        return directionInvertedFromDevice === true;
+    } else {
+        return invertedScrolling === INVERT;
+    }
+};
+
+
 function Scrollbar(container, scrollerInfo, opts) {
     opts = Object(opts);
     this._domNode = $($(container)[0]);
@@ -32,6 +56,10 @@ function Scrollbar(container, scrollerInfo, opts) {
     $(document).on("mouseup", this._rebindRailmouseDowned);
     this._rebindRailmouseDowned();
 }
+
+Scrollbar.prototype.determineScrollInversion = function(delta, e) {
+    return delta;
+};
 
 Scrollbar.prototype.$ = function() {
     return this._domNode;

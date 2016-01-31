@@ -1121,7 +1121,6 @@ util.doubleTapHandler = function(fn) {
 
 util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     if (!shouldScroll) shouldScroll = function() {return true; };
-    scrollbar = $($(scrollbar)[0]);
     var events = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
     }).join(" ");
@@ -1183,7 +1182,8 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
         return v + ".scrollerns";
     }).join(" ");
 
-    target.on(wheelEvents, util.mouseWheelScrollHandler(function(delta) {
+    target.on(wheelEvents, util.mouseWheelScrollHandler(function(delta, e) {
+        delta = scrollbar.determineScrollInversion(delta, e);
         scroller.scrollBy(0, delta, true);
     }));
 };
@@ -1208,7 +1208,8 @@ util.mouseWheelScrollHandler = function(fn) {
         } else {
             delta = -e.detail * 6.67;
         }
-        fn(delta * -1);
+
+        fn(delta * -1, e);
     };
 };
 
