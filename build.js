@@ -59,7 +59,12 @@ var assetsGenerated = browserified.then(function() {
         var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4) + ";\n";
         var hashCode = "const versionHash = '" + version + "';\n";
         var buildDate = "const buildDate = '" + new Date().toUTCString()+ "';\n";
-        serviceWorkerBaseCode = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + assetsCode + hashCode + buildDate + serviceWorkerBaseCode;
+        serviceWorkerBaseCode = assetsCode + hashCode + buildDate + serviceWorkerBaseCode;
+        var minified = UglifyJS.minify(serviceWorkerBaseCode, {
+            fromString: true
+        });
+
+        serviceWorkerBaseCode = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + minified.code;
         return fs.writeFileAsync("sw.js", serviceWorkerBaseCode, "utf8");
     });
 

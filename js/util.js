@@ -1183,6 +1183,11 @@ util.documentHidden = (function() {
     }, 10);
 
     document.addEventListener(eventName, function() {
+        if (document[prop]) {
+            ret.emit("background");
+        } else {
+            ret.emit("foreground");
+        }
         changed();
     }, false);
 

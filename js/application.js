@@ -49,6 +49,7 @@ serviceWorkerManager.start();
 window.playlist = {};
 window.player = {};
 window.GlobalUi = GlobalUi;
+window.serviceWorkerManager = serviceWorkerManager;
 
 const DEFAULT_ITEM_HEIGHT = 44;
 playlist.trackDisplay = new TrackDisplay("track-display", {

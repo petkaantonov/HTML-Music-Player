@@ -6,19 +6,73 @@ const Promise = require("../lib/bluebird");
 const GlobalUi = require("./GlobalUi");
 const Snackbar = require("./Snackbar");
 const EventEmitter = require("events");
+const UPDATE_INTERVAL = 15 * 60 * 1000;
 
 function ServiceWorkerManager() {
     EventEmitter.call(this);
     this._registration = null;
     this._started = false;
 
+    this._updateAvailableNotified = false;
+    this._lastUpdateChecked = Date.now();
+    this._currentUpdateCheck = null;
     this._updateAvailable = this._updateAvailable.bind(this);
     this._updateFound = this._updateFound.bind(this);
     this._messaged = this._messaged.bind(this);
+    this._foregrounded = this._foregrounded.bind(this);
+    this._backgrounded = this._backgrounded.bind(this);
+    this._updateChecker = this._updateChecker.bind(this);
+
+    this._updateCheckInterval = setInterval(this._updateChecker, 10000);
+    util.documentHidden.on("foreground", this._foregrounded);
+    util.documentHidden.on("background", this._backgrounded);
 }
 util.inherits(ServiceWorkerManager, EventEmitter);
 
+ServiceWorkerManager.prototype._updateChecker = function() {
+    if (this._registration &&
+        Date.now() - this._lastUpdateChecked > UPDATE_INTERVAL &&
+        !this._updateAvailableNotified &&
+        !this._currentUpdateCheck) {
+        this._checkForUpdates();
+    }
+};
+
+ServiceWorkerManager.prototype._backgrounded = function() {
+    if (this._updateCheckInterval !== -1) {
+        clearInterval(this._updateCheckInterval);
+        this._updateCheckInterval = -1;
+    }
+};
+
+ServiceWorkerManager.prototype._foregrounded = function() {
+    this._updateCheckInterval = setInterval(this._updateChecker, 10000);
+    this._updateChecker();
+};
+
+ServiceWorkerManager.prototype._checkForUpdates = function() {
+    this._lastUpdateChecked = Date.now();
+    var self = this;
+    this._currentUpdateCheck = this._registration.then(function(reg) {
+        return reg.update();
+    }).finally(function() {
+        self._currentUpdateCheck = null;
+    }).catch(function(e) {
+
+    });
+};
+
+ServiceWorkerManager.prototype.checkForUpdates = function() {
+    if (this._registration &&
+        !this._updateAvailableNotified &&
+        this._currentUpdateCheck) {
+        return this._checkForUpdates();
+    }
+    return Promise.resolve();
+};
+
 ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeout) {
+    this._updateAvailableNotified = true;
     var self = this;
     if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
     
