@@ -15,7 +15,7 @@ require("../lib/jquery.reflow");
 
 const $ = window.$;
 
-window.__PROJECT__TITLE = "HTML Music Player";
+window.__PROJECT__TITLE = "Soita";
 
 const util = require("./util");
 const serviceWorkerManager = require("./ServiceWorkerManager");
