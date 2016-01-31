@@ -288,14 +288,14 @@ ActionMenuItem.prototype.positionSubMenu = function() {
                 left = Math.max(0, itemBox.right - 3);
 
                 if (left + containerBox.width > xMax) {
-                    left = xMax - containerBox.width;
+                    left = itemBox.left + 3 - containerBox.width;
                     preferredDirection = "left";
                 }
             } else {
                 left = itemBox.left + 3 - containerBox.width;
 
                 if (left < 0) {
-                    left = 0;
+                    left = Math.max(0, itemBox.right - 3);
                     preferredDirection = "right";
                 }
             }
@@ -309,14 +309,14 @@ ActionMenuItem.prototype.positionSubMenu = function() {
                 top = Math.max(0, itemBox.top + 3);
 
                 if (top + containerBox.height > yMax) {
-                    top = yMax - containerBox.height;
+                    top = itemBox.bottom - 3 - containerBox.height;
                     preferredDirection = "up";
                 }
             } else {
                 top = itemBox.bottom - 3 - containerBox.height;
 
                 if (top < 0) {
-                    top = 0;
+                    top = Math.max(0, itemBox.top + 3);
                     preferredDirection = "down";
                 } else if (top + containerBox.height > yMax) {
                     top = yMax - containerBox.height;
