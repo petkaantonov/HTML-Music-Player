@@ -116,22 +116,6 @@ function Playlist(domNode, opts) {
         }
     }.bind(this));
 
-    this.$().on("mouseenter mouseleave click dblclick", ".rating-input", function(e) {
-        e.stopImmediatePropagation();
-        var $trackContainer = $(e.target).closest(".track-container");
-        if ($trackContainer.length === 0) return;
-
-        var track = this._fixedItemListScroller.itemByRect($trackContainer[0].getBoundingClientRect());
-        if (!track) return;
-
-        if (e.type === "mouseenter") return track.ratingInputMouseEntered(e);
-        if (e.type === "mouseleave") return track.ratingInputMouseLeft(e);
-        if (e.type === "click") {
-            return track.ratingInputClicked(e);
-        }
-        if (e.type === "dblclick") return track.ratingInputDoubleClicked(e);
-    }.bind(this));
-
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.modifierTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
@@ -170,18 +154,7 @@ function Playlist(domNode, opts) {
             track.doubleClicked(e);
         }.bind(this)));
 
-        this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.doubleTapHandler(function(e) {
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
-            return track.ratingInputDoubleClicked(e);
-        }.bind(this)));
 
-        this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", domUtil.tapHandler(function(e) {
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
-            GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-            return track.ratingInputClicked(e);
-        }.bind(this)));
     }
     if (!this.length) {
         this.showPlaylistEmptyIndicator();

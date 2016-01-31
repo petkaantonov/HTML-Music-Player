@@ -59,21 +59,10 @@ Track.prototype._ensureDomNode = function() {
             <div class='track-artist notextflow'></div>                                             \
         </div>                                                                                      \
         <div class='track-duration'></div>                                                          \
-        <div class='track-rating unclickable'>                                                      \
-            <div data-rating='1' class='glyphicon glyphicon-star rating-input'></div>               \
-            <div data-rating='2' class='glyphicon glyphicon-star rating-input'></div>               \
-            <div data-rating='3' class='glyphicon glyphicon-star rating-input'></div>               \
-            <div data-rating='4' class='glyphicon glyphicon-star rating-input'></div>               \
-            <div data-rating='5' class='glyphicon glyphicon-star rating-input'></div>               \
-        </div>                                                                                      \
     </div>");
 
     this.setTrackDuration();
     this.setTrackInfo();
-
-    if (this.tagData) {
-        this.setRatingStars();
-    }
 
     if (selectable.contains(this)) {
         this.selected();
@@ -127,19 +116,6 @@ Track.prototype.setTrackDuration = function() {
     this.$trackDuration().text(this.formatTime());
 };
 
-Track.prototype.setRatingStars = function() {
-    var ratingValue = this.getRating();
-    this.$().find(".track-rating").addClass("visible");
-    this.$ratingInputs().removeClass("rate-intent rated");
-
-    if (ratingValue === -1) {
-        this.$().find(".track-rating").removeClass("already-rated");
-    } else {
-        this.$().find(".track-rating").addClass("already-rated");
-        this.$ratingInputsForRatingValue(ratingValue).addClass("rated");
-    }
-};
-
 Track.prototype.$ = function() {
     return this._domNode;
 };
@@ -158,16 +134,6 @@ Track.prototype.$trackNumber = function() {
 
 Track.prototype.$trackDuration = function() {
     return this.$().find(".track-duration");
-};
-
-Track.prototype.$ratingInputs = function() {
-    return this.$().find(".rating-input");
-};
-
-Track.prototype.$ratingInputsForRatingValue = function(value) {
-    return this.$ratingInputs().filter(function() {
-        return parseInt($(this).data("rating"), 10) <= value;
-    });
 };
 
 Track.prototype.getTrackGain = function() {
@@ -267,45 +233,6 @@ Track.prototype.detach = function() {
         }
     }
 };
-
-Track.prototype.rate = function(value) {
-    if (!this.tagData) return;
-    if (value === -1) {
-        if (this.isRated()) {
-            this.tagData.unsetRating();
-            this.tagDataUpdated();
-        }
-        return;
-    }
-    value = Math.max(1, Math.min(+value, 5));
-    if (!value) return;
-    this.tagData.setRating(value);
-    this.tagDataUpdated();
-};
-
-Track.prototype.ratingInputMouseLeft = function() {
-    this.$ratingInputs().removeClass("rate-intent");
-};
-
-Track.prototype.ratingInputMouseEntered = function(e) {
-    if (this.isRated()) return;
-    var value = parseInt($(e.target).data("rating"), 10);
-    this.$ratingInputs().removeClass("rate-intent");
-    this.$ratingInputsForRatingValue(value).addClass("rate-intent");
-};
-
-Track.prototype.ratingInputClicked = function(e) {
-    if (this.isRated()) return;
-    var value = parseInt($(e.target).data("rating"), 10);
-    this.tagData.setRating(value);
-    this.tagDataUpdated();
-};
-
-Track.prototype.ratingInputDoubleClicked = util.throttle(function() {
-    if (!this.isRated()) return;
-    this.tagData.unsetRating();
-    this.tagDataUpdated();
-}, 100);
 
 Track.prototype.isAttachedToDom = function() {
     return this._isAttached;
@@ -537,6 +464,21 @@ Track.prototype.getBasicInfo = function() {
     };
 };
 
+Track.prototype.rate = function(value) {
+    if (!this.tagData) return;
+    if (value === -1) {
+        if (this.isRated()) {
+            this.tagData.unsetRating();
+            this.tagDataUpdated();
+        }
+        return;
+    }
+    value = Math.max(1, Math.min(+value, 5));
+    if (!value) return;
+    this.tagData.setRating(value);
+    this.tagDataUpdated();
+};
+
 Track.prototype.getRating = function() {
     if (!this.tagData) return -1;
     return this.tagData.getRating();
@@ -550,7 +492,6 @@ Track.prototype.isRated = function() {
 Track.prototype.tagDataUpdated = function() {
     this.setTrackDuration();
     this.setTrackInfo();
-    this.setRatingStars();
     this.emit("tagDataUpdate", this);
 };
 

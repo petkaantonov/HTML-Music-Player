@@ -106,33 +106,33 @@
 
 .track .track-info {
     @include large-screen {
-        width: $large-screen-width - $total-app-border - $track-width-used-with-rating - $track-info-gutter;
+        width: $large-screen-width - $total-app-border - $track-width-used - $track-info-gutter;
     }
 
     @include small-screen {
-        @include calc(width, "100% - #{$track-width-used-with-rating + $track-info-gutter}");
+        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
     }
 
     @include medium-small-screen {
-        @include calc(width, "100% - #{$track-width-used-with-rating + $track-info-gutter}");
+        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
     }
 
     @include ultra-small-screen {
-        @include calc(width, "100% - #{$track-width-used-without-rating + $track-info-gutter}");
+        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
     }
 }
 
 .ratings-disabled .track .track-info {
     @include large-screen {
-        width: $large-screen-width - $total-app-border - $track-width-used-without-rating - $track-info-gutter;
+        width: $large-screen-width - $total-app-border - $track-width-used - $track-info-gutter;
     }
 
     @include small-screen {
-        @include calc(width, "100% - #{$track-width-used-without-rating + $track-info-gutter}");
+        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
     }
 
     @include medium-small-screen {
-        @include calc(width, "100% - #{$track-width-used-without-rating + $track-info-gutter}");
+        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
     }
 }
 

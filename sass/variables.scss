@@ -13,21 +13,16 @@ $ultra-small-screen-height: 320px;
 
 $track-info-gutter: 6px;
 
-$track-rating-star-size: 28px;
-$track-rating-star-gutter: 2px;
-$track-rating-container-gutter: 9px;
+$track-rating-star-size: 22px;
+$track-rating-vertical-gutter: 6px;
+$track-rating-horizontal-gutter: 4px;
 
 $track-status-width: 36px;
 $track-number-width: 42px;
 $track-duration-width: 38px;
-$track-rating-width: 5 * ($track-rating-star-gutter + $track-rating-star-size) + $track-rating-container-gutter * 2;
+$track-width-used: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width;
 
-$track-width-used-with-rating: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width + $track-rating-width;
-$track-width-used-without-rating: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width;
-
-$track-width-left-for-text: 242px;
 $track-item-height: 44px;
-
 $picture-size: 58px;
 
 $visualizer-height: $picture-size + 2px + $track-item-height;

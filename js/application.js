@@ -40,6 +40,7 @@ const GlobalUi = require("./GlobalUi");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const gestureScreenFlasher = require("./GestureScreenFlasher");
+const TrackRating = require("./TrackRating");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 
@@ -186,9 +187,21 @@ const trackActionsSpec = {
             content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon", "undo"),
             onClick: actions.sortByReverseOrder
         }]
+    }, {
+        divider: true,
+    }, {
+        disabled: true,
+        id: "track-rating",
+        content: function() {
+            return trackRating.$();
+        },
+        onClick: function(e) {
+            e.preventDefault();
+        }
     }]
 };
 
+var trackRating = new TrackRating();
 var trackContextMenu = new ActionMenu.ContextMenu(playlist.main.$(), trackActionsSpec);
 trackContextMenu.on("beforeOpen", function(e) {
     if ($(e.originalEvent.target).closest(".unclickable").length > 0) {
@@ -204,12 +217,19 @@ playlist.main.on("tracksSelected", function(selectable) {
     var actionsToEnable = [];
 
     if (selectedItemsCount === 0) {
-        actionsToDisable.push("play", "delete", "sort");
+        actionsToDisable.push("play", "delete", "sort", "track-rating");
     } else if (selectedItemsCount === 1) {
-        actionsToEnable.push("play", "delete");
+        actionsToEnable.push("play", "delete", "track-rating");
         actionsToDisable.push("sort");
     } else {
         actionsToEnable.push("play", "delete", "sort");
+        actionsToDisable.push("track-rating");
+    }
+
+    if (selectedItemsCount === 1) {
+        trackRating.enable(selectable.first());
+    } else {
+        trackRating.disable();
     }
 
     if (playlist.main.getSelectedTrackCount() === 0) {

@@ -225,10 +225,21 @@ SingleTapTimeout.prototype.remove = function() {
 };
 
 if (touch) {
-    jsUtil.onCapture(document, util.TOUCH_EVENTS, function(e) {
+    var rinput = /^(?:input|select|textarea|option|button|label)$/i;
+    jsUtil.onCapture(document, util.TOUCH_EVENTS_NO_MOVE, function(e) {
         if (e.cancelable) {
+            var node = e.target;
+            while (node != null) {
+                if (rinput.test(node.nodeName)) {
+                    return;
+                }
+                node = node.parentNode;
+            }
             e.preventDefault();
         }
+    });
+
+    jsUtil.onCapture(document, util.TOUCH_EVENTS, function(e) {
         var changedTouches = e.changedTouches;
         documentActives.update(e, changedTouches);
 

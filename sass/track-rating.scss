@@ -1,0 +1,36 @@
+@import "variables";
+
+.track-rating {
+    display: inline-block;
+    vertical-align: top;
+    width: 100%;
+    font-size: 0;
+}
+
+.track-rating > .rating-input {
+    display: inline-block;
+    vertical-align: top;
+    text-shadow: 1px 1px 1px #333;
+    line-height: $track-rating-star-size;
+    padding: $track-rating-vertical-gutter $track-rating-horizontal-gutter;
+    width: $track-rating-star-size + $track-rating-horizontal-gutter * 2;
+    height: $track-rating-star-size + $track-rating-vertical-gutter * 2;
+    box-sizing: border-box;
+}
+
+.track-rating > .rating-input > .glyphicon {
+    font-size: $track-rating-star-size;
+}
+
+.track-rating > .rating-input {
+    color: #F0F0F0;
+    cursor: default;
+}
+
+.track-rating > .rating-input.rated {
+    color: #F2E99C !important;
+}
+
+.track-rating > .rating-input.hovered {
+    color: #F8E968;
+}

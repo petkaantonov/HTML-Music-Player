@@ -23,7 +23,7 @@ function ActionMenuItem(root, spec, children, level) {
     this._delayTimerId = -1;
     this._content = util.toFunction(spec.content);
     this._containerDom = NULL;
-    this._domNode = this._createDom(this._content(this) + "");
+    this._domNode = this._createDom();
 
     if (this.disabled) this.$().addClass(this.root.disabledClass);
 
@@ -219,17 +219,50 @@ ActionMenuItem.prototype._createContainerDom = function(level) {
     });
 };
 
-ActionMenuItem.prototype._createDom = function(content) {
+ActionMenuItem.prototype._createDom = function() {
     if (this.divider) {
-        return $('<div>', {class: this.root.dividerClass});
+        var node = $('<div>', {class: this.root.dividerClass});
+        if (typeof this.divider === "function" && !this.divider()) {
+            node.hide();
+        }
+        return node;
     } else {
-        return $('<div>', {class: this.root.itemClass}).html(content);
+        var content = this._content(this);
+        var node = $('<div>', {class: this.root.itemClass});
+        if (typeof content === "string") {
+            node.html(content);
+        } else if (content == null) {
+            node.hide();
+        } else {
+            node.empty().append(content);
+        }
+        return node;
     }
 };
 
 ActionMenuItem.prototype.refresh = function() {
-    if (this.divider || !this.isShown()) return;
-    this.$().html(this._content(this) + "");
+    if (!this.isShown()) return;
+
+    if (this.divider) {
+        if (typeof this.divider === "function") {
+            if (this.divider()) {
+                this.$().show();
+            } else {
+                this.$().hide();
+            }
+        }
+        return;
+    }
+
+    var content = this._content(this);
+
+    if (typeof content === "string") {
+        this.$().html(content).show();
+    } else if (content == null) {
+        this.$().empty().hide();
+    } else {
+        this.$().show().empty().append(content);
+    }
     if (this.parent) this.parent.positionSubMenu();
 };
 
@@ -729,6 +762,7 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
 
 ActionMenu.ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
+    this.emit("willHideMenu", this);
     this._shown = false;
     this.$().removeClass("transition-in").addClass("initial transition-out");
     this.$().width();
@@ -741,6 +775,7 @@ ActionMenu.ContextMenu.prototype.hide = function() {
         }, TRANSITION_OUT_DURATION);
     });
     this._menu.hideContainer();
+    this.emit("didHideMenu", this);
 };
 
 ["disable", "enable", "disableAll", "enableAll", "refreshAll",
