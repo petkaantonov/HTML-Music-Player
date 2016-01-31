@@ -82,10 +82,10 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
     }).then(function(outcome) {
         switch (outcome) {
             case Snackbar.ACTION_CLICKED:
-                worker.postMessage({action: 'skipWaiting'});
+                worker.postMessage({action: 'skipWaiting'}).catch(function(e) {});
                 return;
             case Snackbar.DISMISSED:
-                worker.postMessage({action: 'skipWaiting'});
+                worker.postMessage({action: 'skipWaiting'}).catch(function(e) {});
                 return;
             case Snackbar.TIMED_OUT:
                 setTimeout(function() {
