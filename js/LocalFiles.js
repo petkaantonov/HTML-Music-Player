@@ -7,6 +7,8 @@ var mimes, extensions;
 
 var LocalFiles = {};
 
+const MIN_FILES_BEFORE_TRIGGER = 10;
+
 const rext = /\.([A-Z_a-z0-9-]+)$/;
 const getExtension = function(name) {
     return name.match(rext);
@@ -68,7 +70,7 @@ const traverseEntries = function(entries, ee, context) {
                 return entryToFile(entry).then(function(file) {
                     if (file && context.filter(file)) {
                         context.currentFileCount++;
-                        if (context.stack.push(file) >= 100) {
+                        if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
                             ee.emit("files", context.stack.slice());
                             context.stack.length = 0;
                         }
@@ -91,6 +93,52 @@ const traverseEntries = function(entries, ee, context) {
             }
         }
     });
+};
+
+const Directory = window.Directory || function() {};
+Promise.longStackTraces();
+const traverseFilesAndDirs = function(filesAndDirs, ee, context) {
+    return Promise.resolve(0).then(function loop(i) {
+        if (i < filesAndDirs.length && context.currentFileCount < context.maxFileCount) {
+            var file = filesAndDirs[i];
+            if (!(file instanceof Directory) && file.name && file.size) {
+                if (file && context.filter(file)) {
+                    context.currentFileCount++;
+                    if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
+                        ee.emit("files", context.stack.slice());
+                        context.stack.length = 0;
+                    }
+                }
+                return loop(i + 1);
+            } else if (file instanceof Directory) {
+                return Promise.resolve(file.getFilesAndDirectories()).then(function(filesAndDirs) {
+                    return traverseFilesAndDirs(filesAndDirs, ee, context);
+                })
+                .catch(function(e) {})
+                .finally(function() {
+                    return loop(i + 1);
+                });
+            }
+        }
+    });
+};
+
+LocalFiles.fileEmitterFromFilesAndDirs = function(filesAndDirs, maxFileCount, filter) {
+    var ret = new EventEmitter();
+    var context = {
+        stack: [],
+        maxFileCount: maxFileCount || 10000,
+        currentFileCount: 0,
+        filter: filter || defaultFilter
+    };
+    traverseFilesAndDirs(filesAndDirs, ret, context).finally(function() {
+        if (context.stack.length) {
+            ret.emit("files", context.stack.slice());
+            context.stack.length = 0;
+        }
+        ret.emit("end");
+    });
+    return ret;
 };
 
 LocalFiles.fileEmitterFromEntries = function(entries, maxFileCount, filter) {

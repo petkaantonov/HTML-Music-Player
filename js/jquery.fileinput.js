@@ -6,7 +6,13 @@ const GlobalUi = require("./GlobalUi");
 
 function clicked(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-    $(this).data("file_input").click();
+    var input = $(this).data("file_input");
+
+    if (input.chooseDirectory && input.directory) {
+        input.chooseDirectory();
+    } else {
+        input.click();
+    }
 }
 
 const clickedTouch = domUtil.tapHandler(clicked);

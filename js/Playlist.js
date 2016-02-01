@@ -361,11 +361,13 @@ Playlist.prototype.$ = function() {
 Playlist.prototype.hidePlaylistEmptyIndicator = function() {
     this.$().find(".playlist-empty").hide();
     this.$().find(".playlist-spacer").show();
+    this.$().find(".tracklist-transform-container").show();
 };
 
 Playlist.prototype.showPlaylistEmptyIndicator = function() {
     this.$().find(".playlist-spacer").hide();
     this.$().find(".playlist-empty").show();
+    this.$().find(".tracklist-transform-container").hide();
 };
 
 Playlist.prototype.playPrioritySelection = function() {

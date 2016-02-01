@@ -440,12 +440,23 @@ $(document).ready(function() {
     if (features.directories) {
         $('.menul-folder, .add-folder-link').fileInput("create", {
             onchange: function() {
-                addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
+                if ('getFilesAndDirectories' in this) {
+                    Promise.resolve(this.getFilesAndDirectories()).then(function(filesAndDirs) {
+                        var fileEmitter = LocalFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
+                        fileEmitter.on("files", function(files) {
+                            addFilesToPlaylist(files);
+                        });
+                        fileEmitter.on("end", function() {
+                            fileEmitter.removeAllListeners();
+                        });
+                    })
+                } else {
+                    addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
+                }
                 $(".menul-folder").fileInput("clearFiles");
             },
             webkitdirectory: true,
-            directory: true,
-            mozdirectory: true
+            directory: true
         });
     } else {
         $(".menul-folder, .suggestion-folders").remove();
@@ -524,7 +535,17 @@ $(document)
         if (!dt.items && !dt.files) return;
 
         var files;
-        if (dt.items && dt.items.length > 0) {
+        if (dt.getFilesAndDirectories) {
+            Promise.resolve(dt.getFilesAndDirectories()).then(function(filesAndDirs) {
+                var fileEmitter = LocalFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
+                fileEmitter.on("files", function(files) {
+                    addFilesToPlaylist(files);
+                });
+                fileEmitter.on("end", function() {
+                    fileEmitter.removeAllListeners();
+                });
+            });
+        } else if (dt.items && dt.items.length > 0) {
             var item = dt.items[0];
             var entry = item.getAsEntry || item.webkitGetAsEntry;
             if (!entry) {
@@ -535,7 +556,6 @@ $(document)
                 });
                 var fileEmitter = LocalFiles.fileEmitterFromEntries(entries, 10000);
                 fileEmitter.on("files", function(files) {
-                    console.log(files.length);
                     addFilesToPlaylist(files);
                 });
                 fileEmitter.on("end", function() {
