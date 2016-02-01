@@ -49,16 +49,26 @@ Track.prototype._ensureDomNode = function() {
     var self = this;
     this._domNode = $("<div>", {
         class: "track-container"
-    }).html("<div class='track'>                                                                    \
-        <div class='track-status'>                                                      \
-            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                   \
-        </div>                                                                                      \
-        <div class='track-number'></div>                                                            \
-        <div class='track-info'>                                                                    \
-            <div class='track-title notextflow'></div>                                              \
-            <div class='track-artist notextflow'></div>                                             \
-        </div>                                                                                      \
-        <div class='track-duration'></div>                                                          \
+    }).html("<div class='track'>                                                                      \
+        <div class='track-status'>                                                                    \
+            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                     \
+        </div>                                                                                        \
+        <div class='track-number'></div>                                                              \
+        <div class='track-info'>                                                                      \
+            <div class='track-title notextflow'></div>                                                \
+            <div class='track-artist notextflow'></div>                                               \
+        </div>                                                                                        \
+        <div class='track-duration'></div>                                                            \
+        <div class='track-availability'>                                                              \
+            <div class='track-availability-item offline'>                                             \
+                <i class='material-icons icon'>&#xE90A;</i>                                           \
+                <div class='text'>Offline</div>                                                       \
+            </div>                                                                                    \
+            <div class='track-availability-item cloud'>                                               \
+                <i class='material-icons icon'>&#xE2C3;</i>                                           \
+                <div class='text'>Sync</div>                                                          \
+            </div>                                                                                    \
+        </div>                                                                                        \
     </div>");
 
     this.setTrackDuration();
@@ -66,6 +76,14 @@ Track.prototype._ensureDomNode = function() {
 
     if (selectable.contains(this)) {
         this.selected();
+    }
+
+    if (this.isAvailableOffline()) {
+        this.$().find(".offline").addClass("active");
+    }
+
+    if (this.isSyncedToCloud()) {
+        this.$().find(".cloud").addClass("active");
     }
 
     if (playlist.main.getCurrentTrack() === this) {
@@ -99,6 +117,14 @@ Track.prototype.getTrackInfo = function() {
         artist: artist,
         title: title
     };
+};
+
+Track.prototype.isAvailableOffline = function() {
+    return true;
+};
+
+Track.prototype.isSyncedToCloud = function() {
+    return false;
 };
 
 Track.prototype.setTrackInfo = function() {

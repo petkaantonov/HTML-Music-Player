@@ -88,54 +88,96 @@
     width: 100%;
 }
 
-.track .track-clickable {
-    height: 100%;
+.track-container {
+    div {
+        vertical-align: top;
+        display: inline-block;
+        box-sizing: border-box;
+    }
 }
 
-.track .track-info {
-    height: 100%;
-    overflow: hidden;
-    padding: 4px 0px 4px 6px;
-}
+.track {
+    .track-clickable {
+        height: 100%;
+    }
 
-.track .track-title,
-.track .track-artist {
-    display: block;
-}
+    .track-number {
+        width: $track-number-width;
+    }
 
-.track .track-title {
-    font-size: 15px;
-    color: #333;
-}
+    .track-info {
+        height: 100%;
+        overflow: hidden;
+        padding: 4px 0px 4px 6px;
 
-.track .track-artist {
-    font-size: 13px;
-    color: #777;
-    margin-top: 2px;
-}
+        .track-title,
+        .track-artist {
+            display: block;
+        }
 
-.track .track-duration,
-.track .track-number {
-    color: #333;
-    font-size: 14px;
-    line-height: 14px;
-    padding-top: 15px;
-    height: 100%;
-}
+        .track-title {
+            font-size: 15px;
+            color: #333;
+        }
 
-.track .track-number {
-    width: $track-number-width;
-}
+        .track-artist {
+            font-size: 13px;
+            color: #777;
+            margin-top: 2px;
+        }
+    }
 
-.track .track-duration {
-    width: $track-duration-width;
-    text-align: center;
-    margin-left: 6px;
-    overflow: hidden;
-}
+    .track-duration {
+        width: $track-duration-width;
+        text-align: center;
+        margin-left: 6px;
+        overflow: hidden;
+    }
 
-.track-container div {
-    vertical-align: top;
-    display: inline-block;
-    box-sizing: border-box;
+    .track-duration,
+    .track-number {
+        color: #333;
+        font-size: 14px;
+        line-height: 14px;
+        padding-top: 15px;
+        height: 100%;
+    }
+
+    .track-availability {
+        $track-availability-room: $track-availability-width - $track-availability-gutter;
+        $vertical-gutter: 2px;
+        $vertical-space-available: $track-item-height - 2px - $vertical-gutter * 2;
+
+        padding: $vertical-gutter 0px $vertical-gutter $track-availability-gutter;
+        height: 100%;
+        width: $track-availability-width;
+        color: #bbb;
+        .track-availability-item {
+            height: 100% / $number-of-track-availability-items;
+            width: $track-availability-room;
+            line-height: $vertical-space-available / $number-of-track-availability-items;
+
+            .icon {
+                font-size: 16px;
+                vertical-align: middle;
+            }
+
+            .text {
+                font-size: 11px;
+                vertical-align: middle;
+                text-transform: uppercase;
+                width: $track-availability-room - $track-availability-icon-size;
+                padding-left: $track-availability-icon-text-gutter;
+                text-align: left;
+            }
+        }
+
+        .track-availability-item.offline.active {
+            color: #1C6E1C;
+        }
+
+        .track-availability-item.cloud.active {
+            color: #BE7306;
+        }
+    }
 }

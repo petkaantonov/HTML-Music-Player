@@ -17,10 +17,16 @@ $track-rating-star-size: 22px;
 $track-rating-vertical-gutter: 6px;
 $track-rating-horizontal-gutter: 4px;
 
+$number-of-track-availability-items: 2;
+$track-availability-gutter: 10px;
+$track-availability-icon-size: 16px;
+$track-availability-icon-text-gutter: 5px;
+
 $track-status-width: 36px;
 $track-number-width: 42px;
 $track-duration-width: 38px;
-$track-width-used: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width;
+$track-availability-width: 80px;
+$track-width-used: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width + $track-availability-width;
 
 $track-item-height: 44px;
 $picture-size: 58px;
