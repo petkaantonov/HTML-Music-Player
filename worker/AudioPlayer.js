@@ -171,7 +171,6 @@ AudioPlayer.prototype.transfer = function(other) {
     this.codecName = other.codecName;
     this.decoderContext = other.decoderContext;
     this.decoderContext.removeAllListeners();
-    this.decoderContext.on("error", this._errored);
     this.offset = other.offset;
     this.resampler = other.resampler;
 
@@ -398,12 +397,12 @@ AudioPlayer.prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-AudioPlayer.prototype.passError = function(errorMessage, stack, name) {
+AudioPlayer.prototype.passError = function(errorMessage, stack, name, transferList) {
     this.sendMessage("_error", {
         message: errorMessage,
         stack: stack,
         name: name
-    });
+    }, transferList);
 }
 
 AudioPlayer.prototype._errored = function(e) {
@@ -428,7 +427,6 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
             });
 
             that.decoderContext.start(metadata);
-            that.decoderContext.on("error", that._errored);
             if (that.metadata.sampleRate !== hardwareSampleRate) {
                 that.resampler = allocResampler(that.metadata.channels,
                                                 that.metadata.sampleRate,
@@ -529,6 +527,7 @@ AudioPlayer.prototype._decodeNextBuffer = Promise.method(function(transferList, 
             }
         }
     }
+
     this.decoderContext.once("data", dataListener);
     
     var samplesNeeded = bufferTime * this.metadata.sampleRate;
@@ -651,9 +650,9 @@ AudioPlayer.prototype.fillBuffers = function(args, transferList) {
             if (result) {
                 that.sendMessage("_buffersFilled", result, transferList);
             }
+        }).catch(function(e) {
+            that.passError(e.message, e.stack, e.name, transferList);
         });
-    }).catch(function(e) {
-        that.passError(e.message, e.stack, e.name);
     });
 };
 
@@ -681,8 +680,6 @@ AudioPlayer.prototype.seek = function(args, transferList) {
             that.resampler.start();
         }
 
-
-
         return seeker(that.codecName, time, that.metadata, that.decoderContext, that.fileView).then(function(seekerResult) {
             that.offset = seekerResult.offset;
             
@@ -695,10 +692,14 @@ AudioPlayer.prototype.seek = function(args, transferList) {
                     that.sendMessage("_seeked", result, transferList);
 
                 }
+            }).catch(function (e) {
+                that.passError(e.message, e.stack, e.name, transferList);
             });
+        }).catch(function (e) {
+            that.passError(e.message, e.stack, e.name, transferList);
         });
     }).catch(function (e) {
-        that.passError(e.message, e.stack, e.name);
+        that.passError(e.message, e.stack, e.name, transferList);
     });
 };
 

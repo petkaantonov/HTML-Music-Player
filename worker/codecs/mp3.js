@@ -1552,13 +1552,8 @@ Mp3Context.prototype._flush = function() {
 };
 
 Mp3Context.prototype._error = function() {
-    try {
-        this._flush();
-    } finally {
-        this.sampleLength = 0;
-        this.end();
-        this.emit("error", new Error("decoder error"));
-    }
+    this._resetState();
+    throw new Error("decoder error");
 };
 
 Mp3Context.prototype.decode = function() {

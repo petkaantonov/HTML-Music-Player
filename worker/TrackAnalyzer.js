@@ -164,11 +164,6 @@ function nextJob() {
                 }
             });
 
-            var error;
-            decoder.on("error", function(e) {
-                error = e;
-            });
-
             var offset = metadata.dataStart;
             var aborted = false;
             var started = Date.now();
@@ -205,14 +200,6 @@ function nextJob() {
             }).then(function() {
                 if (aborted) {
                     return;
-                }
-
-                if (error === undefined) {
-                    decoder.end();
-                }
-
-                if (error) {
-                    return reportError(id, error);
                 }
 
                 var result = {

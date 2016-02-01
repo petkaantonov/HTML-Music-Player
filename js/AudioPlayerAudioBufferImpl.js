@@ -209,7 +209,6 @@ AudioPlayer.prototype._freeTransferList = function(args, transferList) {
         if (!(item instanceof ArrayBuffer)) {
             item = item.buffer;
         }
-
         if (item.byteLength > 0) {
             this._freeArrayBuffer(item);
         }
@@ -941,7 +940,7 @@ AudioPlayerSourceNode.prototype.getDuration = function() {
 };
 
 AudioPlayerSourceNode.prototype._freeTransferList = function(transferList) {
-    this._player._freeTransferList(transferList);
+    this._player._freeTransferList(null, transferList);
 };
 
 AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
