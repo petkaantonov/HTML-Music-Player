@@ -41,6 +41,7 @@ const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const gestureScreenFlasher = require("./GestureScreenFlasher");
 const TrackRating = require("./TrackRating");
+const Track = require("./Track");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 
@@ -415,16 +416,31 @@ player.main.on("stop", function() {
 });
 
 const trackAnalyzer = new TrackAnalyzer(playlist.main);
-const localFiles = new LocalFiles(playlist.main, features.allowMimes, features.allowExtensions);
+LocalFiles.setup(features.allowMimes, features.allowExtensions);
 new ID3Process(playlist.main, player.main, trackAnalyzer);
 
+function addFilesToPlaylist(files) {
+    playlist.main.add(files.map(function(file) {
+        return new Track(file);
+    }));
+}
 
+function filterFiles(files, filter) {
+    var ret = new Array(files.length);
+    ret.length = 0;
+    for (var i = 0; i < files.length; ++i) {
+        if (filter(files[i])) {
+            ret.push(files[i]);
+        }
+    }
+    return ret;
+}
 
 $(document).ready(function() {
     if (features.directories) {
         $('.menul-folder, .add-folder-link').fileInput("create", {
             onchange: function() {
-                localFiles.handle(this.files);
+                addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
                 $(".menul-folder").fileInput("clearFiles");
             },
             webkitdirectory: true,
@@ -437,21 +453,21 @@ $(document).ready(function() {
 
     $('.menul-files, .add-files-link').fileInput("create", {
         onchange: function() {
-            localFiles.handle(this.files);
+            addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
             $(".menul-files").fileInput("clearFiles");
         },
         multiple: true,
         accept: features.allowMimes.join(",")
     });
 
-    if (window.DEBUGGING) {
-        function id3v1String(value) {
+    if (false && window.DEBUGGING) {
+        const id3v1String = function(value) {
             var ret = new Uint8Array(30);
             for (var i = 0; i < value.length; ++i) {
                 ret[i] = value.charCodeAt(i);
             }
             return ret;
-        }
+        };
 
         var files = new Array(30);
         var dummy = new Uint8Array(256 * 1024);
@@ -484,10 +500,11 @@ $(document).ready(function() {
             files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
         }
         setTimeout(function() {
-            localFiles.handle(files);
+            addFilesToPlaylist(files);
         }, 10)
     }
 });
+
 
 $(document)
     .on('dragenter', function() {
@@ -500,10 +517,42 @@ $(document)
         return false;
     })
     .on("drop", function(ev) {
-        localFiles.handle(ev.originalEvent.dataTransfer.files);
         ev.preventDefault();
         ev.stopPropagation();
-        return false;
+        var dt = ev.originalEvent.dataTransfer;
+        if (!dt) return;
+        if (!dt.items && !dt.files) return;
+
+        var files;
+        if (dt.items && dt.items.length > 0) {
+            var item = dt.items[0];
+            var entry = item.getAsEntry || item.webkitGetAsEntry;
+            if (!entry) {
+                files = Promise.resolve(dt.files);
+            } else {
+                var entries = [].map.call(dt.items, function(v) {
+                    return entry.call(v);
+                });
+                var fileEmitter = LocalFiles.fileEmitterFromEntries(entries, 10000);
+                fileEmitter.on("files", function(files) {
+                    console.log(files.length);
+                    addFilesToPlaylist(files);
+                });
+                fileEmitter.on("end", function() {
+                    fileEmitter.removeAllListeners();
+                });
+            }
+        } else if (dt.files && dt.files.length > 0) {
+            files = Promise.resolve(dt.files);
+        }
+        
+        if (!files) {
+            return;
+        }
+
+        files.then(function(files) {
+            addFilesToPlaylist(filterFiles(files, LocalFiles.defaultFilter));
+        });
     })
     .on("selectstart", function(e) {
         if (!util.isTextInputNode(e.target)) {

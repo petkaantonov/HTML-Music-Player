@@ -1,60 +1,127 @@
 "use strict";
 const Track = require("./Track");
+const Promise = require("../lib/bluebird");
+const EventEmitter = require("events");
 
-function LocalFiles(playlist, allowMime, allowExt) {
-    var i, l;
-    this._mimes = Object.create(null);
-    this._extensions = Object.create(null);
-    for (i = 0, l = allowMime && allowMime.length || 0; i < l; ++i) {
-        this._mimes[allowMime[i]] = true;
-    }
-    for (i = 0, l = allowExt && allowExt.length || 0; i < l; ++i) {
-        this._extensions[allowExt[i]] = true;
-    }
-    this._playlist = playlist;
-}
+var mimes, extensions;
 
+var LocalFiles = {};
 
 const rext = /\.([A-Z_a-z0-9-]+)$/;
-function getExtension(name) {
+const getExtension = function(name) {
     return name.match(rext);
-}
+};
 
-LocalFiles.prototype.isMimeTypeSupported = function(mime) {
-    return this._mimes[mime] === true;
+const isMimeTypeSupported = function(mime) {
+    return mimes[mime] === true;
 };
 
 
-LocalFiles.prototype.isExtensionSupported = function(extName) {
-    return this._extensions[extName] === true;
+const isExtensionSupported = function(extName) {
+    return extensions[extName] === true;
 };
 
-LocalFiles.prototype.handle = function(files) {
-    var tracks = [];
-    for (var i = 0; i < files.length; ++i) {
-        var file = files[i];
-
-        if (file.size <= 131072 || file.size >= 1073741824) {
-            continue;
-        }
-
-        var ext = getExtension(file.name);
-
-        if (ext) {
-            ext = ext[1].toLowerCase();
-        } else {
-            ext = "";
-        }
-
-        if (this.isExtensionSupported(ext) ||
-            this.isMimeTypeSupported(file.type)) {
-            tracks.push(new Track(file));
-        } else if (!ext && !file.type) {
-            tracks.push(new Track(file));
-        }
+const defaultFilter = function(file) {
+    if (file.size <= 131072 || file.size >= 1073741824) {
+        return false;
     }
 
-    this._playlist.add(tracks);
+    var ext = getExtension(file.name);
+
+    if (ext) {
+        ext = ext[1].toLowerCase();
+    } else {
+        ext = "";
+    }
+
+    if (isExtensionSupported(ext) ||
+        isMimeTypeSupported(file.type)) {
+        return true;
+    } else if (!ext && !file.type) {
+        return true;
+    }
+    return false;
 };
+LocalFiles.defaultFilter = defaultFilter;
+
+const readEntries = function(reader) {
+    return new Promise(function(resolve, reject) {
+        reader.readEntries(resolve, reject);
+    }).catch(function(e) {
+        return [];
+    });
+};
+
+const entryToFile = function(entry) {
+    return new Promise(function(resolve, reject) {
+        entry.file(resolve, reject);
+    }).catch(function(e) {
+        return null;
+    });
+};
+
+const traverseEntries = function(entries, ee, context) {
+    return Promise.resolve(0).then(function loop(i) {
+        if (i < entries.length && context.currentFileCount < context.maxFileCount) {
+            var entry = entries[i];
+            if (entry.isFile) {
+                return entryToFile(entry).then(function(file) {
+                    if (file && context.filter(file)) {
+                        context.currentFileCount++;
+                        if (context.stack.push(file) >= 100) {
+                            ee.emit("files", context.stack.slice());
+                            context.stack.length = 0;
+                        }
+                    }
+                    return loop(i + 1);
+                });
+            } else if (entry.isDirectory) {
+                var reader = entry.createReader();
+                return readEntries(reader).then(function directoryLoop(results) {
+                    if (results.length) {
+                        return traverseEntries(results, ee, context).then(function() {
+                            return readEntries(reader).then(directoryLoop);
+                        });
+                    } else {
+                        return loop(i + 1);
+                    }
+                });
+            } else {
+                return loop(i + 1);
+            }
+        }
+    });
+};
+
+LocalFiles.fileEmitterFromEntries = function(entries, maxFileCount, filter) {
+    var ret = new EventEmitter();
+    var context = {
+        stack: [],
+        maxFileCount: maxFileCount || 10000,
+        currentFileCount: 0,
+        filter: filter || defaultFilter
+    };
+    traverseEntries(entries, ret, context).finally(function() {
+        if (context.stack.length) {
+            ret.emit("files", context.stack.slice());
+            context.stack.length = 0;
+        }
+        ret.emit("end");
+    });
+    return ret;
+};
+
+LocalFiles.setup = function(allowMime, allowExt) {
+    var i, l;
+    mimes = Object.create(null);
+    extensions = Object.create(null);
+    for (i = 0, l = allowMime && allowMime.length || 0; i < l; ++i) {
+        mimes[allowMime[i]] = true;
+    }
+    for (i = 0, l = allowExt && allowExt.length || 0; i < l; ++i) {
+        extensions[allowExt[i]] = true;
+    }
+};
+
 
 module.exports = LocalFiles;
