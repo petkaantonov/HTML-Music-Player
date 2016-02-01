@@ -235,7 +235,7 @@ CrossFadePreferences.getPresetMatchingPreferences = function(preferences) {
 };
 
 var presets = {
-    "Default": new CrossFadePreferences(true, 5, "sCurve", true, 5, "sCurve", false),
+    "Default": new CrossFadePreferences(false, 5, "sCurve", false, 5, "sCurve", false),
     "Normal": new CrossFadePreferences(true, 5, "linear", true, 5, "linear", false),
     "Sudden death": new CrossFadePreferences(true, 5, "exponentialFromStart", true, 5, "sCurve", false),
     "Disabled": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false),
