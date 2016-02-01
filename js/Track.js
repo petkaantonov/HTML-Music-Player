@@ -670,10 +670,13 @@ Track.prototype.getFormat = function(initialBytes) {
     if (type && matches.length) {
         return matches[0][1];
     } else if (!type) {
-        var match = rType.exec(initialBytes.slice(0, 10));
-        for (var i = 0; i < formats.length; ++i) {
-            if (match[formats[i][1] + 1] !== undefined) {
-                return formats[i][1];
+        var match = rType.exec(initialBytes);
+
+        if (match) {
+            for (var i = 0; i < formats.length; ++i) {
+                if (match[formats[i][1] + 1] !== undefined) {
+                    return formats[i][1];
+                }
             }
         }
 

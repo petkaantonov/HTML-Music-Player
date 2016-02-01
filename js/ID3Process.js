@@ -213,7 +213,7 @@ ID3Process.prototype.loadNext = function() {
     if (track.tagData) {
         tagData = Promise.resolve(track.tagData);
     } else {
-        var blob = track.file.slice(0, 256);
+        var blob = track.file.slice(0, 1024);
         tagData = util.readAsBinaryString(blob)
             .finally(function() {
                 blob.close();
