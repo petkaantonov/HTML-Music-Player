@@ -305,8 +305,7 @@ ID3Process.prototype.loadNext = function() {
                 debugger;
             }
         })
-        .catch(AudioError, function() {})
-        .catch(TrackWasRemovedError, function() {});
+        .catch(function() {});
         return tagData;
     })
     .catch(AudioError, function(e) {
@@ -495,7 +494,6 @@ ID3Process.prototype.parseWavTagData = function(bytes, track) {
 ID3Process.prototype.parseMpegTagData = function(bytes, track) {
     var ID3v2Pos = bytes.indexOf("ID3");
     var fileSize = track.getFileSize();
-
     if (ID3v2Pos > -1) {
         var size = util.synchInt32(bytes, 6);
         var startStart = ID3v2Pos;
