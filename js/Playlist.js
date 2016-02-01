@@ -192,6 +192,10 @@ Playlist.Modes = {
                 }
             }
 
+            if (track.hasError()) {
+                return 0;
+            }
+
             var rating = track.isRated() ? track.getRating() : 3;
             var weight = Math.pow(1.5, rating - 1);
 
@@ -214,7 +218,9 @@ Playlist.Modes = {
             maxWeight += getWeight(track);
         }
 
-        var target = (Math.random() * maxWeight + 1) | 0;
+        
+
+        var target = ((Math.random() * maxWeight + 1) | 0) - 1;
         var currentWeight = -1;
         for (var i = 0; i < tracks.length; ++i) {
             var track = tracks[i];
@@ -225,7 +231,10 @@ Playlist.Modes = {
             }
             currentWeight += weight;
         }
-        return track || tracks.last() || null;
+
+        track = track && track.hasError() ? tracks.last() : track;
+        track = track && track.hasError() ? null : track;
+        return track;
     },
 
     repeat: function(track) {
@@ -307,11 +316,6 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
                 this._trackHistory.shift();
             }
             this.emit("historyChange");
-        }
-
-        if (currentTrack.hasError()) {
-            currentTrack.unsetError();
-            this._unparsedTrackList.push(currentTrack);
         }
     }
 
@@ -677,6 +681,11 @@ Playlist.prototype.getCurrentPlayId = function() {
 };
 
 Playlist.prototype.trackPlayedSuccessfully = function() {
+    var currentTrack = this.getCurrentTrack();
+    if (currentTrack && currentTrack.hasError()) {
+        currentTrack.unsetError();
+        this._unparsedTrackList.push(currentTrack);
+    }
     this._errorCount = 0;
 };
 
