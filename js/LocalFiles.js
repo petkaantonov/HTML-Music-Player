@@ -8,6 +8,7 @@ var mimes, extensions;
 var LocalFiles = {};
 
 const MIN_FILES_BEFORE_TRIGGER = 10;
+const MAX_FILE_COUNT = Math.pow(2, 31);
 
 const rext = /\.([A-Z_a-z0-9-]+)$/;
 const getExtension = function(name) {
@@ -127,7 +128,7 @@ LocalFiles.fileEmitterFromFilesAndDirs = function(filesAndDirs, maxFileCount, fi
     var ret = new EventEmitter();
     var context = {
         stack: [],
-        maxFileCount: maxFileCount || 10000,
+        maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
         filter: filter || defaultFilter
     };
@@ -145,7 +146,7 @@ LocalFiles.fileEmitterFromEntries = function(entries, maxFileCount, filter) {
     var ret = new EventEmitter();
     var context = {
         stack: [],
-        maxFileCount: maxFileCount || 10000,
+        maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
         filter: filter || defaultFilter
     };
