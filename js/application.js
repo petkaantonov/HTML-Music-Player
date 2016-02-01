@@ -340,8 +340,8 @@ var databaseInitialValuesLoaded = requiredFeaturesChecked.then(function() {
 });
 
 window.onbeforeunload = function(e) {
-    if (playlist.main.length > 0 ||
-        ((player.main.isPlaying  || player.main.isPaused) && !player.main.isStopped)) {
+    if (!window.DEBUGGING && (playlist.main.length > 0 ||
+        ((player.main.isPlaying  || player.main.isPaused) && !player.main.isStopped))) {
         return "Are you sure you want to exit?";
     }
 };
@@ -443,6 +443,50 @@ $(document).ready(function() {
         multiple: true,
         accept: features.allowMimes.join(",")
     });
+
+    if (window.DEBUGGING) {
+        function id3v1String(value) {
+            var ret = new Uint8Array(30);
+            for (var i = 0; i < value.length; ++i) {
+                ret[i] = value.charCodeAt(i);
+            }
+            return ret;
+        }
+
+        var files = new Array(30);
+        var dummy = new Uint8Array(256 * 1024);
+        var sync = new Uint8Array(4);
+        sync[0] = 0xFF;
+        sync[1] = 0xFB;
+        sync[2] = 0xB4;
+        sync[3] = 0x00;
+        for (var i = 0; i < dummy.length; i += 4) {
+            dummy[i] = sync[0];
+            dummy[i + 1] = sync[1];
+            dummy[i + 2] = sync[2];
+            dummy[i + 3] = sync[3];
+        }
+        for (var i = 0; i < files.length; ++i) {
+            var tag = new Uint8Array(3);
+            tag[0] = 84;
+            tag[1] = 65;
+            tag[2] = 71;
+            var title = id3v1String("Track " + i);
+            var artist = id3v1String("Artist");
+            var album = id3v1String("Album");
+            var year = new Uint8Array(4);
+            var comment = id3v1String("Comment");
+            var genre = new Uint8Array(1);
+
+            var parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
+
+
+            files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
+        }
+        setTimeout(function() {
+            localFiles.handle(files);
+        }, 10)
+    }
 });
 
 $(document)
