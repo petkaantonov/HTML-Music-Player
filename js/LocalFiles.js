@@ -97,7 +97,6 @@ const traverseEntries = function(entries, ee, context) {
 };
 
 const Directory = window.Directory || function() {};
-Promise.longStackTraces();
 const traverseFilesAndDirs = function(filesAndDirs, ee, context) {
     return Promise.resolve(0).then(function loop(i) {
         if (i < filesAndDirs.length && context.currentFileCount < context.maxFileCount) {

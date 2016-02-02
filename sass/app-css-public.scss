@@ -5,12 +5,9 @@
 @import "icomoon";
 @import "gestures";
 @import "transitions";
-@import "tags";
-@import "scaling";
 @import "player-controls";
 @import "action-menu";
 @import "shadows";
-@import "toolbar";
 @import "tooltip";
 @import "snackbar";
 @import "scrollbar";
@@ -23,37 +20,10 @@
 @import "playlist";
 @import "slider";
 @import "util";
-@import "loader";
 @import "forms";
 @import "ripple";
 @import "spinner";
 @import "track-rating";
-
-html,
-body,
-.module-container,
-.tracks-list-container,
-.tracklist-transform-container {
-    -ms-touch-action: none;
-    touch-action: none;
-}
-
-html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-}
-
-#app-container {
-    font-size: 0;
-    display: none;
-}
-
-#wrapper {
-    width: 100%;
-    margin: 0;
-    display: block;
-}
 
 .tracks-menu-module-container,
 .settings-menu-module-container,
@@ -70,24 +40,4 @@ html, body {
 
 .app-bread-text {
     font-size: 14px;
-}
-
-.content {
-    display: none;
-}
-
-.material-icons.small-material-icon {
-    font-size: 18px;
-    width: 14px;
-    vertical-align: top;
-    line-height: 14px;
-    text-indent: -2px;
-}
-
-.large-material-icon.material-icons {
-    font-size: 24px;
-    line-height: 22px;
-    width: 18px;
-    text-indent: -3px;
-    vertical-align: top;
 }

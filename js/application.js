@@ -17,6 +17,65 @@ const $ = window.$;
 
 window.__PROJECT__TITLE = "Soita";
 
+const startApp = function() {
+    $("#app-loader").remove();
+    $("#app-container").show();
+    $(window).trigger("resize");
+};
+
+const features = require("./features");
+const keyValueDatabase = require("./KeyValueDatabase");
+
+var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
+    var checker = features.requiredFeatures[description][0];
+    var canIUseUrl = features.requiredFeatures[description][1];
+    var apiName = features.requiredFeatures[description][2];
+    return checker().catch(function(e) {return false}).then(function(result) {
+        return {
+            supported: result,
+            canIUseUrl: canIUseUrl,
+            apiName: apiName,
+            description: description
+        };
+    });
+}).then(function(featureResults) {
+    var featureMissing = featureResults.some(function(v) {return !v.supported;});
+
+    if (featureMissing) {
+        $("#app-load-text").remove();
+        $("#app-loader .missing-features").removeClass("no-display");
+    }
+
+    featureResults.forEach(function(v) {
+        if (!v.supported) {
+            var link = $("<a>", {
+                target: "_blank",
+                class: "link-text",
+                href: v.canIUseUrl
+            }).text(v.apiName);
+
+            var children = [
+                $("<span>").text(v.description),
+                $("<sup>").append(link)
+            ];
+
+            $("<li>", {class: "missing-feature-list-item"})
+                .append(children)
+                .appendTo($("#app-loader .missing-features .missing-feature-list"));
+        }
+    });
+
+    if (featureMissing) {
+        throw new Error("missing features");
+    }
+});
+
+var databaseInitialValuesLoaded = Promise.resolve();
+if (keyValueDatabase) {
+    databaseInitialValuesLoaded = keyValueDatabase.getInitialValues();
+}
+
+$(function() {
 const util = require("./util");
 const serviceWorkerManager = require("./ServiceWorkerManager");
 const hotkeyManager = require("./HotkeyManager");
@@ -24,9 +83,7 @@ const TrackDisplay = require("./TrackDisplay");
 const Player = require("./Player");
 const Playlist = require("./Playlist");
 const ActionMenu = require("./ActionMenu");
-const features = require("./features");
 const PlaylistModeManager = require("./PlaylistModeManager");
-const keyValueDatabase = require("./KeyValueDatabase");
 const PlayerTimeManager = require("./PlayerTimeManager");
 const Slider = require("./Slider");
 const PlayerVolumeManager = require("./PlayerVolumeManager");
@@ -56,7 +113,6 @@ const DEFAULT_ITEM_HEIGHT = 44;
 playlist.trackDisplay = new TrackDisplay("track-display", {
     delay: 5
 });
-
 
 playlist.main = new Playlist("#app-playlist-container", {
     itemHeight: DEFAULT_ITEM_HEIGHT
@@ -282,64 +338,6 @@ playlist.main.on("trackChange", function(track) {
     playlist.trackDisplay.setTrack(track);
 });
 
-function startApp() {
-    $("#app-loader").remove();
-    $("#app-container").show();
-    $(window).trigger("resize");
-}
-
-var documentReady = new Promise(function(resolve) {
-    $(resolve);
-});
-
-var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
-    var checker = features.requiredFeatures[description][0];
-    var canIUseUrl = features.requiredFeatures[description][1];
-    var apiName = features.requiredFeatures[description][2];
-    return checker().catch(function(e) {return false}).then(function(result) {
-        return {
-            supported: result,
-            canIUseUrl: canIUseUrl,
-            apiName: apiName,
-            description: description
-        };
-    });
-}).then(function(featureResults) {
-    var featureMissing = featureResults.some(function(v) {return !v.supported;});
-
-    if (featureMissing) {
-        $("#app-load-text").remove();
-        $("#app-loader .missing-features").removeClass("no-display");
-    }
-
-    featureResults.forEach(function(v) {
-        if (!v.supported) {
-            var link = $("<a>", {
-                target: "_blank",
-                class: "link-text",
-                href: v.canIUseUrl
-            }).text(v.apiName);
-
-            var children = [
-                $("<span>").text(v.description),
-                $("<sup>").append(link)
-            ];
-
-            $("<li>", {class: "missing-feature-list-item"})
-                .append(children)
-                .appendTo($("#app-loader .missing-features .missing-feature-list"));
-        }
-    });
-
-    if (featureMissing) {
-        throw new Error("missing features");
-    }
-});
-
-var databaseInitialValuesLoaded = requiredFeaturesChecked.then(function() {
-    return keyValueDatabase.getInitialValues();
-});
-
 window.onbeforeunload = function(e) {
     if (!window.DEBUGGING && (playlist.main.length > 0 ||
         ((player.main.isPlaying  || player.main.isPaused) && !player.main.isStopped))) {
@@ -436,85 +434,84 @@ function filterFiles(files, filter) {
     return ret;
 }
 
-$(document).ready(function() {
-    if (features.directories) {
-        $('.menul-folder, .add-folder-link').fileInput("create", {
-            onchange: function() {
-                if ('getFilesAndDirectories' in this) {
-                    Promise.resolve(this.getFilesAndDirectories()).then(function(filesAndDirs) {
-                        var fileEmitter = LocalFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
-                        fileEmitter.on("files", function(files) {
-                            addFilesToPlaylist(files);
-                        });
-                        fileEmitter.on("end", function() {
-                            fileEmitter.removeAllListeners();
-                        });
-                    })
-                } else {
-                    addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
-                }
-                $(".menul-folder").fileInput("clearFiles");
-            },
-            webkitdirectory: true,
-            directory: true
-        });
-    } else {
-        $(".menul-folder, .suggestion-folders").remove();
-    }
 
-    $('.menul-files, .add-files-link').fileInput("create", {
+if (features.directories) {
+    $('.menul-folder, .add-folder-link').fileInput("create", {
         onchange: function() {
-            addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
-            $(".menul-files").fileInput("clearFiles");
-        },
-        multiple: true,
-        accept: features.allowMimes.join(",")
-    });
-
-    if (false && window.DEBUGGING) {
-        const id3v1String = function(value) {
-            var ret = new Uint8Array(30);
-            for (var i = 0; i < value.length; ++i) {
-                ret[i] = value.charCodeAt(i);
+            if ('getFilesAndDirectories' in this) {
+                Promise.resolve(this.getFilesAndDirectories()).then(function(filesAndDirs) {
+                    var fileEmitter = LocalFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
+                    fileEmitter.on("files", function(files) {
+                        addFilesToPlaylist(files);
+                    });
+                    fileEmitter.on("end", function() {
+                        fileEmitter.removeAllListeners();
+                    });
+                })
+            } else {
+                addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
             }
-            return ret;
-        };
+            $(".menul-folder").fileInput("clearFiles");
+        },
+        webkitdirectory: true,
+        directory: true
+    });
+} else {
+    $(".menul-folder, .suggestion-folders").remove();
+}
 
-        var files = new Array(30);
-        var dummy = new Uint8Array(256 * 1024);
-        var sync = new Uint8Array(4);
-        sync[0] = 0xFF;
-        sync[1] = 0xFB;
-        sync[2] = 0xB4;
-        sync[3] = 0x00;
-        for (var i = 0; i < dummy.length; i += 4) {
-            dummy[i] = sync[0];
-            dummy[i + 1] = sync[1];
-            dummy[i + 2] = sync[2];
-            dummy[i + 3] = sync[3];
-        }
-        for (var i = 0; i < files.length; ++i) {
-            var tag = new Uint8Array(3);
-            tag[0] = 84;
-            tag[1] = 65;
-            tag[2] = 71;
-            var title = id3v1String("Track " + i);
-            var artist = id3v1String("Artist");
-            var album = id3v1String("Album");
-            var year = new Uint8Array(4);
-            var comment = id3v1String("Comment");
-            var genre = new Uint8Array(1);
-
-            var parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
-
-
-            files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
-        }
-        setTimeout(function() {
-            addFilesToPlaylist(files);
-        }, 10)
-    }
+$('.menul-files, .add-files-link').fileInput("create", {
+    onchange: function() {
+        addFilesToPlaylist(filterFiles(this.files, LocalFiles.defaultFilter));
+        $(".menul-files").fileInput("clearFiles");
+    },
+    multiple: true,
+    accept: features.allowMimes.join(",")
 });
+
+if (false && window.DEBUGGING) {
+    const id3v1String = function(value) {
+        var ret = new Uint8Array(30);
+        for (var i = 0; i < value.length; ++i) {
+            ret[i] = value.charCodeAt(i);
+        }
+        return ret;
+    };
+
+    var files = new Array(30);
+    var dummy = new Uint8Array(256 * 1024);
+    var sync = new Uint8Array(4);
+    sync[0] = 0xFF;
+    sync[1] = 0xFB;
+    sync[2] = 0xB4;
+    sync[3] = 0x00;
+    for (var i = 0; i < dummy.length; i += 4) {
+        dummy[i] = sync[0];
+        dummy[i + 1] = sync[1];
+        dummy[i + 2] = sync[2];
+        dummy[i + 3] = sync[3];
+    }
+    for (var i = 0; i < files.length; ++i) {
+        var tag = new Uint8Array(3);
+        tag[0] = 84;
+        tag[1] = 65;
+        tag[2] = 71;
+        var title = id3v1String("Track " + i);
+        var artist = id3v1String("Artist");
+        var album = id3v1String("Album");
+        var year = new Uint8Array(4);
+        var comment = id3v1String("Comment");
+        var genre = new Uint8Array(1);
+
+        var parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
+
+
+        files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
+    }
+    setTimeout(function() {
+        addFilesToPlaylist(files);
+    }, 10)
+}
 
 
 $(document)
@@ -580,7 +577,7 @@ $(document)
         }
     });
 
-Promise.join(documentReady, requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
+Promise.join(cssLoaded(Promise), requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
 
 GlobalUi.setHotkeyManager(hotkeyManager);
 
@@ -1058,3 +1055,5 @@ if (touch) {
         GlobalUi.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
     }));
 }
+
+});

@@ -107,4 +107,8 @@ KeyValueDatabase.prototype.getAll = function(_tries) {
     });
 };
 
-module.exports = new KeyValueDatabase();
+try {
+    module.exports = new KeyValueDatabase();
+} catch (e) {
+    module.exports = null;
+}

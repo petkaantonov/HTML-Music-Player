@@ -8,20 +8,41 @@ var Promise = require("bluebird");
 Promise.longStackTraces();
 var cp = require("child_process");
 Promise.promisifyAll(cp);
+
+var criticalCssResolve;
+var criticalCss = new Promise(function(resolve) {
+    criticalCssResolve = resolve;
+});
+var css = cp.execAsync("rm -rf dist/css/min").reflect().then(function() {
+    return cp.execAsync("mkdir -p dist/css/min");
+}).then(function() {
+    return cp.execAsync("node_modules/.bin/node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/");
+}).then(function() {
+    return cp.execAsync("mv dist/css/min/app-css-public.css dist/css/app-css-public.min.css");
+}).then(function() {
+    return Promise.map(["tags", "loader", "toolbar"], function(v) {
+        var path = "dist/css/min/" + v + ".css";
+        return fs.readFileAsync(path, "utf8");
+    });
+}).reduce(function(a, b) {
+    return a + b;
+}
+, "").then(function(criticalCss) {
+    return cp.execAsync("rm -rf dist/css/min").return(criticalCss);
+}).then(function(criticalCss) {
+    criticalCss = '<style type="text/css">' + criticalCss + '</style>';
+    return fs.readFileAsync("index_base.html", "utf8").then(function(contents) {
+        contents = contents.replace("$critical_css", criticalCss);
+        return fs.writeFileAsync("index.html", contents, "utf8");
+    });
+});
+
 var browserified = Promise.all(
     [cp.execAsync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js"),
     cp.execAsync("browserify worker/TrackAnalyzer.js --standalone TrackAnalyzer > worker/TrackAnalyzerWorker.js"),
     cp.execAsync("browserify js/application.js --standalone Application > dist/main.js"),
-    cp.execAsync("rm -rf dist/css/min").reflect().then(function() {
-        return cp.execAsync("mkdir -p dist/css/min");
-    }).then(function() {
-        return cp.execAsync("node_modules/.bin/node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/");
-    }).then(function() {
-        return cp.execAsync("mv dist/css/min/app-css-public.css dist/css/app-css-public.min.css");
-    }).then(function() {
-        return cp.execAsync("rm -rf dist/css/min");
-    })]);
-
+    css
+]);
 
 var assetsGenerated = browserified.then(function() {
     var assets = ["dist/css/app-css-public.min.css"]
