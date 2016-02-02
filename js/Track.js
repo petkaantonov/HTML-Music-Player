@@ -260,10 +260,6 @@ Track.prototype.detach = function() {
     }
 };
 
-Track.prototype.isAttachedToDom = function() {
-    return this._isAttached;
-};
-
 Track.prototype.getImage = Promise.method(function() {
     var image;
     if (this.tagData) {
