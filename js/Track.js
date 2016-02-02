@@ -61,11 +61,11 @@ Track.prototype._ensureDomNode = function() {
         <div class='track-duration'></div>                                                            \
         <div class='track-availability'>                                                              \
             <div class='track-availability-item offline'>                                             \
-                <i class='material-icons icon'>&#xE90A;</i>                                           \
+                <span class='material-icons icon offline_pin'></span>                                 \
                 <div class='text'>Offline</div>                                                       \
             </div>                                                                                    \
             <div class='track-availability-item cloud'>                                               \
-                <i class='material-icons icon'>&#xE2C3;</i>                                           \
+                <span class='material-icons icon cloud_upload'></span>                                \
                 <div class='text'>Sync</div>                                                          \
             </div>                                                                                    \
         </div>                                                                                        \

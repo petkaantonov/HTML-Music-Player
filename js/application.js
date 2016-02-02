@@ -188,19 +188,19 @@ const trackActionsSpec = {
     }, {
         id: "delete",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Delete", "material-icons small-material-icon", "delete"),
+        content: GlobalUi.contextMenuItem("Delete", "material-icons small-material-icon delete"),
         onClick: actions.delete
     }, {
         divider: true,
     }, {
         id: "clear-selection",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon", "crop_square"),
+        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
         onClick: actions.selectNone
     }, {
         id: "select-all",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon", "select_all"),
+        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon select_all"),
         onClick: actions.selectAll
     }, {
         id: "sort",
@@ -208,41 +208,41 @@ const trackActionsSpec = {
         content: GlobalUi.contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
         children: [{
             id: "sort-by-album",
-            content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon", "album"),
+            content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon album"),
             onClick: actions.sortByAlbum
         }, {
             id: "sort-by-artist",
-            content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon", "mic"),
+            content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon mic"),
             onClick: actions.sortByArtist
 
         }, {
             id: "sort-by-album-artist",
-            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon", "perm_camera_mic"),
+            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon perm_camera_mic"),
             onClick: actions.sortByAlbumArtist
 
         }, {
             id: "sort-by-title",
-            content: GlobalUi.contextMenuItem("Title", "material-icons small-material-icon", "music_note"),
+            content: GlobalUi.contextMenuItem("Title", "material-icons small-material-icon music_note"),
             onClick: actions.sortByAlbum
 
         }, {
             id: "sort-by-rating",
-            content: GlobalUi.contextMenuItem("Rating", "material-icons small-material-icon", "grade"),
+            content: GlobalUi.contextMenuItem("Rating", "material-icons small-material-icon grade"),
             onClick: actions.sortByRating
 
         }, {
             id: "sort-by-duration",
-            content: GlobalUi.contextMenuItem("Duration", "material-icons small-material-icon", "access_time"),
+            content: GlobalUi.contextMenuItem("Duration", "material-icons small-material-icon access_time"),
             onClick: actions.sortByDuration
         }, {
             divider: true
         }, {
             id: "sort-by-shuffling",
-            content: GlobalUi.contextMenuItem("Shuffle", "material-icons small-material-icon", "shuffle"),
+            content: GlobalUi.contextMenuItem("Shuffle", "material-icons small-material-icon shuffle"),
             onClick: actions.sortByShuffling
         }, {
             id: "sort-by-reverse-order",
-            content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon", "undo"),
+            content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon undo"),
             onClick: actions.sortByReverseOrder
         }]
     }, {

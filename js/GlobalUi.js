@@ -14,11 +14,9 @@ const domUtil = require("./DomUtil");
 
 const GlobalUi = module.exports;
 
-GlobalUi.contextMenuItem = function(text, icon, iconText) {
-    if (!iconText) iconText = "";
-
+GlobalUi.contextMenuItem = function(text, icon) {
     if (icon) {
-        icon = '<div class="icon-container"><span class="icon '+ icon + '">' + iconText + '</span></div>';
+        icon = '<div class="icon-container"><span class="icon '+ icon + '"></span></div>';
     } else {
         icon = '<div class="icon-container"></div>';
     }
