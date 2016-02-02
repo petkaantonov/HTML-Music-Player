@@ -16,7 +16,7 @@ const PROGRESS_INCREASE = 1;
 const PROGRESS_DECREASE = 2;
 
 const DEFAULT_CURVE = "sCurve";
-const MIN_TIME = 0;
+const MIN_TIME = 1;
 const MAX_TIME = 12;
 const DEFAULT_TIME = 5;
 
@@ -351,12 +351,12 @@ FadeConfigurator.prototype.enabledChanged = function(e) {
 };
 
 FadeConfigurator.prototype.slided = function(p) {
-    this.setTime(p * MAX_TIME);
+    this.setTime((p * (MAX_TIME - MIN_TIME) + MIN_TIME));
 };
 
 FadeConfigurator.prototype.update = function() {
     var time = this.getTime();
-    var timePercentage = time / MAX_TIME;
+    var timePercentage = (time - MIN_TIME) / (MAX_TIME - MIN_TIME);
     this.$().find(".normal-fade-value").text(time.toPrecision(2) + "s");
     this.$().find(".app-general-slider-knob").css("left", timePercentage * 105 -5);
     this.$().find(".app-general-slider-bg").css("width", (timePercentage * 100) + "%");
