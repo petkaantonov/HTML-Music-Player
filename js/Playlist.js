@@ -81,7 +81,7 @@ function Playlist(domNode, opts) {
         zooming: false,
         paging: false,
         minPrerenderedItems: 15,
-        maxPrerenderedItems: 100,
+        maxPrerenderedItems: 50,
         contentContainer: this.$trackContainer(),
         scrollbar: this.$().find(".scrollbar-container"),
         railSelector: ".scrollbar-rail",
