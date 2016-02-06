@@ -183,7 +183,9 @@ ActionMenuItem.prototype.itemClicked = function(e) {
     }
     if (this.children) {
         this._clearDelayTimer();
-        this.showContainer();
+        if (!this.isShown()) {
+            this.showContainer();
+        }
     } else {
         var prevented = false;
         try {
@@ -371,7 +373,7 @@ ActionMenuItem.prototype.positionSubMenu = function() {
     
     preferredDirection = this.getVerticalDirection();
     positionResult =
-        this.positionInDimension(preferredDirection, itemBox.top, itemBox.bottom, containerBox.height, yMax);
+        this.positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
     top = positionResult.coordStart;
     this._preferredVerticalDirection = positionResult.preferredDirection;
 
