@@ -95,7 +95,7 @@ FixedItemListScroller.prototype._renderItems = function(now, forced) {
 
     for (var i = start; i <= end; ++i) {
         var item = items[i];
-        if (!item.isAttachedToDom()) {
+        if (!item.isVisible()) {
             item.attach(container);
         }
         displayedItems[i - start] = item;
