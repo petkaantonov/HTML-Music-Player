@@ -277,6 +277,20 @@ Track.prototype.getImage = Promise.method(function() {
             result.tag = this.getUid();
         });
     }
+
+    if (image.promise) {
+        var self = this;
+        return image.promise.then(function() {
+            return image;
+        }).catch(function(e) {
+            image.src = null;
+            return PlayerPictureManager.generateImageForTrack(self).tap(function(result) {
+                self._generatedImage = result;
+                result.tag = self.getUid();
+                return self._generatedImage;
+            });
+        });
+    }
     return image;
 });
 

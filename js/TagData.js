@@ -175,6 +175,13 @@ TagData.prototype.maybeCoverArtImage = function() {
         var ret = new Image();
         ret.src = mapped;
         ret.tag = this.albumNameKey();
+        ret.promise = new Promise(function(resolve, reject) {
+            ret.addEventListener("load", resolve, false);
+            ret.addEventListener("reject", function() {
+                albumNameToCoverArtUrlMap[ret.tag] = null;
+                reject(new Error("invalid image"));
+            }, false);
+        });
         return ret;
     }
     return null;
@@ -191,6 +198,9 @@ const clearPicture = function(picture) {
         picture.blob.close();
     }
     
+    if (picture.image) {
+        picture.image.src = null;
+    }
     picture.blobUrl = picture.blob = picture.image = null;
 };
 
@@ -392,10 +402,8 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
                             this.endSilenceLength ||
                             0;
     this.acoustId = data.acoustId || this.acoustId|| null;
-    if (this.acoustId) this.updateFieldsFromAcoustId(this.acoustId);
-    if (data.coverArt && !this.pictures.length) {
-        albumNameToCoverArtUrlMap[this.albumNameKey()] = data.coverArt.url;
-        this._coverArtImageState = HAS_IMAGE;
+    if (this.acoustId) {
+        this.updateFieldsFromAcoustId(this.acoustId);
     }
     this.trackGain = data.trackGain;
     this.trackPeak = data.trackPeak || 1;
