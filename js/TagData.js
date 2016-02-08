@@ -65,6 +65,13 @@ function TagData(track, data) {
     this.endSilenceLength = 0;
 }
 
+TagData.prototype.playerMetadata = function() {
+    return {
+        encoderDelay: this.encoderDelay,
+        encoderPadding: this.encoderPadding
+    };
+};
+
 TagData.prototype.formatTime = function() {
     if (this._formattedTime !== null) return this._formattedTime;
     if (!this.basicInfo.duration) {

@@ -682,4 +682,11 @@ Track.prototype.getFormat = function(initialBytes) {
     }
 };
 
+Track.prototype.playerMetadata = function() {
+    if (!this.tagData) {
+        return null;
+    }
+    return this.tagData.playerMetadata();
+};
+
 module.exports = Track;

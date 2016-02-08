@@ -409,7 +409,7 @@ AudioPlayer.prototype._errored = function(e) {
     this.passError(e.message, e.stack, e.name);
 };
 
-AudioPlayer.prototype.gotCodec = function(codec, requestId) {
+AudioPlayer.prototype.gotCodec = function(codec, requestId, playerMetadata) {
     var that = this;
     return Promise.try(function() {
         if (that.destroyed) return;
@@ -419,6 +419,17 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId) {
                 that.sendMessage("_error", {message: "Invalid " + codec.name + " file"});
                 return;
             }
+
+            if (playerMetadata) {
+                if (playerMetadata.encoderDelay !== -1) {
+                    metadata.encoderDelay = playerMetadata.encoderDelay;
+                }
+
+                if (playerMetadata.encoderPadding !== -1) {
+                    metadata.encoderPadding = playerMetadata.encoderPadding;
+                }
+            }
+
             that.metadata = metadata;
             that.decoderContext = allocDecoderContext(codec.name, codec.Context, {
                 seekable: true,
@@ -480,7 +491,7 @@ AudioPlayer.prototype.loadBlob = function(args) {
             that.codecName = codecName;
             return codec.getCodec(codecName).then(function(codec) {
                 that.blob = blob;
-                return that.gotCodec(codec, args.requestId);
+                return that.gotCodec(codec, args.requestId, args.metadata);
             }).catch(function(e) {
                 that.fileView = that.blob = null;
                 that.sendMessage("_error", {message: "Unable to load codec: " + e.message});

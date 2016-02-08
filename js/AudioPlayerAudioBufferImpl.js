@@ -1116,10 +1116,10 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
     this._fillBuffers();
 };
 
-AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaplessPreload) {
+AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaplessPreload, metadata) {
     if (this._destroyed) return;
     if (!this._haveBlob) {
-        return this.load(blob, seekTime);
+        return this.load(blob, seekTime, metadata);
     }
 
     if (this.hasGaplessPreload() && gaplessPreload) {
@@ -1152,30 +1152,31 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
         requestId: requestId,
         seekTime: seekTime,
         count: getPreloadBufferCount(),
-        gaplessPreload: !!gaplessPreload
+        gaplessPreload: !!gaplessPreload,
+        metadata: metadata
     }, this._getBuffersForTransferList(getPreloadBufferCount()));
 };
 
-AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime, gaplessPreload) {
-    this._actualReplace(blob, seekTime, gaplessPreload);
+AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime, gaplessPreload, metadata) {
+    this._actualReplace(blob, seekTime, gaplessPreload, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
 // Seamless replacement of current track with the next.
-AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreload) {
+AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreload, metadata) {
     if (this._destroyed) return;
     if (seekTime === undefined) seekTime = 0;
     this._loadingNext = true;
     this._nullifyPendingRequests();
     var now = Date.now();
     if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-        this._actualReplace(blob, seekTime, gaplessPreload);
+        this._actualReplace(blob, seekTime, gaplessPreload, metadata);
     } else {
-        this._replaceThrottled(blob, seekTime, gaplessPreload);
+        this._replaceThrottled(blob, seekTime, gaplessPreload, metadata);
     }
     this._lastExpensiveCall = now;
 };
 
-AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime) {
+AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime, metadata) {
     if (this._destroyed) return;
     if (seekTime === undefined) {
         seekTime = 0;
@@ -1186,15 +1187,16 @@ AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime) {
     var fillRequestId = ++this._replacementRequestId;
     this._player._message(this._id, "loadBlob", {
         blob: blob,
-        requestId: fillRequestId
+        requestId: fillRequestId,
+        metadata: metadata
     });
 };
 
-AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, seekTime) {
-    this._actualLoad(blob, seekTime);
+AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, seekTime, metadata) {
+    this._actualLoad(blob, seekTime, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
-AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
+AudioPlayerSourceNode.prototype.load = function(blob, seekTime, metadata) {
     if (this._destroyed) return;
     if (seekTime === undefined) seekTime = 0;
     if (!(blob instanceof Blob) && !(blob instanceof File)) {
@@ -1204,9 +1206,9 @@ AudioPlayerSourceNode.prototype.load = function(blob, seekTime) {
     var now = Date.now();
     this._loadingNext = true;
     if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-        this._actualLoad(blob, seekTime);
+        this._actualLoad(blob, seekTime, metadata);
     } else {
-        this._loadThrottled(blob, seekTime);
+        this._loadThrottled(blob, seekTime, metadata);
     }
     this._lastExpensiveCall = now;
 };

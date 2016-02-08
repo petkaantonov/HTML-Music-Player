@@ -276,7 +276,9 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
         var matches = riTunesGapless.exec(value.trim());
         if (matches) {
             data.encoderDelay = parseInt(matches[1], 16);
+            data.encoderDelay = Math.min(65536, Math.max(0, data.encoderDelay));
             data.encoderPadding = parseInt(matches[2], 16);
+            data.encoderPadding = Math.min(65536, Math.max(0, data.encoderPadding));
         }
     }
 };
