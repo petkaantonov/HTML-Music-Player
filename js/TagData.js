@@ -18,42 +18,44 @@ var tagDatasRetainingBlobUrls = [];
 const albumNameToCoverArtUrlMap = Object.create(null);
 
 
-function TagData(track, title, artist, basicInfo, album,
-                 albumIndex, albumArtist, discNumber, embeddedImageOffsets) {
+function TagData(track, data) {
     this.track = track;
-    
-    this.title = title || null;
-    if (this.title) this.title = util.formatTagString(this.title);
-    
-    this.artist = artist || null;
-    if (this.artist) this.artist = util.formatTagString(this.artist);
 
-    this.album = album || null;
-    if (this.album) this.album = util.formatTagString(this.album);
+    this.title = data.title || null;
+    this.artist = data.artist || null;
+    this.album = data.album || null;
+    this.taggedArtist = this.artist;
+    this.taggedTitle = this.title;
+    this.taggedAlbum = this.album;
+    this.albumArtist = data.albumArtist || (data.compilationFlag ? "Various Artists" : null);
 
-    this.albumArtist = albumArtist || null;
-    if (this.albumArtist) this.albumArtist = util.formatTagString(this.albumArtist);
-
-    this.basicInfo = basicInfo || {
-        duration: NaN,
-        sampleRate: 44100,
-        channels: 2
-    };
+    this.basicInfo = data.basicInfo;
     this.basicInfo.channels = this.basicInfo.channels || 2;
     this.basicInfo.sampleRate = this.basicInfo.sampleRate || 44100;
     this.basicInfo.channels = Math.min(Math.max(1, this.basicInfo.channels));
 
-    this.albumIndex = albumIndex || -1;
-    this.discNumber = discNumber || -1;
+    this.year = data.year || -1;
+    this.genres = data.genres || null;
+    this.bpm = data.beatsPerMinute || -1;
+    this.mood = data.mood || null;
+
+    this.encoderDelay = data.encoderDelay || -1;
+    this.encoderPadding = data.encoderPadding || -1;
+
+    this.discNumber = data.discNumber || -1;
+    this.discCount = data.discCount || -1;
+    this.trackNumber = data.trackNumber || -1;
+    this.trackCount = data.trackCount || -1;
+
     this.trackGain = 0;
     this.albumGain = 0;
     this.trackPeak = 1;
     this.albumPeak = 1;
     this.rating = -1;
     this.acoustId = null;
-    
+
     // Image embedded in the audio file.
-    this._embeddedImageOffsets = embeddedImageOffsets;
+    this._embeddedImage = data.pictures && data.pictures[0];
     this._embeddedImageUrl = null;
     this._embeddedImageBlob = null;
 
@@ -65,10 +67,6 @@ function TagData(track, title, artist, basicInfo, album,
 
     this.beginSilenceLength = 0;
     this.endSilenceLength = 0;
-
-    this.taggedArtist = this.artist;
-    this.taggedTitle = this.title;
-    this.taggedAlbum = this.album;
 }
 
 TagData.prototype.formatTime = function() {
@@ -191,11 +189,11 @@ TagData.prototype.getImage = function() {
 
     if (img) return img;
 
-    if (!this._embeddedImageOffsets) return null;
+    if (!this._embeddedImage) return null;
 
-    var blob = this.track.getFile().slice(this._embeddedImageOffsets.start,
-                                          this._embeddedImageOffsets.start + this._embeddedImageOffsets.length,
-                                          this._embeddedImageOffsets.type);
+    var blob = this.track.getFile().slice(this._embeddedImage.start,
+                                          this._embeddedImage.start + this._embeddedImage.length,
+                                          this._embeddedImage.type);
     var url = URL.createObjectURL(blob);
     this._embeddedImageUrl = url;
     this._embeddedImageBlob = blob;
@@ -306,7 +304,7 @@ TagData.prototype.hasAcoustIdImage = function() {
 
 TagData.prototype.shouldRetrieveAcoustIdImage = function() {
     return this.acoustId &&
-           !this._embeddedImageOffsets &&
+           !this._embeddedImage &&
            this._coverArtImageState === INITIAL &&
            !albumNameToCoverArtUrlMap[this.albumNameKey()];
 };
@@ -331,7 +329,7 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
                             0;
     this.acoustId = data.acoustId || this.acoustId|| null;
     if (this.acoustId) this.updateFieldsFromAcoustId(this.acoustId);
-    if (data.coverArt && !this._embeddedImageOffsets) {
+    if (data.coverArt && !this._embeddedImage) {
         albumNameToCoverArtUrlMap[this.albumNameKey()] = data.coverArt.url;
         this._coverArtImageState = HAS_IMAGE;
     }

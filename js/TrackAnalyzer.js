@@ -5,22 +5,25 @@ const util = require("./util");
 const TrackWasRemovedError = require("./TrackWasRemovedError");
 const Track = require("./Track");
 const AudioError = require("./AudioError");
+const TagData = require("./TagData");
 
 var instances = false;
 function TrackAnalyzer(playlist) {
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     instances = true;
     this._worker = new Worker("worker/TrackAnalyzerWorker.js");
-    this._jobs = [];
+    this._analyzerJobs = [];
     this._nextJobId = 0;
     this._queue = [];
     this._longQueue = [];
     this._currentlyAnalysing = false;
     this._playlist = playlist;
+    this._metadataParsingTracks = {};
 
     this._worker.addEventListener("message", this._messaged.bind(this), false);
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
     this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
+    this._playlist.on("unparsedTracksAvailable", this.unparsedTracksAvailable.bind(this));
     this.trackDestroyed = this.trackDestroyed.bind(this);
     this.abortJobForTrack = this.abortJobForTrack.bind(this);
 
@@ -35,6 +38,27 @@ function TrackAnalyzer(playlist) {
         self.ready = null;
     });
 }
+
+TrackAnalyzer.prototype.unparsedTracksAvailable = function() {
+    var tracks = this._playlist.getUnparsedTracks();
+    for (var i = 0; i < tracks.length; ++i) {
+        var track = tracks[i];
+
+        if (!track.isDetachedFromPlaylist() && !track.hasError()) {
+            if (track.tagData) {
+                // ??
+            } else {
+                this.parseMetadata(track);
+            }
+        }
+    }
+};
+
+TrackAnalyzer.prototype.trackMetadataParsed = function(track, data) {
+    if (!track.isDetachedFromPlaylist()) {
+        track.setTagData(new TagData(track, data));
+    }
+};
 
 TrackAnalyzer.prototype.trackDestroyed = function(track) {
     for (var i = 0; i < this._queue.length; ++i) {
@@ -64,12 +88,19 @@ TrackAnalyzer.prototype._createDecoder = function(channels, sampleRate) {
     return new OfflineAudioContext(channels, 1024, sampleRate);
 };
 
+var retrieveAcoustIdImage = util.throttle(function(track) {
+    if (track && track.shouldRetrieveAcoustIdImage()) {
+        track.fetchAcoustIdImage();
+    }
+}, 100);
 TrackAnalyzer.prototype.currentTrackChanged = function(track) {
     this.prioritize(track);
+    retrieveAcoustIdImage(track);
 };
 
 TrackAnalyzer.prototype.nextTrackChanged = function(track) {
     this.prioritize(track);
+    retrieveAcoustIdImage(track);
 };
 
 TrackAnalyzer.prototype.prioritize = function(track) {
@@ -91,48 +122,88 @@ TrackAnalyzer.prototype.prioritize = function(track) {
 
 TrackAnalyzer.prototype._messaged = function(event) {
     var id = event.data.id;
-    for (var i = 0; i < this._jobs.length; ++i) {
-        if (this._jobs[i].id === id) {
-            var job = this._jobs[i];
+    if (event.data.jobType === "metadata") {
+        var info = this._metadataParsingTracks[id];
+        if (info) {
+            var track = info.track;
+            track.removeListener("destroy", info.destroyHandler);
+            delete this._metadataParsingTracks[id];
+            var result = event.data.type === "error" ? null : event.data.result;
+            this.trackMetadataParsed(track, result);
+        }
+    } else if (event.data.jobType === "analyze") {
+        for (var i = 0; i < this._analyzerJobs.length; ++i) {
+            if (this._analyzerJobs[i].id === id) {
+                var job = this._analyzerJobs[i];
 
-            switch (event.data.type) {
-                case "estimate":
-                    job.track.analysisEstimate(event.data.value);
-                break;
+                switch (event.data.type) {
+                    case "estimate":
+                        job.track.analysisEstimate(event.data.value);
+                    break;
 
-                case "error":
-                    this._jobs.splice(i, 1);
-                    var e = new Error(event.data.error.message);
-                    e.stack = event.data.error.stack;
-                    job.reject(e);
-                break;
+                    case "error":
+                        this._analyzerJobs.splice(i, 1);
+                        var e = new Error(event.data.error.message);
+                        e.stack = event.data.error.stack;
+                        job.reject(e);
+                    break;
 
-                case "abort":
-                    this._jobs.splice(i, 1);
-                    job.reject(new TrackWasRemovedError());
-                break;
+                    case "abort":
+                        this._analyzerJobs.splice(i, 1);
+                        job.reject(new TrackWasRemovedError());
+                    break;
 
-                case "success":
-                    job.resolve(event.data.result);
-                    this._jobs.splice(i, 1);
-                break;
+                    case "success":
+                        job.resolve(event.data.result);
+                        this._analyzerJobs.splice(i, 1);
+                    break;
+                }
+                return;
             }
-            return;
         }
     }
 };
 
 TrackAnalyzer.prototype.abortJobForTrack = function(track) {
-    for (var i = 0; i < this._jobs.length; ++i) {
-        if (this._jobs[i].track === track) {
+    for (var i = 0; i < this._analyzerJobs.length; ++i) {
+        if (this._analyzerJobs[i].track === track) {
             this._worker.postMessage({
                 action: "abort",
                 args: {
-                    id: this._jobs[i].id
+                    id: this._analyzerJobs[i].id
                 }
             });
         }
     }
+};
+
+TrackAnalyzer.prototype.parseMetadata = function(track) {
+    var self = this;
+
+    if (this.ready && !this.ready.isResolved()) {
+        this.ready = this.ready.then(function() {
+            if (!track.isDetachedFromPlaylist()) {
+                self.parseMetadata(track);
+            }
+        });
+        return;
+    }
+
+    var id = ++self._nextJobId;
+    self._metadataParsingTracks[id] = {
+        track: track,
+        destroyHandler: function() {
+            delete self._metadataParsingTracks[id];
+        }
+    };
+    track.once("destroy", self._metadataParsingTracks[id].destroyHandler);
+    self._worker.postMessage({
+        action: "parseMetadata",
+        args: {
+            id: id,
+            file: track.getFile()
+        }
+    });
 };
 
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
@@ -149,7 +220,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         track.once("destroy", this.trackDestroyed);
         return new Promise(function(resolve, reject) {
             self._queue.push({
-               track: track,
+                track: track,
                 opts: opts,
                 resolve: resolve,
                 reject: reject
@@ -166,7 +237,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
             throw new TrackWasRemovedError();
         }
 
-        this._jobs.push({
+        this._analyzerJobs.push({
             id: id,
             track: track,
             resolve: resolve,

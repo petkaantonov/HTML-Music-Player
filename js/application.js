@@ -17,12 +17,6 @@ const $ = window.$;
 
 window.__PROJECT__TITLE = "Soita";
 
-const startApp = function() {
-    $("#app-loader").remove();
-    $("#app-container").show();
-    $(window).trigger("resize");
-};
-
 const features = require("./features");
 const keyValueDatabase = require("./KeyValueDatabase");
 
@@ -75,7 +69,10 @@ if (keyValueDatabase) {
     databaseInitialValuesLoaded = keyValueDatabase.getInitialValues();
 }
 
-$(function() {
+Promise.join(cssLoaded(Promise), requiredFeaturesChecked, databaseInitialValuesLoaded, function() {
+$("#app-loader").remove();
+$("#app-container").show();
+
 const util = require("./util");
 const serviceWorkerManager = require("./ServiceWorkerManager");
 const hotkeyManager = require("./HotkeyManager");
@@ -92,7 +89,6 @@ const PlaylistNotifications = require("./PlaylistNotifications");
 const VisualizerCanvas = require("./VisualizerCanvas");
 const TrackAnalyzer = require("./TrackAnalyzer");
 const LocalFiles = require("./LocalFiles");
-const ID3Process = require("./ID3Process");
 const GlobalUi = require("./GlobalUi");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
@@ -415,7 +411,6 @@ player.main.on("stop", function() {
 
 const trackAnalyzer = new TrackAnalyzer(playlist.main);
 LocalFiles.setup(features.allowMimes, features.allowExtensions);
-new ID3Process(playlist.main, player.main, trackAnalyzer);
 
 function addFilesToPlaylist(files) {
     playlist.main.add(files.map(function(file) {
@@ -576,8 +571,6 @@ $(document)
             e.preventDefault();
         }
     });
-
-Promise.join(cssLoaded(Promise), requiredFeaturesChecked, databaseInitialValuesLoaded, startApp).catch(function(e){});
 
 GlobalUi.setHotkeyManager(hotkeyManager);
 
@@ -1056,4 +1049,5 @@ if (touch) {
     }));
 }
 
-});
+$(window).trigger("resize");
+}).catch(function(e) {});

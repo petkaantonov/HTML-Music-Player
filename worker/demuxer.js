@@ -105,14 +105,17 @@ function demuxMp3FromWav(offset, fileView) {
     return null;
 }
 
-function demuxMp3(fileView) {
+function demuxMp3(fileView, noSeekTable, maxSize) {
     var offset = 0;
     var dataStart = 0;
     var dataEnd = fileView.file.size;
     var samplesPerFrame = 1152;
+    if (maxSize === undefined) {
+        maxSize = LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP;
+    }
 
-    return fileView.readBlockOfSizeAt(131072, 0).then(function() {
-        if (fileView.end < 131072) return null;
+    return fileView.readBlockOfSizeAt(65536, 0).then(function() {
+        if (fileView.end < 65536) return null;
         if ((fileView.getUint32(0, false) >>> 8) === ID3) {
             var footer = ((fileView.getUint8(5) >> 4) & 1) * 10;
             var size = (fileView.getUint8(6) << 21) | 
@@ -129,7 +132,7 @@ function demuxMp3(fileView) {
                 return demuxMp3FromWav(dataStart, fileView);
             }
 
-            var max = Math.min(dataEnd, LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP);
+            var max = Math.min(dataEnd, maxSize);
             var metadata = null;
             var headersFound = 0;
 
@@ -317,7 +320,7 @@ function demuxMp3(fileView) {
                     }                    
                 }
 
-                localOffset += Math.max(0, (i - localMax));
+                localOffset += i;
                 offset = localOffset;
                 return fileView.readBlockOfSizeAt(BLOCK_SIZE, localOffset, 4).then(loop);
             }).then(function() {
@@ -330,11 +333,11 @@ function demuxMp3(fileView) {
                     if (!metadata.vbr) {
                         metadata.duration = (size * 8) / metadata.bitRate;
                         metadata.frames = ((metadata.sampleRate * metadata.duration) / metadata.samplesPerFrame) | 0;
-                    } else {
+                    } else if (!noSeekTable) {
                         // VBR without Xing or VBRI header = need to scan the entire file.
                         // What kind of sadist encoder does this?
                         metadata.seekTable = new Mp3SeekTable();
-                        metadata.seekTable.fillUntil(2592000, metadata, fileView);
+                        metadata.seekTable.fillUntil(30 * 60, metadata, fileView);
                         metadata.frames = metadata.seekTable.frames;
                         metadata.duration = (metadata.frames * metadata.samplesPerFrame) / metadata.sampleRate;
                     }
@@ -350,10 +353,10 @@ function demuxMp3(fileView) {
     });
 }
 
-module.exports = function(codecName, fileView) {
+module.exports = function(codecName, fileView, noSeekTable, maxSize) {
     try {
         if (codecName === "mp3") {
-            return demuxMp3(fileView);
+            return demuxMp3(fileView, noSeekTable, maxSize);
         }
     } catch (e) {
         throw e;

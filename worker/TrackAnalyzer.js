@@ -11,6 +11,7 @@ Promise.config({
 const blobPatch = require("../lib/blobpatch");
 blobPatch();
 
+const MetadataParser = require("./MetadataParser");
 const Resampler = require("./Resampler");
 const ChannelMixer = require("./ChannelMixer");
 const FileView = require("./FileView");
@@ -40,6 +41,28 @@ var queue = [];
 var processing = false;
 var shouldAbort = false;
 var currentJobId = -1;
+
+
+function doParseMetadata(args) {
+    MetadataParser.parse(args).then(function(result) {
+        postMessage({
+            id: args.id,
+            result: result,
+            jobType: "metadata",
+            type: "success"
+        });
+    }).catch(function(e) {
+        postMessage({
+            id: args.id,
+            type: "error",
+            jobType: "metadata",
+            error: {
+                message: e.message,
+                stack: e.stack
+            }
+        });
+    });
+}
 
 function delay(value, ms) {
     return new Promise(function(resolve) {
@@ -97,6 +120,24 @@ function nextJob() {
                 reportError(id, new Error("file type not supported"));
                 return;
             }
+
+            var result = {
+                loudness: null,
+                fingerprint: null,
+                duration: metadata.duration
+            };
+
+            var tooLongToScan = false;
+            if (metadata.duration) {
+                tooLongToScan = metadata.duration > 30 * 60;
+            } else {
+                tooLongToScan = file.size > 100 * 1024 * 1024;
+            }
+
+            if (tooLongToScan) {
+                return reportSuccess(id, result);
+            }
+
             codecName = codec.name;
             decoder = allocDecoderContext(codec.name, codec.Context, {
                 seekable: false,
@@ -202,12 +243,6 @@ function nextJob() {
                     return;
                 }
 
-                var result = {
-                    loudness: null,
-                    fingerprint: null,
-                    duration: metadata.duration
-                };
-
                 if (fingerprintSource && fingerprintBufferLength > 0) {
                     var fpcalc = new AcoustId(fingerprintSource[0], fingerprintBufferLength);
                     result.fingerprint = {
@@ -257,7 +292,8 @@ function nextJob() {
 function reportAbort(id) {
     self.postMessage({
         id: id,
-        type: "abort"
+        type: "abort",
+        jobType: "analyze"
     });
 }
 
@@ -265,7 +301,8 @@ function reportEstimate(id, value) {
     self.postMessage({
         id: id,
         type: "estimate",
-        value: value
+        value: value,
+        jobType: "analyze"
     });
 }
 
@@ -273,6 +310,7 @@ function reportError(id, e) {
     self.postMessage({
         id: id,
         type: "error",
+        jobType: "analyze",
         error: {
             message: e.message,
             stack: e.stack
@@ -284,6 +322,7 @@ function reportSuccess(id, result) {
     self.postMessage({
         id: id,
         type: "success",
+        jobType: "analyze",
         result: result
     });
 }
@@ -296,6 +335,8 @@ self.onmessage = function(event) {
         if (!processing) nextJob();
     } else if (data.action === "abort") {
         doAbort(data.args);
+    } else if (data.action === "parseMetadata") {
+        doParseMetadata(data.args);
     }
 };
 

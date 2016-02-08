@@ -408,13 +408,13 @@ Playlist.prototype.getTracks = function() {
     return this._trackList;
 };
 
-Playlist.prototype.getUnparsedTracks = function(maxCount) {
-    if (!this._unparsedTrackList.length) return EMPTY_ARRAY;
-    var count = Math.min(this._unparsedTrackList.length, maxCount);
-    var ret = new Array(count);
+Playlist.prototype.getUnparsedTracks = function() {
+    var tracks = this._unparsedTrackList;
+    if (!tracks.length) return EMPTY_ARRAY;
+    var ret = new Array(tracks.length);
     ret.length = 0;
-    for (var i = 0; i < count; ++i) {
-        var track = this._unparsedTrackList.shift();
+    while (tracks.length > 0) {
+        var track = tracks.shift();
         if (!track.isDetachedFromPlaylist() && track.needsParsing()) {
             ret.push(track);
         }
@@ -517,6 +517,7 @@ Playlist.prototype._restoreStateForUndo = function() {
         var mid = selectionIndices[selectionIndices.length / 2 | 0];
         this.centerOnTrack(this._trackList[mid]);
     }
+    this.emit("unparsedTracksAvailable");
 };
 
 Playlist.prototype.removeTracks = function(tracks) {
@@ -609,6 +610,7 @@ Playlist.prototype.add = function(tracks) {
     this.emit("lengthChange", this.length, oldLength);
     this._updateNextTrack();
     this._listContentsChanged();
+    this.emit("unparsedTracksAvailable");
 };
 
 Playlist.prototype.stop = function() {
@@ -687,6 +689,7 @@ Playlist.prototype.trackPlayedSuccessfully = function() {
     if (currentTrack && currentTrack.hasError()) {
         currentTrack.unsetError();
         this._unparsedTrackList.push(currentTrack);
+        this.emit("unparsedTracksAvailable");
     }
     this._errorCount = 0;
 };

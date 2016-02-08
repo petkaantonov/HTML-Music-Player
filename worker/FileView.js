@@ -65,6 +65,27 @@ FileView.prototype.block = function() {
     return this.buffer;
 };
 
+FileView.prototype.modifyBlock = function(callback) {
+    if (!this.buffer) throw new Error("no block available");
+    var length = this.buffer.length;
+    var result = callback(this.buffer);
+    var change = result.length - length;
+    var start = this.start;
+    var end = this.end;
+    
+    start += change;
+    end += change;
+
+    start = Math.max(0, Math.min(this.file.size, start));
+    end = Math.max(0, Math.min(this.file.size, end));
+    end = Math.max(start, end);
+
+    this.start = start;
+    this.end = end;
+    this.buffer = new Uint8Array(result);
+    this.dataview = new DataView(result);
+};
+
 FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
     if (this._readInProgress) {
         return Promise.reject(new Error("invalid parallel read"));
