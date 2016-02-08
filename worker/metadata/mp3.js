@@ -1,6 +1,7 @@
 "use strict";
 
 const util = require("../../js/util");
+const jsmd5 = require("../../lib/jsmd5");
 const demux = require("../demuxer");
 const ID3 = 0x494433|0;
 const TAG = 0x544147|0;
@@ -182,9 +183,9 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         type = "image/" + decoder.decode(new Uint8Array(buffer.buffer, offset - start, 3));
         offset += 3;
     } else {
-        var length = distanceUntilNull(offset - start, buffer, size - (offset - originalOffset), nullLength);        
+        var length = distanceUntilNull(offset - start, buffer, size - (offset - originalOffset), 1);        
         var typeString = decoder.decode(new Uint8Array(buffer.buffer, offset - start, length)).toLowerCase();
-        offset += (length + nullLength);
+        offset += (length + 1);
 
         if (typeString.indexOf("/") === -1) {
             if (/jpg|jpeg|png/.test(typeString)) {
@@ -213,11 +214,36 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         data.pictures = pictures;
     }
 
+    var data;
+    if (flags.hasBeenUnsynchronized) {
+        data = new Uint8Array(dataLength);
+        var actualLength = 0;
+        for (var j = 0; j < dataLength; ++j) {
+            var i = offset - fileView.start + j;
+            var value = buffer[i];
+            if (value === 0xFF &&
+                ((i + 1) < buffer.length) &&
+                buffer[i + 1] === 0x00) {
+                ++j;
+            }
+            data[actualLength] = value;
+            actualLength++;
+        }
+        if (actualLength !== dataLength) {
+            data = new Uint8Array(data.buffer, offset - fileView.start, actualLength);
+        }
+    } else {
+        data = new Uint8Array(buffer.buffer, offset - fileView.start, dataLength);
+    }
+
+    var tag = jsmd5(data);
+    var dataBlob = new Blob([data], {type: type});
+
     pictures.push({
-        start: start,
-        length: dataLength,
-        type: type,
-        id3version: "2." + version,
+        tag: tag,
+        blob: dataBlob,
+        blobUrl: null,
+        image: null,
         pictureKind: pictureKinds[pictureKind],
         description: description
     });
@@ -251,7 +277,6 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
         if (matches) {
             data.encoderDelay = parseInt(matches[1], 16);
             data.encoderPadding = parseInt(matches[2], 16);
-            console.log(data.encoderDelay, data.encoderPadding);
         }
     }
 };
@@ -303,12 +328,14 @@ const getMainFlags = function(fileView, offset, version) {
     var hasBeenUnsynchronized = util.bit(bits, 7);
     var isExtended = util.bit(bits, 6);
     var isExperimental = util.bit(bits, 5);
+    var hasFooter = util.bit(bits, 4);
 
     return {
         hasBeenUnsynchronized: hasBeenUnsynchronized,
         isExtended: isExtended,
         isExperimental: isExperimental,
-        invalidBits: (bits & 0x1F) !== 0
+        hasFooter: hasFooter,
+        invalidBits: (bits & 0xF) !== 0
     };
 };
 
@@ -335,7 +362,7 @@ const parseId3v2Data = function(data, fileView, offset) {
     if (offset + id3MetadataSize + 10 + 3 > fileView.end) {
         blockRead = fileView.readBlockOfSizeAt(id3MetadataSize + 8192 + 3, offset);
     }
-    
+
     return blockRead.then(function() {
         offset += 10;
 
@@ -343,6 +370,10 @@ const parseId3v2Data = function(data, fileView, offset) {
         var tagShift = version > 2 ? 0 : 8;
         var tagSize = version > 2 ? 4 : 3;
         var headerSize = version > 2 ? 10 : 6;
+
+        if (mainFlags.isExtended) {
+            offset += synchIntAt(fileView, offset);
+        }
 
         while (offset + headerSize < end) {
             var tag = (fileView.getUint32(offset) >>> tagShift)|0;
@@ -362,14 +393,9 @@ const parseId3v2Data = function(data, fileView, offset) {
                 offset += 4;
             }
 
-            var handler = tagMap[tag];
+            flags.hasBeenUnsynchronized = flags.hasBeenUnsynchronized || mainFlags.hasBeenUnsynchronized;
 
-            if (handler) {
-                handler(offset, fileView, flags, version, size, data);
-            }
-
-            if ((flags.hasBeenUnsynchronized || mainFlags.hasBeenUnsynchronized) &&
-                !flags.hasDataLengthIndicator) {
+            if (flags.hasBeenUnsynchronized && !flags.hasDataLengthIndicator) {
                 var buffer = fileView.block();
                 var start = fileView.start;
                 for (var j = 0; j < size; ++j) {
@@ -380,7 +406,17 @@ const parseId3v2Data = function(data, fileView, offset) {
                 }
             }
 
+            var handler = tagMap[tag];
+
+            if (handler) {
+                handler(offset, fileView, flags, version, size, data);
+            }
+
             offset += size;
+        }
+
+        if (mainFlags.hasFooter) {
+            offset += 10;
         }
     
         while (offset + headerSize < fileView.end) {

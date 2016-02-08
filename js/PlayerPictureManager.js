@@ -160,9 +160,17 @@ PlayerPictureManager.prototype._getCurrentAnimationState = function() {
     };
 };
 
+const isSameImage = function(a, b) {
+    if (a.tag !== undefined && b.tag !== undefined) {
+        return a.tag === b.tag;
+    } else {
+        return false;
+    }
+};
+
 PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
-    if (this._currentImage && image.src === this._currentImage.src &&
+    if (this._currentImage && isSameImage(this._currentImage, image) &&
         (!this._awaitingAnimation || this._awaitingAnimation && this._awaitingAnimation.src === image.src)) {
         return;
     }

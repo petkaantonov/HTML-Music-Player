@@ -4,6 +4,8 @@ const Promise = require("../lib/bluebird.js");
 const util = require("./util");
 const tagDatabase = require("./TagDatabase");
 const features = require("./features");
+const blobPatch = require("../lib/blobpatch");
+blobPatch();
 
 const UNKNOWN = "Unknown";
 
@@ -13,10 +15,7 @@ const PENDING_IMAGE = 3;
 const HAS_IMAGE = 4;
 
 var preferAcoustIdData = true;
-var tagDatasRetainingBlobUrls = [];
-
 const albumNameToCoverArtUrlMap = Object.create(null);
-
 
 function TagData(track, data) {
     this.track = track;
@@ -54,10 +53,7 @@ function TagData(track, data) {
     this.rating = -1;
     this.acoustId = null;
 
-    // Image embedded in the audio file.
-    this._embeddedImage = data.pictures && data.pictures[0];
-    this._embeddedImageUrl = null;
-    this._embeddedImageBlob = null;
+    this.pictures = data.pictures || [];
 
     this._formattedTime = null;
     this._formattedName = null;
@@ -172,6 +168,7 @@ TagData.prototype.maybeCoverArtImage = function() {
     if (mapped) {
         var ret = new Image();
         ret.src = mapped;
+        ret.tag = this.albumNameKey();
         return ret;
     }
     return null;
@@ -179,45 +176,112 @@ TagData.prototype.maybeCoverArtImage = function() {
 
 var NULL_STRING = "\x00";
 
-TagData.prototype.getImage = function() {
-    if (this._embeddedImageUrl) {
-        var ret = new Image();
-        ret.src = this._embeddedImageUrl;
-        return ret;
+const clearPicture = function(picture) {
+    if (picture.blobUrl) {
+        URL.revokeObjectURL(picture.blobUrl);
     }
-    var img = this.maybeCoverArtImage();
 
-    if (img) return img;
-
-    if (!this._embeddedImage) return null;
-
-    var blob = this.track.getFile().slice(this._embeddedImage.start,
-                                          this._embeddedImage.start + this._embeddedImage.length,
-                                          this._embeddedImage.type);
-    var url = URL.createObjectURL(blob);
-    this._embeddedImageUrl = url;
-    this._embeddedImageBlob = blob;
-    tagDatasRetainingBlobUrls.push(this);
-    checkTagDatasRetainingBlobUrls();
-    return this.getImage();
+    if (picture.blob) {
+        picture.blob.close();
+    }
+    
+    picture.blobUrl = picture.blob = picture.image = null;
 };
 
-TagData.prototype.clearBlobUrl = function() {
-    try {
-        URL.revokeObjectURL(this._embeddedImageUrl.src);
-    } catch (e) {}
-    try {
-        this._embeddedImageBlob.close();
-    } catch (e) {}
-    this._embeddedImageBlob = null;
-    this._embeddedImageUrl = null;
+const tagDatasHoldingPictures = [];
+
+const addPictureHoldingTagData = function(tagData) {
+    tagDatasHoldingPictures.push(tagData);
+
+    if (tagDatasHoldingPictures.length > 50) {
+        while (tagDatasHoldingPictures.length > 25) {
+            var tagData = tagDatasHoldingPictures.shift();
+            tagData.reclaimPictures();
+        }
+    }
+};
+
+const removePictureHoldingTagData = function(tagData) {
+    var i = tagDatasHoldingPictures.indexOf(tagData);
+    if (i >= 0) {
+        tagDatasHoldingPictures.splice(i, 1);
+    }
+};
+
+TagData.prototype.reclaimPictures = function() {
+    for (var i = 0; i < this.pictures.length; ++i) {
+        var picture = this.pictures[i];
+        if (picture.blobUrl) {
+            URL.revokeObjectURL(picture.blobUrl);
+        }
+        picture.blobUrl = picture.image = null;
+    }
+};
+
+TagData.prototype._getEmbeddedImage = function() {
+    var picture = this.pictures[0];
+    if (picture.image) {
+        return picture.image;
+    }
+
+    addPictureHoldingTagData(this);
+    var img = new Image();
+    picture.image = img;
+    img.tag = picture.tag;
+    var blobUrl;
+    
+    var clear = function() {
+        picture.blobUrl = null;
+        URL.revokeObjectURL(blobUrl);
+        img.removeEventListener("load", success, false);
+        img.removeEventListener("error", error, false);
+    };
+
+    var self = this;
+
+    var success = clear;
+    var error = function() {
+        clear();
+        var i = self.pictures.indexOf(picture);
+        if (i >= 0) {
+            self.pictures.splice(i, 1);
+        }
+        clearPicture(picture);
+    };
+
+    img.addEventListener("load", success, false);
+    img.addEventListener("error", error, false);
+
+    if (picture.blobUrl) {
+        img.src = picture.blobUrl;
+        blobUrl = picture.blobUrl;
+        if (img.complete) {
+            clear();
+        }
+        return img;
+    }
+
+    var url = URL.createObjectURL(picture.blob);
+    picture.blobUrl = url;
+    img.src = url;
+    if (img.complete) {
+        clear();
+    }
+    return img;
+};
+
+TagData.prototype.getImage = function() {
+    if (this.pictures.length) {
+        return this._getEmbeddedImage();
+    }
+    return this.maybeCoverArtImage();
 };
 
 TagData.prototype.destroy = function() {
-    if (this._embeddedImageUrl) {
-        tagDatasRetainingBlobUrls.splice(tagDatasRetainingBlobUrls.indexOf(this), 1);
-        this.clearBlobUrl();
+    while (this.pictures.length) {
+        clearPicture(this.pictures.shift());
     }
+    removePictureHoldingTagData(this);
 };
 
 TagData.prototype.getTitleForSort = function() {
@@ -304,7 +368,7 @@ TagData.prototype.hasAcoustIdImage = function() {
 
 TagData.prototype.shouldRetrieveAcoustIdImage = function() {
     return this.acoustId &&
-           !this._embeddedImage &&
+           !this.pictures.length &&
            this._coverArtImageState === INITIAL &&
            !albumNameToCoverArtUrlMap[this.albumNameKey()];
 };
@@ -329,7 +393,7 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
                             0;
     this.acoustId = data.acoustId || this.acoustId|| null;
     if (this.acoustId) this.updateFieldsFromAcoustId(this.acoustId);
-    if (data.coverArt && !this._embeddedImage) {
+    if (data.coverArt && !this.pictures.length) {
         albumNameToCoverArtUrlMap[this.albumNameKey()] = data.coverArt.url;
         this._coverArtImageState = HAS_IMAGE;
     }
@@ -342,14 +406,5 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.rating = data.rating || -1;
     this.track.tagDataUpdated();
 };
-
-function checkTagDatasRetainingBlobUrls() {
-    if (tagDatasRetainingBlobUrls.length > 100) {
-        for (var i = 0; i < 35; ++i) {
-            tagDatasRetainingBlobUrls[i].clearBlobUrl();
-        }
-        tagDatasRetainingBlobUrls = tagDatasRetainingBlobUrls.slice(35);
-    }
-}
 
 module.exports = TagData;
