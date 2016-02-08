@@ -21,7 +21,7 @@ const FileView = require("./FileView");
 const seeker = require("./seeker");
 const pool = require("./pool");
 const Effect = require("./Effect");
-
+const simulateTick = require("../lib/patchtimers");
 
 const allocResampler = pool.allocResampler;
 const allocDecoderContext = pool.allocDecoderContext;
@@ -716,6 +716,7 @@ AudioPlayer.prototype.seek = function(args, transferList) {
 
 AudioPlayer.prototype.sourceEndedPing = function(args) {
     var that = this;
+    simulateTick();
     return Promise.try(function() {
         if (that.destroyed) return;
         that.sendMessage("_sourceEndedPong", {requestId: args.requestId});

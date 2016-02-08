@@ -41,7 +41,13 @@ function TrackAnalyzer(playlist) {
     }).then(function() {
         self.ready = null;
     });
+
+    util.documentHidden.on("foreground", this._foregrounded.bind(this));
 }
+
+TrackAnalyzer.prototype._foregrounded = function() {
+    this._worker.postMessage({action: "tick"});
+};
 
 TrackAnalyzer.prototype.unparsedTracksAvailable = function() {
     var tracks = this._playlist.getUnparsedTracks();

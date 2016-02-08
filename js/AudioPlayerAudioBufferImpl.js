@@ -16,6 +16,7 @@ const EventEmitter = require("events");
 const ChannelMixer = require("../worker/ChannelMixer");
 const patchAudioContext = require("../lib/audiocontextpatch");
 const $ = require("../lib/jquery");
+const simulateTick = require("../lib/patchtimers");
 require("../lib/ua-parser");
 
 const NO_THROTTLE = {};
@@ -577,6 +578,7 @@ AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
 };
 
 AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
+    simulateTick();
     var source = event.target;
     var sourceDescriptor = this._bufferQueue.shift();
 

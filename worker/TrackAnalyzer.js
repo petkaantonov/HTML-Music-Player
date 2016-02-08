@@ -1,6 +1,7 @@
 "use strict";
 self.EventEmitter = require("events");
 
+const simulateTick = require("../lib/patchtimers");
 const Promise = require("../lib/bluebird");
 Promise.setScheduler(function(fn) { fn(); });
 Promise.config({
@@ -92,7 +93,9 @@ const apiActions = {
 
     fetchAcoustIdImage: function(args) {
         promiseMessageSuccessErrorHandler(args, AcoustId.fetchImage(args), "acoustIdImage");
-    }
+    },
+
+    tick: simulateTick
 }
 
 
