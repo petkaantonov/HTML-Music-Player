@@ -400,10 +400,6 @@ Playlist.prototype.playFirst = function() {
     }
 };
 
-Playlist.prototype.getContainer = function() {
-    return this._trackList;
-};
-
 Playlist.prototype.getTracks = function() {
     return this._trackList;
 };
