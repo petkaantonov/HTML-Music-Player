@@ -29,9 +29,10 @@ $track-availability-width: 80px;
 $track-width-used: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width + $track-availability-width;
 
 $track-item-height: 44px;
-$picture-size: 58px;
 
-$visualizer-height: $picture-size + 2px + $track-item-height;
+$non-desktop-picture-size: 58px;
+$desktop-picture-size: 96px;
+$visualizer-height: 104px;
 
 $scrollbar-width: 8px;
 $border-width: 1px;
@@ -105,6 +106,17 @@ $touch-hover-color: #ececec;
     }
 }
 
+@mixin desktop {
+    @media (min-height: #{$large-screen-height}) and (min-width: #{$large-screen-width}) {
+        @content;
+    }
+}
+
+@mixin non-desktop {
+    @media (max-height: #{$large-screen-height - 1px}), (max-width: #{$large-screen-width - 1px}) {
+        @content;
+    }
+}
 
 @mixin retina {
     @media

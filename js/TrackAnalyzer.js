@@ -126,6 +126,10 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
             needFingerprint = result.fingerprint === undefined;
             needLoudness = result.trackGain === undefined;
             track.tagData.setDataFromTagDatabase(result);
+
+            if (!needFingerprint && this._playlist.isTrackHighlyRelevant(track)) {
+                this.fetchAcoustIdImage(track);
+            }
         }
 
         var acoustIdFilled = null;

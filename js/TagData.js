@@ -177,7 +177,7 @@ TagData.prototype.maybeCoverArtImage = function() {
         ret.tag = this.albumNameKey();
         ret.promise = new Promise(function(resolve, reject) {
             ret.addEventListener("load", resolve, false);
-            ret.addEventListener("reject", function() {
+            ret.addEventListener("error", function() {
                 albumNameToCoverArtUrlMap[ret.tag] = null;
                 reject(new Error("invalid image"));
             }, false);
@@ -199,7 +199,7 @@ const clearPicture = function(picture) {
     }
     
     if (picture.image) {
-        picture.image.src = null;
+        picture.image.src = "";
     }
     picture.blobUrl = picture.blob = picture.image = null;
 };

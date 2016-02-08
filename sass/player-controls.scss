@@ -110,10 +110,6 @@ $slider-margin: 3px;
     @include border-right-radius($subtle-radius);
 }
 
-.coverart-section-container {
-    width: $picture-size;
-}
-
 #track-display-container {
     z-index: 5;
     position: relative;
@@ -175,13 +171,17 @@ $slider-margin: 3px;
 .player-control-panel-container .button-groups-container {
     font-size: 0;
     position: relative;
-    height: 36px;
-    margin: 0;
     border-bottom-right-radius: $subtle-radius;
 }
 
+.player-control-panel-container .control-panel-lower-container {
+    display: inline-block;
+    vertical-align: top;
+    width: 100%;
+}
+
 .picture-module-container.module-container,
-.player-control-panel-container .button-groups-container {
+.player-control-panel-container .control-panel-lower-container {
     background: #FFF;
     background: -moz-linear-gradient(top, #FAFAFA 0%, #FAFAFA 100%);
     background: -webkit-linear-gradient(top, #FFF 0%,#FAFAFA 100%);

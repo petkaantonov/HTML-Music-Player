@@ -283,7 +283,7 @@ Track.prototype.getImage = Promise.method(function() {
         return image.promise.then(function() {
             return image;
         }).catch(function(e) {
-            image.src = null;
+            image.src = "";
             return PlayerPictureManager.generateImageForTrack(self).tap(function(result) {
                 self._generatedImage = result;
                 result.tag = self.getUid();

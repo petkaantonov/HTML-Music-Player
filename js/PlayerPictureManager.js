@@ -11,7 +11,7 @@ const START_SCALE = 0.95;
 const END_SCALE = 1;
 const START_ALPHA = 0;
 const END_ALPHA = 100;
-const IMAGE_DIMENSIONS = 59;
+const IMAGE_DIMENSIONS = 97;
 
 function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
@@ -25,6 +25,7 @@ function PlayerPictureManager(dom, player, opts) {
     this._currentImage = null;
     this._currentAnimation = null;
     this._awaitingAnimation = null;
+    this._initial = true;
 
     this._next = this._next.bind(this);
     this._enabledMediaMatchChanged = this._enabledMediaMatchChanged.bind(this);
@@ -170,12 +171,15 @@ const isSameImage = function(a, b) {
 
 PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
+    if (this._initial) {
+        this.$().find("img").remove();
+        this._initial = false;
+    }
+
     if (this._currentImage && isSameImage(this._currentImage, image) &&
         (!this._awaitingAnimation || this._awaitingAnimation && this._awaitingAnimation.src === image.src)) {
         return;
     }
-
-    image.width = image.height = IMAGE_DIMENSIONS;
 
     if (!this._currentAnimation) {
         if (this._currentImage) {
