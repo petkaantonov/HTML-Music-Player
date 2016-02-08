@@ -1,6 +1,6 @@
 "use strict";
 
-const util = require("./util");
+const util = require("../js/util");
 
 const codeToString = function(code) {
     return Object.keys(AcoustIdApiError).filter(function(key) {

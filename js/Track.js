@@ -274,6 +274,7 @@ Track.prototype.getImage = Promise.method(function() {
         }
         return PlayerPictureManager.generateImageForTrack(this).bind(this).tap(function(result) {
             this._generatedImage = result;
+            result.tag = this.getUid();
         });
     }
     return image;
@@ -627,10 +628,6 @@ Track.prototype.played = function() {
 
 Track.prototype.hasBeenPlayedWithin = function(time) {
     return this._lastPlayed >= time;
-};
-
-Track.prototype.fetchAcoustIdImage = function() {
-    return this.tagData.fetchAcoustIdImage();
 };
 
 Track.prototype.shouldRetrieveAcoustIdImage = function() {

@@ -11,6 +11,9 @@ Promise.config({
 const blobPatch = require("../lib/blobpatch");
 blobPatch();
 
+
+const util = require("../js/util");
+const tagDatabase = require("./TagDatabase");
 const MetadataParser = require("./MetadataParser");
 const Resampler = require("./Resampler");
 const ChannelMixer = require("./ChannelMixer");
@@ -42,27 +45,56 @@ var processing = false;
 var shouldAbort = false;
 var currentJobId = -1;
 
-
-function doParseMetadata(args) {
-    MetadataParser.parse(args).then(function(result) {
+const promiseMessageSuccessErrorHandler = function(args, p, jobType) {
+    return p.then(function(result) {
         postMessage({
             id: args.id,
             result: result,
-            jobType: "metadata",
+            jobType: jobType,
             type: "success"
         });
+        return result;
     }).catch(function(e) {
         postMessage({
             id: args.id,
             type: "error",
-            jobType: "metadata",
+            jobType: jobType,
             error: {
                 message: e.message,
                 stack: e.stack
             }
         });
-    });
+    })
+};
+
+const apiActions = {
+    analyze: function(args) {
+        queue.push(args);
+        if (!processing) nextJob();
+    },
+    abort: function(args) {
+        var jobId = args.id;
+        if (currentJobId === jobId) {
+            shouldAbort = true;
+        }
+    },
+    parseMetadata: function(args) {
+        promiseMessageSuccessErrorHandler(args, MetadataParser.parse(args), "metadata");
+    },
+
+    fetchAnalysisData: function(args) {
+        promiseMessageSuccessErrorHandler(args, MetadataParser.fetchAnalysisData(args), "analysisData");
+    },
+
+    fetchAcoustId: function(args) {
+        promiseMessageSuccessErrorHandler(args, AcoustId.fetch(args), "acoustId");
+    },
+
+    fetchAcoustIdImage: function(args) {
+        promiseMessageSuccessErrorHandler(args, AcoustId.fetchImage(args), "acoustIdImage");
+    }
 }
+
 
 function delay(value, ms) {
     return new Promise(function(resolve) {
@@ -70,13 +102,6 @@ function delay(value, ms) {
             resolve(value);
         }, ms);
     });
-}
-
-function doAbort(args) {
-    var jobId = args.id;
-    if (currentJobId === jobId) {
-        shouldAbort = true;
-    }
 }
 
 function nextJob() {
@@ -260,7 +285,15 @@ function nextJob() {
                         silence: silence
                     };
                 }
-                reportSuccess(id, result);
+
+                var flattened = util.assign({duration: result.duration},
+                                            result.loudness || {},
+                                            result.fingerprint || {});
+                return tagDatabase.insert(job.uid, flattened)
+                    .catch(function(e) {})
+                    .then(function() {
+                        reportSuccess(id, result);    
+                    });
             });
         });
     }).catch(function(e) {
@@ -330,13 +363,12 @@ function reportSuccess(id, result) {
 self.onmessage = function(event) {
     var data = event.data;
 
-    if (data.action === "analyze") {
-        queue.push(data.args);
-        if (!processing) nextJob();
-    } else if (data.action === "abort") {
-        doAbort(data.args);
-    } else if (data.action === "parseMetadata") {
-        doParseMetadata(data.args);
+    var method = apiActions[data.action];
+
+    if (typeof method === "function") {
+        method(data.args);
+    } else {
+        throw new Error("unknown api action: " + data.action);
     }
 };
 

@@ -888,194 +888,6 @@ util.unicode.alphaNumericFilteringPattern = new RegExp("[^" + util.unicode.chara
                                                      util.unicode.characterCategories.letters + "]+", "g");
 util.unicode.separateWordsPattern = new RegExp("["+util.unicode.characterCategories.wordSeparator+"]+", "g");
 
-util.unicode.decodeUnicodeEncodedBinaryString = (function() {
-    var LITTLE_ENDIAN = 0;
-    var BIG_ENDIAN = 1;
-
-    return function(str, bigEndian) {
-        var i = 0,
-            len = str.length;
-        var endianess = LITTLE_ENDIAN;
-
-        if (bigEndian !== true) {
-            if (len >= 2) {
-                var bom = (str.charCodeAt(0) << 8) |
-                    str.charCodeAt(1);
-                if (bom === 0xFFFE) {
-                    endianess = LITTLE_ENDIAN;
-                    i = 2; //Skip bom
-                } else if (bom === 0xFEFF) {
-                    endianess = BIG_ENDIAN;
-                    i = 2; //Skip bom
-                } else {
-                    endianess = LITTLE_ENDIAN;
-                }
-            } else {
-                endianess = LITTLE_ENDIAN;
-            }
-        } else {
-            endianess = BIG_ENDIAN;
-        }
-        var codePoints = new Array(Math.ceil(str.length / 2)),
-            codePoint,
-            low, high;
-
-        codePoints.length = 0;
-        if (endianess === BIG_ENDIAN) {
-            for (; i < len; i += 2) {
-                if (i + 1 >= len) {
-                    codePoint = 0xFFFD;
-                } else {
-                    codePoint = (str.charCodeAt(i) << 8) |
-                        str.charCodeAt(i + 1);
-                    //Lead surrogate 0xD800..0xDBFF
-                    if (0xD800 <= codePoint && codePoint <= 0xDBFF) {
-                        if (i + 3 >= len) {
-                            codePoint = 0xFFFD;
-                        } else {
-                            high = codePoint;
-                            //peek low surrogate
-                            low = (str.charCodeAt(i + 2) << 8) |
-                                str.charCodeAt(i + 3);
-                            //Trail surrogate 0xDC00..0xDFFF
-                            if (0xDC00 <= low && low <= 0xDFFF) {
-                                i += 2; //Valid surrogate pair so ignore the upcoming low
-                                codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
-                                if (codePoint <= 0x10FFFF) {
-                                    codePoints.push(String.fromCharCode(high, low));
-                                } else {
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-                if (!(0xD800 <= codePoint && codePoint <= 0xDFFF) && codePoint !== 0xFFFD) {
-                    codePoints.push(String.fromCharCode(codePoint));
-                }
-            }
-        } else {
-            for (; i < len; i += 2) {
-                if (i + 1 >= len) {
-                    codePoint = 0xFFFD;
-                } else {
-                    codePoint = str.charCodeAt(i) |
-                        (str.charCodeAt(i + 1) << 8);
-                    //Lead surrogate 0xD800..0xDBFF
-                    if (0xD800 <= codePoint && codePoint <= 0xDBFF) {
-                        if (i + 3 >= len) {
-                            codePoint = 0xFFFD;
-                        } else {
-                            high = codePoint;
-                            //peek low surrogate
-                            low = str.charCodeAt(i + 2) |
-                                (str.charCodeAt(i + 3) << 8);
-                            //Trail surrogate 0xDC00..0xDFFF
-                            if (0xDC00 <= low && low <= 0xDFFF) {
-                                i += 2; //Valid surrogate pair so ignore the upcoming low
-                                codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
-                                if (codePoint <= 0x10FFFF) {
-                                    codePoints.push(String.fromCharCode(high, low));
-                                } else {
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-                if (!(0xD800 <= codePoint && codePoint <= 0xDFFF) && codePoint !== 0xFFFD) {
-                    codePoints.push(String.fromCharCode(codePoint));
-                }
-            }
-        }
-        return codePoints.join("");
-    };
-})();
-
-util.unicode.decodeUtf8EncodedBinaryString = function(str) {
-    //Decode unicode code points from utf8 encoded binarystring
-    var codePoints = new Array(str.length),
-        ch2, ch3, ch4,
-        i = 0,
-        byte, codePoint;
-    codePoints.length = 0;
-
-    while (!isNaN(byte = str.charCodeAt(i++))) {
-        if ((byte & 0xF8) === 0xF0) {
-            codePoint = ((byte & 0x7) << 18) |
-                (((ch2 = str.charCodeAt(i++)) & 0x3F) << 12) |
-                (((ch3 = str.charCodeAt(i++)) & 0x3F) << 6) |
-                ((ch4 = str.charCodeAt(i++)) & 0x3F);
-
-            if (!(0xFFFF < codePoint && codePoint <= 0x10FFFF)) {
-                //Overlong sequence
-                codePoint = 0xFFFD;
-            } else if (
-                (ch2 & 0xC0) !== 0x80 || //must be 10xxxxxx
-                (ch3 & 0xC0) !== 0x80 || //must be 10xxxxxx
-                (ch4 & 0xC0) !== 0x80 //must be 10xxxxxx
-            ) {
-                codePoint = 0xFFFD;
-            }
-
-
-            if (codePoint === 0xFFFD) {
-                i -= 3; //Backtrack
-            }
-
-        } else if ((byte & 0xF0) === 0xE0) {
-            codePoint = ((byte & 0xF) << 12) |
-                (((ch2 = str.charCodeAt(i++)) & 0x3F) << 6) |
-                ((ch3 = str.charCodeAt(i++)) & 0x3F);
-            //Check for legit 0xFFFD
-            if (codePoint !== 0xFFFD) {
-                if (!(0x7FF < codePoint && codePoint <= 0xFFFF)) {
-                    //Overlong sequence
-                    codePoint = 0xFFFD;
-                } else if (
-                    (ch2 & 0xC0) !== 0x80 || //must be 10xxxxxx
-                    (ch3 & 0xC0) !== 0x80 //must be 10xxxxxx
-                ) {
-                    codePoint = 0xFFFD;
-                }
-
-                if (codePoint === 0xFFFD) {
-                    i -= 2; //Backtrack
-                }
-                //Ignore initial bom
-                if (codePoint === 0xFEFF && i === 3) {
-                    continue;
-                }
-            }
-        } else if ((byte & 0xE0) === 0xC0) {
-            codePoint = ((byte & 0x1F) << 6) |
-                (((ch2 = str.charCodeAt(i++)) & 0x3F));
-            if (!(0x7F < codePoint && codePoint <= 0x7FF)) {
-                //Overlong sequence
-                codePoint = 0xFFFD;
-            } else if (
-                (ch2 & 0xC0) !== 0x80 //must be 10xxxxxx
-            ) {
-                codePoint = 0xFFFD;
-            }
-
-            if (codePoint === 0xFFFD) {
-                i--; //Backtrack
-            }
-        } else if ((byte & 0x80) === 0x00) { //must be 0xxxxxxx
-            codePoint = (byte & 0x7F);
-        } else {
-            codePoint = 0xFFFD;
-        }
-
-        if (codePoint !== 0xFFFD) {
-            codePoints.push(String.fromCharCode(codePoint));
-        }
-
-    }
-    return codePoints.join("");
-};
-
 const legacyListeners = Object.create(null);
 var nextLegacyId = 0;
 util.addLegacyListener = function(object, eventName, handler) {
@@ -1204,3 +1016,20 @@ util.documentHidden = (function() {
 
     return ret;
 })();
+
+util.assign = function(root) {
+    root = Object(root);
+    var args = [].slice.call(arguments, 1);
+
+    for (var i = 0; i < args.length; ++i) {
+        var obj = args[i];
+        var keys = Object.keys(obj);
+        for (var j = 0; j < keys.length; ++j) {
+            var key = keys[j];
+            var value = obj[key];
+            root[key] = value;
+        }
+    }
+
+    return root;
+};

@@ -1,8 +1,6 @@
 "use strict";
-const $ = require("../lib/jquery");
 const Promise = require("../lib/bluebird.js");
-
-const util = require("./util");
+const util = require("../js/util");
 const VERSION = 3;
 const NAME = "TagDatabase";
 const KEY_NAME = "trackUid";
@@ -19,7 +17,7 @@ function TagDatabase() {
     this.db = util.IDBPromisify(request);
     this.db.suppressUnhandledRejections();
 
-    this._onUpgradeNeeded = $.proxy(this._onUpgradeNeeded, this);
+    this._onUpgradeNeeded = this._onUpgradeNeeded.bind(this);
     request.onupgradeneeded = this._onUpgradeNeeded;
 }
 
@@ -75,7 +73,7 @@ TagDatabase.prototype.insert = function(trackUid, data) {
         return util.IDBPromisify(store.get(trackUid));
     }).then(function(previousData) {
         var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
-        var newData = $.extend({}, previousData || {}, data);
+        var newData = util.assign({}, previousData || {}, data);
         return util.IDBPromisify(store.put(newData));
     });
 };

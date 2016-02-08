@@ -2,7 +2,6 @@
 const Promise = require("../lib/bluebird.js");
 
 const util = require("./util");
-const tagDatabase = require("./TagDatabase");
 const features = require("./features");
 const blobPatch = require("../lib/blobpatch");
 blobPatch();
@@ -334,43 +333,23 @@ TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     }
 };
 
-TagData.prototype.fetchAcoustIdImage = function() {
-    const metadataRetriever = require("./MetadataRetriever");
-    if (this.hasAcoustIdImage()) throw new Error("already has acoust id image");
-    this._coverArtImageState = PENDING_IMAGE;
-    var self = this;
-
-    return Promise.join(tagDatabase.getAlbumImage(this.albumNameKey()),
-                 tagDatabase.query(this.track.getUid()), function(coverArt, trackData) {
-        if (coverArt && coverArt.url) {
-            albumNameToCoverArtUrlMap[self.albumNameKey()] = coverArt.url;
-            self.track.tagDataUpdated();
-            self._coverArtImageState = HAS_IMAGE;
-        } else if (trackData && trackData.hasCoverArt === false) {
-            self._coverArtImageState = NO_IMAGE_FOUND;
-        } else {
-            return metadataRetriever.getImage(self.acoustId).then(function(info) {
-                if (info) {
-                    tagDatabase.setAlbumImage(self.albumNameKey(), info.url);
-                    albumNameToCoverArtUrlMap[self.albumNameKey()] = info.url;
-                    self._coverArtImageState = HAS_IMAGE;
-                } else {
-                    var failedBecauseOffline = !navigator.onLine;
-                    if (!failedBecauseOffline) {
-                        tagDatabase.updateHasCoverArt(self.track.getUid(), false);
-                        self._coverArtImageState = NO_IMAGE_FOUND;
-                    }
-                }
-                self.track.tagDataUpdated();
-                return null;
-            }).catch(Promise.TimeoutError, function ignore() {});
-        }
-    });
-};
-
 TagData.prototype.hasAcoustIdImage = function() {
     return albumNameToCoverArtUrlMap[this.albumNameKey()] ||
             typeof this._coverArtImageState === HAS_IMAGE;
+};
+
+TagData.prototype.fetchAcoustIdImageStarted = function() {
+    this._coverArtImageState = PENDING_IMAGE;
+};
+
+TagData.prototype.fetchAcoustIdImageEnded = function(image, error) {
+    if (error || !image) {
+        this._coverArtImageState = NO_IMAGE_FOUND;
+    } else {
+        this._coverArtImageState = HAS_IMAGE;
+        albumNameToCoverArtUrlMap[this.albumNameKey()] = image.url;
+        this.track.tagDataUpdated();
+    }
 };
 
 TagData.prototype.shouldRetrieveAcoustIdImage = function() {
@@ -388,6 +367,20 @@ TagData.prototype.setAcoustId = function(acoustId) {
 
 TagData.prototype.hasBeenAnalyzed = function() {
     return this._hasBeenAnalyzed;
+};
+
+TagData.prototype.setLoudness = function(data) {
+    this.trackGain = data.trackGain;
+    this.trackPeak = data.trackPeak || 1;
+    this.albumGain = data.albumGain;
+    this.albumPeak = data.albumPeak || 1;
+    this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
+                              this.beginSilenceLength ||
+                              0;
+    this.endSilenceLength = data.silence && data.silence.endSilenceLength ||
+                            this.endSilenceLength ||
+                            0;
+    this.track.tagDataUpdated();
 };
 
 TagData.prototype.setDataFromTagDatabase = function(data) {
@@ -410,7 +403,7 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.albumPeak = data.albumPeak || 1;
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
-    this.rating = data.rating || -1;
+    this.rating = data.rating === undefined ? -1 : data.rating;
     this.track.tagDataUpdated();
 };
 

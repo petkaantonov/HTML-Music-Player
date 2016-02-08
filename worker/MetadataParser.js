@@ -1,5 +1,6 @@
 "use strict";
 
+const tagDatabase = require("./TagDatabase");
 const Promise = require("../lib/bluebird");
 const sniffer = require("./sniffer");
 const FileView = require("./FileView");
@@ -55,8 +56,9 @@ MetadataParser.prototype.parse = function() {
                 return parseMp3Metadata(data, self.fileView);
         }
     }).catch(function(e) {
-        debugger;
         throw codecNotSupportedError();
+    }).tap(function() {
+        return data;
     });
 
     this.resolve(done);
@@ -75,6 +77,18 @@ MetadataParser.parse = function(args) {
             parser.parse()
         }
     }).finally(next);
+};
+
+MetadataParser.fetchAnalysisData = function(args) {
+    var data = tagDatabase.query(args.uid);
+    var albumImage = tagDatabase.getAlbumImage(args.albumKey);
+
+    return Promise.join(data, albumImage, function(data, albumImage) {
+        if (data && albumImage) {
+            data.albumImage = albumImage;
+        }
+        return data;
+    });
 };
 
 module.exports = MetadataParser;

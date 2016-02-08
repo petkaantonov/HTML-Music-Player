@@ -23,6 +23,10 @@
  */
 
 var realFft = require("../lib/realfft");
+const Promise = require("../lib/bluebird");
+const AcoustIdApiError = require("./AcoustIdApiError");
+const util = require("../js/util");
+const tagDatabase = require("./TagDatabase");
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
@@ -436,5 +440,244 @@ AcoustId.prototype.calculate = function(raw) {
         return this.getFingerprint();
     }
 };
+
+const getBestRecordingGroup = function(recordings) {
+    recordings.reverse();
+    var groups = [];
+
+    for (var i = 0; i < recordings.length; ++i) {
+        var recording = recordings[i];
+        if (!recording || !recording.releasegroups) {
+            continue;
+        }
+        var releasegroups = recording.releasegroups;
+        if (!releasegroups) {
+            continue;
+        }
+        for (var j = 0; j < releasegroups.length; ++j) {
+            var releasegroup = releasegroups[j];
+            if (!releasegroup) {
+                continue;
+            }
+
+            if (!releasegroup.type) {
+                releasegroup.type = "crap";
+            }
+
+            var secondarytypes = releasegroup.secondarytypes;
+            groups.push({
+                indexI: i,
+                indexJ: j,
+                recording: recording,
+                type: releasegroup.type.toLowerCase(),
+                album: releasegroups[j],
+                secondarytypes: secondarytypes ? secondarytypes.map(function(v) {
+                    return v.toLowerCase();
+                }) : null
+            });
+        }
+    }
+
+    groups.sort(function(a, b) {
+        if (a.type === "album" && b.type === "album") {
+            var aSec = a.secondarytypes;
+            var bSec = b.secondarytypes;
+
+            if (aSec && bSec) {
+                var aCompilation = aSec.indexOf("compilation") >= 0;
+                var bCompilation = bSec.indexOf("compilation") >= 0;
+
+                if (aCompilation && bCompilation) {
+                    var diff = a.indexI - b.indexI;
+                    if (diff !== 0) return diff;
+                    return a.indexJ - b.indexJ;
+                } else if (aCompilation && !bCompilation) {
+                    return 1;
+                } else if (!aCompilation && bCompilation) {
+                    return -1;
+                } else {
+                    var diff = a.indexI - b.indexI;
+                    if (diff !== 0) return diff;
+                    return a.indexJ - b.indexJ;
+                }
+            } else if (aSec && !bSec) {
+                return 1;
+            } else if (!aSec && bSec) {
+                return -1;
+            } else {
+                var diff = a.indexI - b.indexI;
+                if (diff !== 0) return diff;
+                return a.indexJ - b.indexJ;
+            }
+        } else if (a.type === "album") {
+            return -1;
+        } else {
+            return 1;
+        }
+    });
+
+    if (!groups.length) {
+        return {
+            recording: recordings[0],
+            album: null
+        };
+    }
+
+    return groups[0];
+};
+
+const formatArtist = function (artists) {
+    if (artists.length === 1) {
+        return artists[0].name;
+    } else {
+        var ret = "";
+        for (var i = 0; i < artists.length - 1; ++i) {
+            ret += artists[i].name + artists[i].joinphrase;
+        }
+        ret += artists[i].name;
+        return ret;
+    }
+};
+
+const parseAcoustId = function (data) {
+    if (!data) {
+        throw new AcoustIdApiError("Invalid JSON response", -1);
+    }
+
+    if (data.status === "error") {
+        throw new AcoustIdApiError(data.error.message, data.error.code);
+    }
+
+    var result = data.results && data.results[0] || null;
+
+    if (!result) return null;
+    if (!result.recordings || result.recordings.length === 0) return null;
+    var bestRecordingGroup = getBestRecordingGroup(result.recordings);
+    if (!bestRecordingGroup) return null;
+    var recording = bestRecordingGroup.recording;
+
+    var title = {
+        name: recording.title,
+        mbid: recording.id,
+        type: "release"
+    };
+    var album = null;
+
+    if (bestRecordingGroup.album) {
+        album = {
+            name: bestRecordingGroup.album.title,
+            mbid: bestRecordingGroup.album.id,
+            type: "release-group"
+        };
+    }
+
+    var artist = null;
+    if (recording.artists && recording.artists.length) {
+        artist = {
+            name: formatArtist(recording.artists),
+            mbid: recording.artists[0].id,
+            type: "artist"
+        };
+    }
+
+    return {
+        title: title,
+        album: album,
+        artist: artist
+    };
+};
+
+AcoustId.fetch = function(args, _retries) {
+    if (!_retries) _retries = 0;
+
+    return new Promise(function(resolve, reject) {
+        var duration = (+args.duration)|0;
+        var fingerprint = args.fingerprint;
+        var data = util.queryString({
+            client: "djbbrJFK",
+            format: "json",
+            duration: duration,
+            meta: "recordings+releasegroups+compress",
+            fingerprint: fingerprint
+        });
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = "json";
+        xhr.timeout = 5000;
+        var url = "https://api.acoustId.org/v2/lookup?" + data;
+
+        function error() {
+            reject(new Promise.TimeoutError("request timed out"));
+        }
+
+        xhr.addEventListener("load", function() {
+            resolve(this.response);
+        }, false);
+
+        xhr.addEventListener("abort", error);
+        xhr.addEventListener("timeout", error);
+        xhr.addEventListener("error", error);
+
+        xhr.open("GET", url);
+        xhr.send(null);
+    }).then(parseAcoustId)
+    .catch(AcoustIdApiError, function(e) {
+        if (e.isRetryable() && _retries <= 5) {
+            return AcoustId.fetch(args, _retries + 1);
+        } else {
+            throw e;
+        }
+    }).tap(function(result) {
+        if (result) {
+            tagDatabase.updateAcoustId(args.uid, result);
+        }
+    })
+};
+
+var imageFetchQueue = [];
+var currentImageFetch = false;
+
+const next = function() {
+    if (imageFetchQueue.length > 0) {
+        var item = imageFetchQueue.shift();
+        item.resolve(actualFetchImage(item.args));
+    } else {
+        currentImageFetch = false;
+    }
+};
+AcoustId.fetchImage = function(args) {
+    return new Promise(function(resolve) {
+        if (!currentImageFetch) {
+            currentImageFetch = true;
+            resolve(actualFetchImage(args));
+        } else {
+            imageFetchQueue.push({
+                args: args,
+                resolve: resolve
+            });
+        }
+    }).finally(next);
+
+};
+
+const actualFetchImage = function(args) {
+    var albumKey = args.albumKey;
+    var uid = args.uid;
+    var acoustId = args.acoustId;
+    return tagDatabase.getAlbumImage(albumKey).then(function(image) {
+        if (image) return image;
+
+        if (acoustId && acoustId.album) {
+            var type = acoustId.album.type;
+            var mbid = acoustId.album.mbid;
+            var url = "https://coverartarchive.org/" + type + "/" + mbid + "/front-250";
+            var ret = {url: url};
+            tagDatabase.setAlbumImage(albumKey, url);
+            return ret;
+        } else {
+            return null;
+        }
+    });
+};
+
 
 module.exports = AcoustId;
