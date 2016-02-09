@@ -33,10 +33,7 @@ const asap = function(fn) {
 const makeAudioContext = function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
     var ret = new AudioContext();
-    if (!window.AudioContext) {
-        patchAudioContext(AudioContext, ret);
-    }
-
+    patchAudioContext(AudioContext, ret);
     return ret;
 };
 

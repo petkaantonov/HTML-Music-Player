@@ -1,6 +1,7 @@
 "use strict";
 const $ = require("../lib/jquery");
 const Promise = require("../lib/bluebird");
+require("../lib/ua-parser");
 
 var features = module.exports;
 var input = document.createElement("input");
@@ -22,6 +23,17 @@ if (!features.touch) {
     $("body").addClass("no-touch");
 }
 
+var browserName, browserVersion;
+var isIe = false;
+if ($.ua.browser) {
+    browserName = ($.ua.browser.name || "").toLowerCase();
+    browserVersion = +($.ua.browser.major || 0);
+}
+
+if ($.ua.engine && $.ua.engine.name && $.ua.engine.name.toLowerCase().indexOf("trident") >= 0) {
+    isIe = true;
+}
+
 features.requiredFeatures = {
     "Audio playback capability": [Promise.method(function() {
         try {
@@ -33,6 +45,9 @@ features.requiredFeatures = {
 
     "Database capability": [Promise.method(function() {
         try {
+            if ((browserName === "edge" && browserVersion < 14) || browserName === "safari" || isIe) {
+                return false;
+            }
             return !!indexedDB && typeof indexedDB.open === "function";
         } catch (e) {
             return false;
@@ -51,6 +66,9 @@ features.requiredFeatures = {
     }), "http://caniuse.com/#feat=fileapi", "File API"],
 
     "Multi-core utilization capability": [Promise.method(function() {
+        if (browserName === "safari" || isIe) {
+            return false;
+        }
         var worker, url;
         return new Promise(function(resolve, reject) {
             var code = "var abc;";

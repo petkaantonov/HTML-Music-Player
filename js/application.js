@@ -36,31 +36,35 @@ var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures)
     var featureMissing = featureResults.some(function(v) {return !v.supported;});
 
     if (featureMissing) {
-        $("#app-load-text").remove();
-        $("#app-loader .missing-features").removeClass("no-display");
-    }
+        return cssLoaded(Promise).then(function() {
+            $("#app-load-text").remove();
+            $("#app-loader .missing-features").removeClass("no-display");
 
-    featureResults.forEach(function(v) {
-        if (!v.supported) {
-            var link = $("<a>", {
-                target: "_blank",
-                class: "link-text",
-                href: v.canIUseUrl
-            }).text(v.apiName);
+            featureResults.forEach(function(v) {
+                if (!v.supported) {
+                    console.log("appending");
+                    var link = $("<a>", {
+                        target: "_blank",
+                        class: "link-text",
+                        href: v.canIUseUrl
+                    }).text(v.apiName);
 
-            var children = [
-                $("<span>").text(v.description),
-                $("<sup>").append(link)
-            ];
+                    var children = [
+                        $("<span>").text(v.description),
+                        $("<sup>").append(link)
+                    ];
 
-            $("<li>", {class: "missing-feature-list-item"})
-                .append(children)
-                .appendTo($("#app-loader .missing-features .missing-feature-list"));
-        }
-    });
+                    $("<li>", {class: "missing-feature-list-item"})
+                        .append(children)
+                        .appendTo($("#app-loader .missing-features .missing-feature-list"));
+                }
+            });
 
-    if (featureMissing) {
-        throw new Error("missing features");
+            if (featureMissing) {
+                throw new Error("missing features");
+            }
+        });
+
     }
 });
 

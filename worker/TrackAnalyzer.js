@@ -1,5 +1,6 @@
 "use strict";
 self.EventEmitter = require("events");
+require("../lib/text_codec.js");
 
 const simulateTick = require("../lib/patchtimers");
 const Promise = require("../lib/bluebird");
