@@ -199,8 +199,12 @@ var modifierTouch = null;
 const singleTapTimeouts = [];
 const documentActives = new ActiveTouchList();
 
-const haveModifierTouch = function(now) {
-    return modifierTouch !== null && (now - modifierTouch.started > 100);
+const haveSettledModifierTouch = function(now) {
+    return haveModifierTouch() && (now - modifierTouch.started > TAP_TIME * 0.5);
+};
+
+const haveModifierTouch = function() {
+    return modifierTouch !== null;
 };
 
 function SingleTapTimeout(successHandler, clearHandler, timeout) {
@@ -615,7 +619,7 @@ util.modifierTapHandler = function(fn) {
     return function(e) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
-        if (!haveModifierTouch(e.timeStamp)) {
+        if (!haveModifierTouch()) {
             return clear();
         }
 
@@ -654,8 +658,10 @@ util.modifierTapHandler = function(fn) {
             var elapsed = Date.now() - started;
 
             if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
-                copyTouchProps(e, touch);
-                fn.call(this, e);
+                if (haveSettledModifierTouch(e.timeStamp)) {
+                    copyTouchProps(e, touch);
+                    fn.call(this, e);
+                }
             }
             clear();
         } else if (e.type === TOUCH_MOVE) {
@@ -678,7 +684,7 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
     }
 
     return function(e) {
-        if (!haveModifierTouch(e.timeStamp) || documentActives.length() > 2) {
+        if (!haveModifierTouch() || documentActives.length() > 2) {
             return end(this, e);
         }
 
@@ -695,7 +701,7 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
         } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             end(this, e);
         } else if (e.type === TOUCH_MOVE) {
-            if (currentTouch === null) return;
+            if (currentTouch === null || !haveSettledModifierTouch(e.timeStamp)) return;
 
             var touch = null;
             for (var i = 0; i < changedTouches.length; ++i) {
@@ -721,10 +727,8 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
 
 util.modifierTouchDownHandler = function(fn) {
     return function(e) {
-        if (!haveModifierTouch(e.timeStamp) || documentActives.length() > 2) return;
+        if (!haveModifierTouch() || documentActives.length() > 2) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-
-
 
         if (e.type === TOUCH_START) {
             for (var i = 0; i < changedTouches.length; ++i) {
