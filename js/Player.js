@@ -53,7 +53,7 @@ function destroyAudioManagers(exceptThisOne) {
     });
 }
 
-function AudioManager(player, track, implicitlyLoaded) {    
+function AudioManager(player, track, implicitlyLoaded) {
     audioManagers.push(this);
     this.gaplessPreloadTrack = null;
     this.implicitlyLoaded = implicitlyLoaded;
@@ -192,7 +192,7 @@ AudioManager.prototype.lastBufferQueued = function() {
 
 
     if (shouldPreload) {
-        this.player.playlist.on("nextTrackChange", this.nextTrackChangedWhilePreloading);      
+        this.player.playlist.on("nextTrackChange", this.nextTrackChangedWhilePreloading);
         this._updateNextGaplessTrack();
     }
 };
@@ -594,15 +594,15 @@ AudioManager.prototype.destroy = function() {
     this.destroyed = true;
     this.gaplessPreloadTrack = null;
 
-    this.timeUpdated = 
-    this.ended = 
-    this.errored = 
-    this.equalizerChanged = 
-    this.crossFadingChanged = 
-    this.nextTrackChanged = 
-    this.trackTagDataUpdated = 
-    this.willSeek = 
-    this.didSeek = 
+    this.timeUpdated =
+    this.ended =
+    this.errored =
+    this.equalizerChanged =
+    this.crossFadingChanged =
+    this.nextTrackChanged =
+    this.trackTagDataUpdated =
+    this.willSeek =
+    this.didSeek =
     this.initialPlaythrough = null;
 
     var index = audioManagers.indexOf(this);
@@ -644,7 +644,7 @@ function Player(dom, playlist, opts) {
     this.$play().click(this.playButtonClicked.bind(this));
     this.$next().click(this.nextButtonClicked.bind(this));
     this.$previous().click(this.prevButtonClicked.bind(this));
-    
+
     if (touch) {
         this.$play().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.playButtonClicked.bind(this)));
         this.$next().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.nextButtonClicked.bind(this)));
@@ -696,7 +696,7 @@ document.addEventListener("touchend", function(e) {
         try {
             audioCtx.resume().catch(function(){});
         } catch (e) {}
-        
+
         var source = audioCtx.createBufferSource();
         source.buffer = SILENT_BUFFER;
         source.connect(audioCtx.destination);
