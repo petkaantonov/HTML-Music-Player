@@ -25,7 +25,7 @@ util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
 util.setFilter = (function() {
     var div = document.createElement("div");
-    
+
     if ("webkitFilter" in (document.createElement("div").style)) {
         return function(elem, value) {
             if (elem.style) {
@@ -190,7 +190,7 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
                     break;
                 }
             }
-        }       
+        }
     }
     return addedTouches;
 };
@@ -198,6 +198,10 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
 var modifierTouch = null;
 const singleTapTimeouts = [];
 const documentActives = new ActiveTouchList();
+
+const haveModifierTouch = function(now) {
+    return modifierTouch !== null && (now - modifierTouch.started > 100);
+};
 
 function SingleTapTimeout(successHandler, clearHandler, timeout) {
     this.id = setTimeout(this.timeoutHandler.bind(this), timeout);
@@ -252,6 +256,7 @@ if (touch) {
         if (e.type === TOUCH_START) {
             if (modifierTouch === null) {
                 modifierTouch = documentActives.first();
+                modifierTouch.started = e.timeStamp || e.originalEvent.timeStamp;
             }
         } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (!documentActives.contains(modifierTouch)) {
@@ -610,7 +615,7 @@ util.modifierTapHandler = function(fn) {
     return function(e) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
-        if (modifierTouch === null) {
+        if (!haveModifierTouch(e.timeStamp)) {
             return clear();
         }
 
@@ -673,10 +678,10 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
     }
 
     return function(e) {
-        if (modifierTouch === null || documentActives.length() > 2) {
+        if (!haveModifierTouch(e.timeStamp) || documentActives.length() > 2) {
             return end(this, e);
         }
-        
+
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
         if (e.type === TOUCH_START) {
@@ -716,7 +721,7 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
 
 util.modifierTouchDownHandler = function(fn) {
     return function(e) {
-        if (modifierTouch === null || documentActives.length() > 2) return;
+        if (!haveModifierTouch(e.timeStamp) || documentActives.length() > 2) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
 
@@ -1026,10 +1031,10 @@ util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
                     } else if (currentBTouch !== null && touch.identifier === currentBTouch.identifier) {
                         lastBX = touch.clientX;
                         lastBY = touch.clientY;
-                    } 
+                    }
                 }
 
-                if (lastAX !== -1 && lastBX !== -1 && 
+                if (lastAX !== -1 && lastBX !== -1 &&
                     (Math.abs(lastAX - lastBX) > 150 &&
                      Math.abs(lastAY - lastBY) > 150)) {
                     clear();
