@@ -103,6 +103,10 @@ const apiActions = {
         promiseMessageSuccessErrorHandler(args, AcoustId.fetchImage(args), "acoustIdImage");
     },
 
+    rateTrack: function(args) {
+        tagDatabase.updateRating(args.uid, args.rating);
+    },
+
     tick: simulateTick
 }
 

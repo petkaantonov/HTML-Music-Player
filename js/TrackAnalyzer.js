@@ -152,7 +152,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
             var self = this;
             this.analyzeTrack(track, opts).then(function(analysis) {
                 if (!result) {
-                    track.tagData.setDataFromTagDatabase(analysis);    
+                    track.tagData.setDataFromTagDatabase(analysis);
                     if (!acoustIdFilled) {
                         self.fillInAcoustId(track, analysis.duration, analysis.fingerprint.fingerprint);
                     }
@@ -196,7 +196,7 @@ TrackAnalyzer.prototype.fetchAnalysisData = function(track) {
 
 TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
     if (!track.isDetachedFromPlaylist() && !error) {
-        track.setTagData(new TagData(track, data));
+        track.setTagData(new TagData(track, data, this));
         this.fetchAnalysisData(track);
     }
 };
@@ -437,6 +437,19 @@ TrackAnalyzer.prototype.fetchTrackAcoustId = function(track, opts) {
             self._next(self._acoustIdQueue, "_currentlyFetchingAcoustId", self.fetchTrackAcoustId);
         });
         return null;
+    });
+};
+
+TrackAnalyzer.prototype.rateTrack = function(track, rating) {
+    if (!track.tagData) return;
+
+    this._worker.postMessage({
+        action: "rateTrack",
+        args: {
+            uid: track.getUid(),
+            rating: rating,
+            id: ++this._nextJobId
+        }
     });
 };
 
