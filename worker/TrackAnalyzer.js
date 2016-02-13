@@ -2,6 +2,13 @@
 self.EventEmitter = require("events");
 require("../lib/text_codec.js");
 
+// Utilize 20% of one core.
+const MAX_CPU_UTILIZATION = 0.2;
+
+const getDowntime = function(cpuUsedTime) {
+    return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;
+};
+
 const simulateTick = require("../lib/patchtimers");
 const Promise = require("../lib/bluebird");
 Promise.setScheduler(function(fn) { fn(); });
@@ -123,7 +130,7 @@ function nextJob() {
     var file = job.file;
     var fingerprint = job.fingerprint;
     var loudness = job.loudness;
-    
+
     var decoder;
     var resamplerFingerprint;
     var fingerprintBuffers;
@@ -143,7 +150,7 @@ function nextJob() {
         return codec.getCodec(codecName);
     }).then(function(codec) {
         if (!codec) return;
-        
+
         return demuxer(codec.name, view).then(function(metadata) {
             if (!metadata) {
                 reportError(id, new Error("file type not supported"));
@@ -188,7 +195,7 @@ function nextJob() {
                 fingerprintSource = allocBuffer(FINGERPRINT_DURATION * FINGERPRINT_SAMPLE_RATE, 1);
 
                 if (sampleRate !== FINGERPRINT_SAMPLE_RATE) {
-                    resamplerFingerprint = allocResampler(1, sampleRate, FINGERPRINT_SAMPLE_RATE, WORST_RESAMPLER_QUALITY);    
+                    resamplerFingerprint = allocResampler(1, sampleRate, FINGERPRINT_SAMPLE_RATE, WORST_RESAMPLER_QUALITY);
                 }
             }
 
@@ -237,12 +244,14 @@ function nextJob() {
             var offset = metadata.dataStart;
             var aborted = false;
             var started = Date.now();
-            
+
             return view.readBlockOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2).then(function loop() {
                 flushed = false;
                 var buffer = view.block();
+                var decodeStart = Date.now();
                 var srcStart = view.toBufferOffset(offset);
                 var srcEnd = decoder.decodeUntilFlush(buffer, srcStart);
+                var downtime = getDowntime(Date.now() - decodeStart);
                 var bytesRead = (srcEnd - srcStart);
                 offset += bytesRead;
 
@@ -254,19 +263,24 @@ function nextJob() {
                     started = -1;
                     reportEstimate(id, estimate);
                 }
-            
+
                 if (!flushed &&
                     (metadata.dataEnd - offset <= metadata.maxByteSizePerSample * metadata.samplesPerFrame * 10)) {
-                    return;
+                    return Promise.delay(downtime);
                 }
 
                 if (shouldAbort) {
                     aborted = true;
                     reportAbort(id);
-                    return;
+                    return Promise.delay(downtime);
                 }
 
-                return view.readBlockOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2).then(loop);
+                var readStarted = Date.now();
+                return view.readBlockOfSizeAt(metadata.maxByteSizePerSample * sampleRate * BUFFER_DURATION, offset, 2)
+                        .then(function() {
+                            var waitTime = Math.max(0, downtime - (Date.now() - readStarted));
+                            return Promise.delay(waitTime).then(loop);
+                        });
             }).then(function() {
                 if (aborted) {
                     return;
@@ -296,7 +310,7 @@ function nextJob() {
                 return tagDatabase.insert(job.uid, flattened)
                     .catch(function(e) {})
                     .then(function() {
-                        reportSuccess(id, result);    
+                        reportSuccess(id, result);
                     });
             });
         });
