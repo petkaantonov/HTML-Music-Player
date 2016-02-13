@@ -18,7 +18,9 @@ const isCors = function(url) {
 
 const ricon = /(?:android-chrome|icon|safari-pinned|mstile)/;
 const isUnnecessary = function(url) {
-    return url.indexOf("dist/images") >= 0 && ricon.test(url);
+    return url.indexOf("dist/images") >= 0 &&
+           ricon.test(url) &&
+           url.indexOf("apple-touch-icon-180x180") === -1;
 };
 
 self.addEventListener("install", function(e) {
@@ -120,7 +122,7 @@ self.addEventListener("fetch", function(e) {
             if (cacheName) {
                 var responseToCache = response.clone();
                 caches.open(cacheName).then(function(cache) {
-                    cache.put(fetchRequest, responseToCache)  
+                    cache.put(fetchRequest, responseToCache)
                 });
             }
             return response;
