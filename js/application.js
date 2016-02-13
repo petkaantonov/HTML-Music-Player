@@ -561,7 +561,7 @@ $(document)
         } else if (dt.files && dt.files.length > 0) {
             files = Promise.resolve(dt.files);
         }
-        
+
         if (!files) {
             return;
         }
@@ -970,9 +970,9 @@ hotkeyManager.addDescriptor({
         if (seekValueToCommit !== -1) {
             p = seekValueToCommit;
         } else {
-            p = player.main.getProgress();    
+            p = player.main.getProgress();
         }
-        
+
         if (p !== -1) {
             seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
             seekHotkey = e.which;
@@ -993,7 +993,7 @@ hotkeyManager.addDescriptor({
         if (seekValueToCommit !== -1) {
             p = seekValueToCommit;
         } else {
-            p = player.main.getProgress();    
+            p = player.main.getProgress();
         }
 
         if (p !== -1) {
