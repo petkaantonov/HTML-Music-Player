@@ -1118,7 +1118,7 @@ util.doubleTapHandler = function(fn) {
         if (lastTap === -1) {
             lastTap = now;
             lastTouch = changedTouches[0];
-        } else if (now - lastTap < TAP_TIME) {
+        } else if (now - lastTap < TAP_TIME * 1.62) {
             var touch = lastTouch;
             lastTouch = null;
             var yDelta = Math.abs(touch.clientY - changedTouches[0].clientY);
