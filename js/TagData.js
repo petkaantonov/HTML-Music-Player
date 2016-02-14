@@ -67,9 +67,7 @@ function TagData(track, data, trackAnalyzer) {
     this._stateId = 1;
 }
 
-TagData.prototype._stateUpdate = function() {
-    this._stateId++;
-};
+TagData.prototype._stateUpdate = function() {};
 
 TagData.prototype.getStateId = function() {
     return this._stateId;

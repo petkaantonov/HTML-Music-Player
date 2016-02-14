@@ -15,10 +15,8 @@ const util = require("./util");
 const EventEmitter = require("events");
 const ChannelMixer = require("../worker/ChannelMixer");
 const patchAudioContext = require("../lib/audiocontextpatch");
-const $ = require("../lib/jquery");
+const env = require("./env");
 const simulateTick = require("../lib/patchtimers");
-require("../lib/ua-parser");
-
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
@@ -250,21 +248,10 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
     return new Float32Array(buffer, 0, size);
 };
 
-const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
 const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
-    var ua = $.ua;
-
-    if (ua.device && ua.device.type) {
-        return /^(console|mobile|tablet|smarttv|wearable|embedded)$/.test(ua.device.type) ? LOWEST : LOWEST;
-    } else if (ua.cpu && ua.cpu.architecture) {
-        return /^(amd64|ia32|ia64)$/.test(ua.cpu.architecture) ? DESKTOP : LOWEST;
-    } else if (ua.os && ua.os.name) {
-        return desktopOs.test(ua.os.name) ? DESKTOP : LOWEST;
-    } else {
-        return LOWEST;
-    }
+    return env.isMobile() ? LOWEST : DESKTOP;
 };
 
 AudioPlayer.prototype._determineHardwareLatency = function() {

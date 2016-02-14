@@ -144,9 +144,8 @@ PlaylistNotifications.prototype.stateChanged = function() {
             enabled: true,
             isPlaying: isPlaying,
             isPausedOrStopped: isPausedOrStopped,
-            track: track
-            // Chrome flickers/fades out inplace notifications
-            // tagDataState: track.getTagStateId()
+            track: track,
+            tagDataState: track.getTagStateId()
         };
 
         if (!this._shouldRenderNewState(state)) {
@@ -170,7 +169,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
         var imageUrl;
         // Chrome flickers and reloads the image every time, unusable
         // this._currentAction = track.getImage().bind(this).then(function(image) {
-        this._currentAction = Promise.bind(this).then(function() {
+        this._currentAction = Promise.bind(this).delay(100).then(function() {
             //if (image.blob) {
                 //imageUrl = URL.createObjectURL(image.blob);
             //} else {

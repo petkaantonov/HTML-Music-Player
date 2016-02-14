@@ -7,6 +7,7 @@ const GlobalUi = require("./GlobalUi");
 const Snackbar = require("./Snackbar");
 const EventEmitter = require("events");
 const UPDATE_INTERVAL = 15 * 60 * 1000;
+const env = require("./env");
 
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
 
@@ -204,7 +205,18 @@ ServiceWorkerManager.prototype.showNotification = function(title, options) {
     }
 
     return this._registration.then(function(reg) {
-        return Promise.resolve(reg.showNotification(title, options)).then(function() {
+        var preReq = Promise.resolve();
+        if (env.isMobile()) {
+            preReq = Promise.resolve(reg.getNotifications()).then(function(notifications) {
+                notifications.forEach(function(notification) {
+                    try { notification.close(); } catch (e) {}
+                });
+            });
+        }
+
+        return preReq.then(function() {
+            return reg.showNotification(title, options);
+        }).then(function() {
             var opts = {tag: tag};
             return Promise.resolve(reg.getNotifications(opts)).then(function(notifications) {
                 var theNotification = notifications.filter(function(n) {
