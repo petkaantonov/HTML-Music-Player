@@ -577,6 +577,7 @@ AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
 AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
     simulateTick();
     var source = event.target;
+    if (!source.onended) return;
     var sourceDescriptor = this._bufferQueue.shift();
 
     if (sourceDescriptor.source !== source) {

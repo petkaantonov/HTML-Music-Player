@@ -64,7 +64,16 @@ function TagData(track, data, trackAnalyzer) {
     this.endSilenceLength = 0;
 
     this._trackAnalyzer = trackAnalyzer;
+    this._stateId = 1;
 }
+
+TagData.prototype._stateUpdate = function() {
+    this._stateId++;
+};
+
+TagData.prototype.getStateId = function() {
+    return this._stateId;
+};
 
 TagData.prototype.playerMetadata = function() {
     return {
@@ -272,6 +281,7 @@ TagData.prototype._getEmbeddedImage = function() {
 
     if (picture.blobUrl) {
         img.src = picture.blobUrl;
+        img.blob = picture.blob;
         blobUrl = picture.blobUrl;
         if (img.complete) {
             clear();
@@ -282,6 +292,7 @@ TagData.prototype._getEmbeddedImage = function() {
     var url = URL.createObjectURL(picture.blob);
     picture.blobUrl = url;
     img.src = url;
+    img.blob = picture.blob;
     if (img.complete) {
         clear();
     }
@@ -360,6 +371,7 @@ TagData.prototype.fetchAcoustIdImageEnded = function(image, error) {
     } else {
         this._coverArtImageState = HAS_IMAGE;
         albumNameToCoverArtUrlMap[this.albumNameKey()] = image.url;
+        this._stateUpdate();
         this.track.tagDataUpdated();
     }
 };
@@ -396,6 +408,7 @@ TagData.prototype.setLoudness = function(data) {
 };
 
 TagData.prototype.setDataFromTagDatabase = function(data) {
+    this._stateUpdate();
     this._hasBeenAnalyzed = true;
     this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
                               this.beginSilenceLength ||

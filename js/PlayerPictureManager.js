@@ -226,7 +226,7 @@ PlayerPictureManager.generateImageForTrack = Promise.method(function(track) {
 });
 
 const defaultImage = new Image();
-defaultImage.src = "/dist/images/icon.png";
+defaultImage.src = "/dist/images/apple-touch-icon-180x180.png";
 PlayerPictureManager.getDefaultImage = function() {
     return defaultImage;
 };

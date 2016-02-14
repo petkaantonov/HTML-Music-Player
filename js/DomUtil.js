@@ -309,6 +309,7 @@ util.canvasToImage = function(canvas) {
         var url = URL.createObjectURL(blob);
         var image = new Image();
         image.src = url;
+        image.blob = blob;
         return new Promise(function (resolve, reject) {
             if (image.complete) return resolve(image);
 

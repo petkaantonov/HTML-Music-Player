@@ -326,7 +326,7 @@ WebGl2dImageRenderer.prototype.drawCaps = function(bins) {
         positions[j + 17] = y1;
         positions[j + 20] = x2;
         positions[j + 21] = y2;
-        
+
         j += 24;
     }
 

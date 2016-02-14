@@ -8,6 +8,8 @@ const Snackbar = require("./Snackbar");
 const EventEmitter = require("events");
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 
+const tabId = Math.floor(Date.now() + Math.random() * Date.now());
+
 function ServiceWorkerManager() {
     EventEmitter.call(this);
     this._registration = null;
@@ -22,12 +24,26 @@ function ServiceWorkerManager() {
     this._foregrounded = this._foregrounded.bind(this);
     this._backgrounded = this._backgrounded.bind(this);
     this._updateChecker = this._updateChecker.bind(this);
+    this._appClosed = this._appClosed.bind(this);
 
     this._updateCheckInterval = setInterval(this._updateChecker, 10000);
     util.documentHidden.on("foreground", this._foregrounded);
     util.documentHidden.on("background", this._backgrounded);
+    window.addEventListener("unload", this._appClosed, false);
+
 }
 util.inherits(ServiceWorkerManager, EventEmitter);
+
+ServiceWorkerManager.prototype._appClosed = function() {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        try {
+            navigator.serviceWorker.controller.postMessage({
+                action: "closeNotifications",
+                tabId: tabId
+            });
+        } catch (e) {}
+    }
+};
 
 ServiceWorkerManager.prototype._updateChecker = function() {
     if (this._registration &&
@@ -75,7 +91,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
     this._updateAvailableNotified = true;
     var self = this;
     if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
-    
+
     GlobalUi.snackbar.show("New version available", {
         action: "refresh",
         visibilityTime: 15000
@@ -143,7 +159,7 @@ ServiceWorkerManager.prototype.start = function() {
 };
 
 ServiceWorkerManager.prototype._messaged = function(e) {
-    if (e.data.eventType !== "swEvent") return;
+    if (e.data.data.tabId !== tabId || e.data.eventType !== "swEvent") return;
     var data = e.data;
     if (data.type === "notificationClick") {
         this.emit("action" + data.action, {
@@ -153,15 +169,60 @@ ServiceWorkerManager.prototype._messaged = function(e) {
     }
 };
 
+ServiceWorkerManager.prototype.hideNotifications = function(tag) {
+    if (tag) {
+        tag = tag + "-" + tabId;
+    } else {
+        tag = tabId;
+    }
+    return this._registration.then(function(reg) {
+        return Promise.resolve(reg.getNotifications({tag: tag})).then(function(notifications) {
+            notifications.forEach(function(notification) {
+                try {
+                    notification.close();
+                } catch (e) {}
+            });
+        });
+    });
+};
+
+var notificationId = (Date.now() * Math.random())|0;
 ServiceWorkerManager.prototype.showNotification = function(title, options) {
     if (!this._started) return Promise.resolve();
     if (!options) options = Object(options);
+    var id = ++notificationId;
+    options.data = {
+        notificationId: id,
+        tabId: tabId
+    };
+
+    var tag;
+    if (!options.tag) {
+        tag = options.tag = tabId;
+    } else {
+        tag = options.tag = options.tag + "-" + tabId;
+    }
 
     return this._registration.then(function(reg) {
         return Promise.resolve(reg.showNotification(title, options)).then(function() {
-            var opts = options && options.tag ? {tag: options.tag} : {};
+            var opts = {tag: tag};
             return Promise.resolve(reg.getNotifications(opts)).then(function(notifications) {
-                return notifications[0];
+                var theNotification = notifications.filter(function(n) {
+                    return n.data.notificationId === id && n.data.tabId === tabId;
+                })[0];
+
+                // GC possible hanging around notifications explicitly.
+                notifications.filter(function(n) {
+                    return n.data.notificationId !== id && n.data.tabId === tabId;
+                }).forEach(function(n) {
+                    try { n.close(); } catch (e) {}
+                });
+
+                if (theNotification) {
+                    return theNotification;
+                } else {
+                    return null;
+                }
             });
         });
     });

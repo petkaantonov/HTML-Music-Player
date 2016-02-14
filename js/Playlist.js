@@ -66,7 +66,7 @@ function Playlist(domNode, opts) {
     this._trackListDeletionUndo = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
-    
+
     this._errorCount = 0;
     this._$domNode = $(domNode);
     this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
@@ -92,6 +92,8 @@ function Playlist(domNode, opts) {
         mustNotMatchSelector: ".track-rating",
         mustMatchSelector: ".track-container"
     });
+
+    this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
     $(window).on("resize", this._windowLayoutChanged.bind(this));
 
@@ -129,7 +131,7 @@ function Playlist(domNode, opts) {
                 this._selectable.setPriorityTrack(track);
             }
         }.bind(this)));
-        
+
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
@@ -218,7 +220,7 @@ Playlist.Modes = {
             maxWeight += getWeight(track);
         }
 
-        
+
 
         var target = ((Math.random() * maxWeight + 1) | 0) - 1;
         var currentWeight = -1;
@@ -284,15 +286,25 @@ Playlist.prototype._updateNextTrack = function(forced) {
         return;
     }
 
+    if (nextTrack && nextTrack !== DUMMY_TRACK) {
+        nextTrack.removeListener("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
+    }
+
     this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack) || DUMMY_TRACK;
 
     if (this._nextTrack === DUMMY_TRACK ||
         this._nextTrack.isDetachedFromPlaylist() ||
         this._nextTrack.hasError()) {
         this._nextTrack = DUMMY_TRACK;
+    } else {
+        this._nextTrack.on("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
     }
 
     this.emit("nextTrackChange", this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
+};
+
+Playlist.prototype._highlyRelevantTrackMetadataUpdated = function() {
+    this.emit("highlyRelevantTrackMetadataUpdate");
 };
 
 Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind) {
@@ -537,7 +549,7 @@ Playlist.prototype.removeTracks = function(tracks) {
 
     this.removeTracksBySelectionRanges(tracksIndexRanges);
     this.emit("lengthChange", this.length, oldLength);
-    
+
 
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
@@ -627,11 +639,13 @@ Playlist.prototype.setCurrentTrack = function(track, trackChangeKind) {
 
     if (current) {
         current.stopPlaying();
+        current.removeListener("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
     }
 
     this._currentTrack = track;
 
     if (track) {
+        track.on("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
         track.startPlaying();
     }
 

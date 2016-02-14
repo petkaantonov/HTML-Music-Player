@@ -284,6 +284,10 @@ Track.prototype.getImage = Promise.method(function() {
             return image;
         }).catch(function(e) {
             image.src = "";
+            if (image.blob) {
+                image.blob.close();
+                image.blob = null;
+            }
             return PlayerPictureManager.generateImageForTrack(self).tap(function(result) {
                 self._generatedImage = result;
                 result.tag = self.getUid();
@@ -293,10 +297,6 @@ Track.prototype.getImage = Promise.method(function() {
     }
     return image;
 });
-
-Track.prototype.getImageUrl = function() {
-    return this.getImage().get("src");
-};
 
 Track.prototype.isDetachedFromPlaylist = function() {
     return this.index === -1;
@@ -698,6 +698,10 @@ Track.prototype.playerMetadata = function() {
         return null;
     }
     return this.tagData.playerMetadata();
+};
+
+Track.prototype.getTagStateId = function() {
+    return this.tagData ? this.tagData.getStateId() : -1;
 };
 
 module.exports = Track;

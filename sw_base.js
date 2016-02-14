@@ -137,6 +137,17 @@ self.addEventListener("fetch", function(e) {
 self.addEventListener('message', function(e) {
     if (e.data.action === 'skipWaiting') {
         self.skipWaiting();
+    } else if (e.data.action === "closeNotifications") {
+        var tabId = e.data.tabId;
+        self.registration.getNotifications().then(function(notifications) {
+            notifications.filter(function(notification) {
+                return notification.data.tabId === tabId;
+            }).forEach(function(notification) {
+                try {
+                    notification.close();
+                } catch (e) {}
+            });
+        });
     }
 });
 
@@ -144,7 +155,7 @@ self.addEventListener("notificationclick", function(event) {
     event.waitUntil(clients.matchAll({type: "window"}).then(function(clientList) {
         for (var i = 0; i < clientList.length; i++) {
             var client = clientList[i];
-            if ('focus' in client) {
+            try {
                 return client.postMessage({
                     eventType: "swEvent",
                     type: "notificationClick",
@@ -152,7 +163,7 @@ self.addEventListener("notificationclick", function(event) {
                     data: event.notification.data,
                     tag: event.notification.tag
                 });
-            }
+            } catch (e) {}
         }
     }));
 });
