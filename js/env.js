@@ -6,7 +6,7 @@ var ua = $.ua;
 var isDesktop = false;
 
 if (ua.device && ua.device.type) {
-    isDesktop = /^(console|mobile|tablet|smarttv|wearable|embedded)$/.test(ua.device.type);
+    isDesktop = !/^(console|mobile|tablet|smarttv|wearable|embedded)$/.test(ua.device.type);
 } else if (ua.cpu && ua.cpu.architecture) {
     isDesktop = /^(amd64|ia32|ia64)$/.test(ua.cpu.architecture);
 } else if (ua.os && ua.os.name) {
