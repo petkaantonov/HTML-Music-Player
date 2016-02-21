@@ -238,7 +238,6 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
 
     var tag = jsmd5.MD5(data);
     var dataBlob = new Blob([data], {type: type});
-    console.log(tag);
 
     pictures.push({
         tag: tag,
