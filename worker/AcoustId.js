@@ -5,12 +5,12 @@
  * Chromaprint -- Audio fingerprinting toolkit
  * Copyright (C) 2010  Lukas Lalinsky <lalinsky@gmail.com>,
  * Copyright (C) 2015  Petka Antonov
- * 
+ *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -601,7 +601,6 @@ AcoustId.fetch = function(args, _retries) {
             fingerprint: fingerprint
         });
         var xhr = new XMLHttpRequest();
-        xhr.responseType = "json";
         xhr.timeout = 5000;
         var url = "https://api.acoustId.org/v2/lookup?" + data;
 
@@ -610,7 +609,12 @@ AcoustId.fetch = function(args, _retries) {
         }
 
         xhr.addEventListener("load", function() {
-            resolve(this.response);
+            try {
+              var result = JSON.parse(this.responseText);
+              resolve(result);
+            } catch (e) {
+              reject(e);
+            }
         }, false);
 
         xhr.addEventListener("abort", error);

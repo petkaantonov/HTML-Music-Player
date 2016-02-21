@@ -147,7 +147,7 @@ tagMap[0x54434f|0] = tagMap[0x54434f4e|0] = id3v2String(function(data, result) {
 
         for (var i = 0; i < genre.length; ++i) {
             genres[genre[i].toLowerCase()] = genre[i];
-        }        
+        }
     }
 
     var rest = result.slice(lastIndex).trim();
@@ -183,7 +183,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         type = "image/" + decoder.decode(new Uint8Array(buffer.buffer, offset - start, 3));
         offset += 3;
     } else {
-        var length = distanceUntilNull(offset - start, buffer, size - (offset - originalOffset), 1);        
+        var length = distanceUntilNull(offset - start, buffer, size - (offset - originalOffset), 1);
         var typeString = decoder.decode(new Uint8Array(buffer.buffer, offset - start, length)).toLowerCase();
         offset += (length + 1);
 
@@ -207,7 +207,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
 
     var dataLength = size - (offset - originalOffset);
     var start = fileView.start + offset;
-    
+
     var pictures = data.pictures;
     if (!pictures) {
         pictures = [];
@@ -236,8 +236,9 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         data = new Uint8Array(buffer.buffer, offset - fileView.start, dataLength);
     }
 
-    var tag = jsmd5(data);
+    var tag = jsmd5.MD5(data);
     var dataBlob = new Blob([data], {type: type});
+    console.log(tag);
 
     pictures.push({
         tag: tag,
@@ -284,9 +285,9 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
 };
 
 const synchIntAt = function(fileView, offset) {
-    return (fileView.getUint8(offset) << 21) | 
+    return (fileView.getUint8(offset) << 21) |
           (fileView.getUint8(offset + 1) << 14) |
-          (fileView.getUint8(offset + 2) << 7) | 
+          (fileView.getUint8(offset + 2) << 7) |
           fileView.getUint8(offset + 3);
 };
 
@@ -311,7 +312,7 @@ const getFlags = function(fileView, offset, version) {
         hasBeenUnsynchronized = util.bit(bits, 1);
         hasDataLengthIndicator = util.bit(bits, 0);
     }
-    
+
     return {
         tagAlterPreservation: tagAlterPreservation,
         fileAlterPreservation: fileAlterPreservation,
@@ -420,7 +421,7 @@ const parseId3v2Data = function(data, fileView, offset) {
         if (mainFlags.hasFooter) {
             offset += 10;
         }
-    
+
         while (offset + headerSize < fileView.end) {
             var tag = fileView.getUint32(offset);
             if ((tag >>> 8) === ID3) {
@@ -429,7 +430,7 @@ const parseId3v2Data = function(data, fileView, offset) {
                 break;
             }
             offset += 4;
-        }        
+        }
     });
 };
 
