@@ -76,6 +76,8 @@ const BUFFER_SAMPLES = webAudioBlockSize(48000 * 1);
 const BUFFER_ALLOCATION_SIZE = 1048576;
 const PRELOAD_BUFFER_COUNT = 2;
 const SUSTAINED_BUFFER_COUNT = 4;
+const MAX_AUDIO_BUFFERS = SUSTAINED_BUFFER_COUNT * 3 * 2;
+const MAX_ARRAY_BUFFERS = SUSTAINED_BUFFER_COUNT * 3 * 2 * 6;
 
 var codeIsCold = true;
 const getPreloadBufferCount = function() {
@@ -221,9 +223,9 @@ AudioPlayer.prototype._allocAudioBuffer = function() {
                                               BUFFER_SAMPLES,
                                               this._audioContext.sampleRate);
     this._audioBuffersAllocated++;
-    if (this._audioBuffersAllocated > PRELOAD_BUFFER_COUNT * 3 * 2) {
+    if (this._audioBuffersAllocated > MAX_AUDIO_BUFFERS) {
         if (window.console && console.warn) {
-            console.warn("Possible memory leak: over " + (PRELOAD_BUFFER_COUNT * 3 * 2) + " audio buffers allocated");
+            console.warn("Possible memory leak: over " + MAX_AUDIO_BUFFERS + " audio buffers allocated");
         }
     }
     return ret;
@@ -239,9 +241,9 @@ AudioPlayer.prototype._freeArrayBuffer = function(arrayBuffer) {
 AudioPlayer.prototype._allocArrayBuffer = function(size) {
     if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
     this._arrayBuffersAllocated++;
-    if (this._arrayBuffersAllocated > PRELOAD_BUFFER_COUNT * 3 * 2 * 6) {
+    if (this._arrayBuffersAllocated > MAX_ARRAY_BUFFERS) {
         if (window.console && console.warn) {
-            console.warn("Possible memory leak: over " + (PRELOAD_BUFFER_COUNT * 3 * 2 * 6) + " array buffers allocated");
+            console.warn("Possible memory leak: over " + MAX_ARRAY_BUFFERS + " array buffers allocated");
         }
     }
     var buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
