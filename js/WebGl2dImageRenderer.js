@@ -44,7 +44,7 @@ function getContext(canvas) {
     if (gl) return gl;
 
     try {
-        gl = canvas.getContext("experimental-webgl");
+        gl = canvas.getContext("experimental-webgl", {premultipliedAlpha: true, alpha: false});
     } catch (e) {
         gl = null;
     }

@@ -55,8 +55,8 @@ function PlayerTimeManager(dom, player, opts) {
 
     var currentTimeDom = this.$currentTime()[0];
     var totalTimeDom = this.$totalTime()[0];
-    var width = this.$currentTime().width() * pixelRatio;
-    var height = this.$currentTime().height() * pixelRatio;
+    var width = this.$currentTime().width() * pixelRatio | 0;
+    var height = this.$currentTime().height() * pixelRatio | 0;
 
     this.timeDisplayWidth = width;
     this.timeDisplayHeight = height;
@@ -146,11 +146,11 @@ PlayerTimeManager.prototype._updateTimeText = function(now) {
     this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.currentTimeCtx.fillText(util.toTimeString(this._displayedTimeLeft),
-                                ((this.timeDisplayWidth - 1 * devicePixelRatio) / 2)|0,
-                                (this.timeDisplayHeight + 2 * devicePixelRatio)|0);
+                                ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
+                                (this.timeDisplayHeight + 2 * pixelRatio)|0);
     this.totalTimeCtx.fillText(util.toTimeString(this._displayedTimeRight),
-                                ((this.timeDisplayWidth - 1 * devicePixelRatio) / 2)|0,
-                                (this.timeDisplayHeight + 2 * devicePixelRatio)|0);
+                                ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
+                                (this.timeDisplayHeight + 2 * pixelRatio)|0);
 };
 
 PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {

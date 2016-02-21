@@ -2,7 +2,7 @@
 
 const pixelRatio = window.devicePixelRatio || 1;
 
-const SHADOW_BLUR = 2 * pixelRatio;
+const SHADOW_BLUR = 2 * pixelRatio | 0;
 const SHADOW_COLOR = "rgb(11,32,53)";
 const Animator = require("./Animator");
 const util = require("./util");
@@ -75,7 +75,7 @@ function GraphicsSource(visualizerCanvas) {
     var binsNeeded = (highestBinHeight + 1);
     var binWidthPixels = visualizerCanvas.binWidthSourcePixels();
     var binHeightPixels = visualizerCanvas.binHeightSourcePixels();
-    var capWidthPixels = 16 * pixelRatio + 2 + binWidthPixels;
+    var capWidthPixels = (16 * pixelRatio + 2 + binWidthPixels) | 0;
     var totalWidth = binsNeeded * binWidthPixels + capWidthPixels;
     var width = Math.min(Math.pow(2, Math.ceil(Math.log(totalWidth) * Math.LOG2E)), 1024);
     var rows = 1;
@@ -115,7 +115,7 @@ function GraphicsSource(visualizerCanvas) {
         gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
         gradient.addColorStop(0.7, "rgb(189, 196, 204)");
         gradient.addColorStop(1, "rgb(183, 190, 198)");
-        
+
         //context.fillStyle = "rgba(99, 113, 126, 255)";
         context.fillStyle = gradient; //"rgba(183, 190, 198, 255)";
         context.fillRect(x - gapWidth, y, width + gapWidth * 2, height + gapWidth);
@@ -150,7 +150,7 @@ function GraphicsSource(visualizerCanvas) {
     context.globalAlpha = 1;
     context.fillStyle = visualizerCanvas.capStyle;
     var x = col * binWidthPixels + visualizerCanvas.binWidth + 5;
-    var y = (row * binHeightPixels + SHADOW_BLUR) + 16 * pixelRatio;
+    var y = (row * binHeightPixels + SHADOW_BLUR) + (16 * pixelRatio)|0;
     context.fillRect(x, y, visualizerCanvas.binWidth, visualizerCanvas.capHeight);
 
     this.capX = x;
@@ -173,16 +173,16 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     this.webglSupported = WebGl2dImageRenderer.isSupported();
     var $targetCanvas = $(targetCanvas);
     targetCanvas = $targetCanvas[0];
-    var width = $targetCanvas.width() * pixelRatio;
-    var height = $targetCanvas.height() * pixelRatio;
+    var width = $targetCanvas.width() * pixelRatio | 0;
+    var height = $targetCanvas.height() * pixelRatio | 0;
     this.needToDraw = true;
     this.canvas = targetCanvas;
     this.width = targetCanvas.width = width;
     this.height = targetCanvas.height = height;
-    this.binWidth = opts.binWidth * pixelRatio;
-    this.gapWidth = opts.gapWidth * pixelRatio;
-    this.capHeight = opts.capHeight * pixelRatio;
-    this.capSeparator = opts.capSeparator * pixelRatio;
+    this.binWidth = opts.binWidth * pixelRatio | 0;
+    this.gapWidth = opts.gapWidth * pixelRatio | 0;
+    this.capHeight = opts.capHeight * pixelRatio | 0;
+    this.capSeparator = opts.capSeparator * pixelRatio | 0;
     this.capStyle = opts.capStyle;
     this.targetFps = opts.targetFps;
     this.sectionContainerSelector = opts.sectionContainerSelector || ".visualizer-section-container";
@@ -380,7 +380,7 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
     if (!this.shown) return;
-    var width = $(this.canvas).width() * pixelRatio;
+    var width = $(this.canvas).width() * pixelRatio | 0;
     if (width !== this.width) {
         this.width = width;
         this.canvas.width = width;
@@ -455,7 +455,7 @@ VisualizerCanvas.prototype.drawIdleBins = function(now) {
                 return;
             }
         }
-        
+
         this.needToDraw = false;
     }
 };
@@ -527,7 +527,7 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
         var binValue = bins[i];
         var transitionInfo = transitionInfoArray[i];
         var currentCapBasePosition = -1;
-    
+
         if (transitionInfo.inProgress()) {
             currentCapBasePosition = transitionInfo.getCapPosition(now);
         }
