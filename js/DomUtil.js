@@ -345,11 +345,18 @@ function GestureObject(e, touch, isFirst) {
     this.currentTarget = e.currentTarget;
     this.type = e.type;
     this.isFirst = !!isFirst;
+    this.originalEvent = e.originalEvent ? e.originalEvent : e;
 }
 
-GestureObject.prototype.preventDefault = function() {};
-GestureObject.prototype.stopPropagation = function() {};
-GestureObject.prototype.stopImmediatePropagation = function(){};
+GestureObject.prototype.preventDefault = function() {
+    return this.originalEvent.preventDefault();
+};
+GestureObject.prototype.stopPropagation = function() {
+    return this.originalEvent.stopPropagation();
+};
+GestureObject.prototype.stopImmediatePropagation = function(){
+    return this.originalEvent.stopImmediatePropagation();
+};
 
 util.touchDownHandler =  function(fn) {
     var actives = new ActiveTouchList();
@@ -482,7 +489,7 @@ util.tapHandler = function(fn) {
 
         if (e.type === TOUCH_START) {
             if (actives.length() <= 1) {
-                started = Date.now();
+                started = (e.timeStamp || e.originalEvent.timeStamp);
                 currentTouch = actives.first();
             } else {
                 clear();
@@ -497,11 +504,10 @@ util.tapHandler = function(fn) {
             var touch = changedTouches[0];
             var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
             var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
-            var elapsed = Date.now() - started;
+            var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - started;
 
             if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
                 var g = new GestureObject(e, touch);
-                console.log(g);
                 fn.call(this, g);
             }
             clear();
@@ -531,7 +537,7 @@ util.twoFingerTapHandler = function(fn) {
         if (deltaX > TWO_FINGER_TAP_MINIMUM_DISTANCE ||
             deltaY > TWO_FINGER_TAP_MINIMUM_DISTANCE) {
             if (started === -1) {
-                started = Date.now();
+                started = (e.timeStamp || e.originalEvent.timeStamp);
             }
         } else {
             clear();
@@ -584,7 +590,7 @@ util.twoFingerTapHandler = function(fn) {
             }
 
             if (currentATouch !== null && currentBTouch === null) {
-                started = Date.now();
+                started = (e.timeStamp || e.originalEvent.timeStamp);
             } else if (currentATouch !== null && currentBTouch !== null) {
                 maybeStart();
             }
@@ -639,7 +645,7 @@ util.modifierTapHandler = function(fn) {
 
             for (var i = 0; i < changedTouches.length; ++i) {
                 if (changedTouches[i].identifier !== modifierTouch.identifier) {
-                    started = Date.now();
+                    started = e.timeStamp || e.originalEvent.timeStamp;
                     currentTouch = changedTouches[i];
                     return;
                 }
@@ -664,7 +670,7 @@ util.modifierTapHandler = function(fn) {
 
             var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
             var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
-            var elapsed = Date.now() - started;
+            var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - started;
 
             if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
                 if (haveSettledModifierTouch(e.timeStamp)) {
@@ -1126,7 +1132,7 @@ util.doubleTapHandler = function(fn) {
     return util.tapHandler(function(e) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
-        var now = Date.now();
+        var now = (e.timeStamp || e.originalEvent.timeStamp);
         if (lastTap === -1) {
             lastTap = now;
             lastTouch = changedTouches[0];
