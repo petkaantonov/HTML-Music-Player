@@ -154,11 +154,11 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
                 if (!result) {
                     track.tagData.setDataFromTagDatabase(analysis);
                     if (!acoustIdFilled) {
-                        self.fillInAcoustId(track, analysis.duration, analysis.fingerprint.fingerprint);
+                        self.fillInAcoustId(track, analysis.duration, analysis.fingerprint);
                     }
                 } else {
                     if (needFingerprint && !acoustIdFilled) {
-                        self.fillInAcoustId(track, result.duration, analysis.fingerprint.fingerprint);
+                        self.fillInAcoustId(track, result.duration, analysis.fingerprint);
                     }
 
                     if (needLoudness) {

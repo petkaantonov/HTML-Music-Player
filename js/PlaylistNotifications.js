@@ -12,8 +12,8 @@ const supported = typeof Notification === "function" &&
                   typeof navigator.serviceWorker !== "undefined";
 const MAX_ACTIONS = supported ? Notification.maxActions : 0;
 const PAUSE = "\u275a\u275a";
-const PLAY = "\u25ba";
-const NEXT = "\u25ba\u275a";
+const PLAY = "\u23f5";
+const NEXT = "\u23f5\u275a";
 const PREFERENCE_KEY = "overlay-enabled";
 
 const util = require("./util");

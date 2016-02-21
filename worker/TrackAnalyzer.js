@@ -314,7 +314,7 @@ function nextJob() {
                 return tagDatabase.insert(job.uid, flattened)
                     .catch(function(e) {})
                     .then(function() {
-                        reportSuccess(id, result);
+                        reportSuccess(id, flattened);
                     });
             });
         });
