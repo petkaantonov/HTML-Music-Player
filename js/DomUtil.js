@@ -333,15 +333,23 @@ util.canvasToImage = function(canvas) {
     });
 };
 
-const copyTouchProps = function(e, touch) {
-    e.clientX = touch.clientX;
-    e.clientY = touch.clientY;
-    e.pageX = touch.pageX;
-    e.pageY = touch.pageY;
-    e.screenX = touch.screenX;
-    e.screenY = touch.screenY;
-    return e;
-};
+function GestureObject(e, touch, isFirst) {
+    this.clientX = touch.clientX;
+    this.clientY = touch.clientY;
+    this.pageX = touch.pageX;
+    this.pageY = touch.pageY;
+    this.screenX = touch.screenX;
+    this.screenY = touch.screenY;
+    this.timeStamp = e.timeStamp;
+    this.target = e.target;
+    this.currentTarget = e.currentTarget;
+    this.type = e.type;
+    this.isFirst = !!isFirst;
+}
+
+GestureObject.prototype.preventDefault = function() {};
+GestureObject.prototype.stopPropagation = function() {};
+GestureObject.prototype.stopImmediatePropagation = function(){};
 
 util.touchDownHandler =  function(fn) {
     var actives = new ActiveTouchList();
@@ -353,9 +361,8 @@ util.touchDownHandler =  function(fn) {
         if (e.type === TOUCH_START && documentActives.length() <= 1) {
             for (var i = 0; i < newTouches.length; ++i) {
                 var touch = newTouches[i];
-                copyTouchProps(e, touch);
-                e.isFirst = touch.identifier === actives.first().identifier;
-                fn.call(this, e);
+                var g = new GestureObject(e, touch, touch.identifier === actives.first().identifier);
+                fn.call(this, g);
             }
         }
     };
@@ -368,9 +375,9 @@ util.targetHoverHandler = function(fnStart, fnEnd) {
 
     function end(self, e, touch) {
         if (currentTouch !== null) {
-            copyTouchProps(e, touch || currentTouch)
+            var g = new GestureObject(e, touch || currentTouch);
             bounds = currentTouch = null;
-            fnEnd.call(self, e);
+            fnEnd.call(self, g);
         }
     }
 
@@ -413,9 +420,9 @@ util.hoverHandler = function(fnStart, fnEnd) {
 
     function end(self, e, touch) {
         if (currentTouch !== null) {
-            copyTouchProps(e, touch || currentTouch)
+            var g = new GestureObject(e, touch || currentTouch)
             currentTouch = null;
-            fnEnd.call(self, e);
+            fnEnd.call(self, g);
         }
     }
 
@@ -431,8 +438,8 @@ util.hoverHandler = function(fnStart, fnEnd) {
         if (e.type === TOUCH_START) {
             if (actives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
-                copyTouchProps(e, currentTouch);
-                fnStart.call(this, e);
+                var g = new GestureObject(e, currentTouch);
+                fnStart.call(this, g);
             } else {
                 end(this, e);
             }
@@ -493,8 +500,9 @@ util.tapHandler = function(fn) {
             var elapsed = Date.now() - started;
 
             if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
-                copyTouchProps(e, touch);
-                fn.call(this, e);
+                var g = new GestureObject(e, touch);
+                console.log(g);
+                fn.call(this, g);
             }
             clear();
         } else if (e.type === TOUCH_MOVE) {
@@ -660,8 +668,8 @@ util.modifierTapHandler = function(fn) {
 
             if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
                 if (haveSettledModifierTouch(e.timeStamp)) {
-                    copyTouchProps(e, touch);
-                    fn.call(this, e);
+                    var g = new GestureObject(e, touch);
+                    fn.call(this, g);
                 }
             }
             clear();
@@ -678,9 +686,9 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
 
     function end(self, e, touch) {
         if (currentTouch !== null) {
-            copyTouchProps(e, touch || currentTouch);
+            var g = new GestureObject(e, touch || currentTouch);
             currentTouch = null;
-            fnEnd.call(self, e);
+            fnEnd.call(self, g);
         }
     }
 
@@ -719,8 +727,8 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
 
             if (yDelta > 0 || xDelta > 0) {
                 currentTouch = touch;
-                copyTouchProps(e, currentTouch);
-                fnMove.call(this, e);
+                var g = new GestureObject(e, currentTouch);
+                fnMove.call(this, g);
             }
         }
     };
@@ -735,9 +743,8 @@ util.modifierTouchDownHandler = function(fn) {
             for (var i = 0; i < changedTouches.length; ++i) {
                 var touch = changedTouches[i];
                 if (touch.identifier !== modifierTouch.identifier) {
-                    copyTouchProps(e, touch);
-                    e.isFirst = true;
-                    fn.call(this, e);
+                    var g = new GestureObject(e, touch, true);
+                    fn.call(this, g);
                     break;
                 }
             }
@@ -752,9 +759,9 @@ util.dragHandler = function(fnMove, fnEnd) {
 
     function end(self, e, touch) {
         if (currentTouch !== null) {
-            copyTouchProps(e, touch || currentTouch);
+            var g = new GestureObject(e, touch || currentTouch);
             currentTouch = null;
-            fnEnd.call(self, e);
+            fnEnd.call(self, g);
         }
     }
 
@@ -787,8 +794,8 @@ util.dragHandler = function(fnMove, fnEnd) {
 
             if (yDelta > 2 || xDelta > 2) {
                 currentTouch = touch;
-                copyTouchProps(e, currentTouch);
-                fnMove.call(this, e);
+                var g = new GestureObject(e, currentTouch);
+                fnMove.call(this, g);
             }
         }
     };
@@ -1078,9 +1085,9 @@ util.longTapHandler = function(fn, noTrigger) {
                 var timeout = new SingleTapTimeout(function() {
                     if (documentActives.length() <= 1) {
                         var touch = currentTouch;
-                        copyTouchProps(e, touch);
+                        var g = new GestureObject(e, touch);
                         clear();
-                        fn.call(self, e);
+                        fn.call(self, g);
                     }
                 }, clear, LONG_TAP_TIME);
                 timeoutId = timeout.id;
