@@ -139,15 +139,17 @@ self.addEventListener('message', function(e) {
         self.skipWaiting();
     } else if (e.data.action === "closeNotifications") {
         var tabId = e.data.tabId;
-        self.registration.getNotifications().then(function(notifications) {
-            notifications.filter(function(notification) {
-                return notification.data.tabId === tabId;
-            }).forEach(function(notification) {
-                try {
-                    notification.close();
-                } catch (e) {}
+        if (self.registration && self.registration.getNotifications) {
+            self.registration.getNotifications().then(function(notifications) {
+                notifications.filter(function(notification) {
+                    return notification.data.tabId === tabId;
+                }).forEach(function(notification) {
+                    try {
+                        notification.close();
+                    } catch (e) {}
+                });
             });
-        });
+        }
     }
 });
 
