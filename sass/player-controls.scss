@@ -335,11 +335,6 @@ $slider-margin: 3px;
     border: none;
 }
 
-.volume-controls-container .button-group-item .volume-slider-wrap {
-    top: 13px;
-}
-
-
 .volume-controls-container.button-group .button-group-button {
     border-right: none;
 }
@@ -350,46 +345,13 @@ $slider-margin: 3px;
 
 .volume-controls-container .volume-slider-container {
     width: $slider-width + 2px;
-    height: 30px;
+    height: 100%;
     display: inline-block;
-    margin-top: 1px;
     margin-left: $slider-margin;
 }
 
-.volume-slider-knob,
-.app-general-slider-knob {
-    width: 18px;
-    height: 13px;
-    background-image: url('../images/volume_slider_knob.png');
-    background-repeat: no-repeat;
-    position: absolute;
-    top: -5px;
-    left: -5px;
-    z-index: 10;
-}
-
-.app-general-slider-knob.vertical {
-    left: -8px;
-}
-
-#app-volume-slider-clickarea,
-.app-general-slider-clickarea {
-    position: absolute;
-    right: 5px;
-    top: 0px;
-    width: 112px;
-    height: 26px;
-}
-.volume-slider-wrap,
-.app-general-slider-wrap {
-    width: $slider-width;
-    height: 3px;
-    background: white;
-    position: relative;
-    z-index: 1;
-    border: 1px solid #E2F7FE;
-    @include box-shadow(0px 0px 3px #A8B7FF);
-    top: 9px;
+.volume-mute-button .icon {
+    margin-top: 9px !important;
 }
 
 .playback-status-wrapper {

@@ -355,7 +355,9 @@ player.main = new Player(".app-player-controls", playlist.main, {
 });
 
 var playerTimeManager = new PlayerTimeManager(".player-upper-container", player.main, {
-    seekSlider: new Slider(".time-progress-container"),
+    seekSlider: new Slider(".time-progress-container", {
+        updateDom: false
+    }),
     currentTimeDom: ".current-time",
     totalTimeDom: ".total-time",
     timeContainerDom: ".playback-status-wrapper",
@@ -363,7 +365,7 @@ var playerTimeManager = new PlayerTimeManager(".player-upper-container", player.
 });
 
 var playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", player.main, {
-    volumeSlider: new Slider(".volume-slider-container"),
+    volumeSlider: new Slider(".volume-slider"),
     muteDom: ".volume-mute"
 });
 

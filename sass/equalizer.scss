@@ -1,14 +1,39 @@
+@import "variables";
+
+.equalizer-popup-content-container {
+    width: 320px;
+    @include large-screen {
+        width: 640px;
+    }
+}
+
 .app-general-slider-wrap.vertical.equalizer-slider-wrap {
     margin: 10px;
 }
 
-.equalizer-slider-container {
+.equalizer-band-configurator-container {
+    box-sizing: border-box;
     display: inline-block;
-    width: 50px;
-}
+    vertical-align: top;
 
-.equalizer-slider-container:last-child {
-    width: 40px;
+    width: 62px;
+    height: 100px;
+
+    div {
+        box-sizing: border-box;
+    }
+
+    .equalizer-slider-container {
+        width: $slider-input-area-size;
+        height: 76px;
+        margin: 0px auto;
+    }
+
+    .equalizer-band-label-container {
+        text-align: center;
+        margin-top: 5px;
+        font-size: 13px;
+    }
 }
 
 .equalizer-descriptor-container {
@@ -19,7 +44,12 @@
 }
 
 .equalizer-sliders-container {
-    display: inline-block;
+    display: block;
+    margin: 0px auto;
+    width: 320px;
+    @include large-screen {
+        width: 620px;
+    }
 }
 
 .equalizer-min-gain, .equalizer-max-gain, .equalizer-current-gain {

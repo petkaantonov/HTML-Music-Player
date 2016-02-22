@@ -475,7 +475,11 @@ Track.prototype.setTagData = function(tagData) {
 Track.prototype.formatFullName = function() {
     var name = this.formatName();
     if (this.tagData && this.tagData.getAlbum()) {
-        name = name + " [" + this.tagData.getAlbum() + "]";
+        var trackNumber = this.tagData.trackNumber;
+        if (trackNumber === -1) trackNumber = 1;
+        var trackCount = this.tagData.trackCount;
+        if (trackCount === -1) trackCount = 1;
+        name = name + " [" + this.tagData.getAlbum() + " " + trackNumber + "/" + trackCount + "]";
     }
     return name;
 };

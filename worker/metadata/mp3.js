@@ -103,10 +103,10 @@ tagMap[0x545332|0] = tagMap[0x54534F32|0] = tagMap[0x545032|0] = tagMap[0x545045
 tagMap[0x54524B|0] = tagMap[0x5452434B|0] = id3v2String(function(data, result) {
     var m = rnumdenom.exec(result);
     if (m) {
-        data.trackIndex = +m[1];
+        data.trackNumber = +m[1];
         data.trackCount = +m[2];
     } else {
-        data.trackIndex = +result;
+        data.trackNumber = +result;
         data.trackCount = 1;
     }
 });

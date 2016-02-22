@@ -44,6 +44,10 @@ $module-gutter-height: 15px;
 
 $touch-hover-color: #ececec;
 
+$slider-input-area-size: 36px;
+$slider-background-size: 2px;
+$slider-knob-size: 14px;
+
 @mixin css-filter($filter...) {
   -webkit-filter: $filter;
           filter: $filter;
@@ -149,7 +153,7 @@ $touch-hover-color: #ececec;
   @each $prefix in $prefixes {
     #{'-' + $prefix + '-' + $property}: $value;
   }
- 
+
   // Output standard non-prefixed declaration
   #{$property}: $value;
 }
@@ -587,6 +591,14 @@ $link-hover-decoration: underline !default;
           transition: transform $transition;
 }
 
+@mixin transition-filter($transition...) {
+  -webkit-transition: -webkit-filter $transition;
+     -moz-transition: -moz-filter $transition;
+       -o-transition: -o-filter $transition;
+          transition: filter $transition;
+          transition: -webkit-filter $transition;
+}
+
 @mixin transition-transform-filter($transition...) {
   -webkit-transition: -webkit-transform $transition;
   -webkit-transition: -webkit-transform, -webkit-filter $transition;
@@ -923,8 +935,8 @@ $link-hover-decoration: underline !default;
   border-top-left-radius: $radius;
 }
 
-@mixin calc($property, $expression) { 
+@mixin calc($property, $expression) {
   #{$property}: -webkit-calc(#{$expression});
   #{$property}: -moz-calc(#{$expression});
-  #{$property}: calc(#{$expression}); 
-} 
+  #{$property}: calc(#{$expression});
+}

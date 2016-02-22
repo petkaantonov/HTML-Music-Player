@@ -321,27 +321,38 @@ function getCurrentlyMatchingPreset() {
 }
 
 var html = (function() {
-    var descriptorContainerHtml = "<div class='equalizer-descriptor-container'>                         \
-        <div id='equalizer-max-gain' class='equalizer-max-gain'>+"+EQUALIZER_MAX_GAIN+" dB</div>        \
-        <div id='equalizer-current-gain' class='equalizer-current-gain'>                                \
-            <div class='equalizer-current-gain-sign'></div>                                             \
-            <div class='equalizer-current-gain-value'>0</div>                                           \
-            <div class='equalizer-current-gain-unit'>dB</div>                                           \
-        </div>                                                                                          \
-        <div id='equalizer-min-gain' class='equalizer-min-gain'>"+EQUALIZER_MIN_GAIN+" dB</div>         \
-    </div>";
+    var equalizerBandGroups = [];
+    var groupSize = 5;
+    var cur = 0;
+    while (cur < equalizer.bands.length) {
+        var equalizerBandGroup = equalizer.bands.slice(cur, cur + groupSize);
+        equalizerBandGroups.push(equalizerBandGroup);
+        cur += groupSize;
+    }
 
-    var sliderContainerHtml = "<div class='equalizer-sliders-container'>" +
-        equalizer.bands.map(function(band) {
-            var sliderId = "equalizer-band-" + band[0] + "-slider";
-            var knobId = "equalizer-band-" + band[0] + "-knob";
-            return "<div class='equalizer-slider-container'>                             \
-                <div id='"+sliderId+"' class='app-general-slider-wrap vertical equalizer-slider-wrap'>\
-                    <div id='"+knobId+"' class='app-general-slider-knob vertical'></div> \
-                </div>                                                                   \
-                <div class='notextflow band-frequency-label'>"+formatFreq(band[0])+"</div>          \
-            </div>";
-        }).join("") + "</div>";
+    var sliderContainerHtml = "<div class='equalizer-sliders-container row'>" +
+        equalizerBandGroups.map(function(bands) {
+            return "<div class='equalizer-band-group-container col-lg-6'>" +
+                    bands.map(function(band) {
+                        var sliderId = "equalizer-band-" + band[0] + "-slider";
+                        return "<div class='equalizer-band-configurator-container'>                                               \
+                                <div class='equalizer-slider-container'>                                                          \
+                                    <div id='"+sliderId+"' class='slider equalizer-slider vertical-slider'>                       \
+                                        <div class='slider-knob'></div>                                                           \
+                                        <div class='slider-background'>                                                           \
+                                            <div class='slider-fill'></div>                                                       \
+                                        </div>                                                                                    \
+                                    </div>                                                                                        \
+                                </div>                                                                                            \
+                                <div class='equalizer-band-label-container'>                                                      \
+                                    <div class='notextflow band-frequency-label'>"+formatFreq(band[0])+"</div>                    \
+                                </div>                                                                                            \
+                            </div>";
+                    }).join("") +
+            "</div>";
+    }).join("") + "</div>";
+
+
 
     var presetHtml = "<select id='equalizer-preset-selector'><option selected value='Custom'>Custom</option>" +
         Object.keys(presets).map(function(presetName) {
@@ -356,7 +367,6 @@ var html = (function() {
 
 
     return "<div class='equalizer-popup-content-container'>              \
-                "+descriptorContainerHtml+"                              \
                 "+sliderContainerHtml+"                                  \
                 "+presetContainerHtml+"                                  \
             </div>";
@@ -383,10 +393,6 @@ equalizerPopup.on("open", function() {
             direction: "vertical"
         });
 
-        function updateKnob(p) {
-            knob.style.top = (p * 110 - 5) + "px";
-        }
-
         slider.on("slideBegin", function() {
             currentValue = null;
             currentGain.show();
@@ -394,7 +400,6 @@ equalizerPopup.on("open", function() {
 
         slider.on("slide", function(p) {
             selectCustomPreset();
-            updateKnob(p);
             var value = equalizer.toGainValue(progressToGainValue(1 - p));
             var formatting = formatGainValue(value);
 
@@ -416,13 +421,9 @@ equalizerPopup.on("open", function() {
             triggerEqualizerChange();
         });
 
-        updateKnob(1 - gainValueToProgress(db));
+        slider.setValue(gainValueToProgress(db));
 
-        return {
-            update: function(db) {
-                updateKnob(1 - gainValueToProgress(db));
-            }
-        };
+        return slider;
     });
 
     $("#equalizer-preset-selector").on("change", function() {
@@ -434,7 +435,7 @@ equalizerPopup.on("open", function() {
                 // Check for "preamp".
                 if (!isFinite(+freq)) return;
                 var db = preset[freq];
-                sliders[index].update(db);
+                sliders[index].setValue(gainValueToProgress(db));
                 equalizer.equalizer[freq] = db;
             });
             equalizer.equalizer.preamp = preset.preamp;
