@@ -145,12 +145,34 @@ self.addEventListener('message', function(e) {
                     return notification.data.tabId === tabId;
                 }).forEach(function(notification) {
                     try {
+                        notification.data.forceClose = true;
                         notification.close();
                     } catch (e) {}
                 });
             });
         }
     }
+});
+
+self.addEventListener("notificationclose", function(event) {
+    if (event.notification &&
+        event.notification.data &&
+        event.notification.data.forceClose) {
+        return;
+    }
+    event.waitUntil(clients.matchAll({type: "window"}).then(function(clientList) {
+        for (var i = 0; i < clientList.length; i++) {
+            var client = clientList[i];
+            try {
+                return client.postMessage({
+                    eventType: "swEvent",
+                    type: "notificationClose",
+                    data: event.notification.data,
+                    tag: event.notification.tag
+                });
+            } catch (e) {}
+        }
+    }));
 });
 
 self.addEventListener("notificationclick", function(event) {

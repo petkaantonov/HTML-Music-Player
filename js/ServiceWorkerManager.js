@@ -159,14 +159,29 @@ ServiceWorkerManager.prototype.start = function() {
     });
 };
 
+const rTagStrip = new RegExp("\\-"+tabId+"$");
 ServiceWorkerManager.prototype._messaged = function(e) {
     if (e.data.data.tabId !== tabId || e.data.eventType !== "swEvent") return;
     var data = e.data;
+    var tag = data.tag || null;
+
+    if (tag) {
+        tag = (tag + "").replace(rTagStrip, "");
+    } else {
+        tag = "";
+    }
+
+    var eventArg = data.data;
+    var eventName = null;
+
     if (data.type === "notificationClick") {
-        this.emit("action" + data.action, {
-            data: data.data,
-            tag: data.tag
-        });
+        eventName = "action" + data.action + "-" + tag;
+    } else if (data.type === "notificationClose") {
+        eventName = "notificationClose-" + tag;
+    }
+
+    if (eventName) {
+        this.emit(eventName, eventArg);
     }
 };
 

@@ -42,6 +42,7 @@ function PlaylistNotifications(dom, player) {
     this.actionNext = this.actionNext.bind(this);
     this.actionPlay = this.actionPlay.bind(this);
     this.actionPause = this.actionPause.bind(this);
+    this.notificationClosed = this.notificationClosed.bind(this);
 
     if (supported) {
         this.$().on("click", this.settingClicked);
@@ -60,9 +61,10 @@ function PlaylistNotifications(dom, player) {
     this.player.on("play", this.stateChanged);
     this.player.on("stop", this.stateChanged);
     this.player.on("currentTrackMetadataChange", this.stateChanged);
-    serviceWorkerManager.on("actionNext", this.actionNext);
-    serviceWorkerManager.on("actionPause", this.actionPause);
-    serviceWorkerManager.on("actionPlay", this.actionPlay);
+    serviceWorkerManager.on("actionNext-" + NOTIFICATION_TAG, this.actionNext);
+    serviceWorkerManager.on("actionPause-" + NOTIFICATION_TAG, this.actionPause);
+    serviceWorkerManager.on("actionPlay-" + NOTIFICATION_TAG, this.actionPlay);
+    serviceWorkerManager.on("notificationClose-" + NOTIFICATION_TAG, this.notificationClosed);
 
     this._currentAction = Promise.resolve();
     this._currentState = {enabled: false};
@@ -115,12 +117,22 @@ PlaylistNotifications.prototype.actionNext = function(data) {
     this.playlist.next();
 };
 
-PlaylistNotifications.prototype.actionPlay = function() {
+PlaylistNotifications.prototype.actionPlay = function(data) {
     this.player.play();
 };
 
-PlaylistNotifications.prototype.actionPause = function() {
+PlaylistNotifications.prototype.actionPause = function(data) {
     this.player.pause();
+};
+
+PlaylistNotifications.prototype.notificationClosed = function(data) {
+    if (this.permissionsPromise) {
+        this.permissionsPromise.cancel();
+        this.permissionsPromise = null;
+    }
+    this.enabled = false;
+    this.update();
+    keyValueDatabase.set(PREFERENCE_KEY, false);
 };
 
 PlaylistNotifications.prototype.stateChanged = function() {
