@@ -161,6 +161,13 @@ function Playlist(domNode, opts) {
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
     }
+    this._draggable.on("dragStart", function() {
+        this.$().find(".tracklist-transform-container").addClass("tracks-dragging");
+    }.bind(this));
+    this._draggable.on("dragEnd", function() {
+        this.$().find(".tracklist-transform-container").removeClass("tracks-dragging");
+    }.bind(this));
+    this._draggable.bindEvents();
 }
 util.inherits(Playlist, EventEmitter);
 

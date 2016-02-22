@@ -250,7 +250,7 @@ FixedItemListScroller.prototype.itemByYCoordinate = function(y) {
 };
 
 FixedItemListScroller.prototype.itemByRect = function(rect) {
-    return this.itemByYCoordinate(rect.top);
+    return this.itemByYCoordinate(rect.top + rect.height / 2);
 };
 
 FixedItemListScroller.prototype.yByIndex = function(index) {

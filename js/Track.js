@@ -40,6 +40,9 @@ function Track(audioFile) {
     this._analysisTooltip = null;
     this._isBeingAnalyzed = false;
     this._analysisCompletionEstimate = -1;
+
+    this._dragged = false;
+    this._offset = 0;
 }
 util.inherits(Track, EventEmitter);
 
@@ -76,6 +79,10 @@ Track.prototype._ensureDomNode = function() {
 
     if (selectable.contains(this)) {
         this.selected();
+    }
+
+    if (this._dragged) {
+        this.$().addClass("track-dragging");
     }
 
     if (this.isAvailableOffline()) {
@@ -306,7 +313,6 @@ Track.prototype.getIndex = function() {
     return this.index;
 };
 
-
 Track.prototype.setIndex = function(index) {
     if (this.index === index) return;
     this.index = index;
@@ -317,9 +323,9 @@ Track.prototype.setIndex = function(index) {
 Track.prototype.indexChanged = function() {
     var index = this.index;
     if (index >= 0 && this._domNode !== NULL) {
+        this.$().removeClass("transition");
         this.setTrackNumber();
-        domUtil.setTransform(this.$()[0],
-                             "translateY(" + index * playlist.main.getItemHeight() + "px");
+        this._updateTranslate();
     }
 };
 
@@ -543,6 +549,48 @@ Track.prototype.getUid = function() {
         return sha1(album + title + artist + index + name + size);
     } else {
         throw new Error("cannot get uid before having tagData");
+    }
+};
+
+Track.prototype._updateTranslate = function() {
+    domUtil.setTransform(this.$()[0], this._getTranslate());
+};
+
+Track.prototype._getTranslate = function() {
+    var index = this.index;
+    var y = index * playlist.main.getItemHeight();
+    var x = 0;
+    if (this._dragged) {
+        x -= 25;
+        y -= 10;
+    }
+    y += this._offset;
+    return "translate("+x+"px, "+y+"px)";
+};
+
+Track.prototype.setOffset = function(value) {
+    this._offset = value;
+    if (this._domNode !== NULL) {
+        this._updateTranslate();
+    }
+};
+
+Track.prototype.startDragging = function() {
+    if (this._dragged) return;
+    this._dragged = true;
+    if (this._domNode !== NULL) {
+        this.$().addClass("track-dragging").removeClass("transition");
+        this._updateTranslate();
+    }
+};
+
+Track.prototype.stopDragging = function() {
+    if (!this._dragged) return;
+    this._dragged = false;
+    this._offset = 0;
+    if (this._domNode !== NULL) {
+        this.$().removeClass("track-dragging").addClass("transition");
+        this._updateTranslate();
     }
 };
 

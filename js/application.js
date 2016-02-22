@@ -1054,4 +1054,6 @@ if (touch) {
 }
 
 $(window).trigger("resize");
-}).catch(function(e) {});
+}).catch(function(e) {
+    console.log(e && (e.stack || e.message));
+});

@@ -20,7 +20,6 @@
 .track-container {
     left: 0px;
     position: absolute;
-    z-index: 1;
     box-sizing: border-box;
     height: $track-item-height;
     font-size: 0;
@@ -28,6 +27,24 @@
     border-top: 1px solid #F6F6F6;
     background-color: #FFF;
     overflow: hidden;
+
+    div {
+        vertical-align: top;
+        display: inline-block;
+        box-sizing: border-box;
+    }
+
+    z-index: 1;
+    &.track-dragging {
+        @include shadow-2dp();
+        z-index: 2;
+    }
+
+    &.transition {
+        @include transition-property(-webkit-transform, transform);
+        @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
+        @include transition-duration(0.22s);
+    }
 }
 
 .tracklist-transform-container {
@@ -38,6 +55,20 @@
     left: 0px;
     width: 100%;
     height: 100%;
+
+    &.tracks-dragging {
+        .track-container {
+            @include transition-property(-webkit-transform, transform);
+            @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
+            @include transition-duration(0.22s);
+
+            &.track-dragging {
+                @include transition-property(none);
+                @include transition-timing-function(initial);
+                @include transition-duration(initial);
+            }
+        }
+    }
 }
 
 .track-container.touch-hover {
@@ -88,13 +119,6 @@
     width: 100%;
 }
 
-.track-container {
-    div {
-        vertical-align: top;
-        display: inline-block;
-        box-sizing: border-box;
-    }
-}
 
 .track {
     .track-clickable {
