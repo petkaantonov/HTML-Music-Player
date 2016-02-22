@@ -49,9 +49,11 @@ const FADE_CONFIGURATOR_HTML =
     </div>                                                                                            \
     <div class='fade-inputs-container'>                                                               \
         <div class='normal-fade-label'>Time</div>                                                     \
-        <div class='app-general-slider-wrap left fade-slider'>                                        \
-            <div class='app-general-slider-knob'></div>                                               \
-            <div class='app-general-slider-bg'></div>                                                 \
+        <div class='left fade-slider slider horizontal-slider'>                                       \
+            <div class='slider-knob'></div>                                                           \
+            <div class='slider-background'>                                                           \
+                <div class='slider-fill'></div>                                                       \
+            </div>                                                                                    \
         </div>                                                                                        \
         <div class='normal-fade-value'></div>                                                         \
         <br class='clear' />                                                                          \
@@ -358,17 +360,16 @@ FadeConfigurator.prototype.update = function() {
     var time = this.getTime();
     var timePercentage = (time - MIN_TIME) / (MAX_TIME - MIN_TIME);
     this.$().find(".normal-fade-value").text(time.toPrecision(2) + "s");
-    this.$().find(".app-general-slider-knob").css("left", timePercentage * 105 -5);
-    this.$().find(".app-general-slider-bg").css("width", (timePercentage * 100) + "%");
     this.$().find(".fade-curve-select").val(this.getCurve());
     this.$().find(".fade-enable-checkbox").prop("checked", this.getEnabled());
 
-    var sectionsSelector = ".normal-fade-value, .app-general-slider-knob, .app-general-slider-bg, .fade-curve-container";
+    var sectionsSelector = ".normal-fade-value, .fade-slider, .fade-curve-container";
     if (!this.getEnabled()) {
         this.$().find(sectionsSelector).addClass("inactive-section");
     } else {
         this.$().find(sectionsSelector).removeClass("inactive-section");
     }
+    this.slider.setValue(timePercentage);
 };
 
 FadeConfigurator.prototype.managerUpdated = function() {
