@@ -27,8 +27,23 @@
         height: $slider-knob-size;
         background: #B3DAFF;
         border-radius: 50%;
+        outline: none;
         @include css-filter(grayscale(100%));
         @include transition-filter(0.47s cubic-bezier(0.4, 0, 0.2, 1));
+
+        $slider-knob-focus-size: 32px;
+
+        &.focused:after {
+            content: " ";
+            position: absolute;
+            outline: none;
+            top: -(($slider-knob-focus-size / 2) - ($slider-knob-size / 2));
+            left: -(($slider-knob-focus-size / 2) - ($slider-knob-size / 2));
+            width: $slider-knob-focus-size;
+            height: $slider-knob-focus-size;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.06);
+        }
     }
 
     &.sliding {

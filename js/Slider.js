@@ -31,6 +31,7 @@ function Slider(domNode, opts) {
     this._shouldUpdateDom = "updateDom" in opts ? !!opts.updateDom : true;
     if (this.shouldUpdateDom()) {
         this._calculateDimensions();
+        this._setupKeyboard();
     }
 }
 util.inherits(Slider, EventEmitter);
@@ -76,6 +77,71 @@ Slider.prototype._onMousedown = function(e) {
 
     $(window).on("relayout", this._onReLayout);
     e.preventDefault();
+};
+
+Slider.prototype._keydowned = function(e) {
+    switch (e.which) {
+        case 27:
+        case 13:
+            this.$knob().blur();
+        break;
+
+        case 37:
+        case 39:
+            if (this._direction === "horizontal") {
+                var value;
+                if (e.which === 37) {
+                    value = this._value - 0.01
+                } else {
+                    value = this._value + 0.01
+                }
+                value = Math.min(1, Math.max(0, value));
+                this.setValue(value);
+                this.emit("slide", value);
+            }
+        break;
+
+        case 38:
+        case 40:
+            if (this._direction === "vertical") {
+                var value;
+                if (e.which === 38) {
+                    value = this._value - 0.01
+                } else {
+                    value = this._value + 0.01
+                }
+                value = Math.min(1, Math.max(0, value));
+                this.setValue(value);
+                this.emit("slide", value);
+            }
+        break;
+
+        default: return;
+    }
+};
+
+Slider.prototype._knobFocused = function() {
+    util.onCapture(this.$knob()[0], "keydown", this._keydowned);
+    this.$knob().addClass("focused");
+    this.$().addClass("sliding");
+    this.emit("slideBegin");
+};
+
+Slider.prototype._knobBlurred = function() {
+    util.offCapture(this.$knob()[0], "keydown", this._keydowned);
+    this.$knob().removeClass("focused");
+    this.$().removeClass("sliding");
+    this.emit("slideEnd");
+};
+
+Slider.prototype._setupKeyboard = function() {
+    this.$knob().prop("tabIndex", 0);
+    this._knobFocused = this._knobFocused.bind(this);
+    this._knobBlurred = this._knobBlurred.bind(this);
+    this._keydowned = this._keydowned.bind(this);
+
+    this.$knob().on("focus", this._knobFocused)
+                .on("blur", this._knobBlurred);
 };
 
 Slider.prototype._onMousemove = function(e) {
