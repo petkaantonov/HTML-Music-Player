@@ -429,6 +429,7 @@ Mp3SeekTable.prototype.fillUntil = Promise.method(function(time, metadata, fileV
                 mpeg25 = 1;
             }
 
+
             var sampleRateIndex = ((header >> 10) & 3);
             if (sampleRateIndex < 0 || sampleRateIndex >= mp3_freq_tab.length) {
                 offset++;
