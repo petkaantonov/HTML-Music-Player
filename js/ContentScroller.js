@@ -98,16 +98,15 @@ ContentScroller.prototype.scrollBy = function(amount) {
 
 ContentScroller.prototype.resize = function() {
     var topLeft = this.getTopLeft();
-
     this._left = topLeft.left;
     this._top = topLeft.top;
-    this._scroller.setPosition(this._left, this._top);
     var width = this.$().innerWidth();
-    this._scroller.setDimensions(width, this.contentHeight(), width, this.physicalHeight());
     var maxTop = this.maxTop();
     var top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
     this._scrollTop = top;
     this._scrollbar.resize();
+    this._scroller.setPosition(this._left, this._top);
+    this._scroller.setDimensions(width, this.contentHeight(), width, this.physicalHeight());
     this._scroller.scrollTo(null, top, false);
 };
 

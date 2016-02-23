@@ -211,6 +211,7 @@ Rippler.prototype.rippleElement = function(elem, x, y, color, zIndex) {
     if (!color) color = "#000";
     if (zIndex == undefined) zIndex = "";
     if (zIndex !== "") zIndex = (+zIndex) + ""
+    if (zIndex === "") zIndex = 900;
     var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
     this.rippleStarted(ripple);
     ripple.initBounded(x, y, rect, color, zIndex);

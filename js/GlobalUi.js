@@ -35,8 +35,8 @@ GlobalUi.makeTooltip = function(target, content) {
     return new Tooltip({
         activation: "hover",
         transitionClass: "fade-in",
-        preferredDirection: "up",
-        preferredAlign: "begin",
+        ScreenDirection: "up",
+        ScreenAlign: "begin",
         container: $("body"),
         arrow: false,
         target: target,
@@ -47,7 +47,7 @@ GlobalUi.makeTooltip = function(target, content) {
 };
 
 GlobalUi.makePopup = function(title, body, opener) {
-    const PREFERENCE_KEY = title + "position";
+    const PREFERENCE_KEY = title + "preferences";
     const INITIAL_SCALE = 0.1;
 
     const xPos = function(openerBox, popupBox) {
@@ -117,12 +117,20 @@ GlobalUi.makePopup = function(title, body, opener) {
 
     ret.on("close", function() {
         hotkeyManager.enableHotkeys();
-        keyValueDatabase.set(title + "position", ret.getPreferredPosition());
+        keyValueDatabase.set(PREFERENCE_KEY, {
+            screenPosition: ret.getScreenPosition(),
+            scrollPosition: ret.getScrollPosition()
+        });
 
     });
 
     keyValueDatabase.getInitialValues().then(function(values) {
-        if (PREFERENCE_KEY in values) ret.setPreferredPosition(values[PREFERENCE_KEY]);
+        if (PREFERENCE_KEY in values) {
+            var data = values[PREFERENCE_KEY];
+            if (!data) return;
+            ret.setScreenPosition(data.screenPosition);
+            ret.setScrollPosition(data.scrollPosition);
+        }
     });
 
     $(window).on("clear", ret.close.bind(ret));

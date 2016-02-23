@@ -101,6 +101,7 @@ function Popup(opts) {
     this._shown = false;
     this._dragging = false;
     this._frameId = -1;
+    this._scrollTop = 0;
 
     this._contentScroller = null;
 
@@ -279,8 +280,7 @@ Popup.prototype.open = function() {
         this._viewPort = this._getViewPort();
         this.position();
         this._setMinimumNecessaryHeight();
-        this._contentScroller.loadScrollTop(0);
-
+        this._contentScroller.loadScrollTop(this._scrollTop);
 
         if (this.transitionClass) {
             var $node = this.$();
@@ -354,6 +354,7 @@ Popup.prototype.draggingEnd = function() {
 Popup.prototype.close = function() {
     if (!this._shown) return;
     this._shown = false;
+    this._scrollTop = this._contentScroller.settledScrollTop();
     shownPopups.splice(shownPopups.indexOf(this), 1);
 
     this.emit("close", this);
@@ -369,7 +370,24 @@ Popup.prototype.close = function() {
     }
 };
 
-Popup.prototype.getPreferredPosition = function() {
+Popup.prototype.getScrollPosition = function() {
+    return {
+        x: 0,
+        y: this._scrollTop
+    };
+};
+
+Popup.prototype.setScrollPosition = function(pos) {
+    if (!pos) return;
+    var y = +pos.y;
+    if (!isFinite(y)) return;
+    this._scrollTop = y;
+    if (this._contentScroller && this._shown) {
+        this._contentScroller.loadScrollTop(this._scrollTop);
+    }
+};
+
+Popup.prototype.getScreenPosition = function() {
     if (this._x === -1 || this._y === -1) return null;
     return {
         x: this._x,
@@ -377,7 +395,7 @@ Popup.prototype.getPreferredPosition = function() {
     };
 };
 
-Popup.prototype.setPreferredPosition = function(pos) {
+Popup.prototype.setScreenPosition = function(pos) {
     if (!pos) return;
     var x = pos.x;
     var y = pos.y;
