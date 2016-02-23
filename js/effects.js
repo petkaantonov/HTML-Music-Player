@@ -360,15 +360,22 @@ var html = (function() {
         }).join("") +
     "</select>";
 
-    var presetContainerHtml = "<div class='equalizer-preset-container'>                 \
-        <span class='equalizer-preset-label'>Load a preset: </span> "+presetHtml+"      \
-    </div>";
 
 
+    var presetContainerHtml = "<div class='section-container'>                                                        \
+            <div class='inputs-container'>                                                                            \
+                <div class='label'>Preset</div>                                                                       \
+                <div class='select-container'>                                                                        \
+                    " + presetHtml + "                                                                                \
+                </div>                                                                                                \
+            </div>                                                                                                    \
+        </div>";
 
-    return "<div class='equalizer-popup-content-container'>              \
-                "+sliderContainerHtml+"                                  \
-                "+presetContainerHtml+"                                  \
+
+    return "<div class='settings-container equalizer-popup-content-container'>              \
+                <div class='section-container'>"+sliderContainerHtml+"</div>                 \
+                <div class='section-separator'></div>                                       \
+                "+presetContainerHtml+"                                                     \
             </div>";
 })();
 
