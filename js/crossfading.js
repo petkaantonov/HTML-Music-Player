@@ -37,31 +37,27 @@ const CURVE_SELECTOR_HTML = (function() {
 })();
 
 const FADE_CONFIGURATOR_HTML =
-    "<div class='fade-enabler-container'>                                                             \
+    "<div class='fade-inputs-container inputs-container'>                                                              \
         <div class='checkbox-container'>                                                              \
-            <label class='fade-enable-label checkbox-label'>                                          \
-                <input type='checkbox' class='fade-enable-checkbox checkbox'>                         \
-                <span class='fade-enable-text'></span>                                                \
-            </label>                                                                                  \
-            <div class='fade-indicator'></div>                                                        \
+            <input type='checkbox' class='fade-enable-checkbox checkbox'>                             \
         </div>                                                                                        \
-                                                                                                      \
+        <div class='fade-enable-label label wide-label'>                                              \
+            <label class='fade-enable-text'></label>                                                  \
+        </div>                                                                                        \
     </div>                                                                                            \
-    <div class='fade-inputs-container'>                                                               \
-        <div class='normal-fade-label'>Time</div>                                                     \
-        <div class='left fade-slider slider horizontal-slider'>                                       \
+    <div class='fade-inputs-container inputs-container'>                                                               \
+        <div class='fade-time-label label'>Time</div>                                                 \
+        <div class='fade-time-slider slider horizontal-slider'>                                       \
             <div class='slider-knob'></div>                                                           \
             <div class='slider-background'>                                                           \
                 <div class='slider-fill'></div>                                                       \
             </div>                                                                                    \
         </div>                                                                                        \
-        <div class='normal-fade-value'></div>                                                         \
-        <br class='clear' />                                                                          \
+        <div class='fade-time-value'></div>                                                           \
     </div>                                                                                            \
-    <div class='fade-inputs-container'>                                                               \
-        <div class='fade-curve-label'>Curve</div>                                                     \
-        <div class='fade-curve-container'></div>                                                      \
-        <br class='clear' />                                                                          \
+    <div class='fade-inputs-container inputs-container'>                                                               \
+        <div class='fade-curve-label label'>Curve</div>                                               \
+        <div class='select-container fade-curve-container'></div>                                                      \
         </div>                                                                                        \
     </div>";
 
@@ -237,10 +233,9 @@ CrossFadePreferences.getPresetMatchingPreferences = function(preferences) {
 };
 
 var presets = {
-    "Default": new CrossFadePreferences(false, 5, "sCurve", false, 5, "sCurve", false),
-    "Normal": new CrossFadePreferences(true, 5, "linear", true, 5, "linear", false),
+    "Default (Disabled)": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false),
+    "Basic": new CrossFadePreferences(true, 5, "linear", true, 5, "linear", false),
     "Sudden death": new CrossFadePreferences(true, 5, "exponentialFromStart", true, 5, "sCurve", false),
-    "Disabled": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false),
     "Custom": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false)
 };
 
@@ -250,28 +245,34 @@ const PRESET_HTML = (function() {
     }).join("") + "</select>";
 })();
 
-const POPUP_EDITOR_HTML = "<div class='cross-fade-album-preference-container'>               \
-                <div class='checkbox-container'>                                             \
-                    <label class='checkbox-label'>                                           \
-                        <input type='checkbox' class='album-crossfade-preference checkbox'>  \
-                        Don't crossfade between consecutive tracks of the same album         \
-                    </label>                                                                 \
-                    <div class='cross-fade-preset-container'>                                \
-                        <label>Preset:</label>                                               \
-                        "+PRESET_HTML+"                                                      \
-                    </div>                                                                   \
-                </div>                                                                       \
-            </div>                                                                           \
-            <div class='section-separator'></div>                                            \
-            <div class='left fade-in-configurator fade-configurator-container'></div>        \
-            <div class='right fade-out-configurator fade-configurator-container'></div>      \
-            <div class='clear'></div>                                                        \
-            <div class='section-separator'></div>                                            \
-            <canvas width='530' height='230' class='cross-fade-visualizer'></canvas>";
+const POPUP_EDITOR_HTML = "<div class='settings-container crossfade-settings-container'>                                                                                                \
+                <div class='section-container'>                                                                                                                      \
+                    <div class='fade-inputs-container inputs-container'>                                                                                                              \
+                        <div class='checkbox-container'>                                                                                                             \
+                            <input type='checkbox' id='album-preference-checkbox-id' class='album-preference-checkbox checkbox'>                                        \
+                        </div>                                                                                                                                       \
+                        <div class='album-preference-label label wide-label'>                                                                                        \
+                            <label class='album-preference-text' for='album-preference-checkbox-id'>Don't crossfade between consecutive tracks of the same album</label>\
+                        </div>                                                                                                                                       \
+                    </div>                                                                                                                                           \
+                </div>                                                                                                                                               \
+            <div class='section-separator'></div>                                                                                                                    \
+            <div class='left fade-in-configurator fade-configurator-container'></div>                                                                                \
+            <div class='right fade-out-configurator fade-configurator-container'></div>                                                                              \
+            <div class='section-separator'></div>                                                                                                                    \
+            <div class='section-container'>                                                                                                                          \
+                <div class='fade-inputs-container inputs-container'>                                                                                                                  \
+                    <div class='label fade-preset-label'>Preset</div>                                                                                                \
+                    <div class='select-container preset-selector-container'>                                                                                                          \
+                        " + PRESET_HTML + "                                                                                                                          \
+                    </div>                                                                                                                                           \
+                </div>                                                                                                                                               \
+            </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                         \
+            </div>";
 
 const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade");
 var preferences = new CrossFadePreferences();
-preferences.copyFrom(presets["Default"]);
+preferences.copyFrom(presets["Default (Disabled)"]);
 crossfading.getPreferences = function() {
     return preferences;
 };
@@ -326,10 +327,11 @@ function FadeConfigurator(manager, domNode, config) {
 
     this.$().html(FADE_CONFIGURATOR_HTML);
     this.$().find(".fade-curve-container").html(CURVE_SELECTOR_HTML);
-    this.$().find(".fade-indicator").addClass(config.indicatorClass);
-    this.$().find(".fade-enable-text").text(config.enablerText);
+    var enabledId = (config.enablerText + "").replace(/[^a-zA-Z0-9]+/g, "");
+    this.$().find(".fade-enable-checkbox").prop("id", enabledId);
+    this.$().find(".fade-enable-text").text(config.enablerText).prop("htmlFor", enabledId);
 
-    this.slider = new Slider($(".fade-slider", this.$()));
+    this.slider = new Slider($(".fade-time-slider", this.$()));
     this.slider.on("slide", this.slided);
     this.$().find(".fade-enable-checkbox").on("change", this.enabledChanged);
     this.$().find(".fade-curve-select").on("change", this.curveChanged);
@@ -359,15 +361,15 @@ FadeConfigurator.prototype.slided = function(p) {
 FadeConfigurator.prototype.update = function() {
     var time = this.getTime();
     var timePercentage = (time - MIN_TIME) / (MAX_TIME - MIN_TIME);
-    this.$().find(".normal-fade-value").text(time.toPrecision(2) + "s");
+    this.$().find(".fade-time-value").text(time.toPrecision(2) + "s");
     this.$().find(".fade-curve-select").val(this.getCurve());
     this.$().find(".fade-enable-checkbox").prop("checked", this.getEnabled());
 
-    var sectionsSelector = ".normal-fade-value, .fade-slider, .fade-curve-container";
+
     if (!this.getEnabled()) {
-        this.$().find(sectionsSelector).addClass("inactive-section");
+        this.$().find(".fade-time-slider").addClass("slider-inactive");
     } else {
-        this.$().find(sectionsSelector).removeClass("inactive-section");
+        this.$().find(".fade-time-slider").removeClass("slider-inactive");
     }
     this.slider.setValue(timePercentage);
 };
@@ -421,21 +423,17 @@ function CrossFadeManager(domNode, preferences) {
     this.preferences = preferences;
     this.inFadeConfigurator = new FadeConfigurator(this, this.$().find(".fade-in-configurator"), {
         enablerText: "Enable fade in",
-        indicatorClass: "fade-in-color",
         preferenceKey: "in"
     });
     this.outFadeConfigurator = new FadeConfigurator(this, this.$().find(".fade-out-configurator"), {
         enablerText: "Enable fade out",
-        indicatorClass: "fade-out-color",
         preferenceKey: "out"
     });
-
-    this.visualizer = new CrossFadeVisualizer(".cross-fade-visualizer", this);
 
     this.shouldAlbumCrossFadeChanged = $.proxy(this.shouldAlbumCrossFadeChanged, this);
     this.presetChanged = $.proxy(this.presetChanged, this);
     this.$().find(".fade-preset-select").on("change", this.presetChanged);
-    this.$().find(".album-crossfade-preference").on("change", this.shouldAlbumCrossFadeChanged);
+    this.$().find(".album-preference-checkbox").on("change", this.shouldAlbumCrossFadeChanged);
     this.update();
 }
 util.inherits(CrossFadeManager, EventEmitter);
@@ -445,7 +443,7 @@ CrossFadeManager.prototype.destroy = function() {
     this.outFadeConfigurator.destroy();
     this.removeAllListeners();
     this.$().find(".fade-preset-select").off("change", this.presetChanged);
-    this.$().find(".album-crossfade-preference").off("change", this.shouldAlbumCrossFadeChanged);
+    this.$().find(".album-preference-checkbox").off("change", this.shouldAlbumCrossFadeChanged);
     this._domNode = null;
 };
 
@@ -476,8 +474,7 @@ CrossFadeManager.prototype.configuratorUpdated = function() {
 CrossFadeManager.prototype.update = function() {
     var presetName = this.getPresetName();
     this.$().find(".fade-preset-select").val(presetName);
-    this.$().find(".album-crossfade-preference").prop("checked", !this.preferences.getShouldAlbumCrossFade());
-    this.visualizer.update();
+    this.$().find(".album-preference-checkbox").prop("checked", !this.preferences.shouldAlbumCrossFade);
 };
 
 CrossFadeManager.prototype.getPresetName = function() {
@@ -488,100 +485,3 @@ CrossFadeManager.prototype.$ = function() {
     return this._domNode;
 };
 
-function CrossFadeVisualizer(domNode, manager) {
-    domNode = $(domNode);
-    this.width = domNode.prop("width");
-    this.height = domNode.prop("height");
-    this.context = domNode[0].getContext("2d");
-    this.manager = manager;
-}
-
-CrossFadeVisualizer.prototype.getContext = function() {
-    return this.context;
-};
-
-CrossFadeVisualizer.prototype.update = function() {
-    var ctx = this.getContext();
-    var preferences = this.manager.preferences;
-    var width = this.width;
-    var height = this.height;
-
-    ctx.clearRect(0, 0, width, height);
-
-    if (!preferences.inEnabled && !preferences.outEnabled) return;
-
-    ctx.font = "11px helvetica";
-    ctx.fillStyle = "#444444";
-    ctx.fillText("Relative volume", 0, 15);
-
-    var yLabelGap = (height - 51) / 5;
-    var percentage = 0;
-    for (var i = 35; i <= height - 15; i += yLabelGap) {
-        ctx.fillText(percentage + " %", 5, i - 6);
-        percentage += 20;
-    }
-
-    var maxTime = Math.max(preferences.getInTime(), preferences.getOutTime());
-
-    var xLabels = maxTime + 1;
-    var xLabelGap = Math.floor((width - 55 - 12) / (xLabels -1));
-    for (var i = 0; i < xLabels; ++i) {
-        ctx.fillText(i + "s", 55 + i * xLabelGap, height - 15);
-    }
-
-    if (preferences.getInEnabled()) {
-        this._drawFade({
-            time: preferences.getInTime(),
-            curve: preferences.getInCurve(),
-            maxTime: maxTime,
-            xLabelGap: xLabelGap,
-            progressDirection: PROGRESS_INCREASE,
-            strokeStyle: "rgb(0, 0, 128)",
-            fillStyle: "rgba(0, 0, 128, 0.45)"
-        });
-    }
-
-    if (preferences.getOutEnabled()) {
-        this._drawFade({
-            time: preferences.getOutTime(),
-            curve: preferences.getOutCurve(),
-            maxTime: maxTime,
-            xLabelGap: xLabelGap,
-            progressDirection: PROGRESS_DECREASE,
-            strokeStyle: "rgb(0, 100, 0)",
-            fillStyle: "rgba(0, 100, 0, 0.45)"
-        });
-    }
-};
-
-CrossFadeVisualizer.prototype._drawFade = function(specs) {
-    var ctx = this.getContext();
-    var width = this.width;
-    var height = this.height;
-    var interpolator = curveInterpolator[specs.curve];
-    var progressDirection = specs.progressDirection;
-    var start = (specs.maxTime - specs.time) * specs.xLabelGap + 55;
-    var end = width;
-
-    var ticks = 0;
-    var maxTicks = end - start;
-
-    ctx.beginPath();
-    ctx.lineWidth = 2;
-    ctx.moveTo(start, height - 25);
-
-
-    for (var i = start; i <= end; ++i) {
-        ctx.lineTo(i, height - (25 + interpolator(ticks, maxTicks, progressDirection) * (height - 51)));
-        ticks++;
-    }
-
-    ctx.strokeStyle = specs.strokeStyle;
-    ctx.stroke();
-    ctx.lineTo(end, height - 25);
-    ctx.lineTo(start, height - 25);
-    ctx.lineTo(start, height - (25 + interpolator(0, maxTicks, progressDirection) * (height - 51)));
-    ctx.fillStyle = specs.fillStyle;
-    ctx.fill();
-    ctx.closePath();
-};

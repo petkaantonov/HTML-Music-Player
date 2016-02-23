@@ -47,6 +47,9 @@ $touch-hover-color: #ececec;
 $slider-input-area-size: 36px;
 $slider-background-size: 2px;
 $slider-knob-size: 14px;
+$label-width: 72px;
+$line-height: $slider-input-area-size;
+$popup-gutter: 20px;
 
 @mixin css-filter($filter...) {
   -webkit-filter: $filter;

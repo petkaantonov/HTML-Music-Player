@@ -476,10 +476,15 @@ Track.prototype.formatFullName = function() {
     var name = this.formatName();
     if (this.tagData && this.tagData.getAlbum()) {
         var trackNumber = this.tagData.trackNumber;
-        if (trackNumber === -1) trackNumber = 1;
         var trackCount = this.tagData.trackCount;
-        if (trackCount === -1) trackCount = 1;
-        name = name + " [" + this.tagData.getAlbum() + " " + trackNumber + "/" + trackCount + "]";
+        var position = "";
+        if (trackNumber !== -1 && trackCount === -1) {
+            position = " " + trackNumber;
+        } else if (trackNumber !== -1 && trackCount !== -1) {
+            position = " " + trackNumber + "/" + trackCount;
+        }
+
+        name = name + " [" + this.tagData.getAlbum() + position + "]";
     }
     return name;
 };

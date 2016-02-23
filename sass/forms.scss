@@ -674,7 +674,7 @@ input[type="checkbox"] {
 
     width: 90%;
     margin-bottom: 0;
-    
+
     &:focus {
       z-index: 3;
     }
@@ -811,6 +811,81 @@ input[type="checkbox"] {
     > .btn-group {
       z-index: 2;
       margin-left: -1px;
+    }
+  }
+}
+
+
+.settings-container {
+  box-sizing: border-box;
+  font-size: 0;
+  div {
+      box-sizing: border-box;
+  }
+
+  width: 100%;
+
+  .section-container {
+      width: 100%;
+      padding: 5px 10px;
+  }
+
+  .inputs-container {
+    height: $slider-input-area-size;
+    margin: 12px 0px;
+    $label-width: 72px;
+    $line-height: $slider-input-area-size;
+
+
+    .label, .checkbox-container {
+        font-size: 14px;
+        display: inline-block;
+        vertical-align: top;
+        height: 100%;
+        line-height: $line-height;
+    }
+
+    .label {
+        text-align: left;
+        width: $label-width;
+
+        label {
+            font-weight: normal;
+        }
+
+        &.wide-label {
+            @include calc(width, "100% - #{$label-width}");
+            text-align: left;
+        }
+    }
+
+    .checkbox-container {
+        width: $label-width;
+
+        .checkbox {
+            width: $slider-input-area-size - 12px;
+            height: $slider-input-area-size - 12px;
+            line-height: $slider-input-area-size - 12px;
+            margin: 6px;
+            padding: 0;
+            box-sizing: border-box;
+            display: block;
+        }
+    }
+
+    .select-container {
+        display: inline-block;
+        vertical-align: top;
+        @include calc(width, "100% - #{$label-width}");
+        height: 100%;
+        line-height: $line-height;
+
+        select {
+            height: 100%;
+            line-height: $line-height;
+            width: 100%;
+            font-size: 14px;
+        }
     }
   }
 }

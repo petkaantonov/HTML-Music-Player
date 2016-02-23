@@ -118,9 +118,9 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
         if (fileView.end < 65536) return null;
         if ((fileView.getUint32(0, false) >>> 8) === ID3) {
             var footer = ((fileView.getUint8(5) >> 4) & 1) * 10;
-            var size = (fileView.getUint8(6) << 21) | 
+            var size = (fileView.getUint8(6) << 21) |
                        (fileView.getUint8(7) << 14) |
-                       (fileView.getUint8(8) << 7) | 
+                       (fileView.getUint8(8) << 7) |
                        fileView.getUint8(9);
             offset = size + 10 + footer;
             dataStart = offset;
@@ -145,12 +145,12 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
                 for (var i = 0; i < localMax; ++i) {
                     var index = localOffset + i;
                     var header = fileView.getInt32(index);
-                        
+
                     if (probablyMp3Header(header)) {
                         if (headersFound > 4) {
                             return;
                         }
-                        
+
                         var lsf, mpeg25;
                         if ((header & (1<<20)) !== 0) {
                             lsf = (header & (1<<19)) !== 0 ? 0 : 1;
@@ -242,7 +242,7 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
                         seekTable.tocFilledUntil = metadata.duration;
                         seekTable.frames = frames;
                         metadata.seekTable = seekTable;
-                        
+
                         var shift = 0;
                         var method;
                         switch (sizePerEntry) {
@@ -317,7 +317,7 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
 
                         metadata.dataStart = localOffset;
                         return;
-                    }                    
+                    }
                 }
 
                 localOffset += i;
@@ -327,7 +327,7 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
                 if (!metadata) {
                     return null;
                 }
-                
+
                 if (metadata.duration === 0) {
                     var size = Math.max(0, metadata.dataEnd - metadata.dataStart);
                     if (!metadata.vbr) {
@@ -410,7 +410,7 @@ Mp3SeekTable.prototype.fillUntil = Promise.method(function(time, metadata, fileV
     return fileView.readBlockOfSizeAt(BLOCK_SIZE, offset, 10).then(function loop() {
         var localEnd = Math.min(end, offset + BLOCK_SIZE / 2);
         var buffer = fileView.block();
-        
+
         while (offset < localEnd && frames < maxFrames) {
             var i = offset - fileView.start;
             header = ((header << 8) | buffer[i]) | 0;
@@ -455,6 +455,8 @@ Mp3SeekTable.prototype.fillUntil = Promise.method(function(time, metadata, fileV
                 return;
             }
         }
+
+        if (localEnd >= fileView.file.size) return;
         return fileView.readBlockOfSizeAt(BLOCK_SIZE, offset, 10).then(loop);
     }).then(function() {
         self.frames = frames;
