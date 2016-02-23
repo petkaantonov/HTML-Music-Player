@@ -3,20 +3,38 @@
 $header-height: 38px;
 $header-margin: 25px;
 $header-size: $header-height + $header-margin;
+$footer-height: 38px;
+$footer-margin: 15px;
+$footer-size: $footer-margin + $footer-height;
+$footer-header-size: $footer-size + $header-size;
+
+$popup-container-border: 2px;
 
 .popup-container {
+    box-sizing: border-box;
     border-radius: 4px;
     background-color: #fcfcfc;
-    border: 1px solid #F4F4F4;
+    border: ($popup-container-border / 2) solid #F4F4F4;
     will-change: transform;
     top: 0px;
     left: 0px;
     z-index: 960;
+
+    height: 100%;
+    max-width: 100%;
+
+    @include long-screen {
+        height: $large-screen-height;
+    }
+
+    @include large-screen {
+        max-width: $large-screen-width;
+    }
 }
 
 .popup-body {
-    margin-top: 5px;
-    padding: ($header-margin - 5px) 10px $header-margin 10px;
+    margin: 0;
+    padding: 0 10px;
     overflow: hidden;
     box-sizing: border-box;
     position: relative;
@@ -24,36 +42,21 @@ $header-size: $header-height + $header-margin;
 }
 
 .popup-body {
-    @include large-screen {
-        max-width: $large-screen-width;
-    }
 
-    @include small-screen {
-        max-width: $small-screen-width;
-    }
-
-    @include medium-small-screen {
-        max-width: $medium-small-screen-width;
-    }
-
-    @include ultra-small-screen {
-        max-width: $ultra-small-screen-width;
-    }
+    @include calc(max-width, "100% - #{$popup-container-border}");
+    @include calc(max-height, "100% - #{$footer-header-size}");
 
     @include long-screen {
-        max-height: $large-screen-height - $header-size;
+        max-height: $large-screen-height - $footer-header-size;
     }
 
-    @include short-screen {
-        max-height: $small-screen-height - $header-size;
+    @include large-screen {
+        max-width: $large-screen-width - $popup-container-border;
     }
 
-    @include medium-short-screen {
-        max-height: $medium-small-screen-height - $header-size;
-    }
-
-    @include ultra-short-screen {
-        max-height: $ultra-small-screen-height - $header-size;
+    .popup-body-content {
+        @include transform-origin(left top 0px);
+        @include translate3d(0, 0, 0);
     }
 }
 
@@ -77,13 +80,23 @@ $header-size: $header-height + $header-margin;
     background-color: #fff;
     height: $header-height;
     width: 100%;
-    margin: 0;
     background: rgb(255,255,255);
     background: -moz-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(248,248,248,1) 100%);
     background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
     background: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
     filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#f8f8f8',GradientType=0 );
     text-align: center;
+    margin-bottom: $header-margin;
+}
+
+.popup-footer {
+    font-size: 0;
+    position: relative;
+    background-color: #fff;
+    height: $footer-height;
+    width: 100%;
+    text-align: center;
+    margin-bottom: $footer-margin;
 }
 
 .popup-header::after {

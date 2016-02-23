@@ -305,7 +305,7 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
     this.contextMenu = new ContextMenu(canvas, menuSpec);
 };
 
-VisualizerCanvas.prototype.latencyPopupOpened = function() {
+VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitialization) {
     var latency = (this.player.getAudioHardwareLatency() * 1000)|0;
     var maxLatency = (this.player.getMaximumAudioHardwareLatency() * 1000)|0;
 
@@ -313,16 +313,18 @@ VisualizerCanvas.prototype.latencyPopupOpened = function() {
     $input.val(latency);
     $input.prop("min", 0);
     $input.prop("max", maxLatency);
-    var self = this;
-    $input.on("input change", function() {
-        var val = (+$(this).val()) / 1000;
-        self.player.setAudioHardwareLatency(val);
-    });
-    this.latencyPopup.$().find("form").on("submit", function(e) {
-        e.preventDefault();
-        $input.blur();
-        self.latencyPopup.close();
-    });
+    if (needsInitialization) {
+        var self = this;
+        $input.on("input change", function() {
+            var val = (+$(this).val()) / 1000;
+            self.player.setAudioHardwareLatency(val);
+        });
+        this.latencyPopup.$().find("form").on("submit", function(e) {
+            e.preventDefault();
+            $input.blur();
+            self.latencyPopup.close();
+        });
+    }
     $input.focus();
 };
 

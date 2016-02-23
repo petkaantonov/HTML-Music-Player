@@ -409,22 +409,8 @@ HotkeyBinder.prototype.destroy = function() {
 };
 
 
-const hotkeyPopup = GlobalUi.makePopup("Shortcuts", POPUP_HTML, ".menul-hotkeys");
 function openHotkeyManager(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-    hotkeyPopup.open();
-
-    var hotkeyBinder = new HotkeyBinder(hotkeyManager, hotkeyPopup.$().find(".popup-content-container"));
-
-    hotkeyPopup.once("close", function() {
-        hotkeyBinder.destroy();
-    });
 }
 
-$(".menul-hotkeys").click(openHotkeyManager);
-
-if (touch) {
-    $(".menul-hotkeys").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openHotkeyManager));
-}
 
 module.exports = hotkeyManager;

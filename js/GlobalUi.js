@@ -100,7 +100,8 @@ GlobalUi.makePopup = function(title, body, opener) {
                     name: "opacity",
                     start: 100,
                     end: 0,
-                    unit: "%"
+                    unit: "%",
+                    persist: false
                 }]
             });
 

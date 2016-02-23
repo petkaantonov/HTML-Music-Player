@@ -831,7 +831,7 @@ input[type="checkbox"] {
   }
 
   .inputs-container {
-    height: $slider-input-area-size;
+    min-height: $slider-input-area-size;
     margin: 12px 0px;
     $label-width: 72px;
     $line-height: $slider-input-area-size;
@@ -841,7 +841,7 @@ input[type="checkbox"] {
         font-size: 14px;
         display: inline-block;
         vertical-align: top;
-        height: 100%;
+        min-height: $slider-input-area-size;
         line-height: $line-height;
     }
 
@@ -877,11 +877,11 @@ input[type="checkbox"] {
         display: inline-block;
         vertical-align: top;
         @include calc(width, "100% - #{$label-width}");
-        height: 100%;
+        height: $slider-input-area-size;
         line-height: $line-height;
 
         select {
-            height: 100%;
+            height: $slider-input-area-size;
             line-height: $line-height;
             width: 100%;
             font-size: 14px;

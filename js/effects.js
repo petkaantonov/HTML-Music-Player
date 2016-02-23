@@ -382,11 +382,8 @@ var html = (function() {
 
 const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects");
 
-equalizerPopup.on("open", function() {
-    var currentGain =  $("#equalizer-current-gain");
-    var currentGainSign = currentGain.find(".equalizer-current-gain-sign");
-    var currentGainValue = currentGain.find(".equalizer-current-gain-value");
-    var currentGainUnit = currentGain.find(".equalizer-current-gain-unit");
+equalizerPopup.on("open", function(popup, needsInitialization) {
+    if (!needsInitialization) return;
 
     var sliders = equalizer.bands.map(function(band) {
         var currentValue = null;

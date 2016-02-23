@@ -7,6 +7,7 @@ const util = require("./util");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
 const Animator = require("./Animator");
+const ContentScroller = require("./ContentScroller");
 
 const shownPopups = [];
 const NULL = $(null);
@@ -80,8 +81,15 @@ function Popup(opts) {
     this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
     this.containerClass = util.combineClasses(opts.containerClass, "popup-container");
     this.headerClass = util.combineClasses(opts.headerClass, "popup-header");
-    this.bodyClass = util.combineClasses(opts.bodyClass, "popup-body");
+    this.footerClass = util.combineClasses(opts.footerClass, "popup-footer");
+    this.bodyClass = util.combineClasses(opts.bodyClass, "popup-body scrollbar-scrollarea");
+    this.bodyContentClass = util.combineClasses(opts.bodyContentClass, "popup-body-content");
     this.closerContainerClass = util.combineClasses(opts.closerContainerClass, "popup-closer-container");
+    this.scrollbarContainerClass = util.combineClasses(opts.scrollbarContainerClass, "scrollbar-container");
+    this.scrollbarRailClass = util.combineClasses(opts.scrollbarRailClass, "scrollbar-rail");
+    this.scrollbarKnobClass = util.combineClasses(opts.scrollbarKnobClass, "scrollbar-knob");
+
+
     this.body = util.toFunction(opts.body || "");
     this.title = util.toFunction(opts.title || "");
     this.closer = util.toFunction(opts.closer || "");
@@ -94,6 +102,9 @@ function Popup(opts) {
     this._dragging = false;
     this._frameId = -1;
 
+    this._contentScroller = null;
+
+    this._reLayout = this._reLayout.bind(this);
     this.position = this.position.bind(this);
     this.close = this.close.bind(this);
     this.headerMouseDowned = this.headerMouseDowned.bind(this);
@@ -104,7 +115,7 @@ function Popup(opts) {
     this.headerMouseDownedTouch = domUtil.touchDownHandler(this.headerMouseDowned);
     this.touchDragHandler = domUtil.dragHandler(this.mousemoved, this.draggingEnd);
 
-    $(window).on("resize", this.position);
+    $(window).on("resize", this._reLayout);
 
     this._popupDom = NULL;
     this._rect = null;
@@ -113,34 +124,61 @@ function Popup(opts) {
 util.inherits(Popup, EventEmitter);
 
 Popup.prototype._deinitDom = function() {
-    this.$().remove();
-    this._popupDom = NULL;
+    this.$().hide().removeClass(this.transitionClass).removeClass("initial");
 };
 
 Popup.prototype._initDom = function() {
+    if (this._popupDom !== NULL) {
+        this.$().show();
+        return;
+    }
+
     var ret = $("<div>", {
         class: this.containerClass,
     }).css({
-        position: "absolute"    
+        position: "absolute"
     }).appendTo("body");
 
     var headerText = $("<h2>").text(this.title() + "");
     var header = $("<div>", {class: this.headerClass});
-    var body = $("<div>", {class: this.bodyClass}).html(this.body() + "");
+    var footer = $("<div>", {class: this.footerClass});
+    var body = $("<div>", {class: this.bodyClass});
+    var bodyContent = $("<div>", {class: this.bodyContentClass}).html(this.body() + "");
     var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
+
+    var scrollbar = $("<div>", {class: this.scrollbarContainerClass});
+    var scrollbarRail = $("<div>", {class: this.scrollbarRailClass});
+    var scrollbarKnob = $("<div>", {class: this.scrollbarKnobClass});
 
     headerText.appendTo(header);
     closer.appendTo(header);
     header.appendTo(ret);
+    bodyContent.appendTo(body);
+    scrollbar.appendTo(body);
     body.appendTo(ret);
+    footer.appendTo(ret);
+
+    scrollbarRail.appendTo(scrollbar);
+    scrollbarKnob.appendTo(scrollbar);
 
     closer.on("click", this.closerClicked);
     header.on("mousedown", this.headerMouseDowned);
-    
+
     if (touch) {
         closer.on(domUtil.TOUCH_EVENTS, this.closerClickedTouch);
         header.on(domUtil.TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
     }
+
+    this._contentScroller = new ContentScroller(body, {
+        scrollingX: false,
+        snapping: false,
+        zooming: false,
+        paging: false,
+        contentContainer: bodyContent,
+        scrollbar: scrollbar,
+        railSelector: "." + this.scrollbarRailClass,
+        knobSelector: "." + this.scrollbarKnobClass
+    });
 
     this._popupDom = ret;
 };
@@ -163,6 +201,16 @@ Popup.prototype._getViewPort = function() {
     };
 };
 
+Popup.prototype._reLayout = function() {
+    if (!this._shown) return;
+    var self = this;
+    requestAnimationFrame(function() {
+        self._viewPort = self._getViewPort();
+        self.position();
+        self._setMinimumNecessaryHeight();
+        self._contentScroller.resize();
+    });
+};
 
 Popup.prototype.position = function() {
     this._frameId = -1;
@@ -207,6 +255,13 @@ Popup.prototype._renderCssPosition = function() {
     }
 };
 
+Popup.prototype._setMinimumNecessaryHeight = function() {
+    var headerHeight = this.$().find(".popup-header").outerHeight(true);
+    var footerHeight = this.$().find(".popup-footer").outerHeight(true);
+    var contentHeight = this.$().find(".popup-body-content").outerHeight() + 2;
+    this.$().css("height", Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight));
+};
+
 Popup.prototype.open = function() {
     if (this._shown) return;
     this._shown = true;
@@ -216,12 +271,16 @@ Popup.prototype.open = function() {
         if (shownPopups.length === 1) {
             showBlocker();
         }
-        
+
+        var firstOpen = this._popupDom === NULL;
         this._initDom();
-        this.emit("open", this);
+        this.emit("open", this, firstOpen);
         this._rect = this.$()[0].getBoundingClientRect();
         this._viewPort = this._getViewPort();
         this.position();
+        this._setMinimumNecessaryHeight();
+        this._contentScroller.loadScrollTop(0);
+
 
         if (this.transitionClass) {
             var $node = this.$();
@@ -235,6 +294,7 @@ Popup.prototype.open = function() {
             $node[0].offsetHeight;
         }
         this.beforeTransitionIn(this.$());
+
     } catch (e) {
         this.close();
         throw e;
@@ -295,7 +355,7 @@ Popup.prototype.close = function() {
     if (!this._shown) return;
     this._shown = false;
     shownPopups.splice(shownPopups.indexOf(this), 1);
-    
+
     this.emit("close", this);
     var self = this;
     Promise.resolve(this.beforeTransitionOut(this._popupDom)).finally(function() {

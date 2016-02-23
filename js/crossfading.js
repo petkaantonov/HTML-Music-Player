@@ -294,15 +294,16 @@ const savePreferences = function(preferences) {
 const openPopup = function(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     crossfadingPopup.open();
-    var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
-    crossfadingPopup.once("close", function() {
-        manager.destroy();
-    });
-    manager.on("preferencesUpdate", function() {
-        savePreferences(manager.preferences);
-    });
 };
 
+crossfadingPopup.on("open", function(popup, needsInitialization) {
+    if (needsInitialization) {
+        var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
+        manager.on("preferencesUpdate", function() {
+            savePreferences(manager.preferences);
+        });
+    }
+});
 
 $(".menul-crossfade").click(openPopup);
 
