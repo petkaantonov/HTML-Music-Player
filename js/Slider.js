@@ -80,17 +80,21 @@ Slider.prototype._onMousedown = function(e) {
 };
 
 Slider.prototype._keydowned = function(e) {
-    switch (e.which) {
-        case 27:
-        case 13:
+    var key = e.which || e.key;
+    if (typeof key === "number") key = domUtil.whichToKey[key];
+
+
+    switch (key) {
+        case "Escape":
+        case "Enter":
             this.$knob().blur();
         break;
 
-        case 37:
-        case 39:
+        case "ArrowLeft":
+        case "ArrowRight":
             if (this._direction === "horizontal") {
                 var value;
-                if (e.which === 37) {
+                if (key === "ArrowLeft") {
                     value = this._value - 0.01
                 } else {
                     value = this._value + 0.01
@@ -101,11 +105,11 @@ Slider.prototype._keydowned = function(e) {
             }
         break;
 
-        case 38:
-        case 40:
+        case "ArrowDown":
+        case "ArrowUp":
             if (this._direction === "vertical") {
                 var value;
-                if (e.which === 38) {
+                if (key === "ArrowDown") {
                     value = this._value - 0.01
                 } else {
                     value = this._value + 0.01

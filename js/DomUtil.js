@@ -1274,4 +1274,13 @@ util.isTouchEvent = function(e) {
     return rtouchevent.test(e.type);
 };
 
+util.whichToKey = {
+    13: "Enter",
+    27: "Escape",
+    37: "ArrowLeft",
+    39: "ArrowRight",
+    38: "ArrowDown",
+    40: "ArrowUp"
+};
+
 module.exports = util;
