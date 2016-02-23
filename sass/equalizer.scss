@@ -20,7 +20,7 @@
     @include large-screen {
         width: (620px / 10);
     }
-    height: 100px;
+    height: 107px;
 
     div {
         box-sizing: border-box;
@@ -34,7 +34,7 @@
 
     .equalizer-band-label-container {
         text-align: center;
-        margin-top: 5px;
+        margin-top: 12px;
         font-size: 13px;
     }
 }
