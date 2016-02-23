@@ -63,6 +63,7 @@ Slider.prototype._onMousedown = function(e) {
     this._calculateDimensions();
 
     if (this.shouldUpdateDom()) {
+        this.$knob().addClass("focused");
         this.$().addClass("sliding");
     }
 
@@ -186,6 +187,7 @@ Slider.prototype._onMouseup = function(e) {
     this._sliding = false;
 
     if (this.shouldUpdateDom()) {
+        this.$knob().removeClass("focused");
         this.$().removeClass("sliding");
     }
 

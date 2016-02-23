@@ -329,7 +329,8 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
 
     this.$().css({
         left: 0,
-        top: 0
+        top: 0,
+        willChange: "transform"
     });
     domUtil.setTransform(this.$()[0], "translate("+this._x+"px,"+this._y+"px)");
 };
@@ -346,7 +347,8 @@ Popup.prototype.draggingEnd = function() {
 
     this.$().css({
         left: this._x,
-        top: this._y
+        top: this._y,
+        willChange: "initial"
     });
     domUtil.setTransform(this.$()[0], "none");
 };
