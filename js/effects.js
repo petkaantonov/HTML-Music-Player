@@ -399,17 +399,12 @@ equalizerPopup.on("open", function(popup, needsInitialization) {
 
         slider.on("slideBegin", function() {
             currentValue = null;
-            currentGain.show();
         });
 
         slider.on("slide", function(p) {
             selectCustomPreset();
             var value = equalizer.toGainValue(progressToGainValue(1 - p));
             var formatting = formatGainValue(value);
-
-            currentGainSign.text(formatting[0]);
-            currentGainValue.text(formatting[1]);
-            currentGainUnit.text(formatting[2]);
             currentValue = value;
             equalizer.equalizer[freq] = value;
             equalizer.equalizer.preamp = null;
@@ -419,7 +414,6 @@ equalizerPopup.on("open", function(popup, needsInitialization) {
         slider.on("slideEnd", function() {
             var value = currentValue;
             currentValue = null;
-            currentGain.hide();
             equalizer.equalizer[freq] = value;
             keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
             triggerEqualizerChange();
