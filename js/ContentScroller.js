@@ -78,6 +78,7 @@ ContentScroller.prototype.needScrollbar = function() {
 };
 
 ContentScroller.prototype.scrollToUnsnapped = function(top, animate) {
+    top = Math.max(0, Math.min(this.maxTop(), +top));
     if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
     this._scroller.scrollTo(null, top, !!animate);
@@ -118,6 +119,26 @@ ContentScroller.prototype.loadScrollTop = function(top) {
 ContentScroller.prototype.settledScrollTop = function() {
     if (!this.needScrollbar()) return 0;
     return this._scrollTop|0;
+};
+
+ContentScroller.prototype.scrollIntoView = function(elem, animate) {
+    var maxTop = this.maxTop();
+    var scrollTop = this.settledScrollTop();
+    var height = this.contentHeight();
+    var rect = elem.getBoundingClientRect();
+    var elemStart = rect.top - this._top + scrollTop;
+    var elemEnd = rect.bottom - this._top + scrollTop;
+
+    var visibleStart = scrollTop;
+    var visibleEnd = scrollTop + height;
+
+    if (elemStart >= visibleStart && elemEnd <= visibleEnd) {
+        return;
+    }
+
+    var pos = elemEnd < visibleStart ? elemStart : elemEnd;
+
+    this.scrollToUnsnapped(pos / this.physicalHeight() * this.maxTop(), !!animate);
 };
 
 module.exports = ContentScroller;

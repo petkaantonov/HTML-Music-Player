@@ -11,6 +11,7 @@ $footer-header-size: $footer-size + $header-size;
 $popup-container-border: 2px;
 
 .popup-container {
+    outline: none;
     box-sizing: border-box;
     border-radius: 4px;
     background-color: #fcfcfc;
@@ -28,6 +29,15 @@ $popup-container-border: 2px;
 
     @include large-screen {
         max-width: $large-screen-width;
+    }
+
+    .last-focus-item {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        width: 1px;
+        height: 1px;
+        outline: none;
     }
 }
 

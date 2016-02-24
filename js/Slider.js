@@ -160,9 +160,9 @@ Slider.prototype._onMousemove = function(e) {
     this.emit("slide", percentage);
 };
 
-Slider.prototype.setValue = function(value) {
+Slider.prototype.setValue = function(value, force) {
     value = Math.min(1, Math.max(0, +value));
-    if (this._value === value) return;
+    if (!force && this._value === value) return;
     this._value = value;
     if (this.shouldUpdateDom()) {
         var knobHalf = (this._direction === "horizontal" ? this._knobRect.width : this._knobRect.height) / 2;
@@ -219,7 +219,11 @@ Slider.prototype._calculateDimensions = function() {
 };
 
 Slider.prototype._onReLayout = function() {
-    this._calculateDimensions();
+    var self = this;
+    requestAnimationFrame(function() {
+        self._calculateDimensions();
+        self.setValue(self._value, true);
+    });
 };
 
 Slider.prototype._percentage = function(e) {

@@ -105,6 +105,8 @@ function Popup(opts) {
 
     this._contentScroller = null;
 
+    this._bodyScrolled = this._bodyScrolled.bind(this);
+    this._elementFocused = this._elementFocused.bind(this);
     this._reLayout = this._reLayout.bind(this);
     this.position = this.position.bind(this);
     this.close = this.close.bind(this);
@@ -138,8 +140,9 @@ Popup.prototype._initDom = function() {
         class: this.containerClass,
     }).css({
         position: "absolute"
-    }).appendTo("body");
+    }).prop("tabIndex", -1).appendTo("body");
 
+    var lastFocusItem = $("<div>", {class: "last-focus-item"}).prop("tabIndex", 0);
     var headerText = $("<h2>").text(this.title() + "");
     var header = $("<div>", {class: this.headerClass});
     var footer = $("<div>", {class: this.footerClass});
@@ -158,6 +161,7 @@ Popup.prototype._initDom = function() {
     scrollbar.appendTo(body);
     body.appendTo(ret);
     footer.appendTo(ret);
+    lastFocusItem.appendTo(ret);
 
     scrollbarRail.appendTo(scrollbar);
     scrollbarKnob.appendTo(scrollbar);
@@ -200,6 +204,25 @@ Popup.prototype._getViewPort = function() {
         width: $(window).width(),
         height: $(window).height()
     };
+};
+
+Popup.prototype._bodyScrolled = function(e) {
+    e.target.scrollTop = 0;
+};
+
+Popup.prototype._elementFocused = function(e) {
+    if (this._shown) {
+        var $target = $(e.target);
+        if ($target.closest(this.$()).length === 0 || $target.hasClass("last-focus-item")) {
+            e.stopPropagation();
+            this.$().focus();
+        } else {
+            var body = this.$().find(".popup-body");
+            if ($target.closest(body).length !== 0) {
+                this._contentScroller.scrollIntoView(e.target, true);
+            }
+        }
+    }
 };
 
 Popup.prototype._reLayout = function() {
@@ -294,7 +317,9 @@ Popup.prototype.open = function() {
             $node[0].offsetHeight;
         }
         this.beforeTransitionIn(this.$());
-
+        this.$().focus();
+        util.onCapture(document, "focus", this._elementFocused);
+        util.onCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
     } catch (e) {
         this.close();
         throw e;
@@ -355,6 +380,8 @@ Popup.prototype.draggingEnd = function() {
 
 Popup.prototype.close = function() {
     if (!this._shown) return;
+    util.offCapture(document, "focus", this._elementFocused);
+    util.offCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
     this._shown = false;
     this._scrollTop = this._contentScroller.settledScrollTop();
     shownPopups.splice(shownPopups.indexOf(this), 1);
