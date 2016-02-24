@@ -19,6 +19,7 @@ const clickedTouch = domUtil.tapHandler(clicked);
 
 function createInput(atts) {
     var input = document.createElement("input");
+    input.tabIndex = -1;
     atts = Object(atts);
     Object.keys(atts).forEach(function(key) {
         input[key] = atts[key];

@@ -107,7 +107,7 @@ tagMap[0x54524B|0] = tagMap[0x5452434B|0] = id3v2String(function(data, result) {
         data.trackCount = +m[2];
     } else {
         data.trackNumber = +result;
-        data.trackCount = 1;
+        data.trackCount = -1;
     }
 });
 tagMap[0x545041|0] = tagMap[0x54504F53|0] = id3v2String(function(data, result) {
@@ -117,7 +117,7 @@ tagMap[0x545041|0] = tagMap[0x54504F53|0] = id3v2String(function(data, result) {
         data.discCount = +m[2];
     } else {
         data.discNumber = +result;
-        data.discCount = 1;
+        data.discCount = -1;
     }
 });
 tagMap[0x544350|0] = tagMap[0x54434D50|0] = id3v2String(function(data, result) {

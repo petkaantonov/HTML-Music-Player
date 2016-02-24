@@ -161,24 +161,30 @@ Slider.prototype._onMousemove = function(e) {
 };
 
 Slider.prototype.setValue = function(value) {
+    value = Math.min(1, Math.max(0, +value));
     if (this._value === value) return;
     this._value = value;
     if (this.shouldUpdateDom()) {
         var knobHalf = (this._direction === "horizontal" ? this._knobRect.width : this._knobRect.height) / 2;
-        var knobMin = -knobHalf;
         var full = this._direction === "horizontal" ? this._containerRect.width : this._containerRect.height;
-        var knobMax = full - knobHalf;
-        var knobTranslate = Math.round(value * (knobMax - knobMin) + knobMin);
-        domUtil.setTransform(this.$knob(),  "translateZ(0) translate" +
-                                            (this._direction === "horizontal" ? "X" : "Y") +
-                                            "("+knobTranslate+"px)");
-        var fillTranslate = "translateZ(0) ";
+
+        var knobTranslate, fillTranslate;
+        knobTranslate = fillTranslate = "translateZ(0) ";
         if (this._direction === "horizontal") {
+            var knobMin = -knobHalf;
+            var knobMax = full - knobHalf;
+            var knobValuePx =  Math.round(value * (knobMax - knobMin) + knobMin);
+            knobTranslate += "translateX(" + knobValuePx + "px)";
             fillTranslate += "translateX(-" + ((1 - value) * 100) + "%)";
         } else {
-            fillTranslate += "translateY(" + (value * 100) + "%)";
+            var knobMin = full - knobHalf;
+            var knobMax = -knobHalf;
+            var knobValuePx = Math.round(value * (knobMax - knobMin) + knobMin);
+            knobTranslate += "translateY(" + knobValuePx + "px)";
+            fillTranslate += "translateY(" + ((1 - value) * 100) + "%)";
         }
         domUtil.setTransform(this.$fill(), fillTranslate);
+        domUtil.setTransform(this.$knob(), knobTranslate);
     }
 };
 
@@ -218,7 +224,7 @@ Slider.prototype._onReLayout = function() {
 
 Slider.prototype._percentage = function(e) {
     if (this._direction === "vertical") {
-        var r = (e.clientY - this._containerRect.top) / this._containerRect.height;
+        var r = 1 - ((e.clientY - this._containerRect.top) / this._containerRect.height);
     } else {
         var r = (e.clientX - this._containerRect.left) / this._containerRect.width;
     }

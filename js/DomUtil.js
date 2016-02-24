@@ -1279,8 +1279,8 @@ util.whichToKey = {
     27: "Escape",
     37: "ArrowLeft",
     39: "ArrowRight",
-    38: "ArrowDown",
-    40: "ArrowUp"
+    38: "ArrowUp",
+    40: "ArrowDown"
 };
 
 module.exports = util;
