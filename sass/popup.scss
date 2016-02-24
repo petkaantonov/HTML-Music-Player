@@ -3,8 +3,8 @@
 $header-height: 38px;
 $header-margin: 25px;
 $header-size: $header-height + $header-margin;
-$footer-height: 38px;
-$footer-margin: 15px;
+$footer-height: 50px;
+$footer-margin: 10px;
 $footer-size: $footer-margin + $footer-height;
 $footer-header-size: $footer-size + $header-size;
 
@@ -104,8 +104,29 @@ $popup-container-border: 2px;
     background-color: #fff;
     height: $footer-height;
     width: 100%;
-    text-align: center;
-    margin-bottom: $footer-margin;
+    margin-top: $footer-margin;
+    box-sizing: border-box;
+    background: rgb(252, 252, 252);
+
+    .popup-button {
+        $padding: 10px;
+
+        outline: none;
+        box-sizing: border-box;
+        font-size: 14px;
+        vertical-align: top;
+        display: inline-block;
+        height: $footer-height;
+        text-transform: uppercase;
+        margin: 0px 22px;
+        line-height: $footer-height - $padding * 2;
+        padding: $padding 0;
+        color: $secondary-color;
+
+        &.popup-button-disabled {
+            opacity: 0.3;
+        }
+    }
 }
 
 .popup-header::after {

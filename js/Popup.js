@@ -72,6 +72,57 @@ function hideBlocker() {
     });
 }
 
+function PopupButton(popup, opts) {
+    opts = Object(opts);
+    this._popup = popup;
+    this._id = opts.id;
+    this._action = opts.action;
+    this._text = opts.text;
+    this._enabled = true;
+    this._domNode = $("<div>", {class: popup.popupButtonClass}).prop("tabIndex", 0).text(this._text);
+
+    this._clicked = this._clicked.bind(this);
+    this._touchClicked = domUtil.tapHandler(this._clicked);
+
+    this.$().on("click", this._clicked);
+
+    if (touch) {
+        this.$().on(domUtil.TOUCH_EVENTS, this._touchClicked);
+    }
+}
+
+PopupButton.prototype.id = function() {
+    return this._id;
+};
+
+PopupButton.prototype.$ = function() {
+    return this._domNode;
+};
+
+PopupButton.prototype.disable = function() {
+    if (!this._enabled) return;
+    this._enabled = false;
+    this.$().blur().prop("tabIndex", -1);
+    this.$().addClass(this._popup.buttonDisabledClass);
+};
+
+PopupButton.prototype.enable = function() {
+    if (this._enabled) return;
+    this._enabled = true;
+    this.$().prop("tabIndex", 0);
+    this.$().removeClass(this._popup.buttonDisabledClass);
+};
+
+PopupButton.prototype._clicked = function(e) {
+    if (!this._enabled) return;
+    this._action.call(null, e);
+};
+
+PopupButton.prototype.destroy = function() {
+    this.removeAllListeners();
+    this.$().remove();
+};
+
 function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
@@ -88,7 +139,8 @@ function Popup(opts) {
     this.scrollbarContainerClass = util.combineClasses(opts.scrollbarContainerClass, "scrollbar-container");
     this.scrollbarRailClass = util.combineClasses(opts.scrollbarRailClass, "scrollbar-rail");
     this.scrollbarKnobClass = util.combineClasses(opts.scrollbarKnobClass, "scrollbar-knob");
-
+    this.popupButtonClass = util.combineClasses(opts.popupButtonClass, "popup-button");
+    this.buttonDisabledClass = util.combineClasses(opts.buttonDisabledClass, "popup-button-disabled");
 
     this.body = util.toFunction(opts.body || "");
     this.title = util.toFunction(opts.title || "");
@@ -103,6 +155,9 @@ function Popup(opts) {
     this._frameId = -1;
     this._scrollTop = 0;
 
+    this._footerButtons = (opts.footerButtons || []).map(function(v) {
+        return new PopupButton(this, v);
+    }, this);
     this._contentScroller = null;
 
     this._bodyScrolled = this._bodyScrolled.bind(this);
@@ -125,6 +180,22 @@ function Popup(opts) {
     this._viewPort = null;
 }
 util.inherits(Popup, EventEmitter);
+
+Popup.prototype._buttonById = function(id) {
+    for (var i = 0; i < this._footerButtons; ++i) {
+        if (this._footerButtons[i].id() === id) {
+            return this._footerButtons[i];
+        }
+    }
+};
+
+Popup.prototype.disableButton = function(id) {
+    this._buttonById(id).disable();
+};
+
+Popup.prototype.enableButton = function(id) {
+    this._buttonById(id).enable();
+};
 
 Popup.prototype._deinitDom = function() {
     this.$().hide().removeClass(this.transitionClass).removeClass("initial");
@@ -149,6 +220,10 @@ Popup.prototype._initDom = function() {
     var body = $("<div>", {class: this.bodyClass});
     var bodyContent = $("<div>", {class: this.bodyContentClass}).html(this.body() + "");
     var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
+
+    for (var i = 0; i < this._footerButtons.length; ++i) {
+        this._footerButtons[i].$().appendTo(footer);
+    }
 
     var scrollbar = $("<div>", {class: this.scrollbarContainerClass});
     var scrollbarRail = $("<div>", {class: this.scrollbarRailClass});
@@ -433,5 +508,7 @@ Popup.prototype.setScreenPosition = function(pos) {
     this._y = y;
     this.position();
 };
+
+Popup.HIGHER_ZINDEX = 1000;
 
 module.exports = Popup;

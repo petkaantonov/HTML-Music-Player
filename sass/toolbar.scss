@@ -47,9 +47,11 @@
     color: #474747;
     box-sizing: border-box;
     vertical-align: top;
+    outline: none;
 }
 
-.toolbar-items .toolbar-item:hover {
+.toolbar-items .toolbar-item:hover,
+.toolbar-items .toolbar-item:focus {
     background-color: #F9F9F9;
     color: #85C4FF;
 }
@@ -71,6 +73,7 @@
 }
 
 .toolbar-items .toolbar-item.just-deactivated:hover,
+.toolbar-items .toolbar-item.just-deactivated:focus,
 .toolbar-items .toolbar-item.just-deactivated {
     color: #474747;
     background-color: transparent;

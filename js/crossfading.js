@@ -3,6 +3,7 @@ const $ = require("../lib/jquery");
 const EventEmitter = require("events");
 const util = require("./util");
 const GlobalUi = require("./GlobalUi");
+const Popup = require("./Popup");
 const keyValueDatabase = require("./KeyValueDatabase");
 const hotkeyManager = require("./HotkeyManager");
 const Slider = require("./Slider");
@@ -270,7 +271,22 @@ const POPUP_EDITOR_HTML = "<div class='settings-container crossfade-settings-con
             </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                         \
             </div>";
 
-const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade");
+const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade", [
+{
+    id: "restore-defaults",
+    text: "Restore defaults",
+    action: function(e) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+    }
+},
+{
+    id: "undo-changes",
+    text: "Undo changes",
+    action: function(e) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+    }
+}
+]);
 var preferences = new CrossFadePreferences();
 preferences.copyFrom(presets["Default (Disabled)"]);
 crossfading.getPreferences = function() {

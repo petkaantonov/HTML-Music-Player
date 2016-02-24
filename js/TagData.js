@@ -348,10 +348,10 @@ TagData.prototype.getBeginSilenceLength = function() {
 
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId && preferAcoustIdData) {
-        if (acoustId.album && !this.taggedAlbum) this.album = util.formatTagString(acoustId.album.name);
         if (acoustId.artist && !this.taggedArtist) this.artist = util.formatTagString(acoustId.artist.name);
         if (acoustId.title && !this.taggedTitle) this.title = util.formatTagString(acoustId.title.name);
     }
+    if (acoustId && acoustId.album) this.album = util.formatTagString(acoustId.album.name);
 };
 
 TagData.prototype.hasAcoustIdImage = function() {

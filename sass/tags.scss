@@ -1,3 +1,5 @@
+@import "variables";
+
 html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -46,7 +48,7 @@ body {
 
 .link-text {
     cursor: pointer;
-    color: #BE7306;
+    color: $secondary-color;
     text-decoration: underline;
 }
 

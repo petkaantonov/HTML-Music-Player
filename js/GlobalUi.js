@@ -46,7 +46,7 @@ GlobalUi.makeTooltip = function(target, content) {
     });
 };
 
-GlobalUi.makePopup = function(title, body, opener) {
+GlobalUi.makePopup = function(title, body, opener, footerButtons) {
     const PREFERENCE_KEY = title + "preferences";
     const INITIAL_SCALE = 0.1;
 
@@ -70,6 +70,7 @@ GlobalUi.makePopup = function(title, body, opener) {
     };
 
     var ret = new Popup({
+        footerButtons: footerButtons,
         title: title,
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
