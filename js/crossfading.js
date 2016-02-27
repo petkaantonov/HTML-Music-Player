@@ -162,14 +162,14 @@ const CrossFadePreferences = preferenceCreator({
             }
         },
         inTime: {
-            defaultValue: 5,
+            defaultValue: DEFAULT_TIME,
             asValidValue: function(value) {
                 if (!isFinite(+value)) return DEFAULT_TIME;
                 return Math.min(Math.max(MIN_TIME, +value), MAX_TIME);
             }
         },
         outTime: {
-            defaultValue: 5,
+            defaultValue: DEFAULT_TIME,
             asValidValue: function(value) {
                 if (!isFinite(+value)) return DEFAULT_TIME;
                 return Math.min(Math.max(MIN_TIME, +value), MAX_TIME);
@@ -277,10 +277,10 @@ keyValueDatabase.getInitialValues().then(function(values) {
 });
 
 
-const savePreferences = function(preferences) {
+const savePreferences = util.throttle(function(preferences) {
     keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
     crossfading.emit("crossFadingChange", preferences);
-};
+}, 250);
 
 const openPopup = function(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);

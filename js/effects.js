@@ -6,264 +6,21 @@ const GlobalUi = require("./GlobalUi");
 const keyValueDatabase = require("./KeyValueDatabase");
 const hotkeyManager = require("./HotkeyManager");
 const Slider = require("./Slider");
-var equalizer = new EventEmitter();
-module.exports = equalizer;
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const createPreferences = require("./PreferenceCreator");
+const Popup = require("./Popup");
 
-const STORAGE_KEY = "equalizer";
-equalizer.amplitudeRatioToDecibelChange = function(ratio) {
-    if (!isFinite(+ratio)) throw new Error("ratio must be a number");
-    return 20 * Math.log(ratio) * Math.LOG10E;
-};
+const EQUALIZER_MAX_GAIN = 12;
+const EQUALIZER_MIN_GAIN = -12;
+const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
+const UNDO_CHANGES_BUTTON = "undo-changes";
+const STORAGE_KEY = "effects-preferences";
 
-equalizer.decibelChangeToAmplitudeRatio = function(decibel) {
-    if (!isFinite(+decibel)) return 1;
-    return Math.pow(10, (decibel / 20));
-};
+const effects = new EventEmitter();
+module.exports = effects;
 
-var presets = {
-    "None": {
-        "70": 0,
-        "180": 0,
-        "320": 0,
-        "600": 0,
-        "1000": 0,
-        "3000": 0,
-        "6000": 0,
-        "12000": 0,
-        "14000": 0,
-        "16000": 0,
-        "preamp": 0
-    },
-
-    "Classical": {
-        "70": -1,
-        "180": -1,
-        "320": -1,
-        "600": -1,
-        "1000": -1,
-        "3000": -1,
-        "6000": -7,
-        "12000": -7,
-        "14000": -7,
-        "16000": -9,
-        "preamp": -1
-    },
-    "Club": {
-        "70": -1,
-        "180": -1,
-        "320": 8,
-        "600": 5,
-        "1000": 5,
-        "3000": 5,
-        "6000": 3,
-        "12000": -1,
-        "14000": -1,
-        "16000": -1,
-        "preamp": -6.71999979019165
-    },
-    "Dance": {
-        "70": 9,
-        "180": 7,
-        "320": 2,
-        "600": -1,
-        "1000": -1,
-        "3000": -5,
-        "6000": -7,
-        "12000": -7,
-        "14000": -1,
-        "16000": -1,
-        "preamp": -4.319999694824219
-    },
-    "Full Bass": {
-        "70": -8,
-        "180": 9,
-        "320": 9,
-        "600": 5,
-        "1000": 1,
-        "3000": -4,
-        "6000": -8,
-        "12000": -10,
-        "14000": -11,
-        "16000": -11,
-        "preamp": -7.199999809265137
-    },
-    "Full Bass & Treble": {
-        "70": 7,
-        "180": 5,
-        "320": -1,
-        "600": -7,
-        "1000": -4,
-        "3000": 1,
-        "6000": 8,
-        "12000": 11,
-        "14000": 12,
-        "16000": 12,
-        "preamp": -10.079999923706055
-    },
-    "Full Treble": {
-        "70": -9,
-        "180": -9,
-        "320": -9,
-        "600": -4,
-        "1000": 2,
-        "3000": 11,
-        "6000": 12,
-        "12000": 12,
-        "14000": 12,
-        "16000": 12,
-        "preamp": -12
-    },
-    "Laptop Speakers / Headphone": {
-        "70": 4,
-        "180": 11,
-        "320": 5,
-        "600": -3,
-        "1000": -2,
-        "3000": 1,
-        "6000": 4,
-        "12000": 9,
-        "14000": 12,
-        "16000": 12,
-        "preamp": -8.15999984741211
-    },
-    "Large Hall": {
-        "70": 10,
-        "180": 10,
-        "320": 5,
-        "600": 5,
-        "1000": -1,
-        "3000": -4,
-        "6000": -4,
-        "12000": -4,
-        "14000": -1,
-        "16000": -1,
-        "preamp": -7.199999809265137
-    },
-    "Live": {
-        "70": -4,
-        "180": -1,
-        "320": 4,
-        "600": 5,
-        "1000": 5,
-        "3000": 5,
-        "6000": 4,
-        "12000": 2,
-        "14000": 2,
-        "16000": 2,
-        "preamp": -5.279999732971191
-    },
-    "Party": {
-        "70": 7,
-        "180": 7,
-        "320": -1,
-        "600": -1,
-        "1000": -1,
-        "3000": -1,
-        "6000": -1,
-        "12000": -1,
-        "14000": 7,
-        "16000": 7,
-        "preamp": -5.279999732971191
-    },
-    "Pop": {
-        "70": -1,
-        "180": 4,
-        "320": 7,
-        "600": 8,
-        "1000": 5,
-        "3000": -1,
-        "6000": -2,
-        "12000": -2,
-        "14000": -1,
-        "16000": -1,
-        "preamp": -6.239999771118164
-    },
-    "Reggae": {
-        "70": -1,
-        "180": -1,
-        "320": -1,
-        "600": -5,
-        "1000": -1,
-        "3000": 6,
-        "6000": 6,
-        "12000": -1,
-        "14000": -1,
-        "16000": -1,
-        "preamp": -8.15999984741211
-    },
-    "Rock": {
-        "70": 8,
-        "180": 4,
-        "320": -5,
-        "600": -8,
-        "1000": -3,
-        "3000": 4,
-        "6000": 8,
-        "12000": 11,
-        "14000": 11,
-        "16000": 11,
-        "preamp": -10.079999923706055
-    },
-    "Ska": {
-        "70": -2,
-        "180": -4,
-        "320": -4,
-        "600": -1,
-        "1000": 4,
-        "3000": 5,
-        "6000": 8,
-        "12000": 9,
-        "14000": 11,
-        "16000": 9,
-        "preamp": -11.039999961853027
-    },
-    "Soft": {
-        "70": 4,
-        "180": 1,
-        "320": -1,
-        "600": -2,
-        "1000": -1,
-        "3000": 4,
-        "6000": 8,
-        "12000": 9,
-        "14000": 11,
-        "16000": 12,
-        "preamp": -9.59999942779541
-    },
-    "Soft Rock": {
-        "70": 4,
-        "180": 4,
-        "320": 2,
-        "600": -1,
-        "1000": -4,
-        "3000": -5,
-        "6000": -3,
-        "12000": -1,
-        "14000": 2,
-        "16000": 8,
-        "preamp": -5.279999732971191
-    },
-    "Techno": {
-        "70": 8,
-        "180": 5,
-        "320": -1,
-        "600": -5,
-        "1000": -4,
-        "3000": -1,
-        "6000": 8,
-        "12000": 9,
-        "14000": 9,
-        "16000": 8,
-        "preamp": -7.679999828338623
-    }
-};
-
-var EQUALIZER_MAX_GAIN = 12;
-var EQUALIZER_MIN_GAIN = -12;
-
-equalizer.bands = [
+const equalizerBands = [
     [70, 'lowshelf'],
     [180, 'peaking'],
     [320, 'peaking'],
@@ -276,56 +33,79 @@ equalizer.bands = [
     [16000, 'highshelf']
 ];
 
-equalizer.equalizer = Object.create(null);
-
-equalizer.toGainValue = function(value) {
-    value = parseInt(value, 10);
-    if (!isFinite(value)) return 0;
-    return Math.max(Math.min(value, EQUALIZER_MAX_GAIN), EQUALIZER_MIN_GAIN);
+const equalizerPresets = {
+    "None": [0,0,0,0,0,0,0,0,0,0],
+    "Classical": [-1,-1,-1,-1,-1,-1,-7,-7,-7,-9],
+    "Club": [-1,-1,8,5,5,5,3,-1,-1,-1],
+    "Dance": [9,7,2,-1,-1,-5,-7,-7,-1,-1],
+    "Full Bass": [-8,9,9,5,1,-4,-8,-10,-11,-11],
+    "Full Bass & Treble": [7,5,-1,-7,-4,1,8,11,12,12],
+    "Full Treble": [-9,-9,-9,-4,2,11,12,12,12,12],
+    "Laptop Speakers / Headphone": [4,11,5,-3,-2,1,4,9,12,12],
+    "Large Hall": [10,10,5,5,-1,-4,-4,-4,-1,-1],
+    "Live": [-4,-1,4,5,5,5,4,2,2,2],
+    "Party": [7,7,-1,-1,-1,-1,-1,-1,7,7],
+    "Pop": [-1,4,7,8,5,-1,-2,-2,-1,-1],
+    "Reggae": [-1,-1,-1,-5,-1,6,6,-1,-1,-1],
+    "Rock": [8,4,-5,-8,-3,4,8,11,11,11],
+    "Ska": [-2,-4,-4,-1,4,5,8,9,11,9],
+    "Soft": [4,1,-1,-2,-1,4,8,9,11,12],
+    "Soft Rock": [4,4,2,-1,-4,-5,-3,-1,2,8],
+    "Techno": [8,5,-1,-5,-4,-1,8,9,9,]
 };
 
-equalizer.frequencyToIndex = (function() {
-    var map = Object.create(null);
+const equalizerPresetKeys = Object.keys(equalizerPresets);
 
-    equalizer.bands.forEach(function(band, index) {
-        map[band[0]] = index;
-    });
+const EffectsPreferences = createPreferences({
+    methods: {
+        getMatchingEqualizerPresetName: function() {
+            var equalizer = this.getInPlaceEqualizer();
+            for (var i = 0; i < equalizerPresetKeys.length; ++i) {
+                var name = equalizerPresetKeys[i];
+                var preset = equalizerPresets[name];
+                if (this._equals(preset, equalizer)) {
+                    return name;
+                }
+            }
+            return "Custom";
+        }
+    },
 
-    return function(freq) {
-        return map[freq];
-    };
-})();
+    preferences: {
+        equalizer: {
+            defaultValue: equalizerPresets["None"],
+            asValidValue: function(value) {
+                if (!Array.isArray(value) || value.length !== 10) {
+                    return this.defaultEqualizer;
+                }
 
-function formatFreq(freq) {
+                for (var i = 0; i < value.length; ++i) {
+                    value[i] = (Math.max(EQUALIZER_MIN_GAIN, Math.min(EQUALIZER_MAX_GAIN, +value[i]))) || 0;
+                }
+
+                return value;
+            }
+        }
+    }
+});
+
+const preferences = new EffectsPreferences();
+
+const formatFreq = function(freq) {
     if (freq < 1000) {
         return freq + " Hz";
     } else {
         return Math.round(freq / 1000) + " KHz";
     }
-}
+};
 
-function getCurrentlyMatchingPreset() {
-    var freqs = Object.keys(equalizer.equalizer);
-    var presetNames = Object.keys(presets);
-
-    for (var i = 0; i < presetNames.length; ++i) {
-        var preset = presets[presetNames[i]];
-
-        if (freqs.every(function(freq) {
-            return equalizer.equalizer[freq] === preset[freq];
-        })) {
-            return presetNames[i];
-        }
-    }
-    return "Custom";
-}
 
 var html = (function() {
     var equalizerBandGroups = [];
     var groupSize = 5;
     var cur = 0;
-    while (cur < equalizer.bands.length) {
-        var equalizerBandGroup = equalizer.bands.slice(cur, cur + groupSize);
+    while (cur < equalizerBands.length) {
+        var equalizerBandGroup = equalizerBands.slice(cur, cur + groupSize);
         equalizerBandGroups.push(equalizerBandGroup);
         cur += groupSize;
     }
@@ -337,7 +117,7 @@ var html = (function() {
                         var sliderId = "equalizer-band-" + band[0] + "-slider";
                         return "<div class='equalizer-band-configurator-container'>                                               \
                                 <div class='equalizer-slider-container'>                                                          \
-                                    <div id='"+sliderId+"' class='slider equalizer-slider vertical-slider'>                       \
+                                    <div class='"+sliderId+" slider equalizer-slider vertical-slider'>                            \
                                         <div class='slider-knob'></div>                                                           \
                                         <div class='slider-background'>                                                           \
                                             <div class='slider-fill'></div>                                                       \
@@ -354,8 +134,8 @@ var html = (function() {
 
 
 
-    var presetHtml = "<select id='equalizer-preset-selector'><option selected value='Custom'>Custom</option>" +
-        Object.keys(presets).map(function(presetName) {
+    var presetHtml = "<select class='equalizer-preset-selector'><option selected value='Custom'>Custom</option>" +
+        equalizerPresetKeys.map(function(presetName) {
             return "<option value='"+presetName+"'>"+presetName+"</option>";
         }).join("") +
     "</select>";
@@ -379,134 +159,193 @@ var html = (function() {
             </div>";
 })();
 
+function EffectsManager(domNode, popup, preferences) {
+    EventEmitter.call(this);
+    this._domNode = $($(domNode)[0]);
+    this._popup = popup;
+    this.preferences = preferences;
+    this.defaultPreferences = new EffectsPreferences();
+    this.unchangedPreferences = null;
 
-const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects");
-
-equalizerPopup.on("open", function(popup, needsInitialization) {
-    if (!needsInitialization) return;
-
-    var sliders = equalizer.bands.map(function(band) {
-        var currentValue = null;
-        var freq = band[0];
-        var db = equalizer.equalizer[freq];
-        var sliderSelector = "#equalizer-band-" + freq + "-slider";
-        var knob = document.getElementById("equalizer-band-" + freq + "-knob");
-
-
-        var slider = new Slider(sliderSelector, {
+    this._sliders = equalizerBands.map(function(band, index) {
+        var self = this;
+        var slider = new Slider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
             direction: "vertical"
         });
 
+        var eq;
         slider.on("slideBegin", function() {
-            currentValue = null;
+            eq = self.preferences.getEqualizer();
         });
 
         slider.on("slide", function(p) {
-            selectCustomPreset();
-            var value = equalizer.toGainValue(progressToGainValue(1 - p));
-            var formatting = formatGainValue(value);
-            currentValue = value;
-            equalizer.equalizer[freq] = value;
-            equalizer.equalizer.preamp = null;
-            triggerEqualizerChange();
+            var value = progressToGainValue(p);
+            eq[index] = value;
+            self.preferences.setInPlaceEqualizer(eq);
+            self.preferencesUpdated(true);
         });
 
         slider.on("slideEnd", function() {
-            var value = currentValue;
-            currentValue = null;
-            equalizer.equalizer[freq] = value;
-            keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
-            triggerEqualizerChange();
+            eq = null;
         });
 
-        slider.setValue(gainValueToProgress(db));
-
         return slider;
-    });
+    }, this);
 
-    $("#equalizer-preset-selector").on("change", function() {
-        var presetName = $(this).val();
+    this.$().find(".equalizer-preset-selector").on("change", this.equalizerPresetChanged.bind(this));
+}
+util.inherits(EffectsManager, EventEmitter);
 
-        if (presetName !== "Custom") {
-            var preset = presets[presetName];
-            Object.keys(equalizer.equalizer).forEach(function(freq, index) {
-                // Check for "preamp".
-                if (!isFinite(+freq)) return;
-                var db = preset[freq];
-                sliders[index].setValue(gainValueToProgress(db));
-                equalizer.equalizer[freq] = db;
-            });
-            equalizer.equalizer.preamp = preset.preamp;
-            keyValueDatabase.set(STORAGE_KEY, equalizer.equalizer);
-            triggerEqualizerChange();
+EffectsManager.prototype.$ = function() {
+    return this._domNode;
+};
+
+EffectsManager.prototype.applyPreferencesFrom = function(preferences) {
+    this.preferences.copyFrom(preferences);
+    this.preferencesUpdated();
+};
+
+EffectsManager.prototype.preferencesUpdated = function(noDomEqUpdate) {
+    this.emit("preferencesUpdate");
+    this.update(!!noDomEqUpdate);
+};
+
+EffectsManager.prototype.equalizerPresetChanged = function(e) {
+    var val = $(e.target).val();
+
+    if (equalizerPresets[val]) {
+        this.preferences.setEqualizer(equalizerPresets[val]);
+        this.preferencesUpdated();
+
+    }
+};
+
+EffectsManager.prototype.update = function(noDomEqUpdate) {
+    var presetName = this.preferences.getMatchingEqualizerPresetName();
+    this.$().find(".equalizer-preset-selector").val(presetName);
+
+    if (!noDomEqUpdate) {
+        var eq = this.preferences.getInPlaceEqualizer();
+        for (var i = 0; i < eq.length; ++i) {
+            this._sliders[i].setValue(gainValueToProgress(eq[i]));
         }
-    });
+    }
+
+    var restoreDefaultsEnabled = !this.preferences.equals(this.defaultPreferences);
+    this._popup.setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, restoreDefaultsEnabled);
+    var undoChangesEnabled = !this.preferences.equals(this.unchangedPreferences);
+    this._popup.setButtonEnabledState(UNDO_CHANGES_BUTTON, undoChangesEnabled);
+};
+
+EffectsManager.prototype.restoreDefaults = function() {
+    this.applyPreferencesFrom(this.defaultPreferences);
+};
+
+EffectsManager.prototype.undoChanges = function() {
+    this.applyPreferencesFrom(this.unchangedPreferences);
+};
+
+EffectsManager.prototype.setUnchangedPreferences = function() {
+    this.unchangedPreferences = this.preferences.snapshot();
+    this.update();
+};
+
+const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects", [
+{
+    id: RESTORE_DEFAULTS_BUTTON,
+    text: "Restore defaults",
+    action: function(e) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        effectsManager.restoreDefaults();
+    }
+},
+{
+    id: UNDO_CHANGES_BUTTON,
+    text: "Undo changes",
+    action: function(e) {
+        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        effectsManager.undoChanges();
+    }
+}
+]);
+var effectsManager;
+
+equalizerPopup.on("open", function(popup, needsInitialization) {
+    if (needsInitialization) {
+        effectsManager = new EffectsManager(".equalizer-popup-content-container", popup, preferences);
+
+        effectsManager.on("preferencesUpdate", function() {
+            savePreferences(effectsManager.preferences);
+        });
+    }
+    effectsManager.setUnchangedPreferences();
 });
 
 
-function gainValueToProgress(gainValue) {
+const gainValueToProgress = function(gainValue) {
     var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
     var abs = gainValue + EQUALIZER_MAX_GAIN;
     return abs / max;
-}
+};
 
-function progressToGainValue(progress) {
+const progressToGainValue = function(progress) {
     var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
     var value = Math.round(progress * max);
     return value - Math.abs(EQUALIZER_MAX_GAIN);
-}
+};
 
-function formatGainValue(value) {
-    if (value > 0) {
-        return ["+", Math.abs(value), "dB"];
-    } else if (value < 0) {
-        return ["-", Math.abs(value), "dB"];
-    } else {
-        return ["", 0, "dB"];
-    }
-}
-
-function selectCurrentlyMatchingPreset() {
-    var preset = getCurrentlyMatchingPreset();
-
-    $("#equalizer-preset-selector option").each(function() {
-        this.selected = $(this).val() === preset;
-    });
-}
-
-function selectCustomPreset() {
-    $("#equalizer-preset-selector").val("Custom");
-}
-
-var triggerEqualizerChange = util.throttle(function() {
-    equalizer.emit("equalizerChange");
-}, 50);
-
-function openEditor(e) {
+const openEditor = function(e) {
     GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     equalizerPopup.open();
-    selectCurrentlyMatchingPreset();
 }
 
 keyValueDatabase.getInitialValues().then(function(values) {
     if (STORAGE_KEY in values) {
-        var EQ = Object.create(null);
-        equalizer.bands.forEach(function(band) {
-            var freq = band[0];
-            EQ[freq] = equalizer.toGainValue(values[STORAGE_KEY][freq]);
-        });
-        equalizer.equalizer = EQ;
-    } else {
-        equalizer.bands.forEach(function(band) {
-            equalizer.equalizer[band[0]] = 0;
-        });
+        preferences.copyFrom(values[STORAGE_KEY]);
     }
 });
 
-equalizer.getBands = equalizer.getEqualizerBands = function() {
-    return equalizer.equalizer;
+const savePreferences = util.throttle(function() {
+    keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
+    effects.emit("effectsChange", preferences);
+}, 250);
+
+effects.amplitudeRatioToDecibelChange = function(ratio) {
+    if (!isFinite(+ratio)) throw new Error("ratio must be a number");
+    return 20 * Math.log(ratio) * Math.LOG10E;
 };
 
+effects.decibelChangeToAmplitudeRatio = function(decibel) {
+    if (!isFinite(+decibel)) return 1;
+    return Math.pow(10, (decibel / 20));
+};
+
+effects.getPreferences = function() {
+    return preferences;
+};
+
+effects.frequencyToIndex = (function() {
+    var map = Object.create(null);
+
+    equalizerBands.forEach(function(band, index) {
+        map[band[0]] = index;
+    });
+
+    return function(freq) {
+        return map[freq];
+    };
+})();
+
+effects.indexToFrequency = function(index) {
+    return equalizerBands[index][0];
+};
+
+effects.getEqualizerSetup = function(track) {
+    return {
+        specs: equalizerBands,
+        gains: effects.getPreferences().getEqualizer()
+    };
+};
 
 $(".menul-effects").click(openEditor);
 

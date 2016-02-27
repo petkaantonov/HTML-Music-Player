@@ -47,7 +47,7 @@ GlobalUi.makeTooltip = function(target, content) {
 };
 
 GlobalUi.makePopup = function(title, body, opener, footerButtons) {
-    const PREFERENCE_KEY = title + "preferences";
+    const PREFERENCE_KEY = title + "-popup-preferences";
     const INITIAL_SCALE = 0.1;
 
     const xPos = function(openerBox, popupBox) {

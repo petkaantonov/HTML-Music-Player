@@ -70,13 +70,13 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.muteGain = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
-    this.filterNodes = null;
+    this.filterNodes = [];
     this.visualizer = null;
 
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
     this.errored = this.errored.bind(this);
-    this.equalizerChanged = this.equalizerChanged.bind(this);
+    this.effectsChanged = this.effectsChanged.bind(this);
     this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
     this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
@@ -87,7 +87,7 @@ function AudioManager(player, track, implicitlyLoaded) {
     this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
     track.on("tagDataUpdate", this.trackTagDataUpdated);
-    effects.on("equalizerChange", this.equalizerChanged);
+    effects.on("effectsChange", this.effectsChanged);
     crossfading.on("crossFadingChange", this.crossFadingChanged);
     player.playlist.on("nextTrackChange", this.nextTrackChanged);
 
@@ -123,7 +123,7 @@ AudioManager.prototype.setupNodes = function() {
 
     this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
-    this.connectEqualizerFilters(effects.getEqualizerBands(this.track));
+    this.connectEqualizer(effects.getEqualizerSetup(this.track));
     this.volumeGain.connect(this.seekGain);
     this.seekGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
@@ -268,9 +268,9 @@ AudioManager.prototype.getImage = function() {
     return this.track.getImage();
 };
 
-AudioManager.prototype.equalizerChanged = function() {
+AudioManager.prototype.effectsChanged = function() {
     if (this.destroyed) return;
-    this.connectEqualizerFilters(effects.getEqualizerBands(this.track));
+    this.connectEqualizer(effects.getEqualizerSetup(this.track));
 };
 
 AudioManager.prototype.crossFadingChanged = function() {
@@ -278,59 +278,45 @@ AudioManager.prototype.crossFadingChanged = function() {
     this.updateSchedules();
 };
 
-AudioManager.prototype.connectEqualizerFilters = function(bands) {
+AudioManager.prototype.connectEqualizer = function(setup) {
     if (this.destroyed) return;
-    this.replayGain.disconnect();
+    try {
+        this.replayGain.disconnect();
+    } catch (e) {}
+
     this.filterNodes.forEach(function(node) {
-        node.disconnect();
+        try {
+            node.disconnect();
+        } catch (e) {}
     });
 
-    var bandsFrequencySorted = Object.keys(bands).map(function(key) {
-        if (!isFinite(+key)) return null;
-        return {
-            frequency: +key,
-            gain: bands[key]
-        };
-    }).filter(Boolean).sort(function(a, b) {
-        return a.frequency - b.frequency;
-    });
+    var nodes = [];
+    var specs = setup.specs;
+    var gains = setup.gains;
 
-    var someBandHasGainOrAttenuation = bandsFrequencySorted.some(function(v) {
-        return +v.gain !== 0;
-    });
+    for (var i = 0; i < gains.length; ++i) {
+        var gain = gains[i];
+        if (gain !== 0) {
+            var spec = specs[i];
+            var node = audioCtx.createBiquadFilter();
+            node.type = spec[1];
+            node.Q.value = 1;
+            node.frequency.value = spec[0];
+            node.gain.value = gain;
+            nodes.push(node);
+        }
+    }
+    this.filterNodes = nodes;
 
-    // TODO: Only connect the bands that have gain or attenuation.
-    if (someBandHasGainOrAttenuation) {
-        var firstBand = bandsFrequencySorted.shift();
-        var firstFilterNode = audioCtx.createBiquadFilter();
-        firstFilterNode.type = "lowshelf";
-        firstFilterNode.Q.value = 1;
-        firstFilterNode.frequency.value = firstBand.frequency;
-        firstFilterNode.gain.value = firstBand.gain;
-
-        var lastBand = bandsFrequencySorted.pop();
-        var lastFilterNode = audioCtx.createBiquadFilter();
-        lastFilterNode.type = "highshelf";
-        lastFilterNode.Q.value = 1;
-        lastFilterNode.frequency.value = lastBand.frequency;
-        lastFilterNode.gain.value = lastBand.gain;
-
-        this.filterNodes = [firstFilterNode].concat(bandsFrequencySorted.map(function(band) {
-            var filterNode = audioCtx.createBiquadFilter();
-            filterNode.type = "peaking";
-            filterNode.Q.value = 1;
-            filterNode.frequency.value = band.frequency;
-            filterNode.gain.value = band.gain;
-            return filterNode;
-        }), lastFilterNode);
-
-        var lastFilter = this.filterNodes.reduce(function(prev, curr) {
+    if (!nodes.length) {
+        this.replayGain.connect(this.volumeGain);
+    } else {
+        var lastFilter = nodes.reduce(function(prev, curr) {
             prev.connect(curr);
             return curr;
         }, this.replayGain);
+
         lastFilter.connect(this.volumeGain);
-    } else {
-        this.replayGain.connect(this.volumeGain);
     }
 };
 
@@ -565,7 +551,7 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    effects.removeListener("equalizerChange", this.equalizerChanged);
+    effects.removeListener("effectsChange", this.effectsChanged);
     crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
@@ -597,7 +583,7 @@ AudioManager.prototype.destroy = function() {
     this.timeUpdated =
     this.ended =
     this.errored =
-    this.equalizerChanged =
+    this.effectsChanged =
     this.crossFadingChanged =
     this.nextTrackChanged =
     this.trackTagDataUpdated =
@@ -1162,10 +1148,6 @@ Player.prototype.setAudioHardwareLatency = function(value) {
 
 Player.prototype.getMaximumAudioHardwareLatency = function() {
     return audioPlayer.getMaxLatency();
-};
-
-Player.prototype.setEffects = function(spec) {
-    audioPlayer.setEffects(spec);
 };
 
 module.exports = Player;

@@ -104,7 +104,7 @@ const createPreferences = function(spec) {
         var asValidMethodName = "asValid" + util.titleCase(name);
         var defaultName = "default" + util.titleCase(name);
         Constructor.prototype[asValidMethodName] = spec.preferences[name].asValidValue;
-        Constructor.prototype[defaultName] = spec.preferences[name].defaultValue;
+        Constructor.prototype[defaultName] = valueFunction(spec.preferences[name].defaultValue);
     });
 
     const equalsCode = "if (!other || !(other instanceof this.constructor)) return false;\n" +
@@ -135,11 +135,18 @@ const createPreferences = function(spec) {
 
     preferenceNames.forEach(function(name) {
         var setterName = "set" + util.titleCase(name);
+        var inplaceSetterName = "setInPlace" + util.titleCase(name);
         var getterName = "get" + util.titleCase(name);
+        var inPlaceGetterName = "getInPlace" + util.titleCase(name);
         var setterCode = "this." + name + " = this.asValid" + util.titleCase(name) + "(this._value(value));\n";
-        var getterCode = "return this." + name + ";\n";
+        var inplaceSetterCode = "this." + name + " = value;\n";
+        var getterCode = "return this._value(this." + name + ");\n";
+        var inPlaceGetterCode = "return this." + name + ";\n";
         Constructor.prototype[getterName] = new Function(getterCode);
+        Constructor.prototype[inPlaceGetterName] = new Function(inPlaceGetterCode);
         Constructor.prototype[setterName] = new Function("value", setterCode);
+        Constructor.prototype[inplaceSetterName] = new Function("value", inplaceSetterCode);
+
     });
 
     Constructor.prototype._equals = equals;
