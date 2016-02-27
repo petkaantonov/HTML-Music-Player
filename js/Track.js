@@ -479,9 +479,9 @@ Track.prototype.formatFullName = function() {
         var trackCount = this.tagData.trackCount;
         var position = "";
         if (trackNumber !== -1 && trackCount === -1) {
-            position = " " + trackNumber;
+            position = " #" + trackNumber;
         } else if (trackNumber !== -1 && trackCount !== -1) {
-            position = " " + trackNumber + "/" + trackCount;
+            position = " #" + trackNumber + "/" + trackCount;
         }
 
         name = name + " [" + this.tagData.getAlbum() + position + "]";
