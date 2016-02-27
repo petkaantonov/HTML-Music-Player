@@ -182,7 +182,7 @@ function Popup(opts) {
 util.inherits(Popup, EventEmitter);
 
 Popup.prototype._buttonById = function(id) {
-    for (var i = 0; i < this._footerButtons; ++i) {
+    for (var i = 0; i < this._footerButtons.length; ++i) {
         if (this._footerButtons[i].id() === id) {
             return this._footerButtons[i];
         }
@@ -195,6 +195,15 @@ Popup.prototype.disableButton = function(id) {
 
 Popup.prototype.enableButton = function(id) {
     this._buttonById(id).enable();
+};
+
+Popup.prototype.setButtonEnabledState = function(id, state) {
+    var button = this._buttonById(id);
+    if (state) {
+        button.enable();
+    } else {
+        button.disable();
+    }
 };
 
 Popup.prototype._deinitDom = function() {
@@ -366,39 +375,34 @@ Popup.prototype.open = function() {
     this._shown = true;
     shownPopups.push(this);
 
-    try {
-        if (shownPopups.length === 1) {
-            showBlocker();
-        }
-
-        var firstOpen = this._popupDom === NULL;
-        this._initDom();
-        this.emit("open", this, firstOpen);
-        this._rect = this.$()[0].getBoundingClientRect();
-        this._viewPort = this._getViewPort();
-        this.position();
-        this._setMinimumNecessaryHeight();
-        this._contentScroller.loadScrollTop(this._scrollTop);
-
-        if (this.transitionClass) {
-            var $node = this.$();
-            $node[0].offsetHeight;
-            $node.detach();
-            $node.addClass(this.transitionClass + " initial");
-            $node[0].offsetHeight;
-            $node.appendTo("body");
-            $node[0].offsetHeight;
-            $node.removeClass("initial");
-            $node[0].offsetHeight;
-        }
-        this.beforeTransitionIn(this.$());
-        this.$().focus();
-        util.onCapture(document, "focus", this._elementFocused);
-        util.onCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
-    } catch (e) {
-        this.close();
-        throw e;
+    if (shownPopups.length === 1) {
+        showBlocker();
     }
+
+    var firstOpen = this._popupDom === NULL;
+    this._initDom();
+    this.emit("open", this, firstOpen);
+    this._rect = this.$()[0].getBoundingClientRect();
+    this._viewPort = this._getViewPort();
+    this.position();
+    this._setMinimumNecessaryHeight();
+    this._contentScroller.loadScrollTop(this._scrollTop);
+
+    if (this.transitionClass) {
+        var $node = this.$();
+        $node[0].offsetHeight;
+        $node.detach();
+        $node.addClass(this.transitionClass + " initial");
+        $node[0].offsetHeight;
+        $node.appendTo("body");
+        $node[0].offsetHeight;
+        $node.removeClass("initial");
+        $node[0].offsetHeight;
+    }
+    this.beforeTransitionIn(this.$());
+    this.$().focus();
+    util.onCapture(document, "focus", this._elementFocused);
+    util.onCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
 };
 
 Popup.prototype.mousemoved = function(e) {

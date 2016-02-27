@@ -21,6 +21,8 @@ const MIN_TIME = 1;
 const MAX_TIME = 12;
 const DEFAULT_TIME = 5;
 
+const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
+const UNDO_CHANGES_BUTTON = "undo-changes";
 const STORAGE_KEY = "crossfade-preference";
 
 const CURVE_MAP = {
@@ -170,6 +172,12 @@ CrossFadePreferences.prototype.toJSON = function() {
     };
 };
 
+CrossFadePreferences.prototype.snapshot = function() {
+    var ret = new CrossFadePreferences();
+    ret.copyFrom(this.toJSON());
+    return ret;
+};
+
 CrossFadePreferences.prototype.getShouldAlbumCrossFade = function() {
     return this.shouldAlbumCrossFade && (this.outEnabled || this.inEnabled);
 };
@@ -273,22 +281,25 @@ const POPUP_EDITOR_HTML = "<div class='settings-container crossfade-settings-con
 
 const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade", [
 {
-    id: "restore-defaults",
+    id: RESTORE_DEFAULTS_BUTTON,
     text: "Restore defaults",
     action: function(e) {
         GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        crossFadeManager.restoreDefaults();
     }
 },
 {
-    id: "undo-changes",
+    id: UNDO_CHANGES_BUTTON,
     text: "Undo changes",
     action: function(e) {
         GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        crossFadeManager.undoChanges();
     }
 }
 ]);
 var preferences = new CrossFadePreferences();
 preferences.copyFrom(presets["Default (Disabled)"]);
+var crossFadeManager;
 crossfading.getPreferences = function() {
     return preferences;
 };
@@ -302,6 +313,7 @@ keyValueDatabase.getInitialValues().then(function(values) {
     }
 });
 
+
 const savePreferences = function(preferences) {
     keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
     crossfading.emit("crossFadingChange", preferences);
@@ -314,11 +326,12 @@ const openPopup = function(e) {
 
 crossfadingPopup.on("open", function(popup, needsInitialization) {
     if (needsInitialization) {
-        var manager = new CrossFadeManager(crossfadingPopup.$(), crossfading.getPreferences());
-        manager.on("preferencesUpdate", function() {
-            savePreferences(manager.preferences);
+        crossFadeManager = new CrossFadeManager(crossfadingPopup.$(), popup, crossfading.getPreferences());
+        crossFadeManager.on("preferencesUpdate", function() {
+            savePreferences(crossFadeManager.preferences);
         });
     }
+    crossFadeManager.setUnchangedPreferences();
 });
 
 $(".menul-crossfade").click(openPopup);
@@ -434,10 +447,13 @@ FadeConfigurator.prototype.$ = function() {
     return this._domNode;
 };
 
-function CrossFadeManager(domNode, preferences) {
+function CrossFadeManager(domNode, popup, preferences) {
     EventEmitter.call(this);
     this._domNode = $(domNode);
+    this._popup = popup;
     this.preferences = preferences;
+    this.defaultPreferences = presets["Default (Disabled)"].snapshot();
+    this.unchangedPreferences = null;
     this.inFadeConfigurator = new FadeConfigurator(this, this.$().find(".fade-in-configurator"), {
         enablerText: "Enable fade in",
         preferenceKey: "in"
@@ -475,12 +491,15 @@ CrossFadeManager.prototype.presetChanged = function(e) {
     var val = $(e.target).val();
 
     if (presets[val]) {
-        this.preferences.copyFrom(presets[val]);
-        this.inFadeConfigurator.managerUpdated();
-        this.outFadeConfigurator.managerUpdated();
-        this.update();
-        this.emit("preferencesUpdate");
+        this.applyPreferencesFrom(presets[val]);
     }
+};
+
+CrossFadeManager.prototype.applyPreferencesFrom = function(preferences) {
+    this.preferences.copyFrom(preferences);
+    this.inFadeConfigurator.managerUpdated();
+    this.outFadeConfigurator.managerUpdated();
+    this.configuratorUpdated();
 };
 
 CrossFadeManager.prototype.configuratorUpdated = function() {
@@ -492,10 +511,27 @@ CrossFadeManager.prototype.update = function() {
     var presetName = this.getPresetName();
     this.$().find(".fade-preset-select").val(presetName);
     this.$().find(".album-preference-checkbox").prop("checked", !this.preferences.shouldAlbumCrossFade);
+    var restoreDefaultsEnabled = !this.preferences.equals(this.defaultPreferences);
+    this._popup.setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, restoreDefaultsEnabled);
+    var undoChangesEnabled = !this.preferences.equals(this.unchangedPreferences);
+    this._popup.setButtonEnabledState(UNDO_CHANGES_BUTTON, undoChangesEnabled);
+};
+
+CrossFadeManager.prototype.restoreDefaults = function() {
+    this.applyPreferencesFrom(this.defaultPreferences);
+};
+
+CrossFadeManager.prototype.undoChanges = function() {
+    this.applyPreferencesFrom(this.unchangedPreferences);
 };
 
 CrossFadeManager.prototype.getPresetName = function() {
     return CrossFadePreferences.getPresetMatchingPreferences(this.preferences);
+};
+
+CrossFadeManager.prototype.setUnchangedPreferences = function() {
+    this.unchangedPreferences = this.preferences.snapshot();
+    this.update();
 };
 
 CrossFadeManager.prototype.$ = function() {
