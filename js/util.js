@@ -1012,6 +1012,11 @@ util.documentHidden = (function() {
     return ret;
 })();
 
+util.titleCase = function(str) {
+    if (typeof str !== "string") str = "" + str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 util.assign = function(root) {
     root = Object(root);
     var args = [].slice.call(arguments, 1);

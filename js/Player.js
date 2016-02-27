@@ -823,7 +823,7 @@ Player.prototype.seekIntent = function(p) {
 Player.prototype.getFadeInTimeForNextTrack = function() {
     var preferences = crossfading.getPreferences();
     var fadeInTime = preferences.getInTime();
-    if (fadeInTime <= 0) return 0;
+    if (fadeInTime <= 0 || !preferences.getInEnabled()) return 0;
 
     var audioManager = this.currentAudioManager;
 

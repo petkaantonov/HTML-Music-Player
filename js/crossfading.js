@@ -9,6 +9,7 @@ const hotkeyManager = require("./HotkeyManager");
 const Slider = require("./Slider");
 const touch = require("./features").touch;
 const domUtil = require("./DomUtil");
+const preferenceCreator = require("./PreferenceCreator");
 
 const crossfading = new EventEmitter();
 module.exports = crossfading;
@@ -126,126 +127,92 @@ const getSamplesForCurve = function(curve, progressDirection) {
     return ret;
 };
 
-function CrossFadePreferences(inEnabled, inTime, inCurve,
-                             outEnabled, outTime, outCurve,
-                             shouldAlbumCrossFade) {
-    this.inEnabled = CrossFadePreferences.asValidEnabled(inEnabled);
-    this.inTime = CrossFadePreferences.asValidTime(inTime);
-    this.inCurve = CrossFadePreferences.asValidCurve(inCurve);
-    this.outEnabled = CrossFadePreferences.asValidEnabled(outEnabled);
-    this.outTime = CrossFadePreferences.asValidTime(outTime);
-    this.outCurve = CrossFadePreferences.asValidCurve(outCurve);
-    this.shouldAlbumCrossFade = CrossFadePreferences.asValidShouldAlbumCrossFade(shouldAlbumCrossFade);
-    Object.seal(this);
-}
+const CrossFadePreferences = preferenceCreator({
+    methods: {
+        getInCurveSamples: function() {
+            return getSamplesForCurve(this.getInCurve(), PROGRESS_INCREASE);
+        },
 
-CrossFadePreferences.prototype.equals = function(other) {
-    if (!other || !(other instanceof CrossFadePreferences)) return false;
-    return  this.inEnabled === other.inEnabled &&
-            this.inTime === other.inTime &&
-            this.inCurve === other.inCurve &&
-            this.outEnabled === other.outEnabled &&
-            this.outTime === other.outTime &&
-            this.outCurve === other.outCurve &&
-            this.shouldAlbumCrossFade === other.shouldAlbumCrossFade;
-};
+        getOutCurveSamples: function() {
+            return getSamplesForCurve(this.getOutCurve(), PROGRESS_DECREASE);
+        },
 
-CrossFadePreferences.prototype.copyFrom = function(other) {
-    this.inEnabled = other.inEnabled;
-    this.inTime = other.inTime;
-    this.inCurve = other.inCurve;
-    this.outEnabled = other.outEnabled;
-    this.outTime = other.outTime;
-    this.outCurve = other.outCurve;
-    this.shouldAlbumCrossFade = other.shouldAlbumCrossFade;
-};
-
-CrossFadePreferences.prototype.toJSON = function() {
-    return {
-        inEnabled: this.inEnabled,
-        inTime: this.inTime,
-        inCurve: this.inCurve,
-        outEnabled: this.outEnabled,
-        outTime: this.outTime,
-        outCurve: this.outCurve,
-        shouldAlbumCrossFade: this.shouldAlbumCrossFade
-    };
-};
-
-CrossFadePreferences.prototype.snapshot = function() {
-    var ret = new CrossFadePreferences();
-    ret.copyFrom(this.toJSON());
-    return ret;
-};
-
-CrossFadePreferences.prototype.getShouldAlbumCrossFade = function() {
-    return this.shouldAlbumCrossFade && (this.outEnabled || this.inEnabled);
-};
-
-CrossFadePreferences.prototype.getInEnabled = function() {
-    return this.inEnabled;
-};
-
-CrossFadePreferences.prototype.getInTime = function() {
-    return this.getInEnabled() ? this.inTime : 0;
-};
-
-CrossFadePreferences.prototype.getInCurve = function() {
-    return this.inCurve;
-};
-
-CrossFadePreferences.prototype.getOutEnabled = function() {
-    return this.outEnabled;
-};
-
-CrossFadePreferences.prototype.getOutTime = function() {
-    return this.getOutEnabled() ? this.outTime : 0;
-};
-
-CrossFadePreferences.prototype.getOutCurve = function() {
-    return this.outCurve;
-};
-
-CrossFadePreferences.prototype.getInCurveSamples = function() {
-    return getSamplesForCurve(this.inCurve, PROGRESS_INCREASE);
-};
-
-CrossFadePreferences.prototype.getOutCurveSamples = function() {
-    return getSamplesForCurve(this.outCurve, PROGRESS_DECREASE);
-};
-
-CrossFadePreferences.asValidTime = function(time) {
-    if (!isFinite(+time)) return DEFAULT_TIME;
-    return Math.min(Math.max(MIN_TIME, +time), MAX_TIME);
-};
-
-CrossFadePreferences.asValidEnabled = function(enabled) {
-    return !!enabled;
-};
-
-CrossFadePreferences.asValidShouldAlbumCrossFade = function(albumCrossFade) {
-    return !!albumCrossFade;
-};
-
-CrossFadePreferences.asValidCurve = function(curve) {
-    return CURVE_MAP.hasOwnProperty(curve + "") ? curve : DEFAULT_CURVE;
-};
-
-CrossFadePreferences.getPresetMatchingPreferences = function(preferences) {
-    var presetNames = Object.keys(presets);
-    for (var i = 0; i < presetNames.length; ++i) {
-        if (presets[presetNames[i]].equals(preferences)) {
-            return presetNames[i];
+        getMatchingPresetName: function() {
+            var presetNames = Object.keys(presets);
+            for (var i = 0; i < presetNames.length; ++i) {
+                if (presets[presetNames[i]].equals(this)) {
+                    return presetNames[i];
+                }
+            }
+            return "Custom";
         }
+    },
+
+    preferences: {
+        inEnabled: {
+            defaultValue: false,
+            asValidValue: function(value) {
+                return !!value;
+            }
+        },
+        outEnabled: {
+            defaultValue: false,
+            asValidValue: function(value) {
+                return !!value;
+            }
+        },
+        inTime: {
+            defaultValue: 5,
+            asValidValue: function(value) {
+                if (!isFinite(+value)) return DEFAULT_TIME;
+                return Math.min(Math.max(MIN_TIME, +value), MAX_TIME);
+            }
+        },
+        outTime: {
+            defaultValue: 5,
+            asValidValue: function(value) {
+                if (!isFinite(+value)) return DEFAULT_TIME;
+                return Math.min(Math.max(MIN_TIME, +value), MAX_TIME);
+            }
+        },
+        inCurve: {
+            defaultValue: "sCurve",
+            asValidValue: function(value) {
+                value = value + "";
+                return CURVE_MAP.hasOwnProperty(value) ? value : DEFAULT_CURVE;
+            }
+        },
+        outCurve: {
+            defaultValue: "sCurve",
+            asValidValue: function(value) {
+                value = value + "";
+                return CURVE_MAP.hasOwnProperty(value) ? value : DEFAULT_CURVE;
+            }
+        },
+        shouldAlbumCrossFade: {
+            defaultValue: false,
+            asValidValue: function(value) {
+                return !!value;
+            }
+        },
     }
-    return "Custom";
-};
+});
 
 var presets = {
-    "Default (Disabled)": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false),
-    "Basic": new CrossFadePreferences(true, 5, "linear", true, 5, "linear", false),
-    "Sudden death": new CrossFadePreferences(true, 5, "exponentialFromStart", true, 5, "sCurve", false),
-    "Custom": new CrossFadePreferences(false, 0, "sCurve", false, 0, "sCurve", false)
+    "Default (Disabled)": new CrossFadePreferences(),
+    "Basic": new CrossFadePreferences({
+        inEnabled: true,
+        outEnabled: true,
+        inCurve: "linear",
+        outCurve: "linear"
+    }),
+    "Sudden death": new CrossFadePreferences({
+        inEnabled: true,
+        outEnabled: true,
+        inCurve: "exponentialFromStart",
+        outCurve: "sCurve"
+    }),
+    "Custom": new CrossFadePreferences()
 };
 
 const PRESET_HTML = (function() {
@@ -298,7 +265,6 @@ const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".
 }
 ]);
 var preferences = new CrossFadePreferences();
-preferences.copyFrom(presets["Default (Disabled)"]);
 var crossFadeManager;
 crossfading.getPreferences = function() {
     return preferences;
@@ -306,10 +272,7 @@ crossfading.getPreferences = function() {
 
 keyValueDatabase.getInitialValues().then(function(values) {
     if (STORAGE_KEY in values) {
-        const store = values[STORAGE_KEY];
-        preferences = new CrossFadePreferences(store.inEnabled, store.inTime, store.nCurve,
-                                               store.outEnabled, store.outTime, store.outCurve,
-                                               store.shouldAlbumCrossFade);
+        preferences = new CrossFadePreferences(values[STORAGE_KEY]);
     }
 });
 
@@ -409,38 +372,35 @@ FadeConfigurator.prototype.managerUpdated = function() {
 };
 
 FadeConfigurator.prototype.setTime = function(time) {
-    time = CrossFadePreferences.asValidTime(time);
-    this.manager.preferences[this.config.preferenceKey + "Time"] = time;
+    this.manager.preferences["set" + this.config.preferenceKey + "Time"](time);
     this.manager.configuratorUpdated();
     if (!this.getEnabled()) this.setEnabled(true);
     this.update();
 };
 
 FadeConfigurator.prototype.setEnabled = function(enabled) {
-    enabled = CrossFadePreferences.asValidEnabled(enabled);
-    this.manager.preferences[this.config.preferenceKey + "Enabled"] = enabled;
+    this.manager.preferences["set" + this.config.preferenceKey + "Enabled"](enabled);
     this.manager.configuratorUpdated();
     this.update();
 };
 
 FadeConfigurator.prototype.setCurve = function(curve) {
-    curve = CrossFadePreferences.asValidCurve(curve);
-    this.manager.preferences[this.config.preferenceKey + "Curve"] = curve;
+    this.manager.preferences["set" + this.config.preferenceKey + "Curve"](curve);
     this.manager.configuratorUpdated();
     if (!this.getEnabled()) this.setEnabled(true);
     this.update();
 };
 
 FadeConfigurator.prototype.getTime = function() {
-    return this.manager.preferences[this.config.preferenceKey + "Time"];
+    return this.manager.preferences["get" + this.config.preferenceKey + "Time"]();
 };
 
 FadeConfigurator.prototype.getEnabled = function() {
-    return this.manager.preferences[this.config.preferenceKey + "Enabled"];
+    return this.manager.preferences["get" + this.config.preferenceKey + "Enabled"]();
 };
 
 FadeConfigurator.prototype.getCurve = function() {
-    return this.manager.preferences[this.config.preferenceKey + "Curve"];
+    return this.manager.preferences["get" + this.config.preferenceKey + "Curve"]();
 };
 
 FadeConfigurator.prototype.$ = function() {
@@ -456,11 +416,11 @@ function CrossFadeManager(domNode, popup, preferences) {
     this.unchangedPreferences = null;
     this.inFadeConfigurator = new FadeConfigurator(this, this.$().find(".fade-in-configurator"), {
         enablerText: "Enable fade in",
-        preferenceKey: "in"
+        preferenceKey: "In"
     });
     this.outFadeConfigurator = new FadeConfigurator(this, this.$().find(".fade-out-configurator"), {
         enablerText: "Enable fade out",
-        preferenceKey: "out"
+        preferenceKey: "Out"
     });
 
     this.shouldAlbumCrossFadeChanged = $.proxy(this.shouldAlbumCrossFadeChanged, this);
@@ -508,7 +468,7 @@ CrossFadeManager.prototype.configuratorUpdated = function() {
 };
 
 CrossFadeManager.prototype.update = function() {
-    var presetName = this.getPresetName();
+    var presetName = this.preferences.getMatchingPresetName();
     this.$().find(".fade-preset-select").val(presetName);
     this.$().find(".album-preference-checkbox").prop("checked", !this.preferences.shouldAlbumCrossFade);
     var restoreDefaultsEnabled = !this.preferences.equals(this.defaultPreferences);
@@ -523,10 +483,6 @@ CrossFadeManager.prototype.restoreDefaults = function() {
 
 CrossFadeManager.prototype.undoChanges = function() {
     this.applyPreferencesFrom(this.unchangedPreferences);
-};
-
-CrossFadeManager.prototype.getPresetName = function() {
-    return CrossFadePreferences.getPresetMatchingPreferences(this.preferences);
 };
 
 CrossFadeManager.prototype.setUnchangedPreferences = function() {
