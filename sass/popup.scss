@@ -126,6 +126,10 @@ $popup-container-border: 2px;
         &.popup-button-disabled {
             opacity: 0.3;
         }
+
+        &:focus {
+            border-bottom: 3px solid $secondary-color;
+        }
     }
 }
 

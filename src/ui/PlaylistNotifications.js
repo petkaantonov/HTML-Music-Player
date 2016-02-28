@@ -45,7 +45,7 @@ function PlaylistNotifications(dom, player) {
     this.notificationClosed = this.notificationClosed.bind(this);
 
     if (supported) {
-        this.$().on("click", this.settingClicked);
+        this.$().on("click", this.settingClicked).mousedown(domUtil.preventDefault);
 
         if (touch) {
             this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.settingClicked));

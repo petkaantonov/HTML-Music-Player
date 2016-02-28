@@ -56,12 +56,15 @@
     color: #85C4FF;
 }
 
+.toolbar-items .toolbar-item:focus {
+    border-bottom: 3px solid #85C4FF;
+}
+
 .toolbar-items .toolbar-item.touch-hover {
     background-color: $touch-hover-color !important;
 }
 
 .toolbar-items .toolbar-item.active {
-    background-color: transparent;
     color: #85C4FF;
 }
 

@@ -49,6 +49,10 @@ body {
 .link-text {
     cursor: pointer;
     color: $secondary-color;
+}
+
+.link-text:focus {
+    outline: none;
     text-decoration: underline;
 }
 
@@ -113,4 +117,11 @@ table {
     width: 18px;
     text-indent: -3px;
     vertical-align: top;
+}
+
+select, input {
+    &.focus {
+        outline: 2px solid rgb(77, 144, 254);
+        outline-offset: 0;
+    }
 }

@@ -8,6 +8,7 @@ const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
 const Animator = require("ui/Animator");
 const ContentScroller = require("ui/ContentScroller");
+const GlobalUi = require("ui/GlobalUi");
 
 const shownPopups = [];
 const NULL = $(null);
@@ -84,7 +85,7 @@ function PopupButton(popup, opts) {
     this._clicked = this._clicked.bind(this);
     this._touchClicked = domUtil.tapHandler(this._clicked);
 
-    this.$().on("click", this._clicked);
+    this.$().on("click", this._clicked).mousedown(domUtil.preventDefault);
 
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS, this._touchClicked);
@@ -178,6 +179,7 @@ function Popup(opts) {
     this._popupDom = NULL;
     this._rect = null;
     this._viewPort = null;
+    this._activeElementBeforeOpen = null;
 }
 util.inherits(Popup, EventEmitter);
 
@@ -372,6 +374,7 @@ Popup.prototype._setMinimumNecessaryHeight = function() {
 
 Popup.prototype.open = function() {
     if (this._shown) return;
+    this._activeElementBeforeOpen = document.activeElement;
     this._shown = true;
     shownPopups.push(this);
 
@@ -459,6 +462,8 @@ Popup.prototype.draggingEnd = function() {
 
 Popup.prototype.close = function() {
     if (!this._shown) return;
+    var elementToFocus = this._activeElementBeforeOpen;
+    this._activeElementBeforeOpen = null;
     util.offCapture(document, "focus", this._elementFocused);
     util.offCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
     this._shown = false;
@@ -475,6 +480,10 @@ Popup.prototype.close = function() {
 
     if (shownPopups.length === 0) {
         hideBlocker();
+    }
+
+    if (elementToFocus) {
+        elementToFocus.focus();
     }
 };
 

@@ -485,7 +485,7 @@ effects.getAudioPlayerEffects = function(track) {
     }];
 };
 
-$(".menul-effects").click(openEditor);
+$(".menul-effects").click(openEditor).mousedown(domUtil.preventDefault);
 
 if (touch) {
     $(".menul-effects").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));

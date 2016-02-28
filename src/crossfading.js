@@ -297,7 +297,7 @@ crossfadingPopup.on("open", function(popup, needsInitialization) {
     crossFadeManager.setUnchangedPreferences();
 });
 
-$(".menul-crossfade").click(openPopup);
+$(".menul-crossfade").click(openPopup).mousedown(domUtil.preventDefault);
 
 if (touch) {
     $(".menul-crossfade").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openPopup));

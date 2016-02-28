@@ -1268,10 +1268,13 @@ util.changeDom = function(callback) {
     }
 };
 
-
 var rtouchevent = /^touch/;
 util.isTouchEvent = function(e) {
     return rtouchevent.test(e.type);
+};
+
+util.preventDefault = function(e) {
+    e.preventDefault();
 };
 
 util.whichToKey = {
@@ -1280,7 +1283,8 @@ util.whichToKey = {
     37: "ArrowLeft",
     39: "ArrowRight",
     38: "ArrowUp",
-    40: "ArrowDown"
+    40: "ArrowDown",
+    32: "Spacebar"
 };
 
 module.exports = util;

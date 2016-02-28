@@ -1055,6 +1055,40 @@ if (touch) {
     }));
 }
 
+const rinput = /^(input|select|textarea|button)$/i;
+util.onCapture(document, "keydown", function(e) {
+    if (e.target === document.activeElement &&
+        e.target.tabIndex >= 0 &&
+        !rinput.test(e.target.nodeName)) {
+        var key = e.which || e.key || e.keyIdentifier || e.keyCode;
+        if (typeof key === "number") key = domUtil.whichToKey[key];
+
+        if (key === "Spacebar" || key === "Enter") {
+            var box = e.target.getBoundingClientRect();
+            var x = (((box.left + box.right) / 2) | 0) - window.scrollX;
+            var y = (((box.top + box.bottom) / 2) | 0) - window.scrollY;
+            var ev = new MouseEvent("click", {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                ctrlKey: e.ctrlKey,
+                shiftKey: e.shiftKey,
+                altKey: e.altKey,
+                metaKey: e.metaKey,
+                button: -1,
+                buttons: 0,
+                screenX: x,
+                clientX: x,
+                screenY: y,
+                clientY: y
+            });
+            e.target.dispatchEvent(ev);
+        } else if (key === "Escape") {
+            e.target.blur();
+        }
+    }
+});
+
 $(window).trigger("resize");
 }).catch(function(e) {
     console.log(e && (e.stack || e.message));
