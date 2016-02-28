@@ -111,6 +111,7 @@ function Playlist(domNode, opts) {
         if (!track) return;
         switch (e.type) {
             case "click": {
+                if (this._draggable.recentlyStoppedDragging()) return;
                 return this._selectable.trackClick(e, track);
             }
             case "mousedown": return this._selectable.trackMouseDown(e, track);

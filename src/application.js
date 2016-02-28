@@ -471,6 +471,7 @@ $('.menul-files, .add-files-link').fileInput("create", {
 });
 
 if (false && window.DEBUGGING) {
+    const FAKE_TRACK_COUNT = 8;
     const id3v1String = function(value) {
         var ret = new Uint8Array(30);
         for (var i = 0; i < value.length; ++i) {
@@ -479,7 +480,7 @@ if (false && window.DEBUGGING) {
         return ret;
     };
 
-    var files = new Array(30);
+    var files = new Array(FAKE_TRACK_COUNT);
     var dummy = new Uint8Array(256 * 1024);
     var sync = new Uint8Array(4);
     sync[0] = 0xFF;

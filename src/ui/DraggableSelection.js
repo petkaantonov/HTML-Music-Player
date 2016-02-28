@@ -21,7 +21,7 @@ function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     this._currentReferenceTrack = -1;
     this._dragStartDelayId = -1;
     this._holdingStartedY = -1;
-
+    this._draggableDirections = {down: false, up: false};
     this._startDragFromTimeout = this._startDragFromTimeout.bind(this);
     this._onMovement = this._onMovement.bind(this);
     this._onMouseRelease = this._onMouseRelease.bind(this);
@@ -34,11 +34,15 @@ function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     this._onTrackMouseDownTouch = domUtil.modifierTouchDownHandler(this._onTrackMouseDown);
     this._isDragging = false;
     this._dragStartFired = false;
-
     this._scroll = this._scroll.bind(this);
     this._scrollIntervalId = -1;
+    this._justStoppedDragging = false;
 }
 util.inherits(DraggableSelection, EventEmitter);
+
+DraggableSelection.prototype.recentlyStoppedDragging = function() {
+    return this._justStoppedDragging;
+};
 
 DraggableSelection.prototype.bindEvents = function() {
     this.$().on("mousedown", this._onTrackMouseDown);
@@ -71,6 +75,7 @@ DraggableSelection.prototype._startDragFromTimeout = function() {
 };
 
 DraggableSelection.prototype._startDragStartDelay = function() {
+    this._justStoppedDragging = false;
     this._clearDragStartDelay();
     this._dragStartDelayId = setTimeout(this._startDragFromTimeout, DRAG_START_DELAY_MS);
 };
@@ -108,7 +113,7 @@ DraggableSelection.prototype._onTouchend = function(e) {
     return this._onMouseRelease(e);
 };
 
-DraggableSelection.prototype._onMouseRelease = function() {
+DraggableSelection.prototype._onMouseRelease = function(e) {
     this._clearDragStartDelay();
     if (!this._isDragging) return;
     var dragStartWasFired = this._dragStartFired;
@@ -134,6 +139,11 @@ DraggableSelection.prototype._onMouseRelease = function() {
     }
     this._selection = null;
     this.emit("dragEnd");
+    var self = this;
+    this._justStoppedDragging = true;
+    this._dragStartDelayId = setTimeout(function() {
+        self._justStoppedDragging = false;
+    }, 13);
 };
 
 DraggableSelection.prototype._fireDragStart = function() {
@@ -170,13 +180,13 @@ DraggableSelection.prototype._onMovement = function(e) {
     var referenceY = this._currentReferenceTrack * itemHeight;
 
     var changed = false;
-    if (y < referenceY) {
+    if (y < referenceY && this._draggableDirections.up) {
         var distance = Math.floor((referenceY - y) / itemHeight) + 1;
         this._currentReferenceTrack = Math.max(0, this._currentReferenceTrack - distance);
         Selectable.moveSelectedTracksUpBy(tracks, selection, distance);
         changed = true;
         referenceY = this._currentReferenceTrack * itemHeight;
-    } else if (y > (referenceY + itemHeight)) {
+    } else if (y > (referenceY + itemHeight) && this._draggableDirections.down) {
         var distance = Math.floor((y - (referenceY + itemHeight)) / itemHeight) + 1;
         this._currentReferenceTrack = Math.min(this._playlist.length - 1, this._currentReferenceTrack + distance);
         Selectable.moveSelectedTracksDownBy(tracks, selection, distance);
@@ -189,6 +199,7 @@ DraggableSelection.prototype._onMovement = function(e) {
     }
 
     if (changed) {
+        this._determineDraggableDirections(selection);
         this._playlist.trackIndexChanged();
     }
 };
@@ -209,12 +220,23 @@ DraggableSelection.prototype._restart = function() {
         for (var i = 0; i < this._selection.length; ++i) {
             this._selection[i].startDragging();
         }
+
+        this._determineDraggableDirections(this._selection);
     }
 
     if (!this._selection.length) {
         return this._onMouseRelease();
     }
     this._onReLayout();
+};
+
+DraggableSelection.prototype._determineDraggableDirections = function(selection) {
+    if (selection.length > 0) {
+        this._draggableDirections.down = selection[selection.length - 1].getIndex() < this._playlist.length - 1;
+        this._draggableDirections.up = selection[0].getIndex() > 0;
+    } else {
+        this._draggableDirections.down = this._draggableDirections.up = false;
+    }
 };
 
 DraggableSelection.prototype._onTrackMouseDown = function(e) {
@@ -241,9 +263,12 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
         return;
     }
 
+    var selection = this._playlist.getSelection();
+    this._determineDraggableDirections(selection);
+    this._selection = selection;
+
     this._startDragStartDelay();
     this._isDragging = true;
-    this._selection = this._playlist.getSelection();
     this._previousRawY = e.clientY;
     this._holdingStartedY = e.clientY;
 
