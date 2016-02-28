@@ -31,6 +31,12 @@ const SEEK_END_FADE_TIME = audioPlayer.blockSizedTime(0.5);
 
 const VOLUME_RATIO = 2;
 
+effects.on("effectsChange", function() {
+    Promise.resolve(audioPlayer.ready).then(function() {
+        audioPlayer.setEffects(effects.getAudioPlayerEffects());
+    });
+});
+
 const audioManagers = [];
 // Supports deletion mid-iteration.
 function forEachAudioManager(fn) {

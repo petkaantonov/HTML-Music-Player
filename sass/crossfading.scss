@@ -43,10 +43,6 @@
             text-align: center;
         }
 
-        .fade-time-slider {
-            @include calc(width, "100% - #{$label-width * 2}");
-        }
-
         .fade-curve-label {
             width: $label-width;
         }

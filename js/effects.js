@@ -85,6 +85,21 @@ const EffectsPreferences = createPreferences({
 
                 return value;
             }
+        },
+
+        noiseSharpeningStrength: {
+            defaultValue: 0.4,
+            asValidValue: function(value) {
+                var ret = Math.max(0, Math.min(2, +value));
+                return isFinite(ret) ? ret : this.defaultNoiseSharpeningStrength;
+            }
+        },
+
+        noiseSharpeningEnabled: {
+            defaultValue: false,
+            asValidValue: function(value) {
+                return !!value;
+            }
         }
     }
 });
@@ -101,6 +116,30 @@ const formatFreq = function(freq) {
 
 
 var html = (function() {
+    var noiseSharpeningEffectHtml = "<div class='inputs-container'>                                                 \
+        <div class='label wide-label subtitle'>Noise sharpening</div>                                               \
+    </div>";
+
+    noiseSharpeningEffectHtml += "<div class='inputs-container'>                                                    \
+        <div class='checkbox-container'>                                                                            \
+            <input type='checkbox' class='noise-sharpening-enable-checkbox checkbox' id='noise-sharpening-enable-label-id'>\
+        </div>                                                                                                      \
+        <div class='noise-sharpening-enable-label label wide-label'>                                                \
+            <label for='noise-sharpening-enable-label-id'>Enable noise sharpening</label>                           \
+        </div>                                                                                                      \
+    </div>";
+
+    noiseSharpeningEffectHtml += "<div class='inputs-container'>                                                    \
+        <div class='label'>Strength</div>                                                                           \
+        <div class='noise-sharpening-slider slider horizontal-slider'>                                              \
+            <div class='slider-knob'></div>                                                                         \
+            <div class='slider-background'>                                                                         \
+                <div class='slider-fill'></div>                                                                     \
+            </div>                                                                                                  \
+        </div>                                                                                                      \
+        <div class='noise-sharpening-value slider-value-indicator'></div>                                           \
+    </div>";
+
     var equalizerBandGroups = [];
     var groupSize = 5;
     var cur = 0;
@@ -110,27 +149,34 @@ var html = (function() {
         cur += groupSize;
     }
 
-    var sliderContainerHtml = "<div class='equalizer-sliders-container row'>" +
+    var sliderContainerHtml = "<div class='inputs-container'>                                                       \
+        <div class='label wide-label subtitle'>Equalizer</div>                                                      \
+    </div>";
+
+    sliderContainerHtml += "<div class='equalizer-sliders-container row'>" +
         equalizerBandGroups.map(function(bands) {
             return "<div class='equalizer-band-group-container col-lg-6'>" +
                     bands.map(function(band) {
                         var sliderId = "equalizer-band-" + band[0] + "-slider";
-                        return "<div class='equalizer-band-configurator-container'>                                               \
-                                <div class='equalizer-slider-container'>                                                          \
-                                    <div class='"+sliderId+" slider equalizer-slider vertical-slider'>                            \
-                                        <div class='slider-knob'></div>                                                           \
-                                        <div class='slider-background'>                                                           \
-                                            <div class='slider-fill'></div>                                                       \
-                                        </div>                                                                                    \
-                                    </div>                                                                                        \
-                                </div>                                                                                            \
-                                <div class='equalizer-band-label-container'>                                                      \
-                                    <div class='notextflow band-frequency-label'>"+formatFreq(band[0])+"</div>                    \
-                                </div>                                                                                            \
+                        return "<div class='equalizer-band-configurator-container'>                                 \
+                                <div class='equalizer-slider-container'>                                            \
+                                    <div class='"+sliderId+" slider equalizer-slider vertical-slider'>              \
+                                        <div class='slider-knob'></div>                                             \
+                                        <div class='slider-background'>                                             \
+                                            <div class='slider-fill'></div>                                         \
+                                        </div>                                                                      \
+                                    </div>                                                                          \
+                                </div>                                                                              \
+                                <div class='equalizer-band-label-container'>                                        \
+                                    <div class='notextflow band-frequency-label'>"+formatFreq(band[0])+"</div>      \
+                                </div>                                                                              \
                             </div>";
                     }).join("") +
             "</div>";
     }).join("") + "</div>";
+
+
+
 
 
 
@@ -153,11 +199,73 @@ var html = (function() {
 
 
     return "<div class='settings-container equalizer-popup-content-container'>              \
-                <div class='section-container'>"+sliderContainerHtml+"</div>                 \
+                <div class='section-container'>"+noiseSharpeningEffectHtml+"</div>          \
                 <div class='section-separator'></div>                                       \
+                <div class='section-container'>"+sliderContainerHtml+"</div>                \
                 "+presetContainerHtml+"                                                     \
             </div>";
 })();
+
+function NoiseSharpeningEffectManager(effectsManager) {
+    this._effectsManager = effectsManager;
+    this._slider = new Slider(this.$().find(".noise-sharpening-slider"));
+
+    this._strengthChanged = this._strengthChanged.bind(this);
+    this._enabledChanged = this._enabledChanged.bind(this);
+
+    this._slider.on("slide", this._strengthChanged);
+    this.$().find(".noise-sharpening-enable-checkbox").on("change", this._enabledChanged);
+    this._renderedStrength = -1;
+    this._renderedEnabled = null;
+}
+
+NoiseSharpeningEffectManager.prototype.$ = function() {
+    return this._effectsManager.$();
+};
+
+NoiseSharpeningEffectManager.prototype._strengthChanged = function(p) {
+    var strength = (p * (2 - 0)) + 0;
+    this._effectsManager.preferences.setNoiseSharpeningStrength(strength);
+    this._effectsManager.preferences.setNoiseSharpeningEnabled(true);
+    this._updateSlider(strength, true);
+    this._updateCheckbox(true);
+    this._effectsManager.preferencesUpdated(true);
+};
+
+NoiseSharpeningEffectManager.prototype._enabledChanged = function() {
+    var enabled = this.$().find(".noise-sharpening-enable-checkbox").prop("checked");
+    this._effectsManager.preferences.setNoiseSharpeningEnabled(enabled);
+    this._updateSlider(this._effectsManager.preferences.getNoiseSharpeningStrength(), enabled);
+    this._effectsManager.preferencesUpdated(true);
+};
+
+NoiseSharpeningEffectManager.prototype._updateSlider = function(strength, enabled) {
+    this._renderedStrength = strength;
+    this.$().find(".noise-sharpening-value").text(strength.toFixed(1));
+    if (enabled) {
+        this.$().find(".noise-sharpening-slider").removeClass("slider-inactive");
+    } else {
+        this.$().find(".noise-sharpening-slider").addClass("slider-inactive");
+    }
+    this._slider.setValue((strength - 0) / (2 - 0));
+};
+
+NoiseSharpeningEffectManager.prototype._updateCheckbox = function(enabled) {
+    this._renderedEnabled = enabled;
+    this.$().find(".noise-sharpening-enable-checkbox").prop("checked", enabled);
+};
+
+NoiseSharpeningEffectManager.prototype.update = function() {
+    var enabled = this._effectsManager.preferences.getNoiseSharpeningEnabled();
+    var strength = this._effectsManager.preferences.getNoiseSharpeningStrength();
+
+    if (enabled === this._renderedEnabled && strength === this._renderedStrength) {
+        return;
+    }
+
+    this._updateSlider(strength, enabled);
+    this._updateCheckbox(enabled);
+};
 
 function EffectsManager(domNode, popup, preferences) {
     EventEmitter.call(this);
@@ -167,7 +275,8 @@ function EffectsManager(domNode, popup, preferences) {
     this.defaultPreferences = new EffectsPreferences();
     this.unchangedPreferences = null;
 
-    this._sliders = equalizerBands.map(function(band, index) {
+
+    this._equalizerSliders = equalizerBands.map(function(band, index) {
         var self = this;
         var slider = new Slider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
             direction: "vertical"
@@ -193,6 +302,8 @@ function EffectsManager(domNode, popup, preferences) {
     }, this);
 
     this.$().find(".equalizer-preset-selector").on("change", this.equalizerPresetChanged.bind(this));
+
+    this._noiseSharpeningEffectManager = new NoiseSharpeningEffectManager(this);
 }
 util.inherits(EffectsManager, EventEmitter);
 
@@ -202,6 +313,8 @@ EffectsManager.prototype.$ = function() {
 
 EffectsManager.prototype.applyPreferencesFrom = function(preferences) {
     this.preferences.copyFrom(preferences);
+    this._noiseSharpeningEffectManager.update();
+    this.update();
     this.preferencesUpdated();
 };
 
@@ -216,7 +329,6 @@ EffectsManager.prototype.equalizerPresetChanged = function(e) {
     if (equalizerPresets[val]) {
         this.preferences.setEqualizer(equalizerPresets[val]);
         this.preferencesUpdated();
-
     }
 };
 
@@ -227,7 +339,7 @@ EffectsManager.prototype.update = function(noDomEqUpdate) {
     if (!noDomEqUpdate) {
         var eq = this.preferences.getInPlaceEqualizer();
         for (var i = 0; i < eq.length; ++i) {
-            this._sliders[i].setValue(gainValueToProgress(eq[i]));
+            this._equalizerSliders[i].setValue(gainValueToProgress(eq[i]));
         }
     }
 
@@ -248,6 +360,7 @@ EffectsManager.prototype.undoChanges = function() {
 EffectsManager.prototype.setUnchangedPreferences = function() {
     this.unchangedPreferences = this.preferences.snapshot();
     this.update();
+    this._noiseSharpeningEffectManager.update();
 };
 
 const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects", [
@@ -302,6 +415,7 @@ const openEditor = function(e) {
 keyValueDatabase.getInitialValues().then(function(values) {
     if (STORAGE_KEY in values) {
         preferences.copyFrom(values[STORAGE_KEY]);
+        effects.emit("effectsChange", preferences);
     }
 });
 
@@ -345,6 +459,14 @@ effects.getEqualizerSetup = function(track) {
         specs: equalizerBands,
         gains: effects.getPreferences().getEqualizer()
     };
+};
+
+effects.getAudioPlayerEffects = function(track) {
+    var pref = effects.getPreferences();
+    return [{
+        name: "noise-sharpening",
+        effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
+    }];
 };
 
 $(".menul-effects").click(openEditor);

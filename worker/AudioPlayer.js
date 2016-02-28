@@ -265,7 +265,7 @@ AudioPlayer.prototype.newMessage = function(spec) {
         this._clearLoadReplacementRequests();
         this.messageQueue.splice(1, 0, spec);
     } else {
-        this.messageQueue.push(spec);    
+        this.messageQueue.push(spec);
     }
 
     if (this.messageQueue.length === 1) {
@@ -540,7 +540,7 @@ AudioPlayer.prototype._decodeNextBuffer = Promise.method(function(transferList, 
     }
 
     this.decoderContext.once("data", dataListener);
-    
+
     var samplesNeeded = bufferTime * this.metadata.sampleRate;
     var bytesNeeded = Math.ceil(this.metadata.maxByteSizePerSample * samplesNeeded);
 
@@ -656,7 +656,7 @@ AudioPlayer.prototype.fillBuffers = function(args, transferList) {
             that.sendMessage("_error", {message: "No blob loaded"}, transferList);
             return;
         }
-        
+
         return that._fillBuffers(count, -1, transferList).then(function(result) {
             if (result) {
                 that.sendMessage("_buffersFilled", result, transferList);
@@ -693,7 +693,7 @@ AudioPlayer.prototype.seek = function(args, transferList) {
 
         return seeker(that.codecName, time, that.metadata, that.decoderContext, that.fileView).then(function(seekerResult) {
             that.offset = seekerResult.offset;
-            
+
             that.decoderContext.applySeek(seekerResult);
             return that._fillBuffers(count, requestId, transferList).then(function(result) {
                 if (result) {

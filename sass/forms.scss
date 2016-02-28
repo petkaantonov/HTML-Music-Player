@@ -837,12 +837,21 @@ input[type="checkbox"] {
     $line-height: $slider-input-area-size;
 
 
-    .label, .checkbox-container {
+    .label, .checkbox-container, .slider, .slider-value-indicator {
         font-size: 14px;
         display: inline-block;
         vertical-align: top;
         min-height: $slider-input-area-size;
         line-height: $line-height;
+    }
+
+    .slider-value-indicator {
+      width: $label-width;
+      text-align: center;
+    }
+
+    .slider {
+        @include calc(width, "100% - #{$label-width * 2}");
     }
 
     .label {
@@ -851,6 +860,10 @@ input[type="checkbox"] {
 
         label {
             font-weight: normal;
+        }
+
+        &.subtitle {
+          font-weight: bold;
         }
 
         &.wide-label {
