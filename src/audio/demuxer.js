@@ -190,7 +190,6 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
                         if (metadata) {
                             if (metadata.bitRate !== bitRate) {
                                 metadata.bitRate = bitRate;
-                                metadata.vbr = true;
                             }
                             i += (frame_size - 4 - 1);
                         } else {
