@@ -9,6 +9,7 @@ coverage/*
 dist/main.js
 dist/main.min.js
 dist/main.js.map
+dist/*
 sw.js
 .sass-cache/*
 dist/css/*
