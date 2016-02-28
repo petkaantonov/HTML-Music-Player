@@ -124,6 +124,7 @@ var assetsGenerated = browserified.then(function() {
     return serviceWorkerCreated.then(function() {
         var dir = process.cwd();
         process.chdir("dist");
+        delete process.env.NODE_PATH;
         var minified = UglifyJS.minify("main.js", {
             outSourceMap: "main.js.map"
         });
