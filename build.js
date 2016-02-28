@@ -52,8 +52,7 @@ var browserified = workerDirCreated.then(function() {
     }, {concurrency: 4});
 
     return Promise.all(
-        codecs,
-        [cp.execAsync("browserify src/audio/AudioPlayerBackend.js --standalone AudioPlayer > dist/worker/AudioPlayerWorker.js", execOpts).then(function() {
+        [codecs, css, cp.execAsync("browserify src/audio/AudioPlayerBackend.js --standalone AudioPlayer > dist/worker/AudioPlayerWorker.js", execOpts).then(function() {
             return fs.readFileAsync("dist/worker/AudioPlayerWorker.js", "utf8");
         }).then(function(contents) {
             contents = "self.DEBUGGING = false;\n" + contents;
@@ -71,8 +70,7 @@ var browserified = workerDirCreated.then(function() {
             });
             return fs.writeFileAsync("dist/worker/TrackAnalyzerWorker.min.js", minified.code, "utf8");
         }),
-        cp.execAsync("browserify src/application.js --standalone Application > dist/main.js", execOpts),
-        css
+        cp.execAsync("browserify src/application.js --standalone Application > dist/main.js", execOpts)
     ]);
 });
 
@@ -84,35 +82,12 @@ var assetsGenerated = browserified.then(function() {
                     .concat("dist/worker/AudioPlayerWorker.min.js", "dist/worker/TrackAnalyzerWorker.min.js");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
-
-    var hash = crypto.createHash('sha256');
-    var filesToRead = assets.concat("dist/main.js", "index.html");
-    console.error("files to read");
-    console.error(filesToRead.join("\n"));
-    var version = Promise.map(filesToRead, function(file) {
-        console.error("reading file", file);
-        return fs.readFileAsync(file).catch(function(e) {
-            console.error("could not read file", file);
-            console.error(e.name, e.message);
-            return "";
-        });
-    }, {concurrency: 4}).then(function(contents) {
-        contents.forEach(function(content) {
-            hash.update(content);
-        });
-        // Any removal or addition to the asset list triggers change.
-        hash.update(JSON.stringify(serviceWorkerAssetsList));
-    }).then(function() {
-        return hash.digest("hex");
-    })
-
     var serviceWorkerBase = fs.readFileAsync("sw_base.js", "utf8");
 
-    var serviceWorkerCreated = Promise.join(serviceWorkerBase, version, function(serviceWorkerBaseCode, version) {
+    var serviceWorkerCreated = serviceWorkerBase.then(function(serviceWorkerBaseCode) {
         var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4) + ";\n";
-        var hashCode = "const versionHash = '" + version + "';\n";
         var buildDate = "const buildDate = '" + new Date().toUTCString()+ "';\n";
-        serviceWorkerBaseCode = assetsCode + hashCode + buildDate + serviceWorkerBaseCode;
+        serviceWorkerBaseCode = assetsCode + buildDate + serviceWorkerBaseCode;
         var minified = UglifyJS.minify(serviceWorkerBaseCode, {
             fromString: true
         });
@@ -134,7 +109,7 @@ var assetsGenerated = browserified.then(function() {
         var mapWritten = fs.writeFileAsync("dist/main.js.map", minified.map, "utf8");
         return [codeWritten, mapWritten];
     });
-}).all();
+});
 
 Promise.join(assetsGenerated, function() {
     console.log("done");
