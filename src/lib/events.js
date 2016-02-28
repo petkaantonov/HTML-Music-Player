@@ -86,6 +86,7 @@ function emitNone(handler, isFn, self) {
       listeners[i].call(self);
   }
 }
+
 function emitOne(handler, isFn, self, arg1) {
   if (isFn)
     handler.call(self, arg1);
