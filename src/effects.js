@@ -51,7 +51,7 @@ const equalizerPresets = {
     "Ska": [-2,-4,-4,-1,4,5,8,9,11,9],
     "Soft": [4,1,-1,-2,-1,4,8,9,11,12],
     "Soft Rock": [4,4,2,-1,-4,-5,-3,-1,2,8],
-    "Techno": [8,5,-1,-5,-4,-1,8,9,9,]
+    "Techno": [8,5,-1,-5,-4,-1,8,9,9,8]
 };
 
 const equalizerPresetKeys = Object.keys(equalizerPresets);
@@ -267,15 +267,8 @@ NoiseSharpeningEffectManager.prototype.update = function() {
     this._updateCheckbox(enabled);
 };
 
-function EffectsManager(domNode, popup, preferences) {
-    EventEmitter.call(this);
-    this._domNode = $($(domNode)[0]);
-    this._popup = popup;
-    this.preferences = preferences;
-    this.defaultPreferences = new EffectsPreferences();
-    this.unchangedPreferences = null;
-
-
+function EqualizerEffectManager(effectsManager) {
+    this._effectsManager = effectsManager;
     this._equalizerSliders = equalizerBands.map(function(band, index) {
         var self = this;
         var slider = new Slider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
@@ -284,14 +277,15 @@ function EffectsManager(domNode, popup, preferences) {
 
         var eq;
         slider.on("slideBegin", function() {
-            eq = self.preferences.getEqualizer();
+            eq = self._effectsManager.preferences.getEqualizer();
         });
 
         slider.on("slide", function(p) {
             var value = progressToGainValue(p);
             eq[index] = value;
-            self.preferences.setInPlaceEqualizer(eq);
-            self.preferencesUpdated(true);
+            self._effectsManager.preferences.setInPlaceEqualizer(eq);
+            self._effectsManager.preferencesUpdated();
+            self._updatePreset();
         });
 
         slider.on("slideEnd", function() {
@@ -302,8 +296,48 @@ function EffectsManager(domNode, popup, preferences) {
     }, this);
 
     this.$().find(".equalizer-preset-selector").on("change", this.equalizerPresetChanged.bind(this));
+}
 
+EqualizerEffectManager.prototype.$ = function() {
+    return this._effectsManager.$();
+};
+
+EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
+    var val = $(e.target).val();
+
+    if (equalizerPresets[val]) {
+        this._effectsManager.preferences.setEqualizer(equalizerPresets[val]);
+        this._effectsManager.preferencesUpdated();
+        this._updateSliders();
+    }
+};
+
+EqualizerEffectManager.prototype._updatePreset = function() {
+    var presetName = this._effectsManager.preferences.getMatchingEqualizerPresetName();
+    this.$().find(".equalizer-preset-selector").val(presetName);
+};
+
+EqualizerEffectManager.prototype._updateSliders = function() {
+    var eq = this._effectsManager.preferences.getInPlaceEqualizer();
+    for (var i = 0; i < eq.length; ++i) {
+        this._equalizerSliders[i].setValue(gainValueToProgress(eq[i]));
+    }
+};
+
+EqualizerEffectManager.prototype.update = function() {
+    this._updatePreset();
+    this._updateSliders();
+};
+
+function EffectsManager(domNode, popup, preferences) {
+    EventEmitter.call(this);
+    this._domNode = $($(domNode)[0]);
+    this._popup = popup;
+    this.preferences = preferences;
+    this.defaultPreferences = new EffectsPreferences();
+    this.unchangedPreferences = null;
     this._noiseSharpeningEffectManager = new NoiseSharpeningEffectManager(this);
+    this._equalizerEffectManager = new EqualizerEffectManager(this);
 }
 util.inherits(EffectsManager, EventEmitter);
 
@@ -314,35 +348,16 @@ EffectsManager.prototype.$ = function() {
 EffectsManager.prototype.applyPreferencesFrom = function(preferences) {
     this.preferences.copyFrom(preferences);
     this._noiseSharpeningEffectManager.update();
-    this.update();
+    this._equalizerEffectManager.update();
     this.preferencesUpdated();
 };
 
-EffectsManager.prototype.preferencesUpdated = function(noDomEqUpdate) {
+EffectsManager.prototype.preferencesUpdated = function() {
     this.emit("preferencesUpdate");
-    this.update(!!noDomEqUpdate);
+    this.update();
 };
 
-EffectsManager.prototype.equalizerPresetChanged = function(e) {
-    var val = $(e.target).val();
-
-    if (equalizerPresets[val]) {
-        this.preferences.setEqualizer(equalizerPresets[val]);
-        this.preferencesUpdated();
-    }
-};
-
-EffectsManager.prototype.update = function(noDomEqUpdate) {
-    var presetName = this.preferences.getMatchingEqualizerPresetName();
-    this.$().find(".equalizer-preset-selector").val(presetName);
-
-    if (!noDomEqUpdate) {
-        var eq = this.preferences.getInPlaceEqualizer();
-        for (var i = 0; i < eq.length; ++i) {
-            this._equalizerSliders[i].setValue(gainValueToProgress(eq[i]));
-        }
-    }
-
+EffectsManager.prototype.update = function() {
     var restoreDefaultsEnabled = !this.preferences.equals(this.defaultPreferences);
     this._popup.setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, restoreDefaultsEnabled);
     var undoChangesEnabled = !this.preferences.equals(this.unchangedPreferences);
@@ -361,6 +376,7 @@ EffectsManager.prototype.setUnchangedPreferences = function() {
     this.unchangedPreferences = this.preferences.snapshot();
     this.update();
     this._noiseSharpeningEffectManager.update();
+    this._equalizerEffectManager.update();
 };
 
 const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects", [
