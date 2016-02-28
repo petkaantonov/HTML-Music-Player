@@ -1,3 +1,6 @@
+var Path = require("path");
+process.env.NODE_PATH = Path.join(process.cwd(), "src");
+var execOpts = {};
 var glob = require("glob");
 var Promise = require("bluebird");
 var fs = Promise.promisifyAll(require("fs"));
@@ -13,16 +16,16 @@ var criticalCssResolve;
 var criticalCss = new Promise(function(resolve) {
     criticalCssResolve = resolve;
 });
-var css = cp.execAsync("rm -rf dist/css/min").reflect().then(function() {
-    return cp.execAsync("mkdir -p dist/css/min");
+var css = cp.execAsync("rm -rf dist/css/min", execOpts).reflect().then(function() {
+    return cp.execAsync("mkdir -p dist/css/min", execOpts);
 }).then(function() {
-    return cp.execAsync("node_modules/.bin/node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/");
+    return cp.execAsync("node_modules/.bin/node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/", execOpts);
 }).then(function() {
-    return cp.execAsync("mv dist/css/min/app-css-public.css dist/css/app-css-public.min.css");
+    return cp.execAsync("mv dist/css/min/app-css-public.css dist/css/app-css-public.min.css", execOpts);
 }).then(function() {
     return fs.readFileAsync("dist/css/min/critical.css", "utf8");
 }).then(function(criticalCss) {
-    return cp.execAsync("rm -rf dist/css/min").return(criticalCss);
+    return cp.execAsync("rm -rf dist/css/min", execOpts).return(criticalCss);
 }).then(function(criticalCss) {
     criticalCss = criticalCss.replace(/\.\.\/(.+?)\//g, "dist/$1/");
     criticalCss = '<style type="text/css">' + criticalCss + '</style>';
@@ -32,19 +35,53 @@ var css = cp.execAsync("rm -rf dist/css/min").reflect().then(function() {
     });
 });
 
-var browserified = Promise.all(
-    [cp.execAsync("browserify worker/AudioPlayer.js --standalone AudioPlayer > worker/AudioPlayerWorker.js"),
-    cp.execAsync("browserify worker/TrackAnalyzer.js --standalone TrackAnalyzer > worker/TrackAnalyzerWorker.js"),
-    cp.execAsync("browserify js/application.js --standalone Application > dist/main.js"),
-    css
-]);
+var workerDirCreated = cp.execAsync("mkdir -p dist/worker/codecs", execOpts);
+
+var browserified = workerDirCreated.then(function() {
+    var codecs = Promise.map(glob.sync("src/codecs/**/*.js"), function(codecPath) {
+        var name = Path.basename(codecPath, ".js");
+        var newDest = Path.join("dist/worker/codecs", name + ".js");
+        var minDest = Path.join("dist/worker/codecs", name + ".min.js");
+        return fs.readFileAsync(codecPath, "utf8").then(function(contents) {
+            var minified = UglifyJS.minify(contents, {
+                fromString: true
+            });
+            return Promise.all([fs.writeFileAsync(newDest, contents, "utf8"),
+                                fs.writeFileAsync(minDest, minified.code, "utf8")]);
+        });
+    }, {concurrency: 4});
+
+    return Promise.all(
+        codecs,
+        [cp.execAsync("browserify src/audio/AudioPlayerBackend.js --standalone AudioPlayer > dist/worker/AudioPlayerWorker.js", execOpts).then(function() {
+            return fs.readFileAsync("dist/worker/AudioPlayerWorker.js", "utf8");
+        }).then(function(contents) {
+            contents = "self.DEBUGGING = false;\n" + contents;
+            var minified = UglifyJS.minify(contents, {
+                fromString: true
+            });
+            return fs.writeFileAsync("dist/worker/AudioPlayerWorker.min.js", minified.code, "utf8");
+        }),
+        cp.execAsync("browserify src/audio/TrackAnalyzerBackend.js --standalone TrackAnalyzer > dist/worker/TrackAnalyzerWorker.js", execOpts).then(function() {
+            return fs.readFileAsync("dist/worker/TrackAnalyzerWorker.js", "utf8");
+        }).then(function(contents) {
+            contents = "self.DEBUGGING = false;\n" + contents;
+            var minified = UglifyJS.minify(contents, {
+                fromString: true
+            });
+            return fs.writeFileAsync("dist/worker/TrackAnalyzerWorker.min.js", minified.code, "utf8");
+        }),
+        cp.execAsync("browserify src/application.js --standalone Application > dist/main.js", execOpts),
+        css
+    ]);
+});
 
 var assetsGenerated = browserified.then(function() {
     var assets = ["dist/css/app-css-public.min.css"]
                     .concat(glob.sync("dist/images/**/*.*"))
                     .concat(glob.sync("dist/fonts/**/*.woff*"))
-                    .concat(glob.sync("worker/codecs/**/*.*"))
-                    .concat("worker/AudioPlayerWorker.js", "worker/TrackAnalyzerWorker.js");
+                    .concat(glob.sync("dist/worker/codecs/**/*.min.js"))
+                    .concat("dist/worker/AudioPlayerWorker.min.js", "dist/worker/TrackAnalyzerWorker.min.js");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
 
