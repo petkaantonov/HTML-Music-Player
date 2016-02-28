@@ -631,7 +631,7 @@ AcoustId.fetch = function(args, _retries) {
             throw e;
         }
     }).tap(function(result) {
-        if (result) {
+        if (result || result === null) {
             tagDatabase.updateAcoustId(args.uid, result);
         }
     })
