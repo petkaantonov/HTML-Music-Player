@@ -1031,6 +1031,10 @@ AudioPlayerSourceNode.prototype.unload = function() {
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
+
+    while (sourceDescriptor = this._playedBufferQueue.shift()) {
+        this._destroySourceDescriptor(sourceDescriptor);
+    }
 };
 
 AudioPlayerSourceNode.prototype.isSeekable = function() {
