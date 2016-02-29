@@ -283,7 +283,6 @@ const savePreferences = util.throttle(function(preferences) {
 }, 250);
 
 const openPopup = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     crossfadingPopup.open();
 };
 
@@ -297,7 +296,7 @@ crossfadingPopup.on("open", function(popup, needsInitialization) {
     crossFadeManager.setUnchangedPreferences();
 });
 
-$(".menul-crossfade").click(openPopup).mousedown(domUtil.preventDefault);
+$(".menul-crossfade").click(openPopup);
 
 if (touch) {
     $(".menul-crossfade").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openPopup));

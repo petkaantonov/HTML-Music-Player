@@ -5,7 +5,6 @@ const GlobalUi = require("ui/GlobalUi");
 
 
 function clicked(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     var input = $(this).data("file_input");
 
     if (input.chooseDirectory && input.directory) {

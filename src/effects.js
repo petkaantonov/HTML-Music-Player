@@ -424,7 +424,6 @@ const progressToGainValue = function(progress) {
 };
 
 const openEditor = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     equalizerPopup.open();
 }
 
@@ -485,7 +484,7 @@ effects.getAudioPlayerEffects = function(track) {
     }];
 };
 
-$(".menul-effects").click(openEditor).mousedown(domUtil.preventDefault);
+$(".menul-effects").click(openEditor);
 
 if (touch) {
     $(".menul-effects").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));

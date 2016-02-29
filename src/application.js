@@ -99,6 +99,7 @@ const domUtil = require("lib/DomUtil");
 const gestureScreenFlasher = require("ui/GestureScreenFlasher");
 const TrackRating = require("TrackRating");
 const Track = require("Track");
+const OpenableSubmenu = require("ui/OpenableSubmenu");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 
@@ -327,12 +328,6 @@ playlist.main.on("lengthChange", function(newLength) {
 
 var playlistModeManager = new PlaylistModeManager(".playlist-controls-container", playlist.main);
 
-GlobalUi.makeTooltip($(".menul-folder"), "Add a folder");
-GlobalUi.makeTooltip($(".menul-files"), "Add files");
-GlobalUi.makeTooltip($(".menul-hotkeys"), "Customize shortcuts");
-GlobalUi.makeTooltip($(".menul-crossfade"), "Customize crossfading");
-GlobalUi.makeTooltip($(".menul-effects"), "Customize effects");
-
 playlist.main.on("trackChange", function(track) {
     if (!track) return;
     playlist.trackDisplay.setTrack(track);
@@ -468,6 +463,10 @@ $('.menul-files, .add-files-link').fileInput("create", {
     },
     multiple: true,
     accept: features.allowMimes.join(",")
+});
+
+var toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
+    openerActiveClass: "toolbar-item-active"
 });
 
 if (false && window.DEBUGGING) {
