@@ -227,14 +227,12 @@ Popup.prototype._initDom = function() {
     var lastFocusItem = $("<div>", {class: "last-focus-item"}).prop("tabIndex", 0);
     var headerText = $("<h2>").text(this.title() + "");
     var header = $("<div>", {class: this.headerClass});
-    var footer = $("<div>", {class: this.footerClass});
+
     var body = $("<div>", {class: this.bodyClass});
     var bodyContent = $("<div>", {class: this.bodyContentClass}).html(this.body() + "");
     var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
 
-    for (var i = 0; i < this._footerButtons.length; ++i) {
-        this._footerButtons[i].$().appendTo(footer);
-    }
+
 
     var scrollbar = $("<div>", {class: this.scrollbarContainerClass});
     var scrollbarRail = $("<div>", {class: this.scrollbarRailClass});
@@ -246,7 +244,14 @@ Popup.prototype._initDom = function() {
     bodyContent.appendTo(body);
     scrollbar.appendTo(body);
     body.appendTo(ret);
-    footer.appendTo(ret);
+
+    if (this._footerButtons.length > 0) {
+        var footer = $("<div>", {class: this.footerClass});
+        for (var i = 0; i < this._footerButtons.length; ++i) {
+            this._footerButtons[i].$().appendTo(footer);
+        }
+        footer.appendTo(ret);
+    }
     lastFocusItem.appendTo(ret);
 
     scrollbarRail.appendTo(scrollbar);

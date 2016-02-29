@@ -11,22 +11,30 @@ const Default2dImageRenderer = require("ui/Default2dImageRenderer");
 const WebGl2dImageRenderer = require("ui/WebGl2dImageRenderer");
 const EventEmitter = require("lib/events");
 const GlobalUi = require("ui/GlobalUi");
+const Slider = require("ui/Slider");
 const ContextMenu = require("ui/ActionMenu").ContextMenu;
 const applicationPreferences = require("application_preferences");
 
-const LATENCY_POPUP_HTML = '<div class="latency-input-row row"><div class="col-xs-12">                                \
-        <p>Increase this value if the visualization is too early or decrease this value if it is too late.</p>        \
-    <form>                                                                                                            \
-        <div class="form-group">                                                                                      \
-            <div class="input-group">                                                                                 \
-                <input type="number" class="form-control latency-input" placeholder="Latency">                        \
-                <div class="input-group-addon">ms</div>                                                               \
-            </div>                                                                                                    \
-        </div>                                                                                                        \
-    </form>                                                                                                           \
-    <p>Changes are effective in real time.</p>                                                                        \
-    </div></div>';
-
+const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content-container'>            \
+            <div class='section-container'>                                                             \
+                <div class='inputs-container'>                                                          \
+                    <div class='label overhead-label'>                                                  \
+                        Increase this value if the visualization is too early or                        \
+                        decrease this value if it is too late                                           \
+                    </div>                                                                              \
+                    <div class='latency-slider slider horizontal-slider unlabeled-slider'>              \
+                        <div class='slider-knob'></div>                                                 \
+                        <div class='slider-background'>                                                 \
+                            <div class='slider-fill'></div>                                             \
+                        </div>                                                                          \
+                    </div>                                                                              \
+                    <div class='latency-value slider-value-indicator'></div>                            \
+                </div>                                                                                  \
+                <div class='inputs-container'>                                                          \
+                    <div class='label overhead-label'>Changes are effective in real time</div>          \
+                </div>                                                                                  \
+            </div>                                                                                      \
+        </div>";
 
 const $ = require("lib/jquery");
 
@@ -205,7 +213,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
 
-    this.latencyPopup = GlobalUi.makePopup("Latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+    this.latencyPopup = GlobalUi.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
     this.latencyPopup.on("open", this.latencyPopupOpened);
     this.player.on("stop", this.playerStopped);
     this.player.on("play", this.playerStarted);
@@ -309,24 +317,25 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
 VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitialization) {
     var latency = (this.player.getAudioHardwareLatency() * 1000)|0;
     var maxLatency = (this.player.getMaximumAudioHardwareLatency() * 1000)|0;
+    var minLatency = 0;
+    var self = this;
 
-    var $input = this.latencyPopup.$().find(".latency-input");
-    $input.val(latency);
-    $input.prop("min", 0);
-    $input.prop("max", maxLatency);
     if (needsInitialization) {
-        var self = this;
-        $input.on("input change", function() {
-            var val = (+$(this).val()) / 1000;
-            self.player.setAudioHardwareLatency(val);
+        var sliderValue = this.latencyPopup.$().find(".latency-value");
+        var slider = new Slider(this.latencyPopup.$().find(".latency-slider"));
+        slider.setValue((latency + minLatency) / (maxLatency - minLatency));
+        sliderValue.text(latency + "ms");
+        popup.on("open", function() {
+            slider.setValue((latency + minLatency) / (maxLatency - minLatency));
+            sliderValue.text(latency + "ms");
         });
-        this.latencyPopup.$().find("form").on("submit", function(e) {
-            e.preventDefault();
-            $input.blur();
-            self.latencyPopup.close();
+
+        slider.on("slide", function(p) {
+            var latency = Math.round(p * (maxLatency - minLatency) + minLatency);
+            sliderValue.text(latency + "ms");
+            self.player.setAudioHardwareLatency(latency / 1000);
         });
     }
-    $input.focus();
 };
 
 VisualizerCanvas.prototype.destroyCanvasContextMenu = function() {

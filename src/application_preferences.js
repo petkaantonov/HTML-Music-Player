@@ -150,7 +150,7 @@ const html = (function() {
     </div>";
 
     const backgroundCpuHtml = "<div class='inputs-container'>                                                         \
-        <div class='label overhead-label'>Max background CPU usage</div>                                              \
+        <div class='label overhead-label'>Max background processing CPU usage</div>                                   \
         <div class='cpu-usage-slider slider horizontal-slider unlabeled-slider'>                                      \
             <div class='slider-knob'></div>                                                                           \
             <div class='slider-background'>                                                                           \
