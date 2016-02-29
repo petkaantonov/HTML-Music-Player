@@ -852,6 +852,10 @@ input[type="checkbox"] {
 
     .slider {
         @include calc(width, "100% - #{$label-width * 2}");
+
+        &.unlabeled-slider {
+          @include calc(width, "100% - #{$label-width}");
+        }
     }
 
     .label {
@@ -869,6 +873,11 @@ input[type="checkbox"] {
         &.wide-label {
             @include calc(width, "100% - #{$label-width}");
             text-align: left;
+        }
+
+        &.overhead-label {
+            display: block;
+            width: 100%;
         }
     }
 

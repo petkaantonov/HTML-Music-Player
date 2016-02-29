@@ -12,6 +12,7 @@ const WebGl2dImageRenderer = require("ui/WebGl2dImageRenderer");
 const EventEmitter = require("lib/events");
 const GlobalUi = require("ui/GlobalUi");
 const ContextMenu = require("ui/ActionMenu").ContextMenu;
+const applicationPreferences = require("application_preferences");
 
 const LATENCY_POPUP_HTML = '<div class="latency-input-row row"><div class="col-xs-12">                                \
         <p>Increase this value if the visualization is too early or decrease this value if it is too late.</p>        \

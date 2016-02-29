@@ -6,8 +6,6 @@ const domUtil = require("lib/DomUtil");
 const features = require("features");
 const touch = features.touch;
 
-// Touch
-
 function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
     this._domNode = $($(dom)[0]);
@@ -27,6 +25,10 @@ function OpenableSubmenu(dom, opener, opts) {
 
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
+
+    if (touch) {
+        this.$opener().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this._openerClicked));
+    }
 
     this.$opener().on("click", this._openerClicked)
                   .on("focus", this._openerFocused);

@@ -31,6 +31,8 @@ $popup-container-border: 2px;
         max-width: $large-screen-width;
     }
 
+    max-height: $large-screen-height;
+
     .last-focus-item {
         position: absolute;
         top: 0px;
