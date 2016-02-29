@@ -720,18 +720,15 @@ Playlist.prototype.prev = function() {
     var history = this._trackHistory;
     var length = history.length;
     if (length > 0) {
-        var i = history.length - 1;
         var track;
-        do {
-            track = this._trackHistory[i];
-            if (track.isDetachedFromPlaylist()) {
+        while (history.length > 0) {
+            track = this._trackHistory.pop();
+            if (track.hasError() || track.isDetachedFromPlaylist()) {
                 track = null;
             } else {
-                this._trackHistory.splice(i, 1);
-
+                break;
             }
-            i--;
-        } while (i >= 0 && track == null);
+        }
 
         if (length !== history.length) {
             this.emit("historyChange");
@@ -739,9 +736,11 @@ Playlist.prototype.prev = function() {
 
         if (!track) {
             return this.prev();
-        } else if (!track.isDetachedFromPlaylist()) {
+        } else {
             return this.changeTrackExplicitly(track, true);
         }
+    } else {
+        this.emit("historyChange");
     }
 };
 
