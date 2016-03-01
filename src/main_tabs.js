@@ -33,10 +33,11 @@ $(window).on("resize", function() {
     var USED_HEIGHT = rect.top;
 
     var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height - ITEM_HEIGHT / 2, ITEM_HEIGHT + 22);
+    height = Math.max(height - ITEM_HEIGHT / 2, ITEM_HEIGHT + ITEM_HEIGHT / 2);
     var remainder = height % ITEM_HEIGHT;
+
     if (remainder !== 0) {
-        height -= ITEM_HEIGHT;
+        height -= remainder;
     }
 
     elems.css("height", height);
