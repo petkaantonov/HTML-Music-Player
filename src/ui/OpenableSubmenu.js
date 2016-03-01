@@ -22,6 +22,8 @@ function OpenableSubmenu(dom, opener, opts) {
 
     this._openerFocused = this._openerFocused.bind(this);
     this._openerClicked = this._openerClicked.bind(this);
+    this._documentClicked = this._documentClicked.bind(this);
+    this._documentTapped = domUtil.tapHandler(this._documentClicked);
 
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
@@ -55,6 +57,11 @@ OpenableSubmenu.prototype.open = function() {
     requestAnimationFrame(function() {
         self.$().addClass(self.transitionClass);
     });
+    util.onCapture(document, "click", this._documentClicked);
+
+    if (touch) {
+        util.onCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
+    }
 };
 
 OpenableSubmenu.prototype.close = function() {
@@ -66,6 +73,18 @@ OpenableSubmenu.prototype.close = function() {
     util.offCapture(document, "keydown", this._keydowned);
     this.$opener().removeClass(this.openerActiveClass);
     this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
+    util.offCapture(document, "click", this._documentClicked);
+    if (touch) {
+        util.offCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
+    }
+};
+
+OpenableSubmenu.prototype._documentClicked = function(e) {
+    if (!this._opened) return;
+    var $target = $(e.target);
+    if ($target.closest(this.$().add(this.$opener())).length === 0) {
+        this.close();
+    }
 };
 
 OpenableSubmenu.prototype._openerFocused = function() {
@@ -73,6 +92,7 @@ OpenableSubmenu.prototype._openerFocused = function() {
 };
 
 OpenableSubmenu.prototype._elementBlurred = function(e) {
+    if (!this._opened) return;
     var $newFocus = $(e.relatedTarget);
     if ($newFocus.closest(this.$().add(this.$opener())).length === 0) {
         this.close();
