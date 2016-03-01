@@ -72,6 +72,7 @@ Selectable.prototype.trackClick = function(e, track) {
 };
 
 Selectable.prototype._clearSelection = function() {
+    this._prioritySelection = null;
     this._selection.forEach(function(track) {
         track.unselected();
     });
