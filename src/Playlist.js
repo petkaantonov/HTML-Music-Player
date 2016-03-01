@@ -305,20 +305,10 @@ Playlist.Modes = {
 };
 
 Playlist.prototype._windowLayoutChanged = function() {
-    var rect = this.$()[0].getBoundingClientRect();
-    const USED_HEIGHT = rect.top;
-
-    var itemHeight = this._fixedItemListScroller.itemHeight();
-    var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height - 22, itemHeight + 22);
-
-    var remainder = height % itemHeight;
-    if (remainder !== 0) {
-        height -= remainder;
-    }
-
-    this.$().css("height", height + "px");
-    this._fixedItemListScroller.resize();
+    var self = this;
+    requestAnimationFrame(function() {
+        self._fixedItemListScroller.resize();
+    });
 };
 
 Playlist.prototype._listContentsChanged = function() {

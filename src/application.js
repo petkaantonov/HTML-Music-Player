@@ -100,6 +100,7 @@ const TrackRating = require("TrackRating");
 const Track = require("Track");
 const OpenableSubmenu = require("ui/OpenableSubmenu");
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+const mainTabs = require("main_tabs");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 

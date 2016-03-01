@@ -30,7 +30,6 @@ ul.app-empty-playlist-ul li {
 }
 
 #app-playlist-container {
-    position: relative;
     overflow: hidden;
     width: 100%;
     transform: translate3d(0, 0, 0);
@@ -69,10 +68,4 @@ ul.app-empty-playlist-ul li {
     width: 100%;
     background-color: #F7F7F7;
     bottom: 0px;
-}
-
-.playlist-section-container {
-    width: 100%;
-    margin-top: $module-gutter-height;
-    border-radius: $subtle-radius;
 }
