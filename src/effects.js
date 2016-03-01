@@ -88,7 +88,7 @@ const EffectsPreferences = createPreferences({
         },
 
         noiseSharpeningStrength: {
-            defaultValue: 0.4,
+            defaultValue: 0.6,
             asValidValue: function(value) {
                 var ret = Math.max(0, Math.min(2, +value));
                 return isFinite(ret) ? ret : this.defaultNoiseSharpeningStrength;
@@ -96,7 +96,7 @@ const EffectsPreferences = createPreferences({
         },
 
         noiseSharpeningEnabled: {
-            defaultValue: false,
+            defaultValue: true,
             asValidValue: function(value) {
                 return !!value;
             }
