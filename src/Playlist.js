@@ -13,6 +13,8 @@ const PLAYLIST_MODE_KEY = "playlist-mode";
 const GlobalUi = require("ui/GlobalUi");
 const Snackbar = require("ui/Snackbar");
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+const TrackView = require("ui/TrackView");
+const TrackViewOptions = {updateTrackIndex: true};
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -39,19 +41,25 @@ const DUMMY_TRACK = {
 const SHUFFLE_MODE = "shuffle";
 
 function TrackListDeletionUndo(playlist) {
-    this.trackList = playlist.getTracks().slice();
+    this.tracksAndViews = playlist.getTrackViews().map(function(v) {
+        return {
+            track: v.track(),
+            view: v
+        };
+    });
     this.selectionIndices = playlist.getSelection().map(function(v) {
         return v.getIndex();
     });
-    var priorityTrack =  playlist._selectable.getPriorityTrack();
-    this.priorityTrackIndex = priorityTrack ? priorityTrack.getIndex() : -1;
+    var priorityTrackView = playlist._selectable.getPriorityTrackView();
+    this.priorityTrackViewIndex = priorityTrackView ? priorityTrackView.getIndex() : -1;
 }
 
 TrackListDeletionUndo.prototype.destroy = function() {
     GlobalUi.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
-    for (var i = 0; i < this.trackList.length; ++i) {
-        if (this.trackList[i].isDetachedFromPlaylist()) {
-            this.trackList[i].remove();
+    for (var i = 0; i < this.tracksAndViews.length; ++i) {
+        var track = this.tracksAndViews[i].track;
+        if (track.isDetachedFromPlaylist()) {
+            track.destroy();
         }
     }
 };
@@ -59,7 +67,7 @@ TrackListDeletionUndo.prototype.destroy = function() {
 var playlistRunningPlayId = 0;
 function Playlist(domNode, opts) {
     EventEmitter.call(this);
-    this._trackList = [];
+    this._trackViews = [];
     this._unparsedTrackList = [];
 
     this._mode = Playlist.Modes.hasOwnProperty(opts.mode) ? opts.mode : "normal";
@@ -73,7 +81,7 @@ function Playlist(domNode, opts) {
     this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
     this._nextTrack = null;
 
-    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackList, opts.itemHeight, {
+    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight, {
         shouldScroll: function() {
             return !this._draggable.isDragging()
         }.bind(this),
@@ -108,54 +116,54 @@ function Playlist(domNode, opts) {
     this.$().on("click mousedown dblclick", function(e) {
         if ($(e.target).closest(".unclickable").length > 0) return;
         if ($(e.target).closest(".track-container").length === 0) return;
-        var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-        if (!track) return;
+        var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        if (!trackView) return;
         switch (e.type) {
             case "click": {
                 if (this._draggable.recentlyStoppedDragging()) return;
-                return this._selectable.trackClick(e, track);
+                return this._selectable.trackViewClick(e, trackView);
             }
-            case "mousedown": return this._selectable.trackMouseDown(e, track);
-            case "dblclick": return track.doubleClicked(e);
+            case "mousedown": return this._selectable.trackViewMouseDown(e, trackView);
+            case "dblclick": this.changeTrackExplicitly(trackView.track()); break;
         }
     }.bind(this));
 
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.modifierTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
+            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+            if (!trackView) return;
 
-            if (this._selectable.contains(track)) {
-                this._selectable.removeTrack(track);
+            if (this._selectable.contains(trackView)) {
+                this._selectable.removeTrackView(trackView);
             } else {
-                this._selectable.addTrack(track);
-                this._selectable.setPriorityTrack(track);
+                this._selectable.addTrackView(trackView);
+                this._selectable.setPriorityTrackView(trackView);
             }
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
-            this._selectable.selectTrack(track);
+            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+            if (!trackView) return;
+            this._selectable.selectTrackView(trackView);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.longTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
-            if (!this._selectable.contains(track)) {
-                this._selectable.selectTrack(track);
+            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+            if (!trackView) return;
+            if (!this._selectable.contains(trackView)) {
+                this._selectable.selectTrackView(trackView);
             }
-            this._selectable.setPriorityTrack(track);
+            this._selectable.setPriorityTrackView(trackView);
         }.bind(this)));
 
         this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.doubleTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
-            var track = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!track) return;
-            track.doubleClicked(e);
+            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+            if (!trackView) return;
+            this.changeTrackExplicitly(trackView.track());
         }.bind(this)));
     }
 
@@ -188,14 +196,14 @@ function Playlist(domNode, opts) {
 
     [1, 2, 3, 4, 5].forEach(function(ratingValue) {
         this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
-            var track = self._selectable.getPriorityTrack();
-            if (track) track.rate(ratingValue);
+            var trackView = self._selectable.getPriorityTrackView();
+            if (trackView) trackView.track().rate(ratingValue);
         });
     }, this);
 
     this._keyboardShortcutContext.addShortcut("alt+0", function() {
-        var track = self._selectable.getPriorityTrack();
-        if (track) track.rate(-1);
+        var trackView = self._selectable.getPriorityTrackView();
+        if (trackView) trackView.track().rate(-1);
     });
 
     if (!this.length) {
@@ -260,30 +268,28 @@ Playlist.Modes = {
         });
 
         var maxWeight = 0;
-        var tracks = this.getTracks();
+        var trackViews = this.getTrackViews();
 
-        for (var i = 0; i < tracks.length; ++i) {
-            var track = tracks[i];
-            maxWeight += getWeight(track);
+        for (var i = 0; i < trackViews.length; ++i) {
+            var trackView = trackViews[i];
+            maxWeight += getWeight(trackView.track());
         }
-
-
 
         var target = ((Math.random() * maxWeight + 1) | 0) - 1;
         var currentWeight = -1;
-        for (var i = 0; i < tracks.length; ++i) {
-            var track = tracks[i];
-            var weight = getWeight(track);
+        for (var i = 0; i < trackViews.length; ++i) {
+            var trackView = trackViews[i];
+            var weight = getWeight(trackView.track());
 
             if (currentWeight + weight >= target) {
-                return track;
+                return trackView.track();
             }
             currentWeight += weight;
         }
 
-        track = track && track.hasError() ? tracks.last() : track;
-        track = track && track.hasError() ? null : track;
-        return track;
+        trackView = trackView && trackView.track().hasError() ? trackViews.last() : trackView;
+        trackView = trackView && trackView.track().hasError() ? null : trackView;
+        return trackView ? trackView.track() : null;
     },
 
     repeat: function(track) {
@@ -403,7 +409,7 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     return true;
 };
 
-Playlist.prototype.selectionContainsAnyTracksBetween = function(startY, endY) {
+Playlist.prototype.selectionContainsAnyItemViewsBetween = function(startY, endY) {
     var indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
     if (!indices) return false;
     return this._selectable.containsAnyInRange(indices.startIndex, indices.endIndex);
@@ -438,35 +444,37 @@ Playlist.prototype.showPlaylistEmptyIndicator = function() {
 Playlist.prototype.playPrioritySelection = function() {
     if (!this.length) return;
 
-    var track = this._selectable.getPriorityTrack();
-    if (!track) return this.playFirstSelected();
-    this.changeTrackExplicitly(track);
+    var trackView = this._selectable.getPriorityTrackView();
+    if (!trackView) return this.playFirstSelected();
+    this.changeTrackExplicitly(trackView.track());
 };
 
 Playlist.prototype.playFirstSelected = function() {
     if (!this.length) return;
 
-    var firstTrack = this._selectable.first();
-    if (!firstTrack) return;
-    this.changeTrackExplicitly(firstTrack);
+    var firstTrackView = this._selectable.first();
+    if (!firstTrackView) return;
+    this.changeTrackExplicitly(firstTrackView.track());
 };
 
 Playlist.prototype.playFirst = function() {
     if (!this.length) return;
     var firstSelectedTrack = this._selectable.first();
     if (firstSelectedTrack) {
-        return this.changeTrackExplicitly(firstSelectedTrack);
+        return this.changeTrackExplicitly(firstSelectedTrack.track());
     }
     var nextTrack = this.getNextTrack();
     if (nextTrack) {
         this.changeTrackExplicitly(nextTrack);
     } else {
-        this.changeTrackExplicitly(this._trackList.first());
+        var first = this._trackViews.first();
+        if (first) first = first.track();
+        this.changeTrackExplicitly(first);
     }
 };
 
-Playlist.prototype.getTracks = function() {
-    return this._trackList;
+Playlist.prototype.getTrackViews = function() {
+    return this._trackViews;
 };
 
 Playlist.prototype.getUnparsedTracks = function() {
@@ -483,46 +491,50 @@ Playlist.prototype.getUnparsedTracks = function() {
     return ret;
 };
 
-Playlist.prototype.centerOnTrack = function(track) {
-    if (track && !track.isDetachedFromPlaylist()) {
-        var y = this._fixedItemListScroller.yByIndex(track.getIndex());
+Playlist.prototype.centerOnTrackView = function(trackView) {
+    if (trackView && !trackView.isDetachedFromPlaylist()) {
+        var y = this._fixedItemListScroller.yByIndex(trackView.getIndex());
         y -= (this._fixedItemListScroller.contentHeight() / 2);
         this._fixedItemListScroller.scrollToUnsnapped(y, false);
     }
 };
 
 Playlist.prototype.getTrackByIndex = function(index) {
-    return this._trackList[index];
+    return this._trackViews[index].track();
+};
+
+Playlist.prototype.getTrackViewByIndex = function(index) {
+    return this._trackViews[index];
 };
 
 Playlist.prototype.removeTracksBySelectionRanges = (function() {
-    function remove(tracks, selection, indexOffset) {
-        var tracksLength = tracks.length;
+    function remove(trackViews, selection, indexOffset) {
+        var trackViewsLength = trackViews.length;
         var tracksToRemove = selection.length;
-        var count = tracksLength - tracksToRemove;
+        var count = trackViewsLength - tracksToRemove;
         var index = selection[0] - indexOffset;
 
-        for (var i = index; i < count && i + tracksToRemove < tracksLength; ++i) {
-            var track = tracks[i + tracksToRemove];
-            track.setIndex(i);
-            tracks[i] = track;
+        for (var i = index; i < count && i + tracksToRemove < trackViewsLength; ++i) {
+            var trackView = trackViews[i + tracksToRemove];
+            trackView.setIndex(i);
+            trackViews[i] = trackView;
         }
-        tracks.length = count;
+        trackViews.length = count;
     }
 
     return function(selectionRanges) {
-        var tracks = this._trackList;
+        var trackViews = this._trackViews;
         var indexOffset = 0;
         selectionRanges.forEach(function(selection) {
-            remove(tracks, selection, indexOffset);
+            remove(trackViews, selection, indexOffset);
             indexOffset += selection.length;
         });
     };
 })();
 
 
-Playlist.prototype.removeTrack = function(track) {
-    this.removeTracks([track]);
+Playlist.prototype.removeTrackView = function(trackView) {
+    this.removeTrackViews([trackView]);
 };
 
 Playlist.prototype._edited = function() {
@@ -545,23 +557,34 @@ Playlist.prototype._restoreStateForUndo = function() {
         this.hidePlaylistEmptyIndicator();
     }
 
-    var previousTrackList = this._trackListDeletionUndo.trackList;
+    var previousTracksAndViews = this._trackListDeletionUndo.tracksAndViews;
     var selectionIndices = this._trackListDeletionUndo.selectionIndices;
-    var priorityTrackIndex = this._trackListDeletionUndo.priorityTrackIndex;
+    var priorityTrackViewIndex = this._trackListDeletionUndo.priorityTrackViewIndex;
 
-    for (var i = 0; i < previousTrackList.length; ++i) {
-        this._trackList[i] = previousTrackList[i];
+    for (var i = 0; i < previousTracksAndViews.length; ++i) {
+        var trackAndView = previousTracksAndViews[i];
+
+        if (trackAndView.track.isDetachedFromPlaylist()) {
+            if (!trackAndView.view._isDestroyed) {
+                throw new Error("should be destroyed");
+            }
+            this._trackViews[i] = new TrackView(trackAndView.track, this._selectable, TrackViewOptions);
+        } else {
+            if (trackAndView.view._isDestroyed) {
+                throw new Error("should not be destroyed");
+            }
+            this._trackViews[i] = trackAndView.view;
+        }
     }
-    this._trackList.length = previousTrackList.length;
+    this._trackViews.length = previousTracksAndViews.length;
     this._trackListDeletionUndo = null;
 
-    for (var i = 0; i < this._trackList.length; ++i) {
-        var track = this._trackList[i];
-        if (track.isDetachedFromPlaylist()) {
-            this._unparsedTrackList.push(track);
-            track.unstageRemoval();
+    for (var i = 0; i < this._trackViews.length; ++i) {
+        var trackView = this._trackViews[i];
+        if (trackView.isDetachedFromPlaylist()) {
+            this._unparsedTrackList.push(trackView.track());
         }
-        track.setIndex(i);
+        trackView.setIndex(i);
     }
 
     this.emit("trackChange", this.getCurrentTrack());
@@ -571,33 +594,31 @@ Playlist.prototype._restoreStateForUndo = function() {
     this._listContentsChanged();
     this._selectable.selectIndices(selectionIndices);
 
-    if (priorityTrackIndex >= 0) {
-        this._selectable.setPriorityTrack(this._trackList[priorityTrackIndex]);
-        this.centerOnTrack(this._trackList[priorityTrackIndex]);
+    if (priorityTrackViewIndex >= 0) {
+        this._selectable.setPriorityTrackView(this._trackViews[priorityTrackViewIndex]);
+        this.centerOnTrackView(this._trackViews[priorityTrackViewIndex]);
     } else {
         var mid = selectionIndices[selectionIndices.length / 2 | 0];
-        this.centerOnTrack(this._trackList[mid]);
+        this.centerOnTrackView(this._trackViews[mid]);
     }
     this.emit("unparsedTracksAvailable");
 };
 
-Playlist.prototype.removeTracks = function(tracks) {
-    tracks = tracks.filter(function(track) {
-        return !track.isDetachedFromPlaylist();
+Playlist.prototype.removeTrackViews = function(trackViews) {
+    trackViews = trackViews.filter(function(v) {
+        return !v.isDetachedFromPlaylist();
     });
-    if (tracks.length === 0) return;
+    if (trackViews.length === 0) return;
     var oldLength = this.length;
-    var tracksIndexRanges = util.buildConsecutiveRanges(tracks.map(util.indexMapper));
+    var tracksIndexRanges = util.buildConsecutiveRanges(trackViews.map(util.indexMapper));
 
     this._edited();
     this._saveStateForUndo();
 
-    this._selectable.removeIndices(tracks.map(function(track) {
-        return track.getIndex();
-    }));
+    this._selectable.removeIndices(trackViews.map(util.indexMapper));
 
-    for (var i = 0; i < tracks.length; ++i) {
-        tracks[i].stageRemoval();
+    for (var i = 0; i < trackViews.length; ++i) {
+        trackViews[i].track().stageRemoval();
     }
 
     this.removeTracksBySelectionRanges(tracksIndexRanges);
@@ -635,7 +656,7 @@ Playlist.prototype.removeTracks = function(tracks) {
 Playlist.prototype.removeSelected = function() {
     var selection = this.getSelection();
     if (!selection.length) return;
-    this.removeTracks(selection);
+    this.removeTrackViews(selection);
 };
 
 Playlist.prototype.isTrackHighlyRelevant = function(track) {
@@ -663,9 +684,10 @@ Playlist.prototype.add = function(tracks) {
     var oldLength = this.length;
 
     tracks.forEach(function(track) {
-        var len = this._trackList.push(track);
+        var view = new TrackView(track, this._selectable, TrackViewOptions);
+        var len = this._trackViews.push(view);
         this._unparsedTrackList.push(track);
-        track.setIndex(len - 1);
+        view.setIndex(len - 1);
     }, this);
 
     this.emit("lengthChange", this.length, oldLength);
@@ -808,8 +830,8 @@ Playlist.prototype.tryChangeMode = function(mode) {
     return false;
 };
 
-Playlist.prototype.getSelectedTrackCount = function() {
-    return this._selectable.getSelectedItemCount();
+Playlist.prototype.getSelectedItemViewCount = function() {
+    return this._selectable.getSelectedItemViewCount();
 };
 
 Playlist.prototype.getMode = function() {
@@ -817,7 +839,7 @@ Playlist.prototype.getMode = function() {
 };
 
 Playlist.prototype.toArray = function() {
-    return this._trackList.slice();
+    return this._trackViews.slice();
 };
 
 Playlist.prototype.getSelection = function() {
@@ -968,12 +990,12 @@ Playlist.prototype.moveSelectionPageDown = function() {
     }
 };
 
-Playlist.prototype.selectTrack = function(track) {
-    var index = track.getIndex();
+Playlist.prototype.selectTrackView = function(trackView) {
+    var index = trackView.getIndex();
     if (index >= 0) {
         this.clearSelection();
-        this._selectable.addTrack(track);
-        this.centerOnTrack(track);
+        this._selectable.addTrackView(trackView);
+        this.centerOnTrackView(trackView);
     }
 };
 
@@ -1037,7 +1059,9 @@ const makeComparer = function(mainComparer) {
     comparers.splice(comparers.indexOf(mainComparer), 1);
     const length = comparers.length;
 
-    const comparer = function(aTrack, bTrack) {
+    const comparer = function(aTrackView, bTrackView) {
+        var aTrack = aTrackView.track();
+        var bTrack = bTrackView.track();
         var aTagData = aTrack.getTagData();
         var bTagData = bTrack.getTagData();
         var comparison = 0;
@@ -1096,21 +1120,21 @@ Playlist.prototype.sortByShuffling = function() {
 };
 
 Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
-    var selectedTracks = this.getSelection();
-    if (selectedTracks.length <= 1) return;
+    var selectedTrackViews = this.getSelection();
+    if (selectedTrackViews.length <= 1) return;
 
-    var indices = selectedTracks.map(function(v) {
-        return v.getIndex();
+    var indices = selectedTrackViews.map(function(v) {
+        return v.track().getIndex();
     });
-    callback(selectedTracks);
+    callback(selectedTrackViews);
 
-    for (var i = 0; i < selectedTracks.length; ++i) {
-        var track = selectedTracks[i];
+    for (var i = 0; i < selectedTrackViews.length; ++i) {
+        var trackView = selectedTrackViews[i];
         var index = indices[i];
-        this._trackList[index] = track;
-        track.setIndex(index);
+        this._trackViews[index] = trackView;
+        trackView.setIndex(index);
     }
-    this._selectable.updateOrder(selectedTracks);
+    this._selectable.updateOrder(selectedTrackViews);
     this._fixedItemListScroller.refresh();
     this._edited();
     this.trackIndexChanged();
@@ -1119,7 +1143,7 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
 
 Object.defineProperty(Playlist.prototype, "length", {
     get: function() {
-        return this._trackList.length;
+        return this._trackViews.length;
     },
     configurable: false
 });

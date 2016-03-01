@@ -8,7 +8,7 @@ const EventEmitter = require("lib/events");
 
 const DRAG_START_DELAY_MS = 300;
 
-function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
+function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._mustMatchSelector = opts.mustMatchSelector || null;
@@ -16,22 +16,22 @@ function DraggableSelection(dom, playlist, fixedItemListScroller, opts) {
     this._fixedItemListScroller = fixedItemListScroller;
     this._domNode = $(dom);
     this._selection = null;
-    this._playlist = playlist;
+    this._viewList = viewList;
     this._previousRawY = -1;
-    this._currentReferenceTrack = -1;
+    this._currentReferenceItemView = -1;
     this._dragStartDelayId = -1;
     this._holdingStartedY = -1;
     this._draggableDirections = {down: false, up: false};
     this._startDragFromTimeout = this._startDragFromTimeout.bind(this);
     this._onMovement = this._onMovement.bind(this);
     this._onMouseRelease = this._onMouseRelease.bind(this);
-    this._onTrackMouseDown = this._onTrackMouseDown.bind(this);
+    this._onItemViewMouseDown = this._onItemViewMouseDown.bind(this);
     this._onReLayout = this._onReLayout.bind(this);
     this._restart = this._restart.bind(this);
     this._onTouchmove = this._onTouchmove.bind(this);
     this._onTouchend = this._onTouchend.bind(this);
     this._touchDragHandler = domUtil.modifierDragHandler(this._onTouchmove, this._onTouchend);
-    this._onTrackMouseDownTouch = domUtil.modifierTouchDownHandler(this._onTrackMouseDown);
+    this._onItemViewMouseDownTouch = domUtil.modifierTouchDownHandler(this._onItemViewMouseDown);
     this._isDragging = false;
     this._dragStartFired = false;
     this._scroll = this._scroll.bind(this);
@@ -45,10 +45,10 @@ DraggableSelection.prototype.recentlyStoppedDragging = function() {
 };
 
 DraggableSelection.prototype.bindEvents = function() {
-    this.$().on("mousedown", this._onTrackMouseDown);
+    this.$().on("mousedown", this._onItemViewMouseDown);
 
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onTrackMouseDownTouch);
+        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onItemViewMouseDownTouch);
     }
     this.$().on("selectstart", function(e) {e.preventDefault();});
 };
@@ -102,7 +102,7 @@ DraggableSelection.prototype.$ = function() {
 };
 
 DraggableSelection.prototype._onReLayout = function() {
-    this._currentReferenceTrack = this._fixedItemListScroller.indexByYCoordinate(this._previousRawY);
+    this._currentReferenceItemView = this._fixedItemListScroller.indexByYCoordinate(this._previousRawY);
 };
 
 DraggableSelection.prototype._onTouchmove = function(e) {
@@ -126,11 +126,11 @@ DraggableSelection.prototype._onMouseRelease = function(e) {
     if (touch) {
         $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
-    this._playlist.removeListener("tracksSelected", this._restart);
-    this._playlist.removeListener("lengthChange", this._restart);
-    this._playlist.removeListener("trackOrderChange", this._restart);
+    this._viewList.removeListener("tracksSelected", this._restart);
+    this._viewList.removeListener("lengthChange", this._restart);
+    this._viewList.removeListener("trackOrderChange", this._restart);
     $(window).off("relayout", this._onReLayout);
-    this._holdingStartedY = this._currentReferenceTrack = this._previousRawY = -1;
+    this._holdingStartedY = this._currentReferenceItemView = this._previousRawY = -1;
     this._clearScrollInterval();
     if (dragStartWasFired) {
         for (var i = 0; i < this._selection.length; ++i) {
@@ -179,22 +179,22 @@ DraggableSelection.prototype._onMovement = function(e) {
 
     var y = this._fixedItemListScroller.mapYCoordinate(clientY);
     var selection = this._selection;
-    var tracks = this._playlist.getTracks();
-    var referenceY = this._currentReferenceTrack * itemHeight;
+    var itemViews = this._viewList.getTrackViews();
+    var referenceY = this._currentReferenceItemView * itemHeight;
 
     var changed = false;
     if (y < referenceY && this._draggableDirections.up) {
         var distance = Math.floor((referenceY - y) / itemHeight) + 1;
-        this._currentReferenceTrack = Math.max(0, this._currentReferenceTrack - distance);
-        Selectable.moveSelectedTracksUpBy(tracks, selection, distance);
+        this._currentReferenceItemView = Math.max(0, this._currentReferenceItemView - distance);
+        Selectable.moveSelectedItemViewsUpBy(itemViews, selection, distance);
         changed = true;
-        referenceY = this._currentReferenceTrack * itemHeight;
+        referenceY = this._currentReferenceItemView * itemHeight;
     } else if (y > (referenceY + itemHeight) && this._draggableDirections.down) {
         var distance = Math.floor((y - (referenceY + itemHeight)) / itemHeight) + 1;
-        this._currentReferenceTrack = Math.min(this._playlist.length - 1, this._currentReferenceTrack + distance);
-        Selectable.moveSelectedTracksDownBy(tracks, selection, distance);
+        this._currentReferenceItemView = Math.min(this._viewList.length - 1, this._currentReferenceItemView + distance);
+        Selectable.moveSelectedItemViewsDownBy(itemViews, selection, distance);
         changed = true;
-        referenceY = this._currentReferenceTrack * itemHeight;
+        referenceY = this._currentReferenceItemView * itemHeight;
     }
 
     for (var i = 0; i < selection.length; ++i) {
@@ -203,20 +203,20 @@ DraggableSelection.prototype._onMovement = function(e) {
 
     if (changed) {
         this._determineDraggableDirections(selection);
-        this._playlist.trackIndexChanged();
+        this._viewList.trackIndexChanged();
     }
 };
 
 DraggableSelection.prototype._restart = function() {
     var oldSelection = this._selection.slice();
-    this._selection = this._playlist.getSelection();
+    this._selection = this._viewList.getSelection();
 
     if (this._dragStartFired) {
         for (var i = 0; i < oldSelection.length; ++i) {
-            var track = oldSelection[i];
+            var itemView = oldSelection[i];
 
-            if (!this._playlist._selectable.contains(track)) {
-                track.stopDragging();
+            if (!this._viewList._selectable.contains(itemView)) {
+                itemView.stopDragging();
             }
         }
 
@@ -235,14 +235,14 @@ DraggableSelection.prototype._restart = function() {
 
 DraggableSelection.prototype._determineDraggableDirections = function(selection) {
     if (selection.length > 0) {
-        this._draggableDirections.down = selection[selection.length - 1].getIndex() < this._playlist.length - 1;
+        this._draggableDirections.down = selection[selection.length - 1].getIndex() < this._viewList.length - 1;
         this._draggableDirections.up = selection[0].getIndex() > 0;
     } else {
         this._draggableDirections.down = this._draggableDirections.up = false;
     }
 };
 
-DraggableSelection.prototype._onTrackMouseDown = function(e) {
+DraggableSelection.prototype._onItemViewMouseDown = function(e) {
     if (this._isDragging) {
         return;
     }
@@ -256,17 +256,17 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
         return;
     }
 
-    if (!this._playlist.getSelectedTrackCount()) {
+    if (!this._viewList.getSelectedItemViewCount()) {
         return;
     }
 
     if (domUtil.isTouchEvent(e) &&
-        (!this._playlist.selectionContainsAnyTracksBetween(e.clientY, e.clientY) ||
+        (!this._viewList.selectionContainsAnyItemViewsBetween(e.clientY, e.clientY) ||
         e.isFirst === false)) {
         return;
     }
 
-    var selection = this._playlist.getSelection();
+    var selection = this._viewList.getSelection();
     this._determineDraggableDirections(selection);
     this._selection = selection;
 
@@ -285,9 +285,9 @@ DraggableSelection.prototype._onTrackMouseDown = function(e) {
     }
 
     $(window).on("relayout", this._onReLayout);
-    this._playlist.on("tracksSelected", this._restart);
-    this._playlist.on("lengthChange", this._restart);
-    this._playlist.on("trackOrderChange", this._restart);
+    this._viewList.on("tracksSelected", this._restart);
+    this._viewList.on("lengthChange", this._restart);
+    this._viewList.on("trackOrderChange", this._restart);
 };
 
 module.exports = DraggableSelection;

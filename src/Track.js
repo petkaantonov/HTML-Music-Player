@@ -5,22 +5,13 @@ const PlayerPictureManager = require("ui/PlayerPictureManager");
 const EventEmitter = require("lib/events");
 const util = require("lib/util");
 const TagData = require("TagData");
-const Tooltip = require("ui/Tooltip");
 const sha1 = require("lib/sha1");
 const Promise = require("lib/bluebird");
 const domUtil = require("lib/DomUtil");
 
-const ANALYSIS_TOOLTIP_MESSAGE =
-"<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
-"<p>Playing this track before the analysis has been completed may require manually adjusting volume.</p>";
-
-const ERROR_HEADER = "<p>There was an error with this track:</p>";
-
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
 Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
-
-const NULL = $(null);
 
 function Track(audioFile) {
     EventEmitter.call(this);
@@ -28,86 +19,12 @@ function Track(audioFile) {
     this.tagData = null;
     this.index = -1;
     this._error = null;
-    this._domNode = NULL;
     this._searchString = null;
-    this._isAttached = false;
     this._lastPlayed = 0;
-
     this._generatedImage = null;
-
-    this._errorTooltip = null;
-    // Todo extract to a class.
-    this._analysisTooltip = null;
     this._isBeingAnalyzed = false;
-    this._analysisCompletionEstimate = -1;
-
-    this._dragged = false;
-    this._offset = 0;
 }
 util.inherits(Track, EventEmitter);
-
-Track.prototype._ensureDomNode = function() {
-    if (this._domNode !== NULL) return;
-    var selectable = playlist.main.getSelectable();
-    var self = this;
-    this._domNode = $("<div>", {
-        class: "track-container"
-    }).html("<div class='track'>                                                                      \
-        <div class='track-status'>                                                                    \
-            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                     \
-        </div>                                                                                        \
-        <div class='track-number'></div>                                                              \
-        <div class='track-info'>                                                                      \
-            <div class='track-title notextflow'></div>                                                \
-            <div class='track-artist notextflow'></div>                                               \
-        </div>                                                                                        \
-        <div class='track-duration'></div>                                                            \
-        <div class='track-availability'>                                                              \
-            <div class='track-availability-item offline'>                                             \
-                <span class='material-icons icon offline_pin'></span>                                 \
-                <div class='text'>Offline</div>                                                       \
-            </div>                                                                                    \
-            <div class='track-availability-item cloud'>                                               \
-                <span class='material-icons icon cloud_upload'></span>                                \
-                <div class='text'>Sync</div>                                                          \
-            </div>                                                                                    \
-        </div>                                                                                        \
-    </div>");
-
-    this.setTrackDuration();
-    this.setTrackInfo();
-
-    if (selectable.contains(this)) {
-        this.selected();
-    }
-
-    if (this._dragged) {
-        this.$().addClass("track-dragging");
-    }
-
-    if (this.isAvailableOffline()) {
-        this.$().find(".offline").addClass("active");
-    }
-
-    if (this.isSyncedToCloud()) {
-        this.$().find(".cloud").addClass("active");
-    }
-
-    if (playlist.main.getCurrentTrack() === this) {
-        this.startPlaying();
-    }
-
-    this.indexChanged();
-
-    if (this._isBeingAnalyzed) {
-        this.showAnalysisStatus();
-        this.updateAnalysisEstimate();
-    }
-
-    if (this._error) {
-        this.showErrorStatus();
-    }
-};
 
 Track.prototype.getTrackInfo = function() {
     var artist, title;
@@ -134,41 +51,6 @@ Track.prototype.isSyncedToCloud = function() {
     return false;
 };
 
-Track.prototype.setTrackInfo = function() {
-    var artistAndTitle = this.getTrackInfo();
-
-    this.$().find(".track-title").text(artistAndTitle.title);
-    this.$().find(".track-artist").text(artistAndTitle.artist);
-};
-
-Track.prototype.setTrackNumber = function() {
-    this.$trackNumber().text((this.getIndex() + 1) + ".");
-};
-
-Track.prototype.setTrackDuration = function() {
-    this.$trackDuration().text(this.formatTime());
-};
-
-Track.prototype.$ = function() {
-    return this._domNode;
-};
-
-Track.prototype.$container = function() {
-    return this.$().find(".track");
-};
-
-Track.prototype.$trackStatus = function() {
-    return this.$().find(".track-status");
-};
-
-Track.prototype.$trackNumber = function() {
-    return this.$().find(".track-number");
-};
-
-Track.prototype.$trackDuration = function() {
-    return this.$().find(".track-duration");
-};
-
 Track.prototype.getTrackGain = function() {
     if (!this.tagData) return 0;
     return this.tagData.getTrackGain();
@@ -189,82 +71,46 @@ Track.prototype.getAlbumPeak = function() {
     return this.tagData.getAlbumPeak();
 };
 
-Track.prototype.isVisible = function() {
-    return this._isAttached;
-};
-
 Track.prototype.willBeReplaced = function() {
     if (this._generatedImage) {
-        URL.revokeObjectURL(this._generatedImage.src);
+        try {
+            URL.revokeObjectURL(this._generatedImage.src);
+        } catch (e) {}
         this._generatedImage = null;
     }
 };
 
-Track.prototype.destroyTooltips = function() {
-    if (this._analysisTooltip) {
-        this._analysisTooltip.destroy();
-        this._analysisTooltip = null;
-    }
-
-    if (this._errorTooltip) {
-        this._errorTooltip.destroy();
-        this._errorTooltip = null;
-    }
-};
-
 Track.prototype.stageRemoval = function() {
-    this.detach();
-    this.setIndex(-1);
     this.unsetAnalysisStatus();
     this.unsetError();
-    this.$().remove();
-    this._domNode = NULL;
+    this.setIndex(-1);
+    this.emit("viewUpdate", "viewUpdateDestroyed");
     this.emit("destroy", this);
 };
 
-Track.prototype.unstageRemoval = function() {
-    this._ensureDomNode();
-};
+Track.prototype.destroy = function() {
+    this.unsetAnalysisStatus();
+    this.unsetError();
+    this.setIndex(-1);
+    this.emit("viewUpdate", "viewUpdateDestroyed");
+    this.emit("destroy", this);
 
-Track.prototype.remove = function() {
-    this.index = -1;
-    this._isAttached = false;
-    this.destroyTooltips();
+    if (this._generatedImage) {
+        URL.revokeObjectURL(this._generatedImage.src);
+        this._generatedImage = null;
+    }
 
     if (this.tagData) {
         this.tagData.destroy();
         this.tagData = null;
     }
 
-    if (this._generatedImage) {
-        URL.revokeObjectURL(this._generatedImage.src);
-        this._generatedImage = null;
+    if (this.file) {
+        this.file.close();
+        this.file = null;
     }
 
-    this.$().remove();
-    this._domNode = NULL;
-    this.emit("destroy", this);
     this.removeAllListeners();
-};
-
-Track.prototype.attach = function(target) {
-    this._ensureDomNode();
-    this._isAttached = true;
-    this.$().appendTo(target);
-};
-
-Track.prototype.detach = function() {
-    if (this._isAttached) {
-        this.$().detach();
-        this._isAttached = false;
-        if (this._analysisTooltip) {
-            this._analysisTooltip.hide();
-        }
-
-        if (this._errorTooltip) {
-            this._errorTooltip.hide();
-        }
-    }
 };
 
 Track.prototype.getImage = Promise.method(function() {
@@ -316,134 +162,48 @@ Track.prototype.getIndex = function() {
 Track.prototype.setIndex = function(index) {
     if (this.index === index) return;
     this.index = index;
-    this.indexChanged();
-    this.emit("indexChange", this.index);
-};
-
-Track.prototype.indexChanged = function() {
-    var index = this.index;
-    if (index >= 0 && this._domNode !== NULL) {
-        this.$().removeClass("transition");
-        this.setTrackNumber();
-        this._updateTranslate();
-    }
-};
-
-Track.prototype.doubleClicked = function() {
-    playlist.main.changeTrackExplicitly(this);
-};
-
-Track.prototype.selected = function() {
-    this.$().addClass("track-active");
-};
-
-Track.prototype.unselected = function() {
-    this.$().removeClass("track-active");
+    this.emit("viewUpdate", "viewUpdatePositionChange");
+    this.emit("indexChange");
 };
 
 Track.prototype.stopPlaying = function() {
-    this.$().removeClass("track-playing");
+    this.emit("viewUpdate", "viewUpdatePlayingStatusChange", false);
 };
 
 Track.prototype.startPlaying = function() {
-    this.$().addClass("track-playing");
+    this.emit("viewUpdate", "viewUpdatePlayingStatusChange", true);
 };
 
 Track.prototype.analysisEstimate = function(analysisEstimate) {
-    this._analysisCompletionEstimate = analysisEstimate + Date.now();
-    if (this._domNode !== NULL) {
-        this.updateAnalysisEstimate();
-    }
-};
-
-Track.prototype.updateAnalysisEstimate = function() {
-    if (this._analysisCompletionEstimate === -1) return;
-    var transitionDuration = this._analysisCompletionEstimate - Date.now();
-    if (transitionDuration < 0) return;
-    this.$().addClass("track-container-progress");
-    var bar = $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
-
-    bar.css({
-        "transitionDuration": (transitionDuration / 1000) + "s"
-    });
-    bar.width();
-    requestAnimationFrame(function() {
-        domUtil.setTransform(bar[0], "translateX(0)");
-    });
+    this.emit("viewUpdate", "viewUpdateAnalysisEstimate", analysisEstimate);
 };
 
 Track.prototype.unsetAnalysisStatus = function() {
     this._isBeingAnalyzed = false;
-    this._analysisCompletionEstimate = -1;
-
-    if (this._analysisTooltip) {
-        this._analysisTooltip.destroy();
-        this._analysisTooltip = null;
-        this.$().removeClass("track-container-progress");
-        this.$().find(".track-progress-bar").remove();
-        this.$trackStatus().find(".track-analysis-status").remove();
-        this.$trackStatus().removeClass("unclickable");
-    }
+    this.emit("viewUpdate", "viewUpdateHideAnalysisStatus");
 };
 
-Track.prototype.showAnalysisStatus = function() {
-    if (this._domNode === NULL) return;
-
-    this.$trackStatus().append("<span " +
-        "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
-        "></span>");
-
-    this._analysisTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "top",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus(),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ANALYSIS_TOOLTIP_MESSAGE
-    });
-    this.$trackStatus().addClass("unclickable");
+Track.prototype.isBeingAnalyzed = function() {
+    return this._isBeingAnalyzed;
 };
 
-Track.prototype.showErrorStatus = function() {
-    if (this._domNode === NULL) return;
-
-    this.$trackStatus().append("<span " +
-        "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
-        "></span>");
-
-    this._errorTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "top",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus(),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ERROR_HEADER + this._error
-    });
-    this.$trackStatus().addClass("unclickable");
+Track.prototype.setAnalysisStatus = function() {
+    this._isBeingAnalyzed = true;
+    this.emit("viewUpdate", "viewUpdateShowAnalysisStatus");
 };
 
 Track.prototype.unsetError = function() {
     this._error = null;
-
-    if (this._errorTooltip) {
-        this._errorTooltip.destroy();
-        this._errorTooltip = null;
-        this.$trackStatus().find(".track-error-status").remove();
-        this.$trackStatus().removeClass("unclickable");
-    }
+    this.emit("viewUpdate", "viewUpdateHideErrorStatus");
 };
 
 Track.prototype.setError = function(message) {
-    if (this._error && this._domNode !== NULL) {
-        this._errorTooltip.destroy();
-        this.$trackStatus().find(".track-error-status").remove();
+    if (this._error) {
+        this._error = null;
+        this.emit("viewUpdate", "viewUpdateHideErrorStatus");
     }
     this._error = message;
-    this.showErrorStatus();
+    this.emit("viewUpdate", "viewUpdateShowErrorStatus");
 };
 
 Track.prototype.hasError = function() {
@@ -542,9 +302,8 @@ Track.prototype.isRated = function() {
 };
 
 Track.prototype.tagDataUpdated = function() {
-    this.setTrackDuration();
-    this.setTrackInfo();
     this.emit("tagDataUpdate", this);
+    this.emit("viewUpdate", "viewUpdateTagDataChange");
 };
 
 Track.prototype.getUid = function() {
@@ -559,57 +318,6 @@ Track.prototype.getUid = function() {
     } else {
         throw new Error("cannot get uid before having tagData");
     }
-};
-
-Track.prototype._updateTranslate = function() {
-    domUtil.setTransform(this.$()[0], this._getTranslate());
-};
-
-Track.prototype._getTranslate = function() {
-    var index = this.index;
-    var y = index * playlist.main.getItemHeight();
-    var x = 0;
-    if (this._dragged) {
-        x -= 25;
-        y -= 10;
-    }
-    y += this._offset;
-    return "translate("+x+"px, "+y+"px)";
-};
-
-Track.prototype.setOffset = function(value) {
-    this._offset = value;
-    if (this._domNode !== NULL) {
-        this._updateTranslate();
-    }
-};
-
-Track.prototype.startDragging = function() {
-    if (this._dragged) return;
-    this._dragged = true;
-    if (this._domNode !== NULL) {
-        this.$().addClass("track-dragging").removeClass("transition");
-        this._updateTranslate();
-    }
-};
-
-Track.prototype.stopDragging = function() {
-    if (!this._dragged) return;
-    this._dragged = false;
-    this._offset = 0;
-    if (this._domNode !== NULL) {
-        this.$().removeClass("track-dragging").addClass("transition");
-        this._updateTranslate();
-    }
-};
-
-Track.prototype.isBeingAnalyzed = function() {
-    return this._isBeingAnalyzed;
-};
-
-Track.prototype.setAnalysisStatus = function() {
-    this._isBeingAnalyzed = true;
-    this.showAnalysisStatus();
 };
 
 Track.prototype.getSilenceAdjustedDuration = function(duration) {

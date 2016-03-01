@@ -269,7 +269,7 @@ trackContextMenu.on("beforeOpen", function(e) {
 });
 
 playlist.main.on("tracksSelected", function(selectable) {
-    var selectedItemsCount = selectable.getSelectedItemCount();
+    var selectedItemsCount = selectable.getSelectedItemViewCount();
     $("#app-selection-count").text(util.shortNumber(selectedItemsCount));
 
     var actionsToDisable = [];
@@ -286,18 +286,18 @@ playlist.main.on("tracksSelected", function(selectable) {
     }
 
     if (selectedItemsCount === 1) {
-        trackRating.enable(selectable.first());
+        trackRating.enable(selectable.first().track());
     } else {
         trackRating.disable();
     }
 
-    if (playlist.main.getSelectedTrackCount() === 0) {
+    if (playlist.main.getSelectedItemViewCount() === 0) {
         actionsToDisable.push("clear-selection");
     } else {
         actionsToEnable.push("clear-selection");
     }
 
-    if (playlist.main.length === playlist.main.getSelectedTrackCount()) {
+    if (playlist.main.length === playlist.main.getSelectedItemViewCount()) {
         actionsToDisable.push("select-all");
     } else {
         actionsToEnable.push("select-all");
@@ -313,7 +313,7 @@ playlist.main.on("lengthChange", function(newLength) {
     var actionsToEnable = [];
 
     if (haveTracks) {
-        if (newLength === playlist.main.getSelectedTrackCount()) {
+        if (newLength === playlist.main.getSelectedItemViewCount()) {
             actionsToDisable.push("select-all");
         } else {
             actionsToEnable.push("select-all");
@@ -594,9 +594,9 @@ player.main.on("newTrackLoad", function() {
 });
 
 KeyboardShortcuts.defaultContext.addShortcut("z", player.methodPlay);
-KeyboardShortcuts.defaultContext.addShortcut("x", player.methodPause);
-KeyboardShortcuts.defaultContext.addShortcut("mod+ArrowRight", player.methodNext);
-KeyboardShortcuts.defaultContext.addShortcut("mod+ArrowLeft", player.methodPrev);
+KeyboardShortcuts.defaultContext.addShortcut(["x", "MediaStop"], player.methodPause);
+KeyboardShortcuts.defaultContext.addShortcut(["mod+ArrowRight", "MediaTrackNext"], player.methodNext);
+KeyboardShortcuts.defaultContext.addShortcut(["mod+ArrowLeft", "MediaTrackPrevious"], player.methodPrev);
 KeyboardShortcuts.defaultContext.addShortcut("b", function() {
     playlist.main.tryChangeMode("normal");
 });
@@ -642,16 +642,16 @@ KeyboardShortcuts.defaultContext.addShortcut("ArrowRight", function(e) {
     }
 });
 
-KeyboardShortcuts.defaultContext.addShortcut("-", function() {
+KeyboardShortcuts.defaultContext.addShortcut(["-", "VolumeDown"], function() {
     player.main.setVolume(player.main.getVolume() - 0.01);
 });
-KeyboardShortcuts.defaultContext.addShortcut("+", function() {
+KeyboardShortcuts.defaultContext.addShortcut(["+", "VolumeUp"], function() {
     player.main.setVolume(player.main.getVolume() + 0.01);
 });
-KeyboardShortcuts.defaultContext.addShortcut("Spacebar", function() {
+KeyboardShortcuts.defaultContext.addShortcut(["Spacebar", "MediaPlayPause"], function() {
     player.main.togglePlayback();
 });
-KeyboardShortcuts.defaultContext.addShortcut("alt+mod+m", function() {
+KeyboardShortcuts.defaultContext.addShortcut(["VolumeMute", "alt+mod+m"], function() {
     player.main.toggleMute();
 });
 KeyboardShortcuts.defaultContext.addShortcut("alt+t", function() {
