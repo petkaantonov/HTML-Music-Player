@@ -139,11 +139,14 @@ DraggableSelection.prototype._onMouseRelease = function(e) {
     }
     this._selection = null;
     this.emit("dragEnd");
-    var self = this;
-    this._justStoppedDragging = true;
-    this._dragStartDelayId = setTimeout(function() {
-        self._justStoppedDragging = false;
-    }, 13);
+
+    if (dragStartWasFired) {
+        var self = this;
+        this._justStoppedDragging = true;
+        this._dragStartDelayId = setTimeout(function() {
+            self._justStoppedDragging = false;
+        }, 13);
+    }
 };
 
 DraggableSelection.prototype._fireDragStart = function() {

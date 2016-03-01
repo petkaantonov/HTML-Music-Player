@@ -54,6 +54,7 @@
 
         &.shown {
             display: block;
+            will-change: transform;
             &.transition-in {
                 @include scale-gpu(1, 1);
             }
