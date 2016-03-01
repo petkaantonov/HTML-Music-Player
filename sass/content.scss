@@ -62,17 +62,11 @@ $tab-height: 32px;
         }
 
         @include calc(width, "100% / 3");
-        @include large-screen {
-            width: 190px;
-        }
     }
 
     .active-tab-indicator {
         background-color: $secondary-color;
         @include calc(width, "100% / 3");
-        @include large-screen {
-            width: 190px;
-        }
         height: 2px;
         position: absolute;
         bottom: 0px;
