@@ -20,10 +20,6 @@ const simulateTick = require("lib/patchtimers");
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
-const DESKTOP_LATENCY = 0.01;
-const NEW_ANDROID_LATENCY = 0.028; // Android version >= 5.0
-const OLD_ANDROID_LATENCY = 0.125; // Android version < 5.0
-
 const AUDIO_PLAYER_WORKER_SRC = window.DEBUGGING
     ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
 
@@ -131,8 +127,6 @@ function AudioPlayer(audioContext, suspensionTimeout) {
         }.bind(this);
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
-
-    this._determineHardwareLatency();
 }
 util.inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
@@ -257,28 +251,6 @@ const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
     return env.isMobile() ? LOWEST : DESKTOP;
-};
-
-AudioPlayer.prototype._determineHardwareLatency = function() {
-    var ua = $.ua;
-    if (ua.os && ua.os.name === "Android") {
-        var version = ua.os.version.split(".");
-        if (version.length === 3) {
-            var major = parseInt(version[0], 10);
-            if (major >= 2 && major <= 4) {
-                this._hardwareLatency = OLD_ANDROID_LATENCY;
-            } else if (major >= 5 && major < 9) {
-                this._hardwareLatency = NEW_ANDROID_LATENCY;
-            } else {
-                this._hardwareLatency = OLD_ANDROID_LATENCY;
-            }
-        } else {
-            this._hardwareLatency = OLD_ANDROID_LATENCY;
-        }
-    } else {
-        this._hardwareLatency = DESKTOP_LATENCY;
-    }
-    this._hardwareLatency = Math.min(this.getMaxLatency(), this._hardwareLatency);
 };
 
 AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
