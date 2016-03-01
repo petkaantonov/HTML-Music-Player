@@ -4,7 +4,6 @@ const EventEmitter = require("lib/events");
 const util = require("lib/util");
 const GlobalUi = require("ui/GlobalUi");
 const keyValueDatabase = require("KeyValueDatabase");
-const hotkeyManager = require("ui/HotkeyManager");
 const Slider = require("ui/Slider");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
@@ -489,10 +488,3 @@ $(".menul-effects").click(openEditor);
 if (touch) {
     $(".menul-effects").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
 }
-
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Open effects",
-    description: "Opens the effects customization popup.",
-    handler: openEditor
-});

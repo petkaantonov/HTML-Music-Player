@@ -79,7 +79,6 @@ $("#app-container").show();
 
 const util = require("lib/util");
 const serviceWorkerManager = require("ServiceWorkerManager");
-const hotkeyManager = require("ui/HotkeyManager");
 const TrackDisplay = require("ui/TrackDisplay");
 const Player = require("Player");
 const Playlist = require("Playlist");
@@ -100,6 +99,7 @@ const gestureScreenFlasher = require("ui/GestureScreenFlasher");
 const TrackRating = require("TrackRating");
 const Track = require("Track");
 const OpenableSubmenu = require("ui/OpenableSubmenu");
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 
@@ -469,7 +469,7 @@ var toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-ope
     openerActiveClass: "toolbar-item-active"
 });
 
-if (false && window.DEBUGGING) {
+if (!false && window.DEBUGGING) {
     const FAKE_TRACK_COUNT = 8;
     const id3v1String = function(value) {
         var ret = new Uint8Array(30);
@@ -578,380 +578,12 @@ $(document)
         }
     });
 
-GlobalUi.setHotkeyManager(hotkeyManager);
-
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Open directory picker",
-    description: "Open a directory picker to pick a directory to load audio files from.",
-    handler: function() {
-        $(".menul-folder").click();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Open file picker",
-    description: "Open a file picker to pick a directory to load audio files from.",
-    handler: function() {
-        $(".menul-files").click();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Play selected",
-    description: "Starts playing the selected track. If multiple tracks are selected, the first track of the selection is played.",
-    handler: actions.play
-});
-
-// Arrow up and arrow down selection stuff.
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select next up",
-    description: "Select the next track up.",
-    handler: function() {
-        playlist.main.selectPrev();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select next down",
-    description: "Select the next track down.",
-    handler: function() {
-        playlist.main.selectNext();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add next up",
-    description: "Add the next track up to selection.",
-    handler: function() {
-        playlist.main.selectPrevAppend();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add next down",
-    description: "Add next track down to selection.",
-    handler: function() {
-        playlist.main.selectNextAppend();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove topmost",
-    description: "Remove the topmost track from selection",
-    handler: function() {
-        playlist.main.removeTopmostSelection();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove bottommost",
-    description: "Remove the bottommost track from selection",
-    handler: function() {
-        playlist.main.removeBottommostSelection();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Move up",
-    description: "Move selected tracks up.",
-    handler: function() {
-        playlist.main.moveSelectionUp();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Move down",
-    description: "Move selected tracks down.",
-    handler: function() {
-        playlist.main.moveSelectionDown();
-    }
-});
-
-// Page up and page down selection stuff.
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select next page up",
-    description: "Select the track next page up. Can be used to move around a long playlist quickly.",
-    handler: function() {
-        playlist.main.selectPagePrev();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select next page down",
-    description: "Select the track next page down. Can be used to move around a long playlist quickly.",
-    handler: function() {
-        playlist.main.selectPageNext();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add next page up",
-    description: "Add all tracks next page up to selection.",
-    handler: function() {
-        playlist.main.selectPagePrevAppend();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add next page down",
-    description: "Add all tracks next page down to selection.",
-    handler: function() {
-        playlist.main.selectPageNextAppend();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove topmost page",
-    description: "Remove the topmost pageful of tracks from selection",
-    handler: function() {
-        playlist.main.removeTopmostPageSelection();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove bottommost page",
-    description: "Remove the bottommost pageful of tracks from selection",
-    handler: function() {
-        playlist.main.removeBottommostPageSelection();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Move page up",
-    description: "Move selected tracks up by a page.",
-    handler: function() {
-        playlist.main.moveSelectionPageUp();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Move page down",
-    description: "Move selected tracks down by a page.",
-    handler: function() {
-        playlist.main.moveSelectionPageDown();
-    }
-});
-
-// Home and End selection stuff.
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select first",
-    description: "Select first track in the playlist.",
-    handler: function() {
-        playlist.main.selectFirst();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select last",
-    description: "Select last track in the playlist.",
-    handler: function() {
-        playlist.main.selectLast();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add all up",
-    description: "Add all tracks up to selection",
-    handler: function() {
-        playlist.main.selectAllUp();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Add all down",
-    description: "Add all tracks down to selection",
-    handler: function() {
-        playlist.main.selectAllDown();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove",
-    description: "Delete the currently selected tracks from the playlist.",
-    handler: actions.delete
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Sort by album",
-    description: "Sorts the selected tracks by their album's name in alphabetical order.",
-    handler: actions.sortByAlbum
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Sort by artist",
-    description: "Sorts the selected tracks by their artist's name in alphabetical order.",
-    handler: actions.sortByArtist
-});
-
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Sort by title",
-    description: "Sorts the selected tracks by their titles's name in alphabetical order.",
-    handler: actions.sortByTitle
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Select all",
-    description: "Selects all tracks in the playlist.",
-    handler: actions.selectAll
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Toggle pause",
-    description: "Toggle pause.",
-    handler: function() {
-        player.main.togglePlayback();
-    }
-});
-
-[1, 2, 3, 4, 5].forEach(function(ratingValue) {
-    var starWord = ratingValue + " " + (ratingValue === 1 ? "star" : "stars");
-    hotkeyManager.addDescriptor({
-        category: "Playlist management",
-        action: "Rate " + starWord,
-        description: "Give a rating of " + starWord + " to the currently selected track.",
-        handler: function() {
-            var track = playlist.main.getSelection().first();
-            if (track) track.rate(ratingValue);
-        }
-    });
-});
-
-hotkeyManager.addDescriptor({
-    category: "Playlist management",
-    action: "Remove rating",
-    description: "Remove the currently selected track's rating.",
-    handler: function() {
-        var track = playlist.main.getSelection().first();
-        if (track) track.rate(-1);
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Volume up",
-    description: "Increases volume by 1%.",
-    handler: function() {
-        player.main.setVolume(player.main.getVolume() + 0.01);
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Volume down",
-    description: "Decreases volume by 1%.",
-    handler: function() {
-        player.main.setVolume(player.main.getVolume() - 0.01);
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Toggle mute",
-    description: "Toggles mute.",
-    handler: function() {
-        player.main.toggleMute();
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Previous track",
-    description: "Jumps to the previous track or, if no previous track is available, to the first track in the current playlist.",
-    handler: player.methodPrev
-});
-
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Next track",
-    description: "Jumps to the next track.",
-    handler: player.methodNext
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Play",
-    description: "Start playback.",
-    handler: player.methodPlay
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Pause",
-    description: "Pauses playback.",
-    handler: player.methodPause
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Stop",
-    description: "Stops playback.",
-    handler: player.methodStop
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Normal mode",
-    description: "Activate normal mode. In normal mode tracks are played consecutively in the order they appear on the playlist as a track finishes.",
-    handler: function() {
-        playlist.main.tryChangeMode("normal");
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Shuffle mode",
-    description: "Activate shuffle mode. In shuffle mode the next track is randomly chosen from the playlist, preferring those tracks that haven't been played recently.",
-    handler: function() {
-        playlist.main.tryChangeMode("shuffle");
-    }
-});
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Repeat mode",
-    description: "Activate repeat mode. In repeat mode the next track picked is always the same track that just finished.",
-    handler: function() {
-        playlist.main.tryChangeMode("repeat");
-    }
-});
 
 
 var seekHotkey;
 var seekValueToCommit = -1;
 var commitSeek = function(e) {
-    if (e.which !== seekHotkey) return;
+    if (e.key !== seekHotkey) return;
     util.offCapture(document, "keyup", commitSeek);
     player.main.setProgress(seekValueToCommit);
     seekValueToCommit = -1;
@@ -961,63 +593,70 @@ player.main.on("newTrackLoad", function() {
     util.offCapture(document, "keyup", commitSeek);
 });
 
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Seek forward",
-    description: "Seeks forward by 1%.",
-    handler: function(e) {
-        util.offCapture(document, "keyup", commitSeek);
+KeyboardShortcuts.defaultContext.addShortcut("z", player.methodPlay);
+KeyboardShortcuts.defaultContext.addShortcut("x", player.methodPause);
+KeyboardShortcuts.defaultContext.addShortcut("mod+ArrowRight", player.methodNext);
+KeyboardShortcuts.defaultContext.addShortcut("mod+ArrowLeft", player.methodPrev);
+KeyboardShortcuts.defaultContext.addShortcut("b", function() {
+    playlist.main.tryChangeMode("normal");
+});
+KeyboardShortcuts.defaultContext.addShortcut("n", function() {
+    playlist.main.tryChangeMode("shuffle");
+});
+KeyboardShortcuts.defaultContext.addShortcut("m", function() {
+    playlist.main.tryChangeMode("repeat");
+});
+KeyboardShortcuts.defaultContext.addShortcut("ArrowLeft", function(e) {
+    util.offCapture(document, "keyup", commitSeek);
 
-        var p;
-        if (seekValueToCommit !== -1) {
-            p = seekValueToCommit;
-        } else {
-            p = player.main.getProgress();
-        }
+    var p;
+    if (seekValueToCommit !== -1) {
+        p = seekValueToCommit;
+    } else {
+        p = player.main.getProgress();
+    }
 
-        if (p !== -1) {
-            seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
-            seekHotkey = e.which;
-            util.onCapture(document, "keyup", commitSeek);
-            player.main.seekIntent(seekValueToCommit);
-        }
+    if (p !== -1) {
+        seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
+        seekHotkey = e.key;
+        util.onCapture(document, "keyup", commitSeek);
+        player.main.seekIntent(seekValueToCommit);
+    }
+
+});
+KeyboardShortcuts.defaultContext.addShortcut("ArrowRight", function(e) {
+    util.offCapture(document, "keyup", commitSeek);
+
+    var p;
+    if (seekValueToCommit !== -1) {
+        p = seekValueToCommit;
+    } else {
+        p = player.main.getProgress();
+    }
+
+    if (p !== -1) {
+        seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
+        seekHotkey = e.key;
+        util.onCapture(document, "keyup", commitSeek);
+        player.main.seekIntent(seekValueToCommit);
     }
 });
 
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Seek back",
-    description: "Seeks back by 1%.",
-    handler: function(e) {
-        util.offCapture(document, "keyup", commitSeek);
-
-        var p;
-        if (seekValueToCommit !== -1) {
-            p = seekValueToCommit;
-        } else {
-            p = player.main.getProgress();
-        }
-
-        if (p !== -1) {
-            seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
-            seekHotkey = e.which;
-            util.onCapture(document, "keyup", commitSeek);
-            player.main.seekIntent(seekValueToCommit);
-        }
-    }
+KeyboardShortcuts.defaultContext.addShortcut("-", function() {
+    player.main.setVolume(player.main.getVolume() - 0.01);
 });
-
-hotkeyManager.addDescriptor({
-    category: "Music player",
-    action: "Toggle time display mode",
-    description: "Toggle the time display mode between elapsed time and remaining time.",
-    handler: function() {
-        playerTimeManager.toggleDisplayMode();
-    }
+KeyboardShortcuts.defaultContext.addShortcut("+", function() {
+    player.main.setVolume(player.main.getVolume() + 0.01);
 });
-
-hotkeyManager.enableHotkeys();
-hotkeyManager.enablePersistentHotkeys();
+KeyboardShortcuts.defaultContext.addShortcut("Spacebar", function() {
+    player.main.togglePlayback();
+});
+KeyboardShortcuts.defaultContext.addShortcut("alt+mod+m", function() {
+    player.main.toggleMute();
+});
+KeyboardShortcuts.defaultContext.addShortcut("alt+t", function() {
+    playerTimeManager.toggleDisplayMode();
+});
 
 if (touch) {
     const toggleGesture = domUtil.twoFingerTapHandler(function() {
@@ -1047,8 +686,8 @@ if (touch) {
     };
 
     enableGestures();
-    hotkeyManager.on("disable", disableGestures);
-    hotkeyManager.on("enable", enableGestures);
+    KeyboardShortcuts.on("disable", disableGestures);
+    KeyboardShortcuts.on("enable", enableGestures);
 
     util.onCapture(document, domUtil.TOUCH_EVENTS, domUtil.tapHandler(function(e) {
         GlobalUi.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
@@ -1057,11 +696,15 @@ if (touch) {
 
 const rinput = /^(input|select|textarea|button)$/i;
 util.onCapture(document, "keydown", function(e) {
+    var key = e.key;
+    if (key === "Escape") {
+        $(window).trigger("clear");
+    }
+
     if (e.target === document.activeElement &&
         e.target.tabIndex >= 0 &&
         !rinput.test(e.target.nodeName)) {
-        var key = e.which || e.key || e.keyIdentifier || e.keyCode;
-        if (typeof key === "number") key = domUtil.whichToKey[key];
+
 
         if (key === "Spacebar" || key === "Enter") {
             var box = e.target.getBoundingClientRect();
@@ -1087,6 +730,7 @@ util.onCapture(document, "keydown", function(e) {
             e.target.blur();
         }
     }
+
 });
 
 $(window).trigger("resize");

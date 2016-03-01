@@ -5,7 +5,6 @@ const util = require("lib/util");
 const GlobalUi = require("ui/GlobalUi");
 const Popup = require("ui/Popup");
 const keyValueDatabase = require("KeyValueDatabase");
-const hotkeyManager = require("ui/HotkeyManager");
 const Slider = require("ui/Slider");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
@@ -301,13 +300,6 @@ $(".menul-crossfade").click(openPopup);
 if (touch) {
     $(".menul-crossfade").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openPopup));
 }
-
-hotkeyManager.addDescriptor({
-    category: "General actions",
-    action: "Open crossfading options",
-    description: "Opens the crossfading options popup.",
-    handler: openPopup
-});
 
 function FadeConfigurator(manager, domNode, config) {
     this._domNode = domNode;

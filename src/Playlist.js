@@ -12,6 +12,7 @@ const FixedItemListScroller = require("ui/FixedItemListScroller");
 const PLAYLIST_MODE_KEY = "playlist-mode";
 const GlobalUi = require("ui/GlobalUi");
 const Snackbar = require("ui/Snackbar");
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -156,9 +157,47 @@ function Playlist(domNode, opts) {
             if (!track) return;
             track.doubleClicked(e);
         }.bind(this)));
-
-
     }
+
+    var self = this;
+    this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
+    this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
+    this._keyboardShortcutContext.addShortcut("Enter", this.playPrioritySelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("Delete", this.removeSelected.bind(this));
+    this._keyboardShortcutContext.addShortcut("ArrowUp", this.selectPrev.bind(this));
+    this._keyboardShortcutContext.addShortcut("ArrowDown", this.selectNext.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+ArrowUp", this.selectPrevAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+ArrowDown", this.selectNextAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+ArrowDown", this.removeTopmostSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+ArrowUp", this.removeBottommostSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+ArrowUp", this.moveSelectionUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+ArrowDown", this.moveSelectionDown.bind(this));
+    this._keyboardShortcutContext.addShortcut("PageUp", this.selectPagePrev.bind(this));
+    this._keyboardShortcutContext.addShortcut("PageDown", this.selectPageNext.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+PageUp", this.selectPagePrevAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+PageDown", this.selectPageNextAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+PageDown", this.removeTopmostPageSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+PageUp", this.removeBottommostPageSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+PageUp", this.moveSelectionPageUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+PageDown", this.moveSelectionPageDown.bind(this));
+    this._keyboardShortcutContext.addShortcut("Home", this.selectFirst.bind(this));
+    this._keyboardShortcutContext.addShortcut("End", this.selectLast.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
+    this.tabShown();
+
+    [1, 2, 3, 4, 5].forEach(function(ratingValue) {
+        this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
+            var track = self._selectable.getPriorityTrack();
+            if (track) track.rate(ratingValue);
+        });
+    }, this);
+
+    this._keyboardShortcutContext.addShortcut("alt+0", function() {
+        var track = self._selectable.getPriorityTrack();
+        if (track) track.rate(-1);
+    });
+
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
     }
@@ -280,6 +319,12 @@ Playlist.prototype._listContentsChanged = function() {
         this.$().removeClass("has-scrollbar");
     }
 };
+
+Playlist.prototype.tabShown = function() {
+    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
+};
+
+Playlist.prototype.tabHidden = function() {};
 
 Playlist.prototype.$trackContainer = function() {
     return this._$trackContainer;
@@ -863,6 +908,14 @@ Playlist.prototype.moveSelectionDown = function() {
     if (this.length) {
         this._selectable.moveDown();
     }
+};
+
+Playlist.prototype.tracksVisibleInContainer = function() {
+    return this._fixedItemListScroller.itemsVisibleInContainer();
+};
+
+Playlist.prototype.halfOfTracksVisibleInContainer = function() {
+    return Math.ceil(this.tracksVisibleInContainer() / 2);
 };
 
 // Page up and page down selection stuff.

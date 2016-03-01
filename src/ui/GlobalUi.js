@@ -11,6 +11,7 @@ const features = require("features");
 const util = require("lib/util");
 const Rippler = require("ui/Rippler");
 const domUtil = require("lib/DomUtil");
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 
 const GlobalUi = module.exports;
 
@@ -113,11 +114,11 @@ GlobalUi.makePopup = function(title, body, opener, footerButtons) {
     });
 
     ret.on("open", function() {
-        hotkeyManager.disableHotkeys();
+        KeyboardShortcuts.disable();
     });
 
     ret.on("close", function() {
-        hotkeyManager.enableHotkeys();
+        KeyboardShortcuts.enable();
         keyValueDatabase.set(PREFERENCE_KEY, {
             screenPosition: ret.getScreenPosition(),
             scrollPosition: ret.getScrollPosition()
@@ -136,11 +137,6 @@ GlobalUi.makePopup = function(title, body, opener, footerButtons) {
 
     $(window).on("clear", ret.close.bind(ret));
     return ret;
-};
-
-var hotkeyManager;
-GlobalUi.setHotkeyManager = function(value) {
-    hotkeyManager = value;
 };
 
 GlobalUi.rippler = new Rippler();
