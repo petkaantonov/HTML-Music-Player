@@ -15,7 +15,7 @@ KeyboardShortcutContext.prototype.getHandlerFor = function(shortcut) {
 };
 
 const rinput = /^(?:textarea|input|select|button)$/i;
-const rshortcut = /^(?:(?:ctrl|alt|meta|shift|mod)\+)*(?:[a-zA-Z0-9\-\+]+)$/;
+const rshortcut = /^(?:(?:ctrl|alt|meta|shift|mod)\+)*(?: |\+|\-|[a-zA-Z0-9]+)$/;
 KeyboardShortcutContext.prototype.addShortcut = function(shortcut, handler, options) {
     if (Array.isArray(shortcut)) {
         return shortcut.forEach(function(shortcut) {

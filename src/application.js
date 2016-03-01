@@ -263,6 +263,7 @@ const trackActionsSpec = {
 var trackRating = new TrackRating();
 var trackContextMenu = new ActionMenu.ContextMenu(playlist.main.$(), trackActionsSpec);
 trackContextMenu.on("beforeOpen", function(e) {
+    trackRating.update();
     if ($(e.originalEvent.target).closest(".unclickable").length > 0) {
         e.preventDefault();
     }
@@ -648,7 +649,7 @@ KeyboardShortcuts.defaultContext.addShortcut(["-", "VolumeDown"], function() {
 KeyboardShortcuts.defaultContext.addShortcut(["+", "VolumeUp"], function() {
     player.main.setVolume(player.main.getVolume() + 0.01);
 });
-KeyboardShortcuts.defaultContext.addShortcut(["Spacebar", "MediaPlayPause"], function() {
+KeyboardShortcuts.defaultContext.addShortcut([" ", "MediaPlayPause"], function() {
     player.main.togglePlayback();
 });
 KeyboardShortcuts.defaultContext.addShortcut(["VolumeMute", "alt+mod+m"], function() {

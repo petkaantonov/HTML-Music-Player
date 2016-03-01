@@ -196,13 +196,17 @@ function Playlist(domNode, opts) {
 
     [1, 2, 3, 4, 5].forEach(function(ratingValue) {
         this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
-            var trackView = self._selectable.getPriorityTrackView();
-            if (trackView) trackView.track().rate(ratingValue);
+            if (self._selectable.getSelectedItemViewCount() !== 1) return;
+            var trackView = self._selectable.first();
+            if (trackView) {
+                trackView.track().rate(ratingValue);
+            }
         });
     }, this);
 
     this._keyboardShortcutContext.addShortcut("alt+0", function() {
-        var trackView = self._selectable.getPriorityTrackView();
+        if (self._selectable.getSelectedItemViewCount() !== 1) return;
+        var trackView = self._selectable.first();
         if (trackView) trackView.track().rate(-1);
     });
 

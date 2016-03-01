@@ -63,6 +63,12 @@ TrackRating.prototype.disable = function() {
     }
 };
 
+TrackRating.prototype.update = function() {
+    if (this.track) {
+        this._update(this.track.getRating());
+    }
+};
+
 TrackRating.prototype.enable = function(track) {
     this.track = track;
     this.$().on("click", ".rating-input", this._clicked);
