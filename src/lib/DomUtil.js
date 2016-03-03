@@ -858,9 +858,9 @@ const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
             var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
 
             if (committed === UNCOMMITTED) {
-                if (yDelta > 5 && yDelta > xDelta) {
+                if (yDelta > 10 && yDelta > xDelta) {
                     committed = VERTICAL;
-                } else if (xDelta > 5 && xDelta > yDelta) {
+                } else if (xDelta > 10 && xDelta > yDelta) {
                     committed = HORIZONTAL;
                 }
 

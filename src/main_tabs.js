@@ -5,7 +5,7 @@ const TabController = require("ui/TabController");
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 
-var mainTabs = new TabController([{
+var mainTabs = new TabController("#app-content-holder", [{
     id: "playlist",
     tab: ".playlist-tab",
     content: "#app-playlist-container"

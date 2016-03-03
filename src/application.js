@@ -472,7 +472,7 @@ var toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-ope
 });
 
 if (!false && window.DEBUGGING) {
-    const FAKE_TRACK_COUNT = 8;
+    const FAKE_TRACK_COUNT = 30;
     const id3v1String = function(value) {
         var ret = new Uint8Array(30);
         for (var i = 0; i < value.length; ++i) {

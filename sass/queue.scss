@@ -1,2 +1,8 @@
 @import "variables";
 @import "shadows";
+
+.queue-panel-container {
+    height: $track-item-height * 2;
+    box-sizing: border-box;
+    font-size: 14px;
+}

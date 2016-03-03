@@ -22,7 +22,9 @@
 #app-loader,
 .track-container,
 .visualizer-section-container,
-.coverart-and-controls-container {
+.coverart-and-controls-container,
+.queue-panel-container,
+.search-panel-container {
     @include large-screen {
         width: $large-screen-width - $total-app-border;
     }

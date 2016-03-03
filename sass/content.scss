@@ -10,11 +10,18 @@ $tab-height: 32px;
     overflow: hidden;
 
     .content-section-content {
+        overflow: hidden;
+        width: 100%;
+        border-radius: $subtle-radius;
         display: none;
-        @include transition-transform(0.25s cubic-bezier(.55, 0, .1, 1));
+        @include transition-transform(0.33s cubic-bezier(.55, 0, .1, 1));
         position: absolute;
         top: $tab-height;
         left: 0;
+
+        &.no-transition {
+            @include transition(none);
+        }
     }
 }
 
@@ -42,16 +49,23 @@ $tab-height: 32px;
         text-align: center;
         font-size: 15px;
         letter-spacing: -1px;
-        color: #454545;
+        color: $secondary-color;
         position: relative;
         line-height: $tab-height - 2px;
+        @include css-filter(grayscale(100%) brightness(60%));
+        @include transition-filter(0.33s cubic-bezier(.55, 0, .1, 1));
 
         &.active {
-            color: $secondary-color;
+            @include css-filter(grayscale(0%) brightness(100%));
         }
 
         &:hover {
             background-color: #f6f6f6;
+            @include css-filter(brightness(100%));
+        }
+
+        &.no-transition {
+            @include transition(none);
         }
 
         .icon {
@@ -73,7 +87,11 @@ $tab-height: 32px;
         left: 0px;
         z-index: 3;
         @include translate3d(0, 0, 0);
-        @include transition-transform(0.25s cubic-bezier(.55, 0, .1, 1));
+        @include transition-transform(0.33s cubic-bezier(.55, 0, .1, 1));
+
+        &.no-transition {
+            @include transition(none);
+        }
     }
 
     .tab-border {

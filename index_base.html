@@ -220,23 +220,24 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
         <div class="content-section-container division shadow-2dp">
             <div id="app-content-holder" class="module-container">
                 <div class="content-tab-container">
-                    <div class="active-tab-indicator"></div>
-                    <div class="tab active playlist-tab">
+                    <div class="active-tab-indicator no-transition"></div>
+                    <div class="tab active playlist-tab no-transition">
                         <div class="icon material-icons playlist"></div>
                         Playlist
                     </div>
-                    <div class="tab search-tab">
+                    <div class="tab search-tab no-transition">
                         <div class="icon material-icons search"></div>
                         Search
                     </div>
-                    <div class="tab queue-tab">
+                    <div class="tab queue-tab no-transition">
                         <div class="icon material-icons queue"></div>
                         Queue
                     </div>
+
                     <div class="tab-border"></div>
                 </div>
 
-                <div class="content-section-content content tracks-list-container scrollbar-scrollarea" id="app-playlist-container" style="display: block;">
+                <div class="no-transition content-section-content content tracks-list-container scrollbar-scrollarea" id="app-playlist-container" style="display: block;">
                     <div class='playlist-empty'>
                         <div class='app-info-status-text playlist-empty-hover'>Playlist empty</div>
                         <div class="playlist-empty-instructions">
@@ -255,9 +256,9 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
                     </div>
                 </div>
 
-                <div class="content-section-content queue-list-container scrollbar-scrollarea">
-                    <div class="queue-panel-container">
-
+                <div class="no-transition content-section-content search-list-container scrollbar-scrollarea">
+                    <div class="search-panel-container">
+                        Search panel
                     </div>
                     <div class="tracklist-transform-container"></div>
                     <div class="scrollbar-container">
@@ -266,9 +267,9 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
                     </div>
                 </div>
 
-                <div class="content-section-content search-list-container scrollbar-scrollarea">
-                    <div class="search-panel-container">
-
+                <div class="no-transition content-section-content queue-list-container scrollbar-scrollarea">
+                    <div class="queue-panel-container">
+                        Queue panel
                     </div>
                     <div class="tracklist-transform-container"></div>
                     <div class="scrollbar-container">
