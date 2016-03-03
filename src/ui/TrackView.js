@@ -403,6 +403,11 @@ TrackView.prototype.stopDragging = function() {
     if (this._domNode !== NULL) {
         this.$().removeClass("track-dragging").addClass("transition");
         this._updateTranslate();
+        var self = this;
+        setTimeout(function() {
+            var node = self.$();
+            if (node) node.removeClass("transition");
+        }, 220);
     }
 };
 
