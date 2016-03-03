@@ -10,13 +10,13 @@ var mainTabs = new TabController([{
     tab: ".playlist-tab",
     content: "#app-playlist-container"
 }, {
-    id: "queue",
-    tab: ".queue-tab",
-    content: ".queue-list-container"
-}, {
     id: "search",
     tab: ".search-tab",
     content: ".search-list-container"
+}, {
+    id: "queue",
+    tab: ".queue-tab",
+    content: ".queue-list-container"
 }], {
     indicator: ".active-tab-indicator"
 });
