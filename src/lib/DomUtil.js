@@ -807,6 +807,85 @@ util.dragHandler = function(fnMove, fnEnd) {
     };
 };
 
+const VERTICAL = 1;
+const HORIZONTAL = -1;
+const UNCOMMITTED = 0;
+const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
+    const actives = new ActiveTouchList();
+    const wantedDimension = dimension;
+    var currentTouch = null;
+    var committed = UNCOMMITTED;
+
+
+    function end(self, e, touch) {
+        if (currentTouch !== null) {
+            var committedDimension = committed === wantedDimension;
+            committed = UNCOMMITTED;
+            var theTouch = touch || currentTouch;
+            currentTouch = null;
+            if (committedDimension) {
+                var g = new GestureObject(e, theTouch);
+                fnEnd.call(self, g);
+            }
+        }
+    }
+
+    return function(e) {
+        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+        actives.update(e, changedTouches);
+
+        if (documentActives.length() > 1) {
+            end(this, e);
+            return;
+        }
+
+        if (e.type === TOUCH_START) {
+            currentTouch = actives.first();
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (actives.length() > 0) {
+                currentTouch = actives.first();
+            } else {
+                end(this, e, currentTouch);
+                currentTouch = null;
+            }
+        } else if (e.type === TOUCH_MOVE) {
+            if (!actives.contains(currentTouch) || actives.length() > 1 || documentActives.length() > 1) {
+                return;
+            }
+
+            var touch = changedTouches[0];
+            var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
+            var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
+
+            if (committed === UNCOMMITTED) {
+                if (yDelta > 5 && yDelta > xDelta) {
+                    committed = VERTICAL;
+                } else if (xDelta > 5 && xDelta > yDelta) {
+                    committed = HORIZONTAL;
+                }
+
+                if (committed === wantedDimension) {
+                    currentTouch = touch;
+                    fnStart.call(this, new GestureObject(e, touch));
+                }
+            } else if (committed === wantedDimension) {
+                currentTouch = touch;
+                var g = new GestureObject(e, touch);
+                fnMove.call(this, g);
+            }
+        }
+    };
+};
+
+
+util.verticalDragHandler = function(fnStart, fnMove, fnEnd) {
+    return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, VERTICAL);
+};
+
+util.horizontalDragHandler = function(fnStart, fnMove, fnEnd) {
+    return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, HORIZONTAL);
+};
+
 util.verticalPincerSelectionHandler = function(fn) {
     var started = -1;
     var currentATouch = null;
@@ -1155,62 +1234,25 @@ util.doubleTapHandler = function(fn) {
 
 util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     if (!shouldScroll) shouldScroll = function() {return true; };
-    var events = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
+    var touchEventNames = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
     }).join(" ");
 
-    var actives = new ActiveTouchList();
-    var scrollerTouch = null;
-    var mousedown = false;
-    var prevTimestamp = 0;
+    const gestureArray = new Array(1);
 
-    target.on(events, function(e) {
-        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-        var timeStamp = e.timeStamp || e.originalEvent.timeStamp;
-        var elapsed = timeStamp - prevTimestamp;
-        prevTimestamp = timeStamp;
-
-        actives.update(e, changedTouches);
-        if (!shouldScroll()) {
-            return;
+    target.on(touchEventNames, util.verticalDragHandler(function onStart(gesture) {
+        if (shouldScroll()) {
+            gestureArray[0] = gesture;
+            scroller.doTouchStart(gestureArray, gesture.timeStamp);
         }
-        switch (e.type) {
-        case TOUCH_START:
-            if (actives.length() === 1) {
-                scrollerTouch = actives.first();
-                return scroller.doTouchStart([scrollerTouch], timeStamp);
-            }
-            return;
-        case TOUCH_END:
-        case TOUCH_CANCEL:
-            if (scrollerTouch !== null && !actives.contains(scrollerTouch)) {
-                scroller.doTouchEnd(timeStamp);
-                scrollerTouch = null;
-            }
-            return;
-        case TOUCH_MOVE:
-            if (!actives.contains(scrollerTouch)) return;
-            if (documentActives.length() > 1) {
-                scroller.doTouchEnd(timeStamp);
-                scroller.doTouchStart([scrollerTouch], timeStamp);
-                scroller.doTouchEnd(timeStamp);
-                return;
-            }
-            var touch;
-            for (var i = 0; i < changedTouches.length; ++i) {
-                var cTouch = changedTouches[i];
-                if (cTouch.identifier === scrollerTouch.identifier) {
-                    touch = cTouch;
-                    scrollerTouch = touch;
-                    break;
-                }
-            }
-            if (touch) {
-                return scroller.doTouchMove([touch], timeStamp, e.scale || e.originalEvent.scale);
-            }
-            return;
+    }, function onMove(gesture) {
+        if (shouldScroll()) {
+            gestureArray[0] = gesture;
+            scroller.doTouchMove(gestureArray, gesture.timeStamp, gesture.originalEvent.scale);
         }
-    });
+    }, function onEnd(gesture) {
+        scroller.doTouchEnd(gesture.timeStamp);
+    }));
 
     var wheelEvents = "wheel mousewheel DOMMouseScroll".split(" ").map(function(v) {
         return v + ".scrollerns";
