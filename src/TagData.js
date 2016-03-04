@@ -402,6 +402,7 @@ TagData.prototype.setLoudness = function(data) {
     this.endSilenceLength = data.silence && data.silence.endSilenceLength ||
                             this.endSilenceLength ||
                             0;
+    if (this.endSilenceLength < 1) this.endSilenceLength = 0;
     this.track.tagDataUpdated();
 };
 
