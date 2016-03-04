@@ -61,7 +61,10 @@ $tab-height: 32px;
 
         &:hover {
             background-color: #f6f6f6;
-            @include css-filter(brightness(100%));
+            @include css-filter(grayscale(100%) brightness(100%) !important);
+            &.active {
+                @include css-filter(grayscale(0%) brightness(100%) !important);
+            }
         }
 
         &.no-transition {
