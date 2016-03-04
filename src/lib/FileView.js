@@ -72,7 +72,7 @@ FileView.prototype.modifyBlock = function(callback) {
     var change = result.length - length;
     var start = this.start;
     var end = this.end;
-    
+
     start += change;
     end += change;
 
@@ -84,6 +84,13 @@ FileView.prototype.modifyBlock = function(callback) {
     this.end = end;
     this.buffer = new Uint8Array(result);
     this.dataview = new DataView(result);
+};
+
+FileView.prototype._freeBuffer = function() {
+    if (this.buffer) {
+        ArrayBuffer.transfer(this.buffer.buffer, 0);
+        this.buffer = this.dataview = null;
+    }
 };
 
 FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
@@ -100,7 +107,7 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
         var start = Math.min(maxSize - 1, Math.max(0, startOffset));
         var end = Math.min(maxSize, start + size);
 
-        if (self.buffer && 
+        if (self.buffer &&
             (self.start <= start && end <= self.end)) {
             return resolve();
         }
@@ -108,14 +115,14 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
         end = Math.min(maxSize, start + size * paddingFactor);
         self.start = start;
         self.end = end;
-        self.buffer = null;
-        self.dataview = null;
+        self._freeBuffer();
 
         resolve(function loop(retries) {
             var blob = self.file.slice(self.start, self.end);
             return util.readAsArrayBuffer(blob).finally(function() {
                 blob.close();
             }).then(function(result) {
+                self._freeBuffer();
                 self.buffer = new Uint8Array(result);
                 self.dataview = new DataView(result);
             }).catch(function(e) {
@@ -125,8 +132,7 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
                     });
                 }
                 self.start = self.end = -1;
-                self.buffer = null;
-                self.dataview = null;
+                self._freeBuffer();
                 throw e;
             })
         }(0));

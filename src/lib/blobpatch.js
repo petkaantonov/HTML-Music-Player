@@ -47,7 +47,27 @@ function patch() {
         }
     }
 
+    if (typeof ArrayBuffer.transfer !== "function") {
+        var insideWorker = typeof self !== "undefined" && typeof self.postMessage === "function";
+        var worker;
 
+        if (!insideWorker) {
+            var src = "self.addEventListener('message', function(){}, false);";
+            var blob = new Blob([src], {type: "application/javascript"});
+            worker = new Worker(URL.createObjectURL(blob));
+        }
+
+        const arr = new Array(1);
+        ArrayBuffer.transfer = function(buffer, newByteLength) {
+            if (newByteLength !== 0) {
+                throw new Error("newByteLength must be 0");
+            }
+            var blackHole = worker ? worker : self;
+            arr[0] = buffer;
+            blackHole.postMessage(buffer, arr);
+            return buffer;
+        };
+    }
 }
 
 module.exports = patch;
