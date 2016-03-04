@@ -781,7 +781,7 @@ util.onCapture(document, "keydown", function(e) {
         }
     });
 
-    triggerSizeChange();
+    requestAnimationFrame(triggerSizeChange);
     util.onCapture(window, "resize", triggerSizeChange);
 })();
 }).catch(function(e) {
