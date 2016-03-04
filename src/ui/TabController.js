@@ -103,6 +103,7 @@ function TabController(domNode, specs, opts) {
     this._dragStart = this._dragStart.bind(this);
     this._dragMove = this._dragMove.bind(this);
     this._dragEnd = this._dragEnd.bind(this);
+    this._dragStartTime = -1;
     this._dragAnchorStart = -1;
     this._dragAnchorEnd = -1;
     this._activeTabRect = null;
@@ -125,6 +126,7 @@ TabController.prototype.$indicator = function() {
 
 TabController.prototype._dragStart = function(gesture) {
     this._dragAnchorStart = gesture.clientX;
+    this._dragStartTime = gesture.timeStamp;
 
     this.$indicator().addClass("no-transition").css("willChange", "transform");
 
@@ -148,7 +150,7 @@ TabController.prototype._dragMove = function(gesture) {
 
     var contentWidth = this._activeTabRect.width;
     var progress = deltaX / contentWidth;
-    var absProgress = Math.min(1, Math.abs(progress) / 0.45);
+    var absProgress = Math.min(1, Math.abs(progress) / 0.40);
     var nextIndex;
 
     if (deltaX < 0) {
@@ -181,11 +183,13 @@ TabController.prototype._dragMove = function(gesture) {
 
 TabController.prototype._dragEnd = function(gesture) {
     var delta = (this._dragAnchorEnd - this._dragAnchorStart) / this._activeTabRect.width;
+    var elapsed = gesture.timeStamp - this._dragStartTime;
+    var speed = delta / elapsed * 1000;
 
     var newTab;
-    if (delta < -0.40 && this._activeTab.index() < this._tabs.length - 1) {
+    if ((delta < -0.40 || speed < -1.2) && this._activeTab.index() < this._tabs.length - 1) {
         newTab = this._tabs[this._activeTab.index() + 1];
-    } else if (delta > 0.40 && this._activeTab.index() > 0) {
+    } else if ((delta > 0.40 || speed > 1.2) && this._activeTab.index() > 0) {
         newTab = this._tabs[this._activeTab.index() - 1];
     } else {
         newTab = this._activeTab;
