@@ -1,29 +1,36 @@
 "use strict";
 
+const Playlist = require("Playlist");
 const $ = require("lib/jquery");
 const TabController = require("ui/TabController");
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 
+const PLAYLIST_TAB_ID = "playlist";
+const SEARCH_TAB_ID = "search";
+const QUEUE_TAB_ID = "queue";
+
+const playlist = new Playlist("#app-playlist-container", {
+    itemHeight: ITEM_HEIGHT
+});
+
 var mainTabs = new TabController("#app-content-holder", [{
-    id: "playlist",
+    id: PLAYLIST_TAB_ID,
     tab: ".playlist-tab",
     content: "#app-playlist-container"
 }, {
-    id: "search",
+    id: SEARCH_TAB_ID,
     tab: ".search-tab",
     content: ".search-list-container"
 }, {
-    id: "queue",
+    id: QUEUE_TAB_ID,
     tab: ".queue-tab",
     content: ".queue-list-container"
 }], {
     indicator: ".active-tab-indicator"
 });
 
-mainTabs.activateTabById("playlist");
-
-$(window).on("resize", function() {
+$(window).on("sizechange", function() {
     var elems = $("#app-playlist-container,.queue-list-container,.search-list-container");
     var visible = elems.filter(function() {
         return $(this).css("display") !== "none";
@@ -44,4 +51,24 @@ $(window).on("resize", function() {
     $("#app-content-holder").height(height + TAB_HEIGHT);
 });
 
-module.exports = mainTabs;
+const contentInstancesByTabId = {};
+contentInstancesByTabId[PLAYLIST_TAB_ID] = playlist;
+
+const tabEventHandler = function(methodName) {
+    return function(tabId) {
+        var contentInstance = contentInstancesByTabId[tabId];
+        if (contentInstance) {
+            contentInstance[methodName]();
+        }
+    };
+};
+
+mainTabs.on("tabWillDeactivate", tabEventHandler("tabWillHide"));
+mainTabs.on("tabWillActivate", tabEventHandler("tabWillShow"));
+mainTabs.on("tabDidDeactivate", tabEventHandler("tabDidHide"));
+mainTabs.on("tabDidActivate", tabEventHandler("tabDidShow"));
+
+mainTabs.activateTabById(PLAYLIST_TAB_ID);
+
+exports.tabs = mainTabs;
+exports.playlist = playlist;

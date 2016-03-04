@@ -104,7 +104,7 @@ function Playlist(domNode, opts) {
 
     this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
-    $(window).on("resize", this._windowLayoutChanged.bind(this));
+    $(window).on("sizechange", this._windowLayoutChanged.bind(this));
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
@@ -192,7 +192,6 @@ function Playlist(domNode, opts) {
     this._keyboardShortcutContext.addShortcut("End", this.selectLast.bind(this));
     this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
     this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
-    this.tabShown();
 
     [1, 2, 3, 4, 5].forEach(function(ratingValue) {
         this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
@@ -320,11 +319,21 @@ Playlist.prototype._listContentsChanged = function() {
     }
 };
 
-Playlist.prototype.tabShown = function() {
+Playlist.prototype.tabWillHide = function() {
+    KeyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
+};
+
+Playlist.prototype.tabDidHide = function() {
+
+};
+
+Playlist.prototype.tabWillShow = function() {
     KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
-Playlist.prototype.tabHidden = function() {};
+Playlist.prototype.tabDidShow = function() {
+
+};
 
 Playlist.prototype.$trackContainer = function() {
     return this._$trackContainer;

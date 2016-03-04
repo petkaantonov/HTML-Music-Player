@@ -98,7 +98,7 @@ function TabController(domNode, specs, opts) {
 
     this._relayout = this._relayout.bind(this);
 
-    $(window).on("resize", this._relayout);
+    $(window).on("sizechange", this._relayout);
 
     this._dragStart = this._dragStart.bind(this);
     this._dragMove = this._dragMove.bind(this);
@@ -227,13 +227,18 @@ TabController.prototype._activateTab = function(tab, force) {
     if (!willChangeTabs && !force) return;
     this._clearContentHideTimeout();
 
+    var previousActiveTabId;
+    var newActiveTabId;
+
     if (willChangeTabs) {
         if (this._activeTab) {
+            previousActiveTabId = this._activeTab._id;
             this._activeTab.deactivate();
             this.emit("tabWillDeactivate", this._activeTab._id);
         }
         this.emit("tabWillActivate", tab._id);
         this._activeTab = tab;
+        newActiveTabId = tab._id;
         tab.activate();
     }
 
@@ -270,6 +275,13 @@ TabController.prototype._activateTab = function(tab, force) {
         }
 
         self.$indicator().css("willChange", "auto");
+
+        if (previousActiveTabId) {
+            self.emit("tabDidDeactivate", previousActiveTabId);
+        }
+        if (newActiveTabId) {
+            self.emit("tabDidActivate", newActiveTabId);
+        }
     }, 330);
 
 };

@@ -344,7 +344,7 @@ ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
                     ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
                     preferredDirection = "end";
                 }
-            } 
+            }
         }
     }
 
@@ -370,7 +370,7 @@ ActionMenuItem.prototype.positionSubMenu = function() {
         this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
     left = positionResult.coordStart;
     this._preferredHorizontalDirection = positionResult.preferredDirection;
-    
+
     preferredDirection = this.getVerticalDirection();
     positionResult =
         this.positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
@@ -384,7 +384,7 @@ ActionMenuItem.prototype.positionSubMenu = function() {
 
     origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
     origin.y = top > itemBox.top + 3 ? 0 : Math.max(itemBox.top - top, 0);
-    
+
     return origin;
 };
 
@@ -636,7 +636,7 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     document.addEventListener("keydown", this.keypressed, true);
     window.addEventListener("blur", this.hide, true);
     window.addEventListener("scroll", this.position, true);
-    window.addEventListener("resize", this.position, true);
+    window.addEventListener("sizechange", this.position, true);
 
     this._menu.on("itemClick", this.hide);
     util.documentHidden.on("change", this.hide);
@@ -649,8 +649,8 @@ ActionMenu.ContextMenu.prototype.destroy = function() {
     this._menu.removeListener("itemClick", this.hide);
     window.removeEventListener("blur", this.hide, true);
     window.removeEventListener("scroll", this.position, true);
-    window.removeEventListener("resize", this.position, true);
-    
+    window.removeEventListener("sizechange", this.position, true);
+
     util.offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
 

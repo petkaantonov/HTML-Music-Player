@@ -131,7 +131,7 @@ function Tooltip(opts) {
             util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
         }
     }
-    $(window).on("resize", this.position);
+    $(window).on("sizechange", this.position);
     $(window).on("blur", this.hide);
     util.documentHidden.on("change", this.hide);
 }
@@ -502,7 +502,7 @@ Tooltip.prototype.mouseLeft = function() {
 };
 
 Tooltip.prototype.destroy = function() {
-    $(window).off("resize", this.position);
+    $(window).off("sizechange", this.position);
     $(window).off("blur", this.hide);
     util.documentHidden.removeListener("change", this.hide);
     util.offCapture(document, "click", this.documentClicked);

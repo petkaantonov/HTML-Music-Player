@@ -237,12 +237,23 @@ if (touch) {
     jsUtil.onCapture(document, util.TOUCH_EVENTS_NO_MOVE, function(e) {
         if (e.cancelable) {
             var node = e.target;
+            var activeElement = document.activeElement;
+            var matchesActive = false;
             while (node != null) {
+                if (!matchesActive) {
+                    matchesActive = node === activeElement;
+                }
+
                 if (rinput.test(node.nodeName)) {
                     return;
                 }
                 node = node.parentNode;
             }
+
+            if (activeElement && !matchesActive) {
+                activeElement.blur();
+            }
+
             e.preventDefault();
         }
     });
@@ -1308,6 +1319,14 @@ util.changeDom = function(callback) {
     if (rafId === -1) {
         rafId = requestAnimationFrame(rafCallback);
     }
+};
+
+const rTextarea = /^textarea$/i;
+const rInput = /^input$/i;
+const rKeyboard = /^(?:date|datetime|color|datetime-local|email|month|number|password|search|tel|text|time|url|week)$/i;
+util.isTextInputElement = function(elem) {
+    return (rInput.test(elem.nodeName) && rKeyboard.test(elem.type)) ||
+        rTextarea.test(elem.nodeName);
 };
 
 var rtouchevent = /^touch/;

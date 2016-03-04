@@ -1,8 +1,15 @@
 @import "variables";
 @import "shadows";
 
-.search-panel-container {
-    height: $track-item-height * 2;
-    box-sizing: border-box;
-    font-size: 14px;
+.search-list-container {
+    .search-panel-container {
+        height: $track-item-height;
+        box-sizing: border-box;
+        font-size: 14px;
+    }
+
+    .tracklist-transform-container {
+        top: $track-item-height;
+        @include calc(height, "100% - #{$track-item-height}");
+    }
 }

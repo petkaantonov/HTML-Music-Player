@@ -229,7 +229,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
 
     if (this.binSizeChangeMatcher) {
         util.addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
-        $(window).on("resize", this.binSizeMediaMatchChanged);
+        $(window).on("sizechange", this.binSizeMediaMatchChanged);
     }
 
     this.enabled = true;

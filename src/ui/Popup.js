@@ -174,7 +174,7 @@ function Popup(opts) {
     this.headerMouseDownedTouch = domUtil.touchDownHandler(this.headerMouseDowned);
     this.touchDragHandler = domUtil.dragHandler(this.mousemoved, this.draggingEnd);
 
-    $(window).on("resize", this._reLayout);
+    $(window).on("sizechange", this._reLayout);
 
     this._popupDom = NULL;
     this._rect = null;
@@ -281,7 +281,7 @@ Popup.prototype._initDom = function() {
 
 Popup.prototype.destroy = function() {
     $(window).off("resize blur", this.draggingEnd);
-    $(window).off("resize", this.position);
+    $(window).off("sizechange", this.position);
     util.documentHidden.removeListener("change", this.draggingEnd);
     this._deinitDom();
 };

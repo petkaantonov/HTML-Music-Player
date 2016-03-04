@@ -111,14 +111,13 @@ window.player = {};
 window.GlobalUi = GlobalUi;
 window.serviceWorkerManager = serviceWorkerManager;
 
-const DEFAULT_ITEM_HEIGHT = 44;
 playlist.trackDisplay = new TrackDisplay("track-display", {
     delay: 5
 });
 
-playlist.main = new Playlist("#app-playlist-container", {
-    itemHeight: DEFAULT_ITEM_HEIGHT
-});
+playlist.main = mainTabs.playlist;
+
+
 
 $(window).on("clear", function() {
     playlist.main.clearSelection();
@@ -735,7 +734,56 @@ util.onCapture(document, "keydown", function(e) {
 
 });
 
-$(window).trigger("resize");
+(function() {
+    // Android keyboard fix.
+    var fireSizeChangeEvents = true;
+    var pendingSizeChange = false;
+
+    const triggerSizeChange = function() {
+        if (!fireSizeChangeEvents) {
+            return;
+        }
+
+        var activeElement = document.activeElement;
+        if (activeElement && domUtil.isTextInputElement(activeElement)) {
+            pendingSizeChange = true;
+            return;
+        }
+
+        var event = new Event("sizechange", {
+            bubbles: true,
+            cancelable: false
+        });
+        window.dispatchEvent(event);
+    };
+
+    const resetFireSizeChangeEvents = util.throttle(function() {
+        fireSizeChangeEvents = true;
+    }, 500);
+
+    const firePendingSizeChangeEvent = util.throttle(triggerSizeChange, 100);
+
+
+    util.onCapture(document, "focus", function(e) {
+        if (domUtil.isTextInputElement(e.target)) {
+            fireSizeChangeEvents = false;
+            resetFireSizeChangeEvents();
+        }
+    });
+
+    util.onCapture(document, "blur", function(e) {
+        if (domUtil.isTextInputElement(e.target)) {
+            window.scrollTo(0, 0);
+            if (pendingSizeChange) {
+                pendingSizeChange = false;
+                firePendingSizeChangeEvent();
+            }
+        }
+    });
+
+    triggerSizeChange();
+    util.onCapture(window, "resize", triggerSizeChange);
+})();
 }).catch(function(e) {
     console.log(e && (e.stack || e.message));
 });

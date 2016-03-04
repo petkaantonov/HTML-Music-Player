@@ -35,7 +35,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
-    $(window).on("resize", this._resized);
+    $(window).on("sizechange", this._resized);
 
     if (touch) {
         this.$().on(domUtil.TOUCH_EVENTS, this._clickedTouch);
@@ -154,7 +154,7 @@ SnackbarInstance.prototype._clicked = function(e) {
     var dismissable = hasBeenActiveMilliseconds >
             (this._snackbar.initialUndismissableWindow + this._snackbar.nextDelay);
 
-    
+
     var action = this.$().find(".snackbar-action-" + this._initialShowing)[0];
     if ($(e.target).closest(action).length > 0) {
         this.outcome = Snackbar.ACTION_CLICKED;
@@ -193,7 +193,7 @@ SnackbarInstance.prototype._hide = function() {
     }
 
     if (this.outcome !== Snackbar.ACTION_CLICKED) {
-        setTimeout(doHide, this._snackbar.nextDelay);    
+        setTimeout(doHide, this._snackbar.nextDelay);
     } else {
         doHide();
     }
@@ -201,7 +201,7 @@ SnackbarInstance.prototype._hide = function() {
 
 SnackbarInstance.prototype._removeListeners = function() {
     this.$().off("click", this._clicked);
-    $(window).off("resize", this._resized);
+    $(window).off("sizechange", this._resized);
     util.documentHidden.removeListener("change", this._visibilityChanged);
     this._clearTimer();
 };

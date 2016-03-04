@@ -145,6 +145,14 @@ KeyboardShortcuts.prototype.enable = function() {
     this.emit("enable");
 };
 
+KeyboardShortcuts.prototype.deactivateContext = function(context) {
+    if (!(context instanceof KeyboardShortcutContext)) throw new TypeError("invalid type");
+    if (this._activeContext === context) {
+        this._activeContext._deactivate();
+        this._activeContext = null;
+    }
+};
+
 KeyboardShortcuts.prototype.activateContext = function(context) {
     if (!(context instanceof KeyboardShortcutContext)) throw new TypeError("invalid type");
     if (this._activeContext) {

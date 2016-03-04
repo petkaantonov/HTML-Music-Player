@@ -36,7 +36,7 @@ function TrackDisplay(target, opts) {
     this._trackIndexChanged = this._trackIndexChanged.bind(this);
     this._windowResized = this._windowResized.bind(this);
 
-    $(window).on("resize", this._windowResized);
+    $(window).on("sizechange", this._windowResized);
 }
 
 TrackDisplay.prototype._windowResized = function() {
