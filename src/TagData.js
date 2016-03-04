@@ -409,24 +409,14 @@ TagData.prototype.setLoudness = function(data) {
 TagData.prototype.setDataFromTagDatabase = function(data) {
     this._stateUpdate();
     this._hasBeenAnalyzed = true;
-    this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
-                              this.beginSilenceLength ||
-                              0;
-    this.endSilenceLength = data.silence && data.silence.endSilenceLength ||
-                            this.endSilenceLength ||
-                            0;
     this.acoustId = data.acoustId || this.acoustId|| null;
     if (this.acoustId) {
         this.updateFieldsFromAcoustId(this.acoustId);
     }
-    this.trackGain = data.trackGain;
-    this.trackPeak = data.trackPeak || 1;
-    this.albumGain = data.albumGain;
-    this.albumPeak = data.albumPeak || 1;
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;
-    this.track.tagDataUpdated();
+    this.setLoudness(data);
 };
 
 module.exports = TagData;
