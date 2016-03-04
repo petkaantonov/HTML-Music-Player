@@ -16,9 +16,12 @@ function ContentScroller(node, opts) {
     this._containerHeight = 0;
     this._containerPadding = 0;
     this._top = this._left = 0;
+    this._clearWillChangeTimerId = -1;
+    this._willChangeSet = false;
 
     this._renderScroller = this._renderScroller.bind(this);
     this._renderScrollTop = this._renderScrollTop.bind(this);
+    this._clearWillChange = this._clearWillChange.bind(this);
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
@@ -56,15 +59,38 @@ ContentScroller.prototype.contentHeight = function() {
 
 ContentScroller.prototype._scheduleRender = function() {
     if (this._frameId === -1) {
+        this._clearWillChangeTimer();
+        this._setWillChange();
         this._frameId = requestAnimationFrame(this._renderScrollTop);
     }
 };
 
 ContentScroller.prototype._renderScrollTop = function() {
+    this._clearWillChangeTimerId = setTimeout(this._clearWillChange, 500);
     this._frameId = -1;
     var y = -this._scrollTop;
     domUtil.setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop);
+};
+
+
+ContentScroller.prototype._clearWillChangeTimer = function() {
+    if (this._clearWillChangeTimerId !== -1) {
+        clearTimeout(this._clearWillChangeTimerId);
+        this._clearWillChangeTimerId = -1;
+    }
+};
+
+ContentScroller.prototype._clearWillChange = function() {
+    if (!this._willChangeSet) return;
+    this._willChangeSet = false;
+    this.$contentContainer().css("willChange", "");
+};
+
+ContentScroller.prototype._setWillChange = function() {
+    if (this._willChangeSet) return;
+    this._willChangeSet = true;
+    this.$contentContainer().css("willChange", "transform");
 };
 
 ContentScroller.prototype._renderScroller = function(left, top, zoom) {

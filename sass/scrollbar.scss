@@ -16,7 +16,6 @@
     left: 0px;
     @include border-top-radius(7px);
     @include border-bottom-radius(7px);
-    will-change: transform;
     transition: filter 0.3s ease-in;
     transition: -webkit-filter 0.3s ease-in;
 }

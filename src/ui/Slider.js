@@ -63,7 +63,8 @@ Slider.prototype._onMousedown = function(e) {
     this._calculateDimensions();
 
     if (this.shouldUpdateDom()) {
-        this.$knob().addClass("focused");
+        this.$knob().addClass("focused").css("willChange", "transform");
+        this.$fill().css("willChange", "transform");
         this.$().addClass("sliding");
     }
 
@@ -125,14 +126,16 @@ Slider.prototype._keydowned = function(e) {
 
 Slider.prototype._knobFocused = function() {
     util.onCapture(this.$knob()[0], "keydown", this._keydowned);
-    this.$knob().addClass("focused");
+    this.$knob().addClass("focused").css("willChange", "transform");
+    this.$fill().css("willChange", "transform");
     this.$().addClass("sliding");
     this.emit("slideBegin");
 };
 
 Slider.prototype._knobBlurred = function() {
     util.offCapture(this.$knob()[0], "keydown", this._keydowned);
-    this.$knob().removeClass("focused");
+    this.$knob().removeClass("focused").css("willChange", "");
+    this.$fill().css("willChange", "");
     this.$().removeClass("sliding");
     this.emit("slideEnd");
 };
@@ -191,7 +194,8 @@ Slider.prototype._onMouseup = function(e) {
     this._sliding = false;
 
     if (this.shouldUpdateDom()) {
-        this.$knob().removeClass("focused");
+        this.$knob().removeClass("focused").css("willChange", "");
+        this.$fill().css("willChange", "");
         this.$().removeClass("sliding");
     }
 

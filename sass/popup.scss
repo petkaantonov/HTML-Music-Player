@@ -90,8 +90,6 @@ $popup-container-border: 2px;
     left: 0px;
     position: absolute;
     z-index: 940;
-    will-change: filter;
-    will-change: -webkit-filter;
     @include css-filter(opacity(0%));
 }
 

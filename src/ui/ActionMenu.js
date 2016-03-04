@@ -7,6 +7,7 @@ const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
 const GlobalUi = require("ui/GlobalUi");
 
+const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
 
 function ActionMenuItem(root, spec, children, level) {
@@ -399,6 +400,7 @@ ActionMenuItem.prototype.removeActiveClass = function() {
 
 ActionMenuItem.prototype.showContainer = function() {
     this.addActiveClass();
+    this.$container().css("willChange", "transform");
     this.$container().removeClass("transition-out transition-in initial").appendTo("body");
     var origin = this.positionSubMenu();
     this.$container().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
@@ -409,6 +411,9 @@ ActionMenuItem.prototype.showContainer = function() {
     var self = this;
     domUtil.changeDom(function() {
         self.$container().removeClass("initial");
+        setTimeout(function() {
+            self.$container().css("willChange", "");
+        }, TRANSITION_IN_DURATION);
     });
 };
 
@@ -416,6 +421,7 @@ ActionMenuItem.prototype.hideContainer = function() {
     this._preferredVerticalDirection = "end";
     this._preferredHorizontalDirection = "end";
     this._clearDelayTimer();
+    this.$container().css("willChange", "transform");
     this.$container().removeClass("transition-in").addClass("initial transition-out");
     this.$container().width();
     var self = this;
@@ -423,7 +429,7 @@ ActionMenuItem.prototype.hideContainer = function() {
         self.$container().removeClass("initial");
         self._delayTimerId = setTimeout(function() {
             self._delayTimerId = -1;
-            self.$container().detach();
+            self.$container().detach().css("willChange", "");
         }, TRANSITION_OUT_DURATION);
     });
     this.removeActiveClass();

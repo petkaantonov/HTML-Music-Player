@@ -462,7 +462,7 @@ Popup.prototype.draggingEnd = function() {
     this.$().css({
         left: this._x,
         top: this._y,
-        willChange: "auto"
+        willChange: ""
     });
     domUtil.setTransform(this.$()[0], "none");
 };

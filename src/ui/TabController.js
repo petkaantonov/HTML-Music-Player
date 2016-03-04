@@ -271,10 +271,10 @@ TabController.prototype._activateTab = function(tab, force) {
             if (!tab.isActive()) {
                 tab.$content().hide();
             }
-            tab.$content().css("willChange", "auto");
+            tab.$content().css("willChange", "");
         }
 
-        self.$indicator().css("willChange", "auto");
+        self.$indicator().css("willChange", "");
 
         if (previousActiveTabId) {
             self.emit("tabDidDeactivate", previousActiveTabId);

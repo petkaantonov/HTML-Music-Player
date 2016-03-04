@@ -19,6 +19,8 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
     this._rect = this.$contentContainer()[0].getBoundingClientRect();
     this._scrollTop = 0;
     this._virtualRenderFrameId = -1;
+    this._clearWillChangeTimerId = -1;
+    this._willChangeSet = false;
 
     this._minPrerenderedItems = opts.minPrerenderedItems || 15;
     this._maxPrerenderedItems = opts.maxPrerenderedItems || 100;
@@ -27,6 +29,7 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
 
     this._renderScroller = this._renderScroller.bind(this);
     this._renderItems = this._renderItems.bind(this);
+    this._clearWillChange = this._clearWillChange.bind(this);
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
@@ -35,6 +38,13 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
                                opts.shouldScroll || null,
                                this._scrollbar);
 }
+
+FixedItemListScroller.prototype._clearWillChangeTimer = function() {
+    if (this._clearWillChangeTimerId !== -1) {
+        clearTimeout(this._clearWillChangeTimerId);
+        this._clearWillChangeTimerId = -1;
+    }
+};
 
 FixedItemListScroller.prototype._forceRenderItems = function() {
     return this._renderItems(Date.now(), true);
@@ -54,7 +64,20 @@ FixedItemListScroller.prototype.$contentContainer = function() {
     return this._contentContainer;
 };
 
+FixedItemListScroller.prototype._clearWillChange = function() {
+    if (!this._willChangeSet) return;
+    this._willChangeSet = false;
+    this.$contentContainer().css("willChange", "");
+};
+
+FixedItemListScroller.prototype._setWillChange = function() {
+    if (this._willChangeSet) return;
+    this._willChangeSet = true;
+    this.$contentContainer().css("willChange", "transform");
+};
+
 FixedItemListScroller.prototype._renderItems = function(now, forced) {
+    this._clearWillChangeTimerId = setTimeout(this._clearWillChange, 500);
     this._renderScrollTop();
     this._virtualRenderFrameId = -1;
     var itemHeight = this._itemHeight;
@@ -105,6 +128,8 @@ FixedItemListScroller.prototype._renderItems = function(now, forced) {
 
 FixedItemListScroller.prototype._scheduleRender = function() {
     if (this._virtualRenderFrameId === -1) {
+        this._clearWillChangeTimer();
+        this._setWillChange();
         this._virtualRenderFrameId = requestAnimationFrame(this._renderItems);
     }
 };

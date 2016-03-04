@@ -4,7 +4,6 @@
     z-index: 1000000000;
     position: absolute;
     display: block;
-    will-change: opacity;
     @include translate3d(0, 0, 0);
 }
 

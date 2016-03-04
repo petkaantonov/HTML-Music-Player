@@ -57,6 +57,14 @@ function Scrollbar(container, scrollerInfo, opts) {
     this._rebindRailmouseDowned();
 }
 
+Scrollbar.prototype.willScroll = function() {
+    this.$knob().css("willChange", "transform");
+};
+
+Scrollbar.prototype.willStopScrolling = function() {
+    this.$knob().css("willChange", "");
+};
+
 Scrollbar.prototype.determineScrollInversion = function(delta, e) {
     return delta;
 };
@@ -94,6 +102,7 @@ Scrollbar.prototype._railMousedowned = function(e) {
     if (!this._hasScroll) return;
     if ($(e.target).closest(this.$knob()[0]).length > 0) return;
     if (e.which !== 1) return;
+    this.willScroll();
     e.stopImmediatePropagation();
     this._scrollByCoordinate(e.clientY, false);
     this.$rail().off("mousedown", this._railMousedowned);
@@ -103,6 +112,7 @@ Scrollbar.prototype._railMousedowned = function(e) {
 Scrollbar.prototype._knobMousedowned = function(e) {
     if (!this._hasScroll) return;
     if (e.which !== 1) return;
+    this.willScroll();
     e.stopImmediatePropagation();
     this._rect = this.$()[0].getBoundingClientRect();
     this._knobRect = this.$knob()[0].getBoundingClientRect();
@@ -116,6 +126,7 @@ Scrollbar.prototype._knobMousereleased = function() {
     $(document).off("mousemove", this._knobMousemoved);
     $(document).off("mouseup", this._knobMousereleased);
     setTimeout(this._restoreClicks, 0);
+    this.willStopScrolling();
 };
 
 Scrollbar.prototype._clicked = function(e) {
@@ -130,6 +141,7 @@ Scrollbar.prototype._stopScrolling = function() {
     this._scrolling = false;
     this.$().removeClass("scrolling");
     this._timerId = -1;
+    this.willStopScrolling();
 };
 
 Scrollbar.prototype._knobMousemoved = function(e) {

@@ -1248,13 +1248,23 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     var touchEventNames = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
     }).join(" ");
+    var stopTimerId = -1;
+    const clearStopTimerId = function() {
+        if (stopTimerId !== -1) {
+            clearTimeout(stopTimerId);
+            stopTimerId = -1;
+        }
+    };
 
     const gestureArray = new Array(1);
 
+
     target.on(touchEventNames, util.verticalDragHandler(function onStart(gesture) {
         if (shouldScroll()) {
+            clearStopTimerId();
             gestureArray[0] = gesture;
             scroller.doTouchStart(gestureArray, gesture.timeStamp);
+            scrollbar.willScroll();
         }
     }, function onMove(gesture) {
         if (shouldScroll()) {
@@ -1263,6 +1273,10 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
         }
     }, function onEnd(gesture) {
         scroller.doTouchEnd(gesture.timeStamp);
+        stopTimerId = setTimeout(function() {
+            stopTimerId = -1;
+            scrollbar.willStopScrolling();
+        }, 500);
     }));
 
     var wheelEvents = "wheel mousewheel DOMMouseScroll".split(" ").map(function(v) {
