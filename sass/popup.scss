@@ -71,6 +71,16 @@ $popup-container-border: 2px;
     }
 }
 
+.popup-container.no-footer {
+    .popup-body {
+        @include calc(max-height, "100% - #{$header-size}");
+
+        @include long-screen {
+            max-height: $large-screen-height - $header-size;
+        }
+    }
+}
+
 .popup-blocker {
     background-color: #000000;
     width: 100%;

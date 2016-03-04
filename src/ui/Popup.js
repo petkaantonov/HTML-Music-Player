@@ -251,6 +251,8 @@ Popup.prototype._initDom = function() {
             this._footerButtons[i].$().appendTo(footer);
         }
         footer.appendTo(ret);
+    } else {
+        ret.addClass("no-footer");
     }
     lastFocusItem.appendTo(ret);
 
@@ -372,7 +374,7 @@ Popup.prototype._renderCssPosition = function() {
 
 Popup.prototype._setMinimumNecessaryHeight = function() {
     var headerHeight = this.$().find(".popup-header").outerHeight(true);
-    var footerHeight = this.$().find(".popup-footer").outerHeight(true);
+    var footerHeight = this.$().find(".popup-footer").outerHeight(true) || 0;
     var contentHeight = this.$().find(".popup-body-content").outerHeight() + 2;
     this.$().css("height", Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight));
 };
@@ -460,7 +462,7 @@ Popup.prototype.draggingEnd = function() {
     this.$().css({
         left: this._x,
         top: this._y,
-        willChange: "initial"
+        willChange: "auto"
     });
     domUtil.setTransform(this.$()[0], "none");
 };
