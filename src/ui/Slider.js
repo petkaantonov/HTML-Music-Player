@@ -81,9 +81,7 @@ Slider.prototype._onMousedown = function(e) {
 };
 
 Slider.prototype._keydowned = function(e) {
-    var key = e.which || e.key || e.keyIdentifier || e.keyCode;
-    if (typeof key === "number") key = domUtil.whichToKey[key];
-
+    var key = e.key;
 
     switch (key) {
         case "Escape":

@@ -107,9 +107,7 @@ OpenableSubmenu.prototype._openerClicked = function(e) {
 OpenableSubmenu.prototype._keydowned = function(e) {
     var activeElement = document.activeElement;
     if (!activeElement) return;
-    var key = e.which || e.key || e.keyIdentifier || e.keyCode;
-    if (typeof key === "number") key = domUtil.whichToKey[key];
-
+    var key = e.key;
 
     if (key === "ArrowUp" || key === "ArrowDown") {
         var activeIndex = -1;

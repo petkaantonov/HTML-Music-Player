@@ -1338,14 +1338,4 @@ util.preventDefault = function(e) {
     e.preventDefault();
 };
 
-util.whichToKey = {
-    13: "Enter",
-    27: "Escape",
-    37: "ArrowLeft",
-    39: "ArrowRight",
-    38: "ArrowUp",
-    40: "ArrowDown",
-    32: "Spacebar"
-};
-
 module.exports = util;
