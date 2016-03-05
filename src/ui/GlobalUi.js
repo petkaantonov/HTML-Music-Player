@@ -76,6 +76,7 @@ GlobalUi.makePopup = function(title, body, opener, footerButtons) {
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
+            domUtil.setFilter($node, "");
             var animator = new Animator($node[0], {
                 interpolate: Animator.DECELERATE_CUBIC,
                 properties: [{
