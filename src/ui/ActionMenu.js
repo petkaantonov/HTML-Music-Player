@@ -218,7 +218,7 @@ ActionMenuItem.prototype._createContainerDom = function(level) {
         class: this.root.containerClass + " " + levelClass
     }).css({
         position: "absolute",
-        zIndex: level * 100000
+        zIndex: Math.max(50, level * 100000)
     });
 };
 
@@ -609,7 +609,7 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this._menu = new ActionMenu(opts);
     this._domNode = this._menu.$().css({
         position: "absolute",
-        zIndex: 1
+        zIndex: 50
     });
     this._shown = false;
     this._targetDom = $(dom);
