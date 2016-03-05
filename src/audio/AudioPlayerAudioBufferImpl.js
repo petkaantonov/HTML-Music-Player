@@ -695,7 +695,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         }
 
         var bufferIndex = offsetInCurrentBuffer >= latency ? 1 : 0;
-        var bufferDataIndex = bufferIndex === 0 ? (buffers[0].length - (latency * sampleRate))|0
+        var bufferDataIndex = bufferIndex === 0 ? (buffers[0].length - ((latency * sampleRate)|0)) + ((offsetInCurrentBuffer * sampleRate)|0)
                                                 : ((offsetInCurrentBuffer - latency) * sampleRate)|0;
 
         for (var i = bufferIndex; i < buffers.length; ++i) {
