@@ -5,6 +5,7 @@ const Promise = require("lib/bluebird");
 const sniffer = require("audio/sniffer");
 const FileView = require("lib/FileView");
 const parseMp3Metadata = require("metadata/mp3_metadata");
+const searchableTracks = require("SearchableTracks");
 
 const maxActive = 8;
 const queue = [];
@@ -34,6 +35,7 @@ function MetadataParser(file, resolve) {
 
 MetadataParser.prototype.parse = function() {
     var self = this;
+    var file = self.file;
     var data = {
         basicInfo: {
             duration: NaN,
@@ -58,6 +60,7 @@ MetadataParser.prototype.parse = function() {
     }).catch(function(e) {
         throw codecNotSupportedError();
     }).tap(function() {
+        searchableTracks.add(file, data);
         return data;
     });
 

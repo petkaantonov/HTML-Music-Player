@@ -2,10 +2,64 @@
 @import "shadows";
 
 .search-list-container {
-    .search-panel-container {
-        height: $track-item-height;
+    font-size: 0;
+    div, label {
         box-sizing: border-box;
+    }
+
+    .scrollbar-container {
+        @include calc(height, "100% - #{$track-item-height}");
+        top: $track-item-height;
+    }
+
+    background: #fafafa;
+
+    .search-panel-container {
+        datalist {
+            display: none;
+        }
+
+        height: $track-item-height;
+
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 5;
+        background: #fafafa;
+
         font-size: 14px;
+        padding: 8px 16px;
+
+        .search-input-container {
+
+            .search-input-icon {
+                width: 30px;
+                height: $track-item-height - 16px;
+                display: inline-block;
+                vertical-align: top;
+                line-height: $track-item-height - 8px;
+
+                .icon {
+                    vertical-align: middle;
+                    color: $unfocused-form-color;
+                }
+            }
+
+            &.focused {
+                .search-input-icon {
+                    .icon {
+                        color: $primary-color;
+                    }
+                }
+            }
+
+            .search-input-box {
+                @include calc(width, "100% - 34px");
+                height: $track-item-height - 16px;
+                line-height: $track-item-height - 16px;
+                font-size: 14px;
+            }
+        }
     }
 
     .tracklist-transform-container {

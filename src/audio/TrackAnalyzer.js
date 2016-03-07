@@ -269,6 +269,7 @@ TrackAnalyzer.prototype.prioritize = function(track) {
 };
 
 TrackAnalyzer.prototype._messaged = function(event) {
+    if (!event.data) return;
     if (!event.data.jobType) return;
     var id = event.data.id;
     if (event.data.jobType === "metadata") {

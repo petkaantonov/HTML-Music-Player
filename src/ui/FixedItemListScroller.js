@@ -1,6 +1,7 @@
 "use strict"
 
 const touch = require("features").touch;
+const util = require("lib/util");
 const domUtil = require("lib/DomUtil");
 const Scroller = require("lib/scroller");
 const Scrollbar = require("ui/Scrollbar");
@@ -21,6 +22,7 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
     this._virtualRenderFrameId = -1;
     this._clearWillChangeTimerId = -1;
     this._willChangeSet = false;
+    this._changingDimensions = false;
 
     this._minPrerenderedItems = opts.minPrerenderedItems || 15;
     this._maxPrerenderedItems = opts.maxPrerenderedItems || 100;
@@ -53,7 +55,7 @@ FixedItemListScroller.prototype._forceRenderItems = function() {
 FixedItemListScroller.prototype._renderScrollTop = function() {
     var y = -this._scrollTop;
     domUtil.setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
-    this._scrollbar.render(this._scrollTop);
+    this._scrollbar.render(this._scrollTop, this._changingDimensions);
 };
 
 FixedItemListScroller.prototype.$ = function() {
@@ -175,14 +177,18 @@ FixedItemListScroller.prototype.scrollBy = function(amount) {
     this._scheduleRender();
 };
 
+FixedItemListScroller.prototype._resetChangingDimensions = util.throttle(function() {
+    this._changingDimensions = false;
+}, 50);
+
 FixedItemListScroller.prototype.resize = function() {
     var previousPhysicalHeight = this._previousPhysicalHeight;
     var heightChange = this.physicalHeight() - previousPhysicalHeight;
     this._previousPhysicalHeight = this.physicalHeight();
     var nodeRect = this.$()[0].getBoundingClientRect();
-    this._left = nodeRect.left;
-    this._top = nodeRect.top;
     this._rect = this.$contentContainer()[0].getBoundingClientRect();
+    this._top = nodeRect.top + (this.$()[0].clientHeight - this.$contentContainer()[0].clientHeight);
+    this._left = nodeRect.left + (this.$()[0].clientWidth - this.$contentContainer()[0].clientWidth);
     this._scroller.setPosition(this._left, this._top);
     this._scroller.setDimensions(this._rect.width, this._rect.height, this._rect.width, this.physicalHeight());
     this._scroller.setSnapSize(this._rect.width, this.itemHeight());
@@ -190,7 +196,9 @@ FixedItemListScroller.prototype.resize = function() {
     var top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
     this._scrollTop = top;
     this._scrollbar.resize();
+    this._changingDimensions = true;
     this._scroller.scrollTo(null, top, false);
+    this._resetChangingDimensions();
 };
 
 FixedItemListScroller.prototype.refresh = function() {

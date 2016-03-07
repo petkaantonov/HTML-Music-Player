@@ -258,7 +258,25 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
 
                 <div class="no-transition content-section-content search-list-container scrollbar-scrollarea">
                     <div class="search-panel-container">
-                        Search panel
+                        <datalist id="search-history-id" class="search-history"></datalist>
+                        <div class="search-input-container">
+                            <div class="search-input-icon">
+                                <label class="icon material-icons search" for="search-input-box-id"></label>
+                            </div>
+                            <input type="search"
+                                id="search-input-box-id"
+                                class="search-input-box textbox"
+                                list="search-history-id"
+                                incremental="incremental"
+                                inputmode="latin"
+                                autocapitalize="none"
+                                autocomplete="off"
+                                autocorrect="off"
+                                spellcheck="false"
+                                maxlength="128"
+                                mozactionhint="search"
+                                value="">
+                        </div>
                     </div>
                     <div class="tracklist-transform-container"></div>
                     <div class="scrollbar-container">

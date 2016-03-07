@@ -17,6 +17,24 @@ const $ = window.$;
 
 window.__PROJECT__TITLE = "Soita";
 
+window.onerror = function(a, b, c, d, e) {
+    if (window.DEBUGGING) {
+        if (e && e.stack) {
+            console.log(e.stack);
+        } else {
+            var msg = a + " " + b + ":" + c + ":" + d;
+            console.log(msg);
+        }
+    } else {
+        if (e && e.stack) {
+            console.log(e.stack);
+        } else {
+            var msg = a + " " + b + ":" + c + ":" + d;
+            console.log(msg);
+        }
+    }
+};
+
 const features = require("features");
 const keyValueDatabase = require("KeyValueDatabase");
 
@@ -412,6 +430,7 @@ player.main.on("stop", function() {
 });
 
 const trackAnalyzer = new TrackAnalyzer(playlist.main);
+mainTabs.search.setTrackAnalyzer(trackAnalyzer);
 LocalFiles.setup(features.allowMimes, features.allowExtensions);
 
 function addFilesToPlaylist(files) {
@@ -470,8 +489,8 @@ var toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-ope
     openerActiveClass: "toolbar-item-active"
 });
 
-if (!false && window.DEBUGGING) {
-    const FAKE_TRACK_COUNT = 30;
+if (false && window.DEBUGGING) {
+    const FAKE_TRACK_COUNT = 8;
     const id3v1String = function(value) {
         var ret = new Uint8Array(30);
         for (var i = 0; i < value.length; ++i) {

@@ -196,7 +196,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
                 tag: NOTIFICATION_TAG,
                 body: body,
                 //icon: imageUrl,
-                icon: PlayerPictureManager.getDefaultImage().src,
+                //icon: PlayerPictureManager.getDefaultImage().src,
                 requireInteraction: true,
                 renotify: false,
                 noscreen: true,

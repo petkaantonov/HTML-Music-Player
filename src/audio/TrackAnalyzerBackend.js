@@ -33,6 +33,7 @@ const sniffer = require("audio/sniffer");
 const pool = require("pool");
 const AcoustId = require("audio/AcoustId");
 const Ebur128 = require("audio/ebur128");
+const trackSearcherBackend = require("TrackSearcherBackend");
 
 const allocBuffer = pool.allocBuffer;
 const freeBuffer = pool.freeBuffer;
@@ -107,7 +108,15 @@ const apiActions = {
         tagDatabase.updateRating(args.uid, args.rating);
     },
 
-    tick: simulateTick
+    tick: simulateTick,
+
+    search: function(args) {
+        trackSearcherBackend.startSession(args.sessionId, args.rawQuery, args.normalizedQuery);
+    },
+
+    stopSearch: function(args) {
+        trackSearcherBackend.stopSession(args.sessionId);
+    }
 }
 
 

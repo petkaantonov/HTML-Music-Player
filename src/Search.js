@@ -1,0 +1,354 @@
+"use strict";
+
+const $ = require("lib/jquery");
+const EventEmitter = require("lib/events");
+const util = require("lib/util");
+const Selectable = require("ui/Selectable");
+const DraggableSelection = require("ui/DraggableSelection");
+const keyValueDatabase = require("KeyValueDatabase");
+const Track = require("Track");
+const touch = require("features").touch;
+const domUtil = require("lib/DomUtil");
+const FixedItemListScroller = require("ui/FixedItemListScroller");
+const GlobalUi = require("ui/GlobalUi");
+const Snackbar = require("ui/Snackbar");
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+const TrackView = require("ui/TrackView");
+const listEvents = require("ui/listEvents");
+const selectionMethods = require("selectionMethods");
+const searchableTracks = require("SearchableTracks");
+
+const MAX_HISTORY = 100;
+const SEARCH_HISTORY_KEY = "search-history";
+const TrackViewOptions = {
+    updateTrackIndex: false,
+    updateSearchDisplayStatus: true
+};
+
+var searchSessionNextId = 0;
+
+function SearchSession(search, rawQuery, normalizedQuery) {
+    this._search = search;
+    this._rawQuery = rawQuery;
+    this._normalizedQuery = normalizedQuery;
+    var matchers = normalizedQuery.split(" ");
+    for (var i = 0; i < matchers.length; ++i) {
+        matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b");
+    }
+    this._matchers = matchers;
+    this._results = [];
+    this._destroyed = false;
+    this._started = false;
+    this._id = ++searchSessionNextId;
+    this._messaged = this._messaged.bind(this);
+}
+
+SearchSession.prototype._messaged = function(event) {
+    var payload = event.data;
+    if (!payload) return;
+    if (payload.searchSessionId !== this._id) return;
+
+    if (payload.type === "searchResults") {
+        this._gotResults(payload.results);
+    }
+};
+
+SearchSession.prototype.worker = function() {
+    return this._search._trackAnalyzer._worker;
+};
+
+SearchSession.prototype.start = function() {
+    if (this._destroyed) return;
+    if (this._started) return;
+    this.worker().addEventListener("message", this._messaged, false);
+    this._started = true;
+    this.worker().postMessage({
+        action: "search",
+        args: {
+            sessionId: this._id,
+            rawQuery: this._rawQuery,
+            normalizedQuery: this._normalizedQuery
+        }
+    });
+};
+
+SearchSession.prototype.destroy = function() {
+    if (this._destroyed) return;
+    this.worker().removeEventListener("message", this._messaged, false);
+    this.worker().postMessage({
+        action: "stopSearch",
+        args: {
+            sessionId: this._id
+        }
+    });
+    this._matchers = null;
+    this._destroyed = true;
+    this._search = null;
+};
+
+SearchSession.prototype.resultCount = function() {
+    return this._results.length;
+};
+
+SearchSession.prototype._gotResults = function(results) {
+    if (this._destroyed) return;
+    for (var i = 0; i < results.length; ++i) {
+        this._results.push(results[i]);
+    }
+    this._search.newResults(this, results);
+};
+
+function Search(domNode, opts) {
+    opts = Object(opts);
+    EventEmitter.call(this);
+    this._domNode = $($(domNode)[0]);
+    this._trackContainer = this.$().find(".tracklist-transform-container");
+    this._inputNode = this.$().find(".search-input-box");
+    this._dataListNode = this.$().find(".search-history");
+    this._inputContainerNode = this.$().find(".search-input-container");
+    this._trackViews = [];
+    this._searchHistory = [];
+    this._session = null;
+    this._trackAnalyzer = null;
+    this._playlist = opts.playlist;
+
+    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight || 44, {
+        scrollingX: false,
+        snapping: true,
+        zooming: false,
+        paging: false,
+        minPrerenderedItems: 15,
+        maxPrerenderedItems: 50,
+        contentContainer: this.$trackContainer(),
+        scrollbar: this.$().find(".scrollbar-container"),
+        railSelector: ".scrollbar-rail",
+        knobSelector: ".scrollbar-knob"
+    });
+    this._selectable = new Selectable(this);
+    this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
+    this._keyboardShortcutContext.addShortcut("ctrl+f", this._focusInput.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
+    this._keyboardShortcutContext.addShortcut("Enter", this.playPrioritySelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("ArrowUp", this.selectPrev.bind(this));
+    this._keyboardShortcutContext.addShortcut("ArrowDown", this.selectNext.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+ArrowUp", this.selectPrevAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+ArrowDown", this.selectNextAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+ArrowDown", this.removeTopmostSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+ArrowUp", this.removeBottommostSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+ArrowUp", this.moveSelectionUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+ArrowDown", this.moveSelectionDown.bind(this));
+    this._keyboardShortcutContext.addShortcut("PageUp", this.selectPagePrev.bind(this));
+    this._keyboardShortcutContext.addShortcut("PageDown", this.selectPageNext.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+PageUp", this.selectPagePrevAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+PageDown", this.selectPageNextAppend.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+PageDown", this.removeTopmostPageSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("alt+PageUp", this.removeBottommostPageSelection.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+PageUp", this.moveSelectionPageUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("mod+PageDown", this.moveSelectionPageDown.bind(this));
+    this._keyboardShortcutContext.addShortcut("Home", this.selectFirst.bind(this));
+    this._keyboardShortcutContext.addShortcut("End", this.selectLast.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
+    this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
+
+    listEvents.bindListEvents(this, {
+        dragging: false
+    });
+
+    var self = this;
+    keyValueDatabase.getInitialValues().then(function(values) {
+        if (SEARCH_HISTORY_KEY in values) {
+            self.tryLoadHistory(values[SEARCH_HISTORY_KEY]);
+        }
+    });
+
+    $(window).on("sizechange", this._windowLayoutChanged.bind(this));
+    this.$input().on("input", this._gotInput.bind(this));
+    this.$input().on("focus", this._inputFocused.bind(this));
+    this.$input().on("blur", this._inputBlurred.bind(this));
+}
+util.inherits(Search, EventEmitter);
+
+Search.prototype.$ = function() {
+    return this._domNode;
+};
+
+Search.prototype.$trackContainer = function() {
+    return this._trackContainer;
+};
+
+Search.prototype.$input = function() {
+    return this._inputNode;
+};
+
+Search.prototype.$historyDataList = function() {
+    return this._dataListNode;
+};
+
+Search.prototype.$inputContainer = function() {
+    return this._inputContainerNode;
+};
+
+Search.prototype.tabWillHide = function() {
+    if (this._session) {
+        this._session.destroy();
+        this._session = null;
+    }
+    this.$input().blur();
+    KeyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
+};
+
+Search.prototype.tabDidHide = function() {
+
+};
+
+Search.prototype.tabWillShow = function() {
+    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
+};
+
+Search.prototype.tabDidShow = function() {
+    this.$input().focus();
+    this._fixedItemListScroller.resize();
+};
+
+Search.prototype.tryLoadHistory = function(values) {
+
+};
+
+Search.prototype.pushHistory = function(value) {
+
+};
+
+Search.prototype.changeTrackExplicitly = function(track) {
+    this._playlist.changeTrackExplicitly(track);
+};
+
+Search.prototype.setTrackAnalyzer = function(trackAnalyzer) {
+    this._trackAnalyzer = trackAnalyzer;
+};
+
+Search.prototype._focusInput = function() {
+    this.$input().focus();
+};
+
+Search.prototype.newResults = function(session, results) {
+    if (this._session !== session) {
+        session.destroy();
+        return;
+    }
+
+    var oldLength = this.length;
+
+    for (var i = 0; i < results.length; ++i) {
+        var track = searchableTracks.getTrackByUid(results[i]);
+        if (!track || !track.shouldDisplayAsSearchResult()) {
+            continue;
+        }
+        var view = new TrackView(track, this._selectable, TrackViewOptions);
+        var len = this._trackViews.push(view);
+        view.setIndex(len - 1);
+    }
+
+    if (this.length !== oldLength) {
+        this.emit("lengthChange", this.length, oldLength);
+        this._fixedItemListScroller.resize();
+    }
+};
+
+Search.prototype.clear = function() {
+    this.removeTrackViews(this._trackViews);
+    if (this._session) {
+        this._session.destroy();
+        this._session = null;
+    }
+};
+
+Search.prototype._windowLayoutChanged = function() {
+    var self = this;
+    requestAnimationFrame(function() {
+        self._fixedItemListScroller.resize();
+    });
+};
+
+Search.prototype._inputBlurred = function() {
+    this.$inputContainer().removeClass("focused");
+    if (this._session && this._session.resultCount() > 0) {
+        // History result hash
+    }
+};
+
+Search.prototype._inputFocused = function() {
+    this.$inputContainer().addClass("focused");
+};
+
+Search.prototype.removeTrackViews = function(trackViews) {
+    if (trackViews.length === 0) return;
+
+    var oldLength = this.length;
+    var indices = trackViews.map(util.indexMapper);
+    var tracksIndexRanges = util.buildConsecutiveRanges(indices);
+
+    this._selectable.removeIndices(indices);
+
+    for (var i = 0; i < trackViews.length; ++i) {
+        trackViews[i].destroy();
+    }
+
+    this.removeTracksBySelectionRanges(tracksIndexRanges);
+    if (this.length !== oldLength) {
+        this.emit("lengthChange", this.length, oldLength);
+        this._fixedItemListScroller.resize();
+    }
+};
+
+Search.prototype._gotInput = util.throttle(function() {
+    var value = this.$input().val() + "";
+    var normalized = util.normalizeQuery(value);
+
+    if (normalized.length <= 1) {
+        this.clear();
+        return;
+    }
+
+    var newSession = new SearchSession(this, value, normalized);
+
+    var viewsToRemove = new Array(this._trackViews.length);
+    viewsToRemove.length = 0;
+    for (var i = 0; i < this._trackViews.length; ++i) {
+        var trackView = this._trackViews[i];
+        if (!trackView.track().matches(newSession._matchers)) {
+            viewsToRemove.push(trackView);
+        }
+    }
+
+    this.removeTrackViews(viewsToRemove);
+
+    if (this._session) {
+        this._session.destroy();
+    }
+
+    this._session = newSession;
+    this._session.start();
+}, 80);
+
+Search.prototype.playFirst = function() {
+    if (!this.length) return;
+    var firstSelectedTrack = this._selectable.first();
+    if (firstSelectedTrack) {
+        return this.changeTrackExplicitly(firstSelectedTrack.track());
+    }
+
+    var first = this._trackViews.first();
+    if (first) first = first.track();
+    this.changeTrackExplicitly(first);
+};
+
+Object.defineProperty(Search.prototype, "length", {
+    get: function() {
+        return this._trackViews.length;
+    },
+    configurable: false
+});
+
+selectionMethods.addSelectionMethods(Search);
+
+module.exports = Search;

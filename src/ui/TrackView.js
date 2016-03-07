@@ -28,10 +28,18 @@ function TrackView(track, selectable, opts) {
     this._selectable = selectable;
 
     this.updateTrackIndex = !!opts.updateTrackIndex;
+    this.updateSearchDisplayStatus = !!opts.updateSearchDisplayStatus;
 
     this._viewUpdated = this._viewUpdated.bind(this);
 
     this._track.on("viewUpdate", this._viewUpdated);
+
+    if (this.updateSearchDisplayStatus) {
+        if (track._isDisplayedAsSearchResult) {
+            throw new Error("duplicate search result view for this track");
+        }
+        track._isDisplayedAsSearchResult = true;
+    }
 }
 
 TrackView.prototype.$ = function() {
@@ -112,6 +120,12 @@ TrackView.prototype._ensureDomNode = function() {
 
 TrackView.prototype.destroy = function() {
     if (this._isDestroyed) return;
+    if (this.updateSearchDisplayStatus) {
+        if (!this._track._isDisplayedAsSearchResult) {
+            throw new Error("track is not displayed as search result");
+        }
+        this._track._isDisplayedAsSearchResult = false;
+    }
     this.destroyTooltips();
     this._track.removeListener("viewUpdate", this._viewUpdated);
     this.$().remove();
