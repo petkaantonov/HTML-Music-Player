@@ -8,10 +8,13 @@ const TagData = require("TagData");
 const sha1 = require("lib/sha1");
 const Promise = require("lib/bluebird");
 const domUtil = require("lib/DomUtil");
+const searchUtil = require("searchUtil");
 
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
 Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
+
+const uidToTrack = Object.create(null);
 
 function Track(audioFile) {
     EventEmitter.call(this);
@@ -19,10 +22,12 @@ function Track(audioFile) {
     this.tagData = null;
     this.index = -1;
     this._error = null;
-    this._searchString = null;
     this._lastPlayed = 0;
+    this._uid = null;
     this._generatedImage = null;
     this._isBeingAnalyzed = false;
+    this._isDisplayedAsSearchResult = false;
+    this._searchTerm = null;
 }
 util.inherits(Track, EventEmitter);
 
@@ -41,6 +46,22 @@ Track.prototype.getTrackInfo = function() {
         artist: artist,
         title: title
     };
+};
+
+Track.prototype.shouldDisplayAsSearchResult = function() {
+    return !this.isDetachedFromPlaylist() && this.tagData && !this._isDisplayedAsSearchResult;
+};
+
+Track.prototype.matches = function(matchers) {
+    if (!this._searchTerm) {
+        this._searchTerm = searchUtil.getSearchTerm(this);
+    }
+    for (var i = 0; i < matchers.length; ++i) {
+        if (!matchers[i].test(this._searchTerm)) {
+            return false;
+        }
+    }
+    return true;
 };
 
 Track.prototype.isAvailableOffline = function() {
@@ -86,6 +107,15 @@ Track.prototype.stageRemoval = function() {
     this.setIndex(-1);
     this.emit("viewUpdate", "viewUpdateDestroyed");
     this.emit("destroy", this);
+    if (this.tagData) {
+        delete uidToTrack[this.getUid()];
+    }
+};
+
+Track.prototype.unstageRemoval = function() {
+    if (this.tagData) {
+        uidToTrack[this.getUid()] = this;
+    }
 };
 
 Track.prototype.destroy = function() {
@@ -101,6 +131,7 @@ Track.prototype.destroy = function() {
     }
 
     if (this.tagData) {
+        delete uidToTrack[this.getUid()];
         this.tagData.destroy();
         this.tagData = null;
     }
@@ -229,6 +260,7 @@ Track.prototype.getTagData = function() {
 Track.prototype.setTagData = function(tagData) {
     if (this.tagData !== null) throw new Error("cannot set tagData again");
     this.tagData = tagData;
+    uidToTrack[this.getUid()] = this;
     this.tagDataUpdated();
 };
 
@@ -308,13 +340,9 @@ Track.prototype.tagDataUpdated = function() {
 
 Track.prototype.getUid = function() {
     if (this.tagData) {
-        var album = this.tagData.taggedAlbum;
-        var title = this.tagData.taggedTitle;
-        var artist = this.tagData.taggedArtist;
-        var index = this.tagData.albumIndex;
-        var name = this.getFileName();
-        var size = this.getFileSize();
-        return sha1(album + title + artist + index + name + size);
+        if (this._uid) return this._uid;
+        this._uid = searchUtil.calculateUid(this.file, this.tagData);
+        return this._uid;
     } else {
         throw new Error("cannot get uid before having tagData");
     }
@@ -393,14 +421,6 @@ Track.prototype.hasSilenceAtEnd = function() {
     return false;
 };
 
-Track.prototype.getSearchString = function() {
-    if (this._searchString !== null) return this._searchString;
-    var searchString = this.formatName().toLowerCase().replace(TagData.stripExtensionPattern, "")
-                                    .replace(util.unicode.alphaNumericFilteringPattern, "");
-    this._searchString = searchString;
-    return searchString;
-};
-
 Track.prototype.played = function() {
     this._lastPlayed = Date.now();
 };
@@ -467,6 +487,10 @@ Track.prototype.playerMetadata = function() {
 
 Track.prototype.getTagStateId = function() {
     return this.tagData ? this.tagData.getStateId() : -1;
+};
+
+Track.byUid = function(uid) {
+    return uidToTrack[uid];
 };
 
 module.exports = Track;

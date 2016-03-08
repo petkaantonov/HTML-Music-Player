@@ -815,6 +815,25 @@ input[type="checkbox"] {
   }
 }
 
+.textbox {
+  border: none;
+  padding: 5px 0;
+  margin: 0;
+  background: none;
+  text-align: left;
+  outline: none;
+  display: inline-block;
+  box-sizing: border-box;
+  font-family: "Droid Sans";
+  border-bottom: 2px solid $unfocused-form-color;
+  color: $unfocused-form-color;
+
+  &:focus {
+    outline: none;
+    color: #333;
+    border-color: $primary-color;
+  }
+}
 
 .settings-container {
   box-sizing: border-box;

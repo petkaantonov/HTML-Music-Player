@@ -1,6 +1,7 @@
 "use strict";
 
 const Playlist = require("Playlist");
+const Search = require("Search");
 const $ = require("lib/jquery");
 const TabController = require("ui/TabController");
 const ITEM_HEIGHT = 44;
@@ -12,6 +13,11 @@ const QUEUE_TAB_ID = "queue";
 
 const playlist = new Playlist("#app-playlist-container", {
     itemHeight: ITEM_HEIGHT
+});
+
+const search = new Search(".search-list-container", {
+    itemHeight: ITEM_HEIGHT,
+    playlist: playlist
 });
 
 var mainTabs = new TabController("#app-content-holder", [{
@@ -53,6 +59,7 @@ $(window).on("sizechange", function() {
 
 const contentInstancesByTabId = {};
 contentInstancesByTabId[PLAYLIST_TAB_ID] = playlist;
+contentInstancesByTabId[SEARCH_TAB_ID] = search;
 
 const tabEventHandler = function(methodName) {
     return function(tabId) {
@@ -72,3 +79,4 @@ mainTabs.activateTabById(PLAYLIST_TAB_ID);
 
 exports.tabs = mainTabs;
 exports.playlist = playlist;
+exports.search = search;

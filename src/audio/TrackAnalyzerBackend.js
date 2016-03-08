@@ -107,7 +107,15 @@ const apiActions = {
         tagDatabase.updateRating(args.uid, args.rating);
     },
 
-    tick: simulateTick
+    tick: simulateTick,
+
+    search: function(args) {
+        self.postMessage({
+            searchSessionId: args.sessionId,
+            type: "searchResults",
+            results: MetadataParser.searchIndex.search(args.normalizedQuery)
+        });
+    }
 }
 
 

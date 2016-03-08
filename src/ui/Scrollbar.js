@@ -181,6 +181,7 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
 Scrollbar.prototype.resize = function() {
     var physicalHeight = this._scrollerInfo.physicalHeight();
     var rect = this._rect = this.$()[0].getBoundingClientRect();
+
     if (rect.height >= physicalHeight) {
         this.$knob().css("height", 0);
         this._hasScroll = false;

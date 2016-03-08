@@ -14,7 +14,13 @@ const GlobalUi = require("ui/GlobalUi");
 const Snackbar = require("ui/Snackbar");
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 const TrackView = require("ui/TrackView");
-const TrackViewOptions = {updateTrackIndex: true};
+const listEvents = require("ui/listEvents");
+const selectionMethods = require("selectionMethods");
+
+const TrackViewOptions = {
+    updateTrackIndex: true,
+    updateSearchDisplayStatus: false
+};
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -113,59 +119,9 @@ function Playlist(domNode, opts) {
         }
     });
 
-    this.$().on("click mousedown dblclick", function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        if ($(e.target).closest(".track-container").length === 0) return;
-        var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-        if (!trackView) return;
-        switch (e.type) {
-            case "click": {
-                if (this._draggable.recentlyStoppedDragging()) return;
-                return this._selectable.trackViewClick(e, trackView);
-            }
-            case "mousedown": return this._selectable.trackViewMouseDown(e, trackView);
-            case "dblclick": this.changeTrackExplicitly(trackView.track()); break;
-        }
-    }.bind(this));
-
-    if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.modifierTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-
-            if (this._selectable.contains(trackView)) {
-                this._selectable.removeTrackView(trackView);
-            } else {
-                this._selectable.addTrackView(trackView);
-                this._selectable.setPriorityTrackView(trackView);
-            }
-        }.bind(this)));
-
-        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            this._selectable.selectTrackView(trackView);
-        }.bind(this)));
-
-        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.longTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            if (!this._selectable.contains(trackView)) {
-                this._selectable.selectTrackView(trackView);
-            }
-            this._selectable.setPriorityTrackView(trackView);
-        }.bind(this)));
-
-        this.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.doubleTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = this._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            this.changeTrackExplicitly(trackView.track());
-        }.bind(this)));
-    }
+    listEvents.bindListEvents(this, {
+        dragging: true
+    });
 
     var self = this;
     this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
@@ -212,12 +168,6 @@ function Playlist(domNode, opts) {
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
     }
-    this._draggable.on("dragStart", function() {
-        this.$().find(".tracklist-transform-container").addClass("tracks-dragging");
-    }.bind(this));
-    this._draggable.on("dragEnd", function() {
-        this.$().find(".tracklist-transform-container").removeClass("tracks-dragging");
-    }.bind(this));
     this._draggable.bindEvents();
 }
 util.inherits(Playlist, EventEmitter);
@@ -332,7 +282,7 @@ Playlist.prototype.tabWillShow = function() {
 };
 
 Playlist.prototype.tabDidShow = function() {
-
+    this._fixedItemListScroller.resize();
 };
 
 Playlist.prototype.$trackContainer = function() {
@@ -444,22 +394,6 @@ Playlist.prototype.showPlaylistEmptyIndicator = function() {
     this.$().find(".tracklist-transform-container").hide();
 };
 
-Playlist.prototype.playPrioritySelection = function() {
-    if (!this.length) return;
-
-    var trackView = this._selectable.getPriorityTrackView();
-    if (!trackView) return this.playFirstSelected();
-    this.changeTrackExplicitly(trackView.track());
-};
-
-Playlist.prototype.playFirstSelected = function() {
-    if (!this.length) return;
-
-    var firstTrackView = this._selectable.first();
-    if (!firstTrackView) return;
-    this.changeTrackExplicitly(firstTrackView.track());
-};
-
 Playlist.prototype.playFirst = function() {
     if (!this.length) return;
     var firstSelectedTrack = this._selectable.first();
@@ -476,10 +410,6 @@ Playlist.prototype.playFirst = function() {
     }
 };
 
-Playlist.prototype.getTrackViews = function() {
-    return this._trackViews;
-};
-
 Playlist.prototype.getUnparsedTracks = function() {
     var tracks = this._unparsedTrackList;
     if (!tracks.length) return EMPTY_ARRAY;
@@ -493,48 +423,6 @@ Playlist.prototype.getUnparsedTracks = function() {
     }
     return ret;
 };
-
-Playlist.prototype.centerOnTrackView = function(trackView) {
-    if (trackView && !trackView.isDetachedFromPlaylist()) {
-        var y = this._fixedItemListScroller.yByIndex(trackView.getIndex());
-        y -= (this._fixedItemListScroller.contentHeight() / 2);
-        this._fixedItemListScroller.scrollToUnsnapped(y, false);
-    }
-};
-
-Playlist.prototype.getTrackByIndex = function(index) {
-    return this._trackViews[index].track();
-};
-
-Playlist.prototype.getTrackViewByIndex = function(index) {
-    return this._trackViews[index];
-};
-
-Playlist.prototype.removeTracksBySelectionRanges = (function() {
-    function remove(trackViews, selection, indexOffset) {
-        var trackViewsLength = trackViews.length;
-        var tracksToRemove = selection.length;
-        var count = trackViewsLength - tracksToRemove;
-        var index = selection[0] - indexOffset;
-
-        for (var i = index; i < count && i + tracksToRemove < trackViewsLength; ++i) {
-            var trackView = trackViews[i + tracksToRemove];
-            trackView.setIndex(i);
-            trackViews[i] = trackView;
-        }
-        trackViews.length = count;
-    }
-
-    return function(selectionRanges) {
-        var trackViews = this._trackViews;
-        var indexOffset = 0;
-        selectionRanges.forEach(function(selection) {
-            remove(trackViews, selection, indexOffset);
-            indexOffset += selection.length;
-        });
-    };
-})();
-
 
 Playlist.prototype.removeTrackView = function(trackView) {
     this.removeTrackViews([trackView]);
@@ -571,6 +459,7 @@ Playlist.prototype._restoreStateForUndo = function() {
             if (!trackAndView.view._isDestroyed) {
                 throw new Error("should be destroyed");
             }
+            trackAndView.track.unstageRemoval();
             this._trackViews[i] = new TrackView(trackAndView.track, this._selectable, TrackViewOptions);
         } else {
             if (trackAndView.view._isDestroyed) {
@@ -669,10 +558,6 @@ Playlist.prototype.isTrackHighlyRelevant = function(track) {
     return track.isDetachedFromPlaylist() ? false
                                           : (track === this.getCurrentTrack() ||
                                              track === this.getNextTrack());
-};
-
-Playlist.prototype.getSelectable = function() {
-    return this._selectable;
 };
 
 Playlist.prototype.add = function(tracks) {
@@ -833,173 +718,8 @@ Playlist.prototype.tryChangeMode = function(mode) {
     return false;
 };
 
-Playlist.prototype.getSelectedItemViewCount = function() {
-    return this._selectable.getSelectedItemViewCount();
-};
-
 Playlist.prototype.getMode = function() {
     return this._mode;
-};
-
-Playlist.prototype.toArray = function() {
-    return this._trackViews.slice();
-};
-
-Playlist.prototype.getSelection = function() {
-    return this._selectable.getSelection();
-};
-
-Playlist.prototype.clearSelection = function() {
-    this._selectable.clearSelection();
-};
-
-Playlist.prototype.selectAll = function() {
-    if (this.length) {
-        this._selectable.all();
-    }
-};
-
-// Home and End selection stuff.
-
-Playlist.prototype.selectFirst = function() {
-    if (this.length) {
-        this._selectable.selectFirst();
-    }
-};
-
-Playlist.prototype.selectLast = function() {
-    if (this.length) {
-        this._selectable.selectLast();
-    }
-};
-
-Playlist.prototype.selectAllUp = function() {
-    if (this.length) {
-        this._selectable.appendPrev(this.length);
-    }
-};
-
-Playlist.prototype.selectAllDown = function() {
-    if (this.length) {
-        this._selectable.appendNext(this.length);
-    }
-};
-
-// Arrow up and arrow down selection stuff.
-
-Playlist.prototype.selectPrev = function() {
-    if (this.length) {
-        this._selectable.prev();
-    }
-};
-
-Playlist.prototype.selectNext = function() {
-    if (this.length) {
-        this._selectable.next();
-    }
-};
-
-Playlist.prototype.selectPrevAppend = function() {
-    if (this.length) {
-        this._selectable.appendPrev();
-    }
-};
-
-Playlist.prototype.selectNextAppend = function() {
-    if (this.length) {
-        this._selectable.appendNext();
-    }
-};
-
-Playlist.prototype.removeTopmostSelection = function() {
-    if (this.length) {
-        this._selectable.removeTopmostSelection();
-    }
-};
-
-Playlist.prototype.removeBottommostSelection = function() {
-    if (this.length) {
-        this._selectable.removeBottommostSelection();
-    }
-};
-
-Playlist.prototype.moveSelectionUp = function() {
-    if (this.length) {
-        this._selectable.moveUp();
-    }
-};
-
-Playlist.prototype.moveSelectionDown = function() {
-    if (this.length) {
-        this._selectable.moveDown();
-    }
-};
-
-Playlist.prototype.tracksVisibleInContainer = function() {
-    return this._fixedItemListScroller.itemsVisibleInContainer();
-};
-
-Playlist.prototype.halfOfTracksVisibleInContainer = function() {
-    return Math.ceil(this.tracksVisibleInContainer() / 2);
-};
-
-// Page up and page down selection stuff.
-
-Playlist.prototype.selectPagePrevAppend = function() {
-    if (this.length) {
-        this._selectable.appendPrev(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.selectPageNextAppend = function() {
-    if (this.length) {
-        this._selectable.appendNext(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.selectPagePrev = function() {
-    if (this.length) {
-        this._selectable.prev(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.selectPageNext = function() {
-    if (this.length) {
-        this._selectable.next(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.removeTopmostPageSelection = function() {
-    if (this.length) {
-        this._selectable.removeTopmostSelection(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.removeBottommostPageSelection = function() {
-    if (this.length) {
-        this._selectable.removeBottommostSelection(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.moveSelectionPageUp = function() {
-    if (this.length) {
-        this._selectable.moveUp(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.moveSelectionPageDown = function() {
-    if (this.length) {
-        this._selectable.moveDown(this.halfOfTracksVisibleInContainer());
-    }
-};
-
-Playlist.prototype.selectTrackView = function(trackView) {
-    var index = trackView.getIndex();
-    if (index >= 0) {
-        this.clearSelection();
-        this._selectable.addTrackView(trackView);
-        this.centerOnTrackView(trackView);
-    }
 };
 
 const compareAlbum = function(a, b) {
@@ -1150,5 +870,7 @@ Object.defineProperty(Playlist.prototype, "length", {
     },
     configurable: false
 });
+
+selectionMethods.addSelectionMethods(Playlist);
 
 module.exports = Playlist;
