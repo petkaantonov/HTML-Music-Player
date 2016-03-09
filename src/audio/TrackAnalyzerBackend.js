@@ -64,6 +64,7 @@ const promiseMessageSuccessErrorHandler = function(args, p, jobType) {
         });
         return result;
     }).catch(function(e) {
+        console.log(e.stack);
         postMessage({
             id: args.id,
             type: "error",
@@ -115,6 +116,10 @@ const apiActions = {
             type: "searchResults",
             results: MetadataParser.searchIndex.search(args.normalizedQuery)
         });
+    },
+
+    updateSearchIndex: function(args) {
+        MetadataParser.searchIndex.update(args.uid, args.metadata);
     }
 }
 

@@ -113,11 +113,13 @@ Node.prototype.isLeftChild = function() {
 };
 
 Node.prototype.setLeftChild = function(node) {
+    if (node === null) node = NULL;
     this.left = node;
     if (node !== NULL) node.parent = this;
 };
 
 Node.prototype.setRightChild = function(node) {
+    if (node === null) node = NULL;
     this.right = node;
     if (node !== NULL) node.parent = this;
 };

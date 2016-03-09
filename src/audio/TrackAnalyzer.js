@@ -458,6 +458,16 @@ TrackAnalyzer.prototype.rateTrack = function(track, rating) {
     });
 };
 
+TrackAnalyzer.prototype.updateSearchIndex = function(track, metadata) {
+    this._worker.postMessage({
+        action: "updateSearchIndex",
+        args: {
+            uid: track.getUid(),
+            metadata: metadata
+        }
+    });
+};
+
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
     if (this.ready && !this.ready.isResolved()) {

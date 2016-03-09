@@ -8,6 +8,11 @@ function SearchTreeEntry(uid, searchTerm) {
     this._distance = 0;
 }
 
+SearchTreeEntry.prototype.keywords = function() {
+    if (!this._searchTerm.length) return [];
+    return this._searchTerm.split(" ");
+};
+
 SearchTreeEntry.prototype.setDistance = function(distance) {
     this._distance = distance;
 };

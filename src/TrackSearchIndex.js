@@ -70,29 +70,41 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
 TrackSearchIndex.prototype.add = function(file, metadata) {
     var uid = searchUtil.calculateUid(file, metadata, false);
     if (this._uidToSearchTreeEntry[uid]) return;
+    this._uidToSearchTreeEntry[uid] = this._addToSearchTree(uid, metadata, file);
+};
 
-    var keywords = searchUtil.getKeywords(metadata);
-    var searchTreeEntry = new SearchTreeEntry(uid, searchUtil.getSearchTerm(metadata));
+TrackSearchIndex.prototype.update = function(uid, metadata) {
+    var entry = this._uidToSearchTreeEntry[uid];
+    if (!entry) return;
+    this._removeFromSearchTree(entry);
+    this._uidToSearchTreeEntry[uid] = this._addToSearchTree(uid, metadata, null);
+};
+
+TrackSearchIndex.prototype._addToSearchTree = function(uid, metadata, file) {
+    var entry = new SearchTreeEntry(uid, searchUtil.getSearchTerm(metadata, file));
+    var keywords = entry.keywords();
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];
-        this._prefixSearchTree.insert(keyword, searchTreeEntry);
-        this._suffixSearchTree.insert(util.reverseString(keyword), searchTreeEntry);
+        this._prefixSearchTree.insert(keyword, entry);
+        this._suffixSearchTree.insert(util.reverseString(keyword), entry);
     }
-    this._uidToSearchTreeEntry[uid] = searchTreeEntry;
+    return entry;
+};
+
+TrackSearchIndex.prototype._removeFromSearchTree = function(entry) {
+    var keywords = entry.keywords();
+    for (var i = 0; i < keywords.length; ++i) {
+        var keyword = keywords[i];
+        this._prefixSearchTree.remove(keyword, entry);
+        this._suffixSearchTree.remove(util.reverseString(keyword), entry);
+    }
 };
 
 TrackSearchIndex.prototype.remove = function(file, metadata) {
     var uid = searchUtil.calculateUid(file, metadata, false);
-    var searchTreeEntry = this._uidToSearchTreeEntry[uid];
-    if (!searchTreeEntry) return;
-
-    var keywords = searchUtil.getKeywords(metadata);
-    for (var i = 0; i < keywords.length; ++i) {
-        var keyword = keywords[i];
-        this._prefixSearchTree.remove(keyword, searchTreeEntry);
-        this._suffixSearchTree.remove(util.reverseString(keyword), searchTreeEntry);
-    }
-
+    var entry = this._uidToSearchTreeEntry[uid];
+    if (!entry) return;
+    this._removeFromSearchTree(entry);
     delete this._uidToSearchTreeEntry[uid];
 };
 

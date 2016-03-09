@@ -13,7 +13,6 @@ const NO_IMAGE_FOUND = 2;
 const PENDING_IMAGE = 3;
 const HAS_IMAGE = 4;
 
-var preferAcoustIdData = true;
 const albumNameToCoverArtUrlMap = Object.create(null);
 
 function TagData(track, data, trackAnalyzer) {
@@ -347,11 +346,30 @@ TagData.prototype.getBeginSilenceLength = function() {
 };
 
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
-    if (acoustId && preferAcoustIdData) {
-        if (acoustId.artist && !this.taggedArtist) this.artist = util.formatTagString(acoustId.artist.name);
-        if (acoustId.title && !this.taggedTitle) this.title = util.formatTagString(acoustId.title.name);
+    if (acoustId) {
+        var searchTermsUpdated = false;
+        if (acoustId.artist && !this.taggedArtist) {
+            this.artist = util.formatTagString(acoustId.artist.name);
+            searchTermsUpdated = true;
+        }
+        if (acoustId.title && !this.taggedTitle) {
+            this.title = util.formatTagString(acoustId.title.name);
+            searchTermsUpdated = true;
+        }
+        if (acoustId.album && !this.taggedAlbum) {
+            this.album = util.formatTagString(acoustId.album.name);
+            searchTermsUpdated = true;
+        }
+
+        if (searchTermsUpdated) {
+            this._trackAnalyzer.updateSearchIndex(this.track, {
+                artist: this.artist,
+                title: this.title,
+                album: this.album,
+                genres: this.genres
+            });
+        }
     }
-    if (acoustId && acoustId.album) this.album = util.formatTagString(acoustId.album.name);
 };
 
 TagData.prototype.hasAcoustIdImage = function() {
@@ -409,7 +427,7 @@ TagData.prototype.setLoudness = function(data) {
 TagData.prototype.setDataFromTagDatabase = function(data) {
     this._stateUpdate();
     this._hasBeenAnalyzed = true;
-    this.acoustId = data.acoustId || this.acoustId|| null;
+    this.acoustId = data.acoustId || this.acoustId || null;
     if (this.acoustId) {
         this.updateFieldsFromAcoustId(this.acoustId);
     }
