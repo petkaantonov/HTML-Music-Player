@@ -3,11 +3,18 @@
 const util = require("lib/util");
 const sha1 = require("lib/sha1");
 
-const calculateUid = function(file, metadata) {
-    var title = metadata.taggedTitle || metadata.title || null;
-    var album = metadata.taggedAlbum || metadata.album || null;
-    var artist = metadata.taggedArtist || metadata.artist || null;
-    var index = metadata.albumIndex || -1;
+const calculateUid = function(file, metadata, useTagged) {
+    var title, album, artist;
+    if (useTagged) {
+        title = metadata.taggedTitle;
+        album = metadata.taggedAlbum;
+        artist = metadata.taggedArtist;
+    } else {
+        title = metadata.title;
+        album = metadata.album;
+        artist = metadata.artist;
+    }
+    var index = metadata.albumIndex;
     var name = file.name;
     var size = file.size;
     return sha1("" + album + title + artist + index + name + size);

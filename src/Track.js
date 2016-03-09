@@ -269,13 +269,13 @@ Track.prototype.setTagData = function(tagData) {
 Track.prototype.formatFullName = function() {
     var name = this.formatName();
     if (this.tagData && this.tagData.getAlbum()) {
-        var trackNumber = this.tagData.trackNumber;
+        var albumIndex = this.tagData.albumIndex;
         var trackCount = this.tagData.trackCount;
         var position = "";
-        if (trackNumber !== -1 && trackCount === -1) {
-            position = " #" + trackNumber;
-        } else if (trackNumber !== -1 && trackCount !== -1) {
-            position = " #" + trackNumber + "/" + trackCount;
+        if (albumIndex !== -1 && trackCount === -1) {
+            position = " #" + albumIndex;
+        } else if (albumIndex !== -1 && trackCount !== -1) {
+            position = " #" + albumIndex + "/" + trackCount;
         }
 
         name = name + " [" + this.tagData.getAlbum() + position + "]";
@@ -343,7 +343,7 @@ Track.prototype.tagDataUpdated = function() {
 Track.prototype.getUid = function() {
     if (this.tagData) {
         if (this._uid) return this._uid;
-        this._uid = searchUtil.calculateUid(this.file, this.tagData);
+        this._uid = searchUtil.calculateUid(this.file, this.tagData, true);
         return this._uid;
     } else {
         throw new Error("cannot get uid before having tagData");

@@ -42,7 +42,7 @@ function TagData(track, data, trackAnalyzer) {
 
     this.discNumber = data.discNumber || -1;
     this.discCount = data.discCount || -1;
-    this.trackNumber = data.trackNumber || -1;
+    this.albumIndex = data.albumIndex || -1;
     this.trackCount = data.trackCount || -1;
 
     this.trackGain = 0;

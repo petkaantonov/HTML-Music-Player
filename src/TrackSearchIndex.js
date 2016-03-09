@@ -34,7 +34,8 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
             matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b", "g");
         }
 
-        refinementLoop: for (var i = 0; i < results.length; ++i) {
+        var length = Math.min(results.length, 2500);
+        refinementLoop: for (var i = 0; i < length; ++i) {
             var result = results[i];
             var searchTerm = result.searchTerm();
             var distance = 0;
@@ -67,7 +68,7 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
 };
 
 TrackSearchIndex.prototype.add = function(file, metadata) {
-    var uid = searchUtil.calculateUid(file, metadata);
+    var uid = searchUtil.calculateUid(file, metadata, false);
     if (this._uidToSearchTreeEntry[uid]) return;
 
     var keywords = searchUtil.getKeywords(metadata);
@@ -81,7 +82,7 @@ TrackSearchIndex.prototype.add = function(file, metadata) {
 };
 
 TrackSearchIndex.prototype.remove = function(file, metadata) {
-    var uid = searchUtil.calculateUid(file, metadata);
+    var uid = searchUtil.calculateUid(file, metadata, false);
     var searchTreeEntry = this._uidToSearchTreeEntry[uid];
     if (!searchTreeEntry) return;
 
