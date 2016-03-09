@@ -275,7 +275,7 @@ SearchTree.prototype._searchSuccessors = function(node, word, results) {
 
 SearchTree.prototype.search = function(word) {
     var node = this._root;
-    if (node === null) return null;
+    if (node === null) return [];
     var results = [];
     while (node !== NULL) {
         var result = compareStringsLcp(this, node.word, word);

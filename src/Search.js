@@ -17,7 +17,7 @@ const TrackView = require("ui/TrackView");
 const listEvents = require("ui/listEvents");
 const selectionMethods = require("selectionMethods");
 
-const MAX_HISTORY = 100;
+const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = "search-history";
 const TrackViewOptions = {
     updateTrackIndex: false,
@@ -25,6 +25,35 @@ const TrackViewOptions = {
 };
 
 var searchSessionNextId = 0;
+
+function SearchHistoryEntry(query) {
+    query = "" + query;
+    var opt = document.createElement("option");
+    opt.value = query;
+    this._domNode = $(opt);
+    this._query = query;
+}
+
+SearchHistoryEntry.prototype.$ = function() {
+    return this._domNode;
+};
+
+SearchHistoryEntry.prototype.update = function(query) {
+    this._query = query;
+    this.$()[0].value = query;
+};
+
+SearchHistoryEntry.prototype.query = function() {
+    return this._query;
+};
+
+SearchHistoryEntry.prototype.toJSON = function() {
+    return this._query;
+};
+
+SearchHistoryEntry.prototype.destroy = function() {
+    this.$().remove();
+};
 
 function SearchSession(search, rawQuery, normalizedQuery) {
     this._search = search;
@@ -103,6 +132,7 @@ function Search(domNode, opts) {
     this._session = null;
     this._trackAnalyzer = null;
     this._playlist = opts.playlist;
+    this._topHistoryEntry = null;
 
     this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight || 44, {
         scrollingX: false,
@@ -157,6 +187,8 @@ function Search(domNode, opts) {
     this.$input().on("input", this._gotInput.bind(this));
     this.$input().on("focus", this._inputFocused.bind(this));
     this.$input().on("blur", this._inputBlurred.bind(this));
+
+
 }
 util.inherits(Search, EventEmitter);
 
@@ -203,12 +235,24 @@ Search.prototype.tabDidShow = function() {
 };
 
 Search.prototype.tryLoadHistory = function(values) {
+    if (Array.isArray(values) && values.length <= MAX_SEARCH_HISTORY_ENTRIES) {
+        this._searchHistory = values.map(function(query) {
+            return new SearchHistoryEntry(query);
+        });
 
+        var parent = this.$historyDataList();
+        for (var i = 0; i < this._searchHistory.length; ++i) {
+            parent.append(this._searchHistory[i].$());
+        }
+    }
 };
 
-Search.prototype.pushHistory = function(value) {
-
-};
+const saveHistory = util.throttle(function(historyEntries) {
+    var json = historyEntries.map(function(v) {
+        return v.toJSON();
+    });
+    keyValueDatabase.set(SEARCH_HISTORY_KEY, json);
+}, 1000);
 
 Search.prototype.changeTrackExplicitly = function(track) {
     this._playlist.changeTrackExplicitly(track);
@@ -264,7 +308,36 @@ Search.prototype._windowLayoutChanged = function() {
 Search.prototype._inputBlurred = function() {
     this.$inputContainer().removeClass("focused");
     if (this._session && this._session.resultCount() > 0) {
-        // History result hash
+        if (this._topHistoryEntry === null) {
+            var searchHistory = this._searchHistory;
+            var newQuery = this._session._rawQuery;
+
+            for (var i = 0; i < searchHistory.length; ++i) {
+                if (searchHistory[i].query() === newQuery) {
+                    this._topHistoryEntry = searchHistory[i];
+
+                    for (var j = i; j > 0; --j) {
+                        searchHistory[j] = searchHistory[j - 1];
+                    }
+                    searchHistory[0] = this._topHistoryEntry;
+
+                    this.$historyDataList().prepend(this._topHistoryEntry.$());
+                    saveHistory(searchHistory);
+                    return;
+                }
+            }
+
+            this._topHistoryEntry = new SearchHistoryEntry(newQuery);
+            this._searchHistory.unshift(this._topHistoryEntry);
+            this.$historyDataList().prepend(this._topHistoryEntry.$());
+            if (this._searchHistory.length > MAX_SEARCH_HISTORY_ENTRIES) {
+                this._searchHistory.pop().destroy();
+            }
+            saveHistory(this._searchHistory);
+        } else {
+            this._topHistoryEntry.update(this._session._rawQuery);
+            saveHistory(this._searchHistory);
+        }
     }
 };
 
@@ -293,6 +366,11 @@ Search.prototype.removeTrackViews = function(trackViews, silent) {
 
 Search.prototype._gotInput = util.throttle(function() {
     var value = this.$input().val() + "";
+
+    if (value.length === 0) {
+        this._topHistoryEntry = null;
+    }
+
     var normalized = util.normalizeQuery(value);
 
     if (this._session && this._session._normalizedQuery === normalized) {
