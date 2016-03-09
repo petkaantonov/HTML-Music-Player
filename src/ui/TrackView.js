@@ -126,7 +126,6 @@ TrackView.prototype.destroy = function() {
         }
         this._track._isDisplayedAsSearchResult = false;
     }
-    console.log("destroyed a track view");
     this.destroyTooltips();
     this._track.removeListener("viewUpdate", this._viewUpdated);
     this.$().remove();

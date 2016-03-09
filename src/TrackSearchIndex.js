@@ -37,14 +37,20 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
         refinementLoop: for (var i = 0; i < results.length; ++i) {
             var result = results[i];
             var searchTerm = result.searchTerm();
-
             var distance = 0;
-            for (var j = 0; j < matchers.length; ++j) {
-                var matcher = matchers[j];
-                if (!matcher.test(searchTerm)) {
-                    continue refinementLoop;
+            var fullMatchIndex = searchTerm.indexOf(normalizedQuery);
+            if (fullMatchIndex >= 0) {
+                // Ensure all exact matches go to the beginning.
+                distance = -999999 + fullMatchIndex;
+            } else {
+                for (var j = 0; j < matchers.length; ++j) {
+                    var matcher = matchers[j];
+                    if (!matcher.test(searchTerm)) {
+                        continue refinementLoop;
+                    }
+                    distance += matcher.lastIndex;
+                    matcher.lastIndex = 0;
                 }
-                distance += matcher.lastIndex;
             }
             result.setDistance(distance);
             ret.push(result);
@@ -65,7 +71,7 @@ TrackSearchIndex.prototype.add = function(file, metadata) {
     if (this._uidToSearchTreeEntry[uid]) return;
 
     var keywords = searchUtil.getKeywords(metadata);
-    var searchTreeEntry = new SearchTreeEntry(uid, keywords.join(" "));
+    var searchTreeEntry = new SearchTreeEntry(uid, searchUtil.getSearchTerm(metadata));
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];
         this._prefixSearchTree.insert(keyword, searchTreeEntry);

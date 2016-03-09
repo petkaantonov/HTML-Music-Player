@@ -53,8 +53,10 @@ Track.prototype.shouldDisplayAsSearchResult = function() {
 };
 
 Track.prototype.matches = function(matchers) {
+    if (!this.tagData) return false;
+
     if (!this._searchTerm) {
-        this._searchTerm = searchUtil.getSearchTerm(this);
+        this._searchTerm = searchUtil.getSearchTerm(this.tagData);
     }
     for (var i = 0; i < matchers.length; ++i) {
         if (!matchers[i].test(this._searchTerm)) {

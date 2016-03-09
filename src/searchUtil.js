@@ -27,8 +27,13 @@ const getKeywords = function(metadata) {
     return Object.keys(unique);
 };
 
-const getSearchTerm = function(track) {
-    return getKeywords(track.tagData).join(" ");
+const getSearchTerm = function(metadata) {
+    var title = util.normalizeQuery(metadata.taggedTitle || metadata.title || "");
+    var artist = util.normalizeQuery(metadata.taggedArtist || metadata.artist || "");
+    var album = util.normalizeQuery(metadata.taggedAlbum || metadata.album || "");
+    var genres = metadata.genres;
+    if (genres) genres = util.normalizeQuery(genres.join(" "));
+    return (title.split(" ").concat(artist.split(" "), album.split(" "), genres.split(" "))).join(" ");
 };
 
 const tracksByUid = Object.create(null);

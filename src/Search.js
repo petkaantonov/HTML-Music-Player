@@ -227,23 +227,23 @@ Search.prototype.newResults = function(session, results) {
         session.destroy();
         return;
     }
-
+    var trackViews = this._trackViews;
     var oldLength = this.length;
-
+    this.removeTrackViews(trackViews, true);
     for (var i = 0; i < results.length; ++i) {
         var track = Track.byUid(results[i]);
         if (!track || !track.shouldDisplayAsSearchResult()) {
             continue;
         }
         var view = new TrackView(track, this._selectable, TrackViewOptions);
-        var len = this._trackViews.push(view);
+        var len = trackViews.push(view);
         view.setIndex(len - 1);
     }
 
     if (this.length !== oldLength) {
         this.emit("lengthChange", this.length, oldLength);
-        this._fixedItemListScroller.resize();
     }
+    this._fixedItemListScroller.resize();
 };
 
 Search.prototype.clear = function() {
@@ -272,7 +272,7 @@ Search.prototype._inputFocused = function() {
     this.$inputContainer().addClass("focused");
 };
 
-Search.prototype.removeTrackViews = function(trackViews) {
+Search.prototype.removeTrackViews = function(trackViews, silent) {
     if (trackViews.length === 0) return;
     var oldLength = this.length;
     var indices = trackViews.map(util.indexMapper);
@@ -285,7 +285,7 @@ Search.prototype.removeTrackViews = function(trackViews) {
     }
 
     this.removeTracksBySelectionRanges(tracksIndexRanges);
-    if (this.length !== oldLength) {
+    if (this.length !== oldLength && !silent) {
         this.emit("lengthChange", this.length, oldLength);
         this._fixedItemListScroller.resize();
     }
@@ -304,24 +304,10 @@ Search.prototype._gotInput = util.throttle(function() {
         return;
     }
 
-    var newSession = new SearchSession(this, value, normalized);
-
-    var viewsToRemove = new Array(this._trackViews.length);
-    viewsToRemove.length = 0;
-    for (var i = 0; i < this._trackViews.length; ++i) {
-        var trackView = this._trackViews[i];
-        if (!trackView.track().matches(newSession._matchers)) {
-            viewsToRemove.push(trackView);
-        }
-    }
-
-    this.removeTrackViews(viewsToRemove);
-
     if (this._session) {
         this._session.destroy();
     }
-
-    this._session = newSession;
+    this._session = new SearchSession(this, value, normalized)
     this._session.start();
 }, 33);
 
