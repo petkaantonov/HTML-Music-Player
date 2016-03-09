@@ -16,11 +16,11 @@ const calculateUid = function(file, metadata) {
 const getKeywords = function(metadata) {
     var unique = Object.create(null);
     var title = util.normalizeQuery(metadata.taggedTitle || metadata.title || "");
-    var album = util.normalizeQuery(metadata.taggedAlbum || metadata.album || "");
     var artist = util.normalizeQuery(metadata.taggedArtist || metadata.artist || "");
+    var album = util.normalizeQuery(metadata.taggedAlbum || metadata.album || "");
     var genres = metadata.genres;
     if (genres) genres = util.normalizeQuery(genres.join(" "));
-    var searchTerms = title.split(" ").concat(album.split(" "), artist.split(" "), genres.split(" "));
+    var searchTerms = title.split(" ").concat(artist.split(" "), album.split(" "), genres.split(" "));
     for (var i = 0; i < searchTerms.length; ++i) {
         unique[searchTerms[i]] = true;
     }

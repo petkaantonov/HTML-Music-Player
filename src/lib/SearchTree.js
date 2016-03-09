@@ -1,5 +1,7 @@
 "use strict";
 
+const sortedArrays = require("lib/sortedArrays");
+
 const RED = -1;
 const BLACK = 1;
 
@@ -67,22 +69,12 @@ function Node(word) {
     this.values = [];
 }
 
-Node.prototype.add = function(value) {
-    this.values.push(value);
+Node.prototype.add = function(value, comparer) {
+    sortedArrays.insert(comparer, this.values, value);
 };
 
-Node.prototype.remove = function(value) {
-    var values = this.values;
-    var length = values.length;
-    for (var i = 0; i < length; ++i) {
-        if (values[i] === value) {
-            for (var j = i; j < length - 1; ++j) {
-                values[j] = values[j + 1];
-            }
-            values.length = length - 1;
-            return;
-        }
-    }
+Node.prototype.remove = function(value, comparer) {
+    sortedArrays.remove(comparer, this.values, value);
 };
 
 Node.prototype.length = function() {
@@ -204,12 +196,8 @@ Node.prototype.rotateRight = function() {
     left.setRightChild(this);
 };
 
-Node.prototype.putValues = function(map) {
-    var values = this.values;
-    for (var i = 0; i < values.length; ++i) {
-        var value = values[i];
-        map[value.hash()] = value;
-    }
+Node.prototype.putValues = function(sortedArray, comparer) {
+    sortedArrays.merge(comparer, sortedArray, this.values);
 };
 
 const spaces = function(level) {
@@ -223,16 +211,17 @@ const spaces = function(level) {
 const NULL = new Node("");
 NULL.color = BLACK;
 
-const mkNode = function(word, value) {
+const mkNode = function(word, value, comparer) {
     var ret = new Node(word);
-    ret.add(value);
+    ret.add(value, comparer);
     ret.left = ret.right = NULL;
     return ret;
 };
 
-function SearchTree() {
+function SearchTree(valueComparer) {
     this._length = 0;
     this._root = null;
+    this._valueComparer = valueComparer;
     this.lcp = 0;
 }
 
@@ -258,7 +247,7 @@ SearchTree.prototype._searchPrecedessors = function(node, word, results) {
         var lcp = this.lcp;
         if (lcp > 0) {
             if (word.length === lcp) {
-                node.putValues(results);
+                node.putValues(results, this._valueComparer);
             }
             node = node.precedessor();
         } else {
@@ -273,7 +262,7 @@ SearchTree.prototype._searchSuccessors = function(node, word, results) {
         var lcp = this.lcp;
         if (lcp > 0) {
             if (word.length === lcp) {
-                node.putValues(results);
+                node.putValues(results, this._valueComparer);
             }
             node = node.successor();
         } else {
@@ -285,13 +274,13 @@ SearchTree.prototype._searchSuccessors = function(node, word, results) {
 SearchTree.prototype.search = function(word) {
     var node = this._root;
     if (node === null) return null;
-    var results = {};
+    var results = [];
     while (node !== NULL) {
         var result = compareStringsLcp(this, node.word, word);
         var lcp = this.lcp;
         if (lcp > 0) {
             if (word.length === lcp) {
-                node.putValues(results);
+                node.putValues(results, this._valueComparer);
             }
             this._searchPrecedessors(node.precedessor(), word, results);
             this._searchSuccessors(node.successor(), word, results);
@@ -325,7 +314,7 @@ SearchTree.prototype.remove = function(word, value) {
     var node = this._nodeByExactWord(word);
 
     if (node) {
-        node.remove(value);
+        node.remove(value, this._valueComparer);
         if (node.length() === 0) {
             this._removeNode(node);
         }
@@ -356,7 +345,7 @@ SearchTree.prototype._insertNode = function(word, value) {
     var root = this._root;
     this._length++;
     if (root === null) {
-        this._root = mkNode(word, value);
+        this._root = mkNode(word, value, this._valueComparer);
         this._root.color = BLACK;
         return;
     }
@@ -367,7 +356,7 @@ SearchTree.prototype._insertNode = function(word, value) {
         if (result > 0) {
             var left = root.left;
             if (left === NULL) {
-                node = mkNode(word, value);
+                node = mkNode(word, value, this._valueComparer);
                 root.setLeftChild(node);
                 break;
             } else {
@@ -376,14 +365,14 @@ SearchTree.prototype._insertNode = function(word, value) {
         } else if (result < 0) {
             var right = root.right;
             if (right === NULL) {
-                node = mkNode(word, value);
+                node = mkNode(word, value, this._valueComparer);
                 root.setRightChild(node);
                 break;
             } else {
                 root = right;
             }
         } else {
-            root.add(value);
+            root.add(value, this._valueComparer);
             return;
         }
     }

@@ -1060,9 +1060,9 @@ util.joinAbbreviations = function(str) {
         }
     }
 
-    words = words.filter(function(word) {
-        return word.length > 1;
-    });
+    if (words.length === 1 && words[0].length <= 1) {
+        return "";
+    }
 
     return words.join(" ");
 };

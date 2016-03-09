@@ -3,12 +3,13 @@
 const SearchTree = require("lib/SearchTree");
 const SearchTreeEntry = require("SearchTreeEntry");
 const searchUtil = require("searchUtil");
+const sortedArrays = require("lib/sortedArrays");
 const util = require("lib/util");
 
 function TrackSearchIndex() {
     this._uidToSearchTreeEntry = {};
-    this._prefixSearchTree = new SearchTree();
-    this._suffixSearchTree = new SearchTree();
+    this._prefixSearchTree = new SearchTree(SearchTreeEntry.comparer);
+    this._suffixSearchTree = new SearchTree(SearchTreeEntry.comparer);
 }
 
 TrackSearchIndex.prototype.search = function(normalizedQuery) {
@@ -16,41 +17,47 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
 
     var firstPrefixKeyword = util.getFirstWord(normalizedQuery);
     var firstSuffixKeyword = util.getLastWord(suffixQuery);
+
     var prefixMatches = this._prefixSearchTree.search(firstPrefixKeyword);
     var suffixMatches = this._suffixSearchTree.search(firstSuffixKeyword);
 
-    util.mergeObject(prefixMatches, suffixMatches);
+    sortedArrays.merge(SearchTreeEntry.comparer, prefixMatches, suffixMatches);
+    var results = prefixMatches;
 
-    var keys = Object.keys(prefixMatches);
-
-    if (keys.length > 0 && firstPrefixKeyword.length < normalizedQuery.length) {
-        var ret = new Array(keys.length >> 1);
+    if (results.length > 0 && firstPrefixKeyword.length < normalizedQuery.length) {
+        var ret = new Array(results.length >> 1);
         ret.length = 0;
         var matchers = normalizedQuery.split(" ");
         matchers.shift();
 
         for (var i = 0; i < matchers.length; ++i) {
-            matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b");
+            matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b", "g");
         }
 
-        refinementLoop: for (var i = 0; i < keys.length; ++i) {
-            var key = keys[i];
-            var entry = prefixMatches[key];
+        refinementLoop: for (var i = 0; i < results.length; ++i) {
+            var result = results[i];
+            var searchTerm = result.searchTerm();
 
+            var distance = 0;
             for (var j = 0; j < matchers.length; ++j) {
-                if (!matchers[j].test(entry.searchTerm())) {
+                var matcher = matchers[j];
+                if (!matcher.test(searchTerm)) {
                     continue refinementLoop;
                 }
+                distance += matcher.lastIndex;
             }
-            ret.push(entry.uid());
+            result.setDistance(distance);
+            ret.push(result);
         }
-        return ret;
-    } else {
-        for (var i = 0; i < keys.length; ++i) {
-            keys[i] = prefixMatches[keys[i]].uid();
-        }
-        return keys;
+
+        ret.sort(SearchTreeEntry.distanceCompare);
+        results = ret;
     }
+
+    for (var i = 0; i < results.length; ++i) {
+        results[i] = results[i].uid();
+    }
+    return results;
 };
 
 TrackSearchIndex.prototype.add = function(file, metadata) {
