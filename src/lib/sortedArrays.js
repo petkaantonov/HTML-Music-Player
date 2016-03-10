@@ -135,5 +135,3 @@ module.exports = {
     insert: insertSorted,
     remove: removeSorted
 };
-
-self.sortedArrays = module.exports;
