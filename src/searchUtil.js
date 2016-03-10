@@ -26,6 +26,14 @@ const getSearchTerm = function(metadata, file) {
     var artist = util.normalizeQuery(metadata.taggedArtist || metadata.artist || "");
     var album = util.normalizeQuery(metadata.taggedAlbum || metadata.album || "");
     var genres = util.normalizeQuery((metadata.genres || EMPTY_ARRAY).join(" "));
+    var albumArtist = util.normalizeQuery(metadata.albumArtist || "");
+
+    if (albumArtist.length > 0 &&
+        artist.length > 0 &&
+        albumArtist !== artist) {
+        artist += " " + albumArtist;
+    }
+
     var ret = ((title.split(" ").concat(artist.split(" "), album.split(" "), genres.split(" "))).join(" ")).trim();
 
     if (!ret.length && file && typeof file.name === "string") {

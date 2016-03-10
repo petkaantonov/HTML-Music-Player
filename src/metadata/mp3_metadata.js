@@ -122,6 +122,9 @@ tagMap[0x545041|0] = tagMap[0x54504F53|0] = id3v2String(function(data, result) {
 });
 tagMap[0x544350|0] = tagMap[0x54434D50|0] = id3v2String(function(data, result) {
     data.compilationFlag = result === "1";
+    if (data.compilationFlag && !data.albumArtist) {
+        data.albumArtist = "Various Artists";
+    }
 });
 
 tagMap[0x544250|0] = tagMap[0x5442504d|0] = id3v2String(function(data, result) {
