@@ -234,10 +234,6 @@ TrackAnalyzer.prototype._next = function(queue, statusProp, method) {
     this[statusProp] = false;
 };
 
-TrackAnalyzer.prototype._createDecoder = function(channels, sampleRate) {
-    return new OfflineAudioContext(channels, 1024, sampleRate);
-};
-
 TrackAnalyzer.prototype.currentTrackChanged = function(track) {
     this.prioritize(track);
     this.fetchAcoustIdImage(track);

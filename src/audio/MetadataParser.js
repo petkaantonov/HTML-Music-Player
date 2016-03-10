@@ -69,6 +69,7 @@ MetadataParser.prototype.parse = function() {
 };
 
 MetadataParser.searchIndex = new TrackSearchIndex();
+self.searchIndex = searchIndex;
 
 MetadataParser.parse = function(args) {
     return new Promise(function(resolve) {
