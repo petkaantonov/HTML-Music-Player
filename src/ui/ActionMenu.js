@@ -18,6 +18,7 @@ function ActionMenuItem(root, spec, children, level) {
     this.divider = !!spec.divider;
     this.disabled = !!spec.disabled;
     this.handler = typeof spec.onClick === "function" ? spec.onClick : $.noop;
+    this.enabledPredicate = spec.enabledPredicate;
 
     this._preferredHorizontalDirection = "end";
     this._preferredVerticalDirection = "end";
@@ -275,6 +276,17 @@ ActionMenuItem.prototype.setParent = function(parent) {
     this.parent.$().addClass("action-menu-sub-menu-item");
 };
 
+ActionMenuItem.prototype.setEnabledStateFromPredicate = function(args) {
+    if (typeof this.enabledPredicate === "function") {
+        var enabled = this.enabledPredicate.apply(null, args);
+        if (enabled) {
+            this.enable();
+        } else {
+            this.disable();
+        }
+    }
+};
+
 ActionMenuItem.prototype.enable = function() {
     if (!this.disabled) return;
     this.disabled = false;
@@ -494,6 +506,18 @@ function ActionMenu(opts) {
     }, this);
 }
 util.inherits(ActionMenu, EventEmitter);
+
+ActionMenu.prototype.setEnabledStateFromPredicate = function() {
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; ++i) {
+        args[i] = arguments[i];
+    }
+
+    this.forEach(function(item) {
+        if (item.divider) return;
+        item.setEnabledStateFromPredicate(args);
+    });
+};
 
 ActionMenu.prototype.destroy = function() {
     this.clearDelayTimer();
@@ -786,7 +810,7 @@ ActionMenu.ContextMenu.prototype.hide = function() {
     this.emit("didHideMenu", this);
 };
 
-["disable", "enable", "disableAll", "enableAll", "refreshAll",
+["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
 "forEach"].forEach(function(methodName) {
     var menuMethod = ActionMenu.prototype[methodName];
     ActionMenu.ContextMenu.prototype[methodName] = function()  {

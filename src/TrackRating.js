@@ -24,6 +24,7 @@ function TrackRating() {
         this._ratingInputClicked(e.currentTarget);
     }.bind(this));
     this._update(-1);
+    this._enabled = false;
 }
 
 TrackRating.prototype.$ = function() {
@@ -52,15 +53,17 @@ TrackRating.prototype._hovered = function(e) {
 };
 
 TrackRating.prototype.disable = function() {
-    if (this.track !== null) {
-        this.track = null;
-        this.$().off("click", ".rating-input", this._clicked);
-        this.$().off("mouseleave mouseenter", ".rating-input", this._hovered);
-        this.$().off(domUtil.TOUCH_EVENTS, ".rating-input", this._touchClicked);
-        this.$().off(domUtil.TOUCH_EVENTS, this._touchDoubleClicked);
-        this.$().off("dblclick", this._doubleClicked);
-        this._update(-1);
+    this.track = null;
+    this._update(-1);
+    if (!this._enabled) {
+        return;
     }
+    this._enabled = false;
+    this.$().off("click", ".rating-input", this._clicked);
+    this.$().off("mouseleave mouseenter", ".rating-input", this._hovered);
+    this.$().off(domUtil.TOUCH_EVENTS, ".rating-input", this._touchClicked);
+    this.$().off(domUtil.TOUCH_EVENTS, this._touchDoubleClicked);
+    this.$().off("dblclick", this._doubleClicked);
 };
 
 TrackRating.prototype.update = function() {
@@ -71,12 +74,16 @@ TrackRating.prototype.update = function() {
 
 TrackRating.prototype.enable = function(track) {
     this.track = track;
+    this._update(this.track.getRating());
+    if (this._enabled) {
+        return;
+    }
+    this._enabled = true;
     this.$().on("click", ".rating-input", this._clicked);
     this.$().on("dblclick", this._doubleClicked);
     this.$().on("mouseenter mouseleave", ".rating-input", this._hovered);
     this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", this._touchClicked);
     this.$().on(domUtil.TOUCH_EVENTS, this._touchDoubleClicked);
-    this._update(this.track.getRating());
 };
 
 TrackRating.prototype._clicked = function(e) {
