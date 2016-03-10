@@ -21,15 +21,16 @@ const next = function() {
     active--;
     if (queue.length > 0) {
         var item = queue.shift();
-        var parser = new MetadataParser(item.file, item.resolve);
+        var parser = new MetadataParser(item.file, item.resolve, item.transientId);
         active++;
         parser.parse();
     }
 };
 
-function MetadataParser(file, resolve) {
+function MetadataParser(file, resolve, transientId) {
     this.file = file;
     this.resolve = resolve;
+    this.transientId = transientId;
     this.fileView = new FileView(file);
 }
 
@@ -60,7 +61,7 @@ MetadataParser.prototype.parse = function() {
     }).catch(function(e) {
         throw codecNotSupportedError();
     }).tap(function() {
-        MetadataParser.searchIndex.add(file, data);
+        MetadataParser.searchIndex.add(file, data, self.transientId);
         return data;
     });
 
@@ -74,10 +75,11 @@ MetadataParser.parse = function(args) {
         if (active >= maxActive) {
             queue.push({
                 file: args.file,
+                transientId: args.transientId,
                 resolve: resolve
             });
         } else {
-            var parser = new MetadataParser(args.file, resolve);
+            var parser = new MetadataParser(args.file, resolve, args.transientId);
             active++;
             parser.parse()
         }

@@ -1,9 +1,7 @@
 "use strict";
-var nextObjId = 0;
 
-function SearchTreeEntry(uid, searchTerm) {
-    this._uid = uid;
-    this._id = ++nextObjId;
+function SearchTreeEntry(transientId, searchTerm) {
+    this._transientId = transientId;
     this._searchTerm = searchTerm;
     this._distance = 0;
 }
@@ -21,8 +19,8 @@ SearchTreeEntry.prototype.distance = function() {
     return this._distance;
 };
 
-SearchTreeEntry.prototype.uid = function() {
-    return this._uid;
+SearchTreeEntry.prototype.transientId = function() {
+    return this._transientId;
 };
 
 SearchTreeEntry.prototype.searchTerm = function() {
@@ -30,7 +28,7 @@ SearchTreeEntry.prototype.searchTerm = function() {
 };
 
 SearchTreeEntry.comparer = function(a, b) {
-    return a._id - b._id;
+    return a._transientId - b._transientId;
 };
 
 SearchTreeEntry.distanceCompare = function(a, b) {

@@ -119,7 +119,7 @@ const apiActions = {
     },
 
     updateSearchIndex: function(args) {
-        MetadataParser.searchIndex.update(args.uid, args.metadata);
+        MetadataParser.searchIndex.update(args.transientId, args.metadata);
     }
 }
 

@@ -59,12 +59,7 @@ function SearchSession(search, rawQuery, normalizedQuery) {
     this._search = search;
     this._rawQuery = rawQuery;
     this._normalizedQuery = normalizedQuery;
-    var matchers = normalizedQuery.split(" ");
-    for (var i = 0; i < matchers.length; ++i) {
-        matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b");
-    }
-    this._matchers = matchers;
-    this._results = [];
+    this._resultCount = 0;
     this._destroyed = false;
     this._started = false;
     this._id = ++searchSessionNextId;
@@ -102,20 +97,17 @@ SearchSession.prototype.start = function() {
 SearchSession.prototype.destroy = function() {
     if (this._destroyed) return;
     this.worker().removeEventListener("message", this._messaged, false);
-    this._matchers = null;
     this._destroyed = true;
     this._search = null;
 };
 
 SearchSession.prototype.resultCount = function() {
-    return this._results.length;
+    return this._resultCount;
 };
 
 SearchSession.prototype._gotResults = function(results) {
     if (this._destroyed) return;
-    for (var i = 0; i < results.length; ++i) {
-        this._results.push(results[i]);
-    }
+    this._resultCount += results.length;
     this._search.newResults(this, results);
 };
 
@@ -281,7 +273,7 @@ Search.prototype.newResults = function(session, results) {
     var oldLength = this.length;
     this.removeTrackViews(trackViews, true);
     for (var i = 0; i < results.length; ++i) {
-        var track = Track.byUid(results[i]);
+        var track = Track.byTransientId(results[i]);
         if (!track || !track.shouldDisplayAsSearchResult()) {
             continue;
         }

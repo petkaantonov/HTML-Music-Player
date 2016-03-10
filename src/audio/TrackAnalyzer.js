@@ -76,7 +76,6 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = util.throttle(function(track) {
         track.tagData && track.shouldRetrieveAcoustIdImage()) {
         track.tagData.fetchAcoustIdImageStarted();
         var albumKey = track.tagData.albumNameKey();
-        var uid = track.getUid();
         var acoustId = track.tagData.acoustId;
         var self = this;
         var id = ++self._nextJobId;
@@ -93,6 +92,7 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = util.throttle(function(track) {
             args: {
                 id: id,
                 uid: track.getUid(),
+                transientId: track.transientId(),
                 albumKey: track.tagData.albumNameKey(),
                 acoustId: acoustId
             }
@@ -192,6 +192,7 @@ TrackAnalyzer.prototype.fetchAnalysisData = function(track) {
         args: {
             id: id,
             uid: track.getUid(),
+            transientId: track.transientId(),
             albumKey: track.tagData.albumNameKey()
         }
     });
@@ -390,7 +391,8 @@ TrackAnalyzer.prototype.parseMetadata = function(track) {
         action: "parseMetadata",
         args: {
             id: id,
-            file: track.getFile()
+            file: track.getFile(),
+            transientId: track.transientId()
         }
     });
 };
@@ -434,7 +436,8 @@ TrackAnalyzer.prototype.fetchTrackAcoustId = function(track, opts) {
                 id: id,
                 duration: opts.duration,
                 fingerprint: opts.fingerprint,
-                uid: track.getUid()
+                uid: track.getUid(),
+                transientId: track.transientId()
             }
         });
     }).finally(function() {
@@ -452,6 +455,7 @@ TrackAnalyzer.prototype.rateTrack = function(track, rating) {
         action: "rateTrack",
         args: {
             uid: track.getUid(),
+            transientId: track.transientId(),
             rating: rating,
             id: ++this._nextJobId
         }
@@ -463,6 +467,7 @@ TrackAnalyzer.prototype.updateSearchIndex = function(track, metadata) {
         action: "updateSearchIndex",
         args: {
             uid: track.getUid(),
+            transientId: track.transientId(),
             metadata: metadata
         }
     });
@@ -516,7 +521,8 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
                 fingerprint: !!opts.fingerprint,
                 loudness: !!opts.loudness,
                 file: track.getFile(),
-                uid: track.getUid()
+                uid: track.getUid(),
+                transientId: track.transientId()
             }
         });
     }.bind(this)).finally(function() {

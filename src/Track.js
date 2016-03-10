@@ -14,7 +14,8 @@ Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is 
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
 Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
 
-const uidToTrack = Object.create(null);
+const transientIdToTrack = Object.create(null);
+var nextTransientId = 10000;
 
 function Track(audioFile) {
     EventEmitter.call(this);
@@ -24,12 +25,17 @@ function Track(audioFile) {
     this._error = null;
     this._lastPlayed = 0;
     this._uid = null;
+    this._transientId = ++nextTransientId;
     this._generatedImage = null;
     this._isBeingAnalyzed = false;
     this._isDisplayedAsSearchResult = false;
     this._searchTerm = null;
 }
 util.inherits(Track, EventEmitter);
+
+Track.prototype.transientId = function() {
+    return this._transientId;
+};
 
 Track.prototype.getTrackInfo = function() {
     var artist, title;
@@ -110,13 +116,13 @@ Track.prototype.stageRemoval = function() {
     this.emit("viewUpdate", "viewUpdateDestroyed");
     this.emit("destroy", this);
     if (this.tagData) {
-        delete uidToTrack[this.getUid()];
+        delete transientIdToTrack[this.transientId()];
     }
 };
 
 Track.prototype.unstageRemoval = function() {
     if (this.tagData) {
-        uidToTrack[this.getUid()] = this;
+        transientIdToTrack[this.transientId()] = this;
     }
 };
 
@@ -133,7 +139,7 @@ Track.prototype.destroy = function() {
     }
 
     if (this.tagData) {
-        delete uidToTrack[this.getUid()];
+        delete transientIdToTrack[this.transientId()];
         this.tagData.destroy();
         this.tagData = null;
     }
@@ -262,7 +268,7 @@ Track.prototype.getTagData = function() {
 Track.prototype.setTagData = function(tagData) {
     if (this.tagData !== null) throw new Error("cannot set tagData again");
     this.tagData = tagData;
-    uidToTrack[this.getUid()] = this;
+    transientIdToTrack[this.transientId()] = this;
     this.tagDataUpdated();
 };
 
@@ -491,8 +497,8 @@ Track.prototype.getTagStateId = function() {
     return this.tagData ? this.tagData.getStateId() : -1;
 };
 
-Track.byUid = function(uid) {
-    return uidToTrack[uid];
+Track.byTransientId = function(transientId) {
+    return transientIdToTrack[transientId];
 };
 
 module.exports = Track;

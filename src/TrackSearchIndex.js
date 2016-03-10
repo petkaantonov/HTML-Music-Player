@@ -7,7 +7,7 @@ const sortedArrays = require("lib/sortedArrays");
 const util = require("lib/util");
 
 function TrackSearchIndex() {
-    this._uidToSearchTreeEntry = {};
+    this._transientIdToEntry = {};
     this._prefixSearchTree = new SearchTree(SearchTreeEntry.comparer);
     this._suffixSearchTree = new SearchTree(SearchTreeEntry.comparer);
 }
@@ -62,26 +62,25 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
     }
 
     for (var i = 0; i < results.length; ++i) {
-        results[i] = results[i].uid();
+        results[i] = results[i].transientId();
     }
     return results;
 };
 
-TrackSearchIndex.prototype.add = function(file, metadata) {
-    var uid = searchUtil.calculateUid(file, metadata, false);
-    if (this._uidToSearchTreeEntry[uid]) return;
-    this._uidToSearchTreeEntry[uid] = this._addToSearchTree(uid, metadata, file);
+TrackSearchIndex.prototype.add = function(file, metadata, transientId) {
+    if (this._transientIdToEntry[transientId]) return;
+    this._transientIdToEntry[transientId] = this._addToSearchTree(transientId, metadata, file);
 };
 
-TrackSearchIndex.prototype.update = function(uid, metadata) {
-    var entry = this._uidToSearchTreeEntry[uid];
+TrackSearchIndex.prototype.update = function(transientId, metadata) {
+    var entry = this._transientIdToEntry[transientId];
     if (!entry) return;
     this._removeFromSearchTree(entry);
-    this._uidToSearchTreeEntry[uid] = this._addToSearchTree(uid, metadata, null);
+    this._transientIdToEntry[transientId] = this._addToSearchTree(transientId, metadata, null);
 };
 
-TrackSearchIndex.prototype._addToSearchTree = function(uid, metadata, file) {
-    var entry = new SearchTreeEntry(uid, searchUtil.getSearchTerm(metadata, file));
+TrackSearchIndex.prototype._addToSearchTree = function(transientId, metadata, file) {
+    var entry = new SearchTreeEntry(transientId, searchUtil.getSearchTerm(metadata, file));
     var keywords = entry.keywords();
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];
@@ -100,12 +99,11 @@ TrackSearchIndex.prototype._removeFromSearchTree = function(entry) {
     }
 };
 
-TrackSearchIndex.prototype.remove = function(file, metadata) {
-    var uid = searchUtil.calculateUid(file, metadata, false);
-    var entry = this._uidToSearchTreeEntry[uid];
+TrackSearchIndex.prototype.remove = function(transientId) {
+    var entry = this._transientIdToEntry[transientId];
     if (!entry) return;
     this._removeFromSearchTree(entry);
-    delete this._uidToSearchTreeEntry[uid];
+    delete this._transientIdToEntry[transientId];
 };
 
 module.exports = TrackSearchIndex;
