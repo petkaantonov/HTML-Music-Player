@@ -7,7 +7,7 @@ function mergeSortedArrays(comparer, a, b) {
     var j = 0;
     var aLen = a.length;
     var bLen = b.length;
-    const innerTmp = tmp;
+    var innerTmp = tmp;
 
     while (i < aLen && j < bLen) {
         var aVal = a[i];
