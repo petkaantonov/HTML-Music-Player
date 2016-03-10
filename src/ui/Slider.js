@@ -33,6 +33,9 @@ function Slider(domNode, opts) {
         this._calculateDimensions();
         this._setupKeyboard();
     }
+
+    util.documentHidden.on("foreground", this._onReLayout);
+    $(window).on("sizechange", this._onReLayout);
 }
 util.inherits(Slider, EventEmitter);
 
@@ -77,7 +80,7 @@ Slider.prototype._onMousedown = function(e) {
         $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
 
-    $(window).on("relayout", this._onReLayout);
+
     e.preventDefault();
 };
 
@@ -207,7 +210,6 @@ Slider.prototype._onMouseup = function(e) {
         $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
     }
 
-    $(window).off("relayout", this._onReLayout);
     e.preventDefault();
 };
 
