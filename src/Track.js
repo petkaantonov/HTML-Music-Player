@@ -166,7 +166,7 @@ Track.prototype.getImage = Promise.method(function() {
         }
         return PlayerPictureManager.generateImageForTrack(this).bind(this).tap(function(result) {
             this._generatedImage = result;
-            result.tag = this.getUid();
+            result.tag = this.uid();
         });
     }
 
@@ -182,7 +182,7 @@ Track.prototype.getImage = Promise.method(function() {
             }
             return PlayerPictureManager.generateImageForTrack(self).tap(function(result) {
                 self._generatedImage = result;
-                result.tag = self.getUid();
+                result.tag = self.uid();
                 return self._generatedImage;
             });
         });
@@ -346,7 +346,7 @@ Track.prototype.tagDataUpdated = function() {
     this.emit("viewUpdate", "viewUpdateTagDataChange");
 };
 
-Track.prototype.getUid = function() {
+Track.prototype.uid = function() {
     if (this.tagData) {
         if (this._uid) return this._uid;
         this._uid = searchUtil.calculateUid(this.file, this.tagData, true);

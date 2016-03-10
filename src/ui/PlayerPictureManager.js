@@ -220,7 +220,7 @@ PlayerPictureManager.generateImageForTrack = Promise.method(function(track) {
     jdenticonContext.fillStyle = "rgba(255, 255, 255, 255)";
     jdenticonContext.fillRect(0, 0, jdenticonSize, jdenticonSize);
     jdenticonContext.restore();
-    jdenticon.drawIcon(jdenticonContext, track.getUid(), jdenticonSize);
+    jdenticon.drawIcon(jdenticonContext, track.uid(), jdenticonSize);
     jdenticonContext.clearRect = clearRect;
     return domUtil.canvasToImage(jdenticonCanvas);
 });

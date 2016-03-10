@@ -91,7 +91,7 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = util.throttle(function(track) {
             action: "fetchAcoustIdImage",
             args: {
                 id: id,
-                uid: track.getUid(),
+                uid: track.uid(),
                 transientId: track.transientId(),
                 albumKey: track.tagData.albumNameKey(),
                 acoustId: acoustId
@@ -191,7 +191,7 @@ TrackAnalyzer.prototype.fetchAnalysisData = function(track) {
         action: "fetchAnalysisData",
         args: {
             id: id,
-            uid: track.getUid(),
+            uid: track.uid(),
             transientId: track.transientId(),
             albumKey: track.tagData.albumNameKey()
         }
@@ -436,7 +436,7 @@ TrackAnalyzer.prototype.fetchTrackAcoustId = function(track, opts) {
                 id: id,
                 duration: opts.duration,
                 fingerprint: opts.fingerprint,
-                uid: track.getUid(),
+                uid: track.uid(),
                 transientId: track.transientId()
             }
         });
@@ -454,7 +454,7 @@ TrackAnalyzer.prototype.rateTrack = function(track, rating) {
     this._worker.postMessage({
         action: "rateTrack",
         args: {
-            uid: track.getUid(),
+            uid: track.uid(),
             transientId: track.transientId(),
             rating: rating,
             id: ++this._nextJobId
@@ -466,7 +466,7 @@ TrackAnalyzer.prototype.updateSearchIndex = function(track, metadata) {
     this._worker.postMessage({
         action: "updateSearchIndex",
         args: {
-            uid: track.getUid(),
+            uid: track.uid(),
             transientId: track.transientId(),
             metadata: metadata
         }
@@ -477,7 +477,7 @@ TrackAnalyzer.prototype.removeFromSearchIndex = function(track, metadata) {
     this._worker.postMessage({
         action: "removeFromSearchIndex",
         args: {
-            uid: track.getUid(),
+            uid: track.uid(),
             transientId: track.transientId(),
             metadata: metadata
         }
@@ -533,7 +533,7 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
                 fingerprint: !!opts.fingerprint,
                 loudness: !!opts.loudness,
                 file: track.getFile(),
-                uid: track.getUid(),
+                uid: track.uid(),
                 transientId: track.transientId()
             }
         });
