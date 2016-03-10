@@ -18,6 +18,7 @@ function TrackDisplay(dom, opts) {
     this._delayTimeoutId = -1;
     this._frameId = -1;
     this._previousTime = -1;
+    this._renderedX = 0;
 
     this._frame = this._frame.bind(this);
     this._trackDataUpdated = this._trackDataUpdated.bind(this);
@@ -111,8 +112,12 @@ TrackDisplay.prototype._frame = function(now) {
     } else {
         x = (1 - ((progress - 0.5) / 0.5)) * scrollWidth;
     }
+    x = Math.round(x);
 
-    domUtil.setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
+    if (this._renderedX !== x) {
+        this._renderedX = x;
+        domUtil.setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
+    }
 };
 
 TrackDisplay.prototype._delayElapsed = function() {
@@ -133,6 +138,7 @@ TrackDisplay.prototype._reset = function() {
     this._progress = 0;
     this._previousTime = -1;
     domUtil.setTransform(this.$(), "translate3d(0, 0, 0)");
+    this._renderedX = 0;
 
     if (!util.documentHidden.isBackgrounded()) {
         this._containerWidth = this.$container()[0].getBoundingClientRect().width;
@@ -142,6 +148,9 @@ TrackDisplay.prototype._reset = function() {
     var scrollWidth = this._getScrollWidth();
     if (scrollWidth > 0) {
         this._startTimer();
+        this.$().css("willChange", "transform");
+    } else {
+        this.$().css("willChange", "");
     }
 };
 
