@@ -120,6 +120,10 @@ const apiActions = {
 
     updateSearchIndex: function(args) {
         MetadataParser.searchIndex.update(args.transientId, args.metadata);
+    },
+
+    removeFromSearchIndex: function(args) {
+        MetadataParser.searchIndex.remove(args.transientId);
     }
 }
 

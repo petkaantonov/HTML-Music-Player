@@ -473,6 +473,18 @@ TrackAnalyzer.prototype.updateSearchIndex = function(track, metadata) {
     });
 };
 
+TrackAnalyzer.prototype.removeFromSearchIndex = function(track, metadata) {
+    this._worker.postMessage({
+        action: "removeFromSearchIndex",
+        args: {
+            uid: track.getUid(),
+            transientId: track.transientId(),
+            metadata: metadata
+        }
+    });
+};
+
+
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
     if (this.ready && !this.ready.isResolved()) {

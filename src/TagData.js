@@ -304,6 +304,7 @@ TagData.prototype.getImage = function() {
 };
 
 TagData.prototype.destroy = function() {
+    this._trackAnalyzer.removeFromSearchIndex(this.track);
     while (this.pictures.length) {
         clearPicture(this.pictures.shift());
     }
