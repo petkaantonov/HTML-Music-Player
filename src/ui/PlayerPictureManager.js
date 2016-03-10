@@ -7,10 +7,6 @@ const Promise = require("lib/bluebird");
 const util = require("lib/util");
 const domUtil = require("lib/DomUtil");
 
-const START_SCALE = 0.95;
-const END_SCALE = 1;
-const START_ALPHA = 0;
-const END_ALPHA = 100;
 const IMAGE_DIMENSIONS = 97;
 
 function PlayerPictureManager(dom, player, opts) {
@@ -23,11 +19,7 @@ function PlayerPictureManager(dom, player, opts) {
     this._enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this._enabled = true;
     this._currentImage = null;
-    this._currentAnimation = null;
-    this._awaitingAnimation = null;
-    this._initial = true;
 
-    this._next = this._next.bind(this);
     this._enabledMediaMatchChanged = this._enabledMediaMatchChanged.bind(this);
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
     this.player.on("newTrackLoad", this.newTrackLoaded);
@@ -45,120 +37,15 @@ PlayerPictureManager.prototype.$ = function() {
 PlayerPictureManager.prototype._enabledMediaMatchChanged = function() {
     var wasEnabled = !!this._enabled;
     this._enabled = !!this._enabledMediaMatcher.matches;
-    if (!wasEnabled && this._enabled) {
+    if (this._enabled && !wasEnabled) {
         if (this._currentImage) {
-            this._startTransitioningIn(this._currentImage);
+            $(this._currentImage).appendTo(this.$());
+        }
+    } else if (!this._enabled && wasEnabled) {
+        if (this._currentImage) {
+            $(this._currentImage).detach();
         }
     }
-};
-
-PlayerPictureManager.prototype._startTransitioningOut = function(startState) {
-    var image = this._currentImage;
-    if (!this._enabled) {
-        $(image).remove();
-        return Promise.resolve().then(this._next);
-    }
-    var self = this;
-    var animator = new Animator(image, {
-        properties: [{
-            name: "opacity",
-            start: startState ? startState.alpha : END_ALPHA,
-            end: START_ALPHA,
-            duration: 300,
-            unit: "%"
-        }, {
-            name: "scale",
-            start: [startState ? startState.scale : END_SCALE,
-                    startState ? startState.scale : END_SCALE],
-            end: [START_SCALE, START_SCALE],
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
-    });
-
-    return animator.animate().finally(function() {
-        $(image).remove();
-        self._next();
-    });
-};
-
-PlayerPictureManager.prototype._startTransitioningIn = function(image) {
-    var self = this;
-
-    this._currentImage = image;
-    this._attachCurrentImage();
-    if (!this._enabled) {
-        return Promise.resolve().then(this._next);
-    }
-    var animator = new Animator(image, {
-        properties: [{
-            name: "opacity",
-            start: START_ALPHA,
-            end: END_ALPHA,
-            duration: 300,
-            unit: "%"
-        }, {
-            name: "scale",
-            start: [START_SCALE, START_SCALE],
-            end: [END_SCALE, END_SCALE],
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
-    });
-
-    return animator.animate().then(function() {
-        self._next();
-    });
-};
-
-PlayerPictureManager.prototype._next = function() {
-    this._currentAnimation = null;
-    if (this._awaitingAnimation) {
-        this._currentAnimation = this._startTransitioningIn(this._awaitingAnimation);
-        this._awaitingAnimation = null;
-    }
-};
-
-PlayerPictureManager.prototype._attachCurrentImage = function() {
-    var image = this._currentImage;
-    $(image).appendTo(this.$());
-
-    if (!image.complete) {
-        $(image).one("error", function() {
-            $(image).off("load error");
-            $(this).addClass("erroneous-image");
-        }).one("load", function() {
-            $(image).off("load error");
-        });
-    }
-};
-
-PlayerPictureManager.prototype._getCurrentAnimationState = function() {
-    if (!this._enabled) return;
-
-    var $img = $(this._currentImage);
-
-    if (!$img.length) {
-        return {
-            alpha: START_ALPHA,
-            scale: START_SCALE
-        };
-    }
-
-    var scaleMatch = domUtil.getTransform($img).match(/(?:scale|matrix)\s*\(\s*(\d+(?:\.\d+)?)/i);
-    var opacityMatch = domUtil.getFilter($img).match(/opacity\s*\(\s*([0-9.]+)%\s*\)/i);
-
-    if (!scaleMatch || !opacityMatch) {
-        return {
-            alpha: START_ALPHA,
-            scale: START_SCALE
-        };
-    }
-
-    return {
-        alpha: +(opacityMatch[1]),
-        scale: +(scaleMatch[1])
-    };
 };
 
 const isSameImage = function(a, b) {
@@ -171,29 +58,24 @@ const isSameImage = function(a, b) {
 
 PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
-    if (this._initial) {
-        this.$().find("img").remove();
-        this._initial = false;
-    }
 
-    if (this._currentImage && isSameImage(this._currentImage, image) &&
-        (!this._awaitingAnimation || this._awaitingAnimation && this._awaitingAnimation.src === image.src)) {
+    if (this._currentImage && isSameImage(this._currentImage, image)) {
         return;
     }
 
-    if (!this._currentAnimation) {
-        if (this._currentImage) {
-            this._currentAnimation = this._startTransitioningOut();
-            this._awaitingAnimation = image;
-        } else {
-            this._currentAnimation = this._startTransitioningIn(image);
-        }
-    } else if (!this._awaitingAnimation) {
-        this._currentAnimation.cancel();
-        this._currentAnimation = this._startTransitioningOut(this._getCurrentAnimationState());
-        this._awaitingAnimation = image;
-    } else {
-        this._awaitingAnimation = image;
+    this.$().find("img").off("load error").remove();
+    this._currentImage = image;
+
+    if (this._enabled) {
+        $(this._currentImage).appendTo(this.$());
+    }
+
+    if (!image.complete) {
+        $(this._currentImage).one("error", function() {
+            $(this).off("load error").addClass("erroneous-image");
+        }).one("load", function() {
+            $(this).off("load error");
+        });
     }
 };
 
