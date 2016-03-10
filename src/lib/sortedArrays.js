@@ -1,12 +1,13 @@
 "use strict";
 
-const tmp = new Array(512);
+var tmp = new Array(512);
 function mergeSortedArrays(comparer, a, b) {
     var k = 0;
     var i = 0;
     var j = 0;
-    const aLen = a.length;
-    const bLen = b.length;
+    var aLen = a.length;
+    var bLen = b.length;
+    const innerTmp = tmp;
 
     while (i < aLen && j < bLen) {
         var aVal = a[i];
@@ -15,22 +16,22 @@ function mergeSortedArrays(comparer, a, b) {
         var result = comparer(aVal, bVal);
 
         if (result < 0) {
-            tmp[k++] = aVal;
+            innerTmp[k++] = aVal;
             i++;
         } else if (result > 0) {
-            tmp[k++] = bVal;
+            innerTmp[k++] = bVal;
             j++;
         } else {
             i++;
             j++;
-            tmp[k++] = aVal;
+            innerTmp[k++] = aVal;
         }
     }
 
     var m = 0;
-    for (; i < aLen; ++i) tmp[k++] = a[i];
-    for (; j < bLen; ++j) tmp[k++] = b[j];
-    for (; m < k; ++m) a[m] = tmp[m];
+    for (; i < aLen; ++i) innerTmp[k++] = a[i];
+    for (; j < bLen; ++j) innerTmp[k++] = b[j];
+    for (; m < k; ++m) a[m] = innerTmp[m];
     return a;
 }
 
