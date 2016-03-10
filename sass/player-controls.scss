@@ -110,7 +110,7 @@ $slider-margin: 3px;
     @include border-right-radius($subtle-radius);
 }
 
-#track-display-container {
+.track-display-container {
     z-index: 5;
     position: relative;
     height: 20px;
@@ -119,14 +119,15 @@ $slider-margin: 3px;
     background-color: transparent;
     width: 97%;
     margin: 0px auto;
+
+    .track-display {
+        margin-top: 3px;
+        cursor: default;
+        display: inline-block;
+        vertical-align: top;
+    }
 }
 
-#track-display {
-    margin-top: 3px;
-    cursor: default;
-    display: inline-block;
-    vertical-align: top;
-}
 
 #track-progress {
     z-index: 3;

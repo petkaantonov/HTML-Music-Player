@@ -129,8 +129,9 @@ window.player = {};
 window.GlobalUi = GlobalUi;
 window.serviceWorkerManager = serviceWorkerManager;
 
-playlist.trackDisplay = new TrackDisplay("track-display", {
-    delay: 5
+playlist.trackDisplay = new TrackDisplay(".track-display-container", {
+    delay: 3500,
+    target: ".track-display"
 });
 
 playlist.main = mainTabs.playlist;

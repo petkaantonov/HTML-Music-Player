@@ -1,147 +1,162 @@
 "use strict";
 const $ = require("lib/jquery");
 const domUtil = require("lib/DomUtil");
+const util = require("lib/util");
 
-function TrackDisplay(target, opts) {
-    var parent;
-    target = typeof target == "string" ? document.getElementById(target) :
-        target;
+function TrackDisplay(dom, opts) {
+    opts = Object(opts);
+    this._containerNode = $($(dom)[0]);
+    this._domNode = this.$container().find(opts.target);
+    this._delay = +opts.delay || 5000;
+    this._pixelsPerSecond = +opts.pixelsPerSecond || 22;
 
-    if (target.id == null) {
-        target.id = (+new Date()) + "-track-display";
-    }
+    this._progress = 0;
+    this._currentTrack = null;
 
-    parent = target.parentNode;
+    this._containerWidth = -1;
+    this._contentWidth = -1;
+    this._delayTimeoutId = -1;
+    this._frameId = -1;
+    this._previousTime = -1;
 
-    if (!parent || !target) {
-        throw new TypeError(
-            "TrackDisplay needs a scroll parent and a content target");
-    }
-
-    if (parent && !parent.id) {
-        parent.id = (+new Date()) + "-track-display-parent";
-    }
-
-    this._target = target.id;
-    this._scrollParent = parent.id;
-    this._marqDelay = (opts && opts.delay || 2.5) * 1000;
-    this._pixelsPerSecond = 15;
-    this._frameRequest = null;
-    this._amounts = 0;
-    this._direction = "left";
-    this._textHiddenWidth = 0;
-    this._track = null;
-    this._needRecalc = true;
+    this._frame = this._frame.bind(this);
     this._trackDataUpdated = this._trackDataUpdated.bind(this);
     this._trackIndexChanged = this._trackIndexChanged.bind(this);
     this._windowResized = this._windowResized.bind(this);
+    this._delayElapsed = this._delayElapsed.bind(this);
 
+    util.documentHidden.on("foreground", this._windowResized);
     $(window).on("sizechange", this._windowResized);
 }
 
-TrackDisplay.prototype._windowResized = function() {
-    this._needRecalc = true;
-    domUtil.setTransform(document.getElementById(this._target), "");
-    this._amounts = 0;
-    this.beginMarquee();
+TrackDisplay.prototype.$ = function() {
+    return this._domNode;
 };
 
-TrackDisplay.prototype.clearPrevious = function() {
-    if (!this._track) return;
-    this._track.removeListener("indexChange", this._trackIndexChanged);
-    this._track.removeListener("tagDataUpdate", this._trackDataUpdated);
-    this._track = null;
+TrackDisplay.prototype.$container = function() {
+    return this._containerNode;
+};
+
+TrackDisplay.prototype._clearFrame = function() {
+    if (this._frameId !== -1) {
+        cancelAnimationFrame(this._frameId);
+        this._frameId = -1;
+    }
+};
+
+TrackDisplay.prototype._clearDelayTimeout = function() {
+    if (this._delayTimeoutId !== -1) {
+        clearTimeout(this._delayTimeoutId);
+        this._delayTimeoutId = -1;
+    }
+};
+
+TrackDisplay.prototype._updateText = function() {
+    var track = this._currentTrack;
+
+    if (track) {
+        var index = track.getIndex();
+        var trackNumber = index >= 0 ? (index + 1) + ". " : "";
+        var title = trackNumber + track.formatFullName();
+        this.$().text(title);
+        document.title = title;
+    }
 };
 
 TrackDisplay.prototype._trackDataUpdated = function() {
-    this.update();
+    this._updateText();
+    this._reset();
 };
 
 TrackDisplay.prototype._trackIndexChanged = function() {
-    this.update();
+    this._updateText();
+    this._reset();
 };
 
-TrackDisplay.prototype.update = function() {
-    var track = this._track;
-    var index = track.getIndex();
-    var trackNumber = index >= 0 ? (index + 1) + ". " : "";
-    var title = trackNumber + track.formatFullName();
-    var target = document.getElementById(this._target);
-    $(target).text(title);
-    domUtil.setTransform(target, "");
-    document.title = title;
-    this._needRecalc = true;
+TrackDisplay.prototype._windowResized = function() {
+    this._reset();
+};
 
-    return this;
+TrackDisplay.prototype._getScrollWidth = function() {
+    var ret = Math.max(-5, this._contentWidth - this._containerWidth) + 5;
+    return Math.max(0, ret);
+};
+
+TrackDisplay.prototype._frame = function(now) {
+    this._frameId = -1;
+    var scrollWidth = this._getScrollWidth();
+    if (scrollWidth <= 0) return;
+
+    var elapsed = this._previousTime === -1 ? 0 : now - this._previousTime;
+    this._previousTime = now;
+    var progressPerMs = this._pixelsPerSecond / scrollWidth / 2 / 1000;
+    var previousProgress = this._progress;
+    if (elapsed > 0) {
+        this._progress += (elapsed * progressPerMs);
+    }
+
+    var progress = Math.min(1, Math.max(0, this._progress));
+    if (progress >= 1) {
+        this._progress = 0;
+        this._startTimer();
+    } else if (progress >= 0.5 && previousProgress < 0.5) {
+        this._startTimer();
+    } else {
+        this._frameId = requestAnimationFrame(this._frame);
+    }
+
+    var x;
+    if (progress < 0.5) {
+        x = (progress / 0.5) * scrollWidth;
+    } else {
+        x = (1 - ((progress - 0.5) / 0.5)) * scrollWidth;
+    }
+
+    domUtil.setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
+};
+
+TrackDisplay.prototype._delayElapsed = function() {
+    this._clearFrame();
+    requestAnimationFrame(this._frame);
+};
+
+TrackDisplay.prototype._startTimer = function() {
+    this._previousTime = -1;
+    this._clearDelayTimeout();
+    this._clearFrame();
+    this._delayTimeoutId = setTimeout(this._delayElapsed, this._delay);
+};
+
+TrackDisplay.prototype._reset = function() {
+    this._clearDelayTimeout();
+    this._clearFrame();
+    this._progress = 0;
+    this._previousTime = -1;
+    domUtil.setTransform(this.$(), "translate3d(0, 0, 0)");
+
+    if (!util.documentHidden.isBackgrounded()) {
+        this._containerWidth = this.$container()[0].getBoundingClientRect().width;
+        this._contentWidth = this.$()[0].getBoundingClientRect().width;
+    }
+
+    var scrollWidth = this._getScrollWidth();
+    if (scrollWidth > 0) {
+        this._startTimer();
+    }
 };
 
 TrackDisplay.prototype.setTrack = function(track) {
-    if (track === this._track) return;
-    this.clearPrevious();
-    this._track = track;
-    track.on("indexChange", this._trackIndexChanged);
-    track.on("tagDataUpdate", this._trackDataUpdated);
-    this._direction = "left";
-    this.update();
-    this._amounts = 0;
-    var self = this;
-    window.setTimeout(function() {
-        self.beginMarquee();
-    }, self._marqDelay);
-};
-
-TrackDisplay.prototype.__marquer = function() {
-    var target = document.getElementById(this._target),
-        self = this,
-        progress = this._direction == "right" ? 1 : -1;
-
-    var last = -1;
-    var updateTime = 1000 / this._pixelsPerSecond;
-    this._frameRequest = requestAnimationFrame(function animate(now) {
-        self._frameRequest = null;
-        var diff = last === -1 ? updateTime : now - last;
-        last = now;
-        self._amounts += (diff / updateTime) * progress;
-        var translate3d = "translate3d("+self._amounts+"px,0,0)";
-        domUtil.setTransform(target, translate3d);
-
-        if (self._amounts > 0 ||
-            self._amounts <= -self._textHiddenWidth) {
-            self._direction = self._amounts < 0 ? "right" : "left";
-            window.setTimeout(function() {
-                self.beginMarquee();
-            }, self._marqDelay);
-        } else {
-            self._frameRequest = requestAnimationFrame(animate);
-        }
-    });
-    return this;
-};
-
-TrackDisplay.prototype.beginMarquee = function() {
-    this.stopMarquee();
-
-    if (this._needRecalc) {
-        var scrollParent = document.getElementById(this._scrollParent);
-        var target = document.getElementById(this._target);
-        var textHiddenWidth = $(target).width() - $(scrollParent).width();
-        this._textHiddenWidth = textHiddenWidth;
-        this._needRecalc = false;
+    if (!track) return;
+    if (this._currentTrack === track) return;
+    if (this._currentTrack) {
+        this._currentTrack.removeListener("indexChange", this._trackIndexChanged);
+        this._currentTrack.removeListener("tagDataUpdate", this._trackDataUpdated);
     }
-
-    if (this._textHiddenWidth <= 0) {
-        return this;
-    }
-
-    return this.__marquer();
-};
-
-TrackDisplay.prototype.stopMarquee = function() {
-    if (this._frameRequest) {
-        cancelAnimationFrame(this._frameRequest);
-        this._frameRequest = null;
-    }
-    return this;
+    this._currentTrack = track;
+    this._currentTrack.on("indexChange", this._trackIndexChanged);
+    this._currentTrack.on("tagDataUpdate", this._trackDataUpdated);
+    this._updateText();
+    this._reset();
 };
 
 module.exports = TrackDisplay;
