@@ -222,7 +222,6 @@ Search.prototype.tabDidHide = function() {
 };
 
 Search.prototype.tabWillShow = function() {
-    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
 Search.prototype.tabDidShow = function() {
@@ -230,6 +229,7 @@ Search.prototype.tabDidShow = function() {
     this._visible = true;
     this.$input().focus();
     this._fixedItemListScroller.resize();
+    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
 Search.prototype.tryLoadHistory = function(values) {

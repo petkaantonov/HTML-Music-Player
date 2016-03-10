@@ -1,5 +1,6 @@
 "use strict";
 
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 const Playlist = require("Playlist");
 const Search = require("Search");
 const $ = require("lib/jquery");
@@ -82,6 +83,18 @@ mainTabs.on("tabDidDeactivate", tabEventHandler("tabDidHide"));
 mainTabs.on("tabDidActivate", tabEventHandler("tabDidShow"));
 
 mainTabs.activateTabById(PLAYLIST_TAB_ID);
+
+KeyboardShortcuts.defaultContext.addShortcut(["mod+f", "alt+s"], function() {
+    mainTabs.activateTabById(SEARCH_TAB_ID);
+});
+
+KeyboardShortcuts.defaultContext.addShortcut("alt+a", function() {
+    mainTabs.activateTabById(PLAYLIST_TAB_ID);
+});
+
+KeyboardShortcuts.defaultContext.addShortcut("alt+d", function() {
+    mainTabs.activateTabById(QUEUE_TAB_ID);
+});
 
 const noneSelected = function(selectedCount, totalCount) {
     return selectedCount === 0;

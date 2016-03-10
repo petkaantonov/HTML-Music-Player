@@ -278,11 +278,12 @@ Playlist.prototype.tabDidHide = function() {
 };
 
 Playlist.prototype.tabWillShow = function() {
-    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
+
 };
 
 Playlist.prototype.tabDidShow = function() {
     this._fixedItemListScroller.resize();
+    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
 Playlist.prototype.$trackContainer = function() {
