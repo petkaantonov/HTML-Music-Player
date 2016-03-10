@@ -118,6 +118,10 @@ TrackView.prototype._ensureDomNode = function() {
     this._updateTranslate();
 };
 
+TrackView.prototype.isDestroyed = function() {
+    return this._isDestroyed;
+};
+
 TrackView.prototype.destroy = function() {
     if (this._isDestroyed) return;
     if (this.updateSearchDisplayStatus) {

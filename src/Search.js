@@ -133,6 +133,7 @@ function Search(domNode, opts) {
     this._trackAnalyzer = null;
     this._playlist = opts.playlist;
     this._topHistoryEntry = null;
+    this._visible = false;
 
     this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight || 44, {
         scrollingX: false,
@@ -187,8 +188,9 @@ function Search(domNode, opts) {
     this.$input().on("input", this._gotInput.bind(this));
     this.$input().on("focus", this._inputFocused.bind(this));
     this.$input().on("blur", this._inputBlurred.bind(this));
-
-
+    this.$input().on("keydown", this._inputKeydowned.bind(this));
+    this.$().find(".search-next-tab-focus").on("focus", this._searchNextTabFocused.bind(this));
+    this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 }
 util.inherits(Search, EventEmitter);
 
@@ -213,11 +215,13 @@ Search.prototype.$inputContainer = function() {
 };
 
 Search.prototype.tabWillHide = function() {
+    this._visible = false;
     if (this._session) {
         this._session.destroy();
         this._session = null;
     }
     this.$input().blur();
+    this.$().find(".search-next-tab-focus").hide();
     KeyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
 };
 
@@ -230,6 +234,8 @@ Search.prototype.tabWillShow = function() {
 };
 
 Search.prototype.tabDidShow = function() {
+    this.$().find(".search-next-tab-focus").show();
+    this._visible = true;
     this.$input().focus();
     this._fixedItemListScroller.resize();
 };
@@ -305,6 +311,37 @@ Search.prototype._windowLayoutChanged = function() {
     });
 };
 
+Search.prototype._trackViewsWereDestroyed = function() {
+    var oldLength = this.length;
+    var indices = [];
+
+    for (var i = 0; i < this._trackViews.length; ++i) {
+        if (this._trackViews[i].isDestroyed()) {
+            indices.push(i);
+        }
+    }
+
+    var tracksIndexRanges = util.buildConsecutiveRanges(indices);
+    this._selectable.removeIndices(indices);
+    this.removeTracksBySelectionRanges(tracksIndexRanges);
+
+    if (this.length !== oldLength) {
+        this.emit("lengthChange", this.length, oldLength);
+        if (this._visible) {
+            this._fixedItemListScroller.resize();
+        }
+    }
+};
+
+Search.prototype._inputKeydowned = function(e) {
+    if (e.key === "Enter") {
+        $(e.target).blur();
+        this.selectFirst();
+    } else if (e.key === "Escape" && !$(e.target).val()) {
+        $(e.target).blur();
+    }
+};
+
 Search.prototype._inputBlurred = function() {
     this.$inputContainer().removeClass("focused");
     if (this._session && this._session.resultCount() > 0) {
@@ -338,6 +375,13 @@ Search.prototype._inputBlurred = function() {
             this._topHistoryEntry.update(this._session._rawQuery);
             saveHistory(this._searchHistory);
         }
+    }
+};
+
+Search.prototype._searchNextTabFocused = function(e) {
+    if (this._trackViews.length > 0) {
+        $(e.target).blur();
+        this.selectFirst();
     }
 };
 

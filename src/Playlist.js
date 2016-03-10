@@ -516,7 +516,6 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
     this.removeTracksBySelectionRanges(tracksIndexRanges);
     this.emit("lengthChange", this.length, oldLength);
 
-
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
         if (this.getCurrentTrack()) {
@@ -543,6 +542,8 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
             self._trackListDeletionUndo.destroy();
         }
     });
+
+    this.emit("tracksRemoved");
 };
 
 Playlist.prototype.removeSelected = function() {

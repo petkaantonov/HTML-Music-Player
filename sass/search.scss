@@ -54,10 +54,23 @@
             }
 
             .search-input-box {
-                @include calc(width, "100% - 34px");
+                @include calc(width, "100% - 34px - 1px");
                 height: $track-item-height - 16px;
                 line-height: $track-item-height - 16px;
                 font-size: 14px;
+            }
+
+            .search-next-tab-focus {
+                width: 1px;
+                height: 1px;
+                display: inline-block;
+
+                &:focus, &:active {
+                    margin: 0;
+                    padding: 0;
+                    border: none;
+                    outline: none;
+                }
             }
         }
     }
