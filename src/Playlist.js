@@ -17,7 +17,9 @@ const SHUFFLE_MODE = "shuffle";
 
 const TrackViewOptions = {
     updateTrackIndex: true,
-    updateSearchDisplayStatus: false
+    updateSearchDisplayStatus: false,
+    itemHeight: -1,
+    playlist: null
 };
 
 const KIND_IMPLICIT = 0;
@@ -77,6 +79,9 @@ export default function Playlist(domNode, opts) {
     this._trackListDeletionUndo = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
+
+    TrackViewOptions.playlist = this;
+    TrackViewOptions.itemHeight = opts.itemHeight;
 
     this._errorCount = 0;
     this._$domNode = $(domNode);

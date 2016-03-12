@@ -4,7 +4,6 @@ import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
 import { makePopup } from "ui/GlobalUi";
 import Slider from "ui/Slider";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import createPreferences from "PreferenceCreator";
 import Popup from "ui/Popup";
@@ -125,6 +124,7 @@ export default function EffectPreferences(opts) {
     this.opts = opts;
     this.rippler = opts.rippler;
     this.db = opts.db;
+    this.env = opts.env;
     this.preferences = new Preferences();
 
     this.popup = makePopup("Effects", this.getHtml(), opts.preferencesButton, [{
@@ -147,7 +147,7 @@ export default function EffectPreferences(opts) {
 
     $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
     }
     this.popup.on("open", this.popupOpened.bind(this));

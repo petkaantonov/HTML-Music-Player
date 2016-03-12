@@ -14,7 +14,9 @@ const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = "search-history";
 const TrackViewOptions = {
     updateTrackIndex: false,
-    updateSearchDisplayStatus: true
+    updateSearchDisplayStatus: true,
+    itemHeight: -1,
+    playlist: null
 };
 
 var searchSessionNextId = 0;
@@ -121,6 +123,10 @@ export default function Search(domNode, opts) {
     this._session = null;
     this._trackAnalyzer = null;
     this._playlist = opts.playlist;
+
+    TrackViewOptions.itemHeight = opts.itemHeight;
+    TrackViewOptions.playlist = opts.playlist;
+
     this._topHistoryEntry = null;
     this._visible = false;
 

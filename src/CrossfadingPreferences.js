@@ -5,7 +5,6 @@ import { inherits, throttle } from "lib/util";
 import { makePopup } from "ui/GlobalUi";
 import Popup from "ui/Popup";
 import Slider from "ui/Slider";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import preferenceCreator from "PreferenceCreator";
 
@@ -184,6 +183,7 @@ export default function CrossfadingPreferences(opts) {
     opts = Object(opts);
     this.opts = opts;
     this.rippler = opts.rippler;
+    this.env = opts.env;
     this.db = opts.db;
     this.preferences = new Preferences();
     this.popup = makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
@@ -206,7 +206,7 @@ export default function CrossfadingPreferences(opts) {
 
     $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
     }
     this.popup.on("open", this.popupOpened.bind(this));

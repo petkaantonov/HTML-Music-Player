@@ -15,6 +15,8 @@ export default function TrackView(track, selectable, opts) {
     this._track = track;
     this._isDestroyed = false;
     this._index = -1;
+    this._playlist = opts.playlist;
+    this._itemHeight = opts.itemHeight;
     this._error = null;
     this._domNode = NULL;
     this._isAttached = false;
@@ -104,7 +106,7 @@ TrackView.prototype._ensureDomNode = function() {
     this.viewUpdateTagDataChange();
     this.viewUpdateOfflineStatusChange();
     this.viewUpdateSyncStatusChange();
-    this.viewUpdatePlayingStatusChange(playlist.main.getCurrentTrack() === this._track);
+    this.viewUpdatePlayingStatusChange(this._playlist.getCurrentTrack() === this._track);
 
     if (this._track.isBeingAnalyzed()) {
         this.viewUpdateShowAnalysisStatus();
@@ -387,7 +389,7 @@ TrackView.prototype._updateTranslate = function() {
 
 TrackView.prototype._getTranslate = function() {
     var index = this._index;
-    var y = index * playlist.main.getItemHeight();
+    var y = index * this._itemHeight;
     var x = 0;
     if (this._dragged) {
         x -= 25;

@@ -21,6 +21,9 @@ import AndroidKeyboardFixer from "ui/AndroidKeyboardFixer";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
+import ApplicationPreferences from "ApplicationPreferences";
+import EffectPreferences from "EffectPreferences";
+import CrossfadingPreferences from "CrossfadingPreferences";
 import ServiceWorkerManager from "ServiceWorkerManager";
 import initializeFileinput from "lib/jquery.fileinput";
 import initializeReflow from "lib/jquery.reflow";
@@ -76,6 +79,33 @@ export default function Application(env, db, dbValues, defaultTitle) {
         env: this.env
     });
     this.serviceWorkerManager.start();
+
+    this.applicationPreferences = new ApplicationPreferences({
+        snackbar: this.snackbar,
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        rippler: this.rippler,
+        preferencesButton: ".menul-preferences"
+    });
+
+    this.effectPreferences = new EffectPreferences({
+        snackbar: this.snackbar,
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        rippler: this.rippler,
+        preferencesButton: ".menul-effects"
+    });
+
+    this.crossfadingPreferences = new CrossfadingPreferences({
+        snackbar: this.snackbar,
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        rippler: this.rippler,
+        preferencesButton: ".menul-crossfade"
+    });
 
     this.mainTabs = new MainTabs({
         keyboardShortcuts: this.keyboardShortcuts,
