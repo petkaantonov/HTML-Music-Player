@@ -17,6 +17,7 @@ import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import OpenableSubmenu from "ui/OpenableSubmenu";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "ui/DefaultShortcuts";
+import AndroidKeyboardFixer from "ui/AndroidKeyboardFixer";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
@@ -24,7 +25,8 @@ import ServiceWorkerManager from "ServiceWorkerManager";
 import initializeFileinput from "lib/jquery.fileinput";
 import initializeReflow from "lib/jquery.reflow";
 import initializeUaparser from "lib/ua-parser";
-import { isTextInputNode } from "lib/util";
+import { onCapture, offCapture } from "lib/util";
+import { isTextInputElement } from "lib/DomUtil";
 
 export default function Application(env, db, dbValues, defaultTitle) {
     initializeFileinput();
@@ -39,6 +41,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.db = db;
     this.dbValues = dbValues;
     this.defaultTitle = defaultTitle;
+
+    this.androidKeyboardFixer = new AndroidKeyboardFixer();
 
     this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
         openerActiveClass: "toolbar-item-active"
@@ -131,8 +135,6 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player);
 
-    const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
-
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
         db: this.db,
         snackbar: this.snackbar,
@@ -145,7 +147,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         capDropTime: 750,
         ghostOpacity: 0.14,
         capInterpolator: "ACCELERATE_CUBIC",
-        enabledMediaMatcher: visualizerEnabledMediaMatcher,
+        enabledMediaMatcher: matchMedia("(min-height: 500px)"),
         binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
     });
 
@@ -172,10 +174,17 @@ export default function Application(env, db, dbValues, defaultTitle) {
     $(document).on("selectstart", this.selectStarted.bind(this));
     window.onbeforeunload = this.beforeUnload.bind(this);
     this.player.on("stop", this.playerStopped.bind(this));
+    onCapture(document, "keydown", documentKeydowned);
+
+    var self = this;
+    requestAnimationFrame(function() {
+        self.androidKeyboardFixer.triggerSizeChange();
+        self.visualizerCanvas.initialize();
+    });
 }
 
 Application.prototype.selectStarted = function(e) {
-    if (!isTextInputNode(e.target)) {
+    if (!isTextInputElement(e.target)) {
         e.preventDefault();
     }
 };
@@ -197,4 +206,41 @@ Application.prototype.beforeUnload = function() {
 
 Application.prototype.playerStopped = function() {
     document.title = this.defaultTitle;
+};
+
+const rinput = /^(input|select|textarea|button)$/i;
+Application.prototype.documentKeydowned = function(e) {
+    var key = e.key;
+    if (key === "Escape") {
+        $(window).trigger("clear");
+    }
+
+    if (e.target === document.activeElement &&
+        e.target.tabIndex >= 0 &&
+        !rinput.test(e.target.nodeName)) {
+
+        if (key === "Spacebar" || key === "Enter") {
+            var box = e.target.getBoundingClientRect();
+            var x = (((box.left + box.right) / 2) | 0) - window.scrollX;
+            var y = (((box.top + box.bottom) / 2) | 0) - window.scrollY;
+            var ev = new MouseEvent("click", {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                ctrlKey: e.ctrlKey,
+                shiftKey: e.shiftKey,
+                altKey: e.altKey,
+                metaKey: e.metaKey,
+                button: -1,
+                buttons: 0,
+                screenX: x,
+                clientX: x,
+                screenY: y,
+                clientY: y
+            });
+            e.target.dispatchEvent(ev);
+        } else if (key === "Escape") {
+            e.target.blur();
+        }
+    }
 };
