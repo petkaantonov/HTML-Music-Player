@@ -12,13 +12,19 @@ import PlayerVolumeManager from "ui/PlayerVolumeManager";
 import PlayerPictureManager from "ui/PlayerPictureManager";
 import PlaylistNotifications from "ui/PlaylistNotifications";
 import LocalFileHandler from "ui/LocalFileHandler";
+import VisualizerCanvas from "ui/VisualizerCanvas";
+import KeyboardShortcuts from "ui/KeyboardShortcuts";
+import OpenableSubmenu from "ui/OpenableSubmenu";
+import GestureScreenFlasher from "ui/GestureScreenFlasher";
+import DefaultShortcuts from "ui/DefaultShortcuts";
+import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
 import ServiceWorkerManager from "ServiceWorkerManager";
-import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import initializeFileinput from "lib/jquery.fileinput";
 import initializeReflow from "lib/jquery.reflow";
 import initializeUaparser from "lib/ua-parser";
+import { isTextInputNode } from "lib/util";
 
 export default function Application(env, db, dbValues, defaultTitle) {
     initializeFileinput();
@@ -34,6 +40,10 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.dbValues = dbValues;
     this.defaultTitle = defaultTitle;
 
+    this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
+        openerActiveClass: "toolbar-item-active"
+    });
+
     this.keyboardShortcuts = new KeyboardShortcuts();
 
     this.snackbar = new Snackbar({
@@ -42,6 +52,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         nextDelay: 400,
         visibilityTime: 4400
     });
+
+    this.gestureScreenFlasher = new GestureScreenFlasher();
 
     this.rippler = new Rippler();
 
@@ -78,12 +90,19 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.search = this.mainTabs.search;
     this.queue = this.mainTabs.queue;
 
+    this.trackAnalyzer = new TrackAnalyzer(this.playlist);
+    this.search.setTrackAnalyzer(this.trackAnalyzer);
+
     this.localFileHandler = new LocalFileHandler({
         env: this.env,
         playlist: this.playlist,
         directoryButton: ".menul-folder, .add-folder-link",
         fileButton: ".menul-files, .add-files-link"
     });
+
+    if (false && window.DEBUGGING) {
+        this.localFileHandler.generateFakeFiles(8);
+    }
 
     this.player = new Player(".app-player-controls", this.playlist, {
         playButtonDom: ".play-button",
@@ -136,13 +155,30 @@ export default function Application(env, db, dbValues, defaultTitle) {
         defaultTitle: this.defaultTitle
     });
 
+    this.defaultShortcuts = new DefaultShortcuts({
+        env: this.env,
+        player: this.player,
+        playlist: this.playlist,
+        keyboardShortcuts: this.keyboardShortcuts,
+        playerTimeManager: this.playerTimeManager,
+        rippler: this.rippler,
+        gestureScreenFlasher: this.gestureScreenFlasher
+    });
+
     this.playlistModeManager = new PlaylistModeManager(".playlist-controls-container", this.playlist);
 
     $(document).on("longPressStart", this.longTapStarted.bind(this));
     $(document).on("longPressEnd", this.longTapEnded.bind(this));
+    $(document).on("selectstart", this.selectStarted.bind(this));
     window.onbeforeunload = this.beforeUnload.bind(this);
     this.player.on("stop", this.playerStopped.bind(this));
 }
+
+Application.prototype.selectStarted = function(e) {
+    if (!isTextInputNode(e.target)) {
+        e.preventDefault();
+    }
+};
 
 Application.prototype.longTapStarted = function(e, touch) {
     this.spinner.spinAt(touch.clientX|0, touch.clientY|0);
@@ -150,10 +186,6 @@ Application.prototype.longTapStarted = function(e, touch) {
 
 Application.prototype.longTapEnded = function() {
     this.spinner.stop();
-};
-
-Application.prototype.windowCleared = function() {
-    this.playli
 };
 
 Application.prototype.beforeUnload = function() {
