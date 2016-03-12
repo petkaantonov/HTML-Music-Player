@@ -2,7 +2,6 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import { makePopup } from "ui/GlobalUi";
 import Popup from "ui/Popup";
 import Slider from "ui/Slider";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
@@ -186,7 +185,7 @@ export default function CrossfadingPreferences(opts) {
     this.env = opts.env;
     this.db = opts.db;
     this.preferences = new Preferences();
-    this.popup = makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
+    this.popup = opts.popupMaker.makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
         action: function(e) {

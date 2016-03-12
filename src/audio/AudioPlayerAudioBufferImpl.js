@@ -20,9 +20,6 @@ import simulateTick from "lib/patchtimers";
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
-const AUDIO_PLAYER_WORKER_SRC = window.DEBUGGING
-    ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
-
 const asap = function(fn) {
     fn();
 };

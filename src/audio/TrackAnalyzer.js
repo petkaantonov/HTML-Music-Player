@@ -6,14 +6,12 @@ import Track from "Track";
 import AudioError from "audio/AudioError";
 import TagData from "TagData";
 
-const TRACK_ANALYZER_WORKER_SRC = window.DEBUGGING
-    ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js";
-
 var instances = false;
-export default function TrackAnalyzer(playlist) {
+export default function TrackAnalyzer(playlist, opts) {
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
+    opts = Object(opts);
     instances = true;
-    this._worker = new Worker(TRACK_ANALYZER_WORKER_SRC);
+    this._worker = new Worker(opts.src);
     this._analyzerJobs = [];
     this._acoustIdJobs = [];
     this._nextJobId = 0;

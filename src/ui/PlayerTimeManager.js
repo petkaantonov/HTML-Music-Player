@@ -1,7 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
 
-import keyValueDatabase from "KeyValueDatabase";
 import { toTimeString } from "lib/util";
 import { TOUCH_EVENTS, changeDom, setTransform, tapHandler } from "lib/DomUtil";
 import Slider from "ui/Slider";
@@ -14,6 +13,8 @@ const TIME_DISPLAY_PREFERENCE_KEY = "time-display";
 
 export default function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
+    this.env = opts.env;
+    this.db = opts.db;
     this._domNode = $(dom);
     this.player = player;
     this.displayMode = DISPLAY_REMAINING;
@@ -50,7 +51,7 @@ export default function PlayerTimeManager(dom, player, opts) {
 
     this.$totalTime().click(this.containerClicked);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$totalTime().on(TOUCH_EVENTS, tapHandler(this.containerClicked));
     }
 
@@ -72,13 +73,12 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.totalTimeCtx.textAlign = this.currentTimeCtx.textAlign = "center";
     this.totalTimeCtx.textBaseline = this.currentTimeCtx.textBaseline = "bottom";
 
-
-    var self = this;
-    keyValueDatabase.getInitialValues().then(function(values) {
-        if (TIME_DISPLAY_PREFERENCE_KEY in values) {
-            self.displayMode = values[TIME_DISPLAY_PREFERENCE_KEY];
+    if (TIME_DISPLAY_PREFERENCE_KEY in opts.dbValues) {
+        var val = +opts.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
+        if (val === DISPLAY_REMAINING || val == DISPLAY_ELAPSED) {
+            this.displayMode = val;
         }
-    });
+    }
 
     this._scheduleUpdate();
 }
@@ -217,7 +217,7 @@ PlayerTimeManager.prototype.toggleDisplayMode = function() {
     } else {
         this.displayMode = DISPLAY_ELAPSED;
     }
-    keyValueDatabase.set(TIME_DISPLAY_PREFERENCE_KEY, this.displayMode);
+    this.db.set(TIME_DISPLAY_PREFERENCE_KEY, this.displayMode);
     this.forceUpdate();
 };
 

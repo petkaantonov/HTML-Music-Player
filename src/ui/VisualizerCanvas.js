@@ -8,7 +8,7 @@ import Default2dImageRenderer from "ui/Default2dImageRenderer";
 import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
 import EventEmitter from "lib/events";
 import Slider from "ui/Slider";
-import { contextMenuItem, makePopup } from "ui/GlobalUi";
+import { contextMenuItem } from "ui/GlobalUi";
 import { ContextMenu } from "ui/ActionMenu";
 
 const pixelRatio = window.devicePixelRatio || 1;
@@ -209,7 +209,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStopped = this.playerStopped.bind(this);
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
-    this.latencyPopup = makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+    this.latencyPopup = opts.popupMaker.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
 
     this.enabled = true;
     this.shown = true;

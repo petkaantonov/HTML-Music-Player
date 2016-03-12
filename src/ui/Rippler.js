@@ -168,8 +168,8 @@ Ripple.prototype.end = function() {
     this.rippler.rippleEnded(this);
 };
 
-export default function Rippler() {
-    this._domNode = $("body");
+export default function Rippler(base) {
+    this._domNode = $(base);
     this._freeRipples = [];
     this._ongoingRipples = [];
     this._shown = false;

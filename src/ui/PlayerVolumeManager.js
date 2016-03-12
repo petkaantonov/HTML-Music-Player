@@ -7,6 +7,8 @@ import Slider from "ui/Slider";
 export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;
     opts = Object(opts);
+    this.env = opts.env;
+    this.rippler = opts.rippler;
     this.player = player;
     this.volumeSlider = new Slider(opts.volumeSlider);
 
@@ -28,7 +30,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
 
     this.$mute().click(this.muteClicked);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$mute().on(TOUCH_EVENTS, tapHandler(this.muteClicked));
     }
 
@@ -57,7 +59,7 @@ PlayerVolumeManager.prototype.slided = function(percentage) {
 };
 
 PlayerVolumeManager.prototype.muteClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.player.toggleMute();
 };
 

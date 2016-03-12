@@ -35,7 +35,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.$().on("mouseleave", this._mouseLeft);
     $(window).on("sizechange", this._resized);
 
-    if (touch) {
+    if (snackbar.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS, this._clickedTouch);
     }
 
@@ -216,6 +216,7 @@ SnackbarInstance.prototype._destroy = function() {
 
 export default function Snackbar(opts) {
     opts = Object(opts);
+    this.env = opts.env;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";

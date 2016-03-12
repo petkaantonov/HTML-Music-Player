@@ -18,6 +18,7 @@ import OpenableSubmenu from "ui/OpenableSubmenu";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "ui/DefaultShortcuts";
 import AndroidKeyboardFixer from "ui/AndroidKeyboardFixer";
+import PopupMaker from "ui/PopupMaker";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
@@ -32,6 +33,7 @@ import { onCapture, offCapture } from "lib/util";
 import { isTextInputElement } from "lib/DomUtil";
 
 export default function Application(env, db, dbValues, defaultTitle) {
+    dbValues = Object(dbValues);
     initializeFileinput();
     initializeUaparser();
     initializeReflow();
@@ -54,6 +56,13 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.keyboardShortcuts = new KeyboardShortcuts();
 
+    this.popupMaker = new PopupMaker({
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        keyboardShortcuts: this.keyboardShortcuts
+    });
+
     this.snackbar = new Snackbar({
         transitionInClass: "transition-in",
         transitionOutClass: "transition-out",
@@ -64,7 +73,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.gestureScreenFlasher = new GestureScreenFlasher();
 
-    this.rippler = new Rippler();
+    this.rippler = new Rippler("body");
 
     this.spinner = new Spinner({
         clockwise: "#clockwise-spinner",
@@ -86,6 +95,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
+        popupMaker: this.popupMaker,
         preferencesButton: ".menul-preferences"
     });
 
@@ -95,6 +105,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
+        popupMaker: this.popupMaker,
         preferencesButton: ".menul-effects"
     });
 
@@ -104,6 +115,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
+        popupMaker: this.popupMaker,
         preferencesButton: ".menul-crossfade"
     });
 
@@ -130,9 +142,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.queue = this.mainTabs.queue;
 
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
-        env: this.env,
-        dbValues: this.dbValues,
-        db: this.db,
+        src: window.DEBUGGING
+            ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js"
     });
     this.search.setTrackAnalyzer(this.trackAnalyzer);
 
@@ -159,7 +170,9 @@ export default function Application(env, db, dbValues, defaultTitle) {
         db: this.db,
         snackbar: this.snackbar,
         gestureEducator: this.gestureEducator,
-        rippler: this.rippler
+        rippler: this.rippler,
+        src: window.DEBUGGING
+            ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
     });
 
     this.playerTimeManager = new PlayerTimeManager(".player-upper-container", this.player, {
@@ -178,7 +191,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         muteDom: ".volume-mute",
         env: this.env,
         dbValues: this.dbValues,
-        db: this.db
+        db: this.db,
+        rippler: this.rippler
     });
 
     this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player);
@@ -189,6 +203,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         db: this.db,
         snackbar: this.snackbar,
         rippler: this.rippler,
+        popupMaker: this.popupMaker,
         binWidth: 3,
         gapWidth: 1,
         capHeight: 1,

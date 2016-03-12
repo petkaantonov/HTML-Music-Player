@@ -2,8 +2,6 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import { makePopup } from "ui/Globalui";
-import keyValueDatabase from "KeyValueDatabase";
 import Slider from "ui/Slider";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import createPreferences from "PreferenceCreator";
@@ -79,7 +77,7 @@ export default function ApplicationPreferences(opts) {
     this.env = opts.env;
     this.preferences = new Preferences();
 
-    this.popup = makePopup("Preferences", this.getHtml(), opts.preferencesButton, [{
+    this.popup = opts.popupMaker.makePopup("Preferences", this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
         action: function(e) {
