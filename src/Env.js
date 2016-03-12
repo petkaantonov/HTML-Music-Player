@@ -17,8 +17,6 @@ export default function Env() {
         isDesktop = desktopOs.test(ua.os.name);
     }
     this._isDesktop = isDesktop;
-
-
     this._touch = (('ontouchstart' in window) ||
         navigator.maxTouchPoints > 0 ||
         navigator.msMaxTouchPoints > 0 ||
@@ -29,8 +27,8 @@ export default function Env() {
                         "mozdirectory" in input);
     this._readFiles = typeof FileReader == "function" && new FileReader().readAsBinaryString;
 
-    this._supportedMimes = "audio/mp3,audio/mpeg".split(",");
-    this._supportedExtensions ="mp3,mpg,mpeg".split(",");
+    this._rSupportedMimes = /^(?:audio\/mp3|audio\/mpeg)$/i;
+    this._rSupportedExtensions = /^(?:mp3|mpg|mpeg)$/i;
 
     var browserName, browserVersion;
     var isIe = false;
@@ -70,13 +68,11 @@ Env.prototype.canReadFiles = function() {
 };
 
 Env.prototype.supportsExtension = function(ext) {
-    ext = ("" + ext).toLowerCase();
-    return this._supportedExtensions.indexOf(ext) >= 0;
+    return this._rSupportedExtensions.test(ext);
 };
 
 Env.prototype.supportsMime = function(mime) {
-    mime = ("" + mime).toLowerCase();
-    return this._supportedMimes.indexOf(mime) >= 0;
+    return this._rSupportedMimes.test(mime);
 };
 
 Env.prototype.getRequiredPlatformFeatures = function() {
@@ -113,7 +109,7 @@ Env.prototype.getRequiredPlatformFeatures = function() {
         }), "http://caniuse.com/#feat=fileapi", "File API"],
 
         "Multi-core utilization capability": [Promise.method(function() {
-            if (self._browserName === "safari" || self._isIe) {
+            if (self._isSafari || self._isIe) {
                 return false;
             }
             var worker, url;
