@@ -10,7 +10,7 @@ import keyValueDatabase from "KeyValueDatabase";
 import { slugTitle } from "lib/util";
 const Rippler = require("ui/Rippler");
 import { setFilter, setTransform } from "lib/DomUtil";
-const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+import KeyboardShortcuts from "ui/KeyboardShortcuts";
 
 const GlobalUi = module.exports;
 

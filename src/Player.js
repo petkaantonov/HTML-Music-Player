@@ -11,7 +11,7 @@ import EventEmitter from "lib/events";
 import { documentHidden, inherits } from "lib/util";
 import { gestureEducation, makeTooltip, rippler } from "ui/GlobalUi";
 import keyValueDatabase from "KeyValueDatabase";
-const Track = require("Track");
+import Track from "Track";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, isTouchEvent, tapHandler } from "lib/DomUtil";
 

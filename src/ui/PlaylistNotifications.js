@@ -3,8 +3,8 @@ import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, preventDefault, tapHandler } from "lib/DomUtil";
-const PlayerPictureManager = require("ui/PlayerPictureManager");
-const serviceWorkerManager = require("ServiceWorkerManager");
+import PlayerPictureManager from "ui/PlayerPictureManager";
+import serviceWorkerManager from "ServiceWorkerManager";
 import keyValueDatabase from "KeyValueDatabase";
 
 const supported = typeof Notification === "function" &&

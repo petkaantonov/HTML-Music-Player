@@ -3,8 +3,6 @@ import EventEmitter from "lib/events";
 import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "lib/util";
 import { SortedSet } from "lib/DataStructures";
 
-const modifierKeyProp = modifierKeyProp;
-
 function Selectable(playlist) {
     EventEmitter.call(this);
     this._playlist = playlist;

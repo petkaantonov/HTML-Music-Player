@@ -1,7 +1,7 @@
 "use strict";
 import $ from "lib/jquery";
 import { inherits } from "lib/util";
-const Selectable = require("ui/Selectable");
+import Selectable from "ui/Selectable";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, isTouchEvent, modifierDragHandler, modifierTouchDownHandler } from "lib/DomUtil";
 import EventEmitter from "lib/events";

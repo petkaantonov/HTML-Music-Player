@@ -3,14 +3,14 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "lib/util";
-const Selectable = require("ui/Selectable");
+import Selectable from "ui/Selectable";
 const DraggableSelection = require("ui/DraggableSelection");
 import keyValueDatabase from "KeyValueDatabase";
-const Track = require("Track");
+import Track from "Track";
 import { touch as touch } from "features";
 const FixedItemListScroller = require("ui/FixedItemListScroller");
 const Snackbar = require("ui/Snackbar");
-const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+import KeyboardShortcuts from "ui/KeyboardShortcuts";
 const TrackView = require("ui/TrackView");
 const listEvents = require("ui/listEvents");
 const selectionMethods = require("selectionMethods");

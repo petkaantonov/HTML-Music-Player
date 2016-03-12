@@ -7,36 +7,35 @@ try {
         confirm: desc
     });
 } catch (e) {}
-window.$ = window.jQuery = require("lib/jquery");
-window.Promise = require("lib/bluebird");
+
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 require("BluebirdConfig");
 require("lib/jquery.fileinput");
 require("lib/jquery.reflow");
 import { isTextInputNode, offCapture, onCapture, throttle } from "lib/util";
-const serviceWorkerManager = require("ServiceWorkerManager");
-const TrackDisplay = require("ui/TrackDisplay");
-const Player = require("Player");
-const Playlist = require("Playlist");
-const PlaylistModeManager = require("ui/PlaylistModeManager");
-const PlayerTimeManager = require("ui/PlayerTimeManager");
+import serviceWorkerManager from "ServiceWorkerManager";
+import TrackDisplay from "ui/TrackDisplay";
+import Player from "Player";
+import Playlist from "Playlist";
+import PlaylistModeManager from "ui/PlaylistModeManager";
+import PlayerTimeManager from "ui/PlayerTimeManager";
 import Slider from "ui/Slider";
-const PlayerVolumeManager = require("ui/PlayerVolumeManager");
-const PlayerPictureManager = require("ui/PlayerPictureManager");
-const PlaylistNotifications = require("ui/PlaylistNotifications");
-const VisualizerCanvas = require("ui/VisualizerCanvas");
-const TrackAnalyzer = require("audio/TrackAnalyzer");
-const LocalFiles = require("LocalFiles");
+import PlayerVolumeManager from "ui/PlayerVolumeManager";
+import PlayerPictureManager from "ui/PlayerPictureManager";
+import PlaylistNotifications from "ui/PlaylistNotifications";
+import VisualizerCanvas from "ui/VisualizerCanvas";
+import TrackAnalyzer from "audio/TrackAnalyzer";
+import LocalFiles from "LocalFiles";
 import { rippler, spinner } from "ui/GlobalUi";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, horizontalTwoFingerSwipeHandler, isTextInputElement, tapHandler, twoFingerTapHandler } from "lib/DomUtil";
-const gestureScreenFlasher = require("ui/GestureScreenFlasher");
-const TrackRating = require("TrackRating");
-const Track = require("Track");
-const OpenableSubmenu = require("ui/OpenableSubmenu");
-const KeyboardShortcuts = require("ui/KeyboardShortcuts");
-const mainTabs = require("main_tabs");
-
-const $ = window.$;
+import gestureScreenFlasher from "ui/GestureScreenFlasher";
+import TrackRating from "TrackRating";
+import Track from "Track";
+import OpenableSubmenu from "ui/OpenableSubmenu";
+import KeyboardShortcuts from "ui/KeyboardShortcuts";
+import mainTabs from "main_tabs";
 
 window.__PROJECT__TITLE = "Soita";
 

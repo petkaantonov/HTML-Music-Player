@@ -3,7 +3,7 @@ import Promise from "lib/bluebird";
 
 import { documentHidden, throttle } from "lib/util";
 const TrackWasRemovedError = require("TrackWasRemovedError");
-const Track = require("Track");
+import Track from "Track";
 const AudioError = require("audio/AudioError");
 const TagData = require("TagData");
 

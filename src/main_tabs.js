@@ -1,13 +1,13 @@
 "use strict";
 
-const KeyboardShortcuts = require("ui/KeyboardShortcuts");
-const Playlist = require("Playlist");
+import KeyboardShortcuts from "ui/KeyboardShortcuts";
+import Playlist from "Playlist";
 const Search = require("Search");
 import $ from "lib/jquery";
 const TabController = require("ui/TabController");
 import { ContextMenu } from "ui/ActionMenu";
 import { contextMenuItem } from "ui/GlobalUi";
-const TrackRating = require("TrackRating");
+import TrackRating from "TrackRating";
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 

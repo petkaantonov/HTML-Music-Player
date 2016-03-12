@@ -1,7 +1,7 @@
 "use strict";
 import $ from "lib/jquery";
 
-const PlayerPictureManager = require("ui/PlayerPictureManager");
+import PlayerPictureManager from "ui/PlayerPictureManager";
 import EventEmitter from "lib/events";
 import { inherits } from "lib/util";
 const TagData = require("TagData");

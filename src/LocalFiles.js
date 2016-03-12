@@ -1,5 +1,5 @@
 "use strict";
-const Track = require("Track");
+import Track from "Track";
 import Promise from "lib/bluebird";
 import EventEmitter from "lib/events";
 
