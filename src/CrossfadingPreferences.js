@@ -2,16 +2,12 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import { makePopup, rippler } from "ui/GlobalUi";
+import { makePopup } from "ui/GlobalUi";
 import Popup from "ui/Popup";
-import keyValueDatabase from "KeyValueDatabase";
 import Slider from "ui/Slider";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import preferenceCreator from "PreferenceCreator";
-
-const crossfading = new EventEmitter();
-module.exports = crossfading;
 
 const PROGRESS_INCREASE = 1;
 const PROGRESS_DECREASE = 2;
@@ -23,7 +19,7 @@ const DEFAULT_TIME = 5;
 
 const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
-const STORAGE_KEY = "crossfade-preference";
+const STORAGE_KEY = "crossfading-preference";
 
 const CURVE_MAP = {
     "linear": "Linear",
@@ -32,37 +28,6 @@ const CURVE_MAP = {
     "exponentialFromStart": "Exponential Start",
     "exponentialToEnd": "Exponential End"
 };
-
-const CURVE_SELECTOR_HTML = (function() {
-    return "<select class='fade-curve-select'>" + Object.keys(CURVE_MAP).map(function(key) {
-        return "<option value='"+key+"'>"+CURVE_MAP[key]+"</option>";
-    }).join("") + "</select>";
-})();
-
-const FADE_CONFIGURATOR_HTML =
-    "<div class='fade-inputs-container inputs-container'>                                                              \
-        <div class='checkbox-container'>                                                              \
-            <input type='checkbox' class='fade-enable-checkbox checkbox'>                             \
-        </div>                                                                                        \
-        <div class='fade-enable-label label wide-label'>                                              \
-            <label class='fade-enable-text'></label>                                                  \
-        </div>                                                                                        \
-    </div>                                                                                            \
-    <div class='fade-inputs-container inputs-container'>                                                               \
-        <div class='fade-time-label label'>Time</div>                                                 \
-        <div class='fade-time-slider slider horizontal-slider'>                                       \
-            <div class='slider-knob'></div>                                                           \
-            <div class='slider-background'>                                                           \
-                <div class='slider-fill'></div>                                                       \
-            </div>                                                                                    \
-        </div>                                                                                        \
-        <div class='fade-time-value'></div>                                                           \
-    </div>                                                                                            \
-    <div class='fade-inputs-container inputs-container'>                                                               \
-        <div class='fade-curve-label label'>Curve</div>                                               \
-        <div class='select-container fade-curve-container'></div>                                                      \
-        </div>                                                                                        \
-    </div>";
 
 const curveInterpolator = {
     cubicFromStart: function(ticks, maxTicks, progressDirection) {
@@ -126,7 +91,7 @@ const getSamplesForCurve = function(curve, progressDirection) {
     return ret;
 };
 
-const CrossFadePreferences = preferenceCreator({
+const Preferences = preferenceCreator({
     methods: {
         getInCurveSamples: function() {
             return getSamplesForCurve(this.getInCurve(), PROGRESS_INCREASE);
@@ -197,109 +162,142 @@ const CrossFadePreferences = preferenceCreator({
     }
 });
 
-var presets = {
-    "Default (Disabled)": new CrossFadePreferences(),
-    "Basic": new CrossFadePreferences({
+const presets = {
+    "Default (Disabled)": new Preferences(),
+    "Basic": new Preferences({
         inEnabled: true,
         outEnabled: true,
         inCurve: "linear",
         outCurve: "linear"
     }),
-    "Sudden death": new CrossFadePreferences({
+    "Sudden death": new Preferences({
         inEnabled: true,
         outEnabled: true,
         inCurve: "exponentialFromStart",
         outCurve: "sCurve"
     }),
-    "Custom": new CrossFadePreferences()
+    "Custom": new Preferences()
 };
 
-const PRESET_HTML = (function() {
-    return "<select class='fade-preset-select'>" + Object.keys(presets).map(function(key) {
-        return "<option value='"+key+"'>"+key+"</option>";
+export default function CrossfadingPreferences(opts) {
+    EventEmitter.call(this);
+    opts = Object(opts);
+    this.opts = opts;
+    this.rippler = opts.rippler;
+    this.db = opts.db;
+    this.preferences = new Preferences();
+    this.popup = makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
+        id: RESTORE_DEFAULTS_BUTTON,
+        text: "Restore defaults",
+        action: function(e) {
+            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+            this.manager.restoreDefaults();
+        }.bind(this)
+    }, {
+        id: UNDO_CHANGES_BUTTON,
+        text: "Undo changes",
+        action: function(e) {
+            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+            this.manager.undoChanges();
+        }.bind(this)
+    }]);
+
+    this.manager = null;
+
+    $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
+
+    if (touch) {
+        $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
+    }
+    this.popup.on("open", this.popupOpened.bind(this));
+
+    if (opts.dbValues && STORAGE_KEY in opts.dbValues) {
+        this.preferences.copyFrom(opts.dbValues[STORAGE_KEY]);
+        this.emit("change", this.preferences);
+    }
+}
+inherits(CrossfadingPreferences, EventEmitter);
+
+CrossfadingPreferences.prototype.savePreferences = throttle(function() {
+    this.emit("change", this.preferences);
+    this.db.set(STORAGE_KEY, this.preferences.toJSON());
+}, 250);
+
+CrossfadingPreferences.prototype.getPreferences = function() {
+    return this.preferences;
+};
+
+CrossfadingPreferences.prototype.popupOpened = function() {
+    if (!this.manager) {
+        this.manager = new CrossFadeManager(this.popup.$(), this.popup, this.preferences);
+        this.manager.on("update", this.savePreferences.bind(this));
+    }
+    this.manager.setUnchangedPreferences();
+};
+
+CrossfadingPreferences.prototype.getHtml = function() {
+    var PRESET_HTML = (function() {
+        return "<select class='fade-preset-select'>" + Object.keys(presets).map(function(key) {
+            return "<option value='"+key+"'>"+key+"</option>";
+        }).join("") + "</select>";
+    })();
+
+    return "<div class='settings-container crossfade-settings-container'>                                                                                                \
+            <div class='section-container'>                                                                                                                      \
+                <div class='fade-inputs-container inputs-container'>                                                                                                              \
+                    <div class='checkbox-container'>                                                                                                             \
+                        <input type='checkbox' id='album-preference-checkbox-id' class='album-preference-checkbox checkbox'>                                        \
+                    </div>                                                                                                                                       \
+                    <div class='album-preference-label label wide-label'>                                                                                        \
+                        <label class='album-preference-text' for='album-preference-checkbox-id'>Don't crossfade between consecutive tracks of the same album</label>\
+                    </div>                                                                                                                                       \
+                </div>                                                                                                                                           \
+            </div>                                                                                                                                               \
+        <div class='section-separator'></div>                                                                                                                    \
+        <div class='left fade-in-configurator fade-configurator-container'></div>                                                                                \
+        <div class='right fade-out-configurator fade-configurator-container'></div>                                                                              \
+        <div class='section-separator'></div>                                                                                                                    \
+        <div class='section-container'>                                                                                                                          \
+            <div class='fade-inputs-container inputs-container'>                                                                                                                  \
+                <div class='label fade-preset-label'>Preset</div>                                                                                                \
+                <div class='select-container preset-selector-container'>                                                                                                          \
+                    " + PRESET_HTML + "                                                                                                                          \
+                </div>                                                                                                                                           \
+            </div>                                                                                                                                               \
+        </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                         \
+        </div>";
+};
+
+const CURVE_SELECTOR_HTML = (function() {
+    return "<select class='fade-curve-select'>" + Object.keys(CURVE_MAP).map(function(key) {
+        return "<option value='"+key+"'>"+CURVE_MAP[key]+"</option>";
     }).join("") + "</select>";
 })();
 
-const POPUP_EDITOR_HTML = "<div class='settings-container crossfade-settings-container'>                                                                                                \
-                <div class='section-container'>                                                                                                                      \
-                    <div class='fade-inputs-container inputs-container'>                                                                                                              \
-                        <div class='checkbox-container'>                                                                                                             \
-                            <input type='checkbox' id='album-preference-checkbox-id' class='album-preference-checkbox checkbox'>                                        \
-                        </div>                                                                                                                                       \
-                        <div class='album-preference-label label wide-label'>                                                                                        \
-                            <label class='album-preference-text' for='album-preference-checkbox-id'>Don't crossfade between consecutive tracks of the same album</label>\
-                        </div>                                                                                                                                       \
-                    </div>                                                                                                                                           \
-                </div>                                                                                                                                               \
-            <div class='section-separator'></div>                                                                                                                    \
-            <div class='left fade-in-configurator fade-configurator-container'></div>                                                                                \
-            <div class='right fade-out-configurator fade-configurator-container'></div>                                                                              \
-            <div class='section-separator'></div>                                                                                                                    \
-            <div class='section-container'>                                                                                                                          \
-                <div class='fade-inputs-container inputs-container'>                                                                                                                  \
-                    <div class='label fade-preset-label'>Preset</div>                                                                                                \
-                    <div class='select-container preset-selector-container'>                                                                                                          \
-                        " + PRESET_HTML + "                                                                                                                          \
-                    </div>                                                                                                                                           \
-                </div>                                                                                                                                               \
-            </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                         \
-            </div>";
-
-const crossfadingPopup = makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade", [
-{
-    id: RESTORE_DEFAULTS_BUTTON,
-    text: "Restore defaults",
-    action: function(e) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
-        crossFadeManager.restoreDefaults();
-    }
-},
-{
-    id: UNDO_CHANGES_BUTTON,
-    text: "Undo changes",
-    action: function(e) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
-        crossFadeManager.undoChanges();
-    }
-}
-]);
-var preferences = new CrossFadePreferences();
-var crossFadeManager;
-crossfading.getPreferences = function() {
-    return preferences;
-};
-
-keyValueDatabase.getInitialValues().then(function(values) {
-    if (STORAGE_KEY in values) {
-        preferences = new CrossFadePreferences(values[STORAGE_KEY]);
-    }
-});
-
-
-const savePreferences = throttle(function(preferences) {
-    keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
-    crossfading.emit("crossFadingChange", preferences);
-}, 250);
-
-const openPopup = function(e) {
-    crossfadingPopup.open();
-};
-
-crossfadingPopup.on("open", function(popup, needsInitialization) {
-    if (needsInitialization) {
-        crossFadeManager = new CrossFadeManager(crossfadingPopup.$(), popup, crossfading.getPreferences());
-        crossFadeManager.on("preferencesUpdate", function() {
-            savePreferences(crossFadeManager.preferences);
-        });
-    }
-    crossFadeManager.setUnchangedPreferences();
-});
-
-$(".menul-crossfade").click(openPopup);
-
-if (touch) {
-    $(".menul-crossfade").on(TOUCH_EVENTS, tapHandler(openPopup));
-}
+const FADE_CONFIGURATOR_HTML =
+    "<div class='fade-inputs-container inputs-container'>                                                              \
+        <div class='checkbox-container'>                                                              \
+            <input type='checkbox' class='fade-enable-checkbox checkbox'>                             \
+        </div>                                                                                        \
+        <div class='fade-enable-label label wide-label'>                                              \
+            <label class='fade-enable-text'></label>                                                  \
+        </div>                                                                                        \
+    </div>                                                                                            \
+    <div class='fade-inputs-container inputs-container'>                                                               \
+        <div class='fade-time-label label'>Time</div>                                                 \
+        <div class='fade-time-slider slider horizontal-slider'>                                       \
+            <div class='slider-knob'></div>                                                           \
+            <div class='slider-background'>                                                           \
+                <div class='slider-fill'></div>                                                       \
+            </div>                                                                                    \
+        </div>                                                                                        \
+        <div class='fade-time-value'></div>                                                           \
+    </div>                                                                                            \
+    <div class='fade-inputs-container inputs-container'>                                                               \
+        <div class='fade-curve-label label'>Curve</div>                                               \
+        <div class='select-container fade-curve-container'></div>                                                      \
+        </div>                                                                                        \
+    </div>";
 
 function FadeConfigurator(manager, domNode, config) {
     this._domNode = domNode;
@@ -435,7 +433,7 @@ CrossFadeManager.prototype.shouldAlbumCrossFadeChanged = function(e) {
     var val = $(e.target).prop("checked");
     this.preferences.shouldAlbumCrossFade = CrossFadePreferences.asValidShouldAlbumCrossFade(!val);
     this.update();
-    this.emit("preferencesUpdate");
+    this.emit("update");
 };
 
 CrossFadeManager.prototype.presetChanged = function(e) {
@@ -455,7 +453,7 @@ CrossFadeManager.prototype.applyPreferencesFrom = function(preferences) {
 
 CrossFadeManager.prototype.configuratorUpdated = function() {
     this.update();
-    this.emit("preferencesUpdate");
+    this.emit("update");
 };
 
 CrossFadeManager.prototype.update = function() {

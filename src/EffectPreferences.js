@@ -2,8 +2,7 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import { makePopup, rippler } from "ui/GlobalUi";
-import keyValueDatabase from "KeyValueDatabase";
+import { makePopup } from "ui/GlobalUi";
 import Slider from "ui/Slider";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
@@ -16,8 +15,25 @@ const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
 const STORAGE_KEY = "effects-preferences";
 
-const effects = new EventEmitter();
-module.exports = effects;
+const gainValueToProgress = function(gainValue) {
+    var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
+    var abs = gainValue + EQUALIZER_MAX_GAIN;
+    return abs / max;
+};
+
+const progressToGainValue = function(progress) {
+    var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
+    var value = Math.round(progress * max);
+    return value - Math.abs(EQUALIZER_MAX_GAIN);
+};
+
+const formatFreq = function(freq) {
+    if (freq < 1000) {
+        return freq + " Hz";
+    } else {
+        return Math.round(freq / 1000) + " KHz";
+    }
+};
 
 const equalizerBands = [
     [70, 'lowshelf'],
@@ -55,7 +71,7 @@ const equalizerPresets = {
 
 const equalizerPresetKeys = Object.keys(equalizerPresets);
 
-const EffectsPreferences = createPreferences({
+const Preferences = createPreferences({
     methods: {
         getMatchingEqualizerPresetName: function() {
             var equalizer = this.getInPlaceEqualizer();
@@ -103,18 +119,105 @@ const EffectsPreferences = createPreferences({
     }
 });
 
-const preferences = new EffectsPreferences();
+export default function EffectPreferences(opts) {
+    EventEmitter.call(this);
+    opts = Object(opts);
+    this.opts = opts;
+    this.rippler = opts.rippler;
+    this.db = opts.db;
+    this.preferences = new Preferences();
 
-const formatFreq = function(freq) {
-    if (freq < 1000) {
-        return freq + " Hz";
-    } else {
-        return Math.round(freq / 1000) + " KHz";
+    this.popup = makePopup("Effects", this.getHtml(), opts.preferencesButton, [{
+        id: RESTORE_DEFAULTS_BUTTON,
+        text: "Restore defaults",
+        action: function(e) {
+            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+            this.manager.restoreDefaults();
+        }.bind(this)
+    }, {
+        id: UNDO_CHANGES_BUTTON,
+        text: "Undo changes",
+        action: function(e) {
+            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+            this.manager.undoChanges();
+        }.bind(this)
+    }]);
+
+    this.manager = null;
+
+    $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
+
+    if (touch) {
+        $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
     }
+    this.popup.on("open", this.popupOpened.bind(this));
+
+    if (opts.dbValues && STORAGE_KEY in opts.dbValues) {
+        this.preferences.copyFrom(opts.dbValues[STORAGE_KEY]);
+        this.emit("change", this.preferences);
+    }
+}
+inherits(EffectPreferences, EventEmitter);
+
+EffectPreferences.prototype.savePreferences = throttle(function() {
+    this.emit("change", this.preferences);
+    this.db.set(STORAGE_KEY, this.preferences.toJSON());
+}, 250);
+
+EffectPreferences.prototype.getPreferences = function() {
+    return this.preferences;
 };
 
+EffectPreferences.prototype.popupOpened = function() {
+    if (!this.manager) {
+        this.manager = new EffectManager(".equalizer-popup-content-container", this.popup, this.preferences);
+        this.manager.on("update", this.savePreferences.bind(this));
+    }
+    this.manager.setUnchangedPreferences();
+};
 
-var html = (function() {
+EffectPreferences.prototype.amplitudeRatioToDecibelChange = function(ratio) {
+    if (!isFinite(+ratio)) throw new Error("ratio must be a number");
+    return 20 * Math.log(ratio) * Math.LOG10E;
+};
+
+EffectPreferences.prototype.decibelChangeToAmplitudeRatio = function(decibel) {
+    if (!isFinite(+decibel)) return 1;
+    return Math.pow(10, (decibel / 20));
+};
+
+EffectPreferences.prototype.frequencyToIndex = (function() {
+    var map = Object.create(null);
+
+    equalizerBands.forEach(function(band, index) {
+        map[band[0]] = index;
+    });
+
+    return function(freq) {
+        return map[freq];
+    };
+})();
+
+EffectPreferences.prototype.indexToFrequency = function(index) {
+    return equalizerBands[index][0];
+};
+
+EffectPreferences.prototype.getEqualizerSetup = function(track) {
+    return {
+        specs: equalizerBands,
+        gains: this.preferences.getEqualizer()
+    };
+};
+
+EffectPreferences.prototype.getAudioPlayerEffects = function(track) {
+    var pref = this.preferences;
+    return [{
+        name: "noise-sharpening",
+        effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
+    }];
+};
+
+EffectPreferences.prototype.getHtml = function() {
     var noiseSharpeningEffectHtml = "<div class='inputs-container'>                                                 \
         <div class='label wide-label subtitle'>Noise sharpening</div>                                               \
     </div>";
@@ -203,7 +306,9 @@ var html = (function() {
                 <div class='section-container'>"+sliderContainerHtml+"</div>                \
                 "+presetContainerHtml+"                                                     \
             </div>";
-})();
+};
+
+
 
 function NoiseSharpeningEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
@@ -328,163 +433,52 @@ EqualizerEffectManager.prototype.update = function() {
     this._updateSliders();
 };
 
-function EffectsManager(domNode, popup, preferences) {
+function EffectManager(domNode, popup, preferences) {
     EventEmitter.call(this);
     this._domNode = $($(domNode)[0]);
     this._popup = popup;
     this.preferences = preferences;
-    this.defaultPreferences = new EffectsPreferences();
+    this.defaultPreferences = new Preferences();
     this.unchangedPreferences = null;
     this._noiseSharpeningEffectManager = new NoiseSharpeningEffectManager(this);
     this._equalizerEffectManager = new EqualizerEffectManager(this);
 }
-inherits(EffectsManager, EventEmitter);
+inherits(EffectManager, EventEmitter);
 
-EffectsManager.prototype.$ = function() {
+EffectManager.prototype.$ = function() {
     return this._domNode;
 };
 
-EffectsManager.prototype.applyPreferencesFrom = function(preferences) {
+EffectManager.prototype.applyPreferencesFrom = function(preferences) {
     this.preferences.copyFrom(preferences);
     this._noiseSharpeningEffectManager.update();
     this._equalizerEffectManager.update();
     this.preferencesUpdated();
 };
 
-EffectsManager.prototype.preferencesUpdated = function() {
-    this.emit("preferencesUpdate");
+EffectManager.prototype.preferencesUpdated = function() {
+    this.emit("update");
     this.update();
 };
 
-EffectsManager.prototype.update = function() {
+EffectManager.prototype.update = function() {
     var restoreDefaultsEnabled = !this.preferences.equals(this.defaultPreferences);
     this._popup.setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, restoreDefaultsEnabled);
     var undoChangesEnabled = !this.preferences.equals(this.unchangedPreferences);
     this._popup.setButtonEnabledState(UNDO_CHANGES_BUTTON, undoChangesEnabled);
 };
 
-EffectsManager.prototype.restoreDefaults = function() {
+EffectManager.prototype.restoreDefaults = function() {
     this.applyPreferencesFrom(this.defaultPreferences);
 };
 
-EffectsManager.prototype.undoChanges = function() {
+EffectManager.prototype.undoChanges = function() {
     this.applyPreferencesFrom(this.unchangedPreferences);
 };
 
-EffectsManager.prototype.setUnchangedPreferences = function() {
+EffectManager.prototype.setUnchangedPreferences = function() {
     this.unchangedPreferences = this.preferences.snapshot();
     this.update();
     this._noiseSharpeningEffectManager.update();
     this._equalizerEffectManager.update();
 };
-
-const equalizerPopup = makePopup("Effects", html, ".menul-effects", [
-{
-    id: RESTORE_DEFAULTS_BUTTON,
-    text: "Restore defaults",
-    action: function(e) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
-        effectsManager.restoreDefaults();
-    }
-},
-{
-    id: UNDO_CHANGES_BUTTON,
-    text: "Undo changes",
-    action: function(e) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
-        effectsManager.undoChanges();
-    }
-}
-]);
-var effectsManager;
-
-equalizerPopup.on("open", function(popup, needsInitialization) {
-    if (needsInitialization) {
-        effectsManager = new EffectsManager(".equalizer-popup-content-container", popup, preferences);
-
-        effectsManager.on("preferencesUpdate", function() {
-            savePreferences(effectsManager.preferences);
-        });
-    }
-    effectsManager.setUnchangedPreferences();
-});
-
-
-const gainValueToProgress = function(gainValue) {
-    var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
-    var abs = gainValue + EQUALIZER_MAX_GAIN;
-    return abs / max;
-};
-
-const progressToGainValue = function(progress) {
-    var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
-    var value = Math.round(progress * max);
-    return value - Math.abs(EQUALIZER_MAX_GAIN);
-};
-
-const openEditor = function(e) {
-    equalizerPopup.open();
-}
-
-keyValueDatabase.getInitialValues().then(function(values) {
-    if (STORAGE_KEY in values) {
-        preferences.copyFrom(values[STORAGE_KEY]);
-        effects.emit("effectsChange", preferences);
-    }
-});
-
-const savePreferences = throttle(function() {
-    keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
-    effects.emit("effectsChange", preferences);
-}, 250);
-
-effects.amplitudeRatioToDecibelChange = function(ratio) {
-    if (!isFinite(+ratio)) throw new Error("ratio must be a number");
-    return 20 * Math.log(ratio) * Math.LOG10E;
-};
-
-effects.decibelChangeToAmplitudeRatio = function(decibel) {
-    if (!isFinite(+decibel)) return 1;
-    return Math.pow(10, (decibel / 20));
-};
-
-effects.getPreferences = function() {
-    return preferences;
-};
-
-effects.frequencyToIndex = (function() {
-    var map = Object.create(null);
-
-    equalizerBands.forEach(function(band, index) {
-        map[band[0]] = index;
-    });
-
-    return function(freq) {
-        return map[freq];
-    };
-})();
-
-effects.indexToFrequency = function(index) {
-    return equalizerBands[index][0];
-};
-
-effects.getEqualizerSetup = function(track) {
-    return {
-        specs: equalizerBands,
-        gains: effects.getPreferences().getEqualizer()
-    };
-};
-
-effects.getAudioPlayerEffects = function(track) {
-    var pref = effects.getPreferences();
-    return [{
-        name: "noise-sharpening",
-        effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
-    }];
-};
-
-$(".menul-effects").click(openEditor);
-
-if (touch) {
-    $(".menul-effects").on(TOUCH_EVENTS, tapHandler(openEditor));
-}
