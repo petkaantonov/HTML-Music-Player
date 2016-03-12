@@ -1,6 +1,17 @@
 // This is free and unencumbered software released into the public domain.
 // See LICENSE.md for more information.
-
+export var TextDecoder;
+export var TextEncoder;
+(function () {
+var module = {
+    set exports (value) {
+        TextDecoder = value.TextDecoder;
+        TextEncoder = value.TextEncoder;
+    }
+    get exports() {
+      return {};
+    }
+};
 (function(global) {
   'use strict';
 
@@ -1108,7 +1119,7 @@
         };
       });
     });
-  }()); 
+  }());
 
   //
   // 15. Legacy miscellaneous encodings
@@ -1387,3 +1398,4 @@
 }(self));
 
 
+})();

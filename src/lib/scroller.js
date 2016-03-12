@@ -41,7 +41,7 @@
 
     core.effect.Animate = {
 
-        /**
+        /**f
          * A requestAnimationFrame wrapper / polyfill.
          *
          * @param callback {Function} The callback to be invoked before the next repaint.
@@ -251,7 +251,7 @@
  * License: MIT + Apache (V2)
  */
 
-var Scroller;
+export default var Scroller;
 
 (function() {
     var NOOP = function(){};
@@ -305,7 +305,7 @@ var Scroller;
                 provided that another scrolling action has not begun. Used to know
                 when to fade out a scrollbar. */
             scrollingComplete: NOOP,
-            
+
             /** This configures the amount of change applied to deceleration when reaching boundaries  **/
             penetrationDeceleration : 0.03,
 
@@ -1546,8 +1546,8 @@ var Scroller;
                 var scrollOutsideY = 0;
 
                 // This configures the amount of change applied to deceleration/acceleration when reaching boundaries
-                var penetrationDeceleration = self.options.penetrationDeceleration; 
-                var penetrationAcceleration = self.options.penetrationAcceleration; 
+                var penetrationDeceleration = self.options.penetrationDeceleration;
+                var penetrationAcceleration = self.options.penetrationAcceleration;
 
                 // Check limits
                 if (scrollLeft < self.__minDecelerationScrollLeft) {
@@ -1588,5 +1588,3 @@ var Scroller;
     }
 
 })();
-
-module.exports = Scroller;

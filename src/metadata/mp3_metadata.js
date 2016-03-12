@@ -485,7 +485,7 @@ const parseId3v1Data = function(data, fileView) {
     });
 };
 
-const parseMp3Metadata = function(data, fileView) {
+export default function parseMp3Metadata(data, fileView) {
     return parseBasicInfo(fileView).then(function(basicInfo) {
         if (basicInfo) data.basicInfo = basicInfo;
         const length = 16384;
@@ -508,5 +508,3 @@ const parseMp3Metadata = function(data, fileView) {
         }).return(data);
     });
 };
-
-module.exports = parseMp3Metadata;

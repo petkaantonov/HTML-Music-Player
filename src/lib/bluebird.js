@@ -4,6 +4,9 @@ var module = {
     set exports (value) {
         Promise = value;
     }
+    get exports() {
+      return {};
+    }
 };
 
 /* @preserve

@@ -2,7 +2,6 @@
 
 import Promise from "lib/bluebird";
 import EventEmitter from "lib/events";
-var util = module.exports;
 
 var FunctionBind = Function.prototype.bind;
 Function.prototype.bind = function(ctx) {
@@ -62,22 +61,22 @@ if (typeof Math.gcd !== "function") {
     });
 }
 
-queryString = function(obj) {
+export const queryString = function(obj) {
     return Object.keys(obj).map(function(key) {
         return key + "=" + obj[key];
     }).join("&");
 };
 
-combineClasses = function(a, b) {
+export const combineClasses = function(a, b) {
     if (!a) return b;
     return a + " " + b;
 };
 
-modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
+export const modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
 
-modifierKeyProp = modifierKey + "Key";
+export const modifierKeyProp = modifierKey + "Key";
 
-arrayEquals = function(arrayA, arrayB) {
+export const arrayEquals = function(arrayA, arrayB) {
     if (arrayA === arrayB) return true;
     if (arrayA.length !== arrayB.length) return false;
     for (var i = 0; i < arrayA.length; ++i) {
@@ -88,7 +87,7 @@ arrayEquals = function(arrayA, arrayB) {
     return true;
 };
 
-toFunction = function(value) {
+export const toFunction = function(value) {
     if (typeof value === "function") return value;
     return function() {
         return value;
@@ -97,7 +96,7 @@ toFunction = function(value) {
 
 const rInput = /textarea|input|select/i;
 const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
-isTextInputNode = function(node) {
+export const isTextInputNode = function(node) {
     if (rInput.test(node.nodeName)) {
         if (node.nodeName.toLowerCase() !== "input") {
             return true;
@@ -114,31 +113,31 @@ isTextInputNode = function(node) {
     return false;
 };
 
-onCapture = function onCapture(dom, eventName, handler) {
+export const onCapture = function onCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.addEventListener(eventName, handler, true);
     });
 };
 
-offCapture = function offCapture(dom, eventName, handler) {
+export const offCapture = function offCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.removeEventListener(eventName, handler, true);
     });
 };
 
-onBubble = function onCapture(dom, eventName, handler) {
+export const onBubble = function onCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.addEventListener(eventName, handler, false);
     });
 };
 
-offBubble = function offCapture(dom, eventName, handler) {
+export const offBubble = function offCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.removeEventListener(eventName, handler, false);
     });
 };
 
-bits = (function() {
+const bits = (function() {
     const masks = new Int32Array([0x0,
                                   0x1, 0x3, 0x7, 0xF,
                                   0x1F, 0x3F, 0x7F, 0xFF,
@@ -154,46 +153,55 @@ bits = (function() {
     };
 })();
 
-bit = function(number, offset) {
+export const readBit = function(number, offset) {
     return bits(number, offset, 1) === 1;
 };
 
-synchInt32 = function(bytes, offset) {
+export const synchInt32 = function(bytes, offset) {
     return (((bytes.charCodeAt(offset + 0) & 0xFF) & 0x7f) << 21) |
            (((bytes.charCodeAt(offset + 1) & 0xFF) & 0x7f) << 14) |
            (((bytes.charCodeAt(offset + 2) & 0xFF) & 0x7f) << 7)  |
             ((bytes.charCodeAt(offset + 3) & 0xFF) & 0x7f);
 };
 
-int24BE = function(bytes, offset) {
+export const int24BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 2) & 0xFF);
 };
 
-int32BE = function(bytes, offset) {
+export const int32BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 24) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 2) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 3) & 0xFF);
 };
 
-int16BE = function(bytes, offset) {
+export const int16BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 1) & 0xFF);
 };
 
-int32LE = function(bytes, offset) {
+export const int32LE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 3) & 0xFF) << 24) |
            ((bytes.charCodeAt(offset + 2) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 0) & 0xFF);
 };
 
-int16LE = function(bytes, offset) {
+export const int16LE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 0) & 0xFF);
 };
+
+export var float32BE;
+export var float32BEString;
+export var float32LE;
+export var int32BEString;
+export var uint32BEString;
+export var float64BE;
+export var float64LE;
+
 
 (function() {
     const LITTLE_ENDIAN = 0;
@@ -354,11 +362,11 @@ int16LE = function(bytes, offset) {
     }
 })();
 
-truncateUp = function(num) {
+export const truncateUp = function(num) {
     return num < 0 ? Math.floor(num) : Math.ceil(num);
 };
 
-toTimeString = function(secs) {
+export const toTimeString = function(secs) {
     if (!isFinite(secs) || secs == null) return "";
     var sign = secs < 0 ? -1 : 1;
     secs = Math.floor(Math.abs(secs));
@@ -376,7 +384,7 @@ toTimeString = function(secs) {
         minutes + ":" + seconds;
 };
 
-shortNumber = function(num) {
+export const shortNumber = function(num) {
     num = +num;
     var sign = num < 0 ? "-" : "";
     num = Math.abs(num);
@@ -387,57 +395,7 @@ shortNumber = function(num) {
     return sign + num.toExponential(0);
 };
 
-perfectScrollBarPostUpdate = function(node) {
-    var st = node.scrollTop;
-    var sl = node.scrollLeft;
-    node.scrollTop = 0;
-    node.scrollLeft = 0;
-    var scrollEvent = document.createEvent("Event");
-    scrollEvent.initEvent('scroll', true, true);
-    node.dispatchEvent(scrollEvent);
-    node.scrollTop = st;
-    node.scrollLeft = sl;
-    var scrollEvent = document.createEvent("Event");
-    scrollEvent.initEvent('scroll', true, true);
-    node.dispatchEvent(scrollEvent);
-};
-
-scrollUp = function(node, amount) {
-    node.scrollTop = node.scrollTop - amount;
-    var scrollEvent = document.createEvent("Event");
-    scrollEvent.initEvent('scroll', true, true);
-    node.dispatchEvent(scrollEvent);
-};
-
-scrollDown = function(node, amount) {
-    node.scrollTop = node.scrollTop + amount;
-    var scrollEvent = document.createEvent("Event");
-    scrollEvent.initEvent('scroll', true, true);
-    node.dispatchEvent(scrollEvent);
-};
-
-scrollIntoView = {
-    alignMiddle: function(node, parentNode) {
-        if (!node || !parentNode) {
-            return;
-        }
-        var nodeOffset = node.offsetTop,
-            parentHeight = parentNode.offsetHeight,
-            dif;
-
-        dif = nodeOffset - (parentHeight / 2);
-
-        if (dif < 0) {
-            dif = 0;
-        }
-        parentNode.scrollTop = dif;
-        var scrollEvent = document.createEvent("Event");
-        scrollEvent.initEvent('scroll', true, true);
-        parentNode.dispatchEvent(scrollEvent);
-    }
-};
-
-inherits = function(Child, Parent) {
+export const inherits = function(Child, Parent) {
     var hasProp = {}.hasOwnProperty;
 
     function T() {
@@ -456,7 +414,7 @@ inherits = function(Child, Parent) {
     return Child.prototype;
 };
 
-throttle = function(callback, delay) {
+export const throttle = function(callback, delay) {
     var timerId = -1;
     var callId = 0;
 
@@ -481,7 +439,7 @@ throttle = function(callback, delay) {
     };
 };
 
-debounce = function(callback, delay) {
+export const debounce = function(callback, delay) {
     var lastCall = 0;
 
     return function() {
@@ -495,7 +453,7 @@ debounce = function(callback, delay) {
     };
 };
 
-callableEveryMs = function(callback, delay) {
+export const callableEveryMs = function(callback, delay) {
     var lastCall = 0;
 
     return function() {
@@ -560,9 +518,9 @@ Array.prototype.toKeysObj = function() {
     return ret;
 };
 
-IDENTITY = function(v) { return v; };
+export const IDENTITY = function(v) { return v; };
 
-buildConsecutiveRanges = function(array, callback) {
+export const buildConsecutiveRanges = function(array, callback) {
     if (typeof callback !== "function") callback = IDENTITY;
     if (!array.length) return [];
     if (array.length === 1) return [[array[0]]];
@@ -591,7 +549,7 @@ buildConsecutiveRanges = function(array, callback) {
 //
 //      Input: [0, 1, 2, 4, 5, 10], 1000
 //      Output: [[3, 3], [6,9], [11, 1000]]
-buildInverseRanges = function(array, endIndex) {
+export const buildInverseRanges = function(array, endIndex) {
     var inverseRanges = [];
     var ranges = buildConsecutiveRanges(array);
     if (!ranges.length) {
@@ -633,19 +591,19 @@ buildInverseRanges = function(array, endIndex) {
     return inverseRanges;
 };
 
-indexMapper = function(track) {
+export const indexMapper = function(track) {
     return track.getIndex();
 };
 
-TRACK_SORTER = function(a, b) {
+export const TRACK_SORTER = function(a, b) {
     return a.getIndex() - b.getIndex();
 };
 
-SORT_NUMBER_ASC = function (a, b) {
+export const SORT_NUMBER_ASC = function (a, b) {
     return a - b;
 };
 
-once = function(eventTarget, eventName, handler) {
+export const once = function(eventTarget, eventName, handler) {
     eventTarget.addEventListener(eventName, function handle() {
         try {
             eventTarget.removeEventListener(eventName, handle, false);
@@ -657,7 +615,7 @@ once = function(eventTarget, eventName, handler) {
     }, false);
 };
 
-const checkSize = function(expectedSize, resultSize) {
+export const checkSize = function(expectedSize, resultSize) {
     if (expectedSize !== resultSize) {
         var e;
         if (resultSize === 0) {
@@ -672,7 +630,7 @@ const checkSize = function(expectedSize, resultSize) {
     return null;
 };
 
-readAsBinaryString = function(file) {
+export const readAsBinaryString = function(file) {
     var expectedSize = file.size;
 
     if (typeof FileReader !== "function") {
@@ -712,7 +670,7 @@ readAsBinaryString = function(file) {
     });
 };
 
-readAsArrayBuffer = function(file) {
+export const readAsArrayBuffer = function(file) {
     var expectedSize = file.size;
     if (typeof FileReader !== "function") {
         return new Promise(function(resolve) {
@@ -752,7 +710,7 @@ readAsArrayBuffer = function(file) {
     });
 };
 
-subClassError = function(name, additional) {
+export const subClassError = function(name, additional) {
     var ret = new Function("additional", "return function "+name+"(message) {  \
         this.name = '"+name+"';                                                \
         this.message = message;                                                \
@@ -767,7 +725,7 @@ subClassError = function(name, additional) {
     return ret;
 };
 
-formatTagString = function(str) {
+export const formatTagString = function(str) {
     var ret = str.replace(/[\u0000-\u001F]+/g, "").trim();
     if (ret.length > 512) {
         return ret.slice(0, 512);
@@ -775,7 +733,7 @@ formatTagString = function(str) {
     return ret;
 };
 
-internString = (function() {
+export const internString = (function() {
     var o = {"- ": 0};
     delete o["- "];
 
@@ -789,7 +747,7 @@ internString = (function() {
     }
 })();
 
-indexOfCodePoint = function(string, codePoint, start) {
+export const indexOfCodePoint = function(string, codePoint, start) {
     if (start === undefined) start = 0;
     for (var i = start; i < string.length; ++i) {
         if (string.charCodeAt(i) === codePoint) {
@@ -799,12 +757,12 @@ indexOfCodePoint = function(string, codePoint, start) {
     return -1;
 };
 
-capitalize = function(str) {
+export const capitalize = function(str) {
     if (!str.length) return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-unicode = {};
+export const unicode = {};
 
 unicode.characterCategories = {
     numbers: "\u0030-\u0039\u00b2\u00b3\u00b9\u00bc-\u00be\u0660-\u0669\u06f0-\u06f9\u07c0-" +
@@ -1031,7 +989,7 @@ unicode.removeDiacritics = function(string) {
 };
 })();
 
-joinAbbreviations = function(str) {
+export const joinAbbreviations = function(str) {
     var words = str.split(" ").filter(function(word) {
         return word.length > 0;
     });
@@ -1067,7 +1025,7 @@ joinAbbreviations = function(str) {
     return words.join(" ");
 };
 
-normalizeQuery = function(value) {
+export const normalizeQuery = function(value) {
     value = "" + value;
     var ret = unicode.removeDiacritics(value
             .replace(unicode.separateWordsPattern, " ")
@@ -1081,7 +1039,7 @@ normalizeQuery = function(value) {
 
 const legacyListeners = Object.create(null);
 var nextLegacyId = 0;
-addLegacyListener = function(object, eventName, handler) {
+export const addLegacyListener = function(object, eventName, handler) {
     var id = object.__legacyId;
     if (id === undefined) {
         id = object.__legacyId = nextLegacyId++;
@@ -1109,14 +1067,14 @@ addLegacyListener = function(object, eventName, handler) {
     }
 };
 
-slugTitle = function(val) {
+export const slugTitle = function(val) {
     return (val + "").toLowerCase().replace(/[^a-zA-Z0-9 \-_\$]/g, "")
                             .replace(/[\-_ ]/g, "-")
                             .replace(/\-+/g, "-")
                             .replace(/^\-|\-$/g, "");
 };
 
-removeLegacyListener = function(object, eventName, handler) {
+export const removeLegacyListener = function(object, eventName, handler) {
     var eventCache = legacyListeners[eventName];
 
     if (!eventCache) return;
@@ -1132,19 +1090,19 @@ removeLegacyListener = function(object, eventName, handler) {
     }
 };
 
-stripBinaryBom = function(str) {
+export const stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
 
 // Dom errors are not errors :'(
-asError = function(value) {
+export const asError = function(value) {
     if (value instanceof Error) return value;
     var ret = new Error();
     ret.message = "" + (value ? value.message : value);
     return ret;
 };
 
-IDBPromisify = function(ee) {
+export const IDBPromisify = function(ee) {
     return new Promise(function(resolve, reject) {
         ee.onerror = function(event) {
             reject(asError(event.target.transaction.error || ee.error));
@@ -1156,7 +1114,7 @@ IDBPromisify = function(ee) {
     });
 };
 
-documentHidden = (function() {
+export const documentHidden = (function() {
     if (typeof document === "undefined") return;
 
     var prefix = ["h", "mozH", "msH", "webkitH"].reduce(function(prefix, curr) {
@@ -1209,7 +1167,7 @@ documentHidden = (function() {
 })();
 
 
-reverseString = (function() {
+export const reverseString = (function() {
     var utf16decoder = null;
     return function (str) {
         if (utf16decoder === null) utf16decoder = new TextDecoder("utf-16");
@@ -1229,12 +1187,12 @@ reverseString = (function() {
     };
 })();
 
-titleCase = function(str) {
+export const titleCase = function(str) {
     if (typeof str !== "string") str = "" + str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-assign = function(root) {
+export const assign = function(root) {
     root = Object(root);
     var args = [].slice.call(arguments, 1);
 
@@ -1251,7 +1209,7 @@ assign = function(root) {
     return root;
 };
 
-mergeObject = function(base, obj) {
+export const mergeObject = function(base, obj) {
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
@@ -1259,7 +1217,7 @@ mergeObject = function(base, obj) {
     }
 };
 
-getFirstWord = function(str) {
+export const getFirstWord = function(str) {
     for (var i = 0; i < str.length; ++i) {
         if (str.charCodeAt(i) === 0x20) {
             return str.slice(0, i);
@@ -1268,7 +1226,7 @@ getFirstWord = function(str) {
     return str;
 };
 
-getLastWord = function(str) {
+export const getLastWord = function(str) {
     for (var i = str.length - 1; i >= 0; --i) {
         if (str.charCodeAt(i) === 0x20) {
             return str.slice(i + 1);

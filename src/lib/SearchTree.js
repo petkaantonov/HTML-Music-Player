@@ -1,6 +1,8 @@
 "use strict";
 
-import sortedArrays from "lib/sortedArrays";
+import { merge as mergeSorted,
+         insert as insertSorted,
+         remove as removeSorted } from "lib/sortedArrays";
 
 const RED = -1;
 const BLACK = 1;
@@ -70,11 +72,11 @@ function Node(word) {
 }
 
 Node.prototype.add = function(value, comparer) {
-    sortedArrays.insert(comparer, this.values, value);
+    insertSorted(comparer, this.values, value);
 };
 
 Node.prototype.remove = function(value, comparer) {
-    sortedArrays.remove(comparer, this.values, value);
+    removeSorted(comparer, this.values, value);
 };
 
 Node.prototype.length = function() {
@@ -199,7 +201,7 @@ Node.prototype.rotateRight = function() {
 };
 
 Node.prototype.putValues = function(sortedArray, comparer) {
-    sortedArrays.merge(comparer, sortedArray, this.values);
+    mergeSorted(comparer, sortedArray, this.values);
 };
 
 const spaces = function(level) {
@@ -220,7 +222,7 @@ const mkNode = function(word, value, comparer) {
     return ret;
 };
 
-function SearchTree(valueComparer) {
+export default function SearchTree(valueComparer) {
     this._length = 0;
     this._root = null;
     this._valueComparer = valueComparer;
@@ -551,5 +553,3 @@ SearchTree.prototype._doRemoveNode = function(node) {
     }
     return null;
 };
-
-module.exports = SearchTree;
