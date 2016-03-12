@@ -3,18 +3,18 @@ import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 import Selectable from "ui/Selectable";
-const DraggableSelection = require("ui/DraggableSelection");
+import DraggableSelection from "ui/DraggableSelection";
 import keyValueDatabase from "KeyValueDatabase";
 import Track from "Track";
 import { touch as touch } from "features";
-const FixedItemListScroller = require("ui/FixedItemListScroller");
+import FixedItemListScroller from "ui/FixedItemListScroller";
 const PLAYLIST_MODE_KEY = "playlist-mode";
 import { snackbar } from "ui/GlobalUi";
-const Snackbar = require("ui/Snackbar");
+import Snackbar from "ui/Snackbar";
 import KeyboardShortcuts from "ui/KeyboardShortcuts";
-const TrackView = require("ui/TrackView");
-const listEvents = require("ui/listEvents");
-const selectionMethods = require("selectionMethods");
+import TrackView from "ui/TrackView";
+import listEvents from "ui/listEvents";
+import selectionMethods from "selectionMethods";
 
 const TrackViewOptions = {
     updateTrackIndex: true,

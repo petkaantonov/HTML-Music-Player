@@ -2,10 +2,10 @@
 import Promise from "lib/bluebird";
 
 import { documentHidden, throttle } from "lib/util";
-const TrackWasRemovedError = require("TrackWasRemovedError");
+import TrackWasRemovedError from "TrackWasRemovedError";
 import Track from "Track";
-const AudioError = require("audio/AudioError");
-const TagData = require("TagData");
+import AudioError from "audio/AudioError";
+import TagData from "TagData";
 
 const TRACK_ANALYZER_WORKER_SRC = window.DEBUGGING
     ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js";

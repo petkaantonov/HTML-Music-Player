@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "lib/events";
-const keyboard = require("lib/keyboard");
+import keyboard from "lib/keyboard";
 import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 

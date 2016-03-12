@@ -3,10 +3,10 @@ import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 
 const MINIMUM_DURATION = 3;
-const AudioPlayer = require("audio/AudioPlayerAudioBufferImpl");
-const AudioVisualizer = require("audio/AudioVisualizer");
-const effects = require("effects");
-const crossfading = require("crossfading");
+import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
+import AudioVisualizer from "audio/AudioVisualizer";
+import effects from "effects";
+import crossfading from "crossfading";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits } from "lib/util";
 import { gestureEducation, makeTooltip, rippler } from "ui/GlobalUi";

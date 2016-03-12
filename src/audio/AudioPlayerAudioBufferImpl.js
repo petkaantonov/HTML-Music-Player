@@ -13,10 +13,10 @@
 import Promise from "lib/bluebird";
 import { inherits, throttle } from "lib/util";
 import EventEmitter from "lib/events";
-const ChannelMixer = require("audio/ChannelMixer");
-const patchAudioContext = require("lib/audiocontextpatch");
-const env = require("env");
-const simulateTick = require("lib/patchtimers");
+import ChannelMixer from "audio/ChannelMixer";
+import patchAudioContext from "lib/audiocontextpatch";
+import env from "env";
+import simulateTick from "lib/patchtimers";
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 

@@ -1,8 +1,8 @@
 "use strict";
 
-const jsUtil = require("lib/util");
+import jsUtil from "lib/util";
 import Promise from "lib/bluebird";
-const base64 = require("lib/base64");
+import base64 from "lib/base64";
 import $ from "lib/jquery";
 import { touch as touch } from "features";
 const TOUCH_START = "touchstart";

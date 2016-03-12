@@ -4,10 +4,10 @@ import $ from "lib/jquery";
 import PlayerPictureManager from "ui/PlayerPictureManager";
 import EventEmitter from "lib/events";
 import { inherits } from "lib/util";
-const TagData = require("TagData");
-const sha1 = require("lib/sha1");
+import TagData from "TagData";
+import sha1 from "lib/sha1";
 import Promise from "lib/bluebird";
-const searchUtil = require("searchUtil");
+import searchUtil from "searchUtil";
 
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";

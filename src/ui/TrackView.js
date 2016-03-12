@@ -2,7 +2,7 @@
 
 import EventEmitter from "lib/events";
 import { setTransform } from "lib/DomUtil";
-const Tooltip = require("ui/Tooltip");
+import Tooltip from "ui/Tooltip";
 const NULL = $(null);
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +

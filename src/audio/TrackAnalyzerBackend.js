@@ -9,7 +9,7 @@ const getDowntime = function(cpuUsedTime) {
     return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;
 };
 
-const simulateTick = require("lib/patchtimers");
+import simulateTick from "lib/patchtimers";
 import Promise from "lib/bluebird";
 Promise.setScheduler(function(fn) { fn(); });
 Promise.config({
@@ -17,22 +17,22 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
-const blobPatch = require("lib/blobpatch");
+import blobPatch from "lib/blobpatch";
 blobPatch();
 
 
 import { assign } from "lib/util";
-const tagDatabase = require("TagDatabase");
-const MetadataParser = require("audio/MetadataParser");
-const Resampler = require("audio/Resampler");
-const ChannelMixer = require("audio/ChannelMixer");
-const FileView = require("lib/FileView");
-const demuxer = require("audio/demuxer");
-const codec = require("audio/codec");
-const sniffer = require("audio/sniffer");
-const pool = require("pool");
-const AcoustId = require("audio/AcoustId");
-const Ebur128 = require("audio/ebur128");
+import tagDatabase from "TagDatabase";
+import MetadataParser from "audio/MetadataParser";
+import Resampler from "audio/Resampler";
+import ChannelMixer from "audio/ChannelMixer";
+import FileView from "lib/FileView";
+import demuxer from "audio/demuxer";
+import codec from "audio/codec";
+import sniffer from "audio/sniffer";
+import pool from "pool";
+import AcoustId from "audio/AcoustId";
+import Ebur128 from "audio/ebur128";
 
 const allocBuffer = pool.allocBuffer;
 const freeBuffer = pool.freeBuffer;

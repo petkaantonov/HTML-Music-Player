@@ -2,8 +2,8 @@
 
 import { touch as touch } from "features";
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
-const Scroller = require("lib/scroller");
-const Scrollbar = require("ui/Scrollbar");
+import Scroller from "lib/scroller";
+import Scrollbar from "ui/Scrollbar";
 
 function ContentScroller(node, opts) {
     opts = Object(opts);

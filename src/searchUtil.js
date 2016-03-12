@@ -1,7 +1,7 @@
 "use strict";
 
 import { normalizeQuery } from "lib/util";
-const sha1 = require("lib/sha1");
+import sha1 from "lib/sha1";
 const EMPTY_ARRAY = [];
 const rext = /\.[a-zA-Z0-9_\-]+$/
 

@@ -24,9 +24,9 @@
 
 var realFft = require("lib/realfft");
 import Promise from "lib/bluebird";
-const AcoustIdApiError = require("audio/AcoustIdApiError");
+import AcoustIdApiError from "audio/AcoustIdApiError";
 import { queryString } from "lib/util";
-const tagDatabase = require("TagDatabase");
+import tagDatabase from "TagDatabase";
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;

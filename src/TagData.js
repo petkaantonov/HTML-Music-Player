@@ -3,7 +3,7 @@ import Promise from "lib/bluebird";
 
 import { capitalize, formatTagString, toTimeString } from "lib/util";
 import { allowExtensions } from "features";
-const blobPatch = require("lib/blobpatch");
+import blobPatch from "lib/blobpatch";
 blobPatch();
 
 const UNKNOWN = "Unknown";

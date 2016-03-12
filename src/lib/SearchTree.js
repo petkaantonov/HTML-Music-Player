@@ -1,6 +1,6 @@
 "use strict";
 
-const sortedArrays = require("lib/sortedArrays");
+import sortedArrays from "lib/sortedArrays";
 
 const RED = -1;
 const BLACK = 1;

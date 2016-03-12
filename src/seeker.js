@@ -1,6 +1,6 @@
 "use strict";
 import Promise from "lib/bluebird";
-const FileView = require("lib/FileView");
+import FileView from "lib/FileView";
 const Mp3SeekTable = require("audio/demuxer").Mp3SeekTable;
 
 const seekMp3 = Promise.method(function(time, metadata, context, fileView) {

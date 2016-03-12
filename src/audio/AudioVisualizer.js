@@ -1,6 +1,6 @@
 "use strict";
 
-const realFft = require("lib/realfft");
+import realFft from "lib/realfft";
 
 const weights = new Float32Array([
     0, 0,

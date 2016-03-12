@@ -8,7 +8,7 @@ import keyValueDatabase from "KeyValueDatabase";
 import Slider from "ui/Slider";
 import { touch as touch } from "features";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
-const preferenceCreator = require("PreferenceCreator");
+import preferenceCreator from "PreferenceCreator";
 
 const crossfading = new EventEmitter();
 module.exports = crossfading;

@@ -1,7 +1,7 @@
 "use strict";
 
 import Promise from "lib/bluebird";
-const FileView = require("lib/FileView");
+import FileView from "lib/FileView";
 
 const MINIMUM_DURATION = 3;
 const MP3_DECODER_DELAY = 529;

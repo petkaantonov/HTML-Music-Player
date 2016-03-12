@@ -1,8 +1,8 @@
 "use strict";
 
 import { bit } from "lib/util";
-const jsmd5 = require("lib/jsmd5");
-const demux = require("audio/demuxer");
+import jsmd5 from "lib/jsmd5";
+import demux from "audio/demuxer";
 const ID3 = 0x494433|0;
 const TAG = 0x544147|0;
 

@@ -1,11 +1,11 @@
 "use strict";
 
-const tagDatabase = require("TagDatabase");
+import tagDatabase from "TagDatabase";
 import Promise from "lib/bluebird";
-const sniffer = require("audio/sniffer");
-const FileView = require("lib/FileView");
-const parseMp3Metadata = require("metadata/mp3_metadata");
-const TrackSearchIndex = require("TrackSearchIndex");
+import sniffer from "audio/sniffer";
+import FileView from "lib/FileView";
+import parseMp3Metadata from "metadata/mp3_metadata";
+import TrackSearchIndex from "TrackSearchIndex";
 
 const maxActive = 8;
 const queue = [];

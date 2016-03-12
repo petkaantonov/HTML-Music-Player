@@ -4,16 +4,16 @@ const pixelRatio = window.devicePixelRatio || 1;
 
 const SHADOW_BLUR = 2 * pixelRatio | 0;
 const SHADOW_COLOR = "rgb(11,32,53)";
-const Animator = require("ui/Animator");
+import Animator from "ui/Animator";
 import { addLegacyListener, inherits } from "lib/util";
 import { canvasToImage } from "lib/DomUtil";
-const Default2dImageRenderer = require("ui/Default2dImageRenderer");
-const WebGl2dImageRenderer = require("ui/WebGl2dImageRenderer");
+import Default2dImageRenderer from "ui/Default2dImageRenderer";
+import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
 import EventEmitter from "lib/events";
 import { contextMenuItem, makePopup, snackbar } from "ui/GlobalUi";
 import Slider from "ui/Slider";
 import { ContextMenu as ContextMenu } from "ui/ActionMenu";
-const applicationPreferences = require("application_preferences");
+import applicationPreferences from "application_preferences";
 
 const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content-container'>            \
             <div class='section-container'>                                                             \

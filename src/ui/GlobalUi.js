@@ -2,13 +2,13 @@
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 
-const Snackbar = require("ui/Snackbar");
+import Snackbar from "ui/Snackbar";
 import Popup from "ui/Popup";
-const Tooltip = require("ui/Tooltip");
-const Animator = require("ui/Animator");
+import Tooltip from "ui/Tooltip";
+import Animator from "ui/Animator";
 import keyValueDatabase from "KeyValueDatabase";
 import { slugTitle } from "lib/util";
-const Rippler = require("ui/Rippler");
+import Rippler from "ui/Rippler";
 import { setFilter, setTransform } from "lib/DomUtil";
 import KeyboardShortcuts from "ui/KeyboardShortcuts";
 

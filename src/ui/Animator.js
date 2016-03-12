@@ -2,7 +2,7 @@
 import Promise from "lib/bluebird";
 import { inherits } from "lib/util";
 import EventEmitter from "lib/events";
-const unitBezier = require("lib/bezier");
+import unitBezier from "lib/bezier";
 import { getFilter, getTransform, setFilter, setTransform } from "lib/DomUtil";
 
 function Line(x1, y1, x2, y2, progress) {

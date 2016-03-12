@@ -4,10 +4,10 @@ import $ from "lib/jquery";
 import { documentHidden, inherits } from "lib/util";
 import Promise from "lib/bluebird";
 import { snackbar } from "ui/GlobalUi";
-const Snackbar = require("ui/Snackbar");
+import Snackbar from "ui/Snackbar";
 import EventEmitter from "lib/events";
 const UPDATE_INTERVAL = 15 * 60 * 1000;
-const env = require("env");
+import env from "env";
 
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
 

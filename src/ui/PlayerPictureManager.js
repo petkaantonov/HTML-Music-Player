@@ -1,7 +1,7 @@
 "use strict";
 import $ from "lib/jquery";
-const Animator = require("ui/Animator");
-const jdenticon = require("lib/jdenticon");
+import Animator from "ui/Animator";
+import jdenticon from "lib/jdenticon";
 import Promise from "lib/bluebird";
 
 import { addLegacyListener } from "lib/util";

@@ -2,9 +2,9 @@
 
 import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import Playlist from "Playlist";
-const Search = require("Search");
+import Search from "Search";
 import $ from "lib/jquery";
-const TabController = require("ui/TabController");
+import TabController from "ui/TabController";
 import { ContextMenu } from "ui/ActionMenu";
 import { contextMenuItem } from "ui/GlobalUi";
 import TrackRating from "TrackRating";

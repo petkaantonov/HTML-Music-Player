@@ -1,9 +1,9 @@
 "use strict";
 
-const SearchTree = require("lib/SearchTree");
-const SearchTreeEntry = require("SearchTreeEntry");
-const searchUtil = require("searchUtil");
-const sortedArrays = require("lib/sortedArrays");
+import SearchTree from "lib/SearchTree";
+import SearchTreeEntry from "SearchTreeEntry";
+import searchUtil from "searchUtil";
+import sortedArrays from "lib/sortedArrays";
 import { getFirstWord, getLastWord, reverseString } from "lib/util";
 
 function TrackSearchIndex() {

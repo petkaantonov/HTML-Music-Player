@@ -10,18 +10,18 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
-const blobPatch = require("lib/blobpatch");
+import blobPatch from "lib/blobpatch";
 blobPatch();
 
-const ChannelMixer = require("audio/ChannelMixer");
-const sniffer = require("audio/sniffer");
-const codec = require("audio/codec");
-const demuxer = require("audio/demuxer");
-const FileView = require("lib/FileView");
-const seeker = require("seeker");
-const pool = require("pool");
-const Effect = require("Effect");
-const simulateTick = require("lib/patchtimers");
+import ChannelMixer from "audio/ChannelMixer";
+import sniffer from "audio/sniffer";
+import codec from "audio/codec";
+import demuxer from "audio/demuxer";
+import FileView from "lib/FileView";
+import seeker from "seeker";
+import pool from "pool";
+import Effect from "Effect";
+import simulateTick from "lib/patchtimers";
 
 const allocResampler = pool.allocResampler;
 const allocDecoderContext = pool.allocDecoderContext;

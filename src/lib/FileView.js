@@ -1,7 +1,7 @@
 "use strict";
 
 import Promise from "lib/bluebird";
-const blobPatch = require("lib/blobpatch");
+import blobPatch from "lib/blobpatch";
 blobPatch();
 import { readAsArrayBuffer } from "lib/util";
 

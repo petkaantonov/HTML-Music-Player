@@ -3,8 +3,8 @@
 import { touch as touch } from "features";
 import { throttle } from "lib/util";
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
-const Scroller = require("lib/scroller");
-const Scrollbar = require("ui/Scrollbar");
+import Scroller from "lib/scroller";
+import Scrollbar from "ui/Scrollbar";
 
 function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
