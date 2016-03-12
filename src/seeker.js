@@ -1,5 +1,5 @@
 "use strict";
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const FileView = require("lib/FileView");
 const Mp3SeekTable = require("audio/demuxer").Mp3SeekTable;
 

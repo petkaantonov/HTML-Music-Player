@@ -1,4 +1,4 @@
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 Promise.config({
     // Enable warnings.
     warnings: false,

@@ -1,16 +1,16 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 
 const MINIMUM_DURATION = 3;
 const AudioPlayer = require("audio/AudioPlayerAudioBufferImpl");
 const AudioVisualizer = require("audio/AudioVisualizer");
 const effects = require("effects");
 const crossfading = require("crossfading");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const GlobalUi = require("ui/GlobalUi");
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 const Track = require("Track");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");

@@ -1,7 +1,7 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 const util = require("lib/util");
 const touch = require("features").touch;
 const GlobalUi = require("ui/GlobalUi");

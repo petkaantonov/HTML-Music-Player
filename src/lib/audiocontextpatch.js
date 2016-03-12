@@ -1,6 +1,6 @@
 "use strict";
 
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 
 function patch(AudioContext, instance) {
     if (!instance.suspend) {

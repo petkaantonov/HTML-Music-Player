@@ -1,5 +1,5 @@
 "use strict";
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const DS = require("lib/DataStructures");
 

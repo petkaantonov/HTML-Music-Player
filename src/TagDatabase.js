@@ -1,5 +1,5 @@
 "use strict";
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const util = require("lib/util");
 const VERSION = 3;
 const NAME = "TagDatabase";

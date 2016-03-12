@@ -1,6 +1,6 @@
 "use strict";
-const Promise = require("lib/bluebird");
-const $ = require("lib/jquery");
+import Promise from "lib/bluebird";
+import $ from "lib/jquery";
 const util = require("lib/util");
 
 const VERSION = 2;

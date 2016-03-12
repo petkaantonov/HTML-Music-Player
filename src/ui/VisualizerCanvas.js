@@ -9,9 +9,9 @@ const util = require("lib/util");
 const domUtil = require("lib/DomUtil");
 const Default2dImageRenderer = require("ui/Default2dImageRenderer");
 const WebGl2dImageRenderer = require("ui/WebGl2dImageRenderer");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const GlobalUi = require("ui/GlobalUi");
-const Slider = require("ui/Slider");
+import Slider from "ui/Slider";
 const ContextMenu = require("ui/ActionMenu").ContextMenu;
 const applicationPreferences = require("application_preferences");
 
@@ -36,7 +36,7 @@ const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content
             </div>                                                                                      \
         </div>";
 
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 
 function TransitionInfo(visualizerCanvas) {
     this.duration = -1;

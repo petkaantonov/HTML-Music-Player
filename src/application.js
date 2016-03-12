@@ -12,6 +12,30 @@ window.Promise = require("lib/bluebird");
 require("BluebirdConfig");
 require("lib/jquery.fileinput");
 require("lib/jquery.reflow");
+const util = require("lib/util");
+const serviceWorkerManager = require("ServiceWorkerManager");
+const TrackDisplay = require("ui/TrackDisplay");
+const Player = require("Player");
+const Playlist = require("Playlist");
+const ActionMenu = require("ui/ActionMenu");
+const PlaylistModeManager = require("ui/PlaylistModeManager");
+const PlayerTimeManager = require("ui/PlayerTimeManager");
+import Slider from "ui/Slider";
+const PlayerVolumeManager = require("ui/PlayerVolumeManager");
+const PlayerPictureManager = require("ui/PlayerPictureManager");
+const PlaylistNotifications = require("ui/PlaylistNotifications");
+const VisualizerCanvas = require("ui/VisualizerCanvas");
+const TrackAnalyzer = require("audio/TrackAnalyzer");
+const LocalFiles = require("LocalFiles");
+const GlobalUi = require("ui/GlobalUi");
+const touch = require("features").touch;
+const domUtil = require("lib/DomUtil");
+const gestureScreenFlasher = require("ui/GestureScreenFlasher");
+const TrackRating = require("TrackRating");
+const Track = require("Track");
+const OpenableSubmenu = require("ui/OpenableSubmenu");
+const KeyboardShortcuts = require("ui/KeyboardShortcuts");
+const mainTabs = require("main_tabs");
 
 const $ = window.$;
 
@@ -36,7 +60,7 @@ window.onerror = function(a, b, c, d, e) {
 };
 
 const features = require("features");
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 
 var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
     var checker = features.requiredFeatures[description][0];
@@ -94,31 +118,6 @@ if (keyValueDatabase) {
 Promise.join(cssLoaded(Promise), requiredFeaturesChecked, databaseInitialValuesLoaded, function() {
 $("#app-loader").remove();
 $("#app-container").show();
-
-const util = require("lib/util");
-const serviceWorkerManager = require("ServiceWorkerManager");
-const TrackDisplay = require("ui/TrackDisplay");
-const Player = require("Player");
-const Playlist = require("Playlist");
-const ActionMenu = require("ui/ActionMenu");
-const PlaylistModeManager = require("ui/PlaylistModeManager");
-const PlayerTimeManager = require("ui/PlayerTimeManager");
-const Slider = require("ui/Slider");
-const PlayerVolumeManager = require("ui/PlayerVolumeManager");
-const PlayerPictureManager = require("ui/PlayerPictureManager");
-const PlaylistNotifications = require("ui/PlaylistNotifications");
-const VisualizerCanvas = require("ui/VisualizerCanvas");
-const TrackAnalyzer = require("audio/TrackAnalyzer");
-const LocalFiles = require("LocalFiles");
-const GlobalUi = require("ui/GlobalUi");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
-const gestureScreenFlasher = require("ui/GestureScreenFlasher");
-const TrackRating = require("TrackRating");
-const Track = require("Track");
-const OpenableSubmenu = require("ui/OpenableSubmenu");
-const KeyboardShortcuts = require("ui/KeyboardShortcuts");
-const mainTabs = require("main_tabs");
 
 const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
 

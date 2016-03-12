@@ -10,9 +10,9 @@
 // in the catastrophic case where ui is blocked, the output will be silence
 // instead of ear destroying noise.
 
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const util = require("lib/util");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const ChannelMixer = require("audio/ChannelMixer");
 const patchAudioContext = require("lib/audiocontextpatch");
 const env = require("env");

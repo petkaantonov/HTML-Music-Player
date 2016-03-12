@@ -1,10 +1,10 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const util = require("lib/util");
 const Selectable = require("ui/Selectable");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 
 const DRAG_START_DELAY_MS = 300;
 

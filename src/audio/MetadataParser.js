@@ -1,7 +1,7 @@
 "use strict";
 
 const tagDatabase = require("TagDatabase");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const sniffer = require("audio/sniffer");
 const FileView = require("lib/FileView");
 const parseMp3Metadata = require("metadata/mp3_metadata");

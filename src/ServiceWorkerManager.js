@@ -1,11 +1,11 @@
 "use strict";
 
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const util = require("lib/util");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const GlobalUi = require("ui/GlobalUi");
 const Snackbar = require("ui/Snackbar");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const env = require("env");
 

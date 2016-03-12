@@ -1,12 +1,12 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 
 const PlayerPictureManager = require("ui/PlayerPictureManager");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const TagData = require("TagData");
 const sha1 = require("lib/sha1");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const domUtil = require("lib/DomUtil");
 const searchUtil = require("searchUtil");
 

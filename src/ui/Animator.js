@@ -1,7 +1,7 @@
 "use strict";
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const util = require("lib/util");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const unitBezier = require("lib/bezier");
 const domUtil = require("lib/DomUtil");
 

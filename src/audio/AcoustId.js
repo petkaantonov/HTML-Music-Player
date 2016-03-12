@@ -23,7 +23,7 @@
  */
 
 var realFft = require("lib/realfft");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const AcoustIdApiError = require("audio/AcoustIdApiError");
 const util = require("lib/util");
 const tagDatabase = require("TagDatabase");

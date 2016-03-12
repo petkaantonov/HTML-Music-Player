@@ -2,7 +2,7 @@
 
 const util = require("lib/util");
 const domUtil = require("lib/DomUtil");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const touch = require("features").touch;
 const GlobalUi = require("ui/GlobalUi");
 

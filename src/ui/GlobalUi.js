@@ -1,12 +1,12 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 
 const Snackbar = require("ui/Snackbar");
-const Popup = require("ui/Popup");
+import Popup from "ui/Popup";
 const Tooltip = require("ui/Tooltip");
 const Animator = require("ui/Animator");
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 const features = require("features");
 const util = require("lib/util");
 const Rippler = require("ui/Rippler");

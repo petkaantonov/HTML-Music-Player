@@ -1,6 +1,6 @@
 "use strict";
 
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const keyboard = require("lib/keyboard");
 const util = require("lib/util");
 const MOD = "mod";

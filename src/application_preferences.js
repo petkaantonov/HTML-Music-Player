@@ -1,20 +1,19 @@
 "use strict";
-const $ = require("lib/jquery");
-const EventEmitter = require("lib/events");
-const util = require("lib/util");
-const GlobalUi = require("ui/GlobalUi");
-const keyValueDatabase = require("KeyValueDatabase");
-const Slider = require("ui/Slider");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
-const createPreferences = require("PreferenceCreator");
-const Popup = require("ui/Popup");
+import $ from "lib/jquery";
+import EventEmitter from "lib/events";
+import { inherits, throttle } from "lib/util";
+import { rippler, makePopup } from "ui/Globalui";
+import keyValueDatabase from "KeyValueDatabase";
+import Slider from "ui/Slider";
+import { touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
+import createPreferences from "PreferenceCreator";
+import Popup from "ui/Popup";
 
 const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
 const STORAGE_KEY = "application-preferences";
-const applicationPreferences = new EventEmitter();
-module.exports = applicationPreferences;
+export const applicationPreferences = new EventEmitter();
 
 const validBoolean = function(val) {
     return !!val;
@@ -228,7 +227,7 @@ keyValueDatabase.getInitialValues().then(function(values) {
     }
 });
 
-const savePreferences = util.throttle(function() {
+const savePreferences = throttle(function() {
     keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
     applicationPreferences.emit("preferencesChange", preferences);
 }, 250);
@@ -294,7 +293,7 @@ function PreferencesManager(domNode, popup, preferences) {
     this.$().find(".loudness-normalization-enable-checkbox").on("change", this._loudnessNormalizationEnabledChanged.bind(this));
     this.$().find(".album-art-enable-checkbox").on("change", this._albumArtEnabledChanged.bind(this));
 }
-util.inherits(PreferencesManager, EventEmitter);
+inherits(PreferencesManager, EventEmitter);
 
 PreferencesManager.prototype.$ = function() {
     return this._domNode;

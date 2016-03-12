@@ -1,6 +1,6 @@
 "use strict";
 
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const FileView = require("lib/FileView");
 
 const MINIMUM_DURATION = 3;

@@ -1,6 +1,6 @@
 "use strict";
 
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 const blobPatch = require("lib/blobpatch");
 blobPatch();
 const util = require("lib/util");

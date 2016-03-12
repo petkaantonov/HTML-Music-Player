@@ -1,7 +1,7 @@
 "use strict";
 self.EventEmitter = require("lib/events");
 
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 Promise.setScheduler(function(fn) {
     fn();
 });

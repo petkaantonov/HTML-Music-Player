@@ -1,11 +1,11 @@
 "use strict";
 
-const $ = require("lib/jquery");
-const EventEmitter = require("lib/events");
+import $ from "lib/jquery";
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const Selectable = require("ui/Selectable");
 const DraggableSelection = require("ui/DraggableSelection");
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 const Track = require("Track");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");

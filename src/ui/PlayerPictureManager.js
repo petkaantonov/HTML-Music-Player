@@ -1,8 +1,8 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const Animator = require("ui/Animator");
 const jdenticon = require("lib/jdenticon");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 
 const util = require("lib/util");
 const domUtil = require("lib/DomUtil");

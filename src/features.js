@@ -1,6 +1,6 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 require("lib/ua-parser");
 
 var features = module.exports;

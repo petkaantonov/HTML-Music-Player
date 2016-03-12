@@ -1,8 +1,8 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");

@@ -2,8 +2,8 @@
 
 const Animator = require("ui/Animator");
 const util = require("lib/util");
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 
 const gestureIcon = function(icon) {
     return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon

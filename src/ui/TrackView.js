@@ -1,6 +1,6 @@
 "use strict";
 
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const domUtil = require("lib/DomUtil");
 const Tooltip = require("ui/Tooltip");

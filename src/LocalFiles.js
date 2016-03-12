@@ -1,7 +1,7 @@
 "use strict";
 const Track = require("Track");
-const Promise = require("lib/bluebird");
-const EventEmitter = require("lib/events");
+import Promise from "lib/bluebird";
+import EventEmitter from "lib/events";
 
 var mimes, extensions;
 

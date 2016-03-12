@@ -1,5 +1,5 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const GlobalUi = require("ui/GlobalUi");
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");

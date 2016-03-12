@@ -1,14 +1,14 @@
 "use strict";
-const $ = require("lib/jquery");
-const EventEmitter = require("lib/events");
+import $ from "lib/jquery";
+import EventEmitter from "lib/events";
 const util = require("lib/util");
 const GlobalUi = require("ui/GlobalUi");
-const keyValueDatabase = require("KeyValueDatabase");
-const Slider = require("ui/Slider");
+import keyValueDatabase from "KeyValueDatabase";
+import Slider from "ui/Slider";
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
-const createPreferences = require("PreferenceCreator");
-const Popup = require("ui/Popup");
+import createPreferences from "PreferenceCreator";
+import Popup from "ui/Popup";
 
 const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;

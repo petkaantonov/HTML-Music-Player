@@ -1,5 +1,5 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const domUtil = require("lib/DomUtil");
 const util = require("lib/util");
 

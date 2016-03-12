@@ -1,11 +1,11 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import $ from "lib/jquery";
+import Promise from "lib/bluebird";
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
 const PlayerPictureManager = require("ui/PlayerPictureManager");
 const serviceWorkerManager = require("ServiceWorkerManager");
-const keyValueDatabase = require("KeyValueDatabase");
+import keyValueDatabase from "KeyValueDatabase";
 
 const supported = typeof Notification === "function" &&
                   typeof Notification.maxActions === "number" &&

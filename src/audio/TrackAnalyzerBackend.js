@@ -10,7 +10,7 @@ const getDowntime = function(cpuUsedTime) {
 };
 
 const simulateTick = require("lib/patchtimers");
-const Promise = require("lib/bluebird");
+import Promise from "lib/bluebird";
 Promise.setScheduler(function(fn) { fn(); });
 Promise.config({
     cancellation: false,

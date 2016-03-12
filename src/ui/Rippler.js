@@ -1,7 +1,7 @@
 "use strict";
 
 const Animator = require("ui/Animator");
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 
 const NULL = $(null);
 

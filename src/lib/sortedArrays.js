@@ -1,7 +1,7 @@
 "use strict";
 
 var tmp = new Array(512);
-function mergeSortedArrays(comparer, a, b) {
+export function merge(comparer, a, b) {
     var k = 0;
     var i = 0;
     var j = 0;
@@ -47,7 +47,7 @@ function removeSortedLinear(comparer, array, value, length) {
     }
 }
 
-function removeSorted(comparer, array, value) {
+export function remove(comparer, array, value) {
     const length = array.length;
     if (length === 0) {
         return;
@@ -93,7 +93,7 @@ function insertSortedLinear(comparer, array, value, length) {
     array.push(value);
 }
 
-function insertSorted(comparer, array, value) {
+export function insert(comparer, array, value) {
     const length = array.length;
     if (length === 0) {
         array.push(value);
@@ -129,9 +129,3 @@ function insertSorted(comparer, array, value) {
         array[left] = value;
     }
 }
-
-module.exports = {
-    merge: mergeSortedArrays,
-    insert: insertSorted,
-    remove: removeSorted
-};

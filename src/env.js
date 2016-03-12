@@ -1,4 +1,4 @@
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 require("lib/ua-parser");
 
 const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;

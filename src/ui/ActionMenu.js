@@ -1,7 +1,7 @@
 "use strict";
-const $ = require("lib/jquery");
+import $ from "lib/jquery";
 const util = require("lib/util");
-const EventEmitter = require("lib/events");
+import EventEmitter from "lib/events";
 const NULL = $(null);
 const touch = require("features").touch;
 const domUtil = require("lib/DomUtil");
