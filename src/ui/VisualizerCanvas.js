@@ -12,7 +12,6 @@ import { contextMenuItem, makePopup } from "ui/GlobalUi";
 import { ContextMenu } from "ui/ActionMenu";
 
 const pixelRatio = window.devicePixelRatio || 1;
-
 const SHADOW_BLUR = 2 * pixelRatio | 0;
 const SHADOW_COLOR = "rgb(11,32,53)";
 
@@ -180,14 +179,12 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.player = player;
     player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported();
-    var $targetCanvas = $(targetCanvas);
-    targetCanvas = $targetCanvas[0];
-    var width = $targetCanvas.width() * pixelRatio | 0;
-    var height = $targetCanvas.height() * pixelRatio | 0;
+    this.snackbar = opts.snackbar;
+    this.db = opts.db;
     this.needToDraw = true;
     this.canvas = targetCanvas;
-    this.width = targetCanvas.width = width;
-    this.height = targetCanvas.height = height;
+    this.width = -1;
+    this.height = -1;
     this.binWidth = opts.binWidth * pixelRatio | 0;
     this.gapWidth = opts.gapWidth * pixelRatio | 0;
     this.capHeight = opts.capHeight * pixelRatio | 0;
@@ -199,9 +196,9 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.setCapInterpolator(opts.capInterpolator || "ACCELERATE_QUAD");
     this.ghostOpacity = opts.ghostOpacity || 0.25;
     this.capDropTime = opts.capDropTime;
-    this.currentCapPositions = new Float32Array(this.getNumBins());
-    this.emptyBins = new Float32Array(this.getNumBins());
-    this.transitionInfoArray = new Array(this.getNumBins());
+    this.currentCapPositions = null;
+    this.emptyBins = null;
+    this.transitionInfoArray = null;
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
     this.emptyBinDrawerFrameId = -1;
@@ -212,11 +209,27 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStopped = this.playerStopped.bind(this);
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
-
     this.latencyPopup = makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
-    this.latencyPopup.on("open", this.latencyPopupOpened);
-    this.player.on("stop", this.playerStopped);
-    this.player.on("play", this.playerStarted);
+
+    this.enabled = true;
+    this.shown = true;
+    this.source = null;
+    this.renderer = null;
+    this.contextMenu = null;
+}
+inherits(VisualizerCanvas, EventEmitter);
+
+VisualizerCanvas.prototype.initialize = function() {
+    var $targetCanvas = $(this.canvas);
+    var width = $targetCanvas.width() * pixelRatio | 0;
+    var height = $targetCanvas.height() * pixelRatio | 0;
+    this.width = width;
+    this.height = height;
+    this.currentCapPositions = new Float32Array(this.getNumBins());
+    this.emptyBins = new Float32Array(this.getNumBins());
+    this.transitionInfoArray = new Array(this.getNumBins());
+    this.canvas.width = width;
+    this.canvas.height = height;
 
     for (var i = 0; i < this.transitionInfoArray.length; ++i) {
         this.transitionInfoArray[i] = new TransitionInfo(this);
@@ -232,15 +245,16 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
         $(window).on("sizechange", this.binSizeMediaMatchChanged);
     }
 
-    this.enabled = true;
-    this.shown = true;
+    this.latencyPopup.on("open", this.latencyPopupOpened);
+    this.player.on("stop", this.playerStopped);
+    this.player.on("play", this.playerStarted);
+
     this.source = new GraphicsSource(this);
-    this.renderer = null;
     this.source.ready.bind(this).then(function onSourceReady() {
         if (this.canUseHardwareRendering()) {
             this.renderer = new WebGl2dImageRenderer(this.source.image, this);
         } else {
-            snackbar.show("Hardware acceleration disabled");
+            this.snackbar.show("Hardware acceleration disabled");
         }
 
         if (!this.renderer) {
@@ -251,7 +265,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
         try {
             this.renderer.init(this.width, this.height);
         } catch (e) {
-            snackbar.show(e.message);
+            this.snackbar.show(e.message);
             if (this.canUseHardwareRendering()) {
                 this.webglSupported = false;
                 this.renderer = null;
@@ -264,12 +278,8 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
         this.drawIdleBins(Date.now());
         this.refreshContextMenu();
     });
-
-    this.contextMenu = null;
-
     this.setupCanvasContextMenu();
 }
-inherits(VisualizerCanvas, EventEmitter);
 
 VisualizerCanvas.prototype.refreshContextMenu = function() {
     if (this.contextMenu) {

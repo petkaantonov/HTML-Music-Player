@@ -7,7 +7,7 @@ import { TOUCH_EVENTS, changeDom, tapHandler } from "lib/DomUtil";
 
 const NO_TAG = {};
 
-export default function SnackbarInstance(snackbar, message, opts) {
+function SnackbarInstance(snackbar, message, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.outcome = Snackbar.NO_OUTCOME;
@@ -214,7 +214,7 @@ SnackbarInstance.prototype._destroy = function() {
     this.$().remove();
 };
 
-function Snackbar(opts) {
+export default function Snackbar(opts) {
     opts = Object(opts);
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";

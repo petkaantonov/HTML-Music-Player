@@ -27,7 +27,8 @@ export default function Env() {
                         "mozdirectory" in input);
     this._readFiles = typeof FileReader == "function" && new FileReader().readAsBinaryString;
 
-    this._rSupportedMimes = /^(?:audio\/mp3|audio\/mpeg)$/i;
+    this._supportedMimes = "audio/mp3,audio/mpeg".split(",");
+    this._rSupportedMimes = new RegExp("^(?:"+this._supportedMimes.join("|")+")$", "i");
     this._rSupportedExtensions = /^(?:mp3|mpg|mpeg)$/i;
 
     var browserName, browserVersion;
@@ -45,6 +46,7 @@ export default function Env() {
     this._isSafari = browserName === "safari";
     this._browserName = browserName;
     this._browserVersion = browserVersion;
+    this._requiredFeaturesChecked = false;
 }
 
 Env.prototype.hasTouch = function() {
@@ -59,7 +61,7 @@ Env.prototype.isMobile = function() {
     return !this._isDesktop;
 };
 
-Env.prototype.hasDirectories = function() {
+Env.prototype.supportsDirectories = function() {
     return this._directories;
 };
 
@@ -75,9 +77,15 @@ Env.prototype.supportsMime = function(mime) {
     return this._rSupportedMimes.test(mime);
 };
 
+Env.prototype.supportedMimes = function() {
+    return this._supportedMimes.slice();
+};
+
 Env.prototype.getRequiredPlatformFeatures = function() {
+    if (this._requiredFeaturesChecked) return Promise.reject(new Error("already called"));
+    this._requiredFeaturesChecked = true;
     var self = this;
-    return {
+    var ret = {
         "Audio playback capability": [Promise.method(function() {
             try {
                 return !!(AudioContext || webkitAudioContext);
@@ -139,4 +147,19 @@ Env.prototype.getRequiredPlatformFeatures = function() {
             });
         }), "http://caniuse.com/#feat=webworkers", "Web Worker API"]
     };
+
+    return Promise.map(Object.keys(ret), function(description) {
+        var checker = requiredFeatures[description][0];
+        var canIUseUrl = requiredFeatures[description][1];
+        var apiName = requiredFeatures[description][2];
+
+        return checker().catch(function(e) {return false}).then(function(result) {
+            return {
+                supported: result,
+                canIUseUrl: canIUseUrl,
+                apiName: apiName,
+                description: description
+            };
+        });
+    });
 };

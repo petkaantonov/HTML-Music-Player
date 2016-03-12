@@ -2,12 +2,13 @@
 import $ from "lib/jquery";
 import { makeTooltip } from "ui/GlobalUi";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
+import Slider from "ui/Slider";
 
 export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;
     opts = Object(opts);
     this.player = player;
-    this.volumeSlider = opts.volumeSlider;
+    this.volumeSlider = new Slider(opts.volumeSlider);
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);

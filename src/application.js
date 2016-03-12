@@ -1,20 +1,15 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-import initializeFileinput from "lib/jquery.fileinput";
-import initializeReflow from "lib/jquery.reflow";
-import initializeUaparser from "lib/ua-parser";
+
 import { isTextInputNode, offCapture, onCapture, throttle } from "lib/util";
 import serviceWorkerManager from "ServiceWorkerManager";
 import TrackDisplay from "ui/TrackDisplay";
 import Player from "Player";
 import Playlist from "Playlist";
 import PlaylistModeManager from "ui/PlaylistModeManager";
-import PlayerTimeManager from "ui/PlayerTimeManager";
 import Slider from "ui/Slider";
-import PlayerVolumeManager from "ui/PlayerVolumeManager";
-import PlayerPictureManager from "ui/PlayerPictureManager";
-import PlaylistNotifications from "ui/PlaylistNotifications";
+
 import VisualizerCanvas from "ui/VisualizerCanvas";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import LocalFiles from "LocalFiles";
@@ -30,191 +25,6 @@ import { initialize as initializeMainTabs, playlist, search, queue, tabs } from 
 import { allowExtensions, allowMimes, directories, requiredFeatures } from "features";
 import KeyValueDatabase from "KeyValueDatabase";
 
-initializeFileinput();
-initializeUaparser();
-initializeReflow();
-
-Promise.config({
-    warnings: false,
-    longStackTraces: false,
-    cancellation: true
-});
-
-var desc = {value: function() {return ""}, writable: false, configurable: false};
-try {
-    Object.defineProperties(window, {
-        alert: desc,
-        prompt: desc,
-        confirm: desc
-    });
-} catch (e) {}
-
-window.__PROJECT__TITLE = "Soita";
-
-window.onerror = function(a, b, c, d, e) {
-    if (window.DEBUGGING) {
-        if (e && e.stack) {
-            console.log(e.stack);
-        } else {
-            var msg = a + " " + b + ":" + c + ":" + d;
-            console.log(msg);
-        }
-    } else {
-        if (e && e.stack) {
-            console.log(e.stack);
-        } else {
-            var msg = a + " " + b + ":" + c + ":" + d;
-            console.log(msg);
-        }
-    }
-};
-
-var requiredFeaturesChecked = Promise.map(Object.keys(requiredFeatures), function(description) {
-    var checker = requiredFeatures[description][0];
-    var canIUseUrl = requiredFeatures[description][1];
-    var apiName = requiredFeatures[description][2];
-    return checker().catch(function(e) {return false}).then(function(result) {
-        return {
-            supported: result,
-            canIUseUrl: canIUseUrl,
-            apiName: apiName,
-            description: description
-        };
-    });
-}).then(function(featureResults) {
-    var featureMissing = featureResults.some(function(v) {return !v.supported;});
-
-    if (featureMissing) {
-        return cssLoaded(Promise).then(function() {
-            $("#app-load-text").remove();
-            $("#app-loader .missing-features").removeClass("no-display");
-
-            featureResults.forEach(function(v) {
-                if (!v.supported) {
-                    console.log("appending");
-                    var link = $("<a>", {
-                        target: "_blank",
-                        class: "link-text",
-                        href: v.canIUseUrl
-                    }).text(v.apiName);
-
-                    var children = [
-                        $("<span>").text(v.description),
-                        $("<sup>").append(link)
-                    ];
-
-                    $("<li>", {class: "missing-feature-list-item"})
-                        .append(children)
-                        .appendTo($("#app-loader .missing-features .missing-feature-list"));
-                }
-            });
-
-            if (featureMissing) {
-                throw new Error("missing features");
-            }
-        });
-
-    }
-});
-
-var databaseInitialValuesLoaded = Promise.resolve();
-if (keyValueDatabase) {
-    databaseInitialValuesLoaded = keyValueDatabase.getInitialValues();
-}
-
-Promise.join(cssLoaded(Promise), requiredFeaturesChecked, databaseInitialValuesLoaded, function() {
-$("#app-loader").remove();
-$("#app-container").show();
-
-const visualizerEnabledMediaMatcher = matchMedia("(min-height: 500px)");
-
-serviceWorkerManager.start();
-
-window.playlist = {};
-window.player = {};
-window.GlobalUi = GlobalUi;
-window.serviceWorkerManager = serviceWorkerManager;
-
-playlist.trackDisplay = new TrackDisplay(".track-display-container", {
-    delay: 3500,
-    target: ".track-display"
-});
-
-playlist.main = mainTabs.playlist;
-
-
-
-$(window).on("clear", function() {
-    playlist.main.clearSelection();
-});
-
-$(document).on("longPressStart", function(e, touch) {
-    spinner.spinAt(touch.clientX|0, touch.clientY|0);
-});
-
-$(document).on("longPressEnd", function() {
-    spinner.stop();
-});
-
-var playlistModeManager = new PlaylistModeManager(".playlist-controls-container", playlist.main);
-
-playlist.main.on("trackChange", function(track) {
-    if (!track) return;
-    playlist.trackDisplay.setTrack(track);
-});
-
-window.onbeforeunload = function(e) {
-    if (!window.DEBUGGING && (playlist.main.length > 0 ||
-        ((player.main.isPlaying  || player.main.isPaused) && !player.main.isStopped))) {
-        return "Are you sure you want to exit?";
-    }
-};
-
-player.main = new Player(".app-player-controls", playlist.main, {
-    visualizerCanvas: visualizerCanvas,
-    playButtonDom: ".play-button",
-    pauseButtonDom: ".pause-button",
-    previousButtonDom: ".previous-button",
-    stopButtonDom: ".stop-button",
-    nextButtonDom: ".next-button",
-});
-
-var playerTimeManager = new PlayerTimeManager(".player-upper-container", player.main, {
-    seekSlider: new Slider(".time-progress-container", {
-        updateDom: false
-    }),
-    currentTimeDom: ".current-time",
-    totalTimeDom: ".total-time",
-    timeContainerDom: ".playback-status-wrapper",
-    timeProgressDom: ".time-progress"
-});
-
-var playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", player.main, {
-    volumeSlider: new Slider(".volume-slider"),
-    muteDom: ".volume-mute"
-});
-
-var playerPictureManager = new PlayerPictureManager(".picture-container", player.main, {
-    enabledMediaMatcher: visualizerEnabledMediaMatcher
-});
-
-var playlistNotifications = new PlaylistNotifications(".notification-setting", player.main);
-
-var visualizerCanvas = new VisualizerCanvas("#visualizer", player.main, {
-    binWidth: 3,
-    gapWidth: 1,
-    capHeight: 1,
-    capSeparator: 2,
-    capStyle: "rgb(37,117,197)",
-    targetFps: 60,
-    capDropTime: 750,
-    ghostOpacity: 0.14,
-    capInterpolator: "ACCELERATE_CUBIC",
-    enabledMediaMatcher: visualizerEnabledMediaMatcher,
-    binSizeChangeMatcher: matchMedia("(min-width: 320px) or (min-width: 568px) or (min-width: 760px)")
-});
-
-player.visualizerCanvas = visualizerCanvas;
 
 /* To be used both with hotkeys and click binds */
 player.methodPause = function() {
@@ -235,10 +45,6 @@ player.methodNext = function() {
 player.methodPrev = function() {
     playlist.main.prev();
 };
-
-player.main.on("stop", function() {
-    document.title = __PROJECT__TITLE;
-});
 
 const trackAnalyzer = new TrackAnalyzer(playlist.main);
 mainTabs.search.setTrackAnalyzer(trackAnalyzer);

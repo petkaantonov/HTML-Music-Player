@@ -3,12 +3,14 @@ import $ from "lib/jquery";
 import { setTransform } from "lib/DomUtil";
 import { documentHidden } from "lib/util";
 
-export default function TrackDisplay(dom, opts) {
+export default function TrackDisplay(dom, playlist, opts) {
     opts = Object(opts);
+    this._playlist = playlist;
     this._containerNode = $($(dom)[0]);
     this._domNode = this.$container().find(opts.target);
     this._delay = +opts.delay || 5000;
     this._pixelsPerSecond = +opts.pixelsPerSecond || 22;
+    this._defaultTitle = opts.defaultTitle;
 
     this._progress = 0;
     this._currentTrack = null;
@@ -28,6 +30,10 @@ export default function TrackDisplay(dom, opts) {
 
     documentHidden.on("foreground", this._windowResized);
     $(window).on("sizechange", this._windowResized);
+    this._playlist.on("trackChange", this._trackChanged.bind(this));
+
+    this._updateText();
+    this._reset();
 }
 
 TrackDisplay.prototype.$ = function() {
@@ -61,7 +67,15 @@ TrackDisplay.prototype._updateText = function() {
         var title = trackNumber + track.formatFullName();
         this.$().text(title);
         document.title = title;
+    } else {
+        this.$().text("");
+        document.title = this._defaultTitle;
     }
+};
+
+TrackDisplay.prototype._trackChanged = function(track) {
+    if (!track) track = null;
+    this.setTrack(track);
 };
 
 TrackDisplay.prototype._trackDataUpdated = function() {
@@ -155,15 +169,17 @@ TrackDisplay.prototype._reset = function() {
 };
 
 TrackDisplay.prototype.setTrack = function(track) {
-    if (!track) return;
     if (this._currentTrack === track) return;
     if (this._currentTrack) {
         this._currentTrack.removeListener("indexChange", this._trackIndexChanged);
         this._currentTrack.removeListener("tagDataUpdate", this._trackDataUpdated);
     }
     this._currentTrack = track;
-    this._currentTrack.on("indexChange", this._trackIndexChanged);
-    this._currentTrack.on("tagDataUpdate", this._trackDataUpdated);
+
+    if (track) {
+        this._currentTrack.on("indexChange", this._trackIndexChanged);
+        this._currentTrack.on("tagDataUpdate", this._trackDataUpdated);
+    }
     this._updateText();
     this._reset();
 };

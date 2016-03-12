@@ -4,8 +4,9 @@ import $ from "lib/jquery";
 import keyValueDatabase from "KeyValueDatabase";
 import { toTimeString } from "lib/util";
 import { TOUCH_EVENTS, changeDom, setTransform, tapHandler } from "lib/DomUtil";
-const pixelRatio = window.devicePixelRatio || 1;
+import Slider from "ui/Slider";
 
+const pixelRatio = window.devicePixelRatio || 1;
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
 
@@ -19,7 +20,9 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.seeking = false;
     this.totalTime = 0;
     this.currentTime = 0;
-    this.seekSlider = opts.seekSlider;
+    this.seekSlider = new Slider(opts.seekSlider, {
+        updateDom: false
+    });
     this._displayedTimeRight = this._displayedTimeLeft = -1;
     this._transitionEnabled = false;
     this._totalTimeDomNode = this.$().find(opts.totalTimeDom);
