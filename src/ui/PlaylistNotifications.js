@@ -18,7 +18,11 @@ const NOTIFICATION_TAG = "player-status-notification";
 const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> overlay</p>";
 const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overlay</p>";
 
-export default function PlaylistNotifications(dom, player) {
+export default function PlaylistNotifications(dom, player, opts) {
+    opts = Object(opts);
+    this.dbValues = opts.dbValues;
+    this.db = opts.db;
+    this.env = opts.env;
     var self = this;
     this._domNode = $(dom);
     this.playlist = player.playlist;
@@ -42,7 +46,7 @@ export default function PlaylistNotifications(dom, player) {
     if (supported) {
         this.$().on("click", this.settingClicked).mousedown(preventDefault);
 
-        if (touch) {
+        if (this.env.hasTouch()) {
             this.$().on(TOUCH_EVENTS, tapHandler(this.settingClicked));
         }
     } else {
@@ -63,13 +67,11 @@ export default function PlaylistNotifications(dom, player) {
 
     this._currentAction = Promise.resolve();
     this._currentState = {enabled: false};
-    var self = this;
-    keyValueDatabase.getInitialValues().then(function(values) {
-        if (PREFERENCE_KEY in values) {
-            self.enabled = !!(values[PREFERENCE_KEY] && self.notificationsEnabled());
-            self.update();
-        }
-    });
+
+    if (PREFERENCE_KEY in this.dbValues) {
+        this.enabled = !!(this.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
+        this.update();
+    }
 }
 
 PlaylistNotifications.prototype._shouldRenderNewState = function(newState) {
@@ -127,7 +129,7 @@ PlaylistNotifications.prototype.notificationClosed = function(data) {
     }
     this.enabled = false;
     this.update();
-    keyValueDatabase.set(PREFERENCE_KEY, false);
+    this.db.set(PREFERENCE_KEY, false);
 };
 
 PlaylistNotifications.prototype.stateChanged = function() {
@@ -219,12 +221,12 @@ PlaylistNotifications.prototype.toggleSetting = function() {
         }
         this.enabled = false;
         self.update();
-        keyValueDatabase.set(PREFERENCE_KEY, false);
+        this.db.set(PREFERENCE_KEY, false);
     } else {
 
         if (this.permissionsPromise) return;
         this.requestPermission().then(function(permission) {
-            keyValueDatabase.set(PREFERENCE_KEY, permission);
+            self.db.set(PREFERENCE_KEY, permission);
             self.enabled = permission;
             self.update();
         });

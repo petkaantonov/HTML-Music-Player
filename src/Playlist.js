@@ -66,6 +66,9 @@ TrackListDeletionUndo.prototype.destroy = function() {
 
 export default function Playlist(domNode, opts) {
     AbstractTrackContainer.call(this);
+    this.env = opts.env;
+    this.db = opts.db;
+    this.dbValues = opts.dbValues;
     this._trackViews = [];
     this._unparsedTrackList = [];
 

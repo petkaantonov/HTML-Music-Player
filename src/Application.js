@@ -45,7 +45,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.androidKeyboardFixer = new AndroidKeyboardFixer();
 
     this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
-        openerActiveClass: "toolbar-item-active"
+        openerActiveClass: "toolbar-item-active",
+        env: this.env
     });
 
     this.keyboardShortcuts = new KeyboardShortcuts();
@@ -54,7 +55,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         transitionInClass: "transition-in",
         transitionOutClass: "transition-out",
         nextDelay: 400,
-        visibilityTime: 4400
+        visibilityTime: 4400,
+        env: this.env
     });
 
     this.gestureScreenFlasher = new GestureScreenFlasher();
@@ -63,7 +65,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.spinner = new Spinner({
         clockwise: "#clockwise-spinner",
-        counterclockwise: "#counterclockwise-spinner"
+        counterclockwise: "#counterclockwise-spinner",
+        env: this.env
     });
 
     this.gestureEducator = new GestureEducator(this.snackbar, this.db, this.dbValues);
@@ -87,14 +90,20 @@ export default function Application(env, db, dbValues, defaultTitle) {
         snackbar: this.snackbar,
         env: this.env,
         dbValues: this.dbValues,
-        db: this.db
+        db: this.db,
+        gestureEducator: this.gestureEducator,
+        rippler: this.rippler
     });
 
     this.playlist = this.mainTabs.playlist;
     this.search = this.mainTabs.search;
     this.queue = this.mainTabs.queue;
 
-    this.trackAnalyzer = new TrackAnalyzer(this.playlist);
+    this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+    });
     this.search.setTrackAnalyzer(this.trackAnalyzer);
 
     this.localFileHandler = new LocalFileHandler({
@@ -117,7 +126,10 @@ export default function Application(env, db, dbValues, defaultTitle) {
         snackbar: this.snackbar,
         env: this.env,
         dbValues: this.dbValues,
-        db: this.db
+        db: this.db,
+        snackbar: this.snackbar,
+        gestureEducator: this.gestureEducator,
+        rippler: this.rippler
     });
 
     this.playerTimeManager = new PlayerTimeManager(".player-upper-container", this.player, {
@@ -125,19 +137,28 @@ export default function Application(env, db, dbValues, defaultTitle) {
         currentTimeDom: ".current-time",
         totalTimeDom: ".total-time",
         timeContainerDom: ".playback-status-wrapper",
-        timeProgressDom: ".time-progress"
+        timeProgressDom: ".time-progress",
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db
     });
 
     this.playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", this.player, {
         volumeSlider: ".volume-slider",
-        muteDom: ".volume-mute"
+        muteDom: ".volume-mute",
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db
     });
 
     this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player);
 
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
+        env: this.env,
+        dbValues: this.dbValues,
         db: this.db,
         snackbar: this.snackbar,
+        rippler: this.rippler,
         binWidth: 3,
         gapWidth: 1,
         capHeight: 1,
@@ -167,7 +188,12 @@ export default function Application(env, db, dbValues, defaultTitle) {
         gestureScreenFlasher: this.gestureScreenFlasher
     });
 
-    this.playlistModeManager = new PlaylistModeManager(".playlist-controls-container", this.playlist);
+    this.playlistModeManager = new PlaylistModeManager(".playlist-controls-container", this.playlist, {
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        rippler: this.rippler
+    });
 
     $(document).on("longPressStart", this.longTapStarted.bind(this));
     $(document).on("longPressEnd", this.longTapEnded.bind(this));

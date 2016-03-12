@@ -107,6 +107,10 @@ SearchSession.prototype._gotResults = function(results) {
 export default function Search(domNode, opts) {
     AbstractTrackContainer.call(this);
     opts = Object(opts);
+    this.env = opts.env;
+    this.db = opts.db;
+    this.dbValues = opts.dbValues;
+
     this._domNode = $($(domNode)[0]);
     this._trackContainer = this.$().find(".tracklist-transform-container");
     this._inputNode = this.$().find(".search-input-box");

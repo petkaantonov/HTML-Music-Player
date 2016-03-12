@@ -29,11 +29,10 @@ AndroidKeyboardFixer.prototype.triggerSizeChange = function() {
         return;
     }
 
-    var event = new Event("sizechange", {
+    window.dispatchEvent(new Event("sizechange", {
         bubbles: true,
         cancelable: false
-    });
-    window.dispatchEvent(event);
+    }));
 };
 
 AndroidKeyboardFixer.prototype.firePendingSizeChangeEvent =

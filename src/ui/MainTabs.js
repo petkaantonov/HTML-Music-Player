@@ -47,11 +47,21 @@ export default function MainTabs(opts) {
     this.playlistTrackRating = new TrackRating();
     this.searchTrackRating = new TrackRating();
     this.playlist = new Playlist(opts.playlistContainer, {
-        itemHeight: ITEM_HEIGHT
+        itemHeight: ITEM_HEIGHT,
+        db: opts.db,
+        dbValues: opts.dbValues,
+        env: opts.env,
+        rippler: opts.rippler,
+        snackbar: opts.snackbar
     });
     this.search = new Search(opts.searchContainer, {
         playlist: this.playlist,
-        itemHeight: ITEM_HEIGHT
+        itemHeight: ITEM_HEIGHT,
+        db: opts.db,
+        dbValues: opts.dbValues,
+        env: opts.env,
+        rippler: opts.rippler,
+        snackbar: opts.snackbar
     });
     this.queue = null;
     this.contentInstancesByTabId = Object.create(null);

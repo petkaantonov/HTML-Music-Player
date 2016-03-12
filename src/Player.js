@@ -613,6 +613,9 @@ function Player(dom, playlist, opts) {
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
+    this.env = opts.env;
+    this.db = opts.db;
+    this.dbValues = opts.dbValues;
     this._domNode = $(dom);
 
     this._playButtonDomNode = this.$().find(opts.playButtonDom);
