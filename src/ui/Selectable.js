@@ -3,7 +3,7 @@ import EventEmitter from "lib/events";
 import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "lib/util";
 import { SortedSet } from "lib/DataStructures";
 
-function Selectable(playlist) {
+export default function Selectable(playlist) {
     EventEmitter.call(this);
     this._playlist = playlist;
     this._selectionPointer = null;
@@ -544,5 +544,3 @@ Selectable.moveSelectedItemViewsUpBy = function(trackViews, selection, distance)
         }
     }
 };
-
-module.exports = Selectable;

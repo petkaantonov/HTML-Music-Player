@@ -2,18 +2,13 @@
 
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
+import AbstractTrackContainer from "AbstractTrackContainer";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "lib/util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
-import keyValueDatabase from "KeyValueDatabase";
 import Track from "Track";
-import { touch as touch } from "features";
 import FixedItemListScroller from "ui/FixedItemListScroller";
-import Snackbar from "ui/Snackbar";
-import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import TrackView from "ui/TrackView";
-import listEvents from "ui/listEvents";
-import selectionMethods from "selectionMethods";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = "search-history";
@@ -109,9 +104,9 @@ SearchSession.prototype._gotResults = function(results) {
     this._search.newResults(this, results);
 };
 
-function Search(domNode, opts) {
+export default function Search(domNode, opts) {
+    AbstractTrackContainer.call(this);
     opts = Object(opts);
-    EventEmitter.call(this);
     this._domNode = $($(domNode)[0]);
     this._trackContainer = this.$().find(".tracklist-transform-container");
     this._inputNode = this.$().find(".search-input-box");
@@ -163,9 +158,7 @@ function Search(domNode, opts) {
     this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
     this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
 
-    listEvents.bindListEvents(this, {
-        dragging: false
-    });
+    this._bindListEvents({dragging: false});
 
     var self = this;
     keyValueDatabase.getInitialValues().then(function(values) {
@@ -182,7 +175,7 @@ function Search(domNode, opts) {
     this.$().find(".search-next-tab-focus").on("focus", this._searchNextTabFocused.bind(this));
     this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 }
-inherits(Search, EventEmitter);
+inherits(Search, AbstractTrackContainer);
 
 Search.prototype.$ = function() {
     return this._domNode;
@@ -442,6 +435,3 @@ Object.defineProperty(Search.prototype, "length", {
     configurable: false
 });
 
-selectionMethods.addSelectionMethods(Search);
-
-module.exports = Search;

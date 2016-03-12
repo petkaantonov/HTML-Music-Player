@@ -9,7 +9,7 @@ const codeToString = function(code) {
     })[0] || "ERROR_UNKNOWN";
 };
 
-var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
+export default var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
     this.code = code;
     this.message = message || codeToString(code);
 });
@@ -56,6 +56,3 @@ AcoustIdApiError.prototype.isFatal = function() {
 AcoustIdApiError.prototype.isRetryable = function() {
     return !this.isFatal();
 };
-
-module.exports = AcoustIdApiError;
-

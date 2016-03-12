@@ -12,7 +12,7 @@ const READ_ONLY = "readonly";
 
 const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
-export function TagDatabase() {
+export default function TagDatabase() {
     var request = indexedDB.open(NAME, VERSION);
     this.db = IDBPromisify(request);
     this.db.suppressUnhandledRejections();

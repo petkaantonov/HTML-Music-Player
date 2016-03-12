@@ -1,28 +1,24 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, preventDefault, tapHandler } from "lib/DomUtil";
 import PlayerPictureManager from "ui/PlayerPictureManager";
-import serviceWorkerManager from "ServiceWorkerManager";
-import keyValueDatabase from "KeyValueDatabase";
+import { makeTooltip } from "ui/GlobalUi";
 
 const supported = typeof Notification === "function" &&
                   typeof Notification.maxActions === "number" &&
                   typeof navigator.serviceWorker !== "undefined";
+
 const MAX_ACTIONS = supported ? Notification.maxActions : 0;
 const PAUSE = "\u275a\u275a";
 const PLAY = "\u23f5";
 const NEXT = "\u23f5\u275a";
 const PREFERENCE_KEY = "overlay-enabled";
-
-import { makeTooltip, rippler } from "ui/GlobalUi";
-
 const NOTIFICATION_TAG = "player-status-notification";
 const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> overlay</p>";
 const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overlay</p>";
 
-function PlaylistNotifications(dom, player) {
+export default function PlaylistNotifications(dom, player) {
     var self = this;
     this._domNode = $(dom);
     this.playlist = player.playlist;
@@ -273,6 +269,4 @@ PlaylistNotifications.prototype.requestPermission = function() {
     this.permissionsPromise = ret;
     return ret;
 };
-
-module.exports = PlaylistNotifications;
 

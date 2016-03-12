@@ -1,9 +1,8 @@
 "use strict";
 import Promise from "lib/bluebird";
-
 import { capitalize, formatTagString, toTimeString } from "lib/util";
-import { allowExtensions } from "features";
 import blobPatch from "lib/blobpatch";
+
 blobPatch();
 
 const UNKNOWN = "Unknown";
@@ -15,7 +14,7 @@ const HAS_IMAGE = 4;
 
 const albumNameToCoverArtUrlMap = Object.create(null);
 
-function TagData(track, data, trackAnalyzer) {
+export default function TagData(track, data, trackAnalyzer) {
     this.track = track;
 
     this.title = data.title || null;
@@ -88,7 +87,7 @@ TagData.prototype.formatTime = function() {
     return (this._formattedTime = toTimeString(duration));
 };
 
-var stripExtensionPattern = new RegExp("\\.(?:" + allowExtensions.join("|") + ")$", "i");
+var stripExtensionPattern = new RegExp("\\.(?:[a-z0-9_\\-]{1,8})$", "i");
 var separatorPattern = /(.+)\s*-\s*(.+)/;
 TagData.stripExtensionPattern = stripExtensionPattern;
 TagData.trackInfoFromFileName = function(fileName) {
@@ -437,5 +436,3 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this.rating = data.rating === undefined ? -1 : data.rating;
     this.setLoudness(data);
 };
-
-module.exports = TagData;

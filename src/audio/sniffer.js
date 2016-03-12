@@ -48,7 +48,7 @@ function refine(type, fileView, index) {
     }
 }
 
-exports.getCodecName = function(fileView) {
+export function getCodecName(fileView) {
     return fileView.readBlockOfSizeAt(8192, 0).then(function() {
         const end = fileView.end;
         for (var i = 0; i < end - 4; ++i) {
@@ -78,7 +78,7 @@ exports.getCodecName = function(fileView) {
         var ext = getExtension(file.name);
 
         if (ext) return extMap[etx] || null;
-        
+
         return null;
     });
-};
+}

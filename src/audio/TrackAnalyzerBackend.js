@@ -4,7 +4,7 @@ import simulateTick from "lib/patchtimers";
 import Promise from "lib/bluebird";
 import blobPatch from "lib/blobpatch";
 import { assign } from "lib/util";
-import tagDatabase from "TagDatabase";
+import TagDatabase from "TagDatabase";
 import MetadataParser from "audio/MetadataParser";
 import Resampler from "audio/Resampler";
 import ChannelMixer from "audio/ChannelMixer";
@@ -12,7 +12,7 @@ import FileView from "lib/FileView";
 import demuxer from "audio/demuxer";
 import codec from "audio/codec";
 import sniffer from "audio/sniffer";
-import pool from "pool";
+import {allocBuffer, freeBuffer, allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "pool";
 import AcoustId from "audio/AcoustId";
 import Ebur128 from "audio/ebur128";
 import EventEmitter from "lib/events";
@@ -20,7 +20,7 @@ import EventEmitter from "lib/events";
 initTextCodec(self);
 self.EventEmitter = EventEmitter;
 
-
+const db = new TagDatabase();
 // Utilize 20% of one core.
 const MAX_CPU_UTILIZATION = 0.2;
 
@@ -38,15 +38,6 @@ Promise.config({
 
 blobPatch();
 
-
-
-
-const allocBuffer = pool.allocBuffer;
-const freeBuffer = pool.freeBuffer;
-const allocResampler = pool.allocResampler;
-const allocDecoderContext = pool.allocDecoderContext;
-const freeResampler = pool.freeResampler;
-const freeDecoderContext = pool.freeDecoderContext;
 
 const BUFFER_DURATION = 30;
 const WORST_RESAMPLER_QUALITY = 0;

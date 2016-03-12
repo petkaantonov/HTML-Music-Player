@@ -1,6 +1,6 @@
 "use strict";
 
-function SearchTreeEntry(transientId, searchTerm) {
+export default function SearchTreeEntry(transientId, searchTerm) {
     this._transientId = transientId;
     this._searchTerm = searchTerm;
     this._distance = 0;
@@ -34,5 +34,3 @@ SearchTreeEntry.comparer = function(a, b) {
 SearchTreeEntry.distanceCompare = function(a, b) {
     return a._distance - b._distance;
 };
-
-module.exports = SearchTreeEntry;

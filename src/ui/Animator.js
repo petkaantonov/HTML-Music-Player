@@ -222,14 +222,14 @@ AnimationPath.prototype.fastOutLinearInCurveTo = function(x, y, progress) {
     var prev = this._previous();
     var startX = prev.endX();
     var startY = prev.endY();
-    
+
     // CP1(0.4, 0)
     // CP2(1, 1)
     var cpx1 = 0.4 * (x - startX) + startX;
     var cpy1 = startY;
     var cpx2 = x;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -245,7 +245,7 @@ AnimationPath.prototype.fastOutSlowInCurveTo = function(x, y, progress) {
     var cpy1 = startY;
     var cpx2 = 0.2 * (x - startX) + startX;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -261,7 +261,7 @@ AnimationPath.prototype.linearOutSlowInCurveTo = function(x, y, progress) {
     var cpy1 = startY;
     var cpx2 = 0.2 * (x - startX) + startX;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -291,7 +291,7 @@ AnimationPath.prototype.close = function() {
         range.progressStart = now;
         range.progressEnd = now + dist / max;
         now = range.progressEnd;
-    }    
+    }
 };
 
 function Animation(animator, path, duration) {
@@ -436,7 +436,7 @@ function AdditionalAnimationProperty(animator, property) {
         if (!Array.isArray(this.end)) {
             this.end = [this.end, this.end];
         }
-        
+
         if (this.start.length !== this.end.length) {
             throw new Error("must be same length");
         }
@@ -489,7 +489,7 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     }
 };
 
-function Animator(dom, opts) {
+export default function Animator(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = dom;
@@ -806,5 +806,3 @@ Animator.prototype.animate = function(duration, path) {
 Animator.prototype.createPath = function(addX, addY) {
     return new AnimationPath(addX || 0, addY || 0);
 };
-
-module.exports = Animator;

@@ -15,7 +15,6 @@ import { inherits, throttle } from "lib/util";
 import EventEmitter from "lib/events";
 import ChannelMixer from "audio/ChannelMixer";
 import patchAudioContext from "lib/audiocontextpatch";
-import { isMobile } from "env";
 import simulateTick from "lib/patchtimers";
 
 const NO_THROTTLE = {};
@@ -89,7 +88,7 @@ const getPreloadBufferCount = function() {
 
 var nodeId = 0;
 var instances = false;
-function AudioPlayer(audioContext, suspensionTimeout) {
+export default function AudioPlayer(audioContext, suspensionTimeout) {
     EventEmitter.call(this);
     if (instances) throw new Error("only 1 AudioPlayer instance can be made");
     if (!suspensionTimeout) suspensionTimeout = 20;
@@ -1181,5 +1180,3 @@ AudioPlayerSourceNode.prototype.load = function(blob, seekTime, metadata) {
     }
     this._lastExpensiveCall = now;
 };
-
-module.exports = AudioPlayer;

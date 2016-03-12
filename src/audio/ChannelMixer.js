@@ -18,9 +18,9 @@ const getBuffer = function(samples) {
         for (var i = 0; i < result.length; ++i) result[i] = 0;
     }
     return result;
-}; 
+};
 
-function ChannelMixer(channels) {
+export default function ChannelMixer(channels) {
     this.channels = channels;
 }
 
@@ -59,7 +59,7 @@ ChannelMixer.prototype.mix = function(input, length, output) {
         } else if (inputChannels === 4) {
             return this._mix4to2(input, length, output);
         } else if (inputChannels === 6) {
-            return this._mix6to2(input, length, output);            
+            return this._mix6to2(input, length, output);
         }
     } else if (outputChannels === 4) {
         if (inputChannels === 1) {
@@ -223,4 +223,3 @@ ChannelMixer.prototype._mixAnyToAny = function(input, length, output) {
         return output;
     }
 };
-module.exports = ChannelMixer;

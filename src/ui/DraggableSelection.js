@@ -2,13 +2,12 @@
 import $ from "lib/jquery";
 import { inherits } from "lib/util";
 import Selectable from "ui/Selectable";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, isTouchEvent, modifierDragHandler, modifierTouchDownHandler } from "lib/DomUtil";
 import EventEmitter from "lib/events";
 
 const DRAG_START_DELAY_MS = 300;
 
-function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
+export default function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._mustMatchSelector = opts.mustMatchSelector || null;
@@ -289,5 +288,3 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
     this._viewList.on("lengthChange", this._restart);
     this._viewList.on("trackOrderChange", this._restart);
 };
-
-module.exports = DraggableSelection;

@@ -4,17 +4,16 @@ import EventEmitter from "lib/events";
 import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
-import keyValueDatabase from "KeyValueDatabase";
 import Track from "Track";
-import { touch as touch } from "features";
 import FixedItemListScroller from "ui/FixedItemListScroller";
-const PLAYLIST_MODE_KEY = "playlist-mode";
-import { snackbar } from "ui/GlobalUi";
 import Snackbar from "ui/Snackbar";
 import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import TrackView from "ui/TrackView";
-import listEvents from "ui/listEvents";
-import selectionMethods from "selectionMethods";
+import AbstractTrackContainer from "AbstractTrackContainer";
+
+const PLAYLIST_TRACKS_REMOVED_TAG = "playlist-tracks-removed";
+const PLAYLIST_MODE_KEY = "playlist-mode";
+const SHUFFLE_MODE = "shuffle";
 
 const TrackViewOptions = {
     updateTrackIndex: true,
@@ -23,12 +22,10 @@ const TrackViewOptions = {
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
-
-const PLAYLIST_TRACKS_REMOVED_TAG = "playlist-tracks-removed";
-
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
 const EMPTY_ARRAY = [];
+
 const DUMMY_TRACK = {
     getIndex: function() {
         return -1;
@@ -42,8 +39,6 @@ const DUMMY_TRACK = {
         return false;
     }
 };
-
-const SHUFFLE_MODE = "shuffle";
 
 function TrackListDeletionUndo(playlist) {
     this.tracksAndViews = playlist.getTrackViews().map(function(v) {
@@ -69,9 +64,8 @@ TrackListDeletionUndo.prototype.destroy = function() {
     }
 };
 
-var playlistRunningPlayId = 0;
-function Playlist(domNode, opts) {
-    EventEmitter.call(this);
+export default function Playlist(domNode, opts) {
+    AbstractTrackContainer.call(this);
     this._trackViews = [];
     this._unparsedTrackList = [];
 
@@ -118,9 +112,7 @@ function Playlist(domNode, opts) {
         }
     });
 
-    listEvents.bindListEvents(this, {
-        dragging: true
-    });
+    this._bindListEvents({dragging: true});
 
     var self = this;
     this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
@@ -169,7 +161,7 @@ function Playlist(domNode, opts) {
     }
     this._draggable.bindEvents();
 }
-inherits(Playlist, EventEmitter);
+inherits(Playlist, AbstractTrackContainer);
 
 Playlist.Modes = {
     normal: function(track) {
@@ -319,6 +311,7 @@ Playlist.prototype._highlyRelevantTrackMetadataUpdated = function() {
     this.emit("highlyRelevantTrackMetadataUpdate");
 };
 
+var nextPlayId = 10;
 Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind) {
     if (track === undefined || track === null || this._errorCount >= MAX_ERRORS) {
         this._errorCount = 0;
@@ -356,7 +349,7 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     }
 
     track.played();
-    this._currentPlayId = playlistRunningPlayId++;
+    this._currentPlayId = nextPlayId++;
     this.emit("trackChange", track);
     this.emit("loadNeed", track);
     return true;
@@ -871,7 +864,5 @@ Object.defineProperty(Playlist.prototype, "length", {
     },
     configurable: false
 });
-
-selectionMethods.addSelectionMethods(Playlist);
 
 module.exports = Playlist;

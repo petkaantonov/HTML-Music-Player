@@ -2,11 +2,9 @@
 import $ from "lib/jquery";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import EventEmitter from "lib/events";
-const NULL = $(null);
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, isTouchEvent, longTapHandler, originProperty, tapHandler, touchDownHandler } from "lib/DomUtil";
-import { rippler } from "ui/GlobalUi";
 
+const NULL = $(null);
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
 
@@ -463,7 +461,7 @@ function createMenuItem(root, spec, level) {
     return new ActionMenuItem(root, spec, children, level);
 }
 
-function ActionMenu(opts) {
+export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
 
@@ -624,7 +622,7 @@ prototype.enable = function(actions) {
     this.emit("activationChange", this);
 };
 
-ContextMenu = function ContextMenu(dom, opts) {
+export function ContextMenu(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
@@ -839,5 +837,3 @@ ContextMenu.prototype.keypressed = function() {
     if (!this._shown) return;
     this.hide();
 };
-
-module.exports = ActionMenu;

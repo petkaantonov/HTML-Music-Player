@@ -5,7 +5,7 @@ import sha1 from "lib/sha1";
 const EMPTY_ARRAY = [];
 const rext = /\.[a-zA-Z0-9_\-]+$/
 
-const calculateUid = function(file, metadata, useTagged) {
+export const calculateUid = function(file, metadata, useTagged) {
     var title, album, artist;
     if (useTagged) {
         title = metadata.taggedTitle || undefined;
@@ -21,7 +21,7 @@ const calculateUid = function(file, metadata, useTagged) {
     return sha1("" + album + title + artist + name + size);
 };
 
-const getSearchTerm = function(metadata, file) {
+export const getSearchTerm = function(metadata, file) {
     var title = normalizeQuery(metadata.taggedTitle || metadata.title || "");
     var artist = normalizeQuery(metadata.taggedArtist || metadata.artist || "");
     var album = normalizeQuery(metadata.taggedAlbum || metadata.album || "");
@@ -42,8 +42,3 @@ const getSearchTerm = function(metadata, file) {
         return ret;
     }
 };
-
-const tracksByUid = Object.create(null);
-
-exports.calculateUid = calculateUid;
-exports.getSearchTerm = getSearchTerm;

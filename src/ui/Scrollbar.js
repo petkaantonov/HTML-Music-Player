@@ -26,8 +26,7 @@ const isInverted = function(e) {
     }
 };
 
-
-function Scrollbar(container, scrollerInfo, opts) {
+export default function Scrollbar(container, scrollerInfo, opts) {
     opts = Object(opts);
     this._domNode = $($(container)[0]);
     this._rail = this.$().find(opts.railSelector);
@@ -196,6 +195,3 @@ Scrollbar.prototype.resize = function() {
     this._knobRect = this.$knob()[0].getBoundingClientRect();
     this.render(this._scrollerInfo.settledScrollTop(), true);
 };
-
-
-module.exports = Scrollbar;

@@ -1,12 +1,11 @@
 "use strict"
 
-import { touch as touch } from "features";
 import { throttle } from "lib/util";
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
 import Scroller from "lib/scroller";
 import Scrollbar from "ui/Scrollbar";
 
-function FixedItemListScroller(node, itemList, itemHeight, opts) {
+export default function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
     this._domNode = $($(node)[0]);
     this._contentContainer = $($((opts.contentContainer || node))[0]);
@@ -291,7 +290,3 @@ FixedItemListScroller.prototype.yByIndex = function(index) {
     if (index <= 0) return 0;
     return index * this.itemHeight();
 };
-
-
-
-module.exports = FixedItemListScroller;

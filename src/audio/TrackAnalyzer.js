@@ -1,6 +1,5 @@
 "use strict";
 import Promise from "lib/bluebird";
-
 import { documentHidden, throttle } from "lib/util";
 import TrackWasRemovedError from "TrackWasRemovedError";
 import Track from "Track";
@@ -11,7 +10,7 @@ const TRACK_ANALYZER_WORKER_SRC = window.DEBUGGING
     ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js";
 
 var instances = false;
-function TrackAnalyzer(playlist) {
+export default function TrackAnalyzer(playlist) {
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     instances = true;
     this._worker = new Worker(TRACK_ANALYZER_WORKER_SRC);
@@ -539,5 +538,3 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         return null;
     });
 };
-
-module.exports = TrackAnalyzer;

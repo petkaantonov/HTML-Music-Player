@@ -52,7 +52,7 @@ function getContext(canvas) {
     return gl;
 }
 
-function WebGl2dImageRenderer(image, visualizerCanvas) {
+export default function WebGl2dImageRenderer(image, visualizerCanvas) {
     this.visualizerCanvas = visualizerCanvas;
     this.gl = getContext(visualizerCanvas.canvas);
     this.image = image;
@@ -400,6 +400,3 @@ WebGl2dImageRenderer.prototype.setDimensions = function(width, height) {
     this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
     this.gl.uniform2f(this.canvasResolution, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
 };
-
-module.exports = WebGl2dImageRenderer;
-

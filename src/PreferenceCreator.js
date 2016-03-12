@@ -83,7 +83,7 @@ const equals = function(a, b) {
     return a === b;
 };
 
-const createPreferences = function(spec) {
+export default const createPreferences = function(spec) {
     spec = Object(spec);
     spec.preferences = Object(spec.preferences);
     spec.methods = Object(spec.methods);
@@ -158,5 +158,3 @@ const createPreferences = function(spec) {
 
     return Constructor;
 };
-
-module.exports = createPreferences;

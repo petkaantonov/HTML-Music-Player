@@ -95,7 +95,7 @@ function getFloat32ArrayForFrameCount(frameCount, channel) {
     return ret;
 }
 
-function Ebur128(channels, samplerate, mode) {
+export default function Ebur128(channels, samplerate, mode) {
     this.mode = mode;
     this.samplerate = samplerate;
     this.channels = Math.max(1, Math.min(channels, 5));
@@ -668,5 +668,3 @@ DeserializedEbur128.prototype.getSamplePeak = function() {
 };
 
 DeserializedEbur128.prototype.loudness_global = Ebur128.prototype.loudness_global;
-
-module.exports = Ebur128;

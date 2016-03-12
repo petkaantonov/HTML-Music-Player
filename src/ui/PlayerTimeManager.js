@@ -3,8 +3,6 @@ import $ from "lib/jquery";
 
 import keyValueDatabase from "KeyValueDatabase";
 import { toTimeString } from "lib/util";
-import { touch as touch } from "features";
-import { rippler } from "ui/GlobalUi";
 import { TOUCH_EVENTS, changeDom, setTransform, tapHandler } from "lib/DomUtil";
 const pixelRatio = window.devicePixelRatio || 1;
 
@@ -13,7 +11,7 @@ const DISPLAY_REMAINING = 1;
 
 const TIME_DISPLAY_PREFERENCE_KEY = "time-display";
 
-function PlayerTimeManager(dom, player, opts) {
+export default function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
@@ -256,5 +254,3 @@ PlayerTimeManager.prototype.newTrackLoaded = function() {
     this.setTimes(0, duration);
     this._scheduleUpdate();
 };
-
-module.exports = PlayerTimeManager;

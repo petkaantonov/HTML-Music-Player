@@ -1,12 +1,12 @@
 "use strict"
 
-import { touch as touch } from "features";
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
 import Scroller from "lib/scroller";
 import Scrollbar from "ui/Scrollbar";
 
-function ContentScroller(node, opts) {
+export default function ContentScroller(node, opts) {
     opts = Object(opts);
+    this._env = opts.env;
     this._domNode = $($(node)[0]);
     this._contentContainer = $($((opts.contentContainer || node))[0]);
 
@@ -166,5 +166,3 @@ ContentScroller.prototype.scrollIntoView = function(elem, animate) {
 
     this.scrollToUnsnapped(pos / this.physicalHeight() * this.maxTop(), !!animate);
 };
-
-module.exports = ContentScroller;

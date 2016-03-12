@@ -2,7 +2,7 @@
 
 import { inherits } from "lib/util";
 
-function Effect(spec) {
+export default function Effect(spec) {
     this.name = spec.name;
 }
 
@@ -31,7 +31,6 @@ NoiseSharpeningEffect.prototype.isEffective = function() {
     return this.effectSize !== 0;
 };
 
-module.exports = Effect;
 Effect.create = function(spec) {
     switch (spec.name) {
         case "noise-sharpening":

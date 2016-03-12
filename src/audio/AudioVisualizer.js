@@ -51,7 +51,7 @@ function makeBuffer(bufferSize) {
 
 const buffers = {};
 
-function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
+export default function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     opts = Object(opts);
     this.visualizerCanvas = visualizerCanvas;
     this.multiplier = 1;
@@ -160,7 +160,7 @@ AudioVisualizer.prototype.gotFrame = function(now) {
     if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
         return;
     }
-    
+
     this.forwardFft();
 
     if (this.bins.length !== this.binCount()) {
@@ -244,5 +244,3 @@ AudioVisualizer.prototype.forwardFft = function() {
     }
     realFft(this.buffer[0]);
 };
-
-module.exports = AudioVisualizer;

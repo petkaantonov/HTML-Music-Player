@@ -16,7 +16,7 @@ Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
 const transientIdToTrack = Object.create(null);
 var nextTransientId = 10000;
 
-function Track(audioFile) {
+export default function Track(audioFile) {
     EventEmitter.call(this);
     this.file = audioFile;
     this.tagData = null;
@@ -499,5 +499,3 @@ Track.prototype.getTagStateId = function() {
 Track.byTransientId = function(transientId) {
     return transientIdToTrack[transientId];
 };
-
-module.exports = Track;

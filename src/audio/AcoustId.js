@@ -26,7 +26,6 @@ import realFft from "lib/realfft";
 import Promise from "lib/bluebird";
 import AcoustIdApiError from "audio/AcoustIdApiError";
 import { queryString } from "lib/util";
-import tagDatabase from "TagDatabase";
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
@@ -150,7 +149,7 @@ const classify5 = function(x, y, h, w, t0, t1, t2) {
 };
 
 
-function AcoustId(src, srcLength) {
+export default function AcoustId(src, srcLength) {
     this.src = src;
     this.srcLength = srcLength;
     this.offset = OVERLAP;
@@ -660,7 +659,6 @@ AcoustId.fetchImage = function(args) {
             });
         }
     }).finally(next);
-
 };
 
 const actualFetchImage = function(args) {
@@ -682,6 +680,3 @@ const actualFetchImage = function(args) {
         }
     });
 };
-
-
-module.exports = AcoustId;

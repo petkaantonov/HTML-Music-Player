@@ -2,7 +2,6 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, hoverHandler, tapHandler } from "lib/DomUtil";
 
 const getLongestTransitionDuration = function(node) {
@@ -77,7 +76,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     return ret;
 };
 
-function Tooltip(opts) {
+export default function Tooltip(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._preferredDirection = getDirection(opts.preferredDirection);
@@ -523,5 +522,3 @@ Tooltip.prototype.destroy = function() {
 Tooltip.prototype.$ = function() {
     return this._domNode;
 };
-
-module.exports = Tooltip;

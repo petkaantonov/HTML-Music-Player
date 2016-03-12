@@ -1,6 +1,6 @@
 "use strict";
 /* Ported from libspeex resampler.c, BSD license follows */
-/* 
+/*
    Copyright (C) 2015 Petka Antonov
    Copyright (C) 2007-2008 Jean-Marc Valin
    Copyright (C) 2008      Thorvald Natvig
@@ -140,7 +140,7 @@ const sinc = function(cutoff, x, N, table) {
 };
 
 var id = 0;
-function Resampler(nb_channels, in_rate, out_rate, quality) {
+export default function Resampler(nb_channels, in_rate, out_rate, quality) {
     if (quality === undefined) quality = 0;
     this.id = id++;
     this.initialised = 0;
@@ -282,7 +282,7 @@ Resampler.prototype._updateFilter = function() {
 
     if (STDLIB_MAX_INT / SIZEOF_SPX_WORD / this.den_rate < this.filt_len) {
         throw new Error("INT_MAX/sizeof(spx_word16_t)/this.den_rate < this.filt_len");
-    } 
+    }
 
     var min_sinc_table_length = this.filt_len * this.den_rate;
 
@@ -334,7 +334,7 @@ Resampler.prototype._updateFilter = function() {
                     }
                     this.magic_samples[i] = 0;
                 }
-                
+
                 if (this.filt_len > olen) {
                     /* If the new filter length is still bigger than the "augmented" length */
                     /* Copy data going backward */
@@ -414,7 +414,7 @@ Resampler.prototype.resample = function(channels, length, output) {
     if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
     if (!this.started) throw new Error("start() not called");
     if (length == undefined) length = channels[0].length;
-    
+
     const outLength = this.getLength(length);
 
     if (output == undefined) {
@@ -501,7 +501,7 @@ Resampler.prototype._resamplerMagic = function(channel_index, out_len) {
     var tmp_in_len = this.magic_samples[channel_index];
     var mem_ptr = this.mem_alloc_size + channel_index;
     const N = this.filt_len;
-   
+
     process_ref.out_len = out_len;
     process_ref.in_len = tmp_in_len;
     this._processNative(channel_index);

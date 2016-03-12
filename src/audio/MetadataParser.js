@@ -1,6 +1,5 @@
 "use strict";
 
-import tagDatabase from "TagDatabase";
 import Promise from "lib/bluebird";
 import sniffer from "audio/sniffer";
 import FileView from "lib/FileView";
@@ -27,7 +26,7 @@ const next = function() {
     }
 };
 
-function MetadataParser(file, resolve, transientId) {
+export default function MetadataParser(file, resolve, transientId) {
     this.file = file;
     this.resolve = resolve;
     this.transientId = transientId;
@@ -97,5 +96,3 @@ MetadataParser.fetchAnalysisData = function(args) {
         return data;
     });
 };
-
-module.exports = MetadataParser;

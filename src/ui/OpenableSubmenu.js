@@ -1,13 +1,12 @@
 "use strict";
 
-import { rippler } from "ui/GlobalUi";
 import { offCapture, onCapture } from "lib/util";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
-import { touch } from "features";
-const touch = touch;
 
-function OpenableSubmenu(dom, opener, opts) {
+export default function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
+    this._env = opts.env;
+    this._rippler = opts.rippler;
     this._domNode = $($(dom)[0]);
     this._opener = $($(opener)[0]);
     this._keyboardElements = this.$().find("*").filter(function() {
@@ -28,7 +27,7 @@ function OpenableSubmenu(dom, opener, opts) {
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    if (touch) {
+    if (this._env.hasTouch()) {
         this.$opener().on(TOUCH_EVENTS, tapHandler(this._openerClicked));
     }
 
@@ -59,7 +58,7 @@ OpenableSubmenu.prototype.open = function() {
     });
     onCapture(document, "click", this._documentClicked);
 
-    if (touch) {
+    if (this._env.hasTouch()) {
         onCapture(document, TOUCH_EVENTS, this._documentTapped);
     }
 };
@@ -74,7 +73,7 @@ OpenableSubmenu.prototype.close = function() {
     this.$opener().removeClass(this.openerActiveClass);
     this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
     offCapture(document, "click", this._documentClicked);
-    if (touch) {
+    if (this._env.hasTouch()) {
         offCapture(document, TOUCH_EVENTS, this._documentTapped);
     }
 };
@@ -100,7 +99,7 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
 };
 
 OpenableSubmenu.prototype._openerClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.open();
 };
 
@@ -128,6 +127,3 @@ OpenableSubmenu.prototype._keydowned = function(e) {
         }
     }
 };
-
-
-module.exports = OpenableSubmenu;

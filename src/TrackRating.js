@@ -12,7 +12,7 @@ const HTML = "<div class='track-rating'>                                        
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
     </div>"
 
-function TrackRating() {
+export default function TrackRating() {
     this.track = null;
     this._domNode = $(HTML);
     this._doubleClicked = this._doubleClicked.bind(this);
@@ -107,5 +107,3 @@ TrackRating.prototype._ratingInputClicked = function(node) {
     this.track.rate(value);
     this._update(value);
 };
-
-module.exports = TrackRating;

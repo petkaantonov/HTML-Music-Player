@@ -56,10 +56,6 @@ globalObject.codecLoaded = function(name, Context) {
     };
 };
 
-var codec = {};
-
-codec.getCodec = function(name) {
+export function getCodec(name) {
     return loadCodec(name);
 };
-
-module.exports = codec;

@@ -352,7 +352,7 @@ function demuxMp3(fileView, noSeekTable, maxSize) {
     });
 }
 
-module.exports = function(codecName, fileView, noSeekTable, maxSize) {
+export default function(codecName, fileView, noSeekTable, maxSize) {
     try {
         if (codecName === "mp3") {
             return demuxMp3(fileView, noSeekTable, maxSize);
@@ -362,10 +362,10 @@ module.exports = function(codecName, fileView, noSeekTable, maxSize) {
         return null;
     }
     return null;
-};
+}
 
 // TODO: code is ruthlessly duplicated from above.
-function Mp3SeekTable() {
+export function Mp3SeekTable() {
     this.frames = 0;
     this.tocFilledUntil = 0;
     this.table = new Array(128);
@@ -463,5 +463,3 @@ Mp3SeekTable.prototype.fillUntil = Promise.method(function(time, metadata, fileV
         self.tocFilledUntil = (metadata.samplesPerFrame / metadata.sampleRate) * frames;
     });
 });
-
-module.exports.Mp3SeekTable = Mp3SeekTable;

@@ -3,7 +3,7 @@ import $ from "lib/jquery";
 import { setTransform } from "lib/DomUtil";
 import { documentHidden } from "lib/util";
 
-function TrackDisplay(dom, opts) {
+export default function TrackDisplay(dom, opts) {
     opts = Object(opts);
     this._containerNode = $($(dom)[0]);
     this._domNode = this.$container().find(opts.target);
@@ -167,5 +167,3 @@ TrackDisplay.prototype.setTrack = function(track) {
     this._updateText();
     this._reset();
 };
-
-module.exports = TrackDisplay;

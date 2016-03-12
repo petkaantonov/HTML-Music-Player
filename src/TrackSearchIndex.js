@@ -6,7 +6,7 @@ import searchUtil from "searchUtil";
 import sortedArrays from "lib/sortedArrays";
 import { getFirstWord, getLastWord, reverseString } from "lib/util";
 
-function TrackSearchIndex() {
+export default function TrackSearchIndex() {
     this._transientIdToEntry = {};
     this._prefixSearchTree = new SearchTree(SearchTreeEntry.comparer);
     this._suffixSearchTree = new SearchTree(SearchTreeEntry.comparer);
@@ -105,5 +105,3 @@ TrackSearchIndex.prototype.remove = function(transientId) {
     this._removeFromSearchTree(entry);
     delete this._transientIdToEntry[transientId];
 };
-
-module.exports = TrackSearchIndex;

@@ -1,19 +1,20 @@
 "use strict";
 
-const pixelRatio = window.devicePixelRatio || 1;
-
-const SHADOW_BLUR = 2 * pixelRatio | 0;
-const SHADOW_COLOR = "rgb(11,32,53)";
+import $ from "lib/jquery";
 import Animator from "ui/Animator";
 import { addLegacyListener, inherits } from "lib/util";
 import { canvasToImage } from "lib/DomUtil";
 import Default2dImageRenderer from "ui/Default2dImageRenderer";
 import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
 import EventEmitter from "lib/events";
-import { contextMenuItem, makePopup, snackbar } from "ui/GlobalUi";
 import Slider from "ui/Slider";
-import { ContextMenu as ContextMenu } from "ui/ActionMenu";
-import applicationPreferences from "application_preferences";
+import { contextMenuItem, makePopup } from "ui/GlobalUi";
+import { ContextMenu } from "ui/ActionMenu";
+
+const pixelRatio = window.devicePixelRatio || 1;
+
+const SHADOW_BLUR = 2 * pixelRatio | 0;
+const SHADOW_COLOR = "rgb(11,32,53)";
 
 const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content-container'>            \
             <div class='section-container'>                                                             \
@@ -36,7 +37,6 @@ const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content
             </div>                                                                                      \
         </div>";
 
-import $ from "lib/jquery";
 
 function TransitionInfo(visualizerCanvas) {
     this.duration = -1;
@@ -175,7 +175,7 @@ GraphicsSource.prototype.isReady = function() {
     return this.image !== null;
 };
 
-function VisualizerCanvas(targetCanvas, player, opts) {
+export default function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
     this.player = player;
     player.setVisualizerCanvas(this);
@@ -566,6 +566,3 @@ VisualizerCanvas.prototype.drawBins = function(now, bins) {
         this.hide();
     }
 };
-
-
-module.exports = VisualizerCanvas;

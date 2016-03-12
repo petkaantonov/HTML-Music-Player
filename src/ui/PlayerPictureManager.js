@@ -3,13 +3,11 @@ import $ from "lib/jquery";
 import Animator from "ui/Animator";
 import jdenticon from "lib/jdenticon";
 import Promise from "lib/bluebird";
-
 import { addLegacyListener } from "lib/util";
 import { canvasToImage } from "lib/DomUtil";
 
 const IMAGE_DIMENSIONS = 97;
-
-function PlayerPictureManager(dom, player, opts) {
+export default function PlayerPictureManager(dom, player, opts) {
     opts = Object(opts);
     this._domNode = $(dom);
     this.player = player;
@@ -112,6 +110,3 @@ defaultImage.src = "/dist/images/apple-touch-icon-180x180.png";
 PlayerPictureManager.getDefaultImage = function() {
     return defaultImage;
 };
-
-
-module.exports = PlayerPictureManager;

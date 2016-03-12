@@ -61,11 +61,13 @@ const seekMp3 = Promise.method(function(time, metadata, context, fileView) {
     });
 });
 
-function seek(type, time, metadata, context, fileView) {
+const doSeek = Promise.method(function(type, time, metadata, context, fileView) {
     if (type === "mp3") {
         return seekMp3(time, metadata, context, fileView);
     }
     throw new Error("unsupported type");
-}
+});
 
-module.exports = Promise.method(seek);
+export default function seek(type, time, metadata, context, fileView) {
+    return doSeek(type, time, metadata, context, fileView);
+}

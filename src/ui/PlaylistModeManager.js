@@ -1,7 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
-import { makeTooltip, rippler } from "ui/GlobalUi";
-import { touch as touch } from "features";
+import { makeTooltip } from "ui/GlobalUi";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 const SHUFFLE = "shuffle";
@@ -11,7 +10,7 @@ const REPEAT = "repeat";
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
-function PlaylistModeManager(dom, playlist) {
+export default function PlaylistModeManager(dom, playlist) {
     var self = this;
     this.playlist = playlist;
     this._domNode = $(dom);
@@ -33,7 +32,7 @@ function PlaylistModeManager(dom, playlist) {
 
     playlist.on("modeChange", this.update);
 
-    
+
     this.$shuffle().on("click", this.shuffleClicked);
     this.$repeat().on("click", this.repeatClicked);
 
@@ -113,5 +112,3 @@ PlaylistModeManager.prototype.update = function() {
 PlaylistModeManager.prototype.setMode = function(mode) {
     this.playlist.tryChangeMode(mode);
 };
-
-module.exports = PlaylistModeManager;

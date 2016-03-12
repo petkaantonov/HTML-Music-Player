@@ -10,7 +10,7 @@ const ANALYSIS_TOOLTIP_MESSAGE =
 
 const ERROR_HEADER = "<p>There was an error with this track:</p>";
 
-function TrackView(track, selectable, opts) {
+export default function TrackView(track, selectable, opts) {
     opts = Object(opts);
     this._track = track;
     this._isDestroyed = false;
@@ -427,5 +427,3 @@ TrackView.prototype.stopDragging = function() {
         }, 220);
     }
 };
-
-module.exports = TrackView;

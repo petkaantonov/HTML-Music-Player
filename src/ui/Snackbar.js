@@ -1,15 +1,13 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-
 import EventEmitter from "lib/events";
 import { documentHidden, inherits } from "lib/util";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, changeDom, tapHandler } from "lib/DomUtil";
 
 const NO_TAG = {};
 
-function SnackbarInstance(snackbar, message, opts) {
+export default function SnackbarInstance(snackbar, message, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.outcome = Snackbar.NO_OUTCOME;
@@ -325,5 +323,3 @@ Snackbar.NO_OUTCOME = -1;
 Snackbar.ACTION_CLICKED = 0;
 Snackbar.DISMISSED = 1;
 Snackbar.TIMED_OUT = 2;
-
-module.exports = Snackbar;

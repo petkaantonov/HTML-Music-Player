@@ -1,7 +1,7 @@
 "use strict";
 
 
-function Default2dImageRenderer(image, visualizerCanvas) {
+export default function Default2dImageRenderer(image, visualizerCanvas) {
     this.image = image;
     this.visualizerCanvas = visualizerCanvas;
     this.context = visualizerCanvas.canvas.getContext("2d", {alpha: false});
@@ -90,5 +90,3 @@ Default2dImageRenderer.prototype.usesHardwareAcceleration = function() {
 Default2dImageRenderer.isSupported = function() {
     return true;
 };
-
-module.exports = Default2dImageRenderer;

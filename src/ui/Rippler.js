@@ -168,7 +168,7 @@ Ripple.prototype.end = function() {
     this.rippler.rippleEnded(this);
 };
 
-function Rippler() {
+export default function Rippler() {
     this._domNode = $("body");
     this._freeRipples = [];
     this._ongoingRipples = [];
@@ -245,5 +245,3 @@ Rippler.prototype.rippleAt = function(x, y, size, color) {
     this.rippleStarted(ripple);
     ripple.initUnbounded(x, y, size, color);
 }
-
-module.exports = Rippler;

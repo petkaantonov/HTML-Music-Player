@@ -1,11 +1,9 @@
 "use strict";
 import $ from "lib/jquery";
-import { makeTooltip, rippler } from "ui/GlobalUi";
-import { touch as touch } from "features";
+import { makeTooltip } from "ui/GlobalUi";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
-
-function PlayerVolumeManager(dom, player, opts) {
+export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;
     opts = Object(opts);
     this.player = player;
@@ -79,5 +77,3 @@ PlayerVolumeManager.prototype.muteChanged = function(muted) {
     }
     this._muteTooltip.refresh();
 };
-
-module.exports = PlayerVolumeManager;

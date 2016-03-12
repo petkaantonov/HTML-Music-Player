@@ -3,16 +3,19 @@
 import $ from "lib/jquery";
 import { documentHidden, inherits } from "lib/util";
 import Promise from "lib/bluebird";
-import { snackbar } from "ui/GlobalUi";
 import Snackbar from "ui/Snackbar";
 import EventEmitter from "lib/events";
-import { isMobile } from "env";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
 
-function ServiceWorkerManager() {
+export default function ServiceWorkerManager(opts) {
+    opts = Object(opts);
     EventEmitter.call(this);
+
+    this._env = opts.env;
+    this._snackbar = opts.snackbar;
+
     this._registration = null;
     this._started = false;
 
@@ -93,7 +96,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
     var self = this;
     if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
 
-    snackbar.show("New version available", {
+    this._snackbar.show("New version available", {
         action: "refresh",
         visibilityTime: 15000
     }).then(function(outcome) {
@@ -113,7 +116,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
                 return;
         }
     }).catch(function(e) {
-        return snackbar.show(e.message);
+        return self._snackbar.show(e.message);
     });
 };
 
@@ -219,9 +222,10 @@ ServiceWorkerManager.prototype.showNotification = function(title, options) {
         tag = options.tag = options.tag + "-" + tabId;
     }
 
+    var self = this;
     return this._registration.then(function(reg) {
         var preReq = Promise.resolve();
-        if (isMobile()) {
+        if (self._env.isMobile()) {
             preReq = Promise.resolve(reg.getNotifications()).then(function(notifications) {
                 notifications.forEach(function(notification) {
                     try { notification.close(); } catch (e) {}
@@ -254,5 +258,3 @@ ServiceWorkerManager.prototype.showNotification = function(title, options) {
         });
     });
 };
-
-module.exports = new ServiceWorkerManager();

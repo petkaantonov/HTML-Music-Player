@@ -1,7 +1,7 @@
 "use strict";
 import { subClassError } from "lib/util";
 
-var AudioError = subClassError("AudioError", function(code) {
+export default var AudioError = subClassError("AudioError", function(code) {
     this.code = code;
     var audioCodeString;
     switch (code) {
@@ -14,4 +14,3 @@ var AudioError = subClassError("AudioError", function(code) {
 
     this.message = "Cannot load audio: " + audioCodeString;
 });
-module.exports = AudioError;

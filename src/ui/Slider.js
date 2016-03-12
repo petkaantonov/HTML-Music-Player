@@ -2,10 +2,9 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, offCapture, onCapture } from "lib/util";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, dragHandler, isTouchEvent, setTransform, touchDownHandler } from "lib/DomUtil";
 
-function Slider(domNode, opts) {
+export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
     this._domNode = $(domNode);
@@ -238,5 +237,3 @@ Slider.prototype._percentage = function(e) {
     }
     return Math.max(0, Math.min(1, r));
 };
-
-module.exports = Slider;

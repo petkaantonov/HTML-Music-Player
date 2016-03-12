@@ -3,8 +3,6 @@
 import { inherits } from "lib/util";
 import { TOUCH_EVENTS, horizontalDragHandler, setFilter, setTransform, tapHandler } from "lib/DomUtil";
 import EventEmitter from "lib/events";
-import { touch as touch } from "features";
-import { rippler } from "ui/GlobalUi";
 
 function Tab(spec, controller, index, opts) {
     EventEmitter.call(this);
@@ -81,7 +79,7 @@ Tab.prototype.deactivate = function() {
     this._active = false;
 };
 
-function TabController(domNode, specs, opts) {
+export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = $($(domNode)[0]);
@@ -306,6 +304,3 @@ TabController.prototype.activateTabById = function(id) {
     }
     throw new Error("unknown id: " + id);
 };
-
-
-module.exports = TabController;

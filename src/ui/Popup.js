@@ -4,7 +4,6 @@ import Promise from "lib/bluebird";
 
 import EventEmitter from "lib/events";
 import { combineClasses, documentHidden, inherits, offBubble, offCapture, onBubble, onCapture, toFunction } from "lib/util";
-import { touch as touch } from "features";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, dragHandler, isTouchEvent, preventDefault, setTransform, tapHandler, touchDownHandler } from "lib/DomUtil";
 import Animator from "ui/Animator";
 import ContentScroller from "ui/ContentScroller";
@@ -123,7 +122,7 @@ PopupButton.prototype.destroy = function() {
     this.$().remove();
 };
 
-function Popup(opts) {
+export default function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
 
@@ -529,5 +528,3 @@ Popup.prototype.setScreenPosition = function(pos) {
 };
 
 Popup.HIGHER_ZINDEX = 1000;
-
-module.exports = Popup;

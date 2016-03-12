@@ -1,6 +1,6 @@
 "use strict";
 
-import { bit } from "lib/util";
+import { readBit } from "lib/util";
 import { MD5 } from "lib/jsmd5";
 import demux from "audio/demuxer";
 const ID3 = 0x494433|0;
@@ -305,14 +305,14 @@ const getFlags = function(fileView, offset, version) {
 
     if (version >= 3) {
         var bits = fileView.getUint16(offset);
-        tagAlterPreservation = bit(bits, 14);
-        fileAlterPreservation = bit(bits, 13);
-        readOnly = bit(bits, 12);
-        containsGroupInfo = bit(bits, 6);
-        isCompressed = bit(bits, 3);
-        isEncrypted = bit(bits, 2);
-        hasBeenUnsynchronized = bit(bits, 1);
-        hasDataLengthIndicator = bit(bits, 0);
+        tagAlterPreservation = readBit(bits, 14);
+        fileAlterPreservation = readBit(bits, 13);
+        readOnly = readBit(bits, 12);
+        containsGroupInfo = readBit(bits, 6);
+        isCompressed = readBit(bits, 3);
+        isEncrypted = readBit(bits, 2);
+        hasBeenUnsynchronized = readBit(bits, 1);
+        hasDataLengthIndicator = readBit(bits, 0);
     }
 
     return {
@@ -330,10 +330,10 @@ const getFlags = function(fileView, offset, version) {
 const getMainFlags = function(fileView, offset, version) {
     var bits = fileView.getUint8(offset + 5);
 
-    var hasBeenUnsynchronized = bit(bits, 7);
-    var isExtended = bit(bits, 6);
-    var isExperimental = bit(bits, 5);
-    var hasFooter = bit(bits, 4);
+    var hasBeenUnsynchronized = readBit(bits, 7);
+    var isExtended = readBit(bits, 6);
+    var isExperimental = readBit(bits, 5);
+    var hasFooter = readBit(bits, 4);
 
     return {
         hasBeenUnsynchronized: hasBeenUnsynchronized,
