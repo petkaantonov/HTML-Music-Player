@@ -1,13 +1,12 @@
 "use strict";
 
-var Resampler = require("audio/Resampler");
+import Resampler from "audio/Resampler";
 
 const decoderPool = Object.create(null);
 const resamplers = Object.create(null);
 const bufferPool = Object.create(null);
 
-
-const allocBuffer = function(size, channels) {
+export const allocBuffer = function(size, channels) {
     var key = size + " " + channels;
 
     var buffers = bufferPool[key];
@@ -23,12 +22,12 @@ const allocBuffer = function(size, channels) {
     return bufferPool[key].shift();
 }
 
-const freeBuffer = function(size, channels, buffer) {
+export const freeBuffer = function(size, channels, buffer) {
     var key = size + " " + channels;
     bufferPool[key].push(buffer);
 }
 
-const allocResampler = function(channels, from, to, quality) {
+export const allocResampler = function(channels, from, to, quality) {
     quality = quality || 0;
     var key = channels + " " + from + " " + to;
     var entry = resamplers[key];
@@ -50,13 +49,13 @@ const allocResampler = function(channels, from, to, quality) {
     return ret;
 };
 
-const freeResampler = function(resampler) {
+export const freeResampler = function(resampler) {
     var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
     resamplers[key].instances.push(resampler);
     resampler.end();
 };
 
-const allocDecoderContext = function(name, Context, contextOpts) {
+export const allocDecoderContext = function(name, Context, contextOpts) {
     var entry = decoderPool[name];
 
     if (!entry) {
@@ -77,17 +76,8 @@ const allocDecoderContext = function(name, Context, contextOpts) {
     return entry.instances.shift();
 };
 
-const freeDecoderContext = function(name, context) {
+export const freeDecoderContext = function(name, context) {
     context.removeAllListeners();
     decoderPool[name].instances.push(context);
     context.end();
-};
-
-module.exports = {
-    allocResampler: allocResampler,
-    freeResampler: freeResampler,
-    allocDecoderContext: allocDecoderContext,
-    freeDecoderContext: freeDecoderContext,
-    allocBuffer: allocBuffer,
-    freeBuffer: freeBuffer
 };

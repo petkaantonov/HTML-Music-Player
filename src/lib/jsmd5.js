@@ -29,7 +29,6 @@
             -Initial version
 */
 
-var faultylabs = exports;
 /*
    MD5()
 
@@ -54,7 +53,7 @@ var faultylabs = exports;
    output: MD5 hash (as Hex Uppercase String)
 */
 
-faultylabs.MD5 = function(data) {
+export default function MD5(data) {
 
     // convert number to (unsigned) 32 bit hex, zero filled string
     function to_zerofilled_hex(n) {
@@ -343,6 +342,4 @@ faultylabs.MD5 = function(data) {
         // Done! Convert buffers to 128 bit (LE)
         return int128le_to_hex(h3, h2, h1, h0).toLowerCase();
     }
-
-
-}
+};

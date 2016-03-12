@@ -12,7 +12,7 @@ function prefix(Class, methodName) {
            Class.prototype["webkit" + MethodName];
 }
 
-function patch() {
+export default function patch() {
     if (typeof Blob !== "undefined") {
         const BlobClose = prefix(Blob, "close");
         if (typeof BlobClose === "undefined") {
@@ -68,6 +68,4 @@ function patch() {
             return buffer;
         };
     }
-}
-
-module.exports = patch;
+};

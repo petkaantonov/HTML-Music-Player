@@ -1,7 +1,7 @@
 "use strict";
 
 import { bit } from "lib/util";
-import jsmd5 from "lib/jsmd5";
+import { MD5 } from "lib/jsmd5";
 import demux from "audio/demuxer";
 const ID3 = 0x494433|0;
 const TAG = 0x544147|0;
@@ -239,7 +239,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         data = new Uint8Array(buffer.buffer, offset - fileView.start, dataLength);
     }
 
-    var tag = jsmd5.MD5(data);
+    var tag = MD5(data);
     var dataBlob = new Blob([data], {type: type});
 
     pictures.push({

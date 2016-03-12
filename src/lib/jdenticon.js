@@ -1,7 +1,14 @@
+export default var jdenticon;
+(function () {
+var module = {
+    set exports (value) {
+        jdenticon = value;
+    }
+};
 /**
  * Jdenticon 1.3.2
  * http://jdenticon.com
- *  
+ *
  * Built: 2015-10-10T11:55:57.451Z
  *
  * Copyright (c) 2014-2015 Daniel Mester Pirttijärvi
@@ -9,21 +16,21 @@
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
  * arising from the use of this software.
- * 
+ *
  * Permission is granted to anyone to use this software for any purpose,
  * including commercial applications, and to alter it and redistribute it
  * freely, subject to the following restrictions:
- * 
+ *
  * 1. The origin of this software must not be misrepresented; you must not
  *    claim that you wrote the original software. If you use this software
  *    in a product, an acknowledgment in the product documentation would be
  *    appreciated but is not required.
- * 
+ *
  * 2. Altered source versions must be plainly marked as such, and must not be
  *    misrepresented as being the original software.
- * 
+ *
  * 3. This notice may not be removed or altered from any source distribution.
- * 
+ *
  */
 
 /*jslint bitwise: true */
@@ -49,7 +56,7 @@
 
 
 
-    
+
     /**
      * Represents a point.
      * @private
@@ -59,10 +66,10 @@
         this.x = x;
         this.y = y;
     };
-    
-    
+
+
     /**
-     * Translates and rotates a point before being passed on to the canvas context. This was previously done by the canvas context itself, 
+     * Translates and rotates a point before being passed on to the canvas context. This was previously done by the canvas context itself,
      * but this caused a rendering issue in Chrome on sizes > 256 where the rotation transformation of inverted paths was not done properly.
      * @param {number} x The x-coordinate of the upper left corner of the transformed rectangle.
      * @param {number} y The y-coordinate of the upper left corner of the transformed rectangle.
@@ -95,9 +102,9 @@
         }
     };
     Transform.noTransform = new Transform(0, 0, 0, 0);
-    
-    
-    
+
+
+
     /**
      * Provides helper functions for rendering common basic shapes.
      * @private
@@ -114,18 +121,18 @@
          * @param {boolean=} invert Specifies if the polygon will be inverted.
          */
         addPolygon: function (points, invert) {
-            var di = invert ? -2 : 2, 
+            var di = invert ? -2 : 2,
                 transform = this._transform,
                 transformedPoints = [],
                 i;
-            
+
             for (i = invert ? points.length - 2 : 0; i < points.length && i >= 0; i += di) {
                 transformedPoints.push(transform.transformPoint(points[i], points[i + 1]));
             }
-            
+
             this._renderer.addPolygon(transformedPoints);
         },
-        
+
         /**
          * Adds a polygon to the underlying renderer.
          * Source: http://stackoverflow.com/a/2173084
@@ -149,7 +156,7 @@
          */
         addRectangle: function (x, y, w, h, invert) {
             this.addPolygon([
-                x, y, 
+                x, y,
                 x + w, y,
                 x + w, y + h,
                 x, y + h
@@ -167,8 +174,8 @@
          */
         addTriangle: function (x, y, w, h, r, invert) {
             var points = [
-                x + w, y, 
-                x + w, y + h, 
+                x + w, y,
+                x + w, y + h,
                 x, y + h,
                 x, y
             ];
@@ -193,10 +200,10 @@
             ], invert);
         }
     };
-    
-    
-    
-    
+
+
+
+
     var shapes = {
         center: [
             /** @param {Graphics} g */
@@ -212,23 +219,23 @@
             },
             /** @param {Graphics} g */
             function (g, cell, index) {
-                var w = 0 | (cell * 0.5), 
+                var w = 0 | (cell * 0.5),
                     h = 0 | (cell * 0.8);
                 g.addTriangle(cell - w, 0, w, h, 2);
             },
             /** @param {Graphics} g */
-            function (g, cell, index) { 
+            function (g, cell, index) {
                 var s = 0 | (cell / 3);
                 g.addRectangle(s, s, cell - s, cell - s);
             },
             /** @param {Graphics} g */
-            function (g, cell, index) { 
+            function (g, cell, index) {
                 var inner = 0 | (cell * 0.1),
                     outer = 0 | (cell * 0.25);
                 g.addRectangle(outer, outer, cell - inner - outer, cell - inner - outer);
             },
             /** @param {Graphics} g */
-            function (g, cell, index) { 
+            function (g, cell, index) {
                 var m = 0 | (cell * 0.15),
                     s = 0 | (cell * 0.5);
                 g.addCircle(cell - s - m, cell - s - m, s);
@@ -299,7 +306,7 @@
                 }
             }
         ],
-        
+
         outer: [
             /** @param {Graphics} g */
             function (g, cell, index) {
@@ -321,9 +328,9 @@
         ]
     };
 
-    
-    
-    
+
+
+
     function decToHex(v) {
         v |= 0; // Ensure integer value
         return v < 0 ? "00" :
@@ -331,7 +338,7 @@
             v < 256 ? v.toString(16) :
             "ff";
     }
-    
+
     function hueToRgb(m1, m2, h) {
         h = h < 0 ? h + 6 : h > 6 ? h - 6 : h;
         return decToHex(255 * (
@@ -340,7 +347,7 @@
             h < 4 ? m1 + (m2 - m1) * (4 - h) :
             m1));
     }
-        
+
     /**
      * Functions for converting colors to hex-rgb representations.
      * @private
@@ -379,17 +386,17 @@
             // The corrector specifies the perceived middle lightnesses for each hue
             var correctors = [ 0.55, 0.5, 0.5, 0.46, 0.6, 0.55, 0.55 ],
                 corrector = correctors[(h * 6 + 0.5) | 0];
-            
+
             // Adjust the input lightness relative to the corrector
             l = l < 0.5 ? l * corrector * 2 : corrector + (l - 0.5) * (1 - corrector) * 2;
-            
+
             return color.hsl(h, s, l);
         }
     };
 
-    
-    
-    
+
+
+
     /**
      * Gets a set of identicon color candidates for a specified hue and config.
      */
@@ -408,20 +415,20 @@
         ];
     }
 
-    
-    
-         
+
+
+
     /**
      * Draws an identicon to a specified renderer.
      */
     function iconGenerator(renderer, hash, x, y, size, padding, config) {
         var undefined;
-        
+
         // Calculate padding
         padding = (size * (padding === undefined ? 0.08 : padding)) | 0;
         size -= padding * 2;
-        
-        // Sizes smaller than 30 px are not supported. If really needed, apply a scaling transformation 
+
+        // Sizes smaller than 30 px are not supported. If really needed, apply a scaling transformation
         // to the context before passing it to this function.
         if (size < 30) {
             throw new Error("Jdenticon cannot render identicons smaller than 30 pixels.");
@@ -429,12 +436,12 @@
         if (!/^[0-9a-f]{11,}$/i.test(hash)) {
             throw new Error("Invalid hash passed to Jdenticon.");
         }
-        
+
         var graphics = new Graphics(renderer);
-        
+
         // Calculate cell size and ensure it is an integer
         var cell = 0 | (size / 4);
-        
+
         // Since the cell size is integer based, the actual icon will be slightly smaller than specified => center icon
         x += 0 | (padding + size / 2 - cell * 2);
         y += 0 | (padding + size / 2 - cell * 2);
@@ -443,20 +450,20 @@
             var r = rotationIndex ? parseInt(hash.charAt(rotationIndex), 16) : 0,
                 shape = shapes[parseInt(hash.charAt(index), 16) % shapes.length],
                 i;
-            
+
             renderer.beginShape(availableColors[selectedColorIndexes[colorIndex]]);
-            
+
             for (i = 0; i < positions.length; i++) {
                 graphics._transform = new Transform(x + positions[i][0] * cell, y + positions[i][1] * cell, cell, r++ % 4);
                 shape(graphics, cell, i);
             }
-            
+
             renderer.endShape();
         }
 
         // AVAILABLE COLORS
         var hue = parseInt(hash.substr(-7), 16) / 0xfffffff,
-        
+
             // Available colors for this icon
             availableColors = colorTheme(hue, config),
 
@@ -492,8 +499,8 @@
         renderShape(2, shapes.center, 1, null, [[1, 1], [2, 1], [2, 2], [1, 2]]);
     };
 
-    
-    
+
+
     /**
      * Represents an SVG path element.
      * @private
@@ -526,15 +533,15 @@
         addCircle: function (point, diameter, counterClockwise) {
             var sweepFlag = counterClockwise ? 0 : 1,
                 radius = diameter / 2;
-            this.dataString += 
+            this.dataString +=
                 "M" + (point.x) + " " + (point.y + radius) +
-                "a" + radius + "," + radius + " 0 1," + sweepFlag + " " + diameter + ",0" + 
+                "a" + radius + "," + radius + " 0 1," + sweepFlag + " " + diameter + ",0" +
                 "a" + radius + "," + radius + " 0 1," + sweepFlag + " " + (-diameter) + ",0";
         }
     };
-    
-    
-    
+
+
+
     /**
      * Renderer producing SVG output.
      * @private
@@ -577,22 +584,22 @@
          * @param {boolean=} fragment If true, the container svg element is not included in the result.
          */
         toSvg: function (fragment) {
-            var svg = fragment ? '' : 
-                '<svg xmlns="http://www.w3.org/2000/svg" width="' + 
-                this._size.w + '" height="' + this._size.h + '" viewBox="0 0 ' + 
+            var svg = fragment ? '' :
+                '<svg xmlns="http://www.w3.org/2000/svg" width="' +
+                this._size.w + '" height="' + this._size.h + '" viewBox="0 0 ' +
                 this._size.w + ' ' + this._size.h + '" preserveAspectRatio="xMidYMid meet">';
-            
+
             for (var color in this._pathsByColor) {
                 svg += '<path fill="' + color + '" d="' + this._pathsByColor[color].dataString + '"/>';
             }
 
-            return fragment ? svg : 
+            return fragment ? svg :
                 svg + '</svg>';
         }
     };
-    
-    
-    
+
+
+
     /**
      * Renderer redirecting drawing commands to a canvas context.
      * @private
@@ -642,16 +649,16 @@
             ctx.closePath();
         }
     };
-    
-    
-    
-         
-    
-    
+
+
+
+
+
+
     var /** @const */
         HASH_ATTRIBUTE = "data-jdenticon-hash",
         supportsQuerySelectorAll = "document" in global && "querySelectorAll" in document;
-    
+
     /**
      * Gets the normalized current Jdenticon color configuration. Missing fields have default values.
      */
@@ -659,13 +666,13 @@
         var configObject = jdenticon["config"] || global["jdenticon_config"] || { },
             lightnessConfig = configObject["lightness"] || { },
             saturation = configObject["saturation"];
-        
+
         /**
          * Creates a lightness range.
          */
         function lightness(configName, defaultMin, defaultMax) {
             var range = lightnessConfig[configName] instanceof Array ? lightnessConfig[configName] : [defaultMin, defaultMax];
-            
+
             /**
              * Gets a lightness relative the specified value in the specified lightness range.
              */
@@ -674,14 +681,14 @@
                 return value < 0 ? 0 : value > 1 ? 1 : value;
             };
         }
-            
+
         return {
             saturation: typeof saturation == "number" ? saturation : 0.5,
             colorLightness: lightness("color", 0.4, 0.8),
             grayscaleLightness: lightness("grayscale", 0.3, 0.9)
         }
     }
-    
+
     /**
      * Updates the identicon in the specified canvas or svg elements.
      * @param {string=} hash Optional hash to be rendered. If not specified, the hash specified by the data-jdenticon-hash is used.
@@ -706,30 +713,30 @@
             // No hash specified
             return;
         }
-        
+
         var isSvg = el["tagName"].toLowerCase() == "svg",
             isCanvas = el["tagName"].toLowerCase() == "canvas";
-        
+
         // Ensure we have a supported element
         if (!isSvg && !(isCanvas && "getContext" in el)) {
             return;
         }
-        
+
         var width = Number(el.getAttribute("width")) || el.clientWidth || 0,
             height = Number(el.getAttribute("height")) || el.clientHeight || 0,
             renderer = isSvg ? new SvgRenderer(width, height) : new CanvasRenderer(el.getContext("2d"), width, height),
             size = Math.min(width, height);
-        
+
         // Draw icon
         iconGenerator(renderer, hash, 0, 0, size, padding, getCurrentConfig());
-        
+
         // SVG needs postprocessing
         if (isSvg) {
             // Parse svg to a temporary span element.
             // Simply using innerHTML does unfortunately not work on IE.
             var wrapper = document.createElement("span");
             wrapper.innerHTML = renderer.toSvg(false);
-            
+
             // Then replace the content of the target element with the parsed svg.
             while (el.firstChild) {
                 el.removeChild(el.firstChild);
@@ -738,12 +745,12 @@
             while (newNodes.length) {
                 el.appendChild(newNodes[0]);
             }
-            
+
             // Set viewBox attribute to ensure the svg scales nicely.
             el.setAttribute("viewBox", "0 0 " + width + " " + height);
         }
     }
-    
+
     /**
      * Draws an identicon to a context.
      */
@@ -751,11 +758,11 @@
         if (!ctx) {
             throw new Error("No canvas specified.");
         }
-        
+
         var renderer = new CanvasRenderer(ctx, size, size);
         iconGenerator(renderer, hash, 0, 0, size, 0, getCurrentConfig());
     }
-    
+
     /**
      * Draws an identicon to a context.
      * @param {number=} padding Optional padding in percents. Extra padding might be added to center the rendered identicon.
@@ -774,13 +781,13 @@
             update("svg[" + HASH_ATTRIBUTE + "],canvas[" + HASH_ATTRIBUTE + "]");
         }
     }
-    
+
     // Public API
     jdenticon["drawIcon"] = drawIcon;
     jdenticon["toSvg"] = toSvg;
     jdenticon["update"] = update;
     jdenticon["version"] = "1.3.2";
-    
+
     // Basic jQuery plugin
     if (jQuery) {
         jQuery["fn"]["jdenticon"] = function (hash, padding) {
@@ -790,12 +797,16 @@
             return this;
         };
     }
-    
+
     // Schedule to render all identicons on the page once it has been loaded.
     if (typeof setTimeout === "function") {
         setTimeout(jdenticon, 0);
     }
-    
+
     return jdenticon;
 
 });
+
+
+
+})();

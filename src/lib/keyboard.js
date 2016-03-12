@@ -1,4 +1,4 @@
-(function(global) {
+function init(global) {
   var nativeKeyboardEvent = ('KeyboardEvent' in global);
   if (!nativeKeyboardEvent)
     global.KeyboardEvent = function KeyboardEvent() { throw TypeError('Illegal constructor'); };
@@ -722,4 +722,8 @@
     event.locale = '';
   };
 
-} (module.exports));
+}
+
+export default function initialize() {
+  init(self);
+};

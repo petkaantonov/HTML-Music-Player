@@ -1,7 +1,18 @@
 "use strict";
-self.EventEmitter = require("lib/events");
 
+import EventEmitter from "lib/events";
 import Promise from "lib/bluebird";
+import blobPatch from "lib/blobpatch";
+import ChannelMixer from "audio/ChannelMixer";
+import sniffer from "audio/sniffer";
+import codec from "audio/codec";
+import demuxer from "audio/demuxer";
+import FileView from "lib/FileView";
+import seeker from "seeker";
+import { allocResampler, allocDecoderContext, freeResampler, freeDecoderContext } from "pool";
+import Effect from "Effect";
+import simulateTick from "lib/patchtimers";
+
 Promise.setScheduler(function(fn) {
     fn();
 });
@@ -10,24 +21,10 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
-import blobPatch from "lib/blobpatch";
+
 blobPatch();
 
-import ChannelMixer from "audio/ChannelMixer";
-import sniffer from "audio/sniffer";
-import codec from "audio/codec";
-import demuxer from "audio/demuxer";
-import FileView from "lib/FileView";
-import seeker from "seeker";
-import pool from "pool";
-import Effect from "Effect";
-import simulateTick from "lib/patchtimers";
-
-const allocResampler = pool.allocResampler;
-const allocDecoderContext = pool.allocDecoderContext;
-const freeResampler = pool.freeResampler;
-const freeDecoderContext = pool.freeDecoderContext;
-
+self.EventEmitter = EventEmitter;
 
 const channelMixer = new ChannelMixer(2);
 var hardwareSampleRate = 0;
@@ -35,6 +32,12 @@ var bufferTime = 0;
 var resamplerQuality = 0;
 
 const audioPlayerMap = Object.create(null);
+
+// Preload mp3.
+codec.getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});
+
 
 const effects = [];
 const setEffects = function(spec) {
@@ -123,12 +126,6 @@ self.onmessage = function(event) {
         });
     }
 };
-
-// Preload mp3.
-codec.getCodec("mp3").then(function() {
-    self.postMessage({type: "ready"});
-});
-
 
 function AudioPlayer(id, parent) {
     EventEmitter.call(this);

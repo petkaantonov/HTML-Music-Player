@@ -1,3 +1,5 @@
+export default var unitBezier;
+
 /*
  * Copyright (C) 2008 Apple Inc. All Rights Reserved.
  *
@@ -27,7 +29,7 @@
  * JavaScript port of Webkit implementation of CSS cubic-bezier(p1x.p1y,p2x,p2y) by http://mck.me
  * http://svn.webkit.org/repository/webkit/trunk/Source/WebCore/platform/graphics/UnitBezier.h
  */
-var unitBezier = (function() {'use strict';
+unitBezier = (function() {'use strict';
     const solveEpsilon = function(duration) {
         return (1000 / 60 / duration) / 4;
     };
@@ -117,5 +119,3 @@ var unitBezier = (function() {'use strict';
         };
     };
 })();
-
-module.exports = unitBezier;

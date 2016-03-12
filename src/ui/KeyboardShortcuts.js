@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "lib/events";
-import keyboard from "lib/keyboard";
+import initializeKeyboard from "lib/keyboard";
 import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 
@@ -76,8 +76,9 @@ KeyboardShortcutContext.prototype._deactivate = function() {
     this._active = false;
 };
 
-function KeyboardShortcuts() {
+export default function KeyboardShortcuts() {
     EventEmitter.call(this);
+    initializeKeyboard();
     this._defaultContext = new KeyboardShortcutContext();
     this._defaultContext._activate();
     this._enabled = true;
@@ -171,6 +172,4 @@ Object.defineProperty(KeyboardShortcuts.prototype, "defaultContext", {
         return this._defaultContext;
     }
 });
-
-module.exports = new KeyboardShortcuts();
 

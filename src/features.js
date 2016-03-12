@@ -1,7 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-require("lib/ua-parser");
 
 var features = module.exports;
 var input = document.createElement("input");

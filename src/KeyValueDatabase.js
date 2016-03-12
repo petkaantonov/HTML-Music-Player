@@ -12,7 +12,7 @@ const READ_ONLY = "readonly";
 
 const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
-function KeyValueDatabase() {
+export default function KeyValueDatabase() {
     var request = indexedDB.open(NAME, VERSION);
     this.db = IDBPromisify(request);
     this.db.suppressUnhandledRejections();
@@ -106,9 +106,3 @@ KeyValueDatabase.prototype.getAll = function(_tries) {
         });
     });
 };
-
-try {
-    module.exports = new KeyValueDatabase();
-} catch (e) {
-    module.exports = null;
-}

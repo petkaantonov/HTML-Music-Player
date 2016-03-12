@@ -1,3 +1,14 @@
+export var SortedSet;
+export var SortedMap;
+
+(function () {
+var module = {
+    set exports (value) {
+        SortedSet = value.SortedSet;
+        SortedMap = value.SortedMap;
+    }
+};
+
 /**
  * @preserve Copyright (c) 2012 Petka Antonov
  *
@@ -2067,9 +2078,6 @@ var DS = {
     }
 };
 
-
-
-
 if( typeof module !== "undefined" && module.exports ) {
     module.exports = DS;
 }
@@ -2082,3 +2090,4 @@ else if ( global ) {
 })( ( function(){}.constructor( "return this" )() ) );
 
 
+})();

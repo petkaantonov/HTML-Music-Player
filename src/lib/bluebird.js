@@ -1,3 +1,11 @@
+export default var Promise;
+(function () {
+var module = {
+    set exports (value) {
+        Promise = value;
+    }
+};
+
 /* @preserve
  * The MIT License (MIT)
  *
@@ -5406,3 +5414,6 @@ module.exports = ret;
 
 },{"./es5":13}]},{},[4])(4)
 });                    ;if (typeof window !== 'undefined' && window !== null) {                               window.P = window.Promise;                                                     } else if (typeof self !== 'undefined' && self !== null) {                             self.P = self.Promise;                                                         }
+
+
+})();

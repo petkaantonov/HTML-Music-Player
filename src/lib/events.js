@@ -1,12 +1,9 @@
 'use strict';
-
-var internalUtil;
 var domain;
 
-function EventEmitter() {
+export default function EventEmitter() {
   EventEmitter.init.call(this);
-}
-module.exports = EventEmitter;
+};
 
 // Backwards-compat with node 0.10.x
 EventEmitter.EventEmitter = EventEmitter;
@@ -36,13 +33,6 @@ Object.defineProperty(EventEmitter, 'defaultMaxListeners', {
 
 EventEmitter.init = function() {
   this.domain = null;
-  if (EventEmitter.usingDomains) {
-    // if there is an active domain, then attach to it.
-    domain = domain || require('domain');
-    if (domain.active && !(this instanceof domain.Domain)) {
-      this.domain = domain.active;
-    }
-  }
 
   if (!this._events || this._events === Object.getPrototypeOf(this)._events) {
     this._events = {};

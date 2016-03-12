@@ -1,18 +1,9 @@
 "use strict";
-var desc = {value: function() {return ""}, writable: false, configurable: false};
-try {
-    Object.defineProperties(window, {
-        alert: desc,
-        prompt: desc,
-        confirm: desc
-    });
-} catch (e) {}
-
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-require("BluebirdConfig");
-require("lib/jquery.fileinput");
-require("lib/jquery.reflow");
+import initializeFileinput from "lib/jquery.fileinput";
+import initializeReflow from "lib/jquery.reflow";
+import initializeUaparser from "lib/ua-parser";
 import { isTextInputNode, offCapture, onCapture, throttle } from "lib/util";
 import serviceWorkerManager from "ServiceWorkerManager";
 import TrackDisplay from "ui/TrackDisplay";
@@ -35,7 +26,28 @@ import TrackRating from "TrackRating";
 import Track from "Track";
 import OpenableSubmenu from "ui/OpenableSubmenu";
 import KeyboardShortcuts from "ui/KeyboardShortcuts";
-import mainTabs from "main_tabs";
+import { initialize as initializeMainTabs, playlist, search, queue, tabs } from "main_tabs";
+import { allowExtensions, allowMimes, directories, requiredFeatures } from "features";
+import KeyValueDatabase from "KeyValueDatabase";
+
+initializeFileinput();
+initializeUaparser();
+initializeReflow();
+
+Promise.config({
+    warnings: false,
+    longStackTraces: false,
+    cancellation: true
+});
+
+var desc = {value: function() {return ""}, writable: false, configurable: false};
+try {
+    Object.defineProperties(window, {
+        alert: desc,
+        prompt: desc,
+        confirm: desc
+    });
+} catch (e) {}
 
 window.__PROJECT__TITLE = "Soita";
 
@@ -56,9 +68,6 @@ window.onerror = function(a, b, c, d, e) {
         }
     }
 };
-
-import { allowExtensions, allowMimes, directories, requiredFeatures } from "features";
-import keyValueDatabase from "KeyValueDatabase";
 
 var requiredFeaturesChecked = Promise.map(Object.keys(requiredFeatures), function(description) {
     var checker = requiredFeatures[description][0];

@@ -124,6 +124,18 @@ TabController.prototype.$indicator = function() {
     return this._indicatorNode;
 };
 
+TabController.prototype.$containers = function() {
+    return $(this._tabs.map(function(v) {
+        return v.$content()[0];
+    }));
+};
+
+TabController.prototype.$tabs = function() {
+    return $(this._tabs.map(function(v) {
+        return v.$()[0];
+    }));
+};
+
 TabController.prototype._dragStart = function(gesture) {
     this._dragAnchorStart = gesture.clientX;
     this._dragStartTime = gesture.timeStamp;

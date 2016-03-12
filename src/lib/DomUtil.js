@@ -1,10 +1,11 @@
 "use strict";
 
-import jsUtil from "lib/util";
+import { onCapture } from "lib/util";
 import Promise from "lib/bluebird";
 import base64 from "lib/base64";
 import $ from "lib/jquery";
 import { touch as touch } from "features";
+
 const TOUCH_START = "touchstart";
 const TOUCH_END = "touchend";
 const TOUCH_MOVE = "touchmove";
@@ -19,12 +20,12 @@ const TAP_MAX_MOVEMENT = 24;
 const PINCER_MINIMUM_MOVEMENT = 24;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
 
-var util = {};
-TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
-TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
-setFilter = (function() {
-    var div = document.createElement("div");
+export const TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
+export const TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
+
+export const setFilter = (function() {
+   var div = document.createElement("div");
 
     if ("webkitFilter" in (document.createElement("div").style)) {
         return function(elem, value) {
@@ -55,7 +56,7 @@ setFilter = (function() {
     };
 })();
 
-getFilter = (function() {
+export const getFilter = (function() {
     var div = document.createElement("div");
 
     if ("webkitFilter" in (document.createElement("div").style)) {
@@ -75,7 +76,7 @@ getFilter = (function() {
     };
 })();
 
-setTransform = (function() {
+export const setTransform = (function() {
     var div = document.createElement("div");
     if ("transform" in (document.createElement("div").style)) {
         return function(elem, value) {
@@ -105,7 +106,7 @@ setTransform = (function() {
     };
 })();
 
-getTransform = (function() {
+export const getTransform = (function() {
     var div = document.createElement("div");
     if ("transform" in (document.createElement("div").style)) {
         return function(elem) {
@@ -123,7 +124,7 @@ getTransform = (function() {
     };
 })();
 
-originProperty = (function() {
+const originProperty = (function() {
     var div = document.createElement("div");
     var candidates = "webkitTransformOrigin mozTransformOrigin oTransformOrigin msTransformOrigin MSTransformOrigin transformOrigin".split(" ").filter(function(v) {
         return (v in div.style);
@@ -234,7 +235,7 @@ SingleTapTimeout.prototype.remove = function() {
 
 if (touch) {
     var rinput = /^(?:input|select|textarea|option|button|label)$/i;
-    jsUtil.onCapture(document, TOUCH_EVENTS_NO_MOVE, function(e) {
+    onCapture(document, TOUCH_EVENTS_NO_MOVE, function(e) {
         if (e.cancelable) {
             var node = e.target;
             var activeElement = document.activeElement;
@@ -258,7 +259,7 @@ if (touch) {
         }
     });
 
-    jsUtil.onCapture(document, TOUCH_EVENTS, function(e) {
+    onCapture(document, TOUCH_EVENTS, function(e) {
         var changedTouches = e.changedTouches;
         documentActives.update(e, changedTouches);
 
@@ -295,7 +296,7 @@ if (touch) {
         }
     });
 
-    jsUtil.onCapture(document, [
+    onCapture(document, [
         "gesturestart",
         "gesturechange",
         "gestureend",
@@ -312,7 +313,7 @@ if (touch) {
     });
 }
 
-canvasToImage = function(canvas) {
+export const canvasToImage = function(canvas) {
     return new Promise(function(resolve) {
         var data = canvas.toDataURL("image/png").split("base64,")[1];
         resolve(new Blob([base64.toByteArray(data)], {type: "image/png"}));
@@ -369,7 +370,7 @@ GestureObject.prototype.stopImmediatePropagation = function(){
     return this.originalEvent.stopImmediatePropagation();
 };
 
-touchDownHandler =  function(fn) {
+export const touchDownHandler =  function(fn) {
     var actives = new ActiveTouchList();
 
     return function(e) {
@@ -386,7 +387,7 @@ touchDownHandler =  function(fn) {
     };
 };
 
-targetHoverHandler = function(fnStart, fnEnd) {
+export const targetHoverHandler = function(fnStart, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var bounds = null;
@@ -432,7 +433,7 @@ targetHoverHandler = function(fnStart, fnEnd) {
     };
 };
 
-hoverHandler = function(fnStart, fnEnd) {
+export const hoverHandler = function(fnStart, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
 
@@ -484,7 +485,7 @@ hoverHandler = function(fnStart, fnEnd) {
     };
 };
 
-tapHandler = function(fn) {
+export const tapHandler = function(fn) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var started = -1;
@@ -530,7 +531,7 @@ tapHandler = function(fn) {
     };
 };
 
-twoFingerTapHandler = function(fn) {
+export const twoFingerTapHandler = function(fn) {
     var actives = new ActiveTouchList();
     var currentATouch = null;
     var currentBTouch = null;
@@ -633,7 +634,7 @@ twoFingerTapHandler = function(fn) {
     };
 };
 
-modifierTapHandler = function(fn) {
+export const modifierTapHandler = function(fn) {
     var currentTouch = null;
     var started = -1;
 
@@ -698,7 +699,7 @@ modifierTapHandler = function(fn) {
     };
 };
 
-modifierDragHandler = function(fnMove, fnEnd) {
+export const modifierDragHandler = function(fnMove, fnEnd) {
     var currentTouch = null;
 
     function end(self, e, touch) {
@@ -751,7 +752,7 @@ modifierDragHandler = function(fnMove, fnEnd) {
     };
 };
 
-modifierTouchDownHandler = function(fn) {
+export const modifierTouchDownHandler = function(fn) {
     return function(e) {
         if (!haveModifierTouch() || documentActives.length() > 2) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
@@ -770,7 +771,7 @@ modifierTouchDownHandler = function(fn) {
 };
 
 
-dragHandler = function(fnMove, fnEnd) {
+export const dragHandler = function(fnMove, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
 
@@ -889,15 +890,15 @@ const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
 };
 
 
-verticalDragHandler = function(fnStart, fnMove, fnEnd) {
+export const verticalDragHandler = function(fnStart, fnMove, fnEnd) {
     return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, VERTICAL);
 };
 
-horizontalDragHandler = function(fnStart, fnMove, fnEnd) {
+export const horizontalDragHandler = function(fnStart, fnMove, fnEnd) {
     return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, HORIZONTAL);
 };
 
-verticalPincerSelectionHandler = function(fn) {
+export const verticalPincerSelectionHandler = function(fn) {
     var started = -1;
     var currentATouch = null;
     var currentBTouch = null;
@@ -985,7 +986,7 @@ verticalPincerSelectionHandler = function(fn) {
     };
 };
 
-horizontalSwipeHandler = function(fn, direction) {
+export const horizontalSwipeHandler = function(fn, direction) {
     var startX = -1;
     var lastX = -1;
     var previousTime = -1;
@@ -1029,7 +1030,7 @@ horizontalSwipeHandler = function(fn, direction) {
     });
 };
 
-horizontalTwoFingerSwipeHandler = function(fn, direction) {
+export const horizontalTwoFingerSwipeHandler = function(fn, direction) {
     var actives = new ActiveTouchList();
     var currentATouch = null;
     var currentBTouch = null;
@@ -1153,7 +1154,7 @@ horizontalTwoFingerSwipeHandler = function(fn, direction) {
     };
 };
 
-longTapHandler = function(fn, noTrigger) {
+export const longTapHandler = function(fn, noTrigger) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var timeoutId = -1;
@@ -1216,7 +1217,7 @@ longTapHandler = function(fn, noTrigger) {
     };
 };
 
-doubleTapHandler = function(fn) {
+export const doubleTapHandler = function(fn) {
     var lastTap = -1;
     var lastTouch;
     return tapHandler(function(e) {
@@ -1243,7 +1244,7 @@ doubleTapHandler = function(fn) {
     });
 };
 
-bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
+export const bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     if (!shouldScroll) shouldScroll = function() {return true; };
     var touchEventNames = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
@@ -1289,11 +1290,11 @@ bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     }));
 };
 
-unbindScrollerEvents = function(target, scrollbar, scroller) {
+export const unbindScrollerEvents = function(target, scrollbar, scroller) {
     target.off(".scrollerns");
 };
 
-mouseWheelScrollHandler = function(fn) {
+export const mouseWheelScrollHandler = function(fn) {
     return function(e) {
         if (e.originalEvent) e = e.originalEvent;
         e.preventDefault();
@@ -1324,7 +1325,7 @@ var rafCallback = function(now) {
     rafCallbacks.length = 0;
 };
 
-changeDom = function(callback) {
+export const changeDom = function(callback) {
     if (typeof callback !== "function") throw new Error("callback must be a function");
     for (var i = 0; i < rafCallbacks.length; ++i) {
         if (rafCallbacks[i] === callback) return;
@@ -1338,18 +1339,16 @@ changeDom = function(callback) {
 const rTextarea = /^textarea$/i;
 const rInput = /^input$/i;
 const rKeyboard = /^(?:date|datetime|color|datetime-local|email|month|number|password|search|tel|text|time|url|week)$/i;
-isTextInputElement = function(elem) {
+export const isTextInputElement = function(elem) {
     return (rInput.test(elem.nodeName) && rKeyboard.test(elem.type)) ||
         rTextarea.test(elem.nodeName);
 };
 
 var rtouchevent = /^touch/;
-isTouchEvent = function(e) {
+export const isTouchEvent = function(e) {
     return rtouchevent.test(e.type);
 };
 
-preventDefault = function(e) {
+export const preventDefault = function(e) {
     e.preventDefault();
 };
-
-module.exports = util;

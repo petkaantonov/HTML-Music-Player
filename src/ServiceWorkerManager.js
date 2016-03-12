@@ -6,9 +6,9 @@ import Promise from "lib/bluebird";
 import { snackbar } from "ui/GlobalUi";
 import Snackbar from "ui/Snackbar";
 import EventEmitter from "lib/events";
-const UPDATE_INTERVAL = 15 * 60 * 1000;
-import env from "env";
+import { isMobile } from "env";
 
+const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
 
 function ServiceWorkerManager() {
@@ -221,7 +221,7 @@ ServiceWorkerManager.prototype.showNotification = function(title, options) {
 
     return this._registration.then(function(reg) {
         var preReq = Promise.resolve();
-        if (env.isMobile()) {
+        if (isMobile()) {
             preReq = Promise.resolve(reg.getNotifications()).then(function(notifications) {
                 notifications.forEach(function(notification) {
                     try { notification.close(); } catch (e) {}

@@ -1,5 +1,4 @@
 import $ from "lib/jquery";
-require("lib/ua-parser");
 
 const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
 var ua = $.ua;
@@ -13,10 +12,10 @@ if (ua.device && ua.device.type) {
     isDesktop = desktopOs.test(ua.os.name);
 }
 
-exports.isDesktop = function() {
+export function isDesktop() {
     return isDesktop;
 };
 
-exports.isMobile = function() {
+export function isMobile() {
     return !isDesktop;
 };

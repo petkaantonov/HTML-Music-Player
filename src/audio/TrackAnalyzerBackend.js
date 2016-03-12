@@ -1,26 +1,8 @@
 "use strict";
-self.EventEmitter = require("lib/events");
-require("lib/text_codec");
-
-// Utilize 20% of one core.
-const MAX_CPU_UTILIZATION = 0.2;
-
-const getDowntime = function(cpuUsedTime) {
-    return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;
-};
-
+import initTextCodec from "lib/text_codec";
 import simulateTick from "lib/patchtimers";
 import Promise from "lib/bluebird";
-Promise.setScheduler(function(fn) { fn(); });
-Promise.config({
-    cancellation: false,
-    warnings: false,
-    longStackTraces: false
-});
 import blobPatch from "lib/blobpatch";
-blobPatch();
-
-
 import { assign } from "lib/util";
 import tagDatabase from "TagDatabase";
 import MetadataParser from "audio/MetadataParser";
@@ -33,6 +15,31 @@ import sniffer from "audio/sniffer";
 import pool from "pool";
 import AcoustId from "audio/AcoustId";
 import Ebur128 from "audio/ebur128";
+import EventEmitter from "lib/events";
+
+initTextCodec(self);
+self.EventEmitter = EventEmitter;
+
+
+// Utilize 20% of one core.
+const MAX_CPU_UTILIZATION = 0.2;
+
+const getDowntime = function(cpuUsedTime) {
+    return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;
+};
+
+
+Promise.setScheduler(function(fn) { fn(); });
+Promise.config({
+    cancellation: false,
+    warnings: false,
+    longStackTraces: false
+});
+
+blobPatch();
+
+
+
 
 const allocBuffer = pool.allocBuffer;
 const freeBuffer = pool.freeBuffer;

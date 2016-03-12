@@ -2,21 +2,21 @@
 
 import Promise from "lib/bluebird";
 import blobPatch from "lib/blobpatch";
-blobPatch();
 import { readAsArrayBuffer } from "lib/util";
 
+blobPatch();
 function isRetryable(e) {
     return e && e.name === "NotReadableError";
 }
 
-function FileView(file) {
+export default function FileView(file) {
     this.file = file;
     this.dataview = null;
     this.buffer = null;
     this.start = -1;
     this.end = -1;
     this._readInProgress = false;
-}
+};
 
 FileView.prototype.toBufferOffset = function(fileOffset) {
     return fileOffset - this.start;

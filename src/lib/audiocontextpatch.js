@@ -2,7 +2,7 @@
 
 import Promise from "lib/bluebird";
 
-function patch(AudioContext, instance) {
+export default function patch(AudioContext, instance) {
     if (!instance.suspend) {
         instance.constructor.prototype.suspend = function() {
             return Promise.resolve();
@@ -176,5 +176,3 @@ function patch(AudioContext, instance) {
         });
     })();
 }
-
-module.exports = patch;

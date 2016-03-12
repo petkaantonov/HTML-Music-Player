@@ -12,7 +12,7 @@ const READ_ONLY = "readonly";
 
 const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
-function TagDatabase() {
+export function TagDatabase() {
     var request = indexedDB.open(NAME, VERSION);
     this.db = IDBPromisify(request);
     this.db.suppressUnhandledRejections();
@@ -97,14 +97,3 @@ const fieldUpdater = function(fieldName) {
 TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
-
-
-self.removeTrackInfo = function(trackUid) {
-    return ret.db.then(function(db) {
-        var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
-        store.delete(trackUid);
-    });
-};
-
-var ret = new TagDatabase();
-module.exports = ret;

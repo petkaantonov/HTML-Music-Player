@@ -15,8 +15,9 @@ import { inherits, throttle } from "lib/util";
 import EventEmitter from "lib/events";
 import ChannelMixer from "audio/ChannelMixer";
 import patchAudioContext from "lib/audiocontextpatch";
-import env from "env";
+import { isMobile } from "env";
 import simulateTick from "lib/patchtimers";
+
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
@@ -250,7 +251,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
 const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
-    return env.isMobile() ? LOWEST : DESKTOP;
+    return isMobile() ? LOWEST : DESKTOP;
 };
 
 AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
