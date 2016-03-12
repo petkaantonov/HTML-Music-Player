@@ -22,6 +22,8 @@ import PopupMaker from "ui/PopupMaker";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
+import Playlist from "Playlist";
+import Search from "Search";
 import ApplicationPreferences from "ApplicationPreferences";
 import EffectPreferences from "EffectPreferences";
 import CrossfadingPreferences from "CrossfadingPreferences";
@@ -31,6 +33,9 @@ import initializeReflow from "lib/jquery.reflow";
 import initializeUaparser from "lib/ua-parser";
 import { onCapture, offCapture } from "lib/util";
 import { isTextInputElement } from "lib/DomUtil";
+
+const ITEM_HEIGHT = 44;
+const TAB_HEIGHT = 32;
 
 export default function Application(env, db, dbValues, defaultTitle) {
     dbValues = Object(dbValues);
@@ -119,36 +124,54 @@ export default function Application(env, db, dbValues, defaultTitle) {
         preferencesButton: ".menul-crossfade"
     });
 
-    this.mainTabs = new MainTabs({
-        keyboardShortcuts: this.keyboardShortcuts,
-        playlistContainer: "#app-playlist-container",
-        searchContainer: ".search-list-container",
-        queueContainer: ".queue-list-container",
-        tabHolder: "#app-content-holder",
-        playlistTab: ".playlist-tab",
-        searchTab: ".search-tab",
-        queueTab: ".queue-tab",
-        activeTabIndicator: ".active-tab-indicator",
-        snackbar: this.snackbar,
-        env: this.env,
-        dbValues: this.dbValues,
-        db: this.db,
-        gestureEducator: this.gestureEducator,
-        rippler: this.rippler,
+    this.playlist = new Playlist("#app-playlist-container", {
+        itemHeight: ITEM_HEIGHT,
+        db: opts.db,
+        dbValues: opts.dbValues,
+        env: opts.env,
+        rippler: opts.rippler,
+        snackbar: opts.snackbar,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences
     });
 
-    this.playlist = this.mainTabs.playlist;
-    this.search = this.mainTabs.search;
-    this.queue = this.mainTabs.queue;
-
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
         src: window.DEBUGGING
             ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js"
     });
-    this.search.setTrackAnalyzer(this.trackAnalyzer);
+
+    this.search = new Search(".search-list-container", {
+        playlist: this.playlist,
+        itemHeight: ITEM_HEIGHT,
+        db: opts.db,
+        dbValues: opts.dbValues,
+        env: opts.env,
+        rippler: opts.rippler,
+        snackbar: opts.snackbar,
+        crossfadingPreferences: this.crossfadingPreferences,
+        effectPreferences: this.effectPreferences,
+        applicationPreferences: this.applicationPreferences,
+        trackAnalyzer: this.trackAnalyzer
+    });
+
+    this.queue = null;
+
+    this.mainTabs = new MainTabs({
+        keyboardShortcuts: this.keyboardShortcuts,
+        playlist: this.playlist,
+        search: this.search,
+        queue: this.queue,
+        itemHeight: ITEM_HEIGHT,
+        tabHeight: TAB_HEIGHT,
+        tabHolder: "#app-content-holder",
+        playlistTab: ".playlist-tab",
+        searchTab: ".search-tab",
+        queueTab: ".queue-tab",
+        activeTabIndicator: ".active-tab-indicator",
+        env: this.env,
+        rippler: this.rippler
+    });
 
     this.localFileHandler = new LocalFileHandler({
         env: this.env,

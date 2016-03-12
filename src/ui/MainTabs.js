@@ -1,16 +1,12 @@
 "use strict";
 
-import KeyboardShortcuts from "ui/KeyboardShortcuts";
-import Playlist from "Playlist";
-import Search from "Search";
 import $ from "lib/jquery";
 import TabController from "ui/TabController";
 import { ContextMenu } from "ui/ActionMenu";
 import { contextMenuItem } from "ui/GlobalUi";
 import TrackRating from "TrackRating";
 
-const ITEM_HEIGHT = 44;
-const TAB_HEIGHT = 32;
+
 
 const PLAYLIST_TAB_ID = "playlist";
 const SEARCH_TAB_ID = "search";
@@ -43,27 +39,15 @@ const moreThan1Selected = function(selectedCount, totalCount) {
 export default function MainTabs(opts) {
     opts = Object(opts);
     this.opts = opts;
+    this.env = opts.env;
+    this.itemHeight = opts.itemHeight;
+    this.tabHeight = opts.tabHeight;
     this.keyboardShortcuts = opts.keyboardShortcuts;
     this.playlistTrackRating = new TrackRating();
     this.searchTrackRating = new TrackRating();
-    this.playlist = new Playlist(opts.playlistContainer, {
-        itemHeight: ITEM_HEIGHT,
-        db: opts.db,
-        dbValues: opts.dbValues,
-        env: opts.env,
-        rippler: opts.rippler,
-        snackbar: opts.snackbar
-    });
-    this.search = new Search(opts.searchContainer, {
-        playlist: this.playlist,
-        itemHeight: ITEM_HEIGHT,
-        db: opts.db,
-        dbValues: opts.dbValues,
-        env: opts.env,
-        rippler: opts.rippler,
-        snackbar: opts.snackbar
-    });
-    this.queue = null;
+    this.playlist = opts.playlist;
+    this.search = opts.search;
+    this.queue = opts.queue;
     this.contentInstancesByTabId = Object.create(null);
     this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;
     this.contentInstancesByTabId[SEARCH_TAB_ID] = this.search;
@@ -71,17 +55,19 @@ export default function MainTabs(opts) {
     this.tabController = new TabController(opts.tabHolder, [{
         id: PLAYLIST_TAB_ID,
         tab: opts.playlistTab,
-        content: opts.playlistContainer
+        content: this.playlist.$()
     }, {
         id: SEARCH_TAB_ID,
         tab: opts.searchTab,
-        content: opts.searchContainer
+        content: this.search.$()
     }, {
         id: QUEUE_TAB_ID,
         tab: opts.queueTab,
-        content: opts.queueContainer
+        content: ".queue-list-container"
     }], {
-        indicator: opts.activeTabIndicator
+        indicator: opts.activeTabIndicator,
+        env: this.env,
+        rippler: opts.rippler
     });
 
     this.tabController.on("tabWillDeactivate", this.tabEventHandler("tabWillHide"));
@@ -281,15 +267,15 @@ MainTabs.prototype.layoutChanged = function() {
     var USED_HEIGHT = rect.top;
 
     var height = $(window).height() - USED_HEIGHT;
-    height = Math.max(height - ITEM_HEIGHT / 2, ITEM_HEIGHT + ITEM_HEIGHT / 2);
-    var remainder = height % ITEM_HEIGHT;
+    height = Math.max(height - this.itemHeight / 2, this.itemHeight + this.itemHeight / 2);
+    var remainder = height % this.itemHeight;
 
     if (remainder !== 0) {
         height -= remainder;
     }
 
     elems.css("height", height);
-    $(this.opts.tabHolder).height(height + TAB_HEIGHT);
+    $(this.opts.tabHolder).height(height + this.tabHeight);
 };
 
 MainTabs.prototype.updatePlaylistContextMenuEnabledStates = function() {

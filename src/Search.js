@@ -112,7 +112,7 @@ export default function Search(domNode, opts) {
     this.env = opts.env;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
-
+    this._trackAnalyzer = opts.trackAnalyzer;
     this._domNode = $($(domNode)[0]);
     this._trackContainer = this.$().find(".tracklist-transform-container");
     this._inputNode = this.$().find(".search-input-box");
@@ -255,10 +255,6 @@ const saveHistory = throttle(function(historyEntries) {
 
 Search.prototype.changeTrackExplicitly = function(track) {
     this._playlist.changeTrackExplicitly(track);
-};
-
-Search.prototype.setTrackAnalyzer = function(trackAnalyzer) {
-    this._trackAnalyzer = trackAnalyzer;
 };
 
 Search.prototype._focusInput = function() {

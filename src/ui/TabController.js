@@ -15,7 +15,7 @@ function Tab(spec, controller, index, opts) {
     this._clicked = this._clicked.bind(this);
     this._contentRect = this.$content()[0].getBoundingClientRect();
     this.$().on("click", this._clicked);
-    if (touch) {
+    if (controller.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS, tapHandler(this._clicked));
     }
 
@@ -33,7 +33,7 @@ Tab.prototype.$content = function() {
 };
 
 Tab.prototype._clicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this._controller.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.emit("click", this);
 };
 
@@ -82,6 +82,8 @@ Tab.prototype.deactivate = function() {
 export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.env = opts.env;
+    this.rippler = opts.rippler;
     this._domNode = $($(domNode)[0]);
     this._tabClicked = this._tabClicked.bind(this);
 
@@ -106,7 +108,7 @@ export default function TabController(domNode, specs, opts) {
     this._dragAnchorEnd = -1;
     this._activeTabRect = null;
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS, horizontalDragHandler(this._dragStart,
                                                                         this._dragMove,
                                                                         this._dragEnd));
