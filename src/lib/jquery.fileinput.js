@@ -1,7 +1,6 @@
 import $ from "lib/jquery";
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
-const GlobalUi = require("ui/GlobalUi");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 
 function clicked(e) {
@@ -18,7 +17,7 @@ function mousedowned(e) {
     e.preventDefault();
 }
 
-const clickedTouch = domUtil.tapHandler(clicked);
+const clickedTouch = tapHandler(clicked);
 
 function createInput(atts) {
     var input = document.createElement("input");
@@ -49,7 +48,7 @@ $.fn.fileInput = function(action, atts) {
 
             $(this).on("mousedown", mousedowned);
             $(this).on("click", clicked);
-            if (touch) $(this).on(domUtil.TOUCH_EVENTS, clickedTouch)
+            if (touch) $(this).on(TOUCH_EVENTS, clickedTouch)
         } else if (action === "delete") {
             if (!$(this).data("file_input")) {
                 return;
@@ -59,7 +58,7 @@ $.fn.fileInput = function(action, atts) {
             $(this).data("file_input_atts", null);
             $(this).off("click", clicked);
             $(this).off("mousedown", mousedowned);
-            if (touch) $(this).off(domUtil.TOUCH_EVENTS, clickedTouch)
+            if (touch) $(this).off(TOUCH_EVENTS, clickedTouch)
             $(input).remove();
         } else if (action === "clearFiles") {
             if (!$(this).data("file_input")) {

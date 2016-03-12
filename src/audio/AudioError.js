@@ -1,7 +1,7 @@
 "use strict";
-const util = require("lib/util");
+import { subClassError } from "lib/util";
 
-var AudioError = util.subClassError("AudioError", function(code) {
+var AudioError = subClassError("AudioError", function(code) {
     this.code = code;
     var audioCodeString;
     switch (code) {

@@ -5,8 +5,8 @@ const Playlist = require("Playlist");
 const Search = require("Search");
 import $ from "lib/jquery";
 const TabController = require("ui/TabController");
-const ActionMenu = require("ui/ActionMenu");
-const GlobalUi = require("ui/GlobalUi");
+import { ContextMenu } from "ui/ActionMenu";
+import { contextMenuItem } from "ui/GlobalUi";
 const TrackRating = require("TrackRating");
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -173,13 +173,13 @@ const playlistActionSpec = {
     menu: [{
         id: "play",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
+        content: contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
         onClick: playlistActions.play,
         enabledPredicate: moreThan0Selected
     }, {
         id: "delete",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Delete", "material-icons small-material-icon delete"),
+        content: contextMenuItem("Delete", "material-icons small-material-icon delete"),
         onClick: playlistActions.delete,
         enabledPredicate: moreThan0Selected
     }, {
@@ -187,64 +187,64 @@ const playlistActionSpec = {
     }, {
         id: "clear-selection",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
+        content: contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
         onClick: playlistActions.selectNone,
         enabledPredicate: moreThan0Selected
     }, {
         id: "select-all",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon select_all"),
+        content: contextMenuItem("Select all", "material-icons small-material-icon select_all"),
         onClick: playlistActions.selectAll,
         enabledPredicate: lessThanAllSelected
     }, {
         id: "sort",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
+        content: contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
         enabledPredicate: moreThan1Selected,
         children: [{
             id: "sort-by-album",
-            content: GlobalUi.contextMenuItem("Album", "material-icons small-material-icon album"),
+            content: contextMenuItem("Album", "material-icons small-material-icon album"),
             onClick: playlistActions.sortByAlbum,
             enabledPredicate: moreThan1Selected
         }, {
             id: "sort-by-artist",
-            content: GlobalUi.contextMenuItem("Artist", "material-icons small-material-icon mic"),
+            content: contextMenuItem("Artist", "material-icons small-material-icon mic"),
             onClick: playlistActions.sortByArtist,
             enabledPredicate: moreThan1Selected
 
         }, {
             id: "sort-by-album-artist",
-            content: GlobalUi.contextMenuItem("Album artist", "material-icons small-material-icon perm_camera_mic"),
+            content: contextMenuItem("Album artist", "material-icons small-material-icon perm_camera_mic"),
             onClick: playlistActions.sortByAlbumArtist,
             enabledPredicate: moreThan1Selected
 
         }, {
             id: "sort-by-title",
-            content: GlobalUi.contextMenuItem("Title", "material-icons small-material-icon music_note"),
+            content: contextMenuItem("Title", "material-icons small-material-icon music_note"),
             onClick: playlistActions.sortByAlbum,
             enabledPredicate: moreThan1Selected
 
         }, {
             id: "sort-by-rating",
-            content: GlobalUi.contextMenuItem("Rating", "material-icons small-material-icon grade"),
+            content: contextMenuItem("Rating", "material-icons small-material-icon grade"),
             onClick: playlistActions.sortByRating,
             enabledPredicate: moreThan1Selected
 
         }, {
             id: "sort-by-duration",
-            content: GlobalUi.contextMenuItem("Duration", "material-icons small-material-icon access_time"),
+            content: contextMenuItem("Duration", "material-icons small-material-icon access_time"),
             onClick: playlistActions.sortByDuration,
             enabledPredicate: moreThan1Selected
         }, {
             divider: true
         }, {
             id: "sort-by-shuffling",
-            content: GlobalUi.contextMenuItem("Shuffle", "material-icons small-material-icon shuffle"),
+            content: contextMenuItem("Shuffle", "material-icons small-material-icon shuffle"),
             onClick: playlistActions.sortByShuffling,
             enabledPredicate: moreThan1Selected
         }, {
             id: "sort-by-reverse-order",
-            content: GlobalUi.contextMenuItem("Reverse order", "material-icons small-material-icon undo"),
+            content: contextMenuItem("Reverse order", "material-icons small-material-icon undo"),
             onClick: playlistActions.sortByReverseOrder,
             enabledPredicate: moreThan1Selected
         }]
@@ -281,7 +281,7 @@ const searchActionSpec = {
     menu: [{
         id: "play",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
+        content: contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
         onClick: searchActions.play,
         enabledPredicate: moreThan0Selected
     }, {
@@ -289,13 +289,13 @@ const searchActionSpec = {
     }, {
         id: "clear-selection",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
+        content: contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
         onClick: searchActions.selectNone,
         enabledPredicate: moreThan0Selected
     }, {
         id: "select-all",
         disabled: true,
-        content: GlobalUi.contextMenuItem("Select all", "material-icons small-material-icon select_all"),
+        content: contextMenuItem("Select all", "material-icons small-material-icon select_all"),
         onClick: searchActions.selectAll,
         enabledPredicate: lessThanAllSelected
     }, {
@@ -313,7 +313,7 @@ const searchActionSpec = {
     }]
 };
 
-const playlistContextMenu = new ActionMenu.ContextMenu(playlist.$(), playlistActionSpec);
+const playlistContextMenu = new ContextMenu(playlist.$(), playlistActionSpec);
 
 const updatePlaylistContextMenuEnabledStates = function() {
     var selectedCount = playlist.getSelectedItemViewCount();
@@ -336,7 +336,7 @@ playlistContextMenu.on("beforeOpen", function(e) {
 playlist.on("tracksSelected", updatePlaylistContextMenuEnabledStates);
 playlist.on("lengthChange", updatePlaylistContextMenuEnabledStates);
 
-const searchContextMenu = new ActionMenu.ContextMenu(search.$(), searchActionSpec);
+const searchContextMenu = new ContextMenu(search.$(), searchActionSpec);
 
 const updateSearchContextMenuEnabledStates = function() {
     var selectedCount = search.getSelectedItemViewCount();

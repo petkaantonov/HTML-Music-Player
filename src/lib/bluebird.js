@@ -75,7 +75,7 @@ Async.prototype.enableTrampoline = function() {
 };
 
 Async.prototype.disableTrampolineIfNecessary = function() {
-    if (util.hasDevTools) {
+    if (hasDevTools) {
         this._trampolineEnabled = false;
     }
 };
@@ -127,7 +127,7 @@ function AsyncSettlePromises(promise) {
     this._queueTick();
 }
 
-if (!util.hasDevTools) {
+if (!hasDevTools) {
     Async.prototype.invokeLater = AsyncInvokeLater;
     Async.prototype.invoke = AsyncInvoke;
     Async.prototype.settlePromises = AsyncSettlePromises;
@@ -297,8 +297,8 @@ if (cr) {
 
 module.exports = function(Promise) {
 var util = _dereq_("./util");
-var canEvaluate = util.canEvaluate;
-var isIdentifier = util.isIdentifier;
+var canEvaluate = canEvaluate;
+var isIdentifier = isIdentifier;
 
 var getMethodCaller;
 var getGetter;
@@ -359,8 +359,8 @@ function ensureMethod(obj, methodName) {
     var fn;
     if (obj != null) fn = obj[methodName];
     if (typeof fn !== "function") {
-        var message = "Object " + util.classString(obj) + " has no method '" +
-            util.toString(methodName) + "'";
+        var message = "Object " + classString(obj) + " has no method '" +
+            toString(methodName) + "'";
         throw new Promise.TypeError(message);
     }
     return fn;
@@ -415,8 +415,8 @@ Promise.prototype.get = function (propertyName) {
 "use strict";
 module.exports = function(Promise, PromiseArray, apiRejection, debug) {
 var util = _dereq_("./util");
-var tryCatch = util.tryCatch;
-var errorObj = util.errorObj;
+var tryCatch = tryCatch;
+var errorObj = errorObj;
 var async = Promise._async;
 
 Promise.prototype["break"] = Promise.prototype.cancel = function() {
@@ -500,7 +500,7 @@ Promise.prototype.isCancellable = function() {
 };
 
 Promise.prototype._doInvokeOnCancel = function(onCancelCallback, internalOnly) {
-    if (util.isArray(onCancelCallback)) {
+    if (isArray(onCancelCallback)) {
         for (var i = 0; i < onCancelCallback.length; ++i) {
             this._doInvokeOnCancel(onCancelCallback[i], internalOnly);
         }
@@ -543,8 +543,8 @@ Promise.prototype._resultCancelled = function() {
 module.exports = function(NEXT_FILTER) {
 var util = _dereq_("./util");
 var getKeys = _dereq_("./es5").keys;
-var tryCatch = util.tryCatch;
-var errorObj = util.errorObj;
+var tryCatch = tryCatch;
+var errorObj = errorObj;
 
 function catchFilter(instances, cb, promise) {
     return function(e) {
@@ -564,7 +564,7 @@ function catchFilter(instances, cb, promise) {
                 } else if (matchesPredicate) {
                     return tryCatch(cb).call(boundTo, e);
                 }
-            } else if (util.isObject(e)) {
+            } else if (isObject(e)) {
                 var keys = getKeys(item);
                 for (var j = 0; j < keys.length; ++j) {
                     var key = keys[j];
@@ -660,7 +660,7 @@ var getDomain = Promise._getDomain;
 var async = Promise._async;
 var Warning = _dereq_("./errors").Warning;
 var util = _dereq_("./util");
-var canAttachTrace = util.canAttachTrace;
+var canAttachTrace = canAttachTrace;
 var unhandledRejectionHandled;
 var possiblyUnhandledRejection;
 var bluebirdFramePattern =
@@ -669,19 +669,19 @@ var stackFramePattern = null;
 var formatStack = null;
 var indentStackFrames = false;
 var printWarning;
-var debugging = !!(util.env("BLUEBIRD_DEBUG") != 0 &&
+var debugging = !!(env("BLUEBIRD_DEBUG") != 0 &&
                         (true ||
-                         util.env("BLUEBIRD_DEBUG") ||
-                         util.env("NODE_ENV") === "development"));
+                         env("BLUEBIRD_DEBUG") ||
+                         env("NODE_ENV") === "development"));
 
-var warnings = !!(util.env("BLUEBIRD_WARNINGS") != 0 &&
-    (debugging || util.env("BLUEBIRD_WARNINGS")));
+var warnings = !!(env("BLUEBIRD_WARNINGS") != 0 &&
+    (debugging || env("BLUEBIRD_WARNINGS")));
 
-var longStackTraces = !!(util.env("BLUEBIRD_LONG_STACK_TRACES") != 0 &&
-    (debugging || util.env("BLUEBIRD_LONG_STACK_TRACES")));
+var longStackTraces = !!(env("BLUEBIRD_LONG_STACK_TRACES") != 0 &&
+    (debugging || env("BLUEBIRD_LONG_STACK_TRACES")));
 
-var wForgottenReturn = util.env("BLUEBIRD_W_FORGOTTEN_RETURN") != 0 &&
-    (warnings || !!util.env("BLUEBIRD_W_FORGOTTEN_RETURN"));
+var wForgottenReturn = env("BLUEBIRD_W_FORGOTTEN_RETURN") != 0 &&
+    (warnings || !!env("BLUEBIRD_W_FORGOTTEN_RETURN"));
 
 Promise.prototype.suppressUnhandledRejections = function() {
     var target = this._target();
@@ -797,11 +797,11 @@ var fireDomEvent = (function() {
     try {
         var event = document.createEvent("CustomEvent");
         event.initCustomEvent("testingtheevent", false, true, {});
-        util.global.dispatchEvent(event);
+        global.dispatchEvent(event);
         return function(name, event) {
             var domEvent = document.createEvent("CustomEvent");
             domEvent.initCustomEvent(name.toLowerCase(), false, true, event);
-            return !util.global.dispatchEvent(domEvent);
+            return !global.dispatchEvent(domEvent);
         };
     } catch (e) {}
     return function() {
@@ -810,21 +810,21 @@ var fireDomEvent = (function() {
 })();
 
 var fireGlobalEvent = (function() {
-    if (util.isNode) {
+    if (isNode) {
         return function() {
             return process.emit.apply(process, arguments);
         };
     } else {
-        if (!util.global) {
+        if (!global) {
             return function() {
                 return false;
             };
         }
         return function(name) {
             var methodName = "on" + name.toLowerCase();
-            var method = util.global[methodName];
+            var method = global[methodName];
             if (!method) return false;
-            method.apply(util.global, [].slice.call(arguments, 1));
+            method.apply(global, [].slice.call(arguments, 1));
             return true;
         };
     }
@@ -887,7 +887,7 @@ Promise.config = function(opts) {
         config.warnings = !!warningsOption;
         wForgottenReturn = config.warnings;
 
-        if (util.isObject(warningsOption)) {
+        if (isObject(warningsOption)) {
             if ("wForgottenReturn" in warningsOption) {
                 wForgottenReturn = !!warningsOption.wForgottenReturn;
             }
@@ -949,7 +949,7 @@ function cancellationExecute(executor, resolve, reject) {
         executor(resolve, reject, function(onCancel) {
             if (typeof onCancel !== "function") {
                 throw new TypeError("onCancel must be a function, got: " +
-                                    util.toString(onCancel));
+                                    toString(onCancel));
             }
             promise._attachCancellationCallback(onCancel);
         });
@@ -963,7 +963,7 @@ function cancellationAttachCancellationCallback(onCancel) {
 
     var previousOnCancel = this._onCancel();
     if (previousOnCancel !== undefined) {
-        if (util.isArray(previousOnCancel)) {
+        if (isArray(previousOnCancel)) {
             previousOnCancel.push(onCancel);
         } else {
             this._setOnCancel([previousOnCancel, onCancel]);
@@ -1035,9 +1035,9 @@ function longStackTracesAttachExtraTrace(error, ignoreSelf) {
             trace.attachExtraTrace(error);
         } else if (!error.__stackCleaned__) {
             var parsed = parseStackAndMessage(error);
-            util.notEnumerableProp(error, "stack",
+            notEnumerableProp(error, "stack",
                 parsed.message + "\n" + parsed.stack.join("\n"));
-            util.notEnumerableProp(error, "__stackCleaned__", true);
+            notEnumerableProp(error, "__stackCleaned__", true);
         }
     }
 }
@@ -1174,7 +1174,7 @@ function parseStackAndMessage(error) {
 function formatAndLogError(error, title, isSoft) {
     if (typeof console !== "undefined") {
         var message;
-        if (util.isObject(error)) {
+        if (isObject(error)) {
             var stack = error.stack;
             message = title + formatStack(stack, error);
         } else {
@@ -1221,7 +1221,7 @@ function formatNonError(obj) {
             "]";
     } else {
         str = obj && typeof obj.toString === "function"
-            ? obj.toString() : util.toString(obj);
+            ? obj.toString() : toString(obj);
         var ruselessToString = /\[object [a-zA-Z0-9$_]+\]/;
         if (ruselessToString.test(str)) {
             try {
@@ -1312,7 +1312,7 @@ function CapturedTrace(parent) {
     captureStackTrace(this, CapturedTrace);
     if (length > 32) this.uncycle();
 }
-util.inherits(CapturedTrace, Error);
+inherits(CapturedTrace, Error);
 Context.CapturedTrace = CapturedTrace;
 
 CapturedTrace.prototype.uncycle = function() {
@@ -1377,8 +1377,8 @@ CapturedTrace.prototype.attachExtraTrace = function(error) {
     }
     removeCommonRoots(stacks);
     removeDuplicateOrEmptyJumps(stacks);
-    util.notEnumerableProp(error, "stack", reconstructStack(message, stacks));
-    util.notEnumerableProp(error, "__stackCleaned__", true);
+    notEnumerableProp(error, "stack", reconstructStack(message, stacks));
+    notEnumerableProp(error, "__stackCleaned__", true);
 };
 
 var captureStackTrace = (function stackDetection() {
@@ -1458,12 +1458,12 @@ if (typeof console !== "undefined" && typeof console.warn !== "undefined") {
     printWarning = function (message) {
         console.warn(message);
     };
-    if (util.isNode && process.stderr.isTTY) {
+    if (isNode && process.stderr.isTTY) {
         printWarning = function(message, isSoft) {
             var color = isSoft ? "\u001b[33m" : "\u001b[31m";
             console.warn(color + message + "\u001b[0m\n");
         };
-    } else if (!util.isNode && typeof (new Error().stack) === "string") {
+    } else if (!isNode && typeof (new Error().stack) === "string") {
         printWarning = function(message, isSoft) {
             console.warn("%c" + message,
                         isSoft ? "color: darkorange" : "color: red");
@@ -1593,8 +1593,8 @@ Promise.mapSeries = PromiseMapSeries;
 var es5 = _dereq_("./es5");
 var Objectfreeze = es5.freeze;
 var util = _dereq_("./util");
-var inherits = util.inherits;
-var notEnumerableProp = util.notEnumerableProp;
+var inherits = inherits;
+var notEnumerableProp = notEnumerableProp;
 
 function subError(nameProperty, defaultMessage) {
     function SubError(message) {
@@ -1807,7 +1807,7 @@ Promise.filter = function (promises, fn, options) {
 module.exports = function(Promise, tryConvertToPromise) {
 var util = _dereq_("./util");
 var CancellationError = Promise.CancellationError;
-var errorObj = util.errorObj;
+var errorObj = errorObj;
 
 function PassThroughHandlerContext(promise, type, handler) {
     this.promise = promise;
@@ -1926,8 +1926,8 @@ module.exports = function(Promise,
 var errors = _dereq_("./errors");
 var TypeError = errors.TypeError;
 var util = _dereq_("./util");
-var errorObj = util.errorObj;
-var tryCatch = util.tryCatch;
+var errorObj = errorObj;
+var tryCatch = tryCatch;
 var yieldHandlers = [];
 
 function promiseFromYieldHandler(value, yieldHandlers, traceParent) {
@@ -1960,7 +1960,7 @@ function PromiseSpawn(generatorFunction, receiver, yieldHandler, stack) {
         : yieldHandlers;
     this._yieldedPromise = null;
 }
-util.inherits(PromiseSpawn, Proxyable);
+inherits(PromiseSpawn, Proxyable);
 
 PromiseSpawn.prototype._isResolved = function() {
     return this._promise === null;
@@ -2104,7 +2104,7 @@ Promise.coroutine = function (generatorFunction, options) {
 
 Promise.coroutine.addYieldHandler = function(fn) {
     if (typeof fn !== "function") {
-        throw new TypeError("expecting a function but got " + util.classString(fn));
+        throw new TypeError("expecting a function but got " + classString(fn));
     }
     yieldHandlers.push(fn);
 };
@@ -2126,9 +2126,9 @@ Promise.spawn = function (generatorFunction) {
 module.exports =
 function(Promise, PromiseArray, tryConvertToPromise, INTERNAL) {
 var util = _dereq_("./util");
-var canEvaluate = util.canEvaluate;
-var tryCatch = util.tryCatch;
-var errorObj = util.errorObj;
+var canEvaluate = canEvaluate;
+var tryCatch = tryCatch;
+var errorObj = errorObj;
 var reject;
 
 if (!true) {
@@ -2282,8 +2282,8 @@ module.exports = function(Promise,
                           debug) {
 var getDomain = Promise._getDomain;
 var util = _dereq_("./util");
-var tryCatch = util.tryCatch;
-var errorObj = util.errorObj;
+var tryCatch = tryCatch;
+var errorObj = errorObj;
 var EMPTY_ARRAY = [];
 
 function MappingPromiseArray(promises, fn, limit, _filter) {
@@ -2299,7 +2299,7 @@ function MappingPromiseArray(promises, fn, limit, _filter) {
     this._queue = limit >= 1 ? [] : EMPTY_ARRAY;
     this._init$(undefined, -2);
 }
-util.inherits(MappingPromiseArray, PromiseArray);
+inherits(MappingPromiseArray, PromiseArray);
 
 MappingPromiseArray.prototype._init = function () {};
 
@@ -2404,7 +2404,7 @@ MappingPromiseArray.prototype.preservedValues = function () {
 
 function map(promises, fn, options, _filter) {
     if (typeof fn !== "function") {
-        return apiRejection("expecting a function but got " + util.classString(fn));
+        return apiRejection("expecting a function but got " + classString(fn));
     }
     var limit = typeof options === "object" && options !== null
         ? options.concurrency
@@ -2430,11 +2430,11 @@ Promise.map = function (promises, fn, options, _filter) {
 module.exports =
 function(Promise, INTERNAL, tryConvertToPromise, apiRejection, debug) {
 var util = _dereq_("./util");
-var tryCatch = util.tryCatch;
+var tryCatch = tryCatch;
 
 Promise.method = function (fn) {
     if (typeof fn !== "function") {
-        throw new Promise.TypeError("expecting a function but got " + util.classString(fn));
+        throw new Promise.TypeError("expecting a function but got " + classString(fn));
     }
     return function () {
         var ret = new Promise(INTERNAL);
@@ -2451,7 +2451,7 @@ Promise.method = function (fn) {
 
 Promise.attempt = Promise["try"] = function (fn) {
     if (typeof fn !== "function") {
-        return apiRejection("expecting a function but got " + util.classString(fn));
+        return apiRejection("expecting a function but got " + classString(fn));
     }
     var ret = new Promise(INTERNAL);
     ret._captureStackTrace();
@@ -2461,7 +2461,7 @@ Promise.attempt = Promise["try"] = function (fn) {
         debug.deprecated("calling Promise.try with more than 1 argument");
         var arg = arguments[1];
         var ctx = arguments[2];
-        value = util.isArray(arg) ? tryCatch(fn).apply(ctx, arg)
+        value = isArray(arg) ? tryCatch(fn).apply(ctx, arg)
                                   : tryCatch(fn).call(ctx, arg);
     } else {
         value = tryCatch(fn)();
@@ -2474,7 +2474,7 @@ Promise.attempt = Promise["try"] = function (fn) {
 };
 
 Promise.prototype._resolveFromSyncValue = function (value) {
-    if (value === util.errorObj) {
+    if (value === errorObj) {
         this._rejectCallback(value.e, false);
     } else {
         this._resolveCallback(value, true);
@@ -2485,7 +2485,7 @@ Promise.prototype._resolveFromSyncValue = function (value) {
 },{"./util":36}],20:[function(_dereq_,module,exports){
 "use strict";
 var util = _dereq_("./util");
-var maybeWrapAsError = util.maybeWrapAsError;
+var maybeWrapAsError = maybeWrapAsError;
 var errors = _dereq_("./errors");
 var OperationalError = errors.OperationalError;
 var es5 = _dereq_("./es5");
@@ -2512,7 +2512,7 @@ function wrapAsOperationalError(obj) {
         }
         return ret;
     }
-    util.markAsOriginatingFromRejection(obj);
+    markAsOriginatingFromRejection(obj);
     return obj;
 }
 
@@ -2540,12 +2540,12 @@ module.exports = nodebackForPromise;
 module.exports = function(Promise) {
 var util = _dereq_("./util");
 var async = Promise._async;
-var tryCatch = util.tryCatch;
-var errorObj = util.errorObj;
+var tryCatch = tryCatch;
+var errorObj = errorObj;
 
 function spreadAdapter(val, nodeback) {
     var promise = this;
-    if (!util.isArray(val)) return successAdapter.call(promise, val, nodeback);
+    if (!isArray(val)) return successAdapter.call(promise, val, nodeback);
     var ret =
         tryCatch(nodeback).apply(promise._boundValue(), [null].concat(val));
     if (ret === errorObj) {
@@ -2612,7 +2612,7 @@ var UNDEFINED_BINDING = {};
 var util = _dereq_("./util");
 
 var getDomain;
-if (util.isNode) {
+if (isNode) {
     getDomain = function() {
         var ret = process.domain;
         if (ret === undefined) ret = null;
@@ -2623,7 +2623,7 @@ if (util.isNode) {
         return null;
     };
 }
-util.notEnumerableProp(Promise, "_getDomain", getDomain);
+notEnumerableProp(Promise, "_getDomain", getDomain);
 
 var es5 = _dereq_("./es5");
 var Async = _dereq_("./async");
@@ -2653,11 +2653,11 @@ var PassThroughHandlerContext =
     _dereq_("./finally")(Promise, tryConvertToPromise);
 var catchFilter = _dereq_("./catch_filter")(NEXT_FILTER);
 var nodebackForPromise = _dereq_("./nodeback");
-var errorObj = util.errorObj;
-var tryCatch = util.tryCatch;
+var errorObj = errorObj;
+var tryCatch = tryCatch;
 function check(self, executor) {
     if (typeof executor !== "function") {
-        throw new TypeError("expecting a function but got " + util.classString(executor));
+        throw new TypeError("expecting a function but got " + classString(executor));
     }
     if (self.constructor !== Promise) {
         throw new TypeError("the promise constructor cannot be invoked directly\u000a\u000a    See http://goo.gl/MqrFmX\u000a");
@@ -2689,10 +2689,10 @@ Promise.prototype.caught = Promise.prototype["catch"] = function (fn) {
             j = 0, i;
         for (i = 0; i < len - 1; ++i) {
             var item = arguments[i];
-            if (util.isObject(item)) {
+            if (isObject(item)) {
                 catchInstances[j++] = item;
             } else {
-                return apiRejection("expecting an object but got " + util.classString(item));
+                return apiRejection("expecting an object but got " + classString(item));
             }
         }
         catchInstances.length = j;
@@ -2712,9 +2712,9 @@ Promise.prototype.then = function (didFulfill, didReject) {
         typeof didFulfill !== "function" &&
         typeof didReject !== "function") {
         var msg = ".then() only accepts functions but was passed: " +
-                util.classString(didFulfill);
+                classString(didFulfill);
         if (arguments.length > 1) {
-            msg += ", " + util.classString(didReject);
+            msg += ", " + classString(didReject);
         }
         this._warn(msg);
     }
@@ -2729,7 +2729,7 @@ Promise.prototype.done = function (didFulfill, didReject) {
 
 Promise.prototype.spread = function (fn) {
     if (typeof fn !== "function") {
-        return apiRejection("expecting a function but got " + util.classString(fn));
+        return apiRejection("expecting a function but got " + classString(fn));
     }
     return this.all()._then(fn, undefined, undefined, APPLY, undefined);
 };
@@ -2759,7 +2759,7 @@ Promise.prototype.all = function () {
 };
 
 Promise.prototype.error = function (fn) {
-    return this.caught(util.originatesFromRejection, fn);
+    return this.caught(originatesFromRejection, fn);
 };
 
 Promise.is = function (val) {
@@ -2805,7 +2805,7 @@ Promise.reject = Promise.rejected = function (reason) {
 
 Promise.setScheduler = function(fn) {
     if (typeof fn !== "function") {
-        throw new TypeError("expecting a function but got " + util.classString(fn));
+        throw new TypeError("expecting a function but got " + classString(fn));
     }
     var prev = async._schedule;
     async._schedule = fn;
@@ -3047,11 +3047,11 @@ Promise.prototype._resolveCallback = function(value, shouldBind) {
 
 Promise.prototype._rejectCallback =
 function(reason, synchronous, ignoreNonErrorWarnings) {
-    var trace = util.ensureErrorObject(reason);
+    var trace = ensureErrorObject(reason);
     var hasStack = trace === reason;
     if (!hasStack && !ignoreNonErrorWarnings && debug.warnings()) {
         var message = "a promise was rejected with a non-error: " +
-            util.classString(reason);
+            classString(reason);
         this._warn(message, true);
     }
     this._attachExtraTrace(trace, synchronous ? hasStack : false);
@@ -3087,7 +3087,7 @@ Promise.prototype._settlePromiseFromHandler = function (
         if (!value || typeof value.length !== "number") {
             x = errorObj;
             x.e = new TypeError("cannot .spread() a non-array: " +
-                                    util.classString(value));
+                                    classString(value));
         } else {
             x = tryCatch(handler).apply(this._boundValue(), value);
         }
@@ -3233,7 +3233,7 @@ Promise.prototype._reject = function (reason) {
     this._fulfillmentHandler0 = reason;
 
     if (this._isFinal()) {
-        return async.fatalError(reason, util.isNode);
+        return async.fatalError(reason, isNode);
     }
 
     if ((bitField & 65535) > 0) {
@@ -3308,7 +3308,7 @@ Promise.defer = Promise.pending = function() {
     };
 };
 
-util.notEnumerableProp(Promise,
+notEnumerableProp(Promise,
                        "_makeSelfResolutionError",
                        makeSelfResolutionError);
 
@@ -3337,8 +3337,8 @@ _dereq_('./any.js')(Promise);
 _dereq_('./each.js')(Promise, INTERNAL);
 _dereq_('./filter.js')(Promise, INTERNAL);
 
-    util.toFastProperties(Promise);
-    util.toFastProperties(Promise.prototype);
+    toFastProperties(Promise);
+    toFastProperties(Promise.prototype);
     function fillTypes(value) {
         var p = new Promise(INTERNAL);
         p._fulfillmentHandler0 = value;
@@ -3356,7 +3356,7 @@ _dereq_('./filter.js')(Promise, INTERNAL);
     fillTypes(undefined);
     fillTypes(false);
     fillTypes(new Promise(INTERNAL));
-    debug.setBounds(Async.firstLineError, util.lastLineError);
+    debug.setBounds(Async.firstLineError, lastLineError);
     return Promise;
 
 };
@@ -3366,7 +3366,7 @@ _dereq_('./filter.js')(Promise, INTERNAL);
 module.exports = function(Promise, INTERNAL, tryConvertToPromise,
     apiRejection, Proxyable) {
 var util = _dereq_("./util");
-var isArray = util.isArray;
+var isArray = isArray;
 
 function toResolutionValue(val) {
     switch(val) {
@@ -3386,7 +3386,7 @@ function PromiseArray(values) {
     this._totalResolved = 0;
     this._init(undefined, -2);
 }
-util.inherits(PromiseArray, Proxyable);
+inherits(PromiseArray, Proxyable);
 
 PromiseArray.prototype.length = function () {
     return this._length;
@@ -3421,10 +3421,10 @@ PromiseArray.prototype._init = function init(_, resolveValueIfEmpty) {
             return this._cancel();
         }
     }
-    values = util.asArray(values);
+    values = asArray(values);
     if (values === null) {
         var err = apiRejection(
-            "expecting an array or an iterable object but got " + util.classString(values)).reason();
+            "expecting an array or an iterable object but got " + classString(values)).reason();
         this._promise._rejectCallback(err, false);
         return;
     }
@@ -3553,9 +3553,9 @@ module.exports = function(Promise, INTERNAL) {
 var THIS = {};
 var util = _dereq_("./util");
 var nodebackForPromise = _dereq_("./nodeback");
-var withAppended = util.withAppended;
-var maybeWrapAsError = util.maybeWrapAsError;
-var canEvaluate = util.canEvaluate;
+var withAppended = withAppended;
+var maybeWrapAsError = maybeWrapAsError;
+var canEvaluate = canEvaluate;
 var TypeError = _dereq_("./errors").TypeError;
 var defaultSuffix = "Async";
 var defaultPromisified = {__isPromisified__: true};
@@ -3571,7 +3571,7 @@ var noCopyProps = [
 var noCopyPropsPattern = new RegExp("^(?:" + noCopyProps.join("|") + ")$");
 
 var defaultFilter = function(name) {
-    return util.isIdentifier(name) &&
+    return isIdentifier(name) &&
         name.charAt(0) !== "_" &&
         name !== "constructor";
 };
@@ -3590,7 +3590,7 @@ function isPromisified(fn) {
 }
 
 function hasPromisified(obj, key, suffix) {
-    var val = util.getDataPropertyOrDefault(obj, key + suffix,
+    var val = getDataPropertyOrDefault(obj, key + suffix,
                                             defaultPromisified);
     return val ? isPromisified(val) : false;
 }
@@ -3610,7 +3610,7 @@ function checkValid(ret, suffix, suffixRegexp) {
 }
 
 function promisifiableMethods(obj, suffix, suffixRegexp, filter) {
-    var keys = util.inheritedDataKeys(obj);
+    var keys = inheritedDataKeys(obj);
     var ret = [];
     for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
@@ -3647,11 +3647,11 @@ var switchCaseArgumentOrder = function(likelyArgumentCount) {
 };
 
 var argumentSequence = function(argumentCount) {
-    return util.filledRange(argumentCount, "_arg", "");
+    return filledRange(argumentCount, "_arg", "");
 };
 
 var parameterDeclaration = function(parameterCount) {
-    return util.filledRange(
+    return filledRange(
         Math.max(parameterCount, 3), "_arg", "");
 };
 
@@ -3748,9 +3748,9 @@ function(callback, receiver, originalName, fn, _, multiArgs) {
                     withAppended,
                     maybeWrapAsError,
                     nodebackForPromise,
-                    util.tryCatch,
-                    util.errorObj,
-                    util.notEnumerableProp,
+                    tryCatch,
+                    errorObj,
+                    notEnumerableProp,
                     INTERNAL);
 };
 }
@@ -3777,7 +3777,7 @@ function makeNodePromisifiedClosure(callback, receiver, _, fn, __, multiArgs) {
         if (!promise._isFateSealed()) promise._setAsyncGuaranteed();
         return promise;
     }
-    util.notEnumerableProp(promisified, "__isPromisified__", true);
+    notEnumerableProp(promisified, "__isPromisified__", true);
     return promisified;
 }
 
@@ -3802,11 +3802,11 @@ function promisifyAll(obj, suffix, filter, promisifier, multiArgs) {
                 return makeNodePromisified(key, THIS, key,
                                            fn, suffix, multiArgs);
             });
-            util.notEnumerableProp(promisified, "__isPromisified__", true);
+            notEnumerableProp(promisified, "__isPromisified__", true);
             obj[promisifiedKey] = promisified;
         }
     }
-    util.toFastProperties(obj);
+    toFastProperties(obj);
     return obj;
 }
 
@@ -3817,7 +3817,7 @@ function promisify(callback, receiver, multiArgs) {
 
 Promise.promisify = function (fn, options) {
     if (typeof fn !== "function") {
-        throw new TypeError("expecting a function but got " + util.classString(fn));
+        throw new TypeError("expecting a function but got " + classString(fn));
     }
     if (isPromisified(fn)) {
         return fn;
@@ -3826,7 +3826,7 @@ Promise.promisify = function (fn, options) {
     var receiver = options.context === undefined ? THIS : options.context;
     var multiArgs = !!options.multiArgs;
     var ret = promisify(fn, receiver, multiArgs);
-    util.copyDescriptors(fn, ret, propsFilter);
+    copyDescriptors(fn, ret, propsFilter);
     return ret;
 };
 
@@ -3843,15 +3843,15 @@ Promise.promisifyAll = function (target, options) {
     var promisifier = options.promisifier;
     if (typeof promisifier !== "function") promisifier = makeNodePromisified;
 
-    if (!util.isIdentifier(suffix)) {
+    if (!isIdentifier(suffix)) {
         throw new RangeError("suffix must be a valid identifier\u000a\u000a    See http://goo.gl/MqrFmX\u000a");
     }
 
-    var keys = util.inheritedDataKeys(target);
+    var keys = inheritedDataKeys(target);
     for (var i = 0; i < keys.length; ++i) {
         var value = target[keys[i]];
         if (keys[i] !== "constructor" &&
-            util.isClass(value)) {
+            isClass(value)) {
             promisifyAll(value.prototype, suffix, filter, promisifier,
                 multiArgs);
             promisifyAll(value, suffix, filter, promisifier, multiArgs);
@@ -3868,7 +3868,7 @@ Promise.promisifyAll = function (target, options) {
 module.exports = function(
     Promise, PromiseArray, tryConvertToPromise, apiRejection) {
 var util = _dereq_("./util");
-var isObject = util.isObject;
+var isObject = isObject;
 var es5 = _dereq_("./es5");
 var Es6Map;
 if (typeof Map === "function") Es6Map = Map;
@@ -3923,7 +3923,7 @@ function PropertiesPromiseArray(obj) {
     this._isMap = isMap;
     this._init$(undefined, -3);
 }
-util.inherits(PropertiesPromiseArray, PromiseArray);
+inherits(PropertiesPromiseArray, PromiseArray);
 
 PropertiesPromiseArray.prototype._init = function () {};
 
@@ -4093,9 +4093,9 @@ function race(promises, parent) {
     if (maybePromise instanceof Promise) {
         return raceLater(maybePromise);
     } else {
-        promises = util.asArray(promises);
+        promises = asArray(promises);
         if (promises === null)
-            return apiRejection("expecting an array or an iterable object but got " + util.classString(promises));
+            return apiRejection("expecting an array or an iterable object but got " + classString(promises));
     }
 
     var ret = new Promise(INTERNAL);
@@ -4136,7 +4136,7 @@ module.exports = function(Promise,
                           debug) {
 var getDomain = Promise._getDomain;
 var util = _dereq_("./util");
-var tryCatch = util.tryCatch;
+var tryCatch = tryCatch;
 
 function ReductionPromiseArray(promises, fn, initialValue, _each) {
     this.constructor$(promises);
@@ -4152,7 +4152,7 @@ function ReductionPromiseArray(promises, fn, initialValue, _each) {
     this._promise._captureStackTrace();
     this._init$(undefined, -5);
 }
-util.inherits(ReductionPromiseArray, PromiseArray);
+inherits(ReductionPromiseArray, PromiseArray);
 
 ReductionPromiseArray.prototype._gotAccum = function(accum) {
     if (this._eachValues !== undefined && accum !== INTERNAL) {
@@ -4246,7 +4246,7 @@ function completed(valueOrReason, array) {
 
 function reduce(promises, fn, initialValue, _each) {
     if (typeof fn !== "function") {
-        return apiRejection("expecting a function but got " + util.classString(fn));
+        return apiRejection("expecting a function but got " + classString(fn));
     }
     var array = new ReductionPromiseArray(promises, fn, initialValue, _each);
     return array.promise();
@@ -4297,10 +4297,10 @@ var schedule;
 var noAsyncScheduler = function() {
     throw new Error("No async scheduler available\u000a\u000a    See http://goo.gl/MqrFmX\u000a");
 };
-if (util.isNode && typeof MutationObserver === "undefined") {
+if (isNode && typeof MutationObserver === "undefined") {
     var GlobalSetImmediate = global.setImmediate;
     var ProcessNextTick = process.nextTick;
-    schedule = util.isRecentNode
+    schedule = isRecentNode
                 ? function(fn) { GlobalSetImmediate.call(global, fn); }
                 : function(fn) { ProcessNextTick.call(process, fn); };
 } else if ((typeof MutationObserver !== "undefined") &&
@@ -4356,7 +4356,7 @@ var util = _dereq_("./util");
 function SettledPromiseArray(values) {
     this.constructor$(values);
 }
-util.inherits(SettledPromiseArray, PromiseArray);
+inherits(SettledPromiseArray, PromiseArray);
 
 SettledPromiseArray.prototype._promiseResolved = function (index, inspection) {
     this._values[index] = inspection;
@@ -4398,7 +4398,7 @@ function(Promise, PromiseArray, apiRejection) {
 var util = _dereq_("./util");
 var RangeError = _dereq_("./errors").RangeError;
 var AggregateError = _dereq_("./errors").AggregateError;
-var isArray = util.isArray;
+var isArray = isArray;
 var CANCELLATION = {};
 
 
@@ -4408,7 +4408,7 @@ function SomePromiseArray(values) {
     this._unwrap = false;
     this._initialized = false;
 }
-util.inherits(SomePromiseArray, PromiseArray);
+inherits(SomePromiseArray, PromiseArray);
 
 SomePromiseArray.prototype._init = function () {
     if (!this._initialized) {
@@ -4643,8 +4643,8 @@ Promise.PromiseInspection = PromiseInspection;
 "use strict";
 module.exports = function(Promise, INTERNAL) {
 var util = _dereq_("./util");
-var errorObj = util.errorObj;
-var isObject = util.isObject;
+var errorObj = errorObj;
+var isObject = isObject;
 
 function tryConvertToPromise(obj, context) {
     if (isObject(obj)) {
@@ -4698,7 +4698,7 @@ function doThenable(x, then, context) {
     promise._captureStackTrace();
     if (context) context._popContext();
     var synchronous = true;
-    var result = util.tryCatch(then).call(x, resolve, reject);
+    var result = tryCatch(then).call(x, resolve, reject);
     synchronous = false;
 
     if (promise && result === errorObj) {
@@ -4773,7 +4773,7 @@ var afterTimeout = function (promise, message, parent) {
     } else {
         err = new TimeoutError(message);
     }
-    util.markAsOriginatingFromRejection(err);
+    markAsOriginatingFromRejection(err);
     promise._attachExtraTrace(err);
     promise._reject(err);
 
@@ -4824,8 +4824,8 @@ module.exports = function (Promise, apiRejection, tryConvertToPromise,
     var util = _dereq_("./util");
     var TypeError = _dereq_("./errors").TypeError;
     var inherits = _dereq_("./util").inherits;
-    var errorObj = util.errorObj;
-    var tryCatch = util.tryCatch;
+    var errorObj = errorObj;
+    var tryCatch = tryCatch;
 
     function thrower(e) {
         setTimeout(function(){throw e;}, 0);
@@ -4947,7 +4947,7 @@ module.exports = function (Promise, apiRejection, tryConvertToPromise,
                         "you must pass at least 2 arguments to Promise.using");
         var fn = arguments[len - 1];
         if (typeof fn !== "function") {
-            return apiRejection("expecting a function but got " + util.classString(fn));
+            return apiRejection("expecting a function but got " + classString(fn));
         }
         var input;
         var spreadArgs = true;

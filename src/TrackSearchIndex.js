@@ -4,7 +4,7 @@ const SearchTree = require("lib/SearchTree");
 const SearchTreeEntry = require("SearchTreeEntry");
 const searchUtil = require("searchUtil");
 const sortedArrays = require("lib/sortedArrays");
-const util = require("lib/util");
+import { getFirstWord, getLastWord, reverseString } from "lib/util";
 
 function TrackSearchIndex() {
     this._transientIdToEntry = {};
@@ -13,10 +13,10 @@ function TrackSearchIndex() {
 }
 
 TrackSearchIndex.prototype.search = function(normalizedQuery) {
-    var suffixQuery = util.reverseString(normalizedQuery);
+    var suffixQuery = reverseString(normalizedQuery);
 
-    var firstPrefixKeyword = util.getFirstWord(normalizedQuery);
-    var firstSuffixKeyword = util.getLastWord(suffixQuery);
+    var firstPrefixKeyword = getFirstWord(normalizedQuery);
+    var firstSuffixKeyword = getLastWord(suffixQuery);
 
     var prefixMatches = this._prefixSearchTree.search(firstPrefixKeyword);
     var suffixMatches = this._suffixSearchTree.search(firstSuffixKeyword);
@@ -85,7 +85,7 @@ TrackSearchIndex.prototype._addToSearchTree = function(transientId, metadata, fi
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];
         this._prefixSearchTree.insert(keyword, entry);
-        this._suffixSearchTree.insert(util.reverseString(keyword), entry);
+        this._suffixSearchTree.insert(reverseString(keyword), entry);
     }
     return entry;
 };
@@ -95,7 +95,7 @@ TrackSearchIndex.prototype._removeFromSearchTree = function(entry) {
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];
         this._prefixSearchTree.remove(keyword, entry);
-        this._suffixSearchTree.remove(util.reverseString(keyword), entry);
+        this._suffixSearchTree.remove(reverseString(keyword), entry);
     }
 };
 

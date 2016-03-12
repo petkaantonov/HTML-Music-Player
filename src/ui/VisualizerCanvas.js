@@ -5,14 +5,14 @@ const pixelRatio = window.devicePixelRatio || 1;
 const SHADOW_BLUR = 2 * pixelRatio | 0;
 const SHADOW_COLOR = "rgb(11,32,53)";
 const Animator = require("ui/Animator");
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { addLegacyListener, inherits } from "lib/util";
+import { canvasToImage } from "lib/DomUtil";
 const Default2dImageRenderer = require("ui/Default2dImageRenderer");
 const WebGl2dImageRenderer = require("ui/WebGl2dImageRenderer");
 import EventEmitter from "lib/events";
-const GlobalUi = require("ui/GlobalUi");
+import { contextMenuItem, makePopup, snackbar } from "ui/GlobalUi";
 import Slider from "ui/Slider";
-const ContextMenu = require("ui/ActionMenu").ContextMenu;
+import { ContextMenu as ContextMenu } from "ui/ActionMenu";
 const applicationPreferences = require("application_preferences");
 
 const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content-container'>            \
@@ -165,7 +165,7 @@ function GraphicsSource(visualizerCanvas) {
     this.capX = x;
     this.capY = y;
     this.image = null;
-    this.ready = domUtil.canvasToImage(canvas).bind(this).then(function(image) {
+    this.ready = canvasToImage(canvas).bind(this).then(function(image) {
         this.image = image;
         canvas.width = canvas.height = 0;
     }).bind();
@@ -213,7 +213,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
 
-    this.latencyPopup = GlobalUi.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+    this.latencyPopup = makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
     this.latencyPopup.on("open", this.latencyPopupOpened);
     this.player.on("stop", this.playerStopped);
     this.player.on("play", this.playerStarted);
@@ -223,12 +223,12 @@ function VisualizerCanvas(targetCanvas, player, opts) {
     }
 
     if (this.enabledMediaMatcher) {
-        util.addLegacyListener(this.enabledMediaMatcher, "change", this.enabledMediaMatchChanged);
+        addLegacyListener(this.enabledMediaMatcher, "change", this.enabledMediaMatchChanged);
         this.enabledMediaMatchChanged();
     }
 
     if (this.binSizeChangeMatcher) {
-        util.addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
+        addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
         $(window).on("sizechange", this.binSizeMediaMatchChanged);
     }
 
@@ -240,7 +240,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
         if (this.canUseHardwareRendering()) {
             this.renderer = new WebGl2dImageRenderer(this.source.image, this);
         } else {
-            GlobalUi.snackbar.show("Hardware acceleration disabled");
+            snackbar.show("Hardware acceleration disabled");
         }
 
         if (!this.renderer) {
@@ -251,7 +251,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
         try {
             this.renderer.init(this.width, this.height);
         } catch (e) {
-            GlobalUi.snackbar.show(e.message);
+            snackbar.show(e.message);
             if (this.canUseHardwareRendering()) {
                 this.webglSupported = false;
                 this.renderer = null;
@@ -269,7 +269,7 @@ function VisualizerCanvas(targetCanvas, player, opts) {
 
     this.setupCanvasContextMenu();
 }
-util.inherits(VisualizerCanvas, EventEmitter);
+inherits(VisualizerCanvas, EventEmitter);
 
 VisualizerCanvas.prototype.refreshContextMenu = function() {
     if (this.contextMenu) {
@@ -289,20 +289,20 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
                 e.preventDefault()
             },
             content: function() {
-                return GlobalUi.contextMenuItem("Hardware acceleration", self.isHardwareRendering() ? "glyphicon glyphicon-ok" : null);
+                return contextMenuItem("Hardware acceleration", self.isHardwareRendering() ? "glyphicon glyphicon-ok" : null);
             }
         }, {
             divider: true
         }, {
             id: "hardware-latency",
-            content: GlobalUi.contextMenuItem("Synchronize with audio..."),
+            content: contextMenuItem("Synchronize with audio..."),
             onClick: function(e) {
                 self.latencyPopup.open();
             }
         }, {
             id: "visualizer-enabled",
             content: function() {
-                return GlobalUi.contextMenuItem("Enabled", self.isEnabled() ? "glyphicon glyphicon-ok" : null);
+                return contextMenuItem("Enabled", self.isEnabled() ? "glyphicon glyphicon-ok" : null);
             },
             onClick: function(e) {
                 e.preventDefault();
@@ -365,7 +365,7 @@ VisualizerCanvas.prototype.useSoftwareRendering = function() {
     }
     this.resetCanvas();
     this.renderer = new Default2dImageRenderer(this.source.image, this);
-    GlobalUi.snackbar.show("Hardware acceleration disabled");
+    snackbar.show("Hardware acceleration disabled");
 };
 
 VisualizerCanvas.prototype.useHardwareRendering = function() {

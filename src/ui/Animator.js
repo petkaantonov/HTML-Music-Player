@@ -1,9 +1,9 @@
 "use strict";
 import Promise from "lib/bluebird";
-const util = require("lib/util");
+import { inherits } from "lib/util";
 import EventEmitter from "lib/events";
 const unitBezier = require("lib/bezier");
-const domUtil = require("lib/DomUtil");
+import { getFilter, getTransform, setFilter, setTransform } from "lib/DomUtil";
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -77,7 +77,7 @@ function QuadraticCurve(x1, y1, x2, y2, cpx, cpy, progress) {
     this.aY = (y1 - 2 * cpy + y2);
     this.bY = (2 * cpy - 2 * y1);
 }
-util.inherits(QuadraticCurve, Line);
+inherits(QuadraticCurve, Line);
 
 QuadraticCurve.prototype.xAt = function(progress) {
     var p2 = progress * progress;
@@ -100,7 +100,7 @@ function CubicCurve(x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2, progress) {
     this.bY = 3 * (cpy2 - cpy1) - this.cY;
     this.aY = (y2 - y1) - this.cY - this.bY;
 }
-util.inherits(CubicCurve, Line);
+inherits(CubicCurve, Line);
 
 CubicCurve.prototype.xAt = function(progress) {
     var p3 = progress * progress * progress;
@@ -514,14 +514,14 @@ function Animator(dom, opts) {
 
     var havePersistentTransforms = this._transforms.filter(filterIsPersistent).length > 0;
     var havePersistentFilters = this._filters.filter(filterIsPersistent).length > 0;
-    var baseFilter = domUtil.getFilter($(this._domNode));
+    var baseFilter = getFilter($(this._domNode));
     baseFilter = baseFilter === "none" ? "" : baseFilter;
     this._baseFilter = baseFilter + " ";
-    var baseTransform = domUtil.getTransform($(this._domNode));
+    var baseTransform = getTransform($(this._domNode));
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
-    this._baseStyleFilter = (havePersistentFilters ? baseFilter : domUtil.getTransform(this._domNode)) || "";
-    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : domUtil.getTransform(this._domNode)) || "";
+    this._baseStyleFilter = (havePersistentFilters ? baseFilter : getTransform(this._domNode)) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : getTransform(this._domNode)) || "";
 
     this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {
@@ -531,7 +531,7 @@ function Animator(dom, opts) {
     this._gotAnimationFrame = this._gotAnimationFrame.bind(this);
     this.stop = this.stop.bind(this);
 }
-util.inherits(Animator, EventEmitter);
+inherits(Animator, EventEmitter);
 
 const parsePath = (function() {
     const number = "[01]+(?:\\.\\d+)?";
@@ -688,12 +688,12 @@ Animator.prototype._progress = function(current, total) {
 
     var transforms = this._getTransforms(current, total);
     if (transforms) {
-        domUtil.setTransform(node, this._baseTransform + transforms);
+        setTransform(node, this._baseTransform + transforms);
     }
 
     var filters = this._getFilters(current, total);
     if (filters) {
-        domUtil.setFilter(node, this._baseFilter + filters);
+        setFilter(node, this._baseFilter + filters);
     }
 
     this._applyDirectProperties(node, current, total);
@@ -704,9 +704,9 @@ Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     var transforms = this._getTransforms(current, total);
     var filters = this._getFilters(current, total);
 
-    domUtil.setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
+    setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
     if (filters) {
-        domUtil.setFilter(node, this._baseFilter + filters);
+        setFilter(node, this._baseFilter + filters);
     }
     this._applyDirectProperties(node, current, total);
 };
@@ -728,15 +728,15 @@ Animator.prototype._applyEndValues = function() {
     var baseTransforms = this._baseStyleTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        domUtil.setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
+        setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
     } else {
-        domUtil.setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
+        setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        domUtil.setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
+        setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
     } else {
-        domUtil.setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
+        setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
     }
 };
 

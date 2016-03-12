@@ -1,7 +1,6 @@
 "use strict";
 
 const Animator = require("ui/Animator");
-const util = require("lib/util");
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 

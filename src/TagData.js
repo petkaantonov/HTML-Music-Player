@@ -1,8 +1,8 @@
 "use strict";
 import Promise from "lib/bluebird";
 
-const util = require("lib/util");
-const features = require("features");
+import { capitalize, formatTagString, toTimeString } from "lib/util";
+import { allowExtensions } from "features";
 const blobPatch = require("lib/blobpatch");
 blobPatch();
 
@@ -85,10 +85,10 @@ TagData.prototype.formatTime = function() {
         return this._formattedTime = "";
     }
     var duration = Math.max(0, this.basicInfo.duration - this.getTotalSilenceLength());
-    return (this._formattedTime = util.toTimeString(duration));
+    return (this._formattedTime = toTimeString(duration));
 };
 
-var stripExtensionPattern = new RegExp("\\.(?:" + features.allowExtensions.join("|") + ")$", "i");
+var stripExtensionPattern = new RegExp("\\.(?:" + allowExtensions.join("|") + ")$", "i");
 var separatorPattern = /(.+)\s*-\s*(.+)/;
 TagData.stripExtensionPattern = stripExtensionPattern;
 TagData.trackInfoFromFileName = function(fileName) {
@@ -97,11 +97,11 @@ TagData.trackInfoFromFileName = function(fileName) {
     var artist, title;
 
     if (!matches) {
-        title = util.capitalize(fileName);
+        title = capitalize(fileName);
         artist = UNKNOWN;
     } else {
-        artist = util.capitalize(matches[1]) || UNKNOWN;
-        title = util.capitalize(matches[2]) || UNKNOWN;
+        artist = capitalize(matches[1]) || UNKNOWN;
+        title = capitalize(matches[2]) || UNKNOWN;
     }
 
     return {
@@ -350,15 +350,15 @@ TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId) {
         var searchTermsUpdated = false;
         if (acoustId.artist && !this.taggedArtist) {
-            this.artist = util.formatTagString(acoustId.artist.name);
+            this.artist = formatTagString(acoustId.artist.name);
             searchTermsUpdated = true;
         }
         if (acoustId.title && !this.taggedTitle) {
-            this.title = util.formatTagString(acoustId.title.name);
+            this.title = formatTagString(acoustId.title.name);
             searchTermsUpdated = true;
         }
         if (acoustId.album && !this.taggedAlbum) {
-            this.album = util.formatTagString(acoustId.album.name);
+            this.album = formatTagString(acoustId.album.name);
             searchTermsUpdated = true;
         }
 

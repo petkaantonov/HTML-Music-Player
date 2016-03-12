@@ -2,7 +2,7 @@
 
 import EventEmitter from "lib/events";
 const keyboard = require("lib/keyboard");
-const util = require("lib/util");
+import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 
 function KeyboardShortcutContext() {
@@ -83,7 +83,7 @@ function KeyboardShortcuts() {
     this._enabled = true;
     this._activeContext = null;
 
-    util.onCapture(document, "keydown", function(e) {
+    onCapture(document, "keydown", function(e) {
         if (!this._enabled) return;
 
         if (rinput.test(e.target.nodeName) || e.target.tabIndex >= 0 || e.target.isContentEditable) {
@@ -125,7 +125,7 @@ function KeyboardShortcuts() {
     }.bind(this));
 
 }
-util.inherits(KeyboardShortcuts, EventEmitter);
+inherits(KeyboardShortcuts, EventEmitter);
 
 KeyboardShortcuts.prototype.KeyboardShortcutContext = KeyboardShortcutContext;
 

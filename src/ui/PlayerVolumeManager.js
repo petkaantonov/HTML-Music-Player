@@ -1,8 +1,8 @@
 "use strict";
 import $ from "lib/jquery";
-const GlobalUi = require("ui/GlobalUi");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { makeTooltip, rippler } from "ui/GlobalUi";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 
 function PlayerVolumeManager(dom, player, opts) {
@@ -13,7 +13,7 @@ function PlayerVolumeManager(dom, player, opts) {
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);
-    this._muteTooltip = GlobalUi.makeTooltip(this.$mute(),function() {
+    this._muteTooltip = makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
                                      : "<p><strong>Mute</strong> volume.</p>";
     });
@@ -30,7 +30,7 @@ function PlayerVolumeManager(dom, player, opts) {
     this.$mute().click(this.muteClicked);
 
     if (touch) {
-        this.$mute().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.muteClicked));
+        this.$mute().on(TOUCH_EVENTS, tapHandler(this.muteClicked));
     }
 
     this.volumeChanged();
@@ -58,7 +58,7 @@ PlayerVolumeManager.prototype.slided = function(percentage) {
 };
 
 PlayerVolumeManager.prototype.muteClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.player.toggleMute();
 };
 

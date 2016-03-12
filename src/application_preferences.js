@@ -190,12 +190,12 @@ const html = (function() {
         </div>";
 })();
 
-const preferencesPopup = GlobalUi.makePopup("Preferences", html, ".menul-preferences", [
+const preferencesPopup = makePopup("Preferences", html, ".menul-preferences", [
 {
     id: RESTORE_DEFAULTS_BUTTON,
     text: "Restore defaults",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         preferencesManager.restoreDefaults();
     }
 },
@@ -203,7 +203,7 @@ const preferencesPopup = GlobalUi.makePopup("Preferences", html, ".menul-prefere
     id: UNDO_CHANGES_BUTTON,
     text: "Undo changes",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         preferencesManager.undoChanges();
     }
 }
@@ -243,7 +243,7 @@ const openEditor = function(e) {
 $(".menul-preferences").click(openEditor);
 
 if (touch) {
-    $(".menul-preferences").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
+    $(".menul-preferences").on(TOUCH_EVENTS, tapHandler(openEditor));
 }
 
 function CpuUsagePreferenceManager(preferencesManager) {

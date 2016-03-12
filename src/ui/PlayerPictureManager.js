@@ -4,8 +4,8 @@ const Animator = require("ui/Animator");
 const jdenticon = require("lib/jdenticon");
 import Promise from "lib/bluebird";
 
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { addLegacyListener } from "lib/util";
+import { canvasToImage } from "lib/DomUtil";
 
 const IMAGE_DIMENSIONS = 97;
 
@@ -25,7 +25,7 @@ function PlayerPictureManager(dom, player, opts) {
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
     if (this._enabledMediaMatcher) {
-        util.addLegacyListener(this._enabledMediaMatcher, "change", this._enabledMediaMatchChanged);
+        addLegacyListener(this._enabledMediaMatcher, "change", this._enabledMediaMatchChanged);
         this._enabledMediaMatchChanged();
     }
 }
@@ -104,7 +104,7 @@ PlayerPictureManager.generateImageForTrack = Promise.method(function(track) {
     jdenticonContext.restore();
     jdenticon.drawIcon(jdenticonContext, track.uid(), jdenticonSize);
     jdenticonContext.clearRect = clearRect;
-    return domUtil.canvasToImage(jdenticonCanvas);
+    return canvasToImage(jdenticonCanvas);
 });
 
 const defaultImage = new Image();

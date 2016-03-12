@@ -1,8 +1,8 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, preventDefault, tapHandler } from "lib/DomUtil";
 const PlayerPictureManager = require("ui/PlayerPictureManager");
 const serviceWorkerManager = require("ServiceWorkerManager");
 import keyValueDatabase from "KeyValueDatabase";
@@ -16,8 +16,7 @@ const PLAY = "\u23f5";
 const NEXT = "\u23f5\u275a";
 const PREFERENCE_KEY = "overlay-enabled";
 
-const util = require("lib/util");
-const GlobalUi = require("ui/GlobalUi");
+import { makeTooltip, rippler } from "ui/GlobalUi";
 
 const NOTIFICATION_TAG = "player-status-notification";
 const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> overlay</p>";
@@ -32,7 +31,7 @@ function PlaylistNotifications(dom, player) {
     this.permissionsPromise = null;
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
-    this.tooltip = GlobalUi.makeTooltip(this.$(), function() {
+    this.tooltip = makeTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
     });
@@ -45,10 +44,10 @@ function PlaylistNotifications(dom, player) {
     this.notificationClosed = this.notificationClosed.bind(this);
 
     if (supported) {
-        this.$().on("click", this.settingClicked).mousedown(domUtil.preventDefault);
+        this.$().on("click", this.settingClicked).mousedown(preventDefault);
 
         if (touch) {
-            this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.settingClicked));
+            this.$().on(TOUCH_EVENTS, tapHandler(this.settingClicked));
         }
     } else {
         this.$().addClass("no-display");
@@ -237,7 +236,7 @@ PlaylistNotifications.prototype.toggleSetting = function() {
 };
 
 PlaylistNotifications.prototype.settingClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleSetting();
 };
 

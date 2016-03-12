@@ -1,7 +1,7 @@
 "use strict";
 import $ from "lib/jquery";
-const domUtil = require("lib/DomUtil");
-const util = require("lib/util");
+import { setTransform } from "lib/DomUtil";
+import { documentHidden } from "lib/util";
 
 function TrackDisplay(dom, opts) {
     opts = Object(opts);
@@ -26,7 +26,7 @@ function TrackDisplay(dom, opts) {
     this._windowResized = this._windowResized.bind(this);
     this._delayElapsed = this._delayElapsed.bind(this);
 
-    util.documentHidden.on("foreground", this._windowResized);
+    documentHidden.on("foreground", this._windowResized);
     $(window).on("sizechange", this._windowResized);
 }
 
@@ -116,7 +116,7 @@ TrackDisplay.prototype._frame = function(now) {
 
     if (this._renderedX !== x) {
         this._renderedX = x;
-        domUtil.setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
+        setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
     }
 };
 
@@ -137,10 +137,10 @@ TrackDisplay.prototype._reset = function() {
     this._clearFrame();
     this._progress = 0;
     this._previousTime = -1;
-    domUtil.setTransform(this.$(), "translate3d(0, 0, 0)");
+    setTransform(this.$(), "translate3d(0, 0, 0)");
     this._renderedX = 0;
 
-    if (!util.documentHidden.isBackgrounded()) {
+    if (!documentHidden.isBackgrounded()) {
         this._containerWidth = this.$container()[0].getBoundingClientRect().width;
         this._contentWidth = this.$()[0].getBoundingClientRect().width;
     }

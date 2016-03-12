@@ -6,20 +6,20 @@ require("lib/ua-parser");
 var features = module.exports;
 var input = document.createElement("input");
 
-features.allowMimes = ["audio/mp3", "audio/mpeg"];
-features.allowExtensions = "mp3,mpg,mpeg".split(",");
+allowMimes = ["audio/mp3", "audio/mpeg"];
+allowExtensions = "mp3,mpg,mpeg".split(",");
 
-features.readFiles = typeof FileReader == "function" && new FileReader()
+readFiles = typeof FileReader == "function" && new FileReader()
     .readAsBinaryString;
-features.directories = ("webkitdirectory" in input ||
+directories = ("webkitdirectory" in input ||
     "directory" in input ||
     "mozdirectory" in input);
-features.touch = (('ontouchstart' in window) ||
+touch = (('ontouchstart' in window) ||
     navigator.maxTouchPoints > 0 ||
     navigator.msMaxTouchPoints > 0 ||
     (window.DocumentTouch && (document instanceof window.DocumentTouch)));
 
-if (!features.touch) {
+if (!touch) {
     $("body").addClass("no-touch");
 }
 
@@ -34,7 +34,7 @@ if ($.ua.engine && $.ua.engine.name && $.ua.engine.name.toLowerCase().indexOf("t
     isIe = true;
 }
 
-features.requiredFeatures = {
+requiredFeatures = {
     "Audio playback capability": [Promise.method(function() {
         try {
             return !!(AudioContext || webkitAudioContext);

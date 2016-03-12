@@ -11,7 +11,7 @@
 // instead of ear destroying noise.
 
 import Promise from "lib/bluebird";
-const util = require("lib/util");
+import { inherits, throttle } from "lib/util";
 import EventEmitter from "lib/events";
 const ChannelMixer = require("audio/ChannelMixer");
 const patchAudioContext = require("lib/audiocontextpatch");
@@ -128,7 +128,7 @@ function AudioPlayer(audioContext, suspensionTimeout) {
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
 }
-util.inherits(AudioPlayer, EventEmitter);
+inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 
 AudioPlayer.prototype._suspend = function() {
@@ -404,7 +404,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._bufferQueue = [];
     this._playedBufferQueue = [];
 }
-util.inherits(AudioPlayerSourceNode, EventEmitter);
+inherits(AudioPlayerSourceNode, EventEmitter);
 
 AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
@@ -946,7 +946,7 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
     }
 };
 
-AudioPlayerSourceNode.prototype._throttledSeek = util.throttle(function(time) {
+AudioPlayerSourceNode.prototype._throttledSeek = throttle(function(time) {
     this._seek(time, true);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
@@ -1125,7 +1125,7 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
     }, this._getBuffersForTransferList(getPreloadBufferCount()));
 };
 
-AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime, gaplessPreload, metadata) {
+AudioPlayerSourceNode.prototype._replaceThrottled = throttle(function(blob, seekTime, gaplessPreload, metadata) {
     this._actualReplace(blob, seekTime, gaplessPreload, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
@@ -1160,7 +1160,7 @@ AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime, metadata)
     });
 };
 
-AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, seekTime, metadata) {
+AudioPlayerSourceNode.prototype._loadThrottled = throttle(function(blob, seekTime, metadata) {
     this._actualLoad(blob, seekTime, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 

@@ -1,7 +1,7 @@
 "use strict";
 import Promise from "lib/bluebird";
 import $ from "lib/jquery";
-const util = require("lib/util");
+import { IDBPromisify, throttle } from "lib/util";
 
 const VERSION = 2;
 const NAME = "KeyValueDatabase2";
@@ -14,7 +14,7 @@ const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
 function KeyValueDatabase() {
     var request = indexedDB.open(NAME, VERSION);
-    this.db = util.IDBPromisify(request);
+    this.db = IDBPromisify(request);
     this.db.suppressUnhandledRejections();
 
     this._onUpgradeNeeded = $.proxy(this._onUpgradeNeeded, this);
@@ -27,22 +27,22 @@ function KeyValueDatabase() {
 
 KeyValueDatabase.prototype.getKeySetter = function(key) {
     if (!this.keySetters[key]) {
-        this.keySetters[key] = util.throttle(function(value) {
+        this.keySetters[key] = throttle(function(value) {
             var self = this;
             return this.db.then(function(db) {
                 var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-                return util.IDBPromisify(store.get(key));
+                return IDBPromisify(store.get(key));
             }).then(function(existingData) {
                 var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
                 if (existingData) {
                     existingData.value = value;
-                    return util.IDBPromisify(store.put(existingData));
+                    return IDBPromisify(store.put(existingData));
                 } else {
                     var data = {
                         key: key,
                         value: value
                     };
-                    return util.IDBPromisify(store.add(data));
+                    return IDBPromisify(store.add(data));
                 }
             });
         }, 1000);
@@ -58,7 +58,7 @@ KeyValueDatabase.prototype._onUpgradeNeeded = function(event) {
     var db = event.target.result;
     var objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
     objectStore.createIndex("key", "key", {unique: true});
-    this.db = util.IDBPromisify(objectStore.transaction).thenReturn(db);
+    this.db = IDBPromisify(objectStore.transaction).thenReturn(db);
 };
 
 KeyValueDatabase.prototype.set = function(key, value) {
@@ -70,7 +70,7 @@ KeyValueDatabase.prototype.get = function(key) {
     key = "" + key;
     return this.db.then(function(db) {
         var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-        return util.IDBPromisify(store.get(key));
+        return IDBPromisify(store.get(key));
     });
 };
 

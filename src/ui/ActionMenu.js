@@ -1,11 +1,11 @@
 "use strict";
 import $ from "lib/jquery";
-const util = require("lib/util");
+import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import EventEmitter from "lib/events";
 const NULL = $(null);
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
-const GlobalUi = require("ui/GlobalUi");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, isTouchEvent, longTapHandler, originProperty, tapHandler, touchDownHandler } from "lib/DomUtil";
+import { rippler } from "ui/GlobalUi";
 
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
@@ -23,7 +23,7 @@ function ActionMenuItem(root, spec, children, level) {
     this._preferredHorizontalDirection = "end";
     this._preferredVerticalDirection = "end";
     this._delayTimerId = -1;
-    this._content = util.toFunction(spec.content);
+    this._content = toFunction(spec.content);
     this._containerDom = NULL;
     this._domNode = this._createDom();
 
@@ -49,7 +49,7 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseleave", this.containerMouseLeft);
 
         if (touch) {
-            this.$container().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.containerMouseEntered));
+            this.$container().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.containerMouseEntered));
         }
     }
 
@@ -57,8 +57,8 @@ function ActionMenuItem(root, spec, children, level) {
         this.$().on("click", this.itemClicked);
 
         if (touch) {
-            this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.itemClicked));
-            this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.itemTouchStarted));
+            this.$().on(TOUCH_EVENTS, tapHandler(this.itemClicked));
+            this.$().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.itemTouchStarted));
         }
     }
 }
@@ -109,7 +109,7 @@ ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
 };
 
 ActionMenuItem.prototype.itemTouchStarted = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
     var parent = this.parent ? this.parent : this.root;
     parent.menuItemTouchStarted(this);
     if (this.children) {
@@ -180,7 +180,7 @@ ActionMenuItem.prototype.containerMouseEntered = function(e) {
 
 ActionMenuItem.prototype.itemClicked = function(e) {
     if (this.disabled) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
         return;
     }
     if (this.children) {
@@ -197,7 +197,7 @@ ActionMenuItem.prototype.itemClicked = function(e) {
                 this.root.hideContainer();
                 this.root.emit("itemClick", this.id);
             } else {
-                GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+                rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
             }
         }
     }
@@ -415,13 +415,13 @@ ActionMenuItem.prototype.showContainer = function() {
     this.$container().css("willChange", "transform");
     this.$container().removeClass("transition-out transition-in initial").appendTo("body");
     var origin = this.positionSubMenu();
-    this.$container().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$container().css(originProperty, origin.x + "px " + origin.y + "px 0px");
     this.$container().detach();
     this.$container().removeClass("transition-out").addClass("initial transition-in");
     this.$container().appendTo("body");
     this.$container().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$container().removeClass("initial");
         setTimeout(function() {
             self.$container().css("willChange", "");
@@ -437,7 +437,7 @@ ActionMenuItem.prototype.hideContainer = function() {
     this.$container().removeClass("transition-in").addClass("initial transition-out");
     this.$container().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$container().removeClass("initial");
         self._delayTimerId = setTimeout(function() {
             self._delayTimerId = -1;
@@ -505,9 +505,9 @@ function ActionMenu(opts) {
         this._idToItem[id] = item;
     }, this);
 }
-util.inherits(ActionMenu, EventEmitter);
+inherits(ActionMenu, EventEmitter);
 
-ActionMenu.prototype.setEnabledStateFromPredicate = function() {
+prototype.setEnabledStateFromPredicate = function() {
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; ++i) {
         args[i] = arguments[i];
@@ -519,7 +519,7 @@ ActionMenu.prototype.setEnabledStateFromPredicate = function() {
     });
 };
 
-ActionMenu.prototype.destroy = function() {
+prototype.destroy = function() {
     this.clearDelayTimer();
     this.forEach(function(child) { child.destroy(); });
     this.hideContainer();
@@ -527,7 +527,7 @@ ActionMenu.prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-ActionMenu.prototype.menuItemTouchStarted = function(child) {
+prototype.menuItemTouchStarted = function(child) {
     for (var i = 0; i < this._menuItems.length; ++i) {
         var otherChild = this._menuItems[i];
         if (child !== otherChild) {
@@ -537,7 +537,7 @@ ActionMenu.prototype.menuItemTouchStarted = function(child) {
     }
 };
 
-ActionMenu.prototype.$containers = function() {
+prototype.$containers = function() {
     var ret = this.$();
     this.forEach(function(item) {
         if (item.children && item.isShown())  {
@@ -547,18 +547,18 @@ ActionMenu.prototype.$containers = function() {
     return ret;
 };
 
-ActionMenu.prototype.$ = function() {
+prototype.$ = function() {
     return this._domNode;
 };
 
-ActionMenu.prototype.clearDelayTimer = function() {
+prototype.clearDelayTimer = function() {
     if (this._delayTimerId !== -1) {
         clearTimeout(this._delayTimerId);
         this._delayTimerId = -1;
     }
 };
 
-ActionMenu.prototype.startHideTimer = function() {
+prototype.startHideTimer = function() {
     this.clearDelayTimer();
     var self = this;
     this._delayTimerId = setTimeout(function() {
@@ -567,13 +567,13 @@ ActionMenu.prototype.startHideTimer = function() {
     }, this.hideDelay);
 };
 
-ActionMenu.prototype.hideContainer = function() {
+prototype.hideContainer = function() {
     this._menuItems.forEach(function(item) {
         item.hideContainer();
     });
 };
 
-ActionMenu.prototype.forEach = function(fn, ctx) {
+prototype.forEach = function(fn, ctx) {
     var items = this._menuItems.slice();
     var index = 0;
 
@@ -589,21 +589,21 @@ ActionMenu.prototype.forEach = function(fn, ctx) {
     }
 };
 
-ActionMenu.prototype.refreshAll = function() {
+prototype.refreshAll = function() {
     this.forEach(ActionMenuItem.prototype.refresh);
 };
 
-ActionMenu.prototype.disableAll = function() {
+prototype.disableAll = function() {
     this.forEach(ActionMenuItem.prototype.disable);
     this.emit("activationChange", this);
 };
 
-ActionMenu.prototype.enableAll = function() {
+prototype.enableAll = function() {
     this.forEach(ActionMenuItem.prototype.enable);
     this.emit("activationChange", this);
 };
 
-ActionMenu.prototype.disable = function(actions) {
+prototype.disable = function(actions) {
     if (!Array.isArray(actions)) {
         actions = [actions];
     }
@@ -614,7 +614,7 @@ ActionMenu.prototype.disable = function(actions) {
     this.emit("activationChange", this);
 };
 
-ActionMenu.prototype.enable = function(actions) {
+prototype.enable = function(actions) {
     if (!Array.isArray(actions)) {
         actions = [actions];
     }
@@ -624,7 +624,7 @@ ActionMenu.prototype.enable = function(actions) {
     this.emit("activationChange", this);
 };
 
-ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
+ContextMenu = function ContextMenu(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
@@ -648,19 +648,19 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this.rightClicked = this.rightClicked.bind(this);
     this.keypressed = this.keypressed.bind(this);
     this.position = this.position.bind(this);
-    this.rightClickedTouch = domUtil.longTapHandler(this.rightClicked);
-    this.documentClickedTouch = domUtil.touchDownHandler(this.documentClicked);
+    this.rightClickedTouch = longTapHandler(this.rightClicked);
+    this.documentClickedTouch = touchDownHandler(this.documentClicked);
 
     this.preventDefault = $.noop;
 
     // Use event capturing so that these are handled even if stopPropagation()
     // is called.
     this._targetDom.on("contextmenu", this.rightClicked);
-    util.onCapture(document, "mousedown", this.documentClicked);
+    onCapture(document, "mousedown", this.documentClicked);
 
     if (touch) {
-        this._targetDom.on(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
-        util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
+        this._targetDom.on(TOUCH_EVENTS, this.rightClickedTouch);
+        onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
     }
 
     document.addEventListener("keydown", this.keypressed, true);
@@ -669,24 +669,24 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     window.addEventListener("sizechange", this.position, true);
 
     this._menu.on("itemClick", this.hide);
-    util.documentHidden.on("change", this.hide);
+    documentHidden.on("change", this.hide);
 };
-util.inherits(ActionMenu.ContextMenu, EventEmitter);
+inherits(ContextMenu, EventEmitter);
 
-ActionMenu.ContextMenu.prototype.destroy = function() {
+ContextMenu.prototype.destroy = function() {
     this.hide();
-    util.documentHidden.removeListener("change", this.hide);
+    documentHidden.removeListener("change", this.hide);
     this._menu.removeListener("itemClick", this.hide);
     window.removeEventListener("blur", this.hide, true);
     window.removeEventListener("scroll", this.position, true);
     window.removeEventListener("sizechange", this.position, true);
 
-    util.offCapture(document, "mousedown", this.documentClicked);
+    offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
 
     if (touch) {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
-        this._targetDom.off(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
+        offCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
+        this._targetDom.off(TOUCH_EVENTS, this.rightClickedTouch);
     }
 
     document.removeEventListener("keydown", this.keypressed, true);
@@ -694,11 +694,11 @@ ActionMenu.ContextMenu.prototype.destroy = function() {
     this._menu.destroy();
 };
 
-ActionMenu.ContextMenu.prototype.$ = function() {
+ContextMenu.prototype.$ = function() {
     return this._domNode;
 };
 
-ActionMenu.ContextMenu.prototype.position = function() {
+ContextMenu.prototype.position = function() {
     if (!this._shown) return;
     var x = this._x;
     var y = this._y;
@@ -743,7 +743,7 @@ ActionMenu.ContextMenu.prototype.position = function() {
     return origin;
 };
 
-ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
+ContextMenu.prototype.rightClicked = function(e) {
     this.hide();
     var defaultPrevented = false;
     var ev = {
@@ -758,7 +758,7 @@ ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
     }
 };
 
-ActionMenu.ContextMenu.prototype.show = function(e) {
+ContextMenu.prototype.show = function(e) {
     if (this._shown) return;
     if (this._delayTimerId !== -1) {
         clearTimeout(this._delayTimerId);
@@ -775,16 +775,16 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this._xMax = $(window).width();
     this._yMax = $(window).height();
     var origin = this.position();
-    this.$().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$().css(originProperty, origin.x + "px " + origin.y + "px 0px");
 
     // Transition from desktop right click feels weird so only do it on touch.
-    if (domUtil.isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.$().detach();
         this.$().addClass("initial transition-in");
         this.$().appendTo("body");
         this.$().width();
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -792,14 +792,14 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this.emit("didShowMenu", e, this);
 };
 
-ActionMenu.ContextMenu.prototype.hide = function() {
+ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
     this.emit("willHideMenu", this);
     this._shown = false;
     this.$().removeClass("transition-in").addClass("initial transition-out");
     this.$().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$().removeClass("initial");
         self._delayTimerId = setTimeout(function() {
             self._delayTimerId = -1;
@@ -812,13 +812,13 @@ ActionMenu.ContextMenu.prototype.hide = function() {
 
 ["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
 "forEach"].forEach(function(methodName) {
-    var menuMethod = ActionMenu.prototype[methodName];
-    ActionMenu.ContextMenu.prototype[methodName] = function()  {
+    var menuMethod = prototype[methodName];
+    ContextMenu.prototype[methodName] = function()  {
         return menuMethod.apply(this._menu, arguments);
     };
 });
 
-ActionMenu.ContextMenu.prototype.documentClicked = function(e) {
+ContextMenu.prototype.documentClicked = function(e) {
     if (!this._shown) return;
 
     var $target = $(e.target);
@@ -835,7 +835,7 @@ ActionMenu.ContextMenu.prototype.documentClicked = function(e) {
     }
 };
 
-ActionMenu.ContextMenu.prototype.keypressed = function() {
+ContextMenu.prototype.keypressed = function() {
     if (!this._shown) return;
     this.hide();
 };

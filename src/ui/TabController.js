@@ -1,10 +1,10 @@
 "use strict";
 
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { inherits } from "lib/util";
+import { TOUCH_EVENTS, horizontalDragHandler, setFilter, setTransform, tapHandler } from "lib/DomUtil";
 import EventEmitter from "lib/events";
-const touch = require("features").touch;
-const GlobalUi = require("ui/GlobalUi");
+import { touch as touch } from "features";
+import { rippler } from "ui/GlobalUi";
 
 function Tab(spec, controller, index, opts) {
     EventEmitter.call(this);
@@ -18,13 +18,13 @@ function Tab(spec, controller, index, opts) {
     this._contentRect = this.$content()[0].getBoundingClientRect();
     this.$().on("click", this._clicked);
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this._clicked));
+        this.$().on(TOUCH_EVENTS, tapHandler(this._clicked));
     }
 
     var position = this._contentRect.width * this._index;
-    domUtil.setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
+    setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
 }
-util.inherits(Tab, EventEmitter);
+inherits(Tab, EventEmitter);
 
 Tab.prototype.$ = function() {
     return this._domNode;
@@ -35,7 +35,7 @@ Tab.prototype.$content = function() {
 };
 
 Tab.prototype._clicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.emit("click", this);
 };
 
@@ -66,9 +66,9 @@ Tab.prototype.prepareForSetColor = function() {
 
 Tab.prototype.setColor = function() {
     if (this.isActive()) {
-        domUtil.setFilter(this.$(), "grayscale(0%) brightness(100%)");
+        setFilter(this.$(), "grayscale(0%) brightness(100%)");
     } else {
-        domUtil.setFilter(this.$(), "grayscale(100%) brightness(60%)");
+        setFilter(this.$(), "grayscale(100%) brightness(60%)");
     }
 };
 
@@ -109,12 +109,12 @@ function TabController(domNode, specs, opts) {
     this._activeTabRect = null;
 
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, domUtil.horizontalDragHandler(this._dragStart,
+        this.$().on(TOUCH_EVENTS, horizontalDragHandler(this._dragStart,
                                                                         this._dragMove,
                                                                         this._dragEnd));
     }
 }
-util.inherits(TabController, EventEmitter);
+inherits(TabController, EventEmitter);
 
 TabController.prototype.$ = function() {
     return this._domNode;
@@ -163,21 +163,21 @@ TabController.prototype._dragMove = function(gesture) {
         var tab = this._tabs[i];
         var newPosition = ((i - activeIndex) + progress) * contentWidth;
         var translate3d = "translate3d(" + newPosition + "px, 0, 0)";
-        domUtil.setTransform(tab.$content(), translate3d);
+        setTransform(tab.$content(), translate3d);
 
         if (i === activeIndex) {
             var brightness = ((1 - absProgress) * (100 - 60) + 60);
             var grayscale = ((absProgress) * 100);
-            domUtil.setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else if (i === nextIndex) {
             var brightness = (absProgress * (100 - 60) + 60);
             var grayscale = ((1 - absProgress) * 100);
-            domUtil.setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else {
-            domUtil.setFilter(tab.$(), "grayscale(100%) brightness(60%)");
+            setFilter(tab.$(), "grayscale(100%) brightness(60%)");
         }
     }
-    domUtil.setTransform(this.$indicator(), "translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
+    setTransform(this.$indicator(), "translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
     this._dragAnchorEnd = gesture.clientX;
 };
 
@@ -260,9 +260,9 @@ TabController.prototype._activateTab = function(tab, force) {
         var tab = this._tabs[i];
         tab.setColor();
         var contentPosition = (tab.index() - activeIndex) * contentWidth;
-        domUtil.setTransform(tab.$content(), "translate3d(" + contentPosition + "px, 0, 0)");
+        setTransform(tab.$content(), "translate3d(" + contentPosition + "px, 0, 0)");
     }
-    domUtil.setTransform(this.$indicator(), "translate3d(" + (100 * activeIndex) + "%, 0, 0)");
+    setTransform(this.$indicator(), "translate3d(" + (100 * activeIndex) + "%, 0, 0)");
 
     self._contentHideTimeoutId = setTimeout(function() {
         self._contentHideTimeoutId = -1;

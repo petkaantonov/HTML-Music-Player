@@ -1,7 +1,7 @@
 "use strict";
 
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { offCapture, onCapture } from "lib/util";
+import { setTransform } from "lib/DomUtil";
 
 const NO_PREFERENCE = -1;
 const NO_INVERSION = 0;
@@ -51,8 +51,8 @@ function Scrollbar(container, scrollerInfo, opts) {
     this.resize();
 
     this.$knob().on("mousedown", this._knobMousedowned);
-    util.onCapture(this.$knob()[0], "click", this._clicked);
-    util.onCapture(this.$rail()[0], "click", this._clicked);
+    onCapture(this.$knob()[0], "click", this._clicked);
+    onCapture(this.$rail()[0], "click", this._clicked);
     $(document).on("mouseup", this._rebindRailmouseDowned);
     this._rebindRailmouseDowned();
 }
@@ -82,7 +82,7 @@ Scrollbar.prototype.$knob = function() {
 };
 
 Scrollbar.prototype._restoreClicks = function() {
-    util.offCapture(document, "click dblclick", this._clicked);
+    offCapture(document, "click dblclick", this._clicked);
 };
 
 Scrollbar.prototype._rebindRailmouseDowned = function() {
@@ -106,7 +106,7 @@ Scrollbar.prototype._railMousedowned = function(e) {
     e.stopImmediatePropagation();
     this._scrollByCoordinate(e.clientY, false);
     this.$rail().off("mousedown", this._railMousedowned);
-    util.onCapture(document, "click dblclick", this._clicked);
+    onCapture(document, "click dblclick", this._clicked);
 };
 
 Scrollbar.prototype._knobMousedowned = function(e) {
@@ -119,7 +119,7 @@ Scrollbar.prototype._knobMousedowned = function(e) {
     this._anchorDistance = e.clientY - this._knobRect.top;
     $(document).on("mousemove", this._knobMousemoved);
     $(document).on("mouseup", this._knobMousereleased);
-    util.onCapture(document, "click dblclick", this._clicked);
+    onCapture(document, "click dblclick", this._clicked);
 };
 
 Scrollbar.prototype._knobMousereleased = function() {
@@ -175,7 +175,7 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
         this._timerId = setTimeout(this._stopScrolling, 450);
     }
 
-    domUtil.setTransform(this.$knob()[0], "translate3d(0, " + px + "px, 0)");
+    setTransform(this.$knob()[0], "translate3d(0, " + px + "px, 0)");
 };
 
 Scrollbar.prototype.resize = function() {

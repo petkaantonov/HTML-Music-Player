@@ -12,12 +12,11 @@ window.Promise = require("lib/bluebird");
 require("BluebirdConfig");
 require("lib/jquery.fileinput");
 require("lib/jquery.reflow");
-const util = require("lib/util");
+import { isTextInputNode, offCapture, onCapture, throttle } from "lib/util";
 const serviceWorkerManager = require("ServiceWorkerManager");
 const TrackDisplay = require("ui/TrackDisplay");
 const Player = require("Player");
 const Playlist = require("Playlist");
-const ActionMenu = require("ui/ActionMenu");
 const PlaylistModeManager = require("ui/PlaylistModeManager");
 const PlayerTimeManager = require("ui/PlayerTimeManager");
 import Slider from "ui/Slider";
@@ -27,9 +26,9 @@ const PlaylistNotifications = require("ui/PlaylistNotifications");
 const VisualizerCanvas = require("ui/VisualizerCanvas");
 const TrackAnalyzer = require("audio/TrackAnalyzer");
 const LocalFiles = require("LocalFiles");
-const GlobalUi = require("ui/GlobalUi");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { rippler, spinner } from "ui/GlobalUi";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, horizontalTwoFingerSwipeHandler, isTextInputElement, tapHandler, twoFingerTapHandler } from "lib/DomUtil";
 const gestureScreenFlasher = require("ui/GestureScreenFlasher");
 const TrackRating = require("TrackRating");
 const Track = require("Track");
@@ -59,13 +58,13 @@ window.onerror = function(a, b, c, d, e) {
     }
 };
 
-const features = require("features");
+import { allowExtensions, allowMimes, directories, requiredFeatures } from "features";
 import keyValueDatabase from "KeyValueDatabase";
 
-var requiredFeaturesChecked = Promise.map(Object.keys(features.requiredFeatures), function(description) {
-    var checker = features.requiredFeatures[description][0];
-    var canIUseUrl = features.requiredFeatures[description][1];
-    var apiName = features.requiredFeatures[description][2];
+var requiredFeaturesChecked = Promise.map(Object.keys(requiredFeatures), function(description) {
+    var checker = requiredFeatures[description][0];
+    var canIUseUrl = requiredFeatures[description][1];
+    var apiName = requiredFeatures[description][2];
     return checker().catch(function(e) {return false}).then(function(result) {
         return {
             supported: result,
@@ -142,11 +141,11 @@ $(window).on("clear", function() {
 });
 
 $(document).on("longPressStart", function(e, touch) {
-    GlobalUi.spinner.spinAt(touch.clientX|0, touch.clientY|0);
+    spinner.spinAt(touch.clientX|0, touch.clientY|0);
 });
 
 $(document).on("longPressEnd", function() {
-    GlobalUi.spinner.stop();
+    spinner.stop();
 });
 
 var playlistModeManager = new PlaylistModeManager(".playlist-controls-container", playlist.main);
@@ -235,7 +234,7 @@ player.main.on("stop", function() {
 
 const trackAnalyzer = new TrackAnalyzer(playlist.main);
 mainTabs.search.setTrackAnalyzer(trackAnalyzer);
-LocalFiles.setup(features.allowMimes, features.allowExtensions);
+LocalFiles.setup(allowMimes, allowExtensions);
 
 function addFilesToPlaylist(files) {
     playlist.main.add(files.map(function(file) {
@@ -255,7 +254,7 @@ function filterFiles(files, filter) {
 }
 
 
-if (features.directories) {
+if (directories) {
     $('.menul-folder, .add-folder-link').fileInput("create", {
         onchange: function() {
             if ('getFilesAndDirectories' in this) {
@@ -286,7 +285,7 @@ $('.menul-files, .add-files-link').fileInput("create", {
         $(".menul-files").fileInput("clearFiles");
     },
     multiple: true,
-    accept: features.allowMimes.join(",")
+    accept: allowMimes.join(",")
 });
 
 var toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
@@ -397,7 +396,7 @@ $(document)
         });
     })
     .on("selectstart", function(e) {
-        if (!util.isTextInputNode(e.target)) {
+        if (!isTextInputNode(e.target)) {
             e.preventDefault();
         }
     });
@@ -408,13 +407,13 @@ var seekHotkey;
 var seekValueToCommit = -1;
 var commitSeek = function(e) {
     if (e.key !== seekHotkey) return;
-    util.offCapture(document, "keyup", commitSeek);
+    offCapture(document, "keyup", commitSeek);
     player.main.setProgress(seekValueToCommit);
     seekValueToCommit = -1;
 };
 
 player.main.on("newTrackLoad", function() {
-    util.offCapture(document, "keyup", commitSeek);
+    offCapture(document, "keyup", commitSeek);
 });
 
 KeyboardShortcuts.defaultContext.addShortcut("z", player.methodPlay);
@@ -431,7 +430,7 @@ KeyboardShortcuts.defaultContext.addShortcut("m", function() {
     playlist.main.tryChangeMode("repeat");
 });
 KeyboardShortcuts.defaultContext.addShortcut("ArrowLeft", function(e) {
-    util.offCapture(document, "keyup", commitSeek);
+    offCapture(document, "keyup", commitSeek);
 
     var p;
     if (seekValueToCommit !== -1) {
@@ -443,13 +442,13 @@ KeyboardShortcuts.defaultContext.addShortcut("ArrowLeft", function(e) {
     if (p !== -1) {
         seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
         seekHotkey = e.key;
-        util.onCapture(document, "keyup", commitSeek);
+        onCapture(document, "keyup", commitSeek);
         player.main.seekIntent(seekValueToCommit);
     }
 
 });
 KeyboardShortcuts.defaultContext.addShortcut("ArrowRight", function(e) {
-    util.offCapture(document, "keyup", commitSeek);
+    offCapture(document, "keyup", commitSeek);
 
     var p;
     if (seekValueToCommit !== -1) {
@@ -461,7 +460,7 @@ KeyboardShortcuts.defaultContext.addShortcut("ArrowRight", function(e) {
     if (p !== -1) {
         seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
         seekHotkey = e.key;
-        util.onCapture(document, "keyup", commitSeek);
+        onCapture(document, "keyup", commitSeek);
         player.main.seekIntent(seekValueToCommit);
     }
 });
@@ -483,43 +482,43 @@ KeyboardShortcuts.defaultContext.addShortcut("alt+t", function() {
 });
 
 if (touch) {
-    const toggleGesture = domUtil.twoFingerTapHandler(function() {
+    const toggleGesture = twoFingerTapHandler(function() {
         var gesture = player.main.isPlaying ? "pause" : "play";
         gestureScreenFlasher.flashGesture(gesture);
         player.main.togglePlayback();
     }, 1);
-    const nextTrackGesture = domUtil.horizontalTwoFingerSwipeHandler(function() {
+    const nextTrackGesture = horizontalTwoFingerSwipeHandler(function() {
         gestureScreenFlasher.flashGesture("next");
         player.methodNext()
     }, 1);
-    const previousTrackGesture = domUtil.horizontalTwoFingerSwipeHandler(function() {
+    const previousTrackGesture = horizontalTwoFingerSwipeHandler(function() {
         gestureScreenFlasher.flashGesture("previous");
         player.methodPrev();
     }, -1);
 
     const enableGestures = function() {
-        util.onCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
-        util.onCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
-        util.onCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
+        onCapture(document, TOUCH_EVENTS, toggleGesture);
+        onCapture(document, TOUCH_EVENTS, nextTrackGesture);
+        onCapture(document, TOUCH_EVENTS, previousTrackGesture);
     };
 
     const disableGestures = function() {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, toggleGesture);
-        util.offCapture(document, domUtil.TOUCH_EVENTS, nextTrackGesture);
-        util.offCapture(document, domUtil.TOUCH_EVENTS, previousTrackGesture);
+        offCapture(document, TOUCH_EVENTS, toggleGesture);
+        offCapture(document, TOUCH_EVENTS, nextTrackGesture);
+        offCapture(document, TOUCH_EVENTS, previousTrackGesture);
     };
 
     enableGestures();
     KeyboardShortcuts.on("disable", disableGestures);
     KeyboardShortcuts.on("enable", enableGestures);
 
-    util.onCapture(document, domUtil.TOUCH_EVENTS, domUtil.tapHandler(function(e) {
-        GlobalUi.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
+    onCapture(document, TOUCH_EVENTS, tapHandler(function(e) {
+        rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
     }));
 }
 
 const rinput = /^(input|select|textarea|button)$/i;
-util.onCapture(document, "keydown", function(e) {
+onCapture(document, "keydown", function(e) {
     var key = e.key;
     if (key === "Escape") {
         $(window).trigger("clear");
@@ -568,7 +567,7 @@ util.onCapture(document, "keydown", function(e) {
         }
 
         var activeElement = document.activeElement;
-        if (activeElement && domUtil.isTextInputElement(activeElement)) {
+        if (activeElement && isTextInputElement(activeElement)) {
             pendingSizeChange = true;
             return;
         }
@@ -580,22 +579,22 @@ util.onCapture(document, "keydown", function(e) {
         window.dispatchEvent(event);
     };
 
-    const resetFireSizeChangeEvents = util.throttle(function() {
+    const resetFireSizeChangeEvents = throttle(function() {
         fireSizeChangeEvents = true;
     }, 500);
 
-    const firePendingSizeChangeEvent = util.throttle(triggerSizeChange, 100);
+    const firePendingSizeChangeEvent = throttle(triggerSizeChange, 100);
 
 
-    util.onCapture(document, "focus", function(e) {
-        if (domUtil.isTextInputElement(e.target)) {
+    onCapture(document, "focus", function(e) {
+        if (isTextInputElement(e.target)) {
             fireSizeChangeEvents = false;
             resetFireSizeChangeEvents();
         }
     });
 
-    util.onCapture(document, "blur", function(e) {
-        if (domUtil.isTextInputElement(e.target)) {
+    onCapture(document, "blur", function(e) {
+        if (isTextInputElement(e.target)) {
             window.scrollTo(0, 0);
             if (pendingSizeChange) {
                 pendingSizeChange = false;
@@ -605,7 +604,7 @@ util.onCapture(document, "keydown", function(e) {
     });
 
     requestAnimationFrame(triggerSizeChange);
-    util.onCapture(window, "resize", triggerSizeChange);
+    onCapture(window, "resize", triggerSizeChange);
 })();
 }).catch(function(e) {
     console.log(e && (e.stack || e.message));

@@ -3,11 +3,10 @@ import $ from "lib/jquery";
 
 const PlayerPictureManager = require("ui/PlayerPictureManager");
 import EventEmitter from "lib/events";
-const util = require("lib/util");
+import { inherits } from "lib/util";
 const TagData = require("TagData");
 const sha1 = require("lib/sha1");
 import Promise from "lib/bluebird";
-const domUtil = require("lib/DomUtil");
 const searchUtil = require("searchUtil");
 
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
@@ -31,7 +30,7 @@ function Track(audioFile) {
     this._isDisplayedAsSearchResult = false;
     this._searchTerm = null;
 }
-util.inherits(Track, EventEmitter);
+inherits(Track, EventEmitter);
 
 Track.prototype.transientId = function() {
     return this._transientId;

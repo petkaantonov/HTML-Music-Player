@@ -1,16 +1,15 @@
 "use strict";
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
+import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 const Selectable = require("ui/Selectable");
 const DraggableSelection = require("ui/DraggableSelection");
 import keyValueDatabase from "KeyValueDatabase";
 const Track = require("Track");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
 const FixedItemListScroller = require("ui/FixedItemListScroller");
 const PLAYLIST_MODE_KEY = "playlist-mode";
-const GlobalUi = require("ui/GlobalUi");
+import { snackbar } from "ui/GlobalUi";
 const Snackbar = require("ui/Snackbar");
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 const TrackView = require("ui/TrackView");
@@ -61,7 +60,7 @@ function TrackListDeletionUndo(playlist) {
 }
 
 TrackListDeletionUndo.prototype.destroy = function() {
-    GlobalUi.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
+    snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
     for (var i = 0; i < this.tracksAndViews.length; ++i) {
         var track = this.tracksAndViews[i].track;
         if (track.isDetachedFromPlaylist()) {
@@ -170,7 +169,7 @@ function Playlist(domNode, opts) {
     }
     this._draggable.bindEvents();
 }
-util.inherits(Playlist, EventEmitter);
+inherits(Playlist, EventEmitter);
 
 Playlist.Modes = {
     normal: function(track) {
@@ -503,12 +502,12 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
     });
     if (trackViews.length === 0) return;
     var oldLength = this.length;
-    var tracksIndexRanges = util.buildConsecutiveRanges(trackViews.map(util.indexMapper));
+    var tracksIndexRanges = buildConsecutiveRanges(trackViews.map(indexMapper));
 
     this._edited();
     this._saveStateForUndo();
 
-    this._selectable.removeIndices(trackViews.map(util.indexMapper));
+    this._selectable.removeIndices(trackViews.map(indexMapper));
 
     for (var i = 0; i < trackViews.length; ++i) {
         trackViews[i].track().stageRemoval();
@@ -532,7 +531,7 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
 
     var tracksWord = tracksRemoved === 1 ? "track" : "tracks";
     var self = this;
-    GlobalUi.snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
+    snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
         action: "undo",
         visibilityTime: 10000,
         tag: PLAYLIST_TRACKS_REMOVED_TAG

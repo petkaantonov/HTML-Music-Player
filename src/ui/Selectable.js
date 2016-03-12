@@ -1,9 +1,9 @@
 "use strict";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const DS = require("lib/DataStructures");
+import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "lib/util";
+import { SortedSet } from "lib/DataStructures";
 
-const modifierKeyProp = util.modifierKeyProp;
+const modifierKeyProp = modifierKeyProp;
 
 function Selectable(playlist) {
     EventEmitter.call(this);
@@ -13,9 +13,9 @@ function Selectable(playlist) {
     this._lastStart = null;
     this._lastEnd = null;
     this._prioritySelection = null;
-    this._selection = new DS.SortedSet(util.TRACK_SORTER);
+    this._selection = new SortedSet(TRACK_SORTER);
 }
-util.inherits(Selectable, EventEmitter);
+inherits(Selectable, EventEmitter);
 
 Selectable.prototype.trackViewMouseDown = function(e, trackView) {
     if (e.which !== 1 && e.which !== 3) {
@@ -508,7 +508,7 @@ Selectable.prototype.remove = function(trackView) {
 };
 
 Selectable.moveSelectedItemViewsDownBy = function(trackViews, selection, distance) {
-    var selectedTrackRanges = util.buildConsecutiveRanges(selection, util.indexMapper);
+    var selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
 
     while(distance-- > 0 && selectedTrackRanges.last().last().getIndex() < trackViews.length - 1) {
         for (var i = 0; i < selectedTrackRanges.length; ++i) {
@@ -528,7 +528,7 @@ Selectable.moveSelectedItemViewsDownBy = function(trackViews, selection, distanc
 };
 
 Selectable.moveSelectedItemViewsUpBy = function(trackViews, selection, distance) {
-    var selectedTrackRanges = util.buildConsecutiveRanges(selection, util.indexMapper);
+    var selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
 
     while(distance-- > 0 && selectedTrackRanges.first().first().getIndex() > 0) {
         for (var i = selectedTrackRanges.length - 1; i >= 0; --i) {

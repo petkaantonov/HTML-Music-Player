@@ -3,9 +3,9 @@ import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { documentHidden, inherits } from "lib/util";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, changeDom, tapHandler } from "lib/DomUtil";
 
 const NO_TAG = {};
 
@@ -17,7 +17,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.visibilityTime = opts.visibilityTime || snackbar.visibilityTime || 5000;
 
     this._exiting = false;
-    this._visible = !util.documentHidden.value();
+    this._visible = !documentHidden.value();
     this._snackbar = snackbar;
     this._startedShowing = this._visible ? Date.now() : -1;
     this._initialShowing = Date.now();
@@ -26,7 +26,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this._domNode = this._createDom(message, opts);
     this._visibilityChanged = this._visibilityChanged.bind(this);
     this._clicked = this._clicked.bind(this);
-    this._clickedTouch = domUtil.tapHandler(this._clicked);
+    this._clickedTouch = tapHandler(this._clicked);
     this._timeoutChecker = this._timeoutChecker.bind(this);
     this._mouseEntered = this._mouseEntered.bind(this);
     this._mouseLeft = this._mouseLeft.bind(this);
@@ -38,10 +38,10 @@ function SnackbarInstance(snackbar, message, opts) {
     $(window).on("sizechange", this._resized);
 
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, this._clickedTouch);
+        this.$().on(TOUCH_EVENTS, this._clickedTouch);
     }
 
-    util.documentHidden.on("change", this._visibilityChanged);
+    documentHidden.on("change", this._visibilityChanged);
     this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
 
     if (this._snackbar.transitionInClass) {
@@ -54,7 +54,7 @@ function SnackbarInstance(snackbar, message, opts) {
         this.$().width();
         this._snackbar.beforeTransitionIn(this.$());
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
             setTimeout(function() {
                 self.$().css("willChange", "");
@@ -65,7 +65,7 @@ function SnackbarInstance(snackbar, message, opts) {
         this._resized();
     }
 }
-util.inherits(SnackbarInstance, EventEmitter);
+inherits(SnackbarInstance, EventEmitter);
 
 SnackbarInstance.prototype._resized = function() {
     var box = this.$()[0].getBoundingClientRect();
@@ -137,7 +137,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
     var visibilityTime = this.visibilityTime;
     var shownTime = this._startedShowing === -1 ? 0 : Date.now() - this._startedShowing;
 
-    if (!util.documentHidden.value() && !this._isHovering) {
+    if (!documentHidden.value() && !this._isHovering) {
         if (shownTime > visibilityTime) {
             this.outcome = Snackbar.TIMED_OUT;
             this._hide();
@@ -186,7 +186,7 @@ SnackbarInstance.prototype._hide = function() {
         this.$().height();
         this._snackbar.beforeTransitionOut(this.$());
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -207,7 +207,7 @@ SnackbarInstance.prototype._hide = function() {
 SnackbarInstance.prototype._removeListeners = function() {
     this.$().off("click", this._clicked);
     $(window).off("sizechange", this._resized);
-    util.documentHidden.removeListener("change", this._visibilityChanged);
+    documentHidden.removeListener("change", this._visibilityChanged);
     this._clearTimer();
 };
 

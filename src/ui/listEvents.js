@@ -1,7 +1,7 @@
 "use strict"
 
-const domUtil = require("lib/DomUtil");
-const touch = require("features").touch;
+import { TOUCH_EVENTS, doubleTapHandler, longTapHandler, modifierTapHandler, tapHandler } from "lib/DomUtil";
+import { touch as touch } from "features";
 
 exports.bindListEvents = function(contentInstance, opts) {
     opts = Object(opts);
@@ -23,7 +23,7 @@ exports.bindListEvents = function(contentInstance, opts) {
     });
 
     if (touch) {
-        contentInstance.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.modifierTapHandler(function(e) {
+        contentInstance.$().on(TOUCH_EVENTS, ".track-container", modifierTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var trackView = contentInstance._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!trackView) return;
@@ -36,14 +36,14 @@ exports.bindListEvents = function(contentInstance, opts) {
             }
         }));
 
-        contentInstance.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.tapHandler(function(e) {
+        contentInstance.$().on(TOUCH_EVENTS, ".track-container", tapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var trackView = contentInstance._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!trackView) return;
             contentInstance._selectable.selectTrackView(trackView);
         }));
 
-        contentInstance.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.longTapHandler(function(e) {
+        contentInstance.$().on(TOUCH_EVENTS, ".track-container", longTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var trackView = contentInstance._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!trackView) return;
@@ -53,7 +53,7 @@ exports.bindListEvents = function(contentInstance, opts) {
             contentInstance._selectable.setPriorityTrackView(trackView);
         }));
 
-        contentInstance.$().on(domUtil.TOUCH_EVENTS, ".track-container", domUtil.doubleTapHandler(function(e) {
+        contentInstance.$().on(TOUCH_EVENTS, ".track-container", doubleTapHandler(function(e) {
             if ($(e.target).closest(".unclickable").length > 0) return;
             var trackView = contentInstance._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
             if (!trackView) return;

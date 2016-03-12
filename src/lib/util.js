@@ -62,22 +62,22 @@ if (typeof Math.gcd !== "function") {
     });
 }
 
-util.queryString = function(obj) {
+queryString = function(obj) {
     return Object.keys(obj).map(function(key) {
         return key + "=" + obj[key];
     }).join("&");
 };
 
-util.combineClasses = function(a, b) {
+combineClasses = function(a, b) {
     if (!a) return b;
     return a + " " + b;
 };
 
-util.modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
+modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
 
-util.modifierKeyProp = util.modifierKey + "Key";
+modifierKeyProp = modifierKey + "Key";
 
-util.arrayEquals = function(arrayA, arrayB) {
+arrayEquals = function(arrayA, arrayB) {
     if (arrayA === arrayB) return true;
     if (arrayA.length !== arrayB.length) return false;
     for (var i = 0; i < arrayA.length; ++i) {
@@ -88,7 +88,7 @@ util.arrayEquals = function(arrayA, arrayB) {
     return true;
 };
 
-util.toFunction = function(value) {
+toFunction = function(value) {
     if (typeof value === "function") return value;
     return function() {
         return value;
@@ -97,7 +97,7 @@ util.toFunction = function(value) {
 
 const rInput = /textarea|input|select/i;
 const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
-util.isTextInputNode = function(node) {
+isTextInputNode = function(node) {
     if (rInput.test(node.nodeName)) {
         if (node.nodeName.toLowerCase() !== "input") {
             return true;
@@ -114,31 +114,31 @@ util.isTextInputNode = function(node) {
     return false;
 };
 
-util.onCapture = function onCapture(dom, eventName, handler) {
+onCapture = function onCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.addEventListener(eventName, handler, true);
     });
 };
 
-util.offCapture = function offCapture(dom, eventName, handler) {
+offCapture = function offCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.removeEventListener(eventName, handler, true);
     });
 };
 
-util.onBubble = function onCapture(dom, eventName, handler) {
+onBubble = function onCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.addEventListener(eventName, handler, false);
     });
 };
 
-util.offBubble = function offCapture(dom, eventName, handler) {
+offBubble = function offCapture(dom, eventName, handler) {
     eventName.split(" ").forEach(function(eventName) {
         dom.removeEventListener(eventName, handler, false);
     });
 };
 
-util.bits = (function() {
+bits = (function() {
     const masks = new Int32Array([0x0,
                                   0x1, 0x3, 0x7, 0xF,
                                   0x1F, 0x3F, 0x7F, 0xFF,
@@ -154,43 +154,43 @@ util.bits = (function() {
     };
 })();
 
-util.bit = function(number, offset) {
-    return util.bits(number, offset, 1) === 1;
+bit = function(number, offset) {
+    return bits(number, offset, 1) === 1;
 };
 
-util.synchInt32 = function(bytes, offset) {
+synchInt32 = function(bytes, offset) {
     return (((bytes.charCodeAt(offset + 0) & 0xFF) & 0x7f) << 21) |
            (((bytes.charCodeAt(offset + 1) & 0xFF) & 0x7f) << 14) |
            (((bytes.charCodeAt(offset + 2) & 0xFF) & 0x7f) << 7)  |
             ((bytes.charCodeAt(offset + 3) & 0xFF) & 0x7f);
 };
 
-util.int24BE = function(bytes, offset) {
+int24BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 2) & 0xFF);
 };
 
-util.int32BE = function(bytes, offset) {
+int32BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 24) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 2) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 3) & 0xFF);
 };
 
-util.int16BE = function(bytes, offset) {
+int16BE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 0) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 1) & 0xFF);
 };
 
-util.int32LE = function(bytes, offset) {
+int32LE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 3) & 0xFF) << 24) |
            ((bytes.charCodeAt(offset + 2) & 0xFF) << 16) |
            ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 0) & 0xFF);
 };
 
-util.int16LE = function(bytes, offset) {
+int16LE = function(bytes, offset) {
     return ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 0) & 0xFF);
 };
@@ -213,7 +213,7 @@ util.int16LE = function(bytes, offset) {
     const b8 = new Uint8Array(f64.buffer);
 
     if (endianess === LITTLE_ENDIAN) {
-        util.float32BE = function(bytes, offset) {
+        float32BE = function(bytes, offset) {
             b4[0] = (bytes.charCodeAt(offset + 3) & 0xFF);
             b4[1] = (bytes.charCodeAt(offset + 2) & 0xFF);
             b4[2] = (bytes.charCodeAt(offset + 1) & 0xFF);
@@ -221,7 +221,7 @@ util.int16LE = function(bytes, offset) {
             return f32[0];
         };
     } else {
-        util.float32BE = function(bytes, offset) {
+        float32BE = function(bytes, offset) {
             b4[3] = (bytes.charCodeAt(offset + 3) & 0xFF);
             b4[2] = (bytes.charCodeAt(offset + 2) & 0xFF);
             b4[1] = (bytes.charCodeAt(offset + 1) & 0xFF);
@@ -231,7 +231,7 @@ util.int16LE = function(bytes, offset) {
     }
 
     if (endianess === LITTLE_ENDIAN) {
-        util.float32BEString = function(num) {
+        float32BEString = function(num) {
             f32[0] = num;
             return String.fromCharCode(b4[3]) +
                    String.fromCharCode(b4[2]) +
@@ -239,7 +239,7 @@ util.int16LE = function(bytes, offset) {
                    String.fromCharCode(b4[0]);
         };
     } else {
-        util.float32BEString = function(num) {
+        float32BEString = function(num) {
             f32[0] = num;
             return String.fromCharCode(b4[0]) +
                    String.fromCharCode(b4[1]) +
@@ -249,7 +249,7 @@ util.int16LE = function(bytes, offset) {
     }
 
     if (endianess === LITTLE_ENDIAN) {
-        util.int32BEString = function(num) {
+        int32BEString = function(num) {
             i32[0] = num | 0;
             return String.fromCharCode(b4[3]) +
                    String.fromCharCode(b4[2]) +
@@ -257,7 +257,7 @@ util.int16LE = function(bytes, offset) {
                    String.fromCharCode(b4[0]);
         };
     } else {
-        util.int32BEString = function(num) {
+        int32BEString = function(num) {
             i32[0] = num | 0;
             return String.fromCharCode(b4[0]) +
                    String.fromCharCode(b4[1]) +
@@ -267,7 +267,7 @@ util.int16LE = function(bytes, offset) {
     }
 
     if (endianess === LITTLE_ENDIAN) {
-        util.uint32BEString = function(num) {
+        uint32BEString = function(num) {
             ui32[0] = num >>> 0;
             return String.fromCharCode(b4[3]) +
                    String.fromCharCode(b4[2]) +
@@ -275,7 +275,7 @@ util.int16LE = function(bytes, offset) {
                    String.fromCharCode(b4[0]);
         };
     } else {
-        util.uint32BEString = function(num) {
+        uint32BEString = function(num) {
             ui32[0] = num >>> 0;
             return String.fromCharCode(b4[0]) +
                    String.fromCharCode(b4[1]) +
@@ -285,7 +285,7 @@ util.int16LE = function(bytes, offset) {
     }
 
     if (endianess === LITTLE_ENDIAN) {
-        util.float32LE = function(bytes, offset) {
+        float32LE = function(bytes, offset) {
             b4[3] = (bytes.charCodeAt(offset + 3) & 0xFF);
             b4[2] = (bytes.charCodeAt(offset + 2) & 0xFF);
             b4[1] = (bytes.charCodeAt(offset + 1) & 0xFF);
@@ -293,7 +293,7 @@ util.int16LE = function(bytes, offset) {
             return f32[0];
         };
     } else {
-        util.float32LE = function(bytes, offset) {
+        float32LE = function(bytes, offset) {
             b4[0] = (bytes.charCodeAt(offset + 3) & 0xFF);
             b4[1] = (bytes.charCodeAt(offset + 2) & 0xFF);
             b4[2] = (bytes.charCodeAt(offset + 1) & 0xFF);
@@ -303,7 +303,7 @@ util.int16LE = function(bytes, offset) {
     }
 
     if (endianess === LITTLE_ENDIAN) {
-        util.float64BE = function(bytes, offset) {
+        float64BE = function(bytes, offset) {
             b8[0] = (bytes.charCodeAt(offset + 7) & 0xFF);
             b8[1] = (bytes.charCodeAt(offset + 6) & 0xFF);
             b8[2] = (bytes.charCodeAt(offset + 5) & 0xFF);
@@ -315,7 +315,7 @@ util.int16LE = function(bytes, offset) {
             return f64[0];
         };
     } else {
-        util.float64BE = function(bytes, offset) {
+        float64BE = function(bytes, offset) {
             b8[7] = (bytes.charCodeAt(offset + 7) & 0xFF);
             b8[6] = (bytes.charCodeAt(offset + 6) & 0xFF);
             b8[5] = (bytes.charCodeAt(offset + 5) & 0xFF);
@@ -328,7 +328,7 @@ util.int16LE = function(bytes, offset) {
         };
     }
     if (endianess === LITTLE_ENDIAN) {
-        util.float64LE = function(bytes, offset) {
+        float64LE = function(bytes, offset) {
             b8[7] = (bytes.charCodeAt(offset + 7) & 0xFF);
             b8[6] = (bytes.charCodeAt(offset + 6) & 0xFF);
             b8[5] = (bytes.charCodeAt(offset + 5) & 0xFF);
@@ -340,7 +340,7 @@ util.int16LE = function(bytes, offset) {
             return f64[0];
         };
     } else {
-        util.float64LE = function(bytes, offset) {
+        float64LE = function(bytes, offset) {
             b8[0] = (bytes.charCodeAt(offset + 7) & 0xFF);
             b8[1] = (bytes.charCodeAt(offset + 6) & 0xFF);
             b8[2] = (bytes.charCodeAt(offset + 5) & 0xFF);
@@ -354,11 +354,11 @@ util.int16LE = function(bytes, offset) {
     }
 })();
 
-util.truncateUp = function(num) {
+truncateUp = function(num) {
     return num < 0 ? Math.floor(num) : Math.ceil(num);
 };
 
-util.toTimeString = function(secs) {
+toTimeString = function(secs) {
     if (!isFinite(secs) || secs == null) return "";
     var sign = secs < 0 ? -1 : 1;
     secs = Math.floor(Math.abs(secs));
@@ -376,7 +376,7 @@ util.toTimeString = function(secs) {
         minutes + ":" + seconds;
 };
 
-util.shortNumber = function(num) {
+shortNumber = function(num) {
     num = +num;
     var sign = num < 0 ? "-" : "";
     num = Math.abs(num);
@@ -387,7 +387,7 @@ util.shortNumber = function(num) {
     return sign + num.toExponential(0);
 };
 
-util.perfectScrollBarPostUpdate = function(node) {
+perfectScrollBarPostUpdate = function(node) {
     var st = node.scrollTop;
     var sl = node.scrollLeft;
     node.scrollTop = 0;
@@ -402,21 +402,21 @@ util.perfectScrollBarPostUpdate = function(node) {
     node.dispatchEvent(scrollEvent);
 };
 
-util.scrollUp = function(node, amount) {
+scrollUp = function(node, amount) {
     node.scrollTop = node.scrollTop - amount;
     var scrollEvent = document.createEvent("Event");
     scrollEvent.initEvent('scroll', true, true);
     node.dispatchEvent(scrollEvent);
 };
 
-util.scrollDown = function(node, amount) {
+scrollDown = function(node, amount) {
     node.scrollTop = node.scrollTop + amount;
     var scrollEvent = document.createEvent("Event");
     scrollEvent.initEvent('scroll', true, true);
     node.dispatchEvent(scrollEvent);
 };
 
-util.scrollIntoView = {
+scrollIntoView = {
     alignMiddle: function(node, parentNode) {
         if (!node || !parentNode) {
             return;
@@ -437,7 +437,7 @@ util.scrollIntoView = {
     }
 };
 
-util.inherits = function(Child, Parent) {
+inherits = function(Child, Parent) {
     var hasProp = {}.hasOwnProperty;
 
     function T() {
@@ -456,7 +456,7 @@ util.inherits = function(Child, Parent) {
     return Child.prototype;
 };
 
-util.throttle = function(callback, delay) {
+throttle = function(callback, delay) {
     var timerId = -1;
     var callId = 0;
 
@@ -481,7 +481,7 @@ util.throttle = function(callback, delay) {
     };
 };
 
-util.debounce = function(callback, delay) {
+debounce = function(callback, delay) {
     var lastCall = 0;
 
     return function() {
@@ -495,7 +495,7 @@ util.debounce = function(callback, delay) {
     };
 };
 
-util.callableEveryMs = function(callback, delay) {
+callableEveryMs = function(callback, delay) {
     var lastCall = 0;
 
     return function() {
@@ -560,10 +560,10 @@ Array.prototype.toKeysObj = function() {
     return ret;
 };
 
-util.IDENTITY = function(v) { return v; };
+IDENTITY = function(v) { return v; };
 
-util.buildConsecutiveRanges = function(array, callback) {
-    if (typeof callback !== "function") callback = util.IDENTITY;
+buildConsecutiveRanges = function(array, callback) {
+    if (typeof callback !== "function") callback = IDENTITY;
     if (!array.length) return [];
     if (array.length === 1) return [[array[0]]];
     var ranges = [];
@@ -591,9 +591,9 @@ util.buildConsecutiveRanges = function(array, callback) {
 //
 //      Input: [0, 1, 2, 4, 5, 10], 1000
 //      Output: [[3, 3], [6,9], [11, 1000]]
-util.buildInverseRanges = function(array, endIndex) {
+buildInverseRanges = function(array, endIndex) {
     var inverseRanges = [];
-    var ranges = util.buildConsecutiveRanges(array);
+    var ranges = buildConsecutiveRanges(array);
     if (!ranges.length) {
         return [[0, endIndex]];
     }
@@ -633,19 +633,19 @@ util.buildInverseRanges = function(array, endIndex) {
     return inverseRanges;
 };
 
-util.indexMapper = function(track) {
+indexMapper = function(track) {
     return track.getIndex();
 };
 
-util.TRACK_SORTER = function(a, b) {
+TRACK_SORTER = function(a, b) {
     return a.getIndex() - b.getIndex();
 };
 
-util.SORT_NUMBER_ASC = function (a, b) {
+SORT_NUMBER_ASC = function (a, b) {
     return a - b;
 };
 
-util.once = function(eventTarget, eventName, handler) {
+once = function(eventTarget, eventName, handler) {
     eventTarget.addEventListener(eventName, function handle() {
         try {
             eventTarget.removeEventListener(eventName, handle, false);
@@ -672,7 +672,7 @@ const checkSize = function(expectedSize, resultSize) {
     return null;
 };
 
-util.readAsBinaryString = function(file) {
+readAsBinaryString = function(file) {
     var expectedSize = file.size;
 
     if (typeof FileReader !== "function") {
@@ -690,7 +690,7 @@ util.readAsBinaryString = function(file) {
     }
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
-        util.once(reader, "load", function(e) {
+        once(reader, "load", function(e) {
             reader = null;
             file = null;
             var result = e.target.result;
@@ -701,7 +701,7 @@ util.readAsBinaryString = function(file) {
                 resolve(result);
             }
         });
-        util.once(reader, "error", function() {
+        once(reader, "error", function() {
             reader = null;
             file = null;
             var e = new Error(this.error.message);
@@ -712,7 +712,7 @@ util.readAsBinaryString = function(file) {
     });
 };
 
-util.readAsArrayBuffer = function(file) {
+readAsArrayBuffer = function(file) {
     var expectedSize = file.size;
     if (typeof FileReader !== "function") {
         return new Promise(function(resolve) {
@@ -730,7 +730,7 @@ util.readAsArrayBuffer = function(file) {
 
     return new Promise(function(resolve, reject) {
         var reader = new FileReader();
-        util.once(reader, "load", function(e) {
+        once(reader, "load", function(e) {
             reader = null;
             file = null;
             var result = e.target.result;
@@ -741,7 +741,7 @@ util.readAsArrayBuffer = function(file) {
                 resolve(result);
             }
         });
-        util.once(reader, "error", function() {
+        once(reader, "error", function() {
             reader = null;
             file = null;
             var e = new Error(this.error.message);
@@ -752,7 +752,7 @@ util.readAsArrayBuffer = function(file) {
     });
 };
 
-util.subClassError = function(name, additional) {
+subClassError = function(name, additional) {
     var ret = new Function("additional", "return function "+name+"(message) {  \
         this.name = '"+name+"';                                                \
         this.message = message;                                                \
@@ -767,7 +767,7 @@ util.subClassError = function(name, additional) {
     return ret;
 };
 
-util.formatTagString = function(str) {
+formatTagString = function(str) {
     var ret = str.replace(/[\u0000-\u001F]+/g, "").trim();
     if (ret.length > 512) {
         return ret.slice(0, 512);
@@ -775,7 +775,7 @@ util.formatTagString = function(str) {
     return ret;
 };
 
-util.internString = (function() {
+internString = (function() {
     var o = {"- ": 0};
     delete o["- "];
 
@@ -789,7 +789,7 @@ util.internString = (function() {
     }
 })();
 
-util.indexOfCodePoint = function(string, codePoint, start) {
+indexOfCodePoint = function(string, codePoint, start) {
     if (start === undefined) start = 0;
     for (var i = start; i < string.length; ++i) {
         if (string.charCodeAt(i) === codePoint) {
@@ -799,14 +799,14 @@ util.indexOfCodePoint = function(string, codePoint, start) {
     return -1;
 };
 
-util.capitalize = function(str) {
+capitalize = function(str) {
     if (!str.length) return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-util.unicode = {};
+unicode = {};
 
-util.unicode.characterCategories = {
+unicode.characterCategories = {
     numbers: "\u0030-\u0039\u00b2\u00b3\u00b9\u00bc-\u00be\u0660-\u0669\u06f0-\u06f9\u07c0-" +
              "\u07c9\u0966-\u096f\u09e6-\u09ef\u09f4-\u09f9\u0a66-\u0a6f\u0ae6-\u0aef\u0b66-" +
              "\u0b6f\u0b72-\u0b77\u0be6-\u0bf2\u0c66-\u0c6f\u0c78-\u0c7e\u0ce6-\u0cef\u0d66-" +
@@ -879,9 +879,9 @@ util.unicode.characterCategories = {
     wordSeparator: "\x20\xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000"
 };
 
-util.unicode.alphaNumericFilteringPattern = new RegExp("[^ " + util.unicode.characterCategories.numbers +
-                                                     util.unicode.characterCategories.letters + "]+", "g");
-util.unicode.separateWordsPattern = new RegExp("["+util.unicode.characterCategories.wordSeparator+"]+", "g");
+unicode.alphaNumericFilteringPattern = new RegExp("[^ " + unicode.characterCategories.numbers +
+                                                     unicode.characterCategories.letters + "]+", "g");
+unicode.separateWordsPattern = new RegExp("["+unicode.characterCategories.wordSeparator+"]+", "g");
 
 (function() {
 var regexp = null;
@@ -1025,13 +1025,13 @@ const diacriticReplacer = function(theChar) {
     }
 };
 
-util.unicode.removeDiacritics = function(string) {
+unicode.removeDiacritics = function(string) {
     initialize();
     return string.replace(regexp, diacriticReplacer);
 };
 })();
 
-util.joinAbbreviations = function(str) {
+joinAbbreviations = function(str) {
     var words = str.split(" ").filter(function(word) {
         return word.length > 0;
     });
@@ -1067,21 +1067,21 @@ util.joinAbbreviations = function(str) {
     return words.join(" ");
 };
 
-util.normalizeQuery = function(value) {
+normalizeQuery = function(value) {
     value = "" + value;
-    var ret = util.unicode.removeDiacritics(value
-            .replace(util.unicode.separateWordsPattern, " ")
-            .replace(util.unicode.alphaNumericFilteringPattern, ""))
+    var ret = unicode.removeDiacritics(value
+            .replace(unicode.separateWordsPattern, " ")
+            .replace(unicode.alphaNumericFilteringPattern, ""))
         .replace(/ {2,/g, " ")
         .toLowerCase()
         .trim();
 
-    return util.joinAbbreviations(ret);
+    return joinAbbreviations(ret);
 };
 
 const legacyListeners = Object.create(null);
 var nextLegacyId = 0;
-util.addLegacyListener = function(object, eventName, handler) {
+addLegacyListener = function(object, eventName, handler) {
     var id = object.__legacyId;
     if (id === undefined) {
         id = object.__legacyId = nextLegacyId++;
@@ -1109,14 +1109,14 @@ util.addLegacyListener = function(object, eventName, handler) {
     }
 };
 
-util.slugTitle = function(val) {
+slugTitle = function(val) {
     return (val + "").toLowerCase().replace(/[^a-zA-Z0-9 \-_\$]/g, "")
                             .replace(/[\-_ ]/g, "-")
                             .replace(/\-+/g, "-")
                             .replace(/^\-|\-$/g, "");
 };
 
-util.removeLegacyListener = function(object, eventName, handler) {
+removeLegacyListener = function(object, eventName, handler) {
     var eventCache = legacyListeners[eventName];
 
     if (!eventCache) return;
@@ -1132,22 +1132,22 @@ util.removeLegacyListener = function(object, eventName, handler) {
     }
 };
 
-util.stripBinaryBom = function(str) {
+stripBinaryBom = function(str) {
     return str.replace(/^(\xff\xfe|\xfe\xff)/, "");
 };
 
 // Dom errors are not errors :'(
-util.asError = function(value) {
+asError = function(value) {
     if (value instanceof Error) return value;
     var ret = new Error();
     ret.message = "" + (value ? value.message : value);
     return ret;
 };
 
-util.IDBPromisify = function(ee) {
+IDBPromisify = function(ee) {
     return new Promise(function(resolve, reject) {
         ee.onerror = function(event) {
-            reject(util.asError(event.target.transaction.error || ee.error));
+            reject(asError(event.target.transaction.error || ee.error));
         };
         ee.onsuccess = function(event) {
             resolve(event.target.result);
@@ -1156,7 +1156,7 @@ util.IDBPromisify = function(ee) {
     });
 };
 
-util.documentHidden = (function() {
+documentHidden = (function() {
     if (typeof document === "undefined") return;
 
     var prefix = ["h", "mozH", "msH", "webkitH"].reduce(function(prefix, curr) {
@@ -1181,7 +1181,7 @@ util.documentHidden = (function() {
         return document[prop];
     };
 
-    var changed = util.throttle(function() {
+    var changed = throttle(function() {
         ret.emit("change");
     }, 10);
 
@@ -1209,7 +1209,7 @@ util.documentHidden = (function() {
 })();
 
 
-util.reverseString = (function() {
+reverseString = (function() {
     var utf16decoder = null;
     return function (str) {
         if (utf16decoder === null) utf16decoder = new TextDecoder("utf-16");
@@ -1229,12 +1229,12 @@ util.reverseString = (function() {
     };
 })();
 
-util.titleCase = function(str) {
+titleCase = function(str) {
     if (typeof str !== "string") str = "" + str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
-util.assign = function(root) {
+assign = function(root) {
     root = Object(root);
     var args = [].slice.call(arguments, 1);
 
@@ -1251,7 +1251,7 @@ util.assign = function(root) {
     return root;
 };
 
-util.mergeObject = function(base, obj) {
+mergeObject = function(base, obj) {
     var keys = Object.keys(obj);
     for (var i = 0; i < keys.length; ++i) {
         var key = keys[i];
@@ -1259,7 +1259,7 @@ util.mergeObject = function(base, obj) {
     }
 };
 
-util.getFirstWord = function(str) {
+getFirstWord = function(str) {
     for (var i = 0; i < str.length; ++i) {
         if (str.charCodeAt(i) === 0x20) {
             return str.slice(0, i);
@@ -1268,7 +1268,7 @@ util.getFirstWord = function(str) {
     return str;
 };
 
-util.getLastWord = function(str) {
+getLastWord = function(str) {
     for (var i = str.length - 1; i >= 0; --i) {
         if (str.charCodeAt(i) === 0x20) {
             return str.slice(i + 1);

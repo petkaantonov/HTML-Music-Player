@@ -1,8 +1,8 @@
 "use strict"
 
-const touch = require("features").touch;
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { throttle } from "lib/util";
+import { bindScrollerEvents, setTransform } from "lib/DomUtil";
 const Scroller = require("lib/scroller");
 const Scrollbar = require("ui/Scrollbar");
 
@@ -35,7 +35,7 @@ function FixedItemListScroller(node, itemList, itemHeight, opts) {
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    domUtil.bindScrollerEvents(this.$contentContainer(),
+    bindScrollerEvents(this.$contentContainer(),
                                this._scroller,
                                opts.shouldScroll || null,
                                this._scrollbar);
@@ -54,7 +54,7 @@ FixedItemListScroller.prototype._forceRenderItems = function() {
 
 FixedItemListScroller.prototype._renderScrollTop = function() {
     var y = -this._scrollTop;
-    domUtil.setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
+    setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop, this._changingDimensions);
 };
 
@@ -177,7 +177,7 @@ FixedItemListScroller.prototype.scrollBy = function(amount) {
     this._scheduleRender();
 };
 
-FixedItemListScroller.prototype._resetChangingDimensions = util.throttle(function() {
+FixedItemListScroller.prototype._resetChangingDimensions = throttle(function() {
     this._changingDimensions = false;
 }, 50);
 

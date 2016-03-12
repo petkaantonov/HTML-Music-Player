@@ -1,3 +1,3 @@
-const util = require("lib/util");
-var TrackWasRemovedError = util.subClassError("TrackWasRemovedError");
+import { subClassError } from "lib/util";
+var TrackWasRemovedError = subClassError("TrackWasRemovedError");
 module.exports = TrackWasRemovedError;

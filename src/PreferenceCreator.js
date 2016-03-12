@@ -1,6 +1,6 @@
 "use strict";
 
-const util = require("lib/util");
+import { titleCase } from "lib/util";
 
 const isObject = function(val) {
     return typeof val === "object" && val !== null;
@@ -90,8 +90,8 @@ const createPreferences = function(spec) {
     const preferenceNames = Object.keys(spec.preferences);
 
     const fieldsCode = preferenceNames.map(function(name) {
-        var defaultName = "this.default" + util.titleCase(name);
-        return "this.set" + util.titleCase(name) +"(('" + name + "' in fields) ? fields." + name + " : "+defaultName + ")";
+        var defaultName = "this.default" + titleCase(name);
+        return "this.set" + titleCase(name) +"(('" + name + "' in fields) ? fields." + name + " : "+defaultName + ")";
     }).join(";\n");
 
     const constructorCode = "fields = Object(fields);\n" +
@@ -101,8 +101,8 @@ const createPreferences = function(spec) {
     const Constructor = new Function("fields", constructorCode);
 
     preferenceNames.forEach(function(name) {
-        var asValidMethodName = "asValid" + util.titleCase(name);
-        var defaultName = "default" + util.titleCase(name);
+        var asValidMethodName = "asValid" + titleCase(name);
+        var defaultName = "default" + titleCase(name);
         Constructor.prototype[asValidMethodName] = spec.preferences[name].asValidValue;
         Constructor.prototype[defaultName] = valueFunction(spec.preferences[name].defaultValue);
     });
@@ -116,7 +116,7 @@ const createPreferences = function(spec) {
     Constructor.prototype.equals = new Function("other", equalsCode);
 
     const copyFromCode = preferenceNames.map(function(name) {
-        return "this.set" + util.titleCase(name) + "(other." + name + ")";
+        return "this.set" + titleCase(name) + "(other." + name + ")";
     }).join(";\n");
 
     Constructor.prototype.copyFrom = new Function("other", copyFromCode);
@@ -134,11 +134,11 @@ const createPreferences = function(spec) {
     };
 
     preferenceNames.forEach(function(name) {
-        var setterName = "set" + util.titleCase(name);
-        var inplaceSetterName = "setInPlace" + util.titleCase(name);
-        var getterName = "get" + util.titleCase(name);
-        var inPlaceGetterName = "getInPlace" + util.titleCase(name);
-        var setterCode = "this." + name + " = this.asValid" + util.titleCase(name) + "(this._value(value));\n";
+        var setterName = "set" + titleCase(name);
+        var inplaceSetterName = "setInPlace" + titleCase(name);
+        var getterName = "get" + titleCase(name);
+        var inPlaceGetterName = "getInPlace" + titleCase(name);
+        var setterCode = "this." + name + " = this.asValid" + titleCase(name) + "(this._value(value));\n";
         var inplaceSetterCode = "this." + name + " = value;\n";
         var getterCode = "return this._value(this." + name + ");\n";
         var inPlaceGetterCode = "return this." + name + ";\n";

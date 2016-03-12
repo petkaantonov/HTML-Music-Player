@@ -1,7 +1,7 @@
 "use strict"
 
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { bindScrollerEvents, setTransform } from "lib/DomUtil";
 const Scroller = require("lib/scroller");
 const Scrollbar = require("ui/Scrollbar");
 
@@ -25,7 +25,7 @@ function ContentScroller(node, opts) {
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    domUtil.bindScrollerEvents(this.$contentContainer(),
+    bindScrollerEvents(this.$contentContainer(),
                                this._scroller,
                                opts.shouldScroll || null,
                                this._scrollbar);
@@ -69,7 +69,7 @@ ContentScroller.prototype._renderScrollTop = function() {
     this._clearWillChangeTimerId = setTimeout(this._clearWillChange, 500);
     this._frameId = -1;
     var y = -this._scrollTop;
-    domUtil.setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
+    setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop);
 };
 

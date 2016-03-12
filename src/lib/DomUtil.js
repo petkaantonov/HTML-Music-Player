@@ -4,7 +4,7 @@ const jsUtil = require("lib/util");
 import Promise from "lib/bluebird";
 const base64 = require("lib/base64");
 import $ from "lib/jquery";
-const touch = require("features").touch;
+import { touch as touch } from "features";
 const TOUCH_START = "touchstart";
 const TOUCH_END = "touchend";
 const TOUCH_MOVE = "touchmove";
@@ -20,10 +20,10 @@ const PINCER_MINIMUM_MOVEMENT = 24;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
 
 var util = {};
-util.TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
-util.TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
+TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
+TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
-util.setFilter = (function() {
+setFilter = (function() {
     var div = document.createElement("div");
 
     if ("webkitFilter" in (document.createElement("div").style)) {
@@ -55,7 +55,7 @@ util.setFilter = (function() {
     };
 })();
 
-util.getFilter = (function() {
+getFilter = (function() {
     var div = document.createElement("div");
 
     if ("webkitFilter" in (document.createElement("div").style)) {
@@ -75,7 +75,7 @@ util.getFilter = (function() {
     };
 })();
 
-util.setTransform = (function() {
+setTransform = (function() {
     var div = document.createElement("div");
     if ("transform" in (document.createElement("div").style)) {
         return function(elem, value) {
@@ -105,7 +105,7 @@ util.setTransform = (function() {
     };
 })();
 
-util.getTransform = (function() {
+getTransform = (function() {
     var div = document.createElement("div");
     if ("transform" in (document.createElement("div").style)) {
         return function(elem) {
@@ -123,7 +123,7 @@ util.getTransform = (function() {
     };
 })();
 
-util.originProperty = (function() {
+originProperty = (function() {
     var div = document.createElement("div");
     var candidates = "webkitTransformOrigin mozTransformOrigin oTransformOrigin msTransformOrigin MSTransformOrigin transformOrigin".split(" ").filter(function(v) {
         return (v in div.style);
@@ -234,7 +234,7 @@ SingleTapTimeout.prototype.remove = function() {
 
 if (touch) {
     var rinput = /^(?:input|select|textarea|option|button|label)$/i;
-    jsUtil.onCapture(document, util.TOUCH_EVENTS_NO_MOVE, function(e) {
+    jsUtil.onCapture(document, TOUCH_EVENTS_NO_MOVE, function(e) {
         if (e.cancelable) {
             var node = e.target;
             var activeElement = document.activeElement;
@@ -258,7 +258,7 @@ if (touch) {
         }
     });
 
-    jsUtil.onCapture(document, util.TOUCH_EVENTS, function(e) {
+    jsUtil.onCapture(document, TOUCH_EVENTS, function(e) {
         var changedTouches = e.changedTouches;
         documentActives.update(e, changedTouches);
 
@@ -312,7 +312,7 @@ if (touch) {
     });
 }
 
-util.canvasToImage = function(canvas) {
+canvasToImage = function(canvas) {
     return new Promise(function(resolve) {
         var data = canvas.toDataURL("image/png").split("base64,")[1];
         resolve(new Blob([base64.toByteArray(data)], {type: "image/png"}));
@@ -369,7 +369,7 @@ GestureObject.prototype.stopImmediatePropagation = function(){
     return this.originalEvent.stopImmediatePropagation();
 };
 
-util.touchDownHandler =  function(fn) {
+touchDownHandler =  function(fn) {
     var actives = new ActiveTouchList();
 
     return function(e) {
@@ -386,7 +386,7 @@ util.touchDownHandler =  function(fn) {
     };
 };
 
-util.targetHoverHandler = function(fnStart, fnEnd) {
+targetHoverHandler = function(fnStart, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var bounds = null;
@@ -432,7 +432,7 @@ util.targetHoverHandler = function(fnStart, fnEnd) {
     };
 };
 
-util.hoverHandler = function(fnStart, fnEnd) {
+hoverHandler = function(fnStart, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
 
@@ -484,7 +484,7 @@ util.hoverHandler = function(fnStart, fnEnd) {
     };
 };
 
-util.tapHandler = function(fn) {
+tapHandler = function(fn) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var started = -1;
@@ -530,7 +530,7 @@ util.tapHandler = function(fn) {
     };
 };
 
-util.twoFingerTapHandler = function(fn) {
+twoFingerTapHandler = function(fn) {
     var actives = new ActiveTouchList();
     var currentATouch = null;
     var currentBTouch = null;
@@ -633,7 +633,7 @@ util.twoFingerTapHandler = function(fn) {
     };
 };
 
-util.modifierTapHandler = function(fn) {
+modifierTapHandler = function(fn) {
     var currentTouch = null;
     var started = -1;
 
@@ -698,7 +698,7 @@ util.modifierTapHandler = function(fn) {
     };
 };
 
-util.modifierDragHandler = function(fnMove, fnEnd) {
+modifierDragHandler = function(fnMove, fnEnd) {
     var currentTouch = null;
 
     function end(self, e, touch) {
@@ -751,7 +751,7 @@ util.modifierDragHandler = function(fnMove, fnEnd) {
     };
 };
 
-util.modifierTouchDownHandler = function(fn) {
+modifierTouchDownHandler = function(fn) {
     return function(e) {
         if (!haveModifierTouch() || documentActives.length() > 2) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
@@ -770,7 +770,7 @@ util.modifierTouchDownHandler = function(fn) {
 };
 
 
-util.dragHandler = function(fnMove, fnEnd) {
+dragHandler = function(fnMove, fnEnd) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
 
@@ -889,15 +889,15 @@ const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
 };
 
 
-util.verticalDragHandler = function(fnStart, fnMove, fnEnd) {
+verticalDragHandler = function(fnStart, fnMove, fnEnd) {
     return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, VERTICAL);
 };
 
-util.horizontalDragHandler = function(fnStart, fnMove, fnEnd) {
+horizontalDragHandler = function(fnStart, fnMove, fnEnd) {
     return dimensionCommitDragHandler(fnStart, fnMove, fnEnd, HORIZONTAL);
 };
 
-util.verticalPincerSelectionHandler = function(fn) {
+verticalPincerSelectionHandler = function(fn) {
     var started = -1;
     var currentATouch = null;
     var currentBTouch = null;
@@ -985,7 +985,7 @@ util.verticalPincerSelectionHandler = function(fn) {
     };
 };
 
-util.horizontalSwipeHandler = function(fn, direction) {
+horizontalSwipeHandler = function(fn, direction) {
     var startX = -1;
     var lastX = -1;
     var previousTime = -1;
@@ -998,7 +998,7 @@ util.horizontalSwipeHandler = function(fn, direction) {
         elapsedTotal = 0;
     };
 
-    return util.dragHandler(function(e) {
+    return dragHandler(function(e) {
         if (startX === -1) {
             startX = e.clientX;
         } else {
@@ -1029,7 +1029,7 @@ util.horizontalSwipeHandler = function(fn, direction) {
     });
 };
 
-util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
+horizontalTwoFingerSwipeHandler = function(fn, direction) {
     var actives = new ActiveTouchList();
     var currentATouch = null;
     var currentBTouch = null;
@@ -1153,7 +1153,7 @@ util.horizontalTwoFingerSwipeHandler = function(fn, direction) {
     };
 };
 
-util.longTapHandler = function(fn, noTrigger) {
+longTapHandler = function(fn, noTrigger) {
     var actives = new ActiveTouchList();
     var currentTouch = null;
     var timeoutId = -1;
@@ -1216,10 +1216,10 @@ util.longTapHandler = function(fn, noTrigger) {
     };
 };
 
-util.doubleTapHandler = function(fn) {
+doubleTapHandler = function(fn) {
     var lastTap = -1;
     var lastTouch;
-    return util.tapHandler(function(e) {
+    return tapHandler(function(e) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
         var now = (e.timeStamp || e.originalEvent.timeStamp);
@@ -1243,7 +1243,7 @@ util.doubleTapHandler = function(fn) {
     });
 };
 
-util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
+bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     if (!shouldScroll) shouldScroll = function() {return true; };
     var touchEventNames = "touchstart touchend touchmove touchcancel".split(" ").map(function(v) {
         return v + ".scrollerns";
@@ -1259,7 +1259,7 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
     const gestureArray = new Array(1);
 
 
-    target.on(touchEventNames, util.verticalDragHandler(function onStart(gesture) {
+    target.on(touchEventNames, verticalDragHandler(function onStart(gesture) {
         if (shouldScroll()) {
             clearStopTimerId();
             gestureArray[0] = gesture;
@@ -1283,17 +1283,17 @@ util.bindScrollerEvents = function(target, scroller, shouldScroll, scrollbar) {
         return v + ".scrollerns";
     }).join(" ");
 
-    target.on(wheelEvents, util.mouseWheelScrollHandler(function(delta, e) {
+    target.on(wheelEvents, mouseWheelScrollHandler(function(delta, e) {
         delta = scrollbar.determineScrollInversion(delta, e);
         scroller.scrollBy(0, delta, true);
     }));
 };
 
-util.unbindScrollerEvents = function(target, scrollbar, scroller) {
+unbindScrollerEvents = function(target, scrollbar, scroller) {
     target.off(".scrollerns");
 };
 
-util.mouseWheelScrollHandler = function(fn) {
+mouseWheelScrollHandler = function(fn) {
     return function(e) {
         if (e.originalEvent) e = e.originalEvent;
         e.preventDefault();
@@ -1324,7 +1324,7 @@ var rafCallback = function(now) {
     rafCallbacks.length = 0;
 };
 
-util.changeDom = function(callback) {
+changeDom = function(callback) {
     if (typeof callback !== "function") throw new Error("callback must be a function");
     for (var i = 0; i < rafCallbacks.length; ++i) {
         if (rafCallbacks[i] === callback) return;
@@ -1338,17 +1338,17 @@ util.changeDom = function(callback) {
 const rTextarea = /^textarea$/i;
 const rInput = /^input$/i;
 const rKeyboard = /^(?:date|datetime|color|datetime-local|email|month|number|password|search|tel|text|time|url|week)$/i;
-util.isTextInputElement = function(elem) {
+isTextInputElement = function(elem) {
     return (rInput.test(elem.nodeName) && rKeyboard.test(elem.type)) ||
         rTextarea.test(elem.nodeName);
 };
 
 var rtouchevent = /^touch/;
-util.isTouchEvent = function(e) {
+isTouchEvent = function(e) {
     return rtouchevent.test(e.type);
 };
 
-util.preventDefault = function(e) {
+preventDefault = function(e) {
     e.preventDefault();
 };
 

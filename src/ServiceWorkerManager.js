@@ -1,9 +1,9 @@
 "use strict";
 
 import $ from "lib/jquery";
-const util = require("lib/util");
+import { documentHidden, inherits } from "lib/util";
 import Promise from "lib/bluebird";
-const GlobalUi = require("ui/GlobalUi");
+import { snackbar } from "ui/GlobalUi";
 const Snackbar = require("ui/Snackbar");
 import EventEmitter from "lib/events";
 const UPDATE_INTERVAL = 15 * 60 * 1000;
@@ -28,12 +28,12 @@ function ServiceWorkerManager() {
     this._appClosed = this._appClosed.bind(this);
 
     this._updateCheckInterval = setInterval(this._updateChecker, 10000);
-    util.documentHidden.on("foreground", this._foregrounded);
-    util.documentHidden.on("background", this._backgrounded);
+    documentHidden.on("foreground", this._foregrounded);
+    documentHidden.on("background", this._backgrounded);
     window.addEventListener("unload", this._appClosed, false);
 
 }
-util.inherits(ServiceWorkerManager, EventEmitter);
+inherits(ServiceWorkerManager, EventEmitter);
 
 ServiceWorkerManager.prototype._appClosed = function() {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -93,7 +93,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
     var self = this;
     if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
 
-    GlobalUi.snackbar.show("New version available", {
+    snackbar.show("New version available", {
         action: "refresh",
         visibilityTime: 15000
     }).then(function(outcome) {
@@ -113,7 +113,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
                 return;
         }
     }).catch(function(e) {
-        return GlobalUi.snackbar.show(e.message);
+        return snackbar.show(e.message);
     });
 };
 

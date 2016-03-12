@@ -1,13 +1,13 @@
 "use strict";
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const GlobalUi = require("ui/GlobalUi");
+import { inherits, throttle } from "lib/util";
+import { makePopup, rippler } from "ui/GlobalUi";
 import Popup from "ui/Popup";
 import keyValueDatabase from "KeyValueDatabase";
 import Slider from "ui/Slider";
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 const preferenceCreator = require("PreferenceCreator");
 
 const crossfading = new EventEmitter();
@@ -245,12 +245,12 @@ const POPUP_EDITOR_HTML = "<div class='settings-container crossfade-settings-con
             </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                         \
             </div>";
 
-const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade", [
+const crossfadingPopup = makePopup("Crossfading", POPUP_EDITOR_HTML, ".menul-crossfade", [
 {
     id: RESTORE_DEFAULTS_BUTTON,
     text: "Restore defaults",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         crossFadeManager.restoreDefaults();
     }
 },
@@ -258,7 +258,7 @@ const crossfadingPopup = GlobalUi.makePopup("Crossfading", POPUP_EDITOR_HTML, ".
     id: UNDO_CHANGES_BUTTON,
     text: "Undo changes",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         crossFadeManager.undoChanges();
     }
 }
@@ -276,7 +276,7 @@ keyValueDatabase.getInitialValues().then(function(values) {
 });
 
 
-const savePreferences = util.throttle(function(preferences) {
+const savePreferences = throttle(function(preferences) {
     keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
     crossfading.emit("crossFadingChange", preferences);
 }, 250);
@@ -298,7 +298,7 @@ crossfadingPopup.on("open", function(popup, needsInitialization) {
 $(".menul-crossfade").click(openPopup);
 
 if (touch) {
-    $(".menul-crossfade").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openPopup));
+    $(".menul-crossfade").on(TOUCH_EVENTS, tapHandler(openPopup));
 }
 
 function FadeConfigurator(manager, domNode, config) {
@@ -420,7 +420,7 @@ function CrossFadeManager(domNode, popup, preferences) {
     this.$().find(".album-preference-checkbox").on("change", this.shouldAlbumCrossFadeChanged);
     this.update();
 }
-util.inherits(CrossFadeManager, EventEmitter);
+inherits(CrossFadeManager, EventEmitter);
 
 CrossFadeManager.prototype.destroy = function() {
     this.inFadeConfigurator.destroy();

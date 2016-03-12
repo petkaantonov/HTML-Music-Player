@@ -1,9 +1,9 @@
 "use strict";
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { documentHidden, inherits, offCapture, onCapture } from "lib/util";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, dragHandler, isTouchEvent, setTransform, touchDownHandler } from "lib/DomUtil";
 
 function Slider(domNode, opts) {
     opts = Object(opts);
@@ -19,13 +19,13 @@ function Slider(domNode, opts) {
     this._onMousedown = this._onMousedown.bind(this);
     this._onReLayout = this._onReLayout.bind(this);
 
-    this._onMousedownTouch = domUtil.touchDownHandler(this._onMousedown);
-    this._touchDragHandler = domUtil.dragHandler(this._onMousemove, this._onMouseup);
+    this._onMousedownTouch = touchDownHandler(this._onMousedown);
+    this._touchDragHandler = dragHandler(this._onMousemove, this._onMouseup);
 
     this.$().on("mousedown", this._onMousedown);
 
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
+        this.$().on(TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
     }
 
     this._shouldUpdateDom = "updateDom" in opts ? !!opts.updateDom : true;
@@ -34,10 +34,10 @@ function Slider(domNode, opts) {
         this._setupKeyboard();
     }
 
-    util.documentHidden.on("foreground", this._onReLayout);
+    documentHidden.on("foreground", this._onReLayout);
     $(window).on("sizechange", this._onReLayout);
 }
-util.inherits(Slider, EventEmitter);
+inherits(Slider, EventEmitter);
 
 Slider.prototype.$ = function() {
     return this._domNode;
@@ -56,7 +56,7 @@ Slider.prototype.shouldUpdateDom = function() {
 };
 
 Slider.prototype._onMousedown = function(e) {
-    var isTouchEvent = domUtil.isTouchEvent(e);
+    var isTouchEvent = isTouchEvent(e);
     if (this._sliding ||
         (!isTouchEvent && e.which !== 1) ||
         (isTouchEvent && e.isFirst === false)) {
@@ -77,7 +77,7 @@ Slider.prototype._onMousedown = function(e) {
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
 
     if (touch) {
-        $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
+        $(document).on(TOUCH_EVENTS, this._touchDragHandler);
     }
 
 
@@ -128,7 +128,7 @@ Slider.prototype._keydowned = function(e) {
 };
 
 Slider.prototype._knobFocused = function() {
-    util.onCapture(this.$knob()[0], "keydown", this._keydowned);
+    onCapture(this.$knob()[0], "keydown", this._keydowned);
     this.$knob().addClass("focused").css("willChange", "transform");
     this.$fill().css("willChange", "transform");
     this.$().addClass("sliding");
@@ -136,7 +136,7 @@ Slider.prototype._knobFocused = function() {
 };
 
 Slider.prototype._knobBlurred = function() {
-    util.offCapture(this.$knob()[0], "keydown", this._keydowned);
+    offCapture(this.$knob()[0], "keydown", this._keydowned);
     this.$knob().removeClass("focused").css("willChange", "");
     this.$fill().css("willChange", "");
     this.$().removeClass("sliding");
@@ -154,7 +154,7 @@ Slider.prototype._setupKeyboard = function() {
 };
 
 Slider.prototype._onMousemove = function(e) {
-    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
+    if (!isTouchEvent(e) && e.which !== 1) {
         return this._onMouseup(this._lastEvent);
     }
 
@@ -187,8 +187,8 @@ Slider.prototype.setValue = function(value, force) {
             knobTranslate += "translateY(" + knobValuePx + "px)";
             fillTranslate += "translateY(" + ((1 - value) * 100) + "%)";
         }
-        domUtil.setTransform(this.$fill(), fillTranslate);
-        domUtil.setTransform(this.$knob(), knobTranslate);
+        setTransform(this.$fill(), fillTranslate);
+        setTransform(this.$knob(), knobTranslate);
     }
 };
 
@@ -207,7 +207,7 @@ Slider.prototype._onMouseup = function(e) {
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
 
     if (touch) {
-        $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
+        $(document).off(TOUCH_EVENTS, this._touchDragHandler);
     }
 
     e.preventDefault();

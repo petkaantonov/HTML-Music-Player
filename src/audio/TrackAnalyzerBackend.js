@@ -21,7 +21,7 @@ const blobPatch = require("lib/blobpatch");
 blobPatch();
 
 
-const util = require("lib/util");
+import { assign } from "lib/util";
 const tagDatabase = require("TagDatabase");
 const MetadataParser = require("audio/MetadataParser");
 const Resampler = require("audio/Resampler");
@@ -325,7 +325,7 @@ function nextJob() {
                     };
                 }
 
-                var flattened = util.assign({duration: result.duration},
+                var flattened = assign({duration: result.duration},
                                             result.loudness || {},
                                             result.fingerprint || {});
                 return tagDatabase.insert(job.uid, flattened)

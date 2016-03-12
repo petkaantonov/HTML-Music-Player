@@ -1,8 +1,8 @@
 "use strict";
 
-const domUtil = require("lib/DomUtil");
-const touch = require("features").touch;
-const GlobalUi = require("ui/GlobalUi");
+import { TOUCH_EVENTS, doubleTapHandler, tapHandler } from "lib/DomUtil";
+import { touch as touch } from "features";
+import { rippler } from "ui/GlobalUi";
 
 const HTML = "<div class='track-rating'>                                                               \
         <div data-rating='1' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
@@ -18,9 +18,9 @@ function TrackRating() {
     this._doubleClicked = this._doubleClicked.bind(this);
     this._clicked = this._clicked.bind(this);
     this._hovered = this._hovered.bind(this);
-    this._touchDoubleClicked = domUtil.doubleTapHandler(this._doubleClicked);
-    this._touchClicked = domUtil.tapHandler(function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this._touchDoubleClicked = doubleTapHandler(this._doubleClicked);
+    this._touchClicked = tapHandler(function(e) {
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this._ratingInputClicked(e.currentTarget);
     }.bind(this));
     this._update(-1);
@@ -61,8 +61,8 @@ TrackRating.prototype.disable = function() {
     this._enabled = false;
     this.$().off("click", ".rating-input", this._clicked);
     this.$().off("mouseleave mouseenter", ".rating-input", this._hovered);
-    this.$().off(domUtil.TOUCH_EVENTS, ".rating-input", this._touchClicked);
-    this.$().off(domUtil.TOUCH_EVENTS, this._touchDoubleClicked);
+    this.$().off(TOUCH_EVENTS, ".rating-input", this._touchClicked);
+    this.$().off(TOUCH_EVENTS, this._touchDoubleClicked);
     this.$().off("dblclick", this._doubleClicked);
 };
 
@@ -82,12 +82,12 @@ TrackRating.prototype.enable = function(track) {
     this.$().on("click", ".rating-input", this._clicked);
     this.$().on("dblclick", this._doubleClicked);
     this.$().on("mouseenter mouseleave", ".rating-input", this._hovered);
-    this.$().on(domUtil.TOUCH_EVENTS, ".rating-input", this._touchClicked);
-    this.$().on(domUtil.TOUCH_EVENTS, this._touchDoubleClicked);
+    this.$().on(TOUCH_EVENTS, ".rating-input", this._touchClicked);
+    this.$().on(TOUCH_EVENTS, this._touchDoubleClicked);
 };
 
 TrackRating.prototype._clicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this._ratingInputClicked(e.currentTarget);
 };
 

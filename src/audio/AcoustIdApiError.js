@@ -1,6 +1,6 @@
 "use strict";
 
-const util = require("lib/util");
+import { subClassError } from "lib/util";
 
 const codeToString = function(code) {
     return Object.keys(AcoustIdApiError).filter(function(key) {
@@ -9,7 +9,7 @@ const codeToString = function(code) {
     })[0] || "ERROR_UNKNOWN";
 };
 
-var AcoustIdApiError = util.subClassError("AcoustIdApiError", function(message, code) {
+var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
     this.code = code;
     this.message = message || codeToString(code);
 });

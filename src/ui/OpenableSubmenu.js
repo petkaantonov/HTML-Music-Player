@@ -1,10 +1,10 @@
 "use strict";
 
-const GlobalUi = require("ui/GlobalUi");
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
-const features = require("features");
-const touch = features.touch;
+import { rippler } from "ui/GlobalUi";
+import { offCapture, onCapture } from "lib/util";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
+import { touch } from "features";
+const touch = touch;
 
 function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
@@ -23,19 +23,19 @@ function OpenableSubmenu(dom, opener, opts) {
     this._openerFocused = this._openerFocused.bind(this);
     this._openerClicked = this._openerClicked.bind(this);
     this._documentClicked = this._documentClicked.bind(this);
-    this._documentTapped = domUtil.tapHandler(this._documentClicked);
+    this._documentTapped = tapHandler(this._documentClicked);
 
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
     if (touch) {
-        this.$opener().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this._openerClicked));
+        this.$opener().on(TOUCH_EVENTS, tapHandler(this._openerClicked));
     }
 
     this.$opener().on("click", this._openerClicked)
                   .on("focus", this._openerFocused);
 
-    util.onCapture(document, "blur", this._elementBlurred);
+    onCapture(document, "blur", this._elementBlurred);
 }
 
 OpenableSubmenu.prototype.$ = function() {
@@ -53,14 +53,14 @@ OpenableSubmenu.prototype.open = function() {
     this.$().addClass(this.activeClass);
     this.$().width();
     var self = this;
-    util.onCapture(document, "keydown", this._keydowned);
+    onCapture(document, "keydown", this._keydowned);
     requestAnimationFrame(function() {
         self.$().addClass(self.transitionClass);
     });
-    util.onCapture(document, "click", this._documentClicked);
+    onCapture(document, "click", this._documentClicked);
 
     if (touch) {
-        util.onCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
+        onCapture(document, TOUCH_EVENTS, this._documentTapped);
     }
 };
 
@@ -70,12 +70,12 @@ OpenableSubmenu.prototype.close = function() {
     if ($(document.activeElement).closest(this.$().add(this.$opener())).length > 0) {
         document.activeElement.blur();
     }
-    util.offCapture(document, "keydown", this._keydowned);
+    offCapture(document, "keydown", this._keydowned);
     this.$opener().removeClass(this.openerActiveClass);
     this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
-    util.offCapture(document, "click", this._documentClicked);
+    offCapture(document, "click", this._documentClicked);
     if (touch) {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
+        offCapture(document, TOUCH_EVENTS, this._documentTapped);
     }
 };
 
@@ -100,7 +100,7 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
 };
 
 OpenableSubmenu.prototype._openerClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.open();
 };
 

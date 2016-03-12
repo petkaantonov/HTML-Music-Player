@@ -3,7 +3,7 @@
 import Promise from "lib/bluebird";
 const blobPatch = require("lib/blobpatch");
 blobPatch();
-const util = require("lib/util");
+import { readAsArrayBuffer } from "lib/util";
 
 function isRetryable(e) {
     return e && e.name === "NotReadableError";
@@ -119,7 +119,7 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
 
         resolve(function loop(retries) {
             var blob = self.file.slice(self.start, self.end);
-            return util.readAsArrayBuffer(blob).finally(function() {
+            return readAsArrayBuffer(blob).finally(function() {
                 blob.close();
             }).then(function(result) {
                 self._freeBuffer();

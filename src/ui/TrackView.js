@@ -1,8 +1,7 @@
 "use strict";
 
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
+import { setTransform } from "lib/DomUtil";
 const Tooltip = require("ui/Tooltip");
 const NULL = $(null);
 const ANALYSIS_TOOLTIP_MESSAGE =
@@ -257,7 +256,7 @@ TrackView.prototype._updateAnalysisEstimate = function() {
     });
     bar.width();
     requestAnimationFrame(function() {
-        domUtil.setTransform(bar[0], "translateX(0)");
+        setTransform(bar[0], "translateX(0)");
     });
 };
 
@@ -383,7 +382,7 @@ TrackView.prototype.viewUpdateTagDataChange = function() {
 };
 
 TrackView.prototype._updateTranslate = function() {
-    domUtil.setTransform(this.$()[0], this._getTranslate());
+    setTransform(this.$()[0], this._getTranslate());
 };
 
 TrackView.prototype._getTranslate = function() {

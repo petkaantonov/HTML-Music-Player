@@ -25,7 +25,7 @@
 var realFft = require("lib/realfft");
 import Promise from "lib/bluebird";
 const AcoustIdApiError = require("audio/AcoustIdApiError");
-const util = require("lib/util");
+import { queryString } from "lib/util";
 const tagDatabase = require("TagDatabase");
 
 const DURATION = 120;
@@ -593,7 +593,7 @@ AcoustId.fetch = function(args, _retries) {
     return new Promise(function(resolve, reject) {
         var duration = (+args.duration)|0;
         var fingerprint = args.fingerprint;
-        var data = util.queryString({
+        var data = queryString({
             client: "djbbrJFK",
             format: "json",
             duration: duration,

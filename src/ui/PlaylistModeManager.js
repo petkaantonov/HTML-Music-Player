@@ -1,8 +1,8 @@
 "use strict";
 import $ from "lib/jquery";
-const GlobalUi = require("ui/GlobalUi");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { makeTooltip, rippler } from "ui/GlobalUi";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
@@ -16,13 +16,13 @@ function PlaylistModeManager(dom, playlist) {
     this.playlist = playlist;
     this._domNode = $(dom);
 
-    this.shuffleTooltip = GlobalUi.makeTooltip(this.$shuffle(), function() {
+    this.shuffleTooltip = makeTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
                                           : "<p><strong>Enable</strong> shuffle mode</p>" +
                                             SHUFFLE_MODE_TOOLTIP;
     });
 
-    this.repeatTooltip = GlobalUi.makeTooltip(this.$repeat(), function() {
+    this.repeatTooltip = makeTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
                                          : "<p><strong>Enable</strong> repeat mode</p>";
     });
@@ -38,8 +38,8 @@ function PlaylistModeManager(dom, playlist) {
     this.$repeat().on("click", this.repeatClicked);
 
     if (touch) {
-        this.$shuffle().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.shuffleClicked));
-        this.$repeat().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.repeatClicked));
+        this.$shuffle().on(TOUCH_EVENTS, tapHandler(this.shuffleClicked));
+        this.$repeat().on(TOUCH_EVENTS, tapHandler(this.repeatClicked));
     }
 
     this.update();
@@ -62,7 +62,7 @@ PlaylistModeManager.prototype.$repeat = function() {
 };
 
 PlaylistModeManager.prototype.shuffleClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
 
@@ -75,7 +75,7 @@ PlaylistModeManager.prototype.shuffleClicked = function(e) {
 };
 
 PlaylistModeManager.prototype.repeatClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
 

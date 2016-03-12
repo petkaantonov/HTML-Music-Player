@@ -1,9 +1,9 @@
 "use strict";
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, hoverHandler, tapHandler } from "lib/DomUtil";
 
 const getLongestTransitionDuration = function(node) {
     var $node = $(node);
@@ -82,7 +82,7 @@ function Tooltip(opts) {
     opts = Object(opts);
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
-    this._onContent = util.toFunction(opts.content);
+    this._onContent = toFunction(opts.content);
     this._delay = Math.min(20000, Math.max(0, parseInt(opts.delay, 10))) || 300;
     this._delayTimeoutId = -1;
     this._target = typeof opts.target === "string" ? this.$().find(opts.target)
@@ -110,32 +110,32 @@ function Tooltip(opts) {
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
     this.targetClicked = this.targetClicked.bind(this);
-    this.touchHoverHandler = domUtil.hoverHandler(this.mouseEntered, this.mouseLeft);
-    this.targetClickedTouch = domUtil.tapHandler(this.targetClicked);
-    this.clickedTouch = domUtil.tapHandler(this.clicked);
-    this.documentClickedTouch = domUtil.tapHandler(this.documentClicked);
+    this.touchHoverHandler = hoverHandler(this.mouseEntered, this.mouseLeft);
+    this.targetClickedTouch = tapHandler(this.targetClicked);
+    this.clickedTouch = tapHandler(this.clicked);
+    this.documentClickedTouch = tapHandler(this.documentClicked);
 
     if (this._activationStyle === "hover") {
         this._target.on("mouseenter", this.mouseEntered);
         this._target.on("mouseleave", this.mouseLeft);
         this._target.on("click", this.targetClicked);
         if (touch) {
-            this._target.on(domUtil.TOUCH_EVENTS, this.touchHoverHandler);
-            this._target.on(domUtil.TOUCH_EVENTS, this.targetClickedTouch);
+            this._target.on(TOUCH_EVENTS, this.touchHoverHandler);
+            this._target.on(TOUCH_EVENTS, this.targetClickedTouch);
         }
     } else if (this._activationStyle === "click") {
         this._target.on("click", this.clicked);
-        util.onCapture(document, "click", this.documentClicked);
+        onCapture(document, "click", this.documentClicked);
         if (touch) {
-            this._target.on(domUtil.TOUCH_EVENTS, this.clickedTouch);
-            util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
+            this._target.on(TOUCH_EVENTS, this.clickedTouch);
+            onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
         }
     }
     $(window).on("sizechange", this.position);
     $(window).on("blur", this.hide);
-    util.documentHidden.on("change", this.hide);
+    documentHidden.on("change", this.hide);
 }
-util.inherits(Tooltip, EventEmitter);
+inherits(Tooltip, EventEmitter);
 
 Tooltip.prototype._clearDelay = function() {
     if (this._delayTimeoutId !== -1) {
@@ -504,18 +504,18 @@ Tooltip.prototype.mouseLeft = function() {
 Tooltip.prototype.destroy = function() {
     $(window).off("sizechange", this.position);
     $(window).off("blur", this.hide);
-    util.documentHidden.removeListener("change", this.hide);
-    util.offCapture(document, "click", this.documentClicked);
-    util.offCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
+    documentHidden.removeListener("change", this.hide);
+    offCapture(document, "click", this.documentClicked);
+    offCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
-        this._target.off(domUtil.TOUCH_EVENTS, this.touchHoverHandler);
+        this._target.off(TOUCH_EVENTS, this.touchHoverHandler);
         this._target.off("click", this.targetClicked);
-        this._target.off(domUtil.TOUCH_EVENTS, this.targetClickedTouch);
+        this._target.off(TOUCH_EVENTS, this.targetClickedTouch);
         this._target.off("click", this.clicked);
-        this._target.off(domUtil.TOUCH_EVENTS, this.clickedTouch);
+        this._target.off(TOUCH_EVENTS, this.clickedTouch);
         this._target = this._domNode = null;
     }
 };

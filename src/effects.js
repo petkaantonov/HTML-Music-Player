@@ -1,12 +1,12 @@
 "use strict";
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const GlobalUi = require("ui/GlobalUi");
+import { inherits, throttle } from "lib/util";
+import { makePopup, rippler } from "ui/GlobalUi";
 import keyValueDatabase from "KeyValueDatabase";
 import Slider from "ui/Slider";
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import createPreferences from "PreferenceCreator";
 import Popup from "ui/Popup";
 
@@ -338,7 +338,7 @@ function EffectsManager(domNode, popup, preferences) {
     this._noiseSharpeningEffectManager = new NoiseSharpeningEffectManager(this);
     this._equalizerEffectManager = new EqualizerEffectManager(this);
 }
-util.inherits(EffectsManager, EventEmitter);
+inherits(EffectsManager, EventEmitter);
 
 EffectsManager.prototype.$ = function() {
     return this._domNode;
@@ -378,12 +378,12 @@ EffectsManager.prototype.setUnchangedPreferences = function() {
     this._equalizerEffectManager.update();
 };
 
-const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects", [
+const equalizerPopup = makePopup("Effects", html, ".menul-effects", [
 {
     id: RESTORE_DEFAULTS_BUTTON,
     text: "Restore defaults",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         effectsManager.restoreDefaults();
     }
 },
@@ -391,7 +391,7 @@ const equalizerPopup = GlobalUi.makePopup("Effects", html, ".menul-effects", [
     id: UNDO_CHANGES_BUTTON,
     text: "Undo changes",
     action: function(e) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
+        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
         effectsManager.undoChanges();
     }
 }
@@ -433,7 +433,7 @@ keyValueDatabase.getInitialValues().then(function(values) {
     }
 });
 
-const savePreferences = util.throttle(function() {
+const savePreferences = throttle(function() {
     keyValueDatabase.set(STORAGE_KEY, preferences.toJSON());
     effects.emit("effectsChange", preferences);
 }, 250);
@@ -486,5 +486,5 @@ effects.getAudioPlayerEffects = function(track) {
 $(".menul-effects").click(openEditor);
 
 if (touch) {
-    $(".menul-effects").on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(openEditor));
+    $(".menul-effects").on(TOUCH_EVENTS, tapHandler(openEditor));
 }

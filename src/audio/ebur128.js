@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
-const util = require("lib/util");
+import { float32BE, float32BEString, int32BE, int32BEString, uint32BEString } from "lib/util";
 
 const SILENCE_THRESHOLD = -63;
 const REFERENCE_LUFS = -18;
@@ -629,17 +629,17 @@ Ebur128.prototype.serialize = function() {
     if (samplePeak) samplePeak = Math.max.apply(Math, samplePeak);
 
 
-    var ret = "EBUR128 " + util.int32BEString(SERIALIZATION_VERSION) +
-              util.uint32BEString(totalSize) +
-              util.uint32BEString(this.mode) +
-              util.uint32BEString(this.channels) +
-              util.uint32BEString(this.samplerate) +
-              util.float32BEString(truePeak) +
-              util.float32BEString(samplePeak) +
-              util.uint32BEString(this.block_list.length);
+    var ret = "EBUR128 " + int32BEString(SERIALIZATION_VERSION) +
+              uint32BEString(totalSize) +
+              uint32BEString(this.mode) +
+              uint32BEString(this.channels) +
+              uint32BEString(this.samplerate) +
+              float32BEString(truePeak) +
+              float32BEString(samplePeak) +
+              uint32BEString(this.block_list.length);
 
     for (var i = 0; i < this.block_list.length; ++i) {
-        ret += util.float32BEString(this.block_list[i]);
+        ret += float32BEString(this.block_list[i]);
     }
 
     return ret;
@@ -647,15 +647,15 @@ Ebur128.prototype.serialize = function() {
 
 function DeserializedEbur128(serialization) {
     this.use_histogram = false;
-    this.mode = util.int32BE(serialization, 16);
-    this.channels = util.int32BE(serialization, 20) >>> 0;
-    this.samplerate = util.int32BE(serialization, 24 >>> 0);
-    this.true_peak = util.float32BE(serialization, 28);
-    this.sample_peak = util.float32BE(serialization, 32);
-    this.block_list = new Array(util.int32BE(serialization, 36) >>> 0);
+    this.mode = int32BE(serialization, 16);
+    this.channels = int32BE(serialization, 20) >>> 0;
+    this.samplerate = int32BE(serialization, 24 >>> 0);
+    this.true_peak = float32BE(serialization, 28);
+    this.sample_peak = float32BE(serialization, 32);
+    this.block_list = new Array(int32BE(serialization, 36) >>> 0);
 
     for (var i = 0; i < this.block_list.length; ++i) {
-        this.block_list[i] = util.float32BE(serialization, 40 + i * 4);
+        this.block_list[i] = float32BE(serialization, 40 + i * 4);
     }
 }
 

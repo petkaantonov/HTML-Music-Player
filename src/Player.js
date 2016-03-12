@@ -8,12 +8,12 @@ const AudioVisualizer = require("audio/AudioVisualizer");
 const effects = require("effects");
 const crossfading = require("crossfading");
 import EventEmitter from "lib/events";
-const util = require("lib/util");
-const GlobalUi = require("ui/GlobalUi");
+import { documentHidden, inherits } from "lib/util";
+import { gestureEducation, makeTooltip, rippler } from "ui/GlobalUi";
 import keyValueDatabase from "KeyValueDatabase";
 const Track = require("Track");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, isTouchEvent, tapHandler } from "lib/DomUtil";
 
 var audioCtx;
 const audioPlayer = new AudioPlayer(null, 20);
@@ -638,18 +638,18 @@ function Player(dom, playlist, opts) {
     this.$previous().click(this.prevButtonClicked.bind(this));
 
     if (touch) {
-        this.$play().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.playButtonClicked.bind(this)));
-        this.$next().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.nextButtonClicked.bind(this)));
-        this.$previous().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.prevButtonClicked.bind(this)));
+        this.$play().on(TOUCH_EVENTS, tapHandler(this.playButtonClicked.bind(this)));
+        this.$next().on(TOUCH_EVENTS, tapHandler(this.nextButtonClicked.bind(this)));
+        this.$previous().on(TOUCH_EVENTS, tapHandler(this.prevButtonClicked.bind(this)));
     }
 
-    this._playTooltip = GlobalUi.makeTooltip(this.$play(), function() {
+    this._playTooltip = makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"
                             : self.isPaused ? "Resume playback" : "Start playback";
     });
 
-    this._nextTooltip = GlobalUi.makeTooltip(this.$next(), "Next track");
-    this._previousTooltip = GlobalUi.makeTooltip(this.$previous(), "Previous track");
+    this._nextTooltip = makeTooltip(this.$next(), "Next track");
+    this._previousTooltip = makeTooltip(this.$previous(), "Previous track");
 
     playlist.on("loadNeed", this.loadTrack.bind(this));
     playlist.on("playlistEmpty", this.stop.bind(this));
@@ -669,7 +669,7 @@ function Player(dom, playlist, opts) {
     this.initAudioContextPrimer(audioCtx);
     audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
 }
-util.inherits(Player, EventEmitter);
+inherits(Player, EventEmitter);
 
 Player.prototype.audioContextReset = function() {
     audioCtx = audioPlayer.getAudioContext();
@@ -870,7 +870,7 @@ Player.prototype.audioManagerProgressed = function(audioManager) {
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
-        } else if (this.isPlaying && !util.documentHidden.isBackgrounded()) {
+        } else if (this.isPlaying && !documentHidden.isBackgrounded()) {
             this.emit("progress", currentTime, totalTime);
         }
     }
@@ -986,30 +986,30 @@ Player.prototype.loadTrack = function(track) {
 };
 
 Player.prototype.nextButtonClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.next();
-    if (domUtil.isTouchEvent(e)) {
-        GlobalUi.gestureEducation("next");
+    if (isTouchEvent(e)) {
+        gestureEducation("next");
     }
 };
 
 Player.prototype.prevButtonClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.prev();
-    if (domUtil.isTouchEvent(e)) {
-        GlobalUi.gestureEducation("previous");
+    if (isTouchEvent(e)) {
+        gestureEducation("previous");
     }
 };
 
 Player.prototype.playButtonClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     if (this.isPlaying) {
         this.pause();
     } else {
         this.play();
     }
-    if (domUtil.isTouchEvent(e)) {
-        GlobalUi.gestureEducation("playpause");
+    if (isTouchEvent(e)) {
+        gestureEducation("playpause");
     }
 };
 

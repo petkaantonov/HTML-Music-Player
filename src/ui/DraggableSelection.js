@@ -1,9 +1,9 @@
 "use strict";
 import $ from "lib/jquery";
-const util = require("lib/util");
+import { inherits } from "lib/util";
 const Selectable = require("ui/Selectable");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
+import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, isTouchEvent, modifierDragHandler, modifierTouchDownHandler } from "lib/DomUtil";
 import EventEmitter from "lib/events";
 
 const DRAG_START_DELAY_MS = 300;
@@ -30,15 +30,15 @@ function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     this._restart = this._restart.bind(this);
     this._onTouchmove = this._onTouchmove.bind(this);
     this._onTouchend = this._onTouchend.bind(this);
-    this._touchDragHandler = domUtil.modifierDragHandler(this._onTouchmove, this._onTouchend);
-    this._onItemViewMouseDownTouch = domUtil.modifierTouchDownHandler(this._onItemViewMouseDown);
+    this._touchDragHandler = modifierDragHandler(this._onTouchmove, this._onTouchend);
+    this._onItemViewMouseDownTouch = modifierTouchDownHandler(this._onItemViewMouseDown);
     this._isDragging = false;
     this._dragStartFired = false;
     this._scroll = this._scroll.bind(this);
     this._scrollIntervalId = -1;
     this._justStoppedDragging = false;
 }
-util.inherits(DraggableSelection, EventEmitter);
+inherits(DraggableSelection, EventEmitter);
 
 DraggableSelection.prototype.recentlyStoppedDragging = function() {
     return this._justStoppedDragging;
@@ -48,7 +48,7 @@ DraggableSelection.prototype.bindEvents = function() {
     this.$().on("mousedown", this._onItemViewMouseDown);
 
     if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onItemViewMouseDownTouch);
+        this.$().on(TOUCH_EVENTS_NO_MOVE, this._onItemViewMouseDownTouch);
     }
     this.$().on("selectstart", function(e) {e.preventDefault();});
 };
@@ -124,7 +124,7 @@ DraggableSelection.prototype._onMouseRelease = function(e) {
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
 
     if (touch) {
-        $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
+        $(document).off(TOUCH_EVENTS, this._touchDragHandler);
     }
     this._viewList.removeListener("tracksSelected", this._restart);
     this._viewList.removeListener("lengthChange", this._restart);
@@ -160,7 +160,7 @@ DraggableSelection.prototype._fireDragStart = function() {
 };
 
 DraggableSelection.prototype._onMovement = function(e) {
-    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
+    if (!isTouchEvent(e) && e.which !== 1) {
         return this._onMouseRelease();
     }
 
@@ -260,7 +260,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
         return;
     }
 
-    if (domUtil.isTouchEvent(e) &&
+    if (isTouchEvent(e) &&
         (!this._viewList.selectionContainsAnyItemViewsBetween(e.clientY, e.clientY) ||
         e.isFirst === false)) {
         return;
@@ -281,7 +281,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
     $(document).on("mouseup", this._onMouseRelease);
 
     if (touch) {
-        $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
+        $(document).on(TOUCH_EVENTS, this._touchDragHandler);
     }
 
     $(window).on("relayout", this._onReLayout);

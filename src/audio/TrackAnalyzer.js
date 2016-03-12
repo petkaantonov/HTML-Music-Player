@@ -1,7 +1,7 @@
 "use strict";
 import Promise from "lib/bluebird";
 
-const util = require("lib/util");
+import { documentHidden, throttle } from "lib/util";
 const TrackWasRemovedError = require("TrackWasRemovedError");
 const Track = require("Track");
 const AudioError = require("audio/AudioError");
@@ -45,7 +45,7 @@ function TrackAnalyzer(playlist) {
         self.ready = null;
     });
 
-    util.documentHidden.on("foreground", this._foregrounded.bind(this));
+    documentHidden.on("foreground", this._foregrounded.bind(this));
 }
 
 TrackAnalyzer.prototype._foregrounded = function() {
@@ -71,7 +71,7 @@ TrackAnalyzer.prototype.acoustIdImageFetched = function(track, image, error) {
     track.tagData.fetchAcoustIdImageEnded(image, error);
 };
 
-TrackAnalyzer.prototype.fetchAcoustIdImage = util.throttle(function(track) {
+TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(function(track) {
     if (track && !track.isDetachedFromPlaylist() &&
         track.tagData && track.shouldRetrieveAcoustIdImage()) {
         track.tagData.fetchAcoustIdImageStarted();

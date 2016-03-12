@@ -7,32 +7,31 @@ import Popup from "ui/Popup";
 const Tooltip = require("ui/Tooltip");
 const Animator = require("ui/Animator");
 import keyValueDatabase from "KeyValueDatabase";
-const features = require("features");
-const util = require("lib/util");
+import { slugTitle } from "lib/util";
 const Rippler = require("ui/Rippler");
-const domUtil = require("lib/DomUtil");
+import { setFilter, setTransform } from "lib/DomUtil";
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 
 const GlobalUi = module.exports;
 
-GlobalUi.contextMenuItem = function(text, icon) {
+contextMenuItem = function(text, icon) {
     if (icon) {
         icon = '<div class="icon-container"><span class="icon '+ icon + '"></span></div>';
     } else {
         icon = '<div class="icon-container"></div>';
     }
-    var className = "action-menu-item-content " + util.slugTitle(text);
+    var className = "action-menu-item-content " + slugTitle(text);
     return '<div class="' + className + '">' + icon + ' <div class="text-container">' + text + '</div></div>';
 };
 
-GlobalUi.snackbar = new Snackbar({
+snackbar = new Snackbar({
     transitionInClass: "transition-in",
     transitionOutClass: "transition-out",
     nextDelay: 400,
     visibilityTime: 4400
 });
 
-GlobalUi.makeTooltip = function(target, content) {
+makeTooltip = function(target, content) {
     return new Tooltip({
         activation: "hover",
         transitionClass: "fade-in",
@@ -47,7 +46,7 @@ GlobalUi.makeTooltip = function(target, content) {
     });
 };
 
-GlobalUi.makePopup = function(title, body, opener, footerButtons) {
+makePopup = function(title, body, opener, footerButtons) {
     const PREFERENCE_KEY = title + "-popup-preferences";
     const INITIAL_SCALE = 0.1;
 
@@ -76,7 +75,7 @@ GlobalUi.makePopup = function(title, body, opener, footerButtons) {
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
-            domUtil.setFilter($node, "");
+            setFilter($node, "");
             var animator = new Animator($node[0], {
                 interpolate: Animator.DECELERATE_CUBIC,
                 properties: [{
@@ -140,9 +139,9 @@ GlobalUi.makePopup = function(title, body, opener, footerButtons) {
     return ret;
 };
 
-GlobalUi.rippler = new Rippler();
+rippler = new Rippler();
 
-GlobalUi.spinner = (function() {
+spinner = (function() {
     const LONG_PRESS_DURATION = 600;
     const SPINNER_TRANSITION_OUT_DELAY = 300;
     const SPINNER_DELAY = LONG_PRESS_DURATION * 0.2 | 0;
@@ -160,7 +159,7 @@ GlobalUi.spinner = (function() {
         if (currentSpinner) {
             currentSpinner.find(".arc, .arc-container").each(function() {
                 $(this).addClass("clear-transition");
-                domUtil.setTransform(this, "");
+                setTransform(this, "");
                 $(this).removeClass("clear-transition");
             });
 
@@ -198,11 +197,11 @@ GlobalUi.spinner = (function() {
 
         requestAnimationFrame(function() {
             if (currentSpinner === $clockwise) {
-                domUtil.setTransform(currentSpinner.find(".arc-1-container, .arc").reflow(), "rotate(180deg)");
-                domUtil.setTransform(currentSpinner.find(".nogap").reflow(), "rotate(360deg)");
+                setTransform(currentSpinner.find(".arc-1-container, .arc").reflow(), "rotate(180deg)");
+                setTransform(currentSpinner.find(".nogap").reflow(), "rotate(360deg)");
             } else if (currentSpinner === $counterclockwise) {
-                domUtil.setTransform(currentSpinner.find(".arc-2-container, .arc").reflow(), "rotate(-180deg)");
-                domUtil.setTransform(currentSpinner.find(".nogap").reflow(), "rotate(-360deg)");
+                setTransform(currentSpinner.find(".arc-2-container, .arc").reflow(), "rotate(-180deg)");
+                setTransform(currentSpinner.find(".nogap").reflow(), "rotate(-360deg)");
             }
         });
 
@@ -234,14 +233,14 @@ const gestureEducationMessages = {
 const GESTURE_EDUCATION_KEY = "gesture-education";
 const gestureEducationPreferences = keyValueDatabase.getInitialValues().get(GESTURE_EDUCATION_KEY).then(Object);
 
-GlobalUi.gestureEducation = function(gesture) {
+gestureEducation = function(gesture) {
     var msg = gestureEducationMessages[gesture];
     var tag = gesture + "-gesture-education";
     if (!msg) return;
 
     gestureEducationPreferences.then(function(values) {
         if (values[gesture] === true) return;
-        return GlobalUi.snackbar.show(msg, {
+        return snackbar.show(msg, {
             action: "got it",
             visibilityTime: 6500,
             tag: tag

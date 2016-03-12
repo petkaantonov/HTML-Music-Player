@@ -2,15 +2,13 @@
 
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
-const util = require("lib/util");
+import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "lib/util";
 const Selectable = require("ui/Selectable");
 const DraggableSelection = require("ui/DraggableSelection");
 import keyValueDatabase from "KeyValueDatabase";
 const Track = require("Track");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import { touch as touch } from "features";
 const FixedItemListScroller = require("ui/FixedItemListScroller");
-const GlobalUi = require("ui/GlobalUi");
 const Snackbar = require("ui/Snackbar");
 const KeyboardShortcuts = require("ui/KeyboardShortcuts");
 const TrackView = require("ui/TrackView");
@@ -184,7 +182,7 @@ function Search(domNode, opts) {
     this.$().find(".search-next-tab-focus").on("focus", this._searchNextTabFocused.bind(this));
     this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 }
-util.inherits(Search, EventEmitter);
+inherits(Search, EventEmitter);
 
 Search.prototype.$ = function() {
     return this._domNode;
@@ -245,7 +243,7 @@ Search.prototype.tryLoadHistory = function(values) {
     }
 };
 
-const saveHistory = util.throttle(function(historyEntries) {
+const saveHistory = throttle(function(historyEntries) {
     var json = historyEntries.map(function(v) {
         return v.toJSON();
     });
@@ -313,7 +311,7 @@ Search.prototype._trackViewsWereDestroyed = function() {
         }
     }
 
-    var tracksIndexRanges = util.buildConsecutiveRanges(indices);
+    var tracksIndexRanges = buildConsecutiveRanges(indices);
     this._selectable.removeIndices(indices);
     this.removeTracksBySelectionRanges(tracksIndexRanges);
 
@@ -384,8 +382,8 @@ Search.prototype._inputFocused = function() {
 Search.prototype.removeTrackViews = function(trackViews, silent) {
     if (trackViews.length === 0) return;
     var oldLength = this.length;
-    var indices = trackViews.map(util.indexMapper);
-    var tracksIndexRanges = util.buildConsecutiveRanges(indices);
+    var indices = trackViews.map(indexMapper);
+    var tracksIndexRanges = buildConsecutiveRanges(indices);
 
     this._selectable.removeIndices(indices);
 
@@ -400,14 +398,14 @@ Search.prototype.removeTrackViews = function(trackViews, silent) {
     }
 };
 
-Search.prototype._gotInput = util.throttle(function() {
+Search.prototype._gotInput = throttle(function() {
     var value = this.$input().val() + "";
 
     if (value.length === 0) {
         this._topHistoryEntry = null;
     }
 
-    var normalized = util.normalizeQuery(value);
+    var normalized = normalizeQuery(value);
 
     if (this._session && this._session._normalizedQuery === normalized) {
         return;

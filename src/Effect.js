@@ -1,6 +1,6 @@
 "use strict";
 
-const util = require("lib/util");
+import { inherits } from "lib/util";
 
 function Effect(spec) {
     this.name = spec.name;
@@ -15,7 +15,7 @@ function NoiseSharpeningEffect(spec) {
     Effect.call(this, spec);
     this.effectSize = Math.max(0, Math.min(2, (+spec.effectSize) || 0));
 }
-util.inherits(NoiseSharpeningEffect, Effect);
+inherits(NoiseSharpeningEffect, Effect);
 
 NoiseSharpeningEffect.prototype.applyToChannel = function(channelIndex, samples) {
     var a = this.effectSize;

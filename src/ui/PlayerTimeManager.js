@@ -2,10 +2,10 @@
 import $ from "lib/jquery";
 
 import keyValueDatabase from "KeyValueDatabase";
-const util = require("lib/util");
-const touch = require("features").touch;
-const GlobalUi = require("ui/GlobalUi");
-const domUtil = require("lib/DomUtil");
+import { toTimeString } from "lib/util";
+import { touch as touch } from "features";
+import { rippler } from "ui/GlobalUi";
+import { TOUCH_EVENTS, changeDom, setTransform, tapHandler } from "lib/DomUtil";
 const pixelRatio = window.devicePixelRatio || 1;
 
 const DISPLAY_ELAPSED = 0;
@@ -50,7 +50,7 @@ function PlayerTimeManager(dom, player, opts) {
     this.$totalTime().click(this.containerClicked);
 
     if (touch) {
-        this.$totalTime().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.containerClicked));
+        this.$totalTime().on(TOUCH_EVENTS, tapHandler(this.containerClicked));
     }
 
     var currentTimeDom = this.$currentTime()[0];
@@ -145,10 +145,10 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
 PlayerTimeManager.prototype._updateTimeText = function(now) {
     this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
-    this.currentTimeCtx.fillText(util.toTimeString(this._displayedTimeLeft),
+    this.currentTimeCtx.fillText(toTimeString(this._displayedTimeLeft),
                                 ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
                                 (this.timeDisplayHeight + 2 * pixelRatio)|0);
-    this.totalTimeCtx.fillText(util.toTimeString(this._displayedTimeRight),
+    this.totalTimeCtx.fillText(toTimeString(this._displayedTimeRight),
                                 ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
                                 (this.timeDisplayHeight + 2 * pixelRatio)|0);
 };
@@ -161,7 +161,7 @@ PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
             var totalTimeFloored = Math.floor(totalTime);
             if (this._displayedTimeRight !== totalTimeFloored) {
                 this._displayedTimeRight = totalTimeFloored;
-                domUtil.changeDom(this._updateTimeText);
+                changeDom(this._updateTimeText);
             }
         }
 
@@ -173,7 +173,7 @@ PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
 
         if (this._displayedTimeLeft !== currentTimeFloored) {
             this._displayedTimeLeft = currentTimeFloored;
-            domUtil.changeDom(this._updateTimeText);
+            changeDom(this._updateTimeText);
 
             if (this.displayMode === DISPLAY_REMAINING) {
                 this._displayedTimeRight = -(Math.floor(Math.max(0, this.totalTime - currentTime)));
@@ -191,7 +191,7 @@ PlayerTimeManager.prototype._updateProgress = function() {
     } else {
         percentage = this.currentTime / this.totalTime * 100;
     }
-    domUtil.setTransform(this.$timeProgress()[0], "translate3d(" + (percentage - 100) + "%,0,0)");
+    setTransform(this.$timeProgress()[0], "translate3d(" + (percentage - 100) + "%,0,0)");
 };
 
 PlayerTimeManager.prototype._scheduleUpdate = function() {
@@ -221,7 +221,7 @@ PlayerTimeManager.prototype.toggleDisplayMode = function() {
 };
 
 PlayerTimeManager.prototype.containerClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleDisplayMode();
 };
 
