@@ -13,7 +13,7 @@ const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;
 const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
-const STORAGE_KEY = "effects-preferences";
+const STORAGE_KEY = "effect-preferences";
 
 const gainValueToProgress = function(gainValue) {
     var max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -277,18 +277,11 @@ EffectPreferences.prototype.getHtml = function() {
             "</div>";
     }).join("") + "</div>";
 
-
-
-
-
-
     var presetHtml = "<select class='equalizer-preset-selector'><option selected value='Custom'>Custom</option>" +
         equalizerPresetKeys.map(function(presetName) {
             return "<option value='"+presetName+"'>"+presetName+"</option>";
         }).join("") +
     "</select>";
-
-
 
     var presetContainerHtml = "<div class='section-container'>                                                        \
             <div class='inputs-container'>                                                                            \
