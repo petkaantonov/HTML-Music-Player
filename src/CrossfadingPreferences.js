@@ -228,7 +228,7 @@ CrossfadingPreferences.prototype.getPreferences = function() {
 
 CrossfadingPreferences.prototype.popupOpened = function() {
     if (!this.manager) {
-        this.manager = new CrossFadeManager(this.popup.$(), this.popup, this.preferences);
+        this.manager = new CrossFadeManager(this.popup.$(), this.popup, this.preferences, this.env);
         this.manager.on("update", this.savePreferences.bind(this));
     }
     this.manager.setUnchangedPreferences();
@@ -312,7 +312,9 @@ function FadeConfigurator(manager, domNode, config) {
     this.$().find(".fade-enable-checkbox").prop("id", enabledId);
     this.$().find(".fade-enable-text").text(config.enablerText).prop("htmlFor", enabledId);
 
-    this.slider = new Slider($(".fade-time-slider", this.$()));
+    this.slider = new Slider($(".fade-time-slider", this.$()), {
+        env: this.manager.env
+    });
     this.slider.on("slide", this.slided);
     this.$().find(".fade-enable-checkbox").on("change", this.enabledChanged);
     this.$().find(".fade-curve-select").on("change", this.curveChanged);
@@ -395,8 +397,9 @@ FadeConfigurator.prototype.$ = function() {
     return this._domNode;
 };
 
-function CrossFadeManager(domNode, popup, preferences) {
+function CrossFadeManager(domNode, popup, preferences, env) {
     EventEmitter.call(this);
+    this.env = env;
     this._domNode = $(domNode);
     this._popup = popup;
     this.preferences = preferences;

@@ -20,7 +20,6 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overl
 
 export default function PlaylistNotifications(dom, player, opts) {
     opts = Object(opts);
-    this.dbValues = opts.dbValues;
     this.db = opts.db;
     this.env = opts.env;
     var self = this;
@@ -68,8 +67,8 @@ export default function PlaylistNotifications(dom, player, opts) {
     this._currentAction = Promise.resolve();
     this._currentState = {enabled: false};
 
-    if (PREFERENCE_KEY in this.dbValues) {
-        this.enabled = !!(this.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
+    if (PREFERENCE_KEY in opts.dbValues) {
+        this.enabled = !!(opts.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
         this.update();
     }
 }

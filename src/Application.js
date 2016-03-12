@@ -134,7 +134,10 @@ export default function Application(env, db, dbValues, defaultTitle) {
         dbValues: this.dbValues,
         db: this.db,
         gestureEducator: this.gestureEducator,
-        rippler: this.rippler
+        rippler: this.rippler,
+        crossfadingPreferences: this.crossfadingPreferences,
+        effectPreferences: this.effectPreferences,
+        applicationPreferences: this.applicationPreferences
     });
 
     this.playlist = this.mainTabs.playlist;
@@ -171,6 +174,9 @@ export default function Application(env, db, dbValues, defaultTitle) {
         snackbar: this.snackbar,
         gestureEducator: this.gestureEducator,
         rippler: this.rippler,
+        crossfadingPreferences: this.crossfadingPreferences,
+        effectPreferences: this.effectPreferences,
+        applicationPreferences: this.applicationPreferences,
         src: window.DEBUGGING
             ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
     });

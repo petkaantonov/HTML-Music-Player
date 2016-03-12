@@ -10,7 +10,9 @@ const REPEAT = "repeat";
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
-export default function PlaylistModeManager(dom, playlist) {
+export default function PlaylistModeManager(dom, playlist, opts) {
+    opts = Object(opts);
+    this.env = opts.env;
     var self = this;
     this.playlist = playlist;
     this._domNode = $(dom);
@@ -36,7 +38,7 @@ export default function PlaylistModeManager(dom, playlist) {
     this.$shuffle().on("click", this.shuffleClicked);
     this.$repeat().on("click", this.repeatClicked);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$shuffle().on(TOUCH_EVENTS, tapHandler(this.shuffleClicked));
         this.$repeat().on(TOUCH_EVENTS, tapHandler(this.repeatClicked));
     }

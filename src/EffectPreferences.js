@@ -169,7 +169,7 @@ EffectPreferences.prototype.getPreferences = function() {
 
 EffectPreferences.prototype.popupOpened = function() {
     if (!this.manager) {
-        this.manager = new EffectManager(".equalizer-popup-content-container", this.popup, this.preferences);
+        this.manager = new EffectManager(".equalizer-popup-content-container", this.popup, this.preferences, this.env);
         this.manager.on("update", this.savePreferences.bind(this));
     }
     this.manager.setUnchangedPreferences();
@@ -304,7 +304,9 @@ EffectPreferences.prototype.getHtml = function() {
 
 function NoiseSharpeningEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
-    this._slider = new Slider(this.$().find(".noise-sharpening-slider"));
+    this._slider = new Slider(this.$().find(".noise-sharpening-slider"), {
+        env: effectsManager.env
+    });
 
     this._strengthChanged = this._strengthChanged.bind(this);
     this._enabledChanged = this._enabledChanged.bind(this);
@@ -368,7 +370,8 @@ function EqualizerEffectManager(effectsManager) {
     this._equalizerSliders = equalizerBands.map(function(band, index) {
         var self = this;
         var slider = new Slider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
-            direction: "vertical"
+            direction: "vertical",
+            env: effectsManager.env
         });
 
         var eq;
@@ -425,8 +428,9 @@ EqualizerEffectManager.prototype.update = function() {
     this._updateSliders();
 };
 
-function EffectManager(domNode, popup, preferences) {
+function EffectManager(domNode, popup, preferences, env) {
     EventEmitter.call(this);
+    this.env = env;
     this._domNode = $($(domNode)[0]);
     this._popup = popup;
     this.preferences = preferences;

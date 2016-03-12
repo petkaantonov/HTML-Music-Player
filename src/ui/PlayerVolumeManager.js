@@ -10,7 +10,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
     this.env = opts.env;
     this.rippler = opts.rippler;
     this.player = player;
-    this.volumeSlider = new Slider(opts.volumeSlider);
+    this.volumeSlider = new Slider(opts.volumeSlider, this.env);
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);

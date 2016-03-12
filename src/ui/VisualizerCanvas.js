@@ -181,6 +181,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.webglSupported = WebGl2dImageRenderer.isSupported();
     this.snackbar = opts.snackbar;
     this.db = opts.db;
+    this.env = opts.env;
     this.needToDraw = true;
     this.canvas = targetCanvas;
     this.width = -1;
@@ -332,7 +333,7 @@ VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitializat
 
     if (needsInitialization) {
         var sliderValue = this.latencyPopup.$().find(".latency-value");
-        var slider = new Slider(this.latencyPopup.$().find(".latency-slider"));
+        var slider = new Slider(this.latencyPopup.$().find(".latency-slider"), this.env);
         slider.setValue((latency + minLatency) / (maxLatency - minLatency));
         sliderValue.text(latency + "ms");
         popup.on("open", function() {

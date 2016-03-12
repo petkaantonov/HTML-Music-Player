@@ -22,7 +22,8 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.totalTime = 0;
     this.currentTime = 0;
     this.seekSlider = new Slider(opts.seekSlider, {
-        updateDom: false
+        updateDom: false,
+        env: this.env
     });
     this._displayedTimeRight = this._displayedTimeLeft = -1;
     this._transitionEnabled = false;

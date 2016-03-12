@@ -120,7 +120,8 @@ ApplicationPreferences.prototype.getPreferences = function() {
 
 ApplicationPreferences.prototype.popupOpened = function() {
     if (!this.manager) {
-        this.manager = new PreferencesManager(".preferences-popup-content-container", this.popup, this.preferences);
+        this.manager = new PreferencesManager(".preferences-popup-content-container",
+                                                this.popup, this.preferences, this.env);
         this.manager.on("update", this.savePreferences.bind(this));
     }
     this.manager.setUnchangedPreferences();
@@ -246,7 +247,9 @@ ApplicationPreferences.prototype.getHtml = function() {
 
 function CpuUsagePreferenceManager(preferencesManager) {
     this._preferenceManager = preferencesManager;
-    this._slider = new Slider(this.$().find(".cpu-usage-slider"));
+    this._slider = new Slider(this.$().find(".cpu-usage-slider"), {
+        env: preferencesManager.env
+    });
 
     this._valueChanged = this._valueChanged.bind(this);
     this._slider.on("slide", this._valueChanged);
@@ -273,8 +276,9 @@ CpuUsagePreferenceManager.prototype._updateSlider = function(value) {
     this.$().find(".cpu-usage-value").text((value * 100).toFixed(0) + "%");
 };
 
-function PreferencesManager(domNode, popup, preferences) {
+function PreferencesManager(domNode, popup, preferences, env) {
     EventEmitter.call(this);
+    this.env = env;
     this._domNode = $($(domNode)[0]);
     this._popup = popup;
     this.preferences = preferences;

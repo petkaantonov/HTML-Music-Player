@@ -55,7 +55,7 @@ export default function DefaultShortcuts(opts) {
     this.keyboardShortcuts.defaultContext.addShortcut("ArrowLeft", this.shortcutSeekBack);
     this.keyboardShortcuts.defaultContext.addShortcut("ArrowRight", this.shortcutSeekForward);
 
-    if (env.hasTouch()) {
+    if (this.env.hasTouch()) {
         this.enableGestures();
         this.keyboardShortcuts.on("disable", this.disableGestures);
         this.keyboardShortcuts.on("enable", this.enableGestures);

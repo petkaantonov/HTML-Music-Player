@@ -7,6 +7,7 @@ import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, dragHandler, isTouchEvent, setTrans
 export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
+    this.env = opts.env;
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
@@ -23,7 +24,7 @@ export default function Slider(domNode, opts) {
 
     this.$().on("mousedown", this._onMousedown);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
     }
 
@@ -75,7 +76,7 @@ Slider.prototype._onMousedown = function(e) {
 
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(document).on(TOUCH_EVENTS, this._touchDragHandler);
     }
 
@@ -205,7 +206,7 @@ Slider.prototype._onMouseup = function(e) {
 
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(document).off(TOUCH_EVENTS, this._touchDragHandler);
     }
 
