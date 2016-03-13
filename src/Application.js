@@ -26,6 +26,7 @@ import ScrollEvents from "ui/ScrollEvents";
 import SliderMaker from "ui/SliderMaker";
 import MenuMaker from "ui/MenuMaker";
 import ScrollerMaker from "ui/ScrollerMaker";
+import FileInputContext from "ui/FileInputContext";
 import Player from "Player";
 import Playlist from "Playlist";
 import Search from "Search";
@@ -33,7 +34,6 @@ import ApplicationPreferences from "ApplicationPreferences";
 import EffectPreferences from "EffectPreferences";
 import CrossfadingPreferences from "CrossfadingPreferences";
 import ServiceWorkerManager from "ServiceWorkerManager";
-import initializeFileinput from "lib/jquery.fileinput";
 import initializeReflow from "lib/jquery.reflow";
 import initializeUaparser from "lib/ua-parser";
 import { onCapture, offCapture } from "lib/util";
@@ -44,7 +44,6 @@ const TAB_HEIGHT = 32;
 
 export default function Application(env, db, dbValues, defaultTitle) {
     dbValues = Object(dbValues);
-    initializeFileinput();
     initializeUaparser();
     initializeReflow();
 
@@ -65,6 +64,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.rippler = new Rippler("body");
     this.keyboardShortcuts = new KeyboardShortcuts();
     this.menuMaker = new MenuMaker(this.recognizerMaker, this.rippler);
+    this.fileInputContext = new FileInputContext(this.recognizerMaker, this.rippler);
 
     this.scrollEvents = new ScrollEvents(this.recognizerMaker);
     this.scrollerMaker = new ScrollerMaker(this.recognizerMaker, this.scrollEvents, ITEM_HEIGHT);
@@ -196,7 +196,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.localFileHandler = new LocalFileHandler({
-        recognizerMaker: this.recognizerMaker,
+        fileInputContext: this.fileInputContext,
+        env: this.env,
         playlist: this.playlist,
         directoryButton: ".menul-folder, .add-folder-link",
         fileButton: ".menul-files, .add-files-link"

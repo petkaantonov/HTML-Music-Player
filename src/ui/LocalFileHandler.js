@@ -9,13 +9,13 @@ function LocalFileHandler(opts) {
     opts = Object(opts);
     this.env = opts.env;
     this.opts = opts;
+    this.fileInputContext = opts.fileInputContext;
     this.localFiles = new LocalFiles(this.env);
     this.playlist = opts.playlist;
     this.addFilesToPlaylist = this.addFilesToPlaylist.bind(this);
-
-    var self = this;
+    this.directoryFileInput = null;
     if (this.env.supportsDirectories()) {
-        $(opts.directoryButton).fileInput("create", {
+        this.directoryFileInput = this.fileInputContext.createFileInput($(opts.directoryButton), {
             onchange: this.directoryInputChanged.bind(this),
             webkitdirectory: true,
             directory: true
@@ -24,7 +24,7 @@ function LocalFileHandler(opts) {
         $(opts.directoryButton).remove();
     }
 
-    $(opts.fileButton).fileInput("create", {
+    this.filesFileInput = this.fileInputContext.createFileInput($(opts.fileButton), {
         onchange: this.fileInputChanged.bind(this),
         multiple: true,
         accept: this.env.supportedMimes().join(",")
@@ -143,7 +143,7 @@ LocalFileHandler.prototype.generateFakeFiles = function(count) {
 LocalFileHandler.prototype.fileInputChanged = function(e) {
     var input = e.target;
     this.addFilesToPlaylist(this.filterFiles(input.files));
-    $(this.opts.fileButton).fileInput("clearFiles");
+    this.filesFileInput.resetFiles();
 };
 
 LocalFileHandler.prototype.directoryInputChanged = function(e) {
@@ -159,7 +159,7 @@ LocalFileHandler.prototype.directoryInputChanged = function(e) {
     } else {
         this.addFilesToPlaylist(this.filterFiles(input.files));
     }
-    $(this.opts.directoryButton).fileInput("clearFiles");
+    this.directoryFileInput.resetFiles();
 };
 
 const toTrack = function(v) { return new Track(v); }
