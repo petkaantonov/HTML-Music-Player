@@ -181,7 +181,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.webglSupported = WebGl2dImageRenderer.isSupported();
     this.snackbar = opts.snackbar;
     this.db = opts.db;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.needToDraw = true;
     this.canvas = targetCanvas;

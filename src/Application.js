@@ -23,6 +23,8 @@ import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import GestureRecognizerMaker from "ui/gestures/GestureRecognizerMaker";
 import ScrollEvents from "ui/ScrollEvents";
+import SliderMaker from "ui/SliderMaker";
+import MenuMaker from "ui/MenuMaker";
 import Player from "Player";
 import Playlist from "Playlist";
 import Search from "Search";
@@ -55,11 +57,13 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.defaultTitle = defaultTitle;
 
     this.recognizerMaker = new GestureRecognizerMaker(this.env);
+    this.sliderMaker = new SliderMaker(this.recognizerMaker);
     this.scrollEvents = new ScrollEvents(this.env, this.recognizerMaker);
     this.androidKeyboardFixer = new AndroidKeyboardFixer();
     this.gestureScreenFlasher = new GestureScreenFlasher();
     this.rippler = new Rippler("body");
     this.keyboardShortcuts = new KeyboardShortcuts();
+    this.menuMaker = new MenuMaker(this.recognizerMaker, this.rippler);
 
     this.scrollEvents = new ScrollEvents()
 

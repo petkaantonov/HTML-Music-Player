@@ -7,7 +7,7 @@ import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, dragHandler, isTouchEvent, setTrans
 export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
@@ -19,14 +19,9 @@ export default function Slider(domNode, opts) {
     this._onMousedown = this._onMousedown.bind(this);
     this._onReLayout = this._onReLayout.bind(this);
 
-    this._onMousedownTouch = touchDownHandler(this._onMousedown);
-    this._touchDragHandler = dragHandler(this._onMousemove, this._onMouseup);
+    this.dragRecognizer = this.recognizerMaker.createDragRecognizer(this._onMousemove, this._onMouseup);
+    this.touchdownRecognizer = this.recognizerMaker.createTouchdownRecognizer(this._onMousedown);
 
-    this.$().on("mousedown", this._onMousedown);
-
-    if (this.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
-    }
 
     this._shouldUpdateDom = "updateDom" in opts ? !!opts.updateDom : true;
     if (this.shouldUpdateDom()) {
@@ -36,6 +31,8 @@ export default function Slider(domNode, opts) {
 
     documentHidden.on("foreground", this._onReLayout);
     $(window).on("sizechange", this._onReLayout);
+    this.$().on("mousedown", this._onMousedown);
+    this.touchdownRecognizer.recognizeBubbledOn(this.$());
 }
 inherits(Slider, EventEmitter);
 
@@ -75,11 +72,7 @@ Slider.prototype._onMousedown = function(e) {
     this.emit("slide", this._percentage(e));
 
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
-
-    if (this.env.hasTouch()) {
-        $(document).on(TOUCH_EVENTS, this._touchDragHandler);
-    }
-
+    this.dragRecognizer.recognizeBubbledOn($(document));
 
     e.preventDefault();
 };
@@ -205,11 +198,7 @@ Slider.prototype._onMouseup = function(e) {
     this.emit("slideEnd", this._percentage(e));
 
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
-
-    if (this.env.hasTouch()) {
-        $(document).off(TOUCH_EVENTS, this._touchDragHandler);
-    }
-
+    this.dragRecognizer.unrecognizeBubbledOn($(document));
     e.preventDefault();
 };
 

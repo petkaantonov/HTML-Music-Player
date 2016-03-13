@@ -24,21 +24,17 @@ function SnackbarInstance(snackbar, message, opts) {
     this._domNode = this._createDom(message, opts);
     this._visibilityChanged = this._visibilityChanged.bind(this);
     this._clicked = this._clicked.bind(this);
-    this._clickedTouch = tapHandler(this._clicked);
     this._timeoutChecker = this._timeoutChecker.bind(this);
     this._mouseEntered = this._mouseEntered.bind(this);
     this._mouseLeft = this._mouseLeft.bind(this);
     this._resized = this._resized.bind(this);
 
+
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
     $(window).on("sizechange", this._resized);
-
-    if (snackbar.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS, this._clickedTouch);
-    }
-
+    snackbar.recognizerMaker.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
     documentHidden.on("change", this._visibilityChanged);
     this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
 
@@ -216,7 +212,7 @@ SnackbarInstance.prototype._destroy = function() {
 
 export default function Snackbar(opts) {
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";

@@ -11,7 +11,7 @@ const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated
 
 export default function PlaylistModeManager(dom, playlist, opts) {
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.tooltipMaker = opts.tooltipMaker;
     var self = this;
@@ -38,12 +38,8 @@ export default function PlaylistModeManager(dom, playlist, opts) {
 
     this.$shuffle().on("click", this.shuffleClicked);
     this.$repeat().on("click", this.repeatClicked);
-
-    if (this.env.hasTouch()) {
-        this.$shuffle().on(TOUCH_EVENTS, tapHandler(this.shuffleClicked));
-        this.$repeat().on(TOUCH_EVENTS, tapHandler(this.repeatClicked));
-    }
-
+    this.recognizerMaker.createTapRecognizer(this.shuffleClicked).recognizeBubbledOn(this.$shuffle());
+    this.recognizerMaker.createTapRecognizer(this.repeatClicked).recognizeBubbledOn(this.$repeat());
     this.update();
 }
 
