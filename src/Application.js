@@ -34,7 +34,6 @@ import ApplicationPreferences from "ApplicationPreferences";
 import EffectPreferences from "EffectPreferences";
 import CrossfadingPreferences from "CrossfadingPreferences";
 import ServiceWorkerManager from "ServiceWorkerManager";
-import initializeUaparser from "lib/ua-parser";
 import { onCapture, offCapture } from "lib/util";
 import { isTextInputElement } from "lib/DomUtil";
 
@@ -43,7 +42,6 @@ const TAB_HEIGHT = 32;
 
 export default function Application(env, db, dbValues, defaultTitle) {
     dbValues = Object(dbValues);
-    initializeUaparser();
 
     if (!env.hasTouch()) {
         $("body").addClass("no-touch");

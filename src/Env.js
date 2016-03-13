@@ -2,11 +2,12 @@
 
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
+import UAParser from "lib/ua-parser";
 
 export default function Env() {
     var input = document.createElement("input");
     const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
-    var ua = $.ua;
+    var ua = new UAParser().getResult();
     var isDesktop = false;
 
     if (ua.device && ua.device.type) {
@@ -33,12 +34,12 @@ export default function Env() {
 
     var browserName, browserVersion;
     var isIe = false;
-    if ($.ua.browser) {
-        browserName = ($.ua.browser.name || "").toLowerCase();
-        browserVersion = +($.ua.browser.major || 0);
+    if (ua.browser) {
+        browserName = (ua.browser.name || "").toLowerCase();
+        browserVersion = +(ua.browser.major || 0);
     }
 
-    if ($.ua.engine && $.ua.engine.name && $.ua.engine.name.toLowerCase().indexOf("trident") >= 0) {
+    if (ua.engine && ua.engine.name && ua.engine.name.toLowerCase().indexOf("trident") >= 0) {
         isIe = true;
     }
 
