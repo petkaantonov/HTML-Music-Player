@@ -2,7 +2,7 @@
 import $ from "lib/jquery";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import EventEmitter from "lib/events";
-import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, isTouchEvent, longTapHandler, originProperty, tapHandler, touchDownHandler } from "lib/DomUtil";
+import { changeDom, isTouchEvent, originProperty } from "lib/DomUtil";
 
 const NULL = $(null);
 const TRANSITION_IN_DURATION = 300;
@@ -35,6 +35,10 @@ function ActionMenuItem(root, spec, children, level) {
     this.positionSubMenu = this.positionSubMenu.bind(this);
     this.itemTouchStarted = this.itemTouchStarted.bind(this);
 
+    this.containerTouchedRecognizer = this.root.recognizerMaker.createTouchdownRecognizer(this.containerMouseEntered);
+    this.tapRecognizer = this.root.recognizerMaker.createTapRecognizer(this.itemClicked);
+    this.itemTouchedRecognizer = this.root.recognizerMaker.createTouchdownRecognizer(this.itemTouchStarted);
+
     if (this.children) {
         this._containerDom = this._createContainerDom(level);
         this.children.forEach(function(child) {
@@ -46,18 +50,13 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseenter", this.containerMouseEntered);
         this.$container().on("mouseleave", this.containerMouseLeft);
 
-        if (this.root.env.hasTouch()) {
-            this.$container().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.containerMouseEntered));
-        }
+        this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
     }
 
     if (!this.divider) {
         this.$().on("click", this.itemClicked);
-
-        if (this.root.env.hasTouch()) {
-            this.$().on(TOUCH_EVENTS, tapHandler(this.itemClicked));
-            this.$().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.itemTouchStarted));
-        }
+        this.tapRecognizer.recognizeBubbledOn(this.$());
+        this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
     }
 }
 
@@ -465,7 +464,7 @@ export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.rippler = opts.rippler;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rootClass = opts.rootClass || "action-menu-root";
     this.containerClass = opts.containerClass || "action-menu-submenu";
     this.itemClass = opts.itemClass || "action-menu-item";
@@ -647,21 +646,15 @@ export function ContextMenu(dom, opts) {
     this.rightClicked = this.rightClicked.bind(this);
     this.keypressed = this.keypressed.bind(this);
     this.position = this.position.bind(this);
-    this.rightClickedTouch = longTapHandler(this.rightClicked);
-    this.documentClickedTouch = touchDownHandler(this.documentClicked);
 
+    this.longTapRecognizer = this._menu.recognizerMaker.createLongTapRecognizer(this.rightClicked);
+    this.documentTouchedRecognizer = this._menu.recognizerMaker.createTouchdownRecognizer(this.documentClicked);
     this.preventDefault = $.noop;
 
-    // Use event capturing so that these are handled even if stopPropagation()
-    // is called.
     this._targetDom.on("contextmenu", this.rightClicked);
     onCapture(document, "mousedown", this.documentClicked);
-
-    if (this._menu.env.hasTouch()) {
-        this._targetDom.on(TOUCH_EVENTS, this.rightClickedTouch);
-        onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
-    }
-
+    this.longTapRecognizer.recognizeBubbledOn(this._targetDom);
+    this.documentTouchedRecognizer.recognizeCapturedOn(document);
     document.addEventListener("keydown", this.keypressed, true);
     window.addEventListener("blur", this.hide, true);
     window.addEventListener("scroll", this.position, true);
@@ -682,12 +675,8 @@ ContextMenu.prototype.destroy = function() {
 
     offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
-
-    if (this._menu.env.hasTouch()) {
-        offCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
-        this._targetDom.off(TOUCH_EVENTS, this.rightClickedTouch);
-    }
-
+    this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
+    this.documentTouchedRecognizer.unrecognizeCapturedOn(document);
     document.removeEventListener("keydown", this.keypressed, true);
     this.removeAllListeners();
     this._menu.destroy();

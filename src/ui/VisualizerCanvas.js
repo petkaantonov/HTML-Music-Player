@@ -7,9 +7,6 @@ import { canvasToImage } from "lib/DomUtil";
 import Default2dImageRenderer from "ui/Default2dImageRenderer";
 import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
 import EventEmitter from "lib/events";
-import Slider from "ui/Slider";
-import { contextMenuItem } from "ui/GlobalUi";
-import { ContextMenu } from "ui/ActionMenu";
 
 const pixelRatio = window.devicePixelRatio || 1;
 const SHADOW_BLUR = 2 * pixelRatio | 0;
@@ -182,6 +179,8 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.snackbar = opts.snackbar;
     this.db = opts.db;
     this.recognizerMaker = opts.recognizerMaker;
+    this.sliderMaker = opts.sliderMaker;
+    this.menuMaker = opts.menuMaker;
     this.rippler = opts.rippler;
     this.needToDraw = true;
     this.canvas = targetCanvas;
@@ -291,11 +290,9 @@ VisualizerCanvas.prototype.refreshContextMenu = function() {
 
 VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
     this.destroyCanvasContextMenu();
+    var factory = this.menuMaker;
     var self = this;
-    var canvas = this.canvas;
-    var menuSpec = {
-        env: this.env,
-        rippler: this.rippler,
+    this.contextMenu = factory.createContextMenu(this.canvas, {
         menu: [{
             id: "hardware-acceleration",
             disabled: true,
@@ -303,20 +300,21 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
                 e.preventDefault()
             },
             content: function() {
-                return contextMenuItem("Hardware acceleration", self.isHardwareRendering() ? "glyphicon glyphicon-ok" : null);
+                return factory.createMenuItem("Hardware acceleration",
+                                              self.isHardwareRendering() ? "glyphicon glyphicon-ok" : null);
             }
         }, {
             divider: true
         }, {
             id: "hardware-latency",
-            content: contextMenuItem("Synchronize with audio..."),
+            content: factory.createMenuItem("Synchronize with audio..."),
             onClick: function(e) {
                 self.latencyPopup.open();
             }
         }, {
             id: "visualizer-enabled",
             content: function() {
-                return contextMenuItem("Enabled", self.isEnabled() ? "glyphicon glyphicon-ok" : null);
+                return factory.createMenuItem("Enabled", self.isEnabled() ? "glyphicon glyphicon-ok" : null);
             },
             onClick: function(e) {
                 e.preventDefault();
@@ -324,8 +322,7 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
                 self.refreshContextMenu();
             }
         }]
-    };
-    this.contextMenu = new ContextMenu(canvas, menuSpec);
+    });
 };
 
 VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitialization) {
@@ -336,7 +333,7 @@ VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitializat
 
     if (needsInitialization) {
         var sliderValue = this.latencyPopup.$().find(".latency-value");
-        var slider = new Slider(this.latencyPopup.$().find(".latency-slider"), this.env);
+        var slider = this.sliderMaker.createSlider(this.latencyPopup.$().find(".latency-slider"));
         slider.setValue((latency + minLatency) / (maxLatency - minLatency));
         sliderValue.text(latency + "ms");
         popup.on("open", function() {

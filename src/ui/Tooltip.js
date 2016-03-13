@@ -2,7 +2,6 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
-import { TOUCH_EVENTS, hoverHandler, tapHandler } from "lib/DomUtil";
 
 const getLongestTransitionDuration = function(node) {
     var $node = $(node);
@@ -79,7 +78,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
 export default function Tooltip(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
     this._onContent = toFunction(opts.content);
@@ -110,26 +109,24 @@ export default function Tooltip(opts) {
     this.position = this.position.bind(this);
     this.hide = this.hide.bind(this);
     this.targetClicked = this.targetClicked.bind(this);
-    this.touchHoverHandler = hoverHandler(this.mouseEntered, this.mouseLeft);
-    this.targetClickedTouch = tapHandler(this.targetClicked);
-    this.clickedTouch = tapHandler(this.clicked);
-    this.documentClickedTouch = tapHandler(this.documentClicked);
+
+    this.hoverRecognizer = this.recognizerMaker.createHoverRecognizer(this.mouseEntered, this.mouseLeft);
+    this.targetTapRecognizer = this.recognizerMaker.createTapRecognizer(this.targetClicked);
+    this.tapRecognizer = this.recognizerMaker.createTapRecognizer(this.clicked);
+    this.documentTapRecognizer = this.recognizerMaker.createTapRecognizer(this.documentClicked);
+
 
     if (this._activationStyle === "hover") {
         this._target.on("mouseenter", this.mouseEntered);
         this._target.on("mouseleave", this.mouseLeft);
         this._target.on("click", this.targetClicked);
-        if (this.env.hasTouch()) {
-            this._target.on(TOUCH_EVENTS, this.touchHoverHandler);
-            this._target.on(TOUCH_EVENTS, this.targetClickedTouch);
-        }
+        this.hoverRecognizer.recognizeBubbledOn(this._target);
+        this.targetTapRecognizer.recognizeBubbledOn(this._target);
     } else if (this._activationStyle === "click") {
         this._target.on("click", this.clicked);
         onCapture(document, "click", this.documentClicked);
-        if (this.env.hasTouch()) {
-            this._target.on(TOUCH_EVENTS, this.clickedTouch);
-            onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
-        }
+        this.tapRecognizer.recognizeBubbledOn(this._target);
+        this.documentTapRecognizer.recognizeCapturedOn(document);
     }
     $(window).on("sizechange", this.position);
     $(window).on("blur", this.hide);
@@ -506,16 +503,17 @@ Tooltip.prototype.destroy = function() {
     $(window).off("blur", this.hide);
     documentHidden.removeListener("change", this.hide);
     offCapture(document, "click", this.documentClicked);
-    offCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
+    this.documentTapRecognizer.unrecognizeCapturedOn(document);
+
     if (this._target) {
         this.hide();
         this._target.off("mouseenter", this.mouseEntered);
         this._target.off("mouseleave", this.mouseLeft);
-        this._target.off(TOUCH_EVENTS, this.touchHoverHandler);
+        this.hoverRecognizer.unrecognizeBubbledOn(this._target);
         this._target.off("click", this.targetClicked);
-        this._target.off(TOUCH_EVENTS, this.targetClickedTouch);
+        this.targetTapRecognizer.unrecognizeBubbledOn(this._target);
         this._target.off("click", this.clicked);
-        this._target.off(TOUCH_EVENTS, this.clickedTouch);
+        this.tapRecognizer.unrecognizeBubbledOn(this._target);
         this._target = this._domNode = null;
     }
 };

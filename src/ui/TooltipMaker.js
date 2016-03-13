@@ -3,8 +3,8 @@
 import $ from "lib/jquery";
 import Tooltip from "ui/Tooltip";
 
-export default function TooltipMaker(env) {
-    this.env = env;
+export default function TooltipMaker(recognizerMaker) {
+    this.recognizerMaker = recognizerMaker;
 }
 
 TooltipMaker.prototype.makeTooltip = function(target, content) {
@@ -19,6 +19,6 @@ TooltipMaker.prototype.makeTooltip = function(target, content) {
         delay: 600,
         classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
         content: content,
-        env: this.env
+        recognizerMaker: this.recognizerMaker
     });
 };

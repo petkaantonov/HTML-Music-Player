@@ -262,6 +262,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         snackbar: this.snackbar,
         rippler: this.rippler,
         popupMaker: this.popupMaker,
+        menuMaker: this.menuMaker,
+        sliderMaker: this.sliderMaker,
         binWidth: 3,
         gapWidth: 1,
         capHeight: 1,
