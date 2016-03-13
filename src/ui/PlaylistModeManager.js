@@ -1,6 +1,5 @@
 "use strict";
 import $ from "lib/jquery";
-import { makeTooltip } from "ui/GlobalUi";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 const SHUFFLE = "shuffle";
@@ -13,17 +12,19 @@ const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated
 export default function PlaylistModeManager(dom, playlist, opts) {
     opts = Object(opts);
     this.env = opts.env;
+    this.rippler = opts.rippler;
+    this.tooltipMaker = opts.tooltipMaker;
     var self = this;
     this.playlist = playlist;
     this._domNode = $(dom);
 
-    this.shuffleTooltip = makeTooltip(this.$shuffle(), function() {
+    this.shuffleTooltip = this.tooltipMaker.makeTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
                                           : "<p><strong>Enable</strong> shuffle mode</p>" +
                                             SHUFFLE_MODE_TOOLTIP;
     });
 
-    this.repeatTooltip = makeTooltip(this.$repeat(), function() {
+    this.repeatTooltip = this.tooltipMaker.makeTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
                                          : "<p><strong>Enable</strong> repeat mode</p>";
     });
@@ -63,7 +64,7 @@ PlaylistModeManager.prototype.$repeat = function() {
 };
 
 PlaylistModeManager.prototype.shuffleClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
 
@@ -76,7 +77,7 @@ PlaylistModeManager.prototype.shuffleClicked = function(e) {
 };
 
 PlaylistModeManager.prototype.repeatClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.$allButtons().removeClass("just-deactivated");
     this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
 

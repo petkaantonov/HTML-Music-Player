@@ -7,7 +7,6 @@ import TrackDisplay from "ui/TrackDisplay";
 import MainTabs from "ui/MainTabs";
 import PlaylistModeManager from "ui/PlaylistModeManager";
 import PlayerTimeManager from "ui/PlayerTimeManager";
-import PlayerTimeManager from "ui/PlayerTimeManager";
 import PlayerVolumeManager from "ui/PlayerVolumeManager";
 import PlayerPictureManager from "ui/PlayerPictureManager";
 import PlaylistNotifications from "ui/PlaylistNotifications";
@@ -19,6 +18,7 @@ import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "ui/DefaultShortcuts";
 import AndroidKeyboardFixer from "ui/AndroidKeyboardFixer";
 import PopupMaker from "ui/PopupMaker";
+import TooltipMaker from "ui/TooltipMaker";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
 import Player from "Player";
@@ -53,20 +53,11 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.defaultTitle = defaultTitle;
 
     this.androidKeyboardFixer = new AndroidKeyboardFixer();
-
-    this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
-        openerActiveClass: "toolbar-item-active",
-        env: this.env
-    });
-
+    this.gestureScreenFlasher = new GestureScreenFlasher();
+    this.rippler = new Rippler("body");
     this.keyboardShortcuts = new KeyboardShortcuts();
 
-    this.popupMaker = new PopupMaker({
-        env: this.env,
-        dbValues: this.dbValues,
-        db: this.db,
-        keyboardShortcuts: this.keyboardShortcuts
-    });
+    this.tooltipMaker = new TooltipMaker(this.env);
 
     this.snackbar = new Snackbar({
         transitionInClass: "transition-in",
@@ -76,9 +67,18 @@ export default function Application(env, db, dbValues, defaultTitle) {
         env: this.env
     });
 
-    this.gestureScreenFlasher = new GestureScreenFlasher();
+    this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
+        openerActiveClass: "toolbar-item-active",
+        env: this.env
+    });
 
-    this.rippler = new Rippler("body");
+    this.popupMaker = new PopupMaker({
+        env: this.env,
+        dbValues: this.dbValues,
+        db: this.db,
+        rippler: this.rippler,
+        keyboardShortcuts: this.keyboardShortcuts
+    });
 
     this.spinner = new Spinner({
         clockwise: "#clockwise-spinner",
@@ -134,7 +134,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         keyboardShortcuts: this.keyboardShortcuts,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences
+        applicationPreferences: this.applicationPreferences,
+        tooltipMaker: this.tooltipMaker
     });
 
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
@@ -202,6 +203,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences,
+        tooltipMaker: this.tooltipMaker,
         src: window.DEBUGGING
             ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
     });
@@ -220,7 +222,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         timeProgressDom: ".time-progress",
         env: this.env,
         dbValues: this.dbValues,
-        db: this.db
+        db: this.db,
+        rippler: this.rippler
     });
 
     this.playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", this.player, {
@@ -229,10 +232,17 @@ export default function Application(env, db, dbValues, defaultTitle) {
         env: this.env,
         dbValues: this.dbValues,
         db: this.db,
-        rippler: this.rippler
+        rippler: this.rippler,
+        tooltipMaker: this.tooltipMaker
     });
 
-    this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player);
+    this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player, {
+        env: this.env,
+        rippler: this.rippler,
+        db: this.db,
+        dbValues: this.dbValues,
+        tooltipMaker: this.tooltipMaker
+    });
 
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
         env: this.env,
@@ -274,7 +284,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         env: this.env,
         dbValues: this.dbValues,
         db: this.db,
-        rippler: this.rippler
+        rippler: this.rippler,
+        tooltipMaker: this.tooltipMaker
     });
 
     $(document).on("longPressStart", this.longTapStarted.bind(this));

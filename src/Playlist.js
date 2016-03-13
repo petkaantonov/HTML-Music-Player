@@ -74,6 +74,7 @@ export default function Playlist(domNode, opts) {
     this.rippler = opts.rippler;
     this.snackbar = opts.snackbar;
     this.applicationPreferences = opts.applicationPreferences;
+    this.tooltipMaker = opts.tooltipMaker;
 
     this._trackViews = [];
     this._unparsedTrackList = [];
@@ -110,7 +111,8 @@ export default function Playlist(domNode, opts) {
     this._selectable = new Selectable(this);
     this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
         mustNotMatchSelector: ".track-rating",
-        mustMatchSelector: ".track-container"
+        mustMatchSelector: ".track-container",
+        env: this.env
     });
 
     this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);

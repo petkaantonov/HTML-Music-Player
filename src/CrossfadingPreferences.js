@@ -189,14 +189,12 @@ export default function CrossfadingPreferences(opts) {
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
         action: function(e) {
-            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
             this.manager.restoreDefaults();
         }.bind(this)
     }, {
         id: UNDO_CHANGES_BUTTON,
         text: "Undo changes",
         action: function(e) {
-            this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
             this.manager.undoChanges();
         }.bind(this)
     }]);

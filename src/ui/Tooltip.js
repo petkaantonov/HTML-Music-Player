@@ -79,6 +79,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
 export default function Tooltip(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.env = opts.env;
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
     this._onContent = toFunction(opts.content);
@@ -118,14 +119,14 @@ export default function Tooltip(opts) {
         this._target.on("mouseenter", this.mouseEntered);
         this._target.on("mouseleave", this.mouseLeft);
         this._target.on("click", this.targetClicked);
-        if (touch) {
+        if (this.env.hasTouch()) {
             this._target.on(TOUCH_EVENTS, this.touchHoverHandler);
             this._target.on(TOUCH_EVENTS, this.targetClickedTouch);
         }
     } else if (this._activationStyle === "click") {
         this._target.on("click", this.clicked);
         onCapture(document, "click", this.documentClicked);
-        if (touch) {
+        if (this.env.hasTouch()) {
             this._target.on(TOUCH_EVENTS, this.clickedTouch);
             onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
         }

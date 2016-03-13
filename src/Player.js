@@ -6,7 +6,6 @@ import AudioManager from "audio/AudioManager";
 import AudioVisualizer from "audio/AudioVisualizer";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, onCapture } from "lib/util";
-import { makeTooltip } from "ui/GlobalUi";
 import Track from "Track";
 import { TOUCH_EVENTS, isTouchEvent, tapHandler } from "lib/DomUtil";
 
@@ -28,6 +27,7 @@ export default function Player(dom, playlist, opts) {
     this.effectPreferences = opts.effectPreferences;
     this.applicationPreferences = opts.applicationPreferences;
     this.gestureEducator = opts.gestureEducator;
+    this.tooltipMaker = opts.tooltipMaker;
 
     this._domNode = $(dom);
 
@@ -59,13 +59,13 @@ export default function Player(dom, playlist, opts) {
         this.$previous().on(TOUCH_EVENTS, tapHandler(this.prevButtonClicked.bind(this)));
     }
 
-    this._playTooltip = makeTooltip(this.$play(), function() {
+    this._playTooltip = this.tooltipMaker.makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"
                             : self.isPaused ? "Resume playback" : "Start playback";
     });
 
-    this._nextTooltip = makeTooltip(this.$next(), "Next track");
-    this._previousTooltip = makeTooltip(this.$previous(), "Previous track");
+    this._nextTooltip = this.tooltipMaker.makeTooltip(this.$next(), "Next track");
+    this._previousTooltip = this.tooltipMaker.makeTooltip(this.$previous(), "Previous track");
 
     playlist.on("loadNeed", this.loadTrack.bind(this));
     playlist.on("playlistEmpty", this.stop.bind(this));

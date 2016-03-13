@@ -1,28 +1,8 @@
 "use strict";
 
-import { onCapture } from "lib/util";
 import Promise from "lib/bluebird";
 import base64 from "lib/base64";
 import $ from "lib/jquery";
-import { touch as touch } from "features";
-
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
-const TAP_TIME = 270;
-const LONG_TAP_TIME = 600;
-
-const SWIPE_LENGTH = 100;
-const SWIPE_VELOCITY = 200;
-const TWO_FINGER_TAP_MINIMUM_DISTANCE = 100;
-const TAP_MAX_MOVEMENT = 24;
-const PINCER_MINIMUM_MOVEMENT = 24;
-const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
-
-
-export const TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
-export const TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
 export const setFilter = (function() {
    var div = document.createElement("div");
@@ -124,194 +104,13 @@ export const getTransform = (function() {
     };
 })();
 
-const originProperty = (function() {
+export const originProperty = (function() {
     var div = document.createElement("div");
     var candidates = "webkitTransformOrigin mozTransformOrigin oTransformOrigin msTransformOrigin MSTransformOrigin transformOrigin".split(" ").filter(function(v) {
         return (v in div.style);
     });
     return candidates[candidates.length - 1];
 })();
-
-function ActiveTouchList() {
-    this.activeTouches = [];
-}
-
-ActiveTouchList.prototype.length = function() {
-    return this.activeTouches.length;
-};
-
-ActiveTouchList.prototype.nth = function(i) {
-    return this.activeTouches[i];
-};
-
-ActiveTouchList.prototype.first = function() {
-    return this.activeTouches[0];
-};
-
-ActiveTouchList.prototype.clear = function() {
-    this.activeTouches.length = 0;
-};
-
-ActiveTouchList.prototype.contains = function(touch) {
-    if (!touch) return false;
-    for (var i = 0; i < this.activeTouches.length; ++i) {
-        if (this.activeTouches[i].identifier === touch.identifier) {
-            return true;
-        }
-    }
-    return false;
-};
-
-ActiveTouchList.prototype.update = function(e, changedTouches) {
-    var activeTouches = this.activeTouches;
-    var addedTouches = [];
-
-    if (e.type === TOUCH_START) {
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
-            var unique = true;
-            for (var j = 0; j < activeTouches.length; ++j) {
-                if (activeTouches[j].identifier === touch.identifier) {
-                    unique = false;
-                }
-            }
-
-            if (unique) {
-                activeTouches.push(touch);
-                addedTouches.push(touch);
-            }
-        }
-    } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
-            var id = touch.identifier;
-            for (var j = 0; j < activeTouches.length; ++j) {
-                if (activeTouches[j].identifier === id) {
-                    activeTouches.splice(j, 1);
-                    break;
-                }
-            }
-        }
-    }
-    return addedTouches;
-};
-
-var modifierTouch = null;
-const singleTapTimeouts = [];
-const documentActives = new ActiveTouchList();
-
-const haveSettledModifierTouch = function(now) {
-    return haveModifierTouch() && (now - modifierTouch.started > TAP_TIME * 0.5);
-};
-
-const haveModifierTouch = function() {
-    return modifierTouch !== null;
-};
-
-function SingleTapTimeout(successHandler, clearHandler, timeout) {
-    this.id = setTimeout(this.timeoutHandler.bind(this), timeout);
-    this.successHandler = successHandler;
-    this.clearHandler = clearHandler;
-    singleTapTimeouts.push(this);
-}
-
-SingleTapTimeout.prototype.timeoutHandler = function() {
-    this.remove();
-    this.successHandler.call(null);
-};
-
-SingleTapTimeout.prototype.clear = function() {
-    this.remove();
-    clearTimeout(this.id);
-    this.clearHandler.call(null);
-};
-
-SingleTapTimeout.prototype.remove = function() {
-    var i = singleTapTimeouts.indexOf(this);
-    if (i >= 0) {
-        singleTapTimeouts.splice(i, 1);
-    }
-};
-
-if (touch) {
-    var rinput = /^(?:input|select|textarea|option|button|label)$/i;
-    onCapture(document, TOUCH_EVENTS_NO_MOVE, function(e) {
-        if (e.cancelable) {
-            var node = e.target;
-            var activeElement = document.activeElement;
-            var matchesActive = false;
-            while (node != null) {
-                if (!matchesActive) {
-                    matchesActive = node === activeElement;
-                }
-
-                if (rinput.test(node.nodeName)) {
-                    return;
-                }
-                node = node.parentNode;
-            }
-
-            if (activeElement && !matchesActive) {
-                activeElement.blur();
-            }
-
-            e.preventDefault();
-        }
-    });
-
-    onCapture(document, TOUCH_EVENTS, function(e) {
-        var changedTouches = e.changedTouches;
-        documentActives.update(e, changedTouches);
-
-        if (documentActives.length() > 1 && singleTapTimeouts.length > 0) {
-            for (var i = 0; i < singleTapTimeouts.length; ++i) {
-                singleTapTimeouts[i].clear();
-            }
-        }
-
-        if (e.type === TOUCH_START) {
-            if (modifierTouch === null) {
-                modifierTouch = documentActives.first();
-                modifierTouch.started = e.timeStamp || e.originalEvent.timeStamp;
-            }
-        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-            if (!documentActives.contains(modifierTouch)) {
-                modifierTouch = null;
-            }
-        } else if (e.type === TOUCH_MOVE) {
-            if (modifierTouch !== null) {
-                for (var i = 0; i < changedTouches.length; ++i) {
-                    var touch = changedTouches[i];
-
-                    if (touch.identifier === modifierTouch.identifier) {
-                        var deltaX = Math.abs(modifierTouch.clientX - touch.clientX);
-                        var deltaY = Math.abs(modifierTouch.clientY - touch.clientY);
-                        if (deltaX > 35 || deltaY > 35) {
-                            modifierTouch = null;
-                        }
-                        return;
-                    }
-                }
-            }
-        }
-    });
-
-    onCapture(document, [
-        "gesturestart",
-        "gesturechange",
-        "gestureend",
-        "MSGestureStart",
-        "MSGestureEnd",
-        "MSGestureTap",
-        "MSGestureHold",
-        "MSGestureChange",
-        "MSInertiaStart"
-    ].join(" "), function(e) {
-        if (e.cancelable) {
-            e.preventDefault();
-        }
-    });
-}
 
 export const canvasToImage = function(canvas) {
     return new Promise(function(resolve) {
@@ -345,31 +144,6 @@ export const canvasToImage = function(canvas) {
     });
 };
 
-function GestureObject(e, touch, isFirst) {
-    this.clientX = touch.clientX;
-    this.clientY = touch.clientY;
-    this.pageX = touch.pageX;
-    this.pageY = touch.pageY;
-    this.screenX = touch.screenX;
-    this.screenY = touch.screenY;
-    this.timeStamp = e.timeStamp;
-    this.target = e.target;
-    this.currentTarget = e.currentTarget;
-    this.type = e.type;
-    this.isFirst = !!isFirst;
-    this.originalEvent = e.originalEvent ? e.originalEvent : e;
-}
-
-GestureObject.prototype.preventDefault = function() {
-    return this.originalEvent.preventDefault();
-};
-GestureObject.prototype.stopPropagation = function() {
-    return this.originalEvent.stopPropagation();
-};
-GestureObject.prototype.stopImmediatePropagation = function(){
-    return this.originalEvent.stopImmediatePropagation();
-};
-
 export const touchDownHandler =  function(fn) {
     var actives = new ActiveTouchList();
 
@@ -377,7 +151,7 @@ export const touchDownHandler =  function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         var newTouches = actives.update(e, changedTouches);
 
-        if (e.type === TOUCH_START && documentActives.length() <= 1) {
+        if (e.type === TOUCH_START && self.documentActives.length() <= 1) {
             for (var i = 0; i < newTouches.length; ++i) {
                 var touch = newTouches[i];
                 var g = new GestureObject(e, touch, touch.identifier === actives.first().identifier);
@@ -449,7 +223,7 @@ export const hoverHandler = function(fnStart, fnEnd) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 1) {
+        if (self.documentActives.length() > 1) {
             end(this, e);
             return;
         }
@@ -486,49 +260,7 @@ export const hoverHandler = function(fnStart, fnEnd) {
 };
 
 export const tapHandler = function(fn) {
-    var actives = new ActiveTouchList();
-    var currentTouch = null;
-    var started = -1;
 
-    function clear() {
-        currentTouch = null;
-        started = -1;
-    }
-
-    return function(e) {
-        var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-        actives.update(e, changedTouches);
-
-        if (e.type === TOUCH_START) {
-            if (actives.length() <= 1) {
-                started = (e.timeStamp || e.originalEvent.timeStamp);
-                currentTouch = actives.first();
-            } else {
-                clear();
-            }
-
-        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-            if (actives.length() !== 0 || currentTouch === null || documentActives.length() !== 0) {
-                clear();
-                return;
-            }
-
-            var touch = changedTouches[0];
-            var yDelta = Math.abs(touch.clientY - currentTouch.clientY);
-            var xDelta = Math.abs(touch.clientX - currentTouch.clientX);
-            var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - started;
-
-            if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
-                var g = new GestureObject(e, touch);
-                fn.call(this, g);
-            }
-            clear();
-        } else if (e.type === TOUCH_MOVE) {
-            if (documentActives.length() > 1) {
-                clear();
-            }
-        }
-    };
 };
 
 export const twoFingerTapHandler = function(fn) {
@@ -586,7 +318,7 @@ export const twoFingerTapHandler = function(fn) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 2) {
+        if (self.documentActives.length() > 2) {
             clear();
             return;
         }
@@ -614,7 +346,7 @@ export const twoFingerTapHandler = function(fn) {
 
             if (actives.length() <= 1 && !checkDelta(changedTouches)) {
                 return;
-            } else if (actives.length() > 1 || documentActives.length() > 1) {
+            } else if (actives.length() > 1 || self.documentActives.length() > 1) {
                 clear();
                 return;
             }
@@ -627,7 +359,7 @@ export const twoFingerTapHandler = function(fn) {
             }
             clear();
         } else if (e.type === TOUCH_MOVE) {
-            if (documentActives.length() > 2) {
+            if (self.documentActives.length() > 2) {
                 clear();
             }
         }
@@ -651,7 +383,7 @@ export const modifierTapHandler = function(fn) {
         }
 
         if (e.type === TOUCH_START) {
-            if (documentActives.length() !== 2) {
+            if (self.documentActives.length() !== 2) {
                 return clear();
             }
 
@@ -665,7 +397,7 @@ export const modifierTapHandler = function(fn) {
             clear();
         } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             if (currentTouch === null) return;
-            if (documentActives.length() !== 1) {
+            if (self.documentActives.length() !== 1) {
                 return clear();
             }
             var touch = null;
@@ -692,7 +424,7 @@ export const modifierTapHandler = function(fn) {
             }
             clear();
         } else if (e.type === TOUCH_MOVE) {
-            if (documentActives.length() !== 2) {
+            if (self.documentActives.length() !== 2) {
                 return clear();
             }
         }
@@ -711,7 +443,7 @@ export const modifierDragHandler = function(fnMove, fnEnd) {
     }
 
     return function(e) {
-        if (!haveModifierTouch() || documentActives.length() > 2) {
+        if (!haveModifierTouch() || self.documentActives.length() > 2) {
             return end(this, e);
         }
 
@@ -754,7 +486,7 @@ export const modifierDragHandler = function(fnMove, fnEnd) {
 
 export const modifierTouchDownHandler = function(fn) {
     return function(e) {
-        if (!haveModifierTouch() || documentActives.length() > 2) return;
+        if (!haveModifierTouch() || self.documentActives.length() > 2) return;
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
         if (e.type === TOUCH_START) {
@@ -787,7 +519,7 @@ export const dragHandler = function(fnMove, fnEnd) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 1) {
+        if (self.documentActives.length() > 1) {
             end(this, e);
             return;
         }
@@ -802,7 +534,7 @@ export const dragHandler = function(fnMove, fnEnd) {
                 currentTouch = null;
             }
         } else if (e.type === TOUCH_MOVE) {
-            if (!actives.contains(currentTouch) || actives.length() > 1 || documentActives.length() > 1) {
+            if (!actives.contains(currentTouch) || actives.length() > 1 || self.documentActives.length() > 1) {
                 return;
             }
 
@@ -846,7 +578,7 @@ const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 1) {
+        if (self.documentActives.length() > 1) {
             end(this, e);
             return;
         }
@@ -861,7 +593,7 @@ const dimensionCommitDragHandler = function(fnStart, fnMove, fnEnd, dimension) {
                 currentTouch = null;
             }
         } else if (e.type === TOUCH_MOVE) {
-            if (!actives.contains(currentTouch) || actives.length() > 1 || documentActives.length() > 1) {
+            if (!actives.contains(currentTouch) || actives.length() > 1 || self.documentActives.length() > 1) {
                 return;
             }
 
@@ -918,7 +650,7 @@ export const verticalPincerSelectionHandler = function(fn) {
         var selecting = false;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 2) {
+        if (self.documentActives.length() > 2) {
             clear();
             return;
         }
@@ -939,7 +671,7 @@ export const verticalPincerSelectionHandler = function(fn) {
             if (actives.length() !== 2 ||
                 !actives.contains(currentATouch) ||
                 !actives.contains(currentBTouch) ||
-                documentActives.length() > 2) {
+                self.documentActives.length() > 2) {
                 return;
             }
 
@@ -1053,7 +785,7 @@ export const horizontalTwoFingerSwipeHandler = function(fn, direction) {
     };
 
     const checkCompletion = function() {
-        if (startAX !== -1 && startBX !== -1 && documentActives.length() === 0) {
+        if (startAX !== -1 && startBX !== -1 && self.documentActives.length() === 0) {
             var aDiff = lastAX - startAX;
             var bDiff = lastBX - startBX;
             var aAbsDiff = Math.abs(aDiff);
@@ -1081,7 +813,7 @@ export const horizontalTwoFingerSwipeHandler = function(fn, direction) {
         var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
         actives.update(e, changedTouches);
 
-        if (documentActives.length() > 2) {
+        if (self.documentActives.length() > 2) {
             clear();
             return;
         }
@@ -1123,7 +855,7 @@ export const horizontalTwoFingerSwipeHandler = function(fn, direction) {
                 clear();
             }
         } else if (e.type === TOUCH_MOVE) {
-            if (documentActives.length() > 2) {
+            if (self.documentActives.length() > 2) {
                 clear();
                 return;
             };
@@ -1177,10 +909,10 @@ export const longTapHandler = function(fn, noTrigger) {
         actives.update(e, changedTouches);
 
         if (e.type === TOUCH_START) {
-            if (documentActives.length() === 1 && currentTouch === null) {
+            if (self.documentActives.length() === 1 && currentTouch === null) {
                 currentTouch = actives.first();
                 var timeout = new SingleTapTimeout(function() {
-                    if (documentActives.length() <= 1) {
+                    if (self.documentActives.length() <= 1) {
                         var touch = currentTouch;
                         var g = new GestureObject(e, touch);
                         clear();
@@ -1210,7 +942,7 @@ export const longTapHandler = function(fn, noTrigger) {
         } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
             clear();
         } else if (e.type === TOUCH_MOVE) {
-            if (documentActives.length() > 1) {
+            if (self.documentActives.length() > 1) {
                 clear();
             }
         }

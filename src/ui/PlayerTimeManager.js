@@ -15,6 +15,7 @@ export default function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
     this.env = opts.env;
     this.db = opts.db;
+    this.rippler = opts.rippler;
     this._domNode = $(dom);
     this.player = player;
     this.displayMode = DISPLAY_REMAINING;
@@ -223,7 +224,7 @@ PlayerTimeManager.prototype.toggleDisplayMode = function() {
 };
 
 PlayerTimeManager.prototype.containerClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleDisplayMode();
 };
 

@@ -326,16 +326,8 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>");
 
-    this._analysisTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "top",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus(),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ANALYSIS_TOOLTIP_MESSAGE
-    });
+    this._analysisTooltip = this._playlist.tooltipMaker.makeTooltip(this.$trackStatus(),
+                                                                    ANALYSIS_TOOLTIP_MESSAGE);
     this.$trackStatus().addClass("unclickable");
     this._updateAnalysisEstimate();
 };
@@ -347,16 +339,8 @@ TrackView.prototype.viewUpdateShowErrorStatus = function() {
         "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
         "></span>");
 
-    this._errorTooltip = new Tooltip({
-        transitionClass: "fade-in",
-        preferredDirection: "top",
-        preferredAlign: "middle",
-        container: $("body"),
-        target: this.$trackStatus(),
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        arrow: false,
-        content: ERROR_HEADER + this._track._error
-    });
+    this._errorTooltip = this._playlist.tooltipMaker.makeTooltip(this.$trackStatus(),
+                                                                 ERROR_HEADER + this._track._error);
     this.$trackStatus().addClass("unclickable");
 };
 

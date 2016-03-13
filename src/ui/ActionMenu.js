@@ -46,7 +46,7 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseenter", this.containerMouseEntered);
         this.$container().on("mouseleave", this.containerMouseLeft);
 
-        if (touch) {
+        if (this.root.env.hasTouch()) {
             this.$container().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.containerMouseEntered));
         }
     }
@@ -54,7 +54,7 @@ function ActionMenuItem(root, spec, children, level) {
     if (!this.divider) {
         this.$().on("click", this.itemClicked);
 
-        if (touch) {
+        if (this.root.env.hasTouch()) {
             this.$().on(TOUCH_EVENTS, tapHandler(this.itemClicked));
             this.$().on(TOUCH_EVENTS_NO_MOVE, touchDownHandler(this.itemTouchStarted));
         }
@@ -107,7 +107,7 @@ ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
 };
 
 ActionMenuItem.prototype.itemTouchStarted = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+    this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
     var parent = this.parent ? this.parent : this.root;
     parent.menuItemTouchStarted(this);
     if (this.children) {
@@ -178,7 +178,7 @@ ActionMenuItem.prototype.containerMouseEntered = function(e) {
 
 ActionMenuItem.prototype.itemClicked = function(e) {
     if (this.disabled) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+        this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
         return;
     }
     if (this.children) {
@@ -195,7 +195,7 @@ ActionMenuItem.prototype.itemClicked = function(e) {
                 this.root.hideContainer();
                 this.root.emit("itemClick", this.id);
             } else {
-                rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+                this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
             }
         }
     }
@@ -464,7 +464,8 @@ function createMenuItem(root, spec, level) {
 export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-
+    this.rippler = opts.rippler;
+    this.env = opts.env;
     this.rootClass = opts.rootClass || "action-menu-root";
     this.containerClass = opts.containerClass || "action-menu-submenu";
     this.itemClass = opts.itemClass || "action-menu-item";
@@ -656,7 +657,7 @@ export function ContextMenu(dom, opts) {
     this._targetDom.on("contextmenu", this.rightClicked);
     onCapture(document, "mousedown", this.documentClicked);
 
-    if (touch) {
+    if (this._menu.env.hasTouch()) {
         this._targetDom.on(TOUCH_EVENTS, this.rightClickedTouch);
         onCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
     }
@@ -682,7 +683,7 @@ ContextMenu.prototype.destroy = function() {
     offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
 
-    if (touch) {
+    if (this._menu.env.hasTouch()) {
         offCapture(document, TOUCH_EVENTS, this.documentClickedTouch);
         this._targetDom.off(TOUCH_EVENTS, this.rightClickedTouch);
     }

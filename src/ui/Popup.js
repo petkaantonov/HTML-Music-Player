@@ -1,75 +1,13 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-
 import EventEmitter from "lib/events";
 import { combineClasses, documentHidden, inherits, offBubble, offCapture, onBubble, onCapture, toFunction } from "lib/util";
 import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, dragHandler, isTouchEvent, preventDefault, setTransform, tapHandler, touchDownHandler } from "lib/DomUtil";
 import Animator from "ui/Animator";
 import ContentScroller from "ui/ContentScroller";
 
-const shownPopups = [];
 const NULL = $(null);
-var blocker = NULL;
-var anim = null;
-function showBlocker() {
-    if (anim) {
-        anim.cancel();
-        anim = null;
-        changeDom(function() {
-            blocker.remove();
-        });
-    }
-
-    function closePopups() {
-        shownPopups.forEach(function(v) {
-            v.close();
-        });
-    }
-
-    changeDom(function() {
-        blocker = $("<div>", {class: "popup-blocker"}).appendTo("body");
-
-        blocker.on("click", closePopups);
-
-        if (touch) {
-            blocker.on(TOUCH_EVENTS, tapHandler(closePopups));
-        }
-
-        var animator = new Animator(blocker[0], {
-            properties: [{
-                name: "opacity",
-                start: 0,
-                end: 55,
-                unit: "%",
-                duration: 300
-            }],
-            interpolate: Animator.DECELERATE_CUBIC
-        });
-        animator.animate();
-    });
-}
-
-function hideBlocker() {
-    var animator = new Animator(blocker[0], {
-        properties: [{
-            name: "opacity",
-            start: 55,
-            end: 0,
-            unit: "%",
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
-    });
-
-    anim = animator.animate().then(function() {
-        changeDom(function() {
-            blocker.remove();
-            blocker = NULL;
-            anim = null;
-        });
-    });
-}
 
 function PopupButton(popup, opts) {
     opts = Object(opts);
@@ -85,7 +23,7 @@ function PopupButton(popup, opts) {
 
     this.$().on("click", this._clicked).mousedown(preventDefault);
 
-    if (touch) {
+    if (this._popup.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS, this._touchClicked);
     }
 }
@@ -114,6 +52,7 @@ PopupButton.prototype.enable = function() {
 
 PopupButton.prototype._clicked = function(e) {
     if (!this._enabled) return;
+    this._popup.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, Popup.HIGHER_ZINDEX);
     this._action.call(null, e);
 };
 
@@ -125,7 +64,8 @@ PopupButton.prototype.destroy = function() {
 export default function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-
+    this.env = opts.env;
+    this.rippler = opts.rippler;
     this.transitionClass = opts.transitionClass || "";
     this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
@@ -260,7 +200,7 @@ Popup.prototype._initDom = function() {
     closer.on("click", this.closerClicked);
     header.on("mousedown", this.headerMouseDowned);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         closer.on(TOUCH_EVENTS, this.closerClickedTouch);
         header.on(TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
     }
@@ -381,11 +321,6 @@ Popup.prototype.open = function() {
     if (this._shown) return;
     this._activeElementBeforeOpen = document.activeElement;
     this._shown = true;
-    shownPopups.push(this);
-
-    if (shownPopups.length === 1) {
-        showBlocker();
-    }
 
     var firstOpen = this._popupDom === NULL;
     this._initDom();
@@ -435,7 +370,7 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     this._viewPort = this._getViewPort();
     onCapture(document, "mouseup", this.draggingEnd);
     onCapture(document, "mousemove", this.mousemoved);
-    if (touch) {
+    if (this.env.hasTouch()) {
         onBubble(document, TOUCH_EVENTS, this.touchDragHandler);
     }
 
@@ -453,7 +388,7 @@ Popup.prototype.draggingEnd = function() {
     offCapture(document, "mouseup", this.draggingEnd);
     offCapture(document, "mousemove", this.mousemoved);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         offBubble(document, TOUCH_EVENTS, this.touchDragHandler);
     }
 
@@ -482,10 +417,6 @@ Popup.prototype.close = function() {
     });
 
     this.draggingEnd();
-
-    if (shownPopups.length === 0) {
-        hideBlocker();
-    }
 
     if (elementToFocus) {
         elementToFocus.focus();

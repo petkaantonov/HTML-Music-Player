@@ -10,6 +10,7 @@ const DRAG_START_DELAY_MS = 300;
 export default function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.env = opts.env;
     this._mustMatchSelector = opts.mustMatchSelector || null;
     this._mustNotMatchSelector = opts.mustNotMatchSelector || null;
     this._fixedItemListScroller = fixedItemListScroller;
@@ -46,7 +47,7 @@ DraggableSelection.prototype.recentlyStoppedDragging = function() {
 DraggableSelection.prototype.bindEvents = function() {
     this.$().on("mousedown", this._onItemViewMouseDown);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         this.$().on(TOUCH_EVENTS_NO_MOVE, this._onItemViewMouseDownTouch);
     }
     this.$().on("selectstart", function(e) {e.preventDefault();});
@@ -122,7 +123,7 @@ DraggableSelection.prototype._onMouseRelease = function(e) {
 
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(document).off(TOUCH_EVENTS, this._touchDragHandler);
     }
     this._viewList.removeListener("tracksSelected", this._restart);
@@ -279,7 +280,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
     $(document).on("mousemove", this._onMovement);
     $(document).on("mouseup", this._onMouseRelease);
 
-    if (touch) {
+    if (this.env.hasTouch()) {
         $(document).on(TOUCH_EVENTS, this._touchDragHandler);
     }
 

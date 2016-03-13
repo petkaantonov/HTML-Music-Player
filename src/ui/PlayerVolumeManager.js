@@ -1,6 +1,5 @@
 "use strict";
 import $ from "lib/jquery";
-import { makeTooltip } from "ui/GlobalUi";
 import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import Slider from "ui/Slider";
 
@@ -10,11 +9,12 @@ export default function PlayerVolumeManager(dom, player, opts) {
     this.env = opts.env;
     this.rippler = opts.rippler;
     this.player = player;
+    this.tooltipMaker = opts.tooltipMaker;
     this.volumeSlider = new Slider(opts.volumeSlider, this.env);
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);
-    this._muteTooltip = makeTooltip(this.$mute(),function() {
+    this._muteTooltip = this.tooltipMaker.makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
                                      : "<p><strong>Mute</strong> volume.</p>";
     });

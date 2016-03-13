@@ -40,11 +40,12 @@ export default function MainTabs(opts) {
     opts = Object(opts);
     this.opts = opts;
     this.env = opts.env;
+    this.rippler = opts.rippler;
     this.itemHeight = opts.itemHeight;
     this.tabHeight = opts.tabHeight;
     this.keyboardShortcuts = opts.keyboardShortcuts;
-    this.playlistTrackRating = new TrackRating();
-    this.searchTrackRating = new TrackRating();
+    this.playlistTrackRating = new TrackRating(opts);
+    this.searchTrackRating = new TrackRating(opts);
     this.playlist = opts.playlist;
     this.search = opts.search;
     this.queue = opts.queue;
@@ -124,6 +125,8 @@ MainTabs.prototype.actionHandler = function(preventDefault, contentInstance, met
 
 MainTabs.prototype.getPlaylistActionSpec = function() {
     return {
+        env: this.env,
+        rippler: this.rippler,
         menu: [{
             id: "play",
             disabled: true,
@@ -220,6 +223,8 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
 
 MainTabs.prototype.getSearchActionSpec = function() {
     return {
+        env: this.env,
+        rippler: this.rippler,
         menu: [{
             id: "play",
             disabled: true,

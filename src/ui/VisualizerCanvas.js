@@ -182,6 +182,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.snackbar = opts.snackbar;
     this.db = opts.db;
     this.env = opts.env;
+    this.rippler = opts.rippler;
     this.needToDraw = true;
     this.canvas = targetCanvas;
     this.width = -1;
@@ -293,6 +294,8 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
     var self = this;
     var canvas = this.canvas;
     var menuSpec = {
+        env: this.env,
+        rippler: this.rippler,
         menu: [{
             id: "hardware-acceleration",
             disabled: true,

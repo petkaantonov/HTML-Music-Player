@@ -3,7 +3,6 @@ import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 import { TOUCH_EVENTS, preventDefault, tapHandler } from "lib/DomUtil";
 import PlayerPictureManager from "ui/PlayerPictureManager";
-import { makeTooltip } from "ui/GlobalUi";
 
 const supported = typeof Notification === "function" &&
                   typeof Notification.maxActions === "number" &&
@@ -22,6 +21,9 @@ export default function PlaylistNotifications(dom, player, opts) {
     opts = Object(opts);
     this.db = opts.db;
     this.env = opts.env;
+    this.dbValues = opts.dbValues;
+    this.rippler = opts.rippler;
+    this.tooltipMaker = opts.tooltipMaker;
     var self = this;
     this._domNode = $(dom);
     this.playlist = player.playlist;
@@ -30,7 +32,7 @@ export default function PlaylistNotifications(dom, player, opts) {
     this.permissionsPromise = null;
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
-    this.tooltip = makeTooltip(this.$(), function() {
+    this.tooltip = this.tooltipMaker.makeTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
     });
@@ -233,7 +235,7 @@ PlaylistNotifications.prototype.toggleSetting = function() {
 };
 
 PlaylistNotifications.prototype.settingClicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.toggleSetting();
 };
 

@@ -1,8 +1,6 @@
 "use strict";
 
 import { TOUCH_EVENTS, doubleTapHandler, tapHandler } from "lib/DomUtil";
-import { touch as touch } from "features";
-import { rippler } from "ui/GlobalUi";
 
 const HTML = "<div class='track-rating'>                                                               \
         <div data-rating='1' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
@@ -12,7 +10,10 @@ const HTML = "<div class='track-rating'>                                        
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
     </div>"
 
-export default function TrackRating() {
+export default function TrackRating(opts) {
+    opts = Object(opts);
+    this.env = opts.env;
+    this.rippler = opts.rippler;
     this.track = null;
     this._domNode = $(HTML);
     this._doubleClicked = this._doubleClicked.bind(this);
@@ -20,7 +21,7 @@ export default function TrackRating() {
     this._hovered = this._hovered.bind(this);
     this._touchDoubleClicked = doubleTapHandler(this._doubleClicked);
     this._touchClicked = tapHandler(function(e) {
-        rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this._ratingInputClicked(e.currentTarget);
     }.bind(this));
     this._update(-1);
@@ -87,7 +88,7 @@ TrackRating.prototype.enable = function(track) {
 };
 
 TrackRating.prototype._clicked = function(e) {
-    rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this._ratingInputClicked(e.currentTarget);
 };
 
