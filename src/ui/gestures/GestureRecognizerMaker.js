@@ -37,14 +37,13 @@ const TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 const TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
 const rinput = /^(?:input|select|textarea|option|button|label)$/i;
-export default function GestureRecognizerMaker(opts) {
-    opts = Object(opts);
-    this.env = opts.env;
+export default function GestureRecognizerMaker(env) {
+    this.env = env;
     this.modifierTouch = null;
     this.documentActives = new ActiveTouchList();
     this.singleTapTimeouts = [];
 
-    if (this.env.hasTouch()) {
+    if (this.isTouchSupported()) {
         onCapture(document, TOUCH_EVENTS_NO_MOVE, this.checkTouchPropagation.bind(this));
         onCapture(document, TOUCH_EVENTS, this.updateModifierTouch.bind(this));
         onCapture(document, [
@@ -75,6 +74,10 @@ GestureRecognizerMaker.prototype.TWO_FINGER_TAP_MINIMUM_DISTANCE = TWO_FINGER_TA
 GestureRecognizerMaker.prototype.TAP_MAX_MOVEMENT = TAP_MAX_MOVEMENT;
 GestureRecognizerMaker.prototype.PINCER_MINIMUM_MOVEMENT = PINCER_MINIMUM_MOVEMENT;
 GestureRecognizerMaker.prototype.DOUBLE_TAP_MINIMUM_MOVEMENT = DOUBLE_TAP_MINIMUM_MOVEMENT;
+
+GestureRecognizerMaker.prototype.isTouchSupported = function() {
+    return this.env.hasTouch();
+};
 
 GestureRecognizerMaker.prototype.checkTouchPropagation = function(e) {
     if (e.cancelable) {

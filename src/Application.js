@@ -21,6 +21,8 @@ import PopupMaker from "ui/PopupMaker";
 import TooltipMaker from "ui/TooltipMaker";
 import TrackAnalyzer from "audio/TrackAnalyzer";
 import GestureEducator from "GestureEducator";
+import GestureRecognizerMaker from "ui/gestures/GestureRecognizerMaker";
+import ScrollEvents from "ui/ScrollEvents";
 import Player from "Player";
 import Playlist from "Playlist";
 import Search from "Search";
@@ -52,10 +54,14 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.dbValues = dbValues;
     this.defaultTitle = defaultTitle;
 
+    this.recognizerMaker = new GestureRecognizerMaker(this.env);
+    this.scrollEvents = new ScrollEvents(this.env, this.recognizerMaker);
     this.androidKeyboardFixer = new AndroidKeyboardFixer();
     this.gestureScreenFlasher = new GestureScreenFlasher();
     this.rippler = new Rippler("body");
     this.keyboardShortcuts = new KeyboardShortcuts();
+
+    this.scrollEvents = new ScrollEvents()
 
     this.tooltipMaker = new TooltipMaker(this.env);
 
@@ -64,16 +70,16 @@ export default function Application(env, db, dbValues, defaultTitle) {
         transitionOutClass: "transition-out",
         nextDelay: 400,
         visibilityTime: 4400,
-        env: this.env
+        recognizerMaker: this.recognizerMaker
     });
 
     this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
         openerActiveClass: "toolbar-item-active",
-        env: this.env
+        recognizerMaker: this.recognizerMaker
     });
 
     this.popupMaker = new PopupMaker({
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -83,20 +89,20 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.spinner = new Spinner({
         clockwise: "#clockwise-spinner",
         counterclockwise: "#counterclockwise-spinner",
-        env: this.env
+        recognizerMaker: this.recognizerMaker
     });
 
     this.gestureEducator = new GestureEducator(this.snackbar, this.db, this.dbValues);
 
     this.serviceWorkerManager = new ServiceWorkerManager({
         snackbar: this.snackbar,
-        env: this.env
+        recognizerMaker: this.recognizerMaker
     });
     this.serviceWorkerManager.start();
 
     this.applicationPreferences = new ApplicationPreferences({
         snackbar: this.snackbar,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -106,7 +112,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.effectPreferences = new EffectPreferences({
         snackbar: this.snackbar,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -116,7 +122,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.crossfadingPreferences = new CrossfadingPreferences({
         snackbar: this.snackbar,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -128,7 +134,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         itemHeight: ITEM_HEIGHT,
         db: this.db,
         dbValues: this.dbValues,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         rippler: this.rippler,
         snackbar: this.snackbar,
         keyboardShortcuts: this.keyboardShortcuts,
@@ -148,7 +154,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         itemHeight: ITEM_HEIGHT,
         db: this.db,
         dbValues: this.dbValues,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         keyboardShortcuts: this.keyboardShortcuts,
         rippler: this.rippler,
         snackbar: this.snackbar,
@@ -172,12 +178,12 @@ export default function Application(env, db, dbValues, defaultTitle) {
         searchTab: ".search-tab",
         queueTab: ".queue-tab",
         activeTabIndicator: ".active-tab-indicator",
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         rippler: this.rippler
     });
 
     this.localFileHandler = new LocalFileHandler({
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         playlist: this.playlist,
         directoryButton: ".menul-folder, .add-folder-link",
         fileButton: ".menul-files, .add-files-link"
@@ -195,6 +201,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         nextButtonDom: ".next-button"
         snackbar: this.snackbar,
         env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         snackbar: this.snackbar,
@@ -209,7 +216,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.playerPictureManager = new PlayerPictureManager(".picture-container", this.player, {
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         db: this.db,
         dbValues: this.dbValues
     });
@@ -220,7 +227,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         totalTimeDom: ".total-time",
         timeContainerDom: ".playback-status-wrapper",
         timeProgressDom: ".time-progress",
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler
@@ -229,7 +236,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", this.player, {
         volumeSlider: ".volume-slider",
         muteDom: ".volume-mute",
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -237,7 +244,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player, {
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         rippler: this.rippler,
         db: this.db,
         dbValues: this.dbValues,
@@ -245,7 +252,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         snackbar: this.snackbar,
@@ -271,7 +278,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.defaultShortcuts = new DefaultShortcuts({
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         player: this.player,
         playlist: this.playlist,
         keyboardShortcuts: this.keyboardShortcuts,
@@ -281,7 +288,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.playlistModeManager = new PlaylistModeManager(".playlist-controls-container", this.playlist, {
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,

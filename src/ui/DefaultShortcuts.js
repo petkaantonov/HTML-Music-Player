@@ -1,11 +1,10 @@
 "use strict";
 
 import { onCapture, offCapture } from "lib/util";
-import { TOUCH_EVENTS, horizontalTwoFingerSwipeHandler, tapHandler, twoFingerTapHandler } from "lib/DomUtil";
 
 export default function DefaultShortcuts(opts) {
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.player = opts.player;
     this.playlist = opts.playlist;
     this.keyboardShortcuts = opts.keyboardShortcuts;
@@ -39,6 +38,15 @@ export default function DefaultShortcuts(opts) {
     this.enableGestures = this.enableGestures.bind(this);
     this.disableGestures = this.disableGestures.bind(this);
 
+    this.nextGestureRecognizer =
+        this.recognizerMaker.createHorizontalTwoFingerSwipeRecognizer(this.shortcutGestureNext, 1);
+    this.prevGestureRecognizer =
+        this.recognizerMaker.createHorizontalTwoFingerSwipeRecognizer(this.shortcutGesturePrev, -1);
+    this.togglePlaybackGestureRecognizer =
+        this.recognizerMaker.createTwoFingerTapRecognizer(this.shortcutGestureTogglePlayback);
+    this.rippleRecognizer =
+        this.recognizerMaker.createTapRecognizer(this.screenTapped);
+
     this.player.on("newTrackLoad", this.playerLoadedNewTrack.bind(this));
     this.keyboardShortcuts.defaultContext.addShortcut("z", this.shortcutPlay);
     this.keyboardShortcuts.defaultContext.addShortcut(["x", "MediaStop"], this.shortcutPause);
@@ -55,12 +63,12 @@ export default function DefaultShortcuts(opts) {
     this.keyboardShortcuts.defaultContext.addShortcut("ArrowLeft", this.shortcutSeekBack);
     this.keyboardShortcuts.defaultContext.addShortcut("ArrowRight", this.shortcutSeekForward);
 
-    if (this.env.hasTouch()) {
-        this.enableGestures();
-        this.keyboardShortcuts.on("disable", this.disableGestures);
-        this.keyboardShortcuts.on("enable", this.enableGestures);
-        onCapture(document, TOUCH_EVENTS, this.screenTapped);
-    }
+
+    this.enableGestures();
+    this.keyboardShortcuts.on("disable", this.disableGestures);
+    this.keyboardShortcuts.on("enable", this.enableGestures);
+
+    this.rippleRecognizer.recognizeCapturedOn(document);
 }
 
 DefaultShortcuts.prototype.playerLoadedNewTrack = function() {
@@ -166,31 +174,30 @@ DefaultShortcuts.prototype.screenTapped = tapHandler(function(e) {
     this.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
 });
 
-DefaultShortcuts.prototype.shortcutGestureTogglePlayback = twoFingerTapHandler(function() {
+DefaultShortcuts.prototype.shortcutGestureTogglePlayback = function() {
     var gesture = this.player.isPlaying ? "pause" : "play";
     this.gestureScreenFlasher.flashGesture(gesture);
     this.player.togglePlayback();
-}, 1);
+};
 
-DefaultShortcuts.prototype.shortcutGestureNext = horizontalTwoFingerSwipeHandler(function() {
+DefaultShortcuts.prototype.shortcutGestureNext = function() {
     this.gestureScreenFlasher.flashGesture("next");
     this.playlist.next();
-}, 1);
+};
 
-DefaultShortcuts.prototype.shortcutGesturePrev = horizontalTwoFingerSwipeHandler(function() {
+DefaultShortcuts.prototype.shortcutGesturePrev = function() {
     this.gestureScreenFlasher.flashGesture("previous");
     this.playlist.prev();
-}, -1);
+};
 
 DefaultShortcuts.prototype.enableGestures = function() {
-    onCapture(document, TOUCH_EVENTS, this.shortcutGestureTogglePlayback);
-    onCapture(document, TOUCH_EVENTS, this.shortcutGestureNext);
-    onCapture(document, TOUCH_EVENTS, this.shortcutGesturePrev);
+    this.prevGestureRecognizer.recognizeCapturedOn(document);
+    this.nextGestureRecognizer.recognizeCapturedOn(document);
+    this.togglePlaybackGestureRecognizer.recognizeCapturedOn(document);
 };
 
 DefaultShortcuts.prototype.disableGestures = function() {
-    offCapture(document, TOUCH_EVENTS, this.shortcutGestureTogglePlayback);
-    offCapture(document, TOUCH_EVENTS, this.shortcutGestureNext);
-    offCapture(document, TOUCH_EVENTS, this.shortcutGesturePrev);
+    this.prevGestureRecognizer.unrecognizeCapturedOn(document);
+    this.nextGestureRecognizer.unrecognizeCapturedOn(document);
+    this.togglePlaybackGestureRecognizer.unrecognizeCapturedOn(document);
 };
-
