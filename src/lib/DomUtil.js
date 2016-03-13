@@ -36,6 +36,14 @@ export const setFilter = (function() {
     };
 })();
 
+export function reflow(elem) {
+    return $(elem).each(function() {
+        if (this.offsetWidth < -1000) {
+            this.offsetWidth = 0;
+        }
+    });
+}
+
 export const getFilter = (function() {
     var div = document.createElement("div");
 

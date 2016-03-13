@@ -1,5 +1,7 @@
 "use strict";
 
+import { reflow } from "lib/DomUtil";
+
 const LONG_PRESS_DURATION = 600;
 const SPINNER_TRANSITION_OUT_DELAY = 300;
 const SPINNER_DELAY = LONG_PRESS_DURATION * 0.2 | 0;
@@ -41,11 +43,11 @@ Spinner.prototype._start = function(x, y) {
     var self = this;
     requestAnimationFrame(function() {
         if (self.currentSpinner === self.$clockwise) {
-            setTransform(self.currentSpinner.find(".arc-1-container, .arc").reflow(), "rotate(180deg)");
-            setTransform(self.currentSpinner.find(".nogap").reflow(), "rotate(360deg)");
+            setTransform(reflow(self.currentSpinner.find(".arc-1-container, .arc")), "rotate(180deg)");
+            setTransform(reflow(self.currentSpinner.find(".nogap")), "rotate(360deg)");
         } else if (self.currentSpinner === self.$counterclockwise) {
-            setTransform(self.currentSpinner.find(".arc-2-container, .arc").reflow(), "rotate(-180deg)");
-            setTransform(self.currentSpinner.find(".nogap").reflow(), "rotate(-360deg)");
+            setTransform(reflow(self.currentSpinner.find(".arc-2-container, .arc")), "rotate(-180deg)");
+            setTransform(reflow(self.currentSpinner.find(".nogap")), "rotate(-360deg)");
         }
     });
 
