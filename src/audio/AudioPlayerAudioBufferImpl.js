@@ -11,7 +11,7 @@
 // instead of ear destroying noise.
 
 import Promise from "lib/bluebird";
-import { inherits, throttle } from "lib/util";
+import { inherits, throttle, onCapture  } from "lib/util";
 import EventEmitter from "lib/events";
 import ChannelMixer from "audio/ChannelMixer";
 import patchAudioContext from "lib/audiocontextpatch";
@@ -19,10 +19,6 @@ import simulateTick from "lib/patchtimers";
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
-
-const asap = function(fn) {
-    fn();
-};
 
 const makeAudioContext = function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -85,14 +81,28 @@ const getPreloadBufferCount = function() {
 
 var nodeId = 0;
 var instances = false;
-export default function AudioPlayer(audioContext, suspensionTimeout) {
+export default function AudioPlayer(opts) {
     EventEmitter.call(this);
     if (instances) throw new Error("only 1 AudioPlayer instance can be made");
-    if (!suspensionTimeout) suspensionTimeout = 20;
+    opts = Object(opts);
+    var audioContext = opts.audioContext || null;
+    var suspensionTimeout = +opts.suspensionTimeout || 20;
     instances = true;
+
+    this.env = opts.env;
+    this.db = opts.db;
+    this.dbValues = opts.dbValues;
+    this.crossfadingPreferences = opts.crossfadingPreferences;
+    this.effectPreferences = opts.effectPreferences;
+    this.applicationPreferences = opts.applicationPreferences;
+
     this._audioContext = audioContext || makeAudioContext();
+    this._unprimedAudioContext = this._audioContext;
+    this._silentBuffer = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
+                                                         8192,
+                                                         this._audioContext.sampleRate);
     this._previousAudioContextTime = this._audioContext.currentTime;
-    this._worker = new Worker(AUDIO_PLAYER_WORKER_SRC);
+    this._worker = new Worker(opts.src);
     this._arrayBufferPool = [];
     this._audioBufferPool = [];
     this._sourceNodes = [];
@@ -120,13 +130,36 @@ export default function AudioPlayer(audioContext, suspensionTimeout) {
     this.ready = new Promise(function(resolve) {
         var ready = function(event) {
             this._worker.removeEventListener("message", ready, false);
+            this.setEffects(this.effectPreferences.getAudioPlayerEffects());
             resolve();
         }.bind(this);
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
+
+    this.effectPreferences.on("change", function() {
+        if (!this.ready.isResolved()) return;
+        this.setEffects(this.effectPreferences.getAudioPlayerEffects());
+    }.bind(this));
+
+    onCapture(document, "touchend", this._touchended.bind(this));
 }
 inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
+
+AudioPlayer.prototype._touchended = function() {
+    if (this._unprimedAudioContext) {
+        var audioCtx = this._unprimedAudioContext;
+        try {
+            audioCtx.resume().catch(function(){});
+        } catch (e) {}
+
+        var source = audioCtx.createBufferSource();
+        source.buffer = this._silentBuffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        this._unprimedAudioContext = null;
+    }
+};
 
 AudioPlayer.prototype._suspend = function() {
     if (this._audioContext.state === "suspended") return Promise.resolve();
@@ -156,6 +189,7 @@ AudioPlayer.prototype._resetAudioContext = function() {
         this._audioContext.close();
     } catch (e) {}
     this._audioContext = makeAudioContext();
+    this._unprimedAudioContext = this._audioContext;
     for (var i = 0; i < this._sourceNodes.length; ++i) {
         this._sourceNodes[i].adoptNewAudioContext(this._audioContext);
     }
@@ -247,7 +281,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
 const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
-    return isMobile() ? LOWEST : DESKTOP;
+    return this.env.isMobile() ? LOWEST : DESKTOP;
 };
 
 AudioPlayer.prototype._sourceNodeDestroyed = function(node) {

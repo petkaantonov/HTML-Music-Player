@@ -204,6 +204,12 @@ export default function Application(env, db, dbValues, defaultTitle) {
             ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
     });
 
+    this.playerPictureManager = new PlayerPictureManager(".picture-container", this.player, {
+        env: this.env,
+        db: this.db,
+        dbValues: this.dbValues
+    });
+
     this.playerTimeManager = new PlayerTimeManager(".player-upper-container", this.player, {
         seekSlider: ".time-progress-container",
         currentTimeDom: ".current-time",

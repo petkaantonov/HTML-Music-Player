@@ -6,11 +6,10 @@ const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 
 const SEEK_START_CURVE = new Float32Array([1, 0.001]);
 const SEEK_END_CURVE = new Float32Array([0.001, 1]);
-const SEEK_START_FADE_TIME = audioPlayer.blockSizedTime(0.5);
-const SEEK_END_FADE_TIME = audioPlayer.blockSizedTime(0.5);
+const SEEK_START_FADE_TIME = 0.5;
+const SEEK_END_FADE_TIME = 0.5;
 
 export default function AudioManager(player, track, implicitlyLoaded) {
-    player.audioManagers.push(this);
     this.gaplessPreloadTrack = null;
     this.implicitlyLoaded = implicitlyLoaded;
     this.player = player;
@@ -32,8 +31,6 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
     this.errored = this.errored.bind(this);
-    this.effectsChanged = this.effectsChanged.bind(this);
-    this.crossFadingChanged = this.crossFadingChanged.bind(this);
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
     this.trackTagDataUpdated = this.trackTagDataUpdated.bind(this);
     this.willSeek = this.willSeek.bind(this);
@@ -42,10 +39,8 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.lastBufferQueued = this.lastBufferQueued.bind(this);
     this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
-    track.on("tagDataUpdate", this.trackTagDataUpdated);
-    effects.on("effectsChange", this.effectsChanged);
-    crossfading.on("crossFadingChange", this.crossFadingChanged);
-    player.playlist.on("nextTrackChange", this.nextTrackChanged);
+    this.track.on("tagDataUpdate", this.trackTagDataUpdated);
+    this.player.playlist.on("nextTrackChange", this.nextTrackChanged);
 
     this.sourceNode = audioPlayer.createSourceNode();
     this.sourceNode.on("lastBufferQueued", this.lastBufferQueued);
@@ -55,6 +50,7 @@ export default function AudioManager(player, track, implicitlyLoaded) {
 }
 
 AudioManager.prototype.setupNodes = function() {
+    var audioCtx = this.player.getAudioContext();
     this.pauseResumeFadeGain = audioCtx.createGain();
     this.replayGain = audioCtx.createGain();
     this.seekGain = audioCtx.createGain();
@@ -79,7 +75,7 @@ AudioManager.prototype.setupNodes = function() {
 
     this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.pauseResumeFadeGain.connect(this.replayGain);
-    this.connectEqualizer(effects.getEqualizerSetup(this.track));
+    this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
     this.volumeGain.connect(this.seekGain);
     this.seekGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
@@ -207,7 +203,7 @@ AudioManager.prototype.trackTagDataUpdated = function() {
 AudioManager.prototype.normalizeLoudness = function() {
     if (this.destroyed) return;
     var track = this.track;
-    var replayGain = effects.decibelChangeToAmplitudeRatio(
+    var replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
         track.getTrackGain() || track.getAlbumGain() || -6);
 
     if (track.getTrackPeak() > 1) {
@@ -226,16 +222,17 @@ AudioManager.prototype.getImage = function() {
 
 AudioManager.prototype.effectsChanged = function() {
     if (this.destroyed) return;
-    this.connectEqualizer(effects.getEqualizerSetup(this.track));
+    this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
 };
 
-AudioManager.prototype.crossFadingChanged = function() {
+AudioManager.prototype.crossfadingChanged = function() {
     if (this.destroyed) return;
     this.updateSchedules();
 };
 
 AudioManager.prototype.connectEqualizer = function(setup) {
     if (this.destroyed) return;
+    var audioCtx = this.player.getAudioContext();
     try {
         this.replayGain.disconnect();
     } catch (e) {}
@@ -321,7 +318,7 @@ AudioManager.prototype.timeUpdated = function() {
 
 AudioManager.prototype.pause = function() {
     if (this.destroyed || !this.started) return;
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.cancelPauseResumeFade();
     this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
@@ -340,7 +337,7 @@ AudioManager.prototype.pause = function() {
 
 AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started) return;
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.cancelPauseResumeFade();
     this.sourceNode.play();
     if (this.visualizer) {
@@ -373,14 +370,14 @@ AudioManager.prototype.initialPlaythrough = function() {
 };
 
 AudioManager.prototype.fadeOutSeekGain = function() {
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.seekGain.gain.cancelScheduledValues(0);
     this.seekGain.gain.value = 1;
     this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, now, SEEK_START_FADE_TIME);
 };
 
 AudioManager.prototype.fadeInSeekGain = function() {
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.seekGain.gain.cancelScheduledValues(0);
     this.seekGain.gain.value = 0.001;
     this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
@@ -401,14 +398,14 @@ AudioManager.prototype.didSeek = function() {
 
 AudioManager.prototype.mute = function() {
     if (this.destroyed) return;
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.muteGain.gain.cancelScheduledValues(0);
     this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.unmute = function() {
     if (this.destroyed) return;
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     this.muteGain.gain.cancelScheduledValues(0);
     this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
 };
@@ -425,12 +422,12 @@ AudioManager.prototype.updateVolume = function(volume) {
 };
 
 AudioManager.prototype.getFadeInTime = function(track) {
-    var crossFadePreferences = crossfading.getPreferences();
-    var fadeInEnabled = crossFadePreferences.getInEnabled();
+    var preferences = this.player.crossfadingPreferences.getPreferences();
+    var fadeInEnabled = preferences.getInEnabled();
 
     if (!fadeInEnabled) return 0;
 
-    if (!crossFadePreferences.getShouldAlbumCrossFade()) {
+    if (!preferences.getShouldAlbumCrossFade()) {
         if (this.player.playlist.getPreviousTrack() &&
             this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
             return 0;
@@ -438,17 +435,17 @@ AudioManager.prototype.getFadeInTime = function(track) {
     }
 
     var duration = this.getDuration();
-    return Math.max(0, Math.min(crossFadePreferences.getInTime(),
-            duration - MINIMUM_DURATION - crossFadePreferences.getOutTime()));
+    return Math.max(0, Math.min(preferences.getInTime(),
+            duration - MINIMUM_DURATION - preferences.getOutTime()));
 };
 
 AudioManager.prototype.getFadeOutTime = function() {
-    var crossFadePreferences = crossfading.getPreferences();
-    var fadeOutEnabled = crossFadePreferences.getOutEnabled();
+    var preferences = this.player.crossfadingPreferences.getPreferences();
+    var fadeOutEnabled = preferences.getOutEnabled();
 
     if (!fadeOutEnabled) return 0;
 
-    if (!crossFadePreferences.getShouldAlbumCrossFade()) {
+    if (!preferences.getShouldAlbumCrossFade()) {
         if (this.player.playlist.getNextTrack() &&
             this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
             return 0;
@@ -456,13 +453,13 @@ AudioManager.prototype.getFadeOutTime = function() {
     }
 
     var duration = this.getDuration();
-    return Math.max(0, Math.min(crossFadePreferences.getOutTime(),
-            duration - MINIMUM_DURATION - crossFadePreferences.getInTime()));
+    return Math.max(0, Math.min(preferences.getOutTime(),
+            duration - MINIMUM_DURATION - preferences.getInTime()));
 };
 
 AudioManager.prototype.updateSchedules = function(forceReset) {
     if (this.destroyed) return;
-    var now = audioCtx.currentTime;
+    var now = this.player.getAudioContext().currentTime;
     var trackCurrentTime = this.getCurrentTime();
     var trackDuration = this.getDuration();
     this.fadeInGain.gain.cancelScheduledValues(0);
@@ -470,11 +467,11 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     this.fadeInGain.gain.value = 1;
     this.fadeOutGain.gain.value = 1;
 
-    var crossFadePreferences = crossfading.getPreferences();
+    var preferences = this.player.crossfadingPreferences.getPreferences();
     var fadeInTime = this.getFadeInTime();
     var fadeOutTime = this.getFadeOutTime();
-    var fadeInSamples = crossFadePreferences.getInCurveSamples();
-    var fadeOutSamples = crossFadePreferences.getOutCurveSamples();
+    var fadeInSamples = preferences.getInCurveSamples();
+    var fadeOutSamples = preferences.getOutCurveSamples();
 
 
     if (fadeInTime > 0 && this.implicitlyLoaded && !forceReset) {
@@ -507,8 +504,6 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    effects.removeListener("effectsChange", this.effectsChanged);
-    crossfading.removeListener("crossFadingChange", this.crossFadingChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChanged);
     this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
     this.sourceNode.removeListener("lastBufferQueued", this.lastBufferQueued);
@@ -535,24 +530,6 @@ AudioManager.prototype.destroy = function() {
     this.track = null;
     this.destroyed = true;
     this.gaplessPreloadTrack = null;
-
-    this.audioManagers = [];
-
-    this.timeUpdated =
-    this.ended =
-    this.errored =
-    this.effectsChanged =
-    this.crossFadingChanged =
-    this.nextTrackChanged =
-    this.trackTagDataUpdated =
-    this.willSeek =
-    this.didSeek =
-    this.initialPlaythrough = null;
-
-    var index = audioManagers.indexOf(this);
-    if (index >= 0) {
-        audioManagers.splice(index, 1);
-    }
     this.player.audioManagerDestroyed(this);
     this.player = null;
 };
