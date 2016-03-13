@@ -112,6 +112,8 @@ export default function Search(domNode, opts) {
     this.env = opts.env;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
+    this.keyboardShortcuts = opts.keyboardShortcuts;
+
     this._trackAnalyzer = opts.trackAnalyzer;
     this._domNode = $($(domNode)[0]);
     this._trackContainer = this.$().find(".tracklist-transform-container");
@@ -143,7 +145,7 @@ export default function Search(domNode, opts) {
         knobSelector: ".scrollbar-knob"
     });
     this._selectable = new Selectable(this);
-    this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
+    this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
     this._keyboardShortcutContext.addShortcut("ctrl+f", this._focusInput.bind(this));
     this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
     this._keyboardShortcutContext.addShortcut("Enter", this.playPrioritySelection.bind(this));
@@ -170,13 +172,6 @@ export default function Search(domNode, opts) {
 
     this._bindListEvents({dragging: false});
 
-    var self = this;
-    keyValueDatabase.getInitialValues().then(function(values) {
-        if (SEARCH_HISTORY_KEY in values) {
-            self.tryLoadHistory(values[SEARCH_HISTORY_KEY]);
-        }
-    });
-
     $(window).on("sizechange", this._windowLayoutChanged.bind(this));
     this.$input().on("input", this._gotInput.bind(this));
     this.$input().on("focus", this._inputFocused.bind(this));
@@ -184,6 +179,10 @@ export default function Search(domNode, opts) {
     this.$input().on("keydown", this._inputKeydowned.bind(this));
     this.$().find(".search-next-tab-focus").on("focus", this._searchNextTabFocused.bind(this));
     this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
+
+    if (SEARCH_HISTORY_KEY in this.dbValues) {
+        this.tryLoadHistory(this.dbValues([SEARCH_HISTORY_KEY]);
+    }
 }
 inherits(Search, AbstractTrackContainer);
 
@@ -215,7 +214,7 @@ Search.prototype.tabWillHide = function() {
     }
     this.$input().blur();
     this.$().find(".search-next-tab-focus").hide();
-    KeyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
+    this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
 };
 
 Search.prototype.tabDidHide = function() {
@@ -230,7 +229,7 @@ Search.prototype.tabDidShow = function() {
     this._visible = true;
     this.$input().focus();
     this._fixedItemListScroller.resize();
-    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
+    this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
 Search.prototype.tryLoadHistory = function(values) {
@@ -246,11 +245,11 @@ Search.prototype.tryLoadHistory = function(values) {
     }
 };
 
-const saveHistory = throttle(function(historyEntries) {
+Search.prototype.saveHistory = throttle(function(historyEntries) {
     var json = historyEntries.map(function(v) {
         return v.toJSON();
     });
-    keyValueDatabase.set(SEARCH_HISTORY_KEY, json);
+    this.db.set(SEARCH_HISTORY_KEY, json);
 }, 1000);
 
 Search.prototype.changeTrackExplicitly = function(track) {
@@ -348,7 +347,7 @@ Search.prototype._inputBlurred = function() {
                     searchHistory[0] = this._topHistoryEntry;
 
                     this.$historyDataList().prepend(this._topHistoryEntry.$());
-                    saveHistory(searchHistory);
+                    this.saveHistory(searchHistory);
                     return;
                 }
             }
@@ -359,10 +358,10 @@ Search.prototype._inputBlurred = function() {
             if (this._searchHistory.length > MAX_SEARCH_HISTORY_ENTRIES) {
                 this._searchHistory.pop().destroy();
             }
-            saveHistory(this._searchHistory);
+            this.saveHistory(this._searchHistory);
         } else {
             this._topHistoryEntry.update(this._session._rawQuery);
-            saveHistory(this._searchHistory);
+            this.saveHistory(this._searchHistory);
         }
     }
 };

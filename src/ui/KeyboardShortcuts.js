@@ -128,6 +128,10 @@ export default function KeyboardShortcuts() {
 }
 inherits(KeyboardShortcuts, EventEmitter);
 
+KeyboardShortcuts.prototype.createContext = function() {
+    return new KeyboardShortcutContext();
+};
+
 KeyboardShortcuts.prototype.KeyboardShortcutContext = KeyboardShortcutContext;
 
 KeyboardShortcuts.prototype.disable = function() {

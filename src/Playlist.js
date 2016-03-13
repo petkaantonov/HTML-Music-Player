@@ -71,6 +71,10 @@ export default function Playlist(domNode, opts) {
     this.env = opts.env;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
+    this.rippler = opts.rippler;
+    this.snackbar = opts.snackbar;
+    this.applicationPreferences = opts.applicationPreferences;
+
     this._trackViews = [];
     this._unparsedTrackList = [];
 
@@ -85,7 +89,7 @@ export default function Playlist(domNode, opts) {
 
     this._errorCount = 0;
     this._$domNode = $(domNode);
-    this._$trackContainer = this._$domNode.find(".tracklist-transform-container");
+    this._$trackContainer = this.$().find(".tracklist-transform-container");
     this._nextTrack = null;
 
     this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight, {
@@ -113,17 +117,12 @@ export default function Playlist(domNode, opts) {
 
     $(window).on("sizechange", this._windowLayoutChanged.bind(this));
 
-    var self = this;
-    keyValueDatabase.getInitialValues().then(function(values) {
-        if (PLAYLIST_MODE_KEY in values) {
-            self.tryChangeMode(values[PLAYLIST_MODE_KEY]);
-        }
-    });
-
-    this._bindListEvents({dragging: true});
+    if (PLAYLIST_MODE_KEY in this.dbValues) {
+        this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
+    }
 
     var self = this;
-    this._keyboardShortcutContext = new KeyboardShortcuts.KeyboardShortcutContext();
+    this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
     this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
     this._keyboardShortcutContext.addShortcut("Enter", this.playPrioritySelection.bind(this));
     this._keyboardShortcutContext.addShortcut("Delete", this.removeSelected.bind(this));
@@ -167,6 +166,8 @@ export default function Playlist(domNode, opts) {
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
     }
+
+    this._bindListEvents({dragging: true});
     this._draggable.bindEvents();
 }
 inherits(Playlist, AbstractTrackContainer);
@@ -269,7 +270,7 @@ Playlist.prototype._listContentsChanged = function() {
 };
 
 Playlist.prototype.tabWillHide = function() {
-    KeyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
+    this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
 };
 
 Playlist.prototype.tabDidHide = function() {
@@ -282,7 +283,7 @@ Playlist.prototype.tabWillShow = function() {
 
 Playlist.prototype.tabDidShow = function() {
     this._fixedItemListScroller.resize();
-    KeyboardShortcuts.activateContext(this._keyboardShortcutContext);
+    this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };
 
 Playlist.prototype.$trackContainer = function() {
@@ -532,7 +533,7 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
 
     var tracksWord = tracksRemoved === 1 ? "track" : "tracks";
     var self = this;
-    snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
+    this.snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
         action: "undo",
         visibilityTime: 10000,
         tag: PLAYLIST_TRACKS_REMOVED_TAG
@@ -714,7 +715,7 @@ Playlist.prototype.tryChangeMode = function(mode) {
         this._mode = mode;
         this.emit("modeChange", mode, oldMode);
         this._updateNextTrack(true);
-        keyValueDatabase.set(PLAYLIST_MODE_KEY, mode);
+        this.db.set(PLAYLIST_MODE_KEY, mode);
         return true;
     }
     return false;
