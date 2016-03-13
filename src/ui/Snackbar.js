@@ -3,7 +3,7 @@ import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits } from "lib/util";
-import { TOUCH_EVENTS, changeDom, tapHandler } from "lib/DomUtil";
+import { changeDom } from "lib/DomUtil";
 
 const NO_TAG = {};
 

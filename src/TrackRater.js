@@ -1,7 +1,5 @@
 "use strict";
 
-import { TOUCH_EVENTS, doubleTapHandler, tapHandler } from "lib/DomUtil";
-
 const HTML = "<div class='track-rating'>                                                               \
         <div data-rating='1' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
         <div data-rating='2' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
@@ -10,35 +8,32 @@ const HTML = "<div class='track-rating'>                                        
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
     </div>"
 
-export default function TrackRating(opts) {
+export default function TrackRater(opts) {
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.track = null;
     this._domNode = $(HTML);
     this._doubleClicked = this._doubleClicked.bind(this);
     this._clicked = this._clicked.bind(this);
     this._hovered = this._hovered.bind(this);
-    this._touchDoubleClicked = doubleTapHandler(this._doubleClicked);
-    this._touchClicked = tapHandler(function(e) {
-        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-        this._ratingInputClicked(e.currentTarget);
-    }.bind(this));
+    this._doubleTapRecognizer = this.recognizerMaker.createDoubleTapRecognizer(this._doubleClicked);
+    this._tapRecognizer = this.recognizerMaker.createTapRecognizer(this._clicked);
     this._update(-1);
     this._enabled = false;
 }
 
-TrackRating.prototype.$ = function() {
+TrackRater.prototype.$ = function() {
     return this._domNode;
 };
 
-TrackRating.prototype._addClassToRatingsAtLeast = function(inputs, value, className) {
+TrackRater.prototype._addClassToRatingsAtLeast = function(inputs, value, className) {
     inputs.filter(function() {
         return parseInt($(this).data("rating"), 10) <= value;
     }).addClass(className);
 }
 
-TrackRating.prototype._hovered = function(e) {
+TrackRater.prototype._hovered = function(e) {
     var inputs = this.$().find(".rating-input");
     inputs.removeClass("hovered");
     if (e.type === "mouseleave") {
@@ -53,7 +48,7 @@ TrackRating.prototype._hovered = function(e) {
     }
 };
 
-TrackRating.prototype.disable = function() {
+TrackRater.prototype.disable = function() {
     this.track = null;
     this._update(-1);
     if (!this._enabled) {
@@ -62,18 +57,18 @@ TrackRating.prototype.disable = function() {
     this._enabled = false;
     this.$().off("click", ".rating-input", this._clicked);
     this.$().off("mouseleave mouseenter", ".rating-input", this._hovered);
-    this.$().off(TOUCH_EVENTS, ".rating-input", this._touchClicked);
-    this.$().off(TOUCH_EVENTS, this._touchDoubleClicked);
+    this._tapRecognizer.unrecognizeBubbledOn(this.$(), ".rating-input");
+    this._doubleTapRecognizer.unrecognizeBubbledOn(this.$());
     this.$().off("dblclick", this._doubleClicked);
 };
 
-TrackRating.prototype.update = function() {
+TrackRater.prototype.update = function() {
     if (this.track) {
         this._update(this.track.getRating());
     }
 };
 
-TrackRating.prototype.enable = function(track) {
+TrackRater.prototype.enable = function(track) {
     this.track = track;
     this._update(this.track.getRating());
     if (this._enabled) {
@@ -83,27 +78,28 @@ TrackRating.prototype.enable = function(track) {
     this.$().on("click", ".rating-input", this._clicked);
     this.$().on("dblclick", this._doubleClicked);
     this.$().on("mouseenter mouseleave", ".rating-input", this._hovered);
-    this.$().on(TOUCH_EVENTS, ".rating-input", this._touchClicked);
-    this.$().on(TOUCH_EVENTS, this._touchDoubleClicked);
+    this._tapRecognizer.recognizeBubbledOn(this.$(), ".rating-input");
+    this._doubleTapRecognizer.recognizeBubbledOn(this.$());
 };
 
-TrackRating.prototype._clicked = function(e) {
+
+TrackRater.prototype._clicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this._ratingInputClicked(e.currentTarget);
 };
 
-TrackRating.prototype._doubleClicked = function() {
+TrackRater.prototype._doubleClicked = function() {
     this.track.rate(-1);
     this._update(-1);
 };
 
-TrackRating.prototype._update = function(value) {
+TrackRater.prototype._update = function(value) {
     var inputs = this.$().find(".rating-input");
     inputs.removeClass("rated");
     this._addClassToRatingsAtLeast(inputs, value, "rated");
 };
 
-TrackRating.prototype._ratingInputClicked = function(node) {
+TrackRater.prototype._ratingInputClicked = function(node) {
     var value = parseInt($(node).data("rating"), 10);
     this.track.rate(value);
     this._update(value);

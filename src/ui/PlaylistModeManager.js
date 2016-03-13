@@ -1,7 +1,5 @@
 "use strict";
 import $ from "lib/jquery";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
-
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
 const REPEAT = "repeat";

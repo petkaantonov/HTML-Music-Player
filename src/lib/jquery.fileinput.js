@@ -1,6 +1,4 @@
 import $ from "lib/jquery";
-import { touch as touch } from "features";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 function clicked(e) {
     var input = $(this).data("file_input");
@@ -15,8 +13,6 @@ function clicked(e) {
 function mousedowned(e) {
     e.preventDefault();
 }
-
-const clickedTouch = tapHandler(clicked);
 
 function createInput(atts) {
     var input = document.createElement("input");
@@ -35,7 +31,9 @@ function createInput(atts) {
     return input;
 }
 
-export default function initialize() {
+export default function initialize(opts) {
+    var tapRecognizer = opts.recognizerMaker.createTapRecognizer(clicked);
+
     $.fn.fileInput = function(action, atts) {
         return this.each(function() {
             if (action === "create") {
@@ -48,7 +46,7 @@ export default function initialize() {
 
                 $(this).on("mousedown", mousedowned);
                 $(this).on("click", clicked);
-                if (touch) $(this).on(TOUCH_EVENTS, clickedTouch)
+                tapRecognizer.recognizeBubbledOn($(this));
             } else if (action === "delete") {
                 if (!$(this).data("file_input")) {
                     return;
@@ -58,7 +56,7 @@ export default function initialize() {
                 $(this).data("file_input_atts", null);
                 $(this).off("click", clicked);
                 $(this).off("mousedown", mousedowned);
-                if (touch) $(this).off(TOUCH_EVENTS, clickedTouch)
+                tapRecognizer.unrecognizeBubbledOn($(this));
                 $(input).remove();
             } else if (action === "clearFiles") {
                 if (!$(this).data("file_input")) {

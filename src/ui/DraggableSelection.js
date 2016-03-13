@@ -2,7 +2,7 @@
 import $ from "lib/jquery";
 import { inherits } from "lib/util";
 import Selectable from "ui/Selectable";
-import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, isTouchEvent, modifierDragHandler, modifierTouchDownHandler } from "lib/DomUtil";
+import { isTouchEvent } from "lib/DomUtil";
 import EventEmitter from "lib/events";
 
 const DRAG_START_DELAY_MS = 300;

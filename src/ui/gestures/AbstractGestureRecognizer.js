@@ -5,7 +5,6 @@ import $ from "lib/jquery";
 
 export default function AbstractGestureRecognizer(recognizerMaker) {
     this.recognizerMaker = recognizerMaker;
-    this._isBeingRecognized = false;
 }
 
 AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {
@@ -28,9 +27,6 @@ AbstractGestureRecognizer.prototype.getModifierTouch = function() {
 AbstractGestureRecognizer.prototype.recognizeBubbledOn = function($elem, selector) {
     if (!this.recognizerMaker.isTouchSupported()) return;
 
-    if (this._isBeingRecognized) throw new Error("already being recognized");
-    this._isBeingRecognized = true;
-
     if (arguments.length <= 1) {
         $elem.on(this._eventType, this._recognizerHandler);
     } else if arguments.length === 2) {
@@ -42,7 +38,6 @@ AbstractGestureRecognizer.prototype.recognizeBubbledOn = function($elem, selecto
 
 AbstractGestureRecognizer.prototype.unrecognizeBubbledOf = function($elem, selector) {
     if (!this.recognizerMaker.isTouchSupported()) return;
-    this._isBeingRecognized = false;
 
     if (arguments.length <= 1) {
         $elem.off(this._eventType, this._recognizerHandler);
@@ -55,14 +50,11 @@ AbstractGestureRecognizer.prototype.unrecognizeBubbledOf = function($elem, selec
 
 AbstractGestureRecognizer.prototype.recognizeCapturedOn = function(elem) {
     if (!this.recognizerMaker.isTouchSupported()) return;
-    if (this._isBeingRecognized) throw new Error("already being recognized");
-    this._isBeingRecognized = true;
     onCapture(elem, this._eventType, this._recognizerHandler);
 };
 
 AbstractGestureRecognizer.prototype.unrecognizeCapturedOf = function(elem) {
     if (!this.recognizerMaker.isTouchSupported()) return;
-    this._isBeingRecognized = false;
     offCapture(elem, this._eventType, this._recognizerHandler);
 };
 

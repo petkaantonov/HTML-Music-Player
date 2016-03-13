@@ -2,7 +2,7 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, offCapture, onCapture } from "lib/util";
-import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, dragHandler, isTouchEvent, setTransform, touchDownHandler } from "lib/DomUtil";
+import { isTouchEvent, setTransform } from "lib/DomUtil";
 
 export default function Slider(domNode, opts) {
     opts = Object(opts);
