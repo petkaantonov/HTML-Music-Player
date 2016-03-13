@@ -1,7 +1,7 @@
 "use strict";
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
-import { TOUCH_EVENTS, preventDefault, tapHandler } from "lib/DomUtil";
+import { preventDefault } from "lib/DomUtil";
 import PlayerPictureManager from "ui/PlayerPictureManager";
 
 const supported = typeof Notification === "function" &&
@@ -20,7 +20,7 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overl
 export default function PlaylistNotifications(dom, player, opts) {
     opts = Object(opts);
     this.db = opts.db;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.dbValues = opts.dbValues;
     this.rippler = opts.rippler;
     this.tooltipMaker = opts.tooltipMaker;
@@ -46,10 +46,7 @@ export default function PlaylistNotifications(dom, player, opts) {
 
     if (supported) {
         this.$().on("click", this.settingClicked).mousedown(preventDefault);
-
-        if (this.env.hasTouch()) {
-            this.$().on(TOUCH_EVENTS, tapHandler(this.settingClicked));
-        }
+        this.recognizerMaker.createTapRecognizer(this.settingClicked).recognizeBubbledOn(this.$());
     } else {
         this.$().addClass("no-display");
     }

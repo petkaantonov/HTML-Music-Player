@@ -1,16 +1,15 @@
 "use strict";
 import $ from "lib/jquery";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
-import Slider from "ui/Slider";
 
 export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;
     opts = Object(opts);
-    this.env = opts.env;
+    this.sliderMaker = opts.sliderMaker;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.player = player;
     this.tooltipMaker = opts.tooltipMaker;
-    this.volumeSlider = new Slider(opts.volumeSlider, this.env);
+    this.volumeSlider = opts.sliderMaker.createSlider(opts.volumeSlider);
 
     this._domNode = $(dom);
     this._muteDom = this.$().find(opts.muteDom);
@@ -29,10 +28,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
     this.player.on("muted", this.muteChanged);
 
     this.$mute().click(this.muteClicked);
-
-    if (this.env.hasTouch()) {
-        this.$mute().on(TOUCH_EVENTS, tapHandler(this.muteClicked));
-    }
+    this.recognizerMaker.createTapRecognizer(this.muteClicked).recognizeBubbledOn(this.$mute());
 
     this.volumeChanged();
     this.muteChanged(this.player.isMuted());

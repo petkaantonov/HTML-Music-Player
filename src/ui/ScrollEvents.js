@@ -87,8 +87,7 @@ ScrollEventsBinding.prototype.unbind = function() {
     this.target.off(wheelEvents, this._mouseWheeled);
 };
 
-export default function ScrollEvents(env, recognizerMaker) {
-    this.env = env;
+export default function ScrollEvents(recognizerMaker) {
     this.recognizerMaker = recognizerMaker;
 }
 

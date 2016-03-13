@@ -2,7 +2,6 @@
 
 import EventEmitter from "lib/events";
 import { inherits } from "lib/util";
-import { TOUCH_EVENTS, doubleTapHandler, longTapHandler, modifierTapHandler, tapHandler } from "lib/DomUtil";
 
 export default function AbstractTrackContainer() {
     EventEmitter.call(this);
@@ -28,44 +27,42 @@ AbstractTrackContainer.prototype._bindListEvents = function(opts) {
         }
     });
 
-    if (self.env.hasTouch()) {
-        self.$().on(TOUCH_EVENTS, ".track-container", modifierTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
+    self.recognizerMaker.createModifierTapRecognizer(function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        if (!trackView) return;
 
-            if (self._selectable.contains(trackView)) {
-                self._selectable.removeTrackView(trackView);
-            } else {
-                self._selectable.addTrackView(trackView);
-                self._selectable.setPriorityTrackView(trackView);
-            }
-        }));
-
-        self.$().on(TOUCH_EVENTS, ".track-container", tapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            self._selectable.selectTrackView(trackView);
-        }));
-
-        self.$().on(TOUCH_EVENTS, ".track-container", longTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            if (!self._selectable.contains(trackView)) {
-                self._selectable.selectTrackView(trackView);
-            }
+        if (self._selectable.contains(trackView)) {
+            self._selectable.removeTrackView(trackView);
+        } else {
+            self._selectable.addTrackView(trackView);
             self._selectable.setPriorityTrackView(trackView);
-        }));
+        }
+    }).recognizeBubbledOn(self.$(), ".track-container");
 
-        self.$().on(TOUCH_EVENTS, ".track-container", doubleTapHandler(function(e) {
-            if ($(e.target).closest(".unclickable").length > 0) return;
-            var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-            if (!trackView) return;
-            self.changeTrackExplicitly(trackView.track());
-        }));
-    }
+    self.recognizerMaker.createTapRecognizer(function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        if (!trackView) return;
+        self._selectable.selectTrackView(trackView);
+    }).recognizeBubbledOn(self.$(), ".track-container");
+
+    self.recognizerMaker.createLongTapRecognizer(function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        if (!trackView) return;
+        if (!self._selectable.contains(trackView)) {
+            self._selectable.selectTrackView(trackView);
+        }
+        self._selectable.setPriorityTrackView(trackView);
+    }).recognizeBubbledOn(self.$(), ".track-container");
+
+    self.recognizerMaker.createDoubleTapRecognizer(function(e) {
+        if ($(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+        if (!trackView) return;
+        self.changeTrackExplicitly(trackView.track());
+    }).recognizeBubbledOn(self.$(), ".track-container");
 
     if (dragging) {
         self._draggable.on("dragStart", function() {

@@ -2,9 +2,6 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import Popup from "ui/Popup";
-import Slider from "ui/Slider";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import preferenceCreator from "PreferenceCreator";
 
 const PROGRESS_INCREASE = 1;
@@ -182,7 +179,8 @@ export default function CrossfadingPreferences(opts) {
     opts = Object(opts);
     this.opts = opts;
     this.rippler = opts.rippler;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
+    this.sliderMaker = opts.sliderMaker;
     this.db = opts.db;
     this.preferences = new Preferences();
     this.popup = opts.popupMaker.makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
@@ -202,10 +200,7 @@ export default function CrossfadingPreferences(opts) {
     this.manager = null;
 
     $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
-
-    if (this.env.hasTouch()) {
-        $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
-    }
+    this.recognizerMaker.createTapRecognizer(this.popup.open.bind(this.popup)).recognizeBubbledOn($(opts.preferencesButton));
     this.popup.on("open", this.popupOpened.bind(this));
 
     if (opts.dbValues && STORAGE_KEY in opts.dbValues) {
@@ -310,9 +305,7 @@ function FadeConfigurator(manager, domNode, config) {
     this.$().find(".fade-enable-checkbox").prop("id", enabledId);
     this.$().find(".fade-enable-text").text(config.enablerText).prop("htmlFor", enabledId);
 
-    this.slider = new Slider($(".fade-time-slider", this.$()), {
-        env: this.manager.env
-    });
+    this.slider = this.manager.sliderMaker.createSlider($(".fade-time-slider", this.$()));
     this.slider.on("slide", this.slided);
     this.$().find(".fade-enable-checkbox").on("change", this.enabledChanged);
     this.$().find(".fade-curve-select").on("change", this.curveChanged);

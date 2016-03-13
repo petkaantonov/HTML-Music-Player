@@ -1,11 +1,10 @@
 "use strict";
 
 import { offCapture, onCapture } from "lib/util";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 
 export default function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
-    this._env = opts.env;
+    this._recognizerMaker = opts.recognizerMaker;
     this._rippler = opts.rippler;
     this._domNode = $($(dom)[0]);
     this._opener = $($(opener)[0]);
@@ -22,17 +21,14 @@ export default function OpenableSubmenu(dom, opener, opts) {
     this._openerFocused = this._openerFocused.bind(this);
     this._openerClicked = this._openerClicked.bind(this);
     this._documentClicked = this._documentClicked.bind(this);
-    this._documentTapped = tapHandler(this._documentClicked);
+    this._documentTapRecognizer = this._recognizerMaker.createTapRecognizer(this._documentClicked);
 
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    if (this._env.hasTouch()) {
-        this.$opener().on(TOUCH_EVENTS, tapHandler(this._openerClicked));
-    }
-
     this.$opener().on("click", this._openerClicked)
                   .on("focus", this._openerFocused);
+    this._recognizerMaker.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
 
     onCapture(document, "blur", this._elementBlurred);
 }
@@ -58,9 +54,7 @@ OpenableSubmenu.prototype.open = function() {
     });
     onCapture(document, "click", this._documentClicked);
 
-    if (this._env.hasTouch()) {
-        onCapture(document, TOUCH_EVENTS, this._documentTapped);
-    }
+    this._documentTapRecognizer.recognizeCapturedOn(document);
 };
 
 OpenableSubmenu.prototype.close = function() {
@@ -73,9 +67,7 @@ OpenableSubmenu.prototype.close = function() {
     this.$opener().removeClass(this.openerActiveClass);
     this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
     offCapture(document, "click", this._documentClicked);
-    if (this._env.hasTouch()) {
-        offCapture(document, TOUCH_EVENTS, this._documentTapped);
-    }
+    this._documentTapRecognizer.unrecognizeCapturedOn(document);
 };
 
 OpenableSubmenu.prototype._documentClicked = function(e) {

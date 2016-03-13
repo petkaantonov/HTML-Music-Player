@@ -39,7 +39,7 @@ const moreThan1Selected = function(selectedCount, totalCount) {
 export default function MainTabs(opts) {
     opts = Object(opts);
     this.opts = opts;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.itemHeight = opts.itemHeight;
     this.tabHeight = opts.tabHeight;
@@ -67,7 +67,7 @@ export default function MainTabs(opts) {
         content: ".queue-list-container"
     }], {
         indicator: opts.activeTabIndicator,
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
         rippler: opts.rippler
     });
 

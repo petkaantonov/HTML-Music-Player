@@ -6,7 +6,6 @@ import Scrollbar from "ui/Scrollbar";
 
 export default function ContentScroller(node, opts) {
     opts = Object(opts);
-    this._env = opts.env;
     this._domNode = $($(node)[0]);
     this._contentContainer = $($((opts.contentContainer || node))[0]);
 
@@ -25,10 +24,10 @@ export default function ContentScroller(node, opts) {
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    bindScrollerEvents(this.$contentContainer(),
-                               this._scroller,
-                               opts.shouldScroll || null,
-                               this._scrollbar);
+    this._scrollerEventBinding = opts.scrollerEvents.createBinding(this.$contentContainer(),
+                                                                   this._scroller,
+                                                                   opts.shouldScroll,
+                                                                   this._scrollbar);
     this.refresh();
 }
 

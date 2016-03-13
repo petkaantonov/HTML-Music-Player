@@ -25,6 +25,7 @@ import GestureRecognizerMaker from "ui/gestures/GestureRecognizerMaker";
 import ScrollEvents from "ui/ScrollEvents";
 import SliderMaker from "ui/SliderMaker";
 import MenuMaker from "ui/MenuMaker";
+import ScrollerMaker from "ui/ScrollerMaker";
 import Player from "Player";
 import Playlist from "Playlist";
 import Search from "Search";
@@ -65,7 +66,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.keyboardShortcuts = new KeyboardShortcuts();
     this.menuMaker = new MenuMaker(this.recognizerMaker, this.rippler);
 
-    this.scrollEvents = new ScrollEvents()
+    this.scrollEvents = new ScrollEvents(this.recognizerMaker);
+    this.scrollerMaker = new ScrollerMaker(this.recognizerMaker, this.scrollEvents, ITEM_HEIGHT);
 
     this.tooltipMaker = new TooltipMaker(this.env);
 
@@ -84,6 +86,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.popupMaker = new PopupMaker({
         recognizerMaker: this.recognizerMaker,
+        scrollerMaker: this.scrollerMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -107,16 +110,19 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.applicationPreferences = new ApplicationPreferences({
         snackbar: this.snackbar,
         recognizerMaker: this.recognizerMaker,
+        sliderMaker: this.sliderMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
         popupMaker: this.popupMaker,
-        preferencesButton: ".menul-preferences"
+        preferencesButton: ".menul-preferences",
+        env: this.env
     });
 
     this.effectPreferences = new EffectPreferences({
         snackbar: this.snackbar,
         recognizerMaker: this.recognizerMaker,
+        sliderMaker: this.sliderMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -127,6 +133,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.crossfadingPreferences = new CrossfadingPreferences({
         snackbar: this.snackbar,
         recognizerMaker: this.recognizerMaker,
+        sliderMaker: this.sliderMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
@@ -139,6 +146,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         db: this.db,
         dbValues: this.dbValues,
         recognizerMaker: this.recognizerMaker,
+        scrollerMaker: this.scrollerMaker,
         rippler: this.rippler,
         snackbar: this.snackbar,
         keyboardShortcuts: this.keyboardShortcuts,
@@ -159,6 +167,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         db: this.db,
         dbValues: this.dbValues,
         recognizerMaker: this.recognizerMaker,
+        scrollerMaker: this.scrollerMaker,
         keyboardShortcuts: this.keyboardShortcuts,
         rippler: this.rippler,
         snackbar: this.snackbar,
@@ -232,6 +241,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         timeContainerDom: ".playback-status-wrapper",
         timeProgressDom: ".time-progress",
         recognizerMaker: this.recognizerMaker,
+        sliderMaker: this.sliderMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler
@@ -241,6 +251,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         volumeSlider: ".volume-slider",
         muteDom: ".volume-mute",
         recognizerMaker: this.recognizerMaker,
+        sliderMaker: this.sliderMaker,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,

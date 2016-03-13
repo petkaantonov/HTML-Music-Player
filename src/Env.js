@@ -47,7 +47,16 @@ export default function Env() {
     this._browserName = browserName;
     this._browserVersion = browserVersion;
     this._requiredFeaturesChecked = false;
+    this._isDevelopment = window.DEBUGGING === true;
 }
+
+Env.prototype.isDevelopment = function() {
+    return this._isDevelopment;
+};
+
+Env.prototype.isProduction = function() {
+    return !this._isDevelopment;
+};
 
 Env.prototype.hasTouch = function() {
     return this._touch;

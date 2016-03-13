@@ -2,10 +2,9 @@
 import $ from "lib/jquery";
 import Promise from "lib/bluebird";
 import EventEmitter from "lib/events";
-import { combineClasses, documentHidden, inherits, offBubble, offCapture, onBubble, onCapture, toFunction } from "lib/util";
-import { TOUCH_EVENTS, TOUCH_EVENTS_NO_MOVE, changeDom, dragHandler, isTouchEvent, preventDefault, setTransform, tapHandler, touchDownHandler } from "lib/DomUtil";
+import { combineClasses, documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { changeDom, isTouchEvent, preventDefault, setTransform } from "lib/DomUtil";
 import Animator from "ui/Animator";
-import ContentScroller from "ui/ContentScroller";
 
 const NULL = $(null);
 
@@ -19,13 +18,10 @@ function PopupButton(popup, opts) {
     this._domNode = $("<div>", {class: popup.popupButtonClass}).prop("tabIndex", 0).text(this._text);
 
     this._clicked = this._clicked.bind(this);
-    this._touchClicked = tapHandler(this._clicked);
+    this._tapRecognizer = this._popup.recognizerMaker.createTapRecognizer(this._clicked);
 
     this.$().on("click", this._clicked).mousedown(preventDefault);
-
-    if (this._popup.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS, this._touchClicked);
-    }
+    this._tapRecognizer.recognizeBubbledOn(this.$());
 }
 
 PopupButton.prototype.id = function() {
@@ -64,7 +60,8 @@ PopupButton.prototype.destroy = function() {
 export default function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
+    this.scrollerMaker = opts.scrollerMaker;
     this.rippler = opts.rippler;
     this.transitionClass = opts.transitionClass || "";
     this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
@@ -108,9 +105,10 @@ export default function Popup(opts) {
     this.draggingEnd = this.draggingEnd.bind(this);
     this.mousemoved = this.mousemoved.bind(this);
     this.closerClicked = this.closerClicked.bind(this);
-    this.closerClickedTouch = tapHandler(this.closerClicked);
-    this.headerMouseDownedTouch = touchDownHandler(this.headerMouseDowned);
-    this.touchDragHandler = dragHandler(this.mousemoved, this.draggingEnd);
+
+    this.closerTapRecognizer = this.recognizerMaker.createTapRecognizer(this.closerClicked);
+    this.headerTouchedRecognizer = this.recognizerMaker.createTouchdownRecognizer(this.headerMouseDowned);
+    this.popupDragRecognizer = this.recognizerMaker.createDragRecognizer(this.mousemoved, this.draggingEnd);
 
     $(window).on("sizechange", this._reLayout);
 
@@ -169,9 +167,6 @@ Popup.prototype._initDom = function() {
     var body = $("<div>", {class: this.bodyClass});
     var bodyContent = $("<div>", {class: this.bodyContentClass}).html(this.body() + "");
     var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
-
-
-
     var scrollbar = $("<div>", {class: this.scrollbarContainerClass});
     var scrollbarRail = $("<div>", {class: this.scrollbarRailClass});
     var scrollbarKnob = $("<div>", {class: this.scrollbarKnobClass});
@@ -199,13 +194,10 @@ Popup.prototype._initDom = function() {
 
     closer.on("click", this.closerClicked);
     header.on("mousedown", this.headerMouseDowned);
+    this.closerTapRecognizer.recognizeBubbledOn(closer);
+    this.headerTouchedRecognizer.recognizeBubbledOn(header);
 
-    if (this.env.hasTouch()) {
-        closer.on(TOUCH_EVENTS, this.closerClickedTouch);
-        header.on(TOUCH_EVENTS_NO_MOVE, this.headerMouseDownedTouch);
-    }
-
-    this._contentScroller = new ContentScroller(body, {
+    this._contentScroller = this.scrollerMaker.createContentScroller(body, {
         scrollingX: false,
         snapping: false,
         zooming: false,
@@ -370,9 +362,7 @@ Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
     this._viewPort = this._getViewPort();
     onCapture(document, "mouseup", this.draggingEnd);
     onCapture(document, "mousemove", this.mousemoved);
-    if (this.env.hasTouch()) {
-        onBubble(document, TOUCH_EVENTS, this.touchDragHandler);
-    }
+    this.popupDragRecognizer.recognizeCapturedOn(document);
 
     this.$().css({
         left: 0,
@@ -387,10 +377,7 @@ Popup.prototype.draggingEnd = function() {
     this._dragging = false;
     offCapture(document, "mouseup", this.draggingEnd);
     offCapture(document, "mousemove", this.mousemoved);
-
-    if (this.env.hasTouch()) {
-        offBubble(document, TOUCH_EVENTS, this.touchDragHandler);
-    }
+    this.popupDragRecognizer.unrecognizeCapturedOn(document);
 
     this.$().css({
         left: this._x,

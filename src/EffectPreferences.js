@@ -2,10 +2,7 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import Slider from "ui/Slider";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import createPreferences from "PreferenceCreator";
-import Popup from "ui/Popup";
 
 const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;
@@ -123,7 +120,8 @@ export default function EffectPreferences(opts) {
     this.opts = opts;
     this.rippler = opts.rippler;
     this.db = opts.db;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
+    this.sliderMaker = opts.sliderMaker;
     this.preferences = new Preferences();
 
     this.popup = opts.popupMaker.makePopup("Effects", this.getHtml(), opts.preferencesButton, [{
@@ -143,10 +141,7 @@ export default function EffectPreferences(opts) {
     this.manager = null;
 
     $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
-
-    if (this.env.hasTouch()) {
-        $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
-    }
+    this.recognizerMaker.createTapRecognizer(this.popup.open.bind(this.popup)).recognizeBubbledOn($(opts.preferencesButton));
     this.popup.on("open", this.popupOpened.bind(this));
 
     if (opts.dbValues && STORAGE_KEY in opts.dbValues) {
@@ -302,9 +297,7 @@ EffectPreferences.prototype.getHtml = function() {
 
 function NoiseSharpeningEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
-    this._slider = new Slider(this.$().find(".noise-sharpening-slider"), {
-        env: effectsManager.env
-    });
+    this._slider = effectsManager.slider.createSlider(this.$().find(".noise-sharpening-slider"));
 
     this._strengthChanged = this._strengthChanged.bind(this);
     this._enabledChanged = this._enabledChanged.bind(this);
@@ -367,9 +360,8 @@ function EqualizerEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
     this._equalizerSliders = equalizerBands.map(function(band, index) {
         var self = this;
-        var slider = new Slider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
-            direction: "vertical",
-            env: effectsManager.env
+        var slider = effectsManager.sliderMaker.createSlider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
+            direction: "vertical"
         });
 
         var eq;

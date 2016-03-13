@@ -1,7 +1,7 @@
 "use strict";
 
 import { inherits } from "lib/util";
-import { TOUCH_EVENTS, horizontalDragHandler, setFilter, setTransform, tapHandler } from "lib/DomUtil";
+import { setFilter, setTransform } from "lib/DomUtil";
 import EventEmitter from "lib/events";
 
 function Tab(spec, controller, index, opts) {
@@ -15,10 +15,7 @@ function Tab(spec, controller, index, opts) {
     this._clicked = this._clicked.bind(this);
     this._contentRect = this.$content()[0].getBoundingClientRect();
     this.$().on("click", this._clicked);
-    if (controller.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS, tapHandler(this._clicked));
-    }
-
+    controller.recognizerMaker.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
     var position = this._contentRect.width * this._index;
     setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
 }
@@ -82,7 +79,7 @@ Tab.prototype.deactivate = function() {
 export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this._domNode = $($(domNode)[0]);
     this._tabClicked = this._tabClicked.bind(this);
@@ -108,11 +105,8 @@ export default function TabController(domNode, specs, opts) {
     this._dragAnchorEnd = -1;
     this._activeTabRect = null;
 
-    if (this.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS, horizontalDragHandler(this._dragStart,
-                                                                        this._dragMove,
-                                                                        this._dragEnd));
-    }
+    this.recognizerMaker.createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd)
+        .recognizeBubbledOn(this.$());
 }
 inherits(TabController, EventEmitter);
 

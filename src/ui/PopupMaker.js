@@ -11,7 +11,8 @@ const NULL = $(null);
 export default function PopupMaker(opts) {
     opts = Object(opts);
     this.db = opts.db;
-    this.env = opts.env;
+    this.scrollerMaker = opts.scrollerMaker;
+    this.recognizerMaker = opts.recognizerMaker;
     this.dbValues = opts.dbValues;
     this.keyboardShortcuts = opts.keyboardShortcuts;
     this.rippler = opts.rippler;
@@ -23,6 +24,8 @@ export default function PopupMaker(opts) {
     this.popupOpened = this.popupOpened.bind(this);
     this.popupClosed = this.popupClosed.bind(this);
     this.closePopups = this.closePopups.bind(this);
+
+    this.blockerTapRecognizer = this.recognizerMaker.createTapRecognizer(this.closePopups);
 }
 
 PopupMaker.prototype.closePopups = function() {
@@ -41,9 +44,7 @@ PopupMaker.prototype.showBlocker = function() {
     this.blocker = $("<div>", {class: "popup-blocker"}).appendTo("body");
     this.blocker.on("click", this.closePopups);
 
-    if (this.env.hasTouch()) {
-        this.blocker.on(TOUCH_EVENTS, tapHandler(this.closePopups));
-    }
+    this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
 
     var animator = new Animator(this.blocker[0], {
         properties: [{
@@ -72,6 +73,7 @@ PopupMaker.prototype.hideBlocker = function() {
     });
 
     this.anim = animator.animate().bind(this).then(function() {
+        this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
         this.blocker.remove();
         this.blocker = NULL;
         this.anim = null;
@@ -109,7 +111,8 @@ PopupMaker.prototype.toPreferenceKey = function(popupTitle) {
 PopupMaker.prototype.makePopup = function(title, body, opener, footerButtons) {
     var self = this;
     var popup = new Popup({
-        env: this.env,
+        recognizerMaker: this.recognizerMaker,
+        scrollerMaker: this.scrollerMaker,
         rippler: this.rippler,
         footerButtons: footerButtons,
         title: title,

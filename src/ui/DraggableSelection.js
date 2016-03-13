@@ -10,7 +10,7 @@ const DRAG_START_DELAY_MS = 300;
 export default function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.env = opts.env;
+    this._recognizerMaker = opts.recognizerMaker;
     this._mustMatchSelector = opts.mustMatchSelector || null;
     this._mustNotMatchSelector = opts.mustNotMatchSelector || null;
     this._fixedItemListScroller = fixedItemListScroller;
@@ -30,8 +30,8 @@ export default function DraggableSelection(dom, viewList, fixedItemListScroller,
     this._restart = this._restart.bind(this);
     this._onTouchmove = this._onTouchmove.bind(this);
     this._onTouchend = this._onTouchend.bind(this);
-    this._touchDragHandler = modifierDragHandler(this._onTouchmove, this._onTouchend);
-    this._onItemViewMouseDownTouch = modifierTouchDownHandler(this._onItemViewMouseDown);
+    this._dragRecognizer = this._recognizerMaker.createModifierDragRecognizer(this._onTouchmove, this._onTouchend);
+    this._touchdownRecognizer = this._recognizerMaker.createModifierTouchdownRecognizer(this._onItemViewMouseDown);
     this._isDragging = false;
     this._dragStartFired = false;
     this._scroll = this._scroll.bind(this);
@@ -45,11 +45,8 @@ DraggableSelection.prototype.recentlyStoppedDragging = function() {
 };
 
 DraggableSelection.prototype.bindEvents = function() {
+    this._touchdownRecognizer.recognizeBubbledOn(this.$());
     this.$().on("mousedown", this._onItemViewMouseDown);
-
-    if (this.env.hasTouch()) {
-        this.$().on(TOUCH_EVENTS_NO_MOVE, this._onItemViewMouseDownTouch);
-    }
     this.$().on("selectstart", function(e) {e.preventDefault();});
 };
 
@@ -122,10 +119,8 @@ DraggableSelection.prototype._onMouseRelease = function(e) {
     this.$().off("scroll", this._onMovement);
 
     $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
+    this._dragRecognizer.unrecognizeBubbledOn($(document));
 
-    if (this.env.hasTouch()) {
-        $(document).off(TOUCH_EVENTS, this._touchDragHandler);
-    }
     this._viewList.removeListener("tracksSelected", this._restart);
     this._viewList.removeListener("lengthChange", this._restart);
     this._viewList.removeListener("trackOrderChange", this._restart);
@@ -279,11 +274,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
 
     $(document).on("mousemove", this._onMovement);
     $(document).on("mouseup", this._onMouseRelease);
-
-    if (this.env.hasTouch()) {
-        $(document).on(TOUCH_EVENTS, this._touchDragHandler);
-    }
-
+    this._dragRecognizer.recognizeBubbledOn($(document));
     $(window).on("relayout", this._onReLayout);
     this._viewList.on("tracksSelected", this._restart);
     this._viewList.on("lengthChange", this._restart);

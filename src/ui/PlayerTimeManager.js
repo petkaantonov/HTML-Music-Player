@@ -2,8 +2,7 @@
 import $ from "lib/jquery";
 
 import { toTimeString } from "lib/util";
-import { TOUCH_EVENTS, changeDom, setTransform, tapHandler } from "lib/DomUtil";
-import Slider from "ui/Slider";
+import { changeDom, setTransform } from "lib/DomUtil";
 
 const pixelRatio = window.devicePixelRatio || 1;
 const DISPLAY_ELAPSED = 0;
@@ -13,7 +12,7 @@ const TIME_DISPLAY_PREFERENCE_KEY = "time-display";
 
 export default function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.db = opts.db;
     this.rippler = opts.rippler;
     this._domNode = $(dom);
@@ -22,9 +21,8 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.seeking = false;
     this.totalTime = 0;
     this.currentTime = 0;
-    this.seekSlider = new Slider(opts.seekSlider, {
-        updateDom: false,
-        env: this.env
+    this.seekSlider = opts.sliderMaker.createSlider(opts.seekSlider, {
+        updateDom: false
     });
     this._displayedTimeRight = this._displayedTimeLeft = -1;
     this._transitionEnabled = false;
@@ -52,10 +50,7 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
     this.$totalTime().click(this.containerClicked);
-
-    if (this.env.hasTouch()) {
-        this.$totalTime().on(TOUCH_EVENTS, tapHandler(this.containerClicked));
-    }
+    this.recognizerMaker.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());
 
     var currentTimeDom = this.$currentTime()[0];
     var totalTimeDom = this.$totalTime()[0];

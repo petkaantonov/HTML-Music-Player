@@ -7,7 +7,6 @@ import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
 import Track from "Track";
-import FixedItemListScroller from "ui/FixedItemListScroller";
 import TrackView from "ui/TrackView";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
@@ -110,6 +109,7 @@ export default function Search(domNode, opts) {
     AbstractTrackContainer.call(this);
     opts = Object(opts);
     this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
     this.keyboardShortcuts = opts.keyboardShortcuts;
@@ -132,7 +132,7 @@ export default function Search(domNode, opts) {
     this._topHistoryEntry = null;
     this._visible = false;
 
-    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight || 44, {
+    this._fixedItemListScroller = opts.scrollerMaker.createFixedItemListScroller(this.$(), this._trackViews, {
         scrollingX: false,
         snapping: true,
         zooming: false,

@@ -7,7 +7,7 @@ import AudioVisualizer from "audio/AudioVisualizer";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, onCapture } from "lib/util";
 import Track from "Track";
-import { TOUCH_EVENTS, isTouchEvent, tapHandler } from "lib/DomUtil";
+import { isTouchEvent } from "lib/DomUtil";
 
 const MINIMUM_DURATION = 3;
 const VOLUME_RATIO = 2;
@@ -19,7 +19,7 @@ export default function Player(dom, playlist, opts) {
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
     this.rippler = opts.rippler;
@@ -52,12 +52,9 @@ export default function Player(dom, playlist, opts) {
     this.$play().click(this.playButtonClicked.bind(this));
     this.$next().click(this.nextButtonClicked.bind(this));
     this.$previous().click(this.prevButtonClicked.bind(this));
-
-    if (this.env.hasTouch()) {
-        this.$play().on(TOUCH_EVENTS, tapHandler(this.playButtonClicked.bind(this)));
-        this.$next().on(TOUCH_EVENTS, tapHandler(this.nextButtonClicked.bind(this)));
-        this.$previous().on(TOUCH_EVENTS, tapHandler(this.prevButtonClicked.bind(this)));
-    }
+    this.recognizerMaker.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
+    this.recognizerMaker.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
+    this.recognizerMaker.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
 
     this._playTooltip = this.tooltipMaker.makeTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"

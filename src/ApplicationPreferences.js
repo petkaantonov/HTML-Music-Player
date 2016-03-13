@@ -2,10 +2,7 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { inherits, throttle } from "lib/util";
-import Slider from "ui/Slider";
-import { TOUCH_EVENTS, tapHandler } from "lib/DomUtil";
 import createPreferences from "PreferenceCreator";
-import Popup from "ui/Popup";
 
 const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
@@ -71,10 +68,12 @@ const Preferences = createPreferences({
 export default function ApplicationPreferences(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.env = opts.env;
     this.opts = opts;
     this.rippler = opts.rippler;
     this.db = opts.db;
-    this.env = opts.env;
+    this.recognizerMaker = opts.recognizerMaker;
+    this.sliderMaker = opts.sliderMaker;
     this.preferences = new Preferences();
 
     this.popup = opts.popupMaker.makePopup("Preferences", this.getHtml(), opts.preferencesButton, [{
@@ -94,10 +93,7 @@ export default function ApplicationPreferences(opts) {
     this.manager = null;
 
     $(opts.preferencesButton).click(this.popup.open.bind(this.popup));
-
-    if (this.env.hasTouch()) {
-        $(opts.preferencesButton).on(TOUCH_EVENTS, tapHandler(this.popup.open.bind(this.popup)));
-    }
+    this.recognizerMaker.createTapRecognizer(this.popup.open.bind(this.popup)).recognizeBubbledOn($(opts.preferencesButton));
     this.popup.on("open", this.popupOpened.bind(this));
 
     if (opts.dbValues && STORAGE_KEY in opts.dbValues) {
@@ -245,10 +241,7 @@ ApplicationPreferences.prototype.getHtml = function() {
 
 function CpuUsagePreferenceManager(preferencesManager) {
     this._preferenceManager = preferencesManager;
-    this._slider = new Slider(this.$().find(".cpu-usage-slider"), {
-        env: preferencesManager.env
-    });
-
+    this._slider = preferencesManager.sliderMaker.createSlider(this.$().find(".cpu-usage-slider"));
     this._valueChanged = this._valueChanged.bind(this);
     this._slider.on("slide", this._valueChanged);
 }

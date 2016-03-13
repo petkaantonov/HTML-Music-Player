@@ -5,9 +5,7 @@ import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
 import Track from "Track";
-import FixedItemListScroller from "ui/FixedItemListScroller";
 import Snackbar from "ui/Snackbar";
-import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import TrackView from "ui/TrackView";
 import AbstractTrackContainer from "AbstractTrackContainer";
 
@@ -68,6 +66,7 @@ TrackListDeletionUndo.prototype.destroy = function() {
 
 export default function Playlist(domNode, opts) {
     AbstractTrackContainer.call(this);
+    this.recognizerMaker = opts.recognizerMaker;
     this.env = opts.env;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
@@ -93,7 +92,7 @@ export default function Playlist(domNode, opts) {
     this._$trackContainer = this.$().find(".tracklist-transform-container");
     this._nextTrack = null;
 
-    this._fixedItemListScroller = new FixedItemListScroller(this.$(), this._trackViews, opts.itemHeight, {
+    this._fixedItemListScroller = opts.scrollerMaker.createFixedItemListScroller(this.$(), this._trackViews, {
         shouldScroll: function() {
             return !this._draggable.isDragging()
         }.bind(this),
