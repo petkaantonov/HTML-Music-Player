@@ -7,6 +7,15 @@ export default function AbstractGestureRecognizer(recognizerMaker) {
     this.recognizerMaker = recognizerMaker;
 }
 
+AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {
+    var modifierTouch = this.recognizerMaker.modifierTouch;
+    return !!(modifierTouch && (now - modifierTouch.started > this.recognizerMaker.TAP_TIME * 0.5));
+};
+
+AbstractGestureRecognizer.prototype.hasModifierTouch = function() {
+    return this.recognizerMaker.modifierTouch !== null;
+};
+
 AbstractGestureRecognizer.prototype.getDocumentActives = function() {
     return this.recognizerMaker.documentActives;
 };
@@ -15,7 +24,7 @@ AbstractGestureRecognizer.prototype.getModifierTouch = function() {
     return this.recognizerMaker.modifierTouch;
 };
 
-AbstractGestureRecognizer.prototype.recognizeBubbled = function($elem, selector) {
+AbstractGestureRecognizer.prototype.recognizeBubbledOn = function($elem, selector) {
     if (arguments.length <= 1) {
         $elem.on(this._eventType, this._recognizerHandler);
     } else if arguments.length === 2) {
@@ -25,7 +34,7 @@ AbstractGestureRecognizer.prototype.recognizeBubbled = function($elem, selector)
     }
 };
 
-AbstractGestureRecognizer.prototype.unrecognizeBubbled = function($elem, selector) {
+AbstractGestureRecognizer.prototype.unrecognizeBubbledOn = function($elem, selector) {
     if (arguments.length <= 1) {
         $elem.off(this._eventType, this._recognizerHandler);
     } else if arguments.length === 2) {
@@ -35,11 +44,11 @@ AbstractGestureRecognizer.prototype.unrecognizeBubbled = function($elem, selecto
     }
 };
 
-AbstractGestureRecognizer.prototype.recognizeCaptured = function(elem) {
+AbstractGestureRecognizer.prototype.recognizeCapturedOn = function(elem) {
     onCapture(elem, this._eventType, this._recognizerHandler);
 };
 
-AbstractGestureRecognizer.prototype.unrecognizeCaptured = function(elem) {
+AbstractGestureRecognizer.prototype.unrecognizeCapturedOn = function(elem) {
     offCapture(elem, this._eventType, this._recognizerHandler);
 };
 

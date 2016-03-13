@@ -1,24 +1,10 @@
 "use strict";
 
-import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
-import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import GestureObject from "ui/gestures/GestureObject";
+import AbstractDimensionCommittedDragRecognizer from "ui/gestures/AbstractDimensionCommittedDragRecognizer";
 import { inherits } from "lib/util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
-
-export default function VerticalDragRecognizer(recognizerMaker, handler) {
-    AbstractGestureRecognizer.call(this, recognizerMaker);
-    this.handler = handler;
-    this.actives = new ActiveTouchList();
-    this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerMaker.TOUCH_EVENTS;
+export default function VerticalDragRecognizer(recognizerMaker, fnStart, fnMove, fnEnd) {
+    AbstractDimensionCommittedDragRecognizer.call(this, recognizerMaker, fnStart, fnMove, fnEnd);
+    this.dimension = AbstractDimensionCommittedDragRecognizer.VERTICAL;
 }
-inherits(VerticalDragRecognizer, AbstractGestureRecognizer);
-
-VerticalDragRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-};
+inherits(VerticalDragRecognizer, AbstractDimensionCommittedDragRecognizer);
