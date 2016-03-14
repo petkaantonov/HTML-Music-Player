@@ -4,15 +4,14 @@
   "description": "HTML music player",
   "main": "index.js",
   "scripts": {
-    "build": "gulp css",
+    "build": "gulp build",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch-player-worker": "NODE_PATH=src watchify src/audio/AudioPlayerBackend.js --standalone AudioPlayer -o dist/worker/AudioPlayerWorker.js",
-    "watch-analyzer-worker": "NODE_PATH=src watchify src/audio/TrackAnalyzerBackend.js --standalone TrackAnalyzer -o dist/worker/TrackAnalyzerWorker.js",
-    "watch-app": "NODE_PATH=src watchify src/application.js --standalone Application -o dist/main.js",
-    "watch-css": "NODE_PATH=src node-sass -w sass/ --recursive sass/app-css-public.scss -o dist/css/",
-    "compile-css": "node-sass sass/ --output-style=\"compressed\" --recursive sass/app-css-public.scss -o dist/css/min/app-public-css.css",
-    "compile-css-dev": "node-sass sass/ --recursive sass/app-css-public.scss -o dist/css/",
-    "start": "npm run compile-css-dev && npm run watch-player-worker | npm run watch-analyzer-worker | npm run watch-app | npm run watch-css | ./https-server"
+    "watch-css": "gulp watch:css",
+    "watch-gui": "gulp watch:gui",
+    "watch-codecs": "gulp watch:codecs",
+    "watch-audio-player": "gulp watch:audio-player",
+    "watch-track-analyzer": "gulp watch:track-analyzer"
+
   },
   "repository": {
     "type": "git",

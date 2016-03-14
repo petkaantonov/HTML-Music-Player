@@ -64,13 +64,13 @@ function bundleJs(opts) {
     };
 }
 
-function bundleGui() {
+function bundleGui(min) {
     var bundles = bundleJs({
         entry: "src/bootstrap.js",
         moduleName: "bootstrap",
         format: "iife",
         banner: licenseHeader,
-        min: true
+        min: !!min
     });
 
     var full = bundles.full.pipe(source("main.js"))
@@ -78,16 +78,19 @@ function bundleGui() {
                 .pipe(sourcemaps.init({loadMaps: true}))
                 .pipe(sourcemaps.write("."))
                 .pipe(gulp.dest("dist"));
+    var minified = null;
 
-    var minified = bundles.minified.pipe(source("main.min.js"))
+    if (min) {
+        minified = bundles.minified.pipe(source("main.min.js"))
                     .pipe(buffer())
                     .pipe(sourcemaps.init({loadMaps: true}))
                     .pipe(sourcemaps.write("."))
                     .pipe(gulp.dest("dist"));
+    }
     return Promise.all([full, minified]);
 }
 
-function bundleCodecs() {
+function bundleCodecs(min) {
     mkdirp("dist/worker/codecs");
     var codecs = glob("src/codecs/**/*.js");
 
@@ -98,7 +101,7 @@ function bundleCodecs() {
             moduleName: name,
             format: "iife",
             /*banner: todo*/
-            min: true
+            min: !!min
         });
 
         var full = bundles.full.pipe(source(name + ".js"))
@@ -106,25 +109,28 @@ function bundleCodecs() {
                             .pipe(sourcemaps.init({loadMaps: true}))
                             .pipe(sourcemaps.write("."))
                             .pipe(gulp.dest("dist/worker/codecs"));
-
-        var min = bundles.minified.pipe(source(name + ".min.js"))
+        var minified = null;
+        if (min) {
+            minified = bundles.minified.pipe(source(name + ".min.js"))
                             .pipe(buffer())
                             .pipe(sourcemaps.init({loadMaps: true}))
                             .pipe(sourcemaps.write("."))
                             .pipe(gulp.dest("dist/worker/codecs"));
+        }
 
-        return Promise.all([min, full]);
+        return Promise.all([minified, full]);
     }, {concurrency: 4});
 }
 
-function bundleWorker(entry, name) {
+function bundleWorker(entry, name, min) {
     mkdirp("dist/worker");
 
     var bundles = bundleJs({
         entry: entry,
         moduleName: name,
         format: "iife",
-        banner: licenseHeader
+        banner: licenseHeader,
+        min: !!min
     });
 
     var full = bundles.full.pipe(source(name + ".js"))
@@ -133,23 +139,24 @@ function bundleWorker(entry, name) {
                 .pipe(replace(/^/, "self.DEBUGGING = true;\n"))
                 .pipe(sourcemaps.write("."))
                 .pipe(gulp.dest("dist/worker"));
-
-    var minified = bundles.minified.pipe(source(name + ".min.js"))
+    var minified = null;
+    if (min) {
+        minified = bundles.minified.pipe(source(name + ".min.js"))
                     .pipe(buffer())
                     .pipe(sourcemaps.init({loadMaps: true}))
                     .pipe(replace(/^/, "self.DEBUGGING = false;\n"))
                     .pipe(sourcemaps.write("."))
                     .pipe(gulp.dest("dist/worker"));
-
+    }
     return Promise.all([full, minified]);
 }
 
-function bundleTrackAnalyzerBackend() {
-    return bundleWorker("src/audio/TrackAnalyzerBackend.js", "TrackAnalyzerBackend");
+function bundleTrackAnalyzerBackend(min) {
+    return bundleWorker("src/audio/TrackAnalyzerBackend.js", "TrackAnalyzerBackend", min);
 }
 
-function bundleAudioPlayerBackend() {
-    return bundleWorker("src/audio/AudioPlayerBackend.js", "AudioPlayerBackend");
+function bundleAudioPlayerBackend(min) {
+    return bundleWorker("src/audio/AudioPlayerBackend.js", "AudioPlayerBackend", min);
 }
 
 function bundleServiceWorker() {
@@ -195,9 +202,41 @@ function bundleSass() {
 
 }
 
-gulp.task("audio-player-worker", bundleAudioPlayerBackend);
-gulp.task("track-analyzer-worker", bundleTrackAnalyzerBackend);
-gulp.task("service-worker", bundleServiceWorker);
-gulp.task("codecs", bundleCodecs);
-gulp.task("gui", bundleGui);
-gulp.task("css", bundleSass);
+function build() {
+    return Promise.all([
+        bundleSass(),
+        bundleGui(true),
+        bundleAudioPlayerBackend(true),
+        bundleTrackAnalyzerBackend(true),
+        bundleCodecs(true),
+        bundleServiceWorker()
+    ]);
+}
+
+function runWatchSass() {
+    return Promise.resolve(gulp.src("sass/**/*.scss")
+            .pipe(sass({recursive: true}).on("error", sass.logError))
+            .pipe(gulp.dest("dist/css")));
+}
+
+
+gulp.task("gui", bundleGui.bind(null, false));
+gulp.task("audio-player", bundleAudioPlayerBackend.bind(null, false));
+gulp.task("codecs", bundleCodecs.bind(null, false));
+gulp.task("track-analyzer", bundleTrackAnalyzerBackend.bind(null, false));
+
+gulp.task("runwatch:sass", runWatchSass);
+gulp.task('watch:css', function () {
+  mkdirp("dist/css");
+  runWatchSass().then(function() {
+    gulp.watch('sass/**/*.scss', ['runwatch:sass']);
+  });
+});
+
+["gui", "audio-player", "codecs", "track-analyzer"].forEach(function(v) {
+    gulp.task("watch:" + v, function() {
+        gulp.watch("src/**/*.js", [v]);
+    });
+});
+
+gulp.task("build", build);
