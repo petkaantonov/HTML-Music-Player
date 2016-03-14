@@ -3,7 +3,7 @@
 import Animator from "ui/Animator";
 import $ from "lib/jquery";
 
-const NULL = $(null);
+const NULL = $(null);
 
 const interp = function(currentTime, endTime) {
     var value = currentTime / endTime;

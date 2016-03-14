@@ -102,7 +102,7 @@ self.onmessage = function(event) {
     var args = data.args;
     if (receiver === -1) {
         if (data.methodName === "audioConfiguration") {
-            resamplerQuality = args.resamplerQuality || 0;
+            resamplerQuality = args.resamplerQuality || 0;
             channelMixer.setChannels(args.channels);
             hardwareSampleRate = args.sampleRate;
             if (args.bufferTime) {

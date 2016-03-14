@@ -76,7 +76,7 @@ const equals = function(a, b) {
         return arrayEquals(a, b);
     }
 
-    if (isObject(a) || isObject(b)) {
+    if (isObject(a) || isObject(b)) {
         return objectEquals(a, b);
     }
 

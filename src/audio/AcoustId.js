@@ -550,7 +550,7 @@ const parseAcoustId = function (data) {
     var result = data.results && data.results[0] || null;
 
     if (!result) return null;
-    if (!result.recordings || result.recordings.length === 0) return null;
+    if (!result.recordings || result.recordings.length === 0) return null;
     var bestRecordingGroup = getBestRecordingGroup(result.recordings);
     if (!bestRecordingGroup) return null;
     var recording = bestRecordingGroup.recording;

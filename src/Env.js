@@ -7,7 +7,7 @@ import parser from "ua-parser-js";
 export default function Env() {
     var input = document.createElement("input");
     const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
-    var ua = parser(navigator.userAgent);
+    var ua = parser(navigator.userAgent);
     var isDesktop = false;
 
     if (ua.device && ua.device.type) {

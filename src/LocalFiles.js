@@ -89,7 +89,7 @@ LocalFiles.prototype.traverseEntries = function(entries, ee, context) {
     });
 };
 
-const Directory = window.Directory || function() {};
+const Directory = window.Directory || function() {};
 LocalFiles.prototype.traverseFilesAndDirs = function(filesAndDirs, ee, context) {
     var self = this;
     return Promise.resolve(0).then(function loop(i) {

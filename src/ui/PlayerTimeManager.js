@@ -4,7 +4,7 @@ import $ from "lib/jquery";
 import { toTimeString } from "lib/util";
 import { changeDom, setTransform } from "lib/DomUtil";
 
-const pixelRatio = window.devicePixelRatio || 1;
+const pixelRatio = window.devicePixelRatio || 1;
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
 

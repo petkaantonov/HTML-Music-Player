@@ -19,7 +19,7 @@ export default function patch(AudioContext, instance) {
 
     (function() {
         var p = AudioContext.prototype;
-        p.createGain = p.createGainNode || p.createGain;
+        p.createGain = p.createGainNode || p.createGain;
         p.createDelay = p.createDelayNode || p.createDelay;
         p.createScriptProcessor = p.createJavaScriptNode || p.createScriptProcessor;
         p.createPeriodicWave = p.createWaveTable || p.createPeriodicWave;

@@ -11,7 +11,7 @@ export default function Slider(domNode, opts) {
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
-    this._sliding = false;
+    this._sliding = false;
     this._value = "value" in opts ? +opts.value : 0;
 
     this._onMousemove = this._onMousemove.bind(this);

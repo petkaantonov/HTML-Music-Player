@@ -23,7 +23,7 @@ export default function FixedItemListScroller(node, itemList, itemHeight, opts) 
     this._willChangeSet = false;
     this._changingDimensions = false;
 
-    this._minPrerenderedItems = opts.minPrerenderedItems || 15;
+    this._minPrerenderedItems = opts.minPrerenderedItems || 15;
     this._maxPrerenderedItems = opts.maxPrerenderedItems || 100;
 
     this._previousPhysicalHeight = 0;

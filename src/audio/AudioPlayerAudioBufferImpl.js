@@ -509,7 +509,7 @@ AudioPlayerSourceNode.prototype._timeUpdate = function() {
 };
 
 AudioPlayerSourceNode.prototype._ended = function() {
-    if (this._endedEmitted || this._destroyed || this._loadingNext) return;
+    if (this._endedEmitted || this._destroyed || this._loadingNext) return;
 
     this._player.playbackStopped();
     this._endedEmitted = true;

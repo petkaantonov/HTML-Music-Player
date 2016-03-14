@@ -31,7 +31,7 @@ NoiseSharpeningEffect.prototype.isEffective = function() {
     return this.effectSize !== 0;
 };
 
-Effect.create = function(spec) {
+Effect.create = function(spec) {
     switch (spec.name) {
         case "noise-sharpening":
             return new NoiseSharpeningEffect(spec);

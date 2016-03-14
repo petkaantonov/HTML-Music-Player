@@ -413,7 +413,7 @@ Track.prototype.isFromSameAlbumAs = function(otherTrack) {
     var thisAlbum = thisTagData.getAlbum();
     var otherAlbum = otherTagData.getAlbum();
 
-    if (!thisAlbum || !otherAlbum) {
+    if (!thisAlbum || !otherAlbum) {
         return false;
     }
 

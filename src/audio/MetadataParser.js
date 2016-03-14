@@ -7,7 +7,7 @@ import parseMp3Metadata from "metadata/mp3_metadata";
 import TrackSearchIndex from "TrackSearchIndex";
 
 const maxActive = 8;
-const queue = [];
+const queue = [];
 var active = 0;
 
 const codecNotSupportedError = function() {

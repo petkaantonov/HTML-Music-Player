@@ -5,7 +5,6 @@ var glob = require("glob").sync;
 var source = require('vinyl-source-stream');
 var rollup = require('rollup-stream');
 var uglify = require('rollup-plugin-uglify');
-var gjslint = require('gulp-gjslint');
 var sourcemaps = require('gulp-sourcemaps');
 var replace = require('gulp-replace');
 var path = require('path');

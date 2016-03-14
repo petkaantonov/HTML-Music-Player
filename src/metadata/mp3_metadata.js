@@ -193,7 +193,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         if (typeString.indexOf("/") === -1) {
             if (/jpg|jpeg|png/.test(typeString)) {
                 type = "image/" + typeString;
-            } else {
+            } else {
                 return;
             }
         } else {

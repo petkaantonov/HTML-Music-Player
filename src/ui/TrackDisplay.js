@@ -8,7 +8,7 @@ export default function TrackDisplay(dom, playlist, opts) {
     this._playlist = playlist;
     this._containerNode = $($(dom)[0]);
     this._domNode = this.$container().find(opts.target);
-    this._delay = +opts.delay || 5000;
+    this._delay = +opts.delay || 5000;
     this._pixelsPerSecond = +opts.pixelsPerSecond || 22;
     this._defaultTitle = opts.defaultTitle;
 

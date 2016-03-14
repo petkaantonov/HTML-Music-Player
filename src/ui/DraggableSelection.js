@@ -11,7 +11,7 @@ export default function DraggableSelection(dom, viewList, fixedItemListScroller,
     EventEmitter.call(this);
     opts = Object(opts);
     this._recognizerMaker = opts.recognizerMaker;
-    this._mustMatchSelector = opts.mustMatchSelector || null;
+    this._mustMatchSelector = opts.mustMatchSelector || null;
     this._mustNotMatchSelector = opts.mustNotMatchSelector || null;
     this._fixedItemListScroller = fixedItemListScroller;
     this._domNode = $(dom);

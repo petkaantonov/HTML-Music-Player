@@ -10,7 +10,7 @@ export const allocBuffer = function(size, channels) {
     var key = size + " " + channels;
 
     var buffers = bufferPool[key];
-    if (!buffers || !buffers.length) {
+    if (!buffers || !buffers.length) {
         buffers = new Array(channels);
         for (var i = 0; i < channels; ++i) {
             buffers[i] = new Float32Array(size);

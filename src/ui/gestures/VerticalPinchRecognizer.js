@@ -2,7 +2,6 @@
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
 
 const TOUCH_START = "touchstart";
@@ -17,7 +16,6 @@ export default function VerticalPinchRecognizer(recognizerMaker, handler) {
     this.started = -1;
     this.currentATouch = null;
     this.currentBTouch = null;
-    this.callback = fn;
     this.aChanged = false;
     this.bChanged = false;
     this._eventType = recognizerMaker.TOUCH_EVENTS;
@@ -27,7 +25,6 @@ inherits(VerticalPinchRecognizer, AbstractGestureRecognizer);
 
 VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
     var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-    var selecting = false;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 2) {
@@ -42,8 +39,8 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
                 this.currentBTouch = this.actives.nth(1) || null;
             }
         }
-        this.started = this.currentATouch !== null && this.currentBTouch !== null
-                            ? (e.timeStamp || e.originalEvent.timeStamp) : -1;
+        this.started = this.currentATouch !== null && this.currentBTouch !== null ?
+                                                        (e.timeStamp || e.originalEvent.timeStamp) : -1;
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (!this.actives.contains(this.currentATouch) || !this.actives.contains(this.currentBTouch)) {
             this.clear();
@@ -56,18 +53,18 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
 
-        if (!this.aChanged || !this.bChanged) {
+        if (!this.aChanged || !this.bChanged) {
             for (var i = 0; i < changedTouches.length; ++i) {
                 var touch = changedTouches[i];
-
+                var delta;
                 if (touch.identifier === this.currentATouch.identifier) {
-                    var delta = Math.abs(touch.clientY - this.currentATouch.clientY);
+                    delta = Math.abs(touch.clientY - this.currentATouch.clientY);
                     if (delta > 25) {
                         this.aChanged = true;
                         this.currentATouch = touch;
                     }
                 } else if (touch.identifier === this.currentBTouch.identifier) {
-                    var delta = Math.abs(touch.clientY - this.currentATouch.clientY);
+                    delta = Math.abs(touch.clientY - this.currentATouch.clientY);
                     if (delta > 25) {
                         this.bChanged = true;
                         this.currentBTouch = touch;
@@ -82,7 +79,7 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
 
         if ((this.aChanged || this.bChanged) &&
             this.started !== -1 &&
-            ((e.timeStamp || e.originalEvent.timeStamp) - this.started) > (this.recognizerMaker.TAP_TIME * 2)) {
+            ((e.timeStamp || e.originalEvent.timeStamp) - this.started) > (this.recognizerMaker.TAP_TIME * 2)) {
             this.aChanged = this.bChanged = false;
             var start, end;
 

@@ -13,7 +13,7 @@ var expectedCodec = null;
 const loadCodec = function(name, retries) {
     if (codecs[name]) return codecs[name];
     if (retries === undefined) retries = 0;
-    codecs[name] = new Promise(function(resolve, reject) {
+    codecs[name] = new Promise(function(resolve, reject) {
         var url = globalObject.DEBUGGING === false ? "codecs/" + name + ".min.js" : "codecs/" + name + ".js";
         var xhr = new XMLHttpRequest();
         xhr.addEventListener("load", function() {

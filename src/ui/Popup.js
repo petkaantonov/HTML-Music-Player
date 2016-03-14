@@ -304,7 +304,7 @@ Popup.prototype._renderCssPosition = function() {
 
 Popup.prototype._setMinimumNecessaryHeight = function() {
     var headerHeight = this.$().find(".popup-header").outerHeight(true);
-    var footerHeight = this.$().find(".popup-footer").outerHeight(true) || 0;
+    var footerHeight = this.$().find(".popup-footer").outerHeight(true) || 0;
     var contentHeight = this.$().find(".popup-body-content").outerHeight() + 2;
     this.$().css("height", Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight));
 };

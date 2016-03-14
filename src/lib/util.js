@@ -162,7 +162,7 @@ export const truncateUp = function(num) {
 };
 
 export const toTimeString = function(secs) {
-    if (!isFinite(secs) || secs == null) return "";
+    if (!isFinite(secs) || secs == null) return "";
     var sign = secs < 0 ? -1 : 1;
     secs = Math.floor(Math.abs(secs));
     var days, hours, minutes, seconds;

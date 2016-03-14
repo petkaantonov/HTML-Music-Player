@@ -204,7 +204,7 @@ AudioManager.prototype.normalizeLoudness = function() {
     if (this.destroyed) return;
     var track = this.track;
     var replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
-        track.getTrackGain() || track.getAlbumGain() || -6);
+        track.getTrackGain() || track.getAlbumGain() || -6);
 
     if (track.getTrackPeak() > 1) {
         replayGain = (1 / track.getTrackPeak()) * replayGain;

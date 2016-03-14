@@ -359,7 +359,7 @@ Application.prototype.documentKeydowned = function(e) {
         e.target.tabIndex >= 0 &&
         !rinput.test(e.target.nodeName)) {
 
-        if (key === "Spacebar" || key === "Enter") {
+        if (key === "Spacebar" || key === "Enter") {
             var box = e.target.getBoundingClientRect();
             var x = (((box.left + box.right) / 2) | 0) - window.scrollX;
             var y = (((box.top + box.bottom) / 2) | 0) - window.scrollY;

@@ -426,7 +426,7 @@ function AdditionalAnimationProperty(animator, property) {
     this.end = property.end;
     this.unit = property.unit || "";
     this.duration = "duration" in property ? +property.duration : -1;
-    this.repeat = property.repeat || "none";
+    this.repeat = property.repeat || "none";
 
     if (this.isMulti) {
         if (!Array.isArray(this.start)) {

@@ -56,7 +56,7 @@ LongTapRecognizer.prototype._recognizerHandler = function(e) {
         }
     } else if (e.type === TOUCH_MOVE) {
         var touch = changedTouches[0];
-        if (this.actives.length() !== 1 || !this.actives.contains(this.currentTouch) || !this.actives.contains(touch)) {
+        if (this.actives.length() !== 1 || !this.actives.contains(this.currentTouch) || !this.actives.contains(touch)) {
             this.clear();
             return;
         }

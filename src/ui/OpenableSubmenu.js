@@ -8,7 +8,7 @@ export default function OpenableSubmenu(dom, opener, opts) {
     this._rippler = opts.rippler;
     this._domNode = $($(dom)[0]);
     this._opener = $($(opener)[0]);
-    this._keyboardElements = this.$().find("*").filter(function() {
+    this._keyboardElements = this.$().find("*").filter(function() {
         return this.tabIndex >= 0;
     });
 

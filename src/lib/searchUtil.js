@@ -8,7 +8,7 @@ const rext = /\.[a-zA-Z0-9_\-]+$/
 export const calculateUid = function(file, metadata, useTagged) {
     var title, album, artist;
     if (useTagged) {
-        title = metadata.taggedTitle || undefined;
+        title = metadata.taggedTitle || undefined;
         album = metadata.taggedAlbum || undefined;
         artist = metadata.taggedArtist || undefined;
     } else {

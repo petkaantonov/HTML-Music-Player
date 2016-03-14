@@ -216,7 +216,7 @@ export default function Snackbar(opts) {
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";
-    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
+    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
     this.actionClass = opts.actionClass || "snackbar-action";
     this.titleClass = opts.titleClass || "snackbar-title";

@@ -232,7 +232,7 @@ ActionMenuItem.prototype._createDom = function() {
         var node = $('<div>', {class: this.root.itemClass});
         if (typeof content === "string") {
             node.html(content);
-        } else if (content == null) {
+        } else if (content == null) {
             node.hide();
         } else {
             node.empty().append(content);

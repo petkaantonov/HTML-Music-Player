@@ -6,9 +6,6 @@ import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
 
 const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
 
 export default function TouchdownRecognizer(recognizerMaker, handler) {
     AbstractGestureRecognizer.call(this, recognizerMaker);
@@ -26,7 +23,7 @@ TouchdownRecognizer.prototype._recognizerHandler = function(e) {
     if (e.type === TOUCH_START && this.getDocumentActives().length() <= 1) {
         for (var i = 0; i < newTouches.length; ++i) {
             var touch = newTouches[i];
-            var g = new GestureObject(e, touch, touch.identifier === actives.first().identifier);
+            var g = new GestureObject(e, touch, touch.identifier === this.actives.first().identifier);
             this.handler.call(e.currentTarget, g);
         }
     }

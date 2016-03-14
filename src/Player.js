@@ -220,7 +220,7 @@ Player.prototype.getProgress = function() {
 };
 
 Player.prototype.setProgress = function(p) {
-    if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
+    if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
     p = Math.min(Math.max(p, 0), 1);
     var duration = this.currentAudioManager.getDuration();
     if (!duration) return;

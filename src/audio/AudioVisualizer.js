@@ -58,7 +58,7 @@ export default function AudioVisualizer(audioContext, sourceNode, visualizerCanv
     this.setMultiplier("multiplier" in opts ? +opts.multiplier : 1);
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
-    this.minFrequency = opts.minFrequency || 20;
+    this.minFrequency = opts.minFrequency || 20;
     this.bufferSize = 2;
     this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
     this.sourceNode = sourceNode;

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "gulp build",
+    "lint": "gulp lint",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch-css": "gulp watch:css",
     "watch-gui": "gulp watch:gui",

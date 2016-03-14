@@ -83,7 +83,7 @@ const resampler_basic_direct_double_accum = new Float64Array(4);
 
 function QualityMapping(v) {
    this.base_length = v[0] | 0;
-   this.oversample = v[1] | 0;
+   this.oversample = v[1] | 0;
    this.downsample_bandwidth = Math.fround(v[2]);
    this.upsample_bandwidth = Math.fround(v[3]);
    this.table = v[4];

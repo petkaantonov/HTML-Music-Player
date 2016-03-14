@@ -296,7 +296,7 @@ Playlist.prototype._updateNextTrack = function(forced) {
     var nextTrack = this._nextTrack;
 
     if (!forced && nextTrack && !nextTrack.isDetachedFromPlaylist() &&
-        this.isUsingShuffleMode()) {
+        this.isUsingShuffleMode()) {
         return;
     }
 

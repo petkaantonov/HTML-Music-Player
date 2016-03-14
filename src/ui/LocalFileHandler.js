@@ -135,7 +135,7 @@ LocalFileHandler.prototype.generateFakeFiles = function(count) {
         files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
     }
     var self = this;
-    setTimeout(function() {
+    setTimeout(function() {
         self.addFilesToPlaylist(files);
     }, 100);
 };

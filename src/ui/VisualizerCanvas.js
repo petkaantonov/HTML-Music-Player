@@ -8,7 +8,7 @@ import Default2dImageRenderer from "ui/Default2dImageRenderer";
 import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
 import EventEmitter from "lib/events";
 
-const pixelRatio = window.devicePixelRatio || 1;
+const pixelRatio = window.devicePixelRatio || 1;
 const SHADOW_BLUR = 2 * pixelRatio | 0;
 const SHADOW_COLOR = "rgb(11,32,53)";
 

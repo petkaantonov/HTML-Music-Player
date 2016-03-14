@@ -16,7 +16,6 @@ import VerticalDragRecognizer from "ui/gestures/VerticalDragRecognizer";
 import HorizontalDragRecognizer from "ui/gestures/HorizontalDragRecognizer";
 import VerticalPinchRecognizer from "ui/gestures/VerticalPinchRecognizer";
 import HorizontalSwipeRecognizer from "ui/gestures/HorizontalSwipeRecognizer";
-import VerticalSwipeRecognizer from "ui/gestures/VerticalSwipeRecognizer";
 import HorizontalTwoFingerSwipeRecognizer from "ui/gestures/HorizontalTwoFingerSwipeRecognizer";
 import LongTapRecognizer from "ui/gestures/LongTapRecognizer";
 import DoubleTapRecognizer from "ui/gestures/DoubleTapRecognizer";
@@ -116,7 +115,7 @@ GestureRecognizerMaker.prototype.updateModifierTouch = function(e) {
     if (e.type === TOUCH_START) {
         if (this.modifierTouch === null) {
             this.modifierTouch = this.documentActives.first();
-            this.modifierTouch.started = e.timeStamp || e.originalEvent.timeStamp;
+            this.modifierTouch.started = e.timeStamp || e.originalEvent.timeStamp;
         }
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (!this.documentActives.contains(this.modifierTouch)) {
@@ -211,10 +210,6 @@ GestureRecognizerMaker.prototype.createVerticalPinchRecognizer = function(fn) {
 
 GestureRecognizerMaker.prototype.createHorizontalSwipeRecognizer = function(fn, direction) {
     return new HorizontalSwipeRecognizer(this, fn, direction);
-};
-
-GestureRecognizerMaker.prototype.createVerticalSwipeRecognizer = function(fn, direction) {
-    return new VerticalSwipeRecognizer(this, fn, direction);
 };
 
 GestureRecognizerMaker.prototype.createHorizontalTwoFingerSwipeRecognizer = function(fn, direction) {

@@ -201,7 +201,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
             });
         }).finally(function() {
             if (imageUrl) {
-                try {
+                try {
                     URL.revokeObjectURL(imageUrl);
                 } catch (e) {}
                 imageUrl = null;

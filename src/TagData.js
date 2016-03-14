@@ -14,7 +14,7 @@ const HAS_IMAGE = 4;
 
 const albumNameToCoverArtUrlMap = Object.create(null);
 
-export default function TagData(track, data, trackAnalyzer) {
+export default function TagData(track, data, trackAnalyzer) {
     this.track = track;
 
     this.title = data.title || null;

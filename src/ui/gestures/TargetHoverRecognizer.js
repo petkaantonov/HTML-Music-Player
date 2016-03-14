@@ -23,15 +23,15 @@ export default function TargetHoverRecognizer(recognizerMaker, startHandler, end
 inherits(TargetHoverRecognizer, AbstractGestureRecognizer);
 
 TargetHoverRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-    var targetTouches = e.targetTouches || e.originalEvent.targetTouches;
+    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    var targetTouches = e.targetTouches || e.originalEvent.targetTouches;
 
     if (e.type === TOUCH_START) {
         if (this.currentTouch === null && targetTouches.length > 0) {
             this.currentTouch = targetTouches[0];
             this.bounds = this.startHandler.call(e.currentTarget, e);
         }
-    } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL || e.type === TOUCH_MOVE) {
+    } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL || e.type === TOUCH_MOVE) {
         if (this.currentTouch !== null) {
             if (targetTouches.length === 0) {
                 this.end(e);

@@ -6,7 +6,7 @@ const codeToString = function(code) {
     return Object.keys(AcoustIdApiError).filter(function(key) {
         var value = AcoustIdApiError[key];
         return typeof value === "number" && code === value;
-    })[0] || "ERROR_UNKNOWN";
+    })[0] || "ERROR_UNKNOWN";
 };
 
 export default var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {

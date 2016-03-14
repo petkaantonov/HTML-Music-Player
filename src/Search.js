@@ -359,7 +359,7 @@ Search.prototype._inputBlurred = function() {
                 this._searchHistory.pop().destroy();
             }
             this.saveHistory(this._searchHistory);
-        } else {
+        } else {
             this._topHistoryEntry.update(this._session._rawQuery);
             this.saveHistory(this._searchHistory);
         }
