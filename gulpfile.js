@@ -152,10 +152,15 @@ function bundleAudioPlayerBackend() {
 }
 
 function bundleServiceWorker() {
+    var codecPaths = glob("src/codecs/**/*.js").map(function(sourcePath) {
+        var name = path.basename(sourcePath, ".js");
+        return "dist/worker/codecs/" + name + ".min.js";
+    });
+
     var assets = ["dist/css/app-css-public.min.css"]
                     .concat(glob("dist/images/**/*.*"))
                     .concat(glob("dist/fonts/**/*.woff*"))
-                    .concat(glob("dist/worker/codecs/**/*.min.js"))
+                    .concat(codecPaths)
                     .concat("dist/worker/AudioPlayerWorker.min.js", "dist/worker/TrackAnalyzerWorker.min.js");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
