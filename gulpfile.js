@@ -18,6 +18,7 @@ var nodeResolve = require("rollup-plugin-node-resolve");
 var gulpUglify = require("gulp-uglify");
 var rename = require("gulp-rename");
 var sass = require('gulp-sass');
+var jshint = require("gulp-jshint");
 
 var licenseHeader = fs.readFileSync("./LICENSE_header", "utf8");
 
@@ -219,6 +220,10 @@ function runWatchSass() {
             .pipe(gulp.dest("dist/css")));
 }
 
+
+gulp.task("lint", function() {
+    return gulp.src("src/**/*.js").pipe(jshint(".jshintrc")).pipe(jshint.reporter("jshint-stylish"));
+});
 
 gulp.task("gui", bundleGui.bind(null, false));
 gulp.task("audio-player", bundleAudioPlayerBackend.bind(null, false));
