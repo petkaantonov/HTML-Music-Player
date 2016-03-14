@@ -6,7 +6,7 @@ export default function Effect(spec) {
     this.name = spec.name;
 }
 
-Effect.prototype.applyToChannel = function(channelIndex, samples) {};
+Effect.prototype.applyToChannel = function() {};
 Effect.prototype.isEffective = function() {
     return false;
 };
@@ -35,7 +35,6 @@ Effect.create = function(spec) {
     switch (spec.name) {
         case "noise-sharpening":
             return new NoiseSharpeningEffect(spec);
-        return;
         default: throw new Error("unknown effect: " + spec.name);
     }
 };

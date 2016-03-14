@@ -1,13 +1,15 @@
 "use strict";
 
+import AudioVisualizer from "audio/AudioVisualizer";
+
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
-
 const SEEK_START_CURVE = new Float32Array([1, 0.001]);
 const SEEK_END_CURVE = new Float32Array([0.001, 1]);
 const SEEK_START_FADE_TIME = 0.5;
 const SEEK_END_FADE_TIME = 0.5;
+const VOLUME_RATIO = 2;
 
 export default function AudioManager(player, track, implicitlyLoaded) {
     this.gaplessPreloadTrack = null;
@@ -42,7 +44,7 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.track.on("tagDataUpdate", this.trackTagDataUpdated);
     this.player.playlist.on("nextTrackChange", this.nextTrackChanged);
 
-    this.sourceNode = audioPlayer.createSourceNode();
+    this.sourceNode = this.player.audioPlayer.createSourceNode();
     this.sourceNode.on("lastBufferQueued", this.lastBufferQueued);
     this.sourceNode.setVolume(1);
     this.sourceNode.pause();
@@ -381,7 +383,7 @@ AudioManager.prototype.fadeInSeekGain = function() {
     this.seekGain.gain.cancelScheduledValues(0);
     this.seekGain.gain.value = 0.001;
     this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
-}
+};
 
 AudioManager.prototype.willSeek = function() {
     this.intendingToSeek = -1;
@@ -421,7 +423,7 @@ AudioManager.prototype.updateVolume = function(volume) {
     this.volumeGain.gain.value = volume * VOLUME_RATIO;
 };
 
-AudioManager.prototype.getFadeInTime = function(track) {
+AudioManager.prototype.getFadeInTime = function() {
     var preferences = this.player.crossfadingPreferences.getPreferences();
     var fadeInEnabled = preferences.getInEnabled();
 
@@ -436,7 +438,7 @@ AudioManager.prototype.getFadeInTime = function(track) {
 
     var duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getInTime(),
-            duration - MINIMUM_DURATION - preferences.getOutTime()));
+            duration - this.player.MINIMUM_DURATION - preferences.getOutTime()));
 };
 
 AudioManager.prototype.getFadeOutTime = function() {
@@ -454,7 +456,7 @@ AudioManager.prototype.getFadeOutTime = function() {
 
     var duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getOutTime(),
-            duration - MINIMUM_DURATION - preferences.getInTime()));
+            duration - this.player.MINIMUM_DURATION - preferences.getInTime()));
 };
 
 AudioManager.prototype.updateSchedules = function(forceReset) {

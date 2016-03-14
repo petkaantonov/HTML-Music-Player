@@ -14,7 +14,7 @@ const gestureEducationMessages = {
 export default function GestureEducator(snackbar, db, dbValues) {
     this.snackbar = snackbar;
     this.db = db;
-    this.dbValues;
+    this.dbValues = dbValues;
     this.store = Object(dbValues[GESTURE_EDUCATION_KEY]);
 }
 

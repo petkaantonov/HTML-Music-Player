@@ -1,6 +1,6 @@
 "use strict";
 import Promise from "bluebird";
-import { IDBPromisify, assign } from "lib/util";
+import { iDbPromisify, assign } from "lib/util";
 const VERSION = 3;
 const NAME = "TagDatabase";
 const KEY_NAME = "trackUid";
@@ -14,7 +14,7 @@ const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
 export default function TagDatabase() {
     var request = indexedDB.open(NAME, VERSION);
-    this.db = IDBPromisify(request);
+    this.db = iDbPromisify(request);
     this.db.suppressUnhandledRejections();
 
     this._onUpgradeNeeded = this._onUpgradeNeeded.bind(this);
@@ -28,12 +28,12 @@ TagDatabase.prototype._onUpgradeNeeded = function(event) {
 
     try {
         objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
-        objectStore = IDBPromisify(objectStore.transaction);
+        objectStore = iDbPromisify(objectStore.transaction);
     } catch (e) {}
 
     try {
         albumStore = db.createObjectStore(COVERART_TABLE_NAME, { keyPath: ALBUM_KEY_NAME});
-        albumStore = IDBPromisify(albumStore.transaction);
+        albumStore = iDbPromisify(albumStore.transaction);
     } catch (e) {}
 
     this.db = Promise.all([objectStore, albumStore]).thenReturn(db);
@@ -41,14 +41,14 @@ TagDatabase.prototype._onUpgradeNeeded = function(event) {
 
 TagDatabase.prototype.query = function(trackUid) {
     return this.db.then(function(db) {
-        return IDBPromisify(db.transaction(TABLE_NAME).objectStore(TABLE_NAME).get(trackUid));
+        return iDbPromisify(db.transaction(TABLE_NAME).objectStore(TABLE_NAME).get(trackUid));
     });
 };
 
 TagDatabase.prototype.getAlbumImage = function(album) {
     if (!album) return Promise.resolve(null);
     return this.db.then(function(db) {
-        return IDBPromisify(db.transaction(COVERART_TABLE_NAME).objectStore(COVERART_TABLE_NAME).get(album));
+        return iDbPromisify(db.transaction(COVERART_TABLE_NAME).objectStore(COVERART_TABLE_NAME).get(album));
     });
 };
 
@@ -61,7 +61,7 @@ TagDatabase.prototype.setAlbumImage = function(album, url) {
             album: album,
             url: url
         };
-        return IDBPromisify(store.put(obj));
+        return iDbPromisify(store.put(obj));
     });
 };
 
@@ -70,11 +70,11 @@ TagDatabase.prototype.insert = function(trackUid, data) {
     var self = this;
     return this.db.then(function(db) {
         var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-        return IDBPromisify(store.get(trackUid));
+        return iDbPromisify(store.get(trackUid));
     }).then(function(previousData) {
         var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
         var newData = assign({}, previousData || {}, data);
-        return IDBPromisify(store.put(newData));
+        return iDbPromisify(store.put(newData));
     });
 };
 
@@ -83,13 +83,13 @@ const fieldUpdater = function(fieldName) {
         var self = this;
         return this.db.then(function(db) {
             var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-            return IDBPromisify(store.get(trackUid));
+            return iDbPromisify(store.get(trackUid));
         }).then(function(data) {
             var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
             data = Object(data);
             data.trackUid = trackUid;
             data[fieldName] = value;
-            return IDBPromisify(store.put(data));
+            return iDbPromisify(store.put(data));
         });
     };
 };

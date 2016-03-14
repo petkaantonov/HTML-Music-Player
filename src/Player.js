@@ -3,14 +3,13 @@ import $ from "jquery";
 import Promise from "bluebird";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
-import AudioVisualizer from "audio/AudioVisualizer";
 import EventEmitter from "events";
-import { documentHidden, inherits, onCapture } from "lib/util";
+import { documentHidden, inherits } from "lib/util";
 import Track from "Track";
 import { isTouchEvent } from "lib/DomUtil";
 
 const MINIMUM_DURATION = 3;
-const VOLUME_RATIO = 2;
+
 const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
 const LATENCY_KEY = "audio-hardware-latency";
@@ -74,7 +73,7 @@ export default function Player(dom, playlist, opts) {
     }
 
     if (MUTED_KEY in this.dbValues) {
-        if (dbValues[MUTED_KEY]) {
+        if (this.dbValues[MUTED_KEY]) {
             this.toggleMute();
         }
     }
@@ -94,6 +93,8 @@ export default function Player(dom, playlist, opts) {
     this.applicationPreferences.on("change", this.applicationPreferencesChanged.bind(this));
 }
 inherits(Player, EventEmitter);
+
+Player.prototype.MINIMUM_DURATION = MINIMUM_DURATION;
 
 Player.prototype.audioContextReset = function() {
     if (this.currentAudioManager) {

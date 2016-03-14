@@ -1,5 +1,4 @@
 "use strict";
-import Track from "Track";
 import Promise from "bluebird";
 import EventEmitter from "events";
 
@@ -41,7 +40,7 @@ LocalFiles.prototype.defaultFilter = function(file) {
 LocalFiles.prototype.readEntries = function(reader) {
     return new Promise(function(resolve, reject) {
         reader.readEntries(resolve, reject);
-    }).catch(function(e) {
+    }).catch(function() {
         return [];
     });
 };
@@ -50,7 +49,7 @@ LocalFiles.prototype.readEntries = function(reader) {
 LocalFiles.prototype.entryToFile = function(entry) {
     return new Promise(function(resolve, reject) {
         entry.file(resolve, reject);
-    }).catch(function(e) {
+    }).catch(function() {
         return null;
     });
 };
@@ -108,7 +107,7 @@ LocalFiles.prototype.traverseFilesAndDirs = function(filesAndDirs, ee, context) 
                 return Promise.resolve(file.getFilesAndDirectories()).then(function(filesAndDirs) {
                     return self.traverseFilesAndDirs(filesAndDirs, ee, context);
                 })
-                .catch(function(e) {})
+                .catch(function() {})
                 .finally(function() {
                     return loop(i + 1);
                 });

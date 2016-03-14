@@ -1,7 +1,6 @@
 "use strict";
 
 import Promise from "bluebird";
-import FileView from "lib/FileView";
 
 const MINIMUM_DURATION = 3;
 const MP3_DECODER_DELAY = 529;
@@ -18,12 +17,11 @@ const VBRI = 0x56425249|0;
 const Xing = 0x58696e67|0;
 const Info = 0x496e666f|0;
 const LAME = 0x4c414d45|0;
-const TAG = 0x544147|0;
 const DATA = 0x64617461|0;
 const FACT = 0x66616374|0;
 
 const LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP = 5 * 1024 * 1024;
-const NETWORK_FILE_MAX_BYTES_UNTIL_GIVEUP = 50 * 1024;
+//const NETWORK_FILE_MAX_BYTES_UNTIL_GIVEUP = 50 * 1024;
 
 const BLOCK_SIZE = 16384;
 
@@ -41,19 +39,19 @@ function demuxMp3FromWav(offset, fileView) {
     var chunkSize = fileView.getInt32(offset + 4, true);
     var dataEnd = offset + chunkSize + 8;
     var subChunkSize = fileView.getInt32(offset + 16, true);
-    var fmt = fileView.getInt16(offset + 20, true);
+    //var fmt = fileView.getInt16(offset + 20, true);
     var channels = fileView.getInt16(offset + 22, true);
     var sampleRate = fileView.getInt32(offset + 24, true);
     var lsf = sampleRate < 32000;
     var samplesPerFrame = lsf ? 576 : 1152;
     var byteRate = fileView.getInt32(offset + 28, true);
-    var align = fileView.getInt16(offset + 32, true);
-    var bitsPerSample = fileView.getInt16(offset + 34, true);
-    var extraParamSize = fileView.getInt16(offset + 36, true);
-    var wId = fileView.getInt16(offset + 38, true);
-    var flags = fileView.getInt32(offset + 40, true);
+    //var align = fileView.getInt16(offset + 32, true);
+    //var bitsPerSample = fileView.getInt16(offset + 34, true);
+    //var extraParamSize = fileView.getInt16(offset + 36, true);
+    //var wId = fileView.getInt16(offset + 38, true);
+    //var flags = fileView.getInt32(offset + 40, true);
     var blockSize = fileView.getInt16(offset + 44, true);
-    var framesPerBlock = fileView.getInt16(offset + 46, true);
+    //var framesPerBlock = fileView.getInt16(offset + 46, true);
     var encoderDelay = fileView.getInt16(offset + 48, true);
     var frames = 0;
 
@@ -358,7 +356,7 @@ export default function(codecName, fileView, noSeekTable, maxSize) {
             return demuxMp3(fileView, noSeekTable, maxSize);
         }
     } catch (e) {
-        throw e;
+        console.log(e.stack);
         return null;
     }
     return null;
@@ -390,9 +388,9 @@ Mp3SeekTable.prototype.fillUntil = Promise.method(function(time, metadata, fileV
     var offset = metadata.dataStart;
     var end = metadata.dataEnd;
 
-    var bufferSize = metadata.maxByteSizePerSample * metadata.samplesPerFrame | 0;
+    //var bufferSize = metadata.maxByteSizePerSample * metadata.samplesPerFrame | 0;
     var maxFrames = Math.ceil(time * (metadata.sampleRate / (1152 >> metadata.lsf)));
-    var lsf = metadata.lsf ? 1 : 0;
+    //var lsf = metadata.lsf ? 1 : 0;
 
     var table = this.table;
     var offset, frames;

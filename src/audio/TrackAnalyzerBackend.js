@@ -5,7 +5,6 @@ import blobPatch from "lib/blobpatch";
 import { assign } from "lib/util";
 import TagDatabase from "TagDatabase";
 import MetadataParser from "audio/MetadataParser";
-import Resampler from "audio/Resampler";
 import ChannelMixer from "audio/ChannelMixer";
 import FileView from "lib/FileView";
 import demuxer from "audio/demuxer";
@@ -15,8 +14,6 @@ import {allocBuffer, freeBuffer, allocResampler, allocDecoderContext, freeResamp
 import AcoustId from "audio/AcoustId";
 import Ebur128 from "audio/ebur128";
 import EventEmitter from "events";
-
-initTextCodec(self);
 self.EventEmitter = EventEmitter;
 
 const db = new TagDatabase();
@@ -71,7 +68,7 @@ const promiseMessageSuccessErrorHandler = function(args, p, jobType) {
                 stack: e.stack
             }
         });
-    })
+    });
 };
 
 const apiActions = {
@@ -90,19 +87,19 @@ const apiActions = {
     },
 
     fetchAnalysisData: function(args) {
-        promiseMessageSuccessErrorHandler(args, MetadataParser.fetchAnalysisData(args), "analysisData");
+        promiseMessageSuccessErrorHandler(args, MetadataParser.fetchAnalysisData(db, args), "analysisData");
     },
 
     fetchAcoustId: function(args) {
-        promiseMessageSuccessErrorHandler(args, AcoustId.fetch(args), "acoustId");
+        promiseMessageSuccessErrorHandler(args, AcoustId.fetch(db, args), "acoustId");
     },
 
     fetchAcoustIdImage: function(args) {
-        promiseMessageSuccessErrorHandler(args, AcoustId.fetchImage(args), "acoustIdImage");
+        promiseMessageSuccessErrorHandler(args, AcoustId.fetchImage(db, args), "acoustIdImage");
     },
 
     rateTrack: function(args) {
-        tagDatabase.updateRating(args.uid, args.rating);
+        db.updateRating(args.uid, args.rating);
     },
 
     tick: simulateTick,
@@ -122,16 +119,7 @@ const apiActions = {
     removeFromSearchIndex: function(args) {
         MetadataParser.searchIndex.remove(args.transientId);
     }
-}
-
-
-function delay(value, ms) {
-    return new Promise(function(resolve) {
-        setTimeout(function() {
-            resolve(value);
-        }, ms);
-    });
-}
+};
 
 function nextJob() {
     currentJobId = -1;
@@ -325,8 +313,8 @@ function nextJob() {
                 var flattened = assign({duration: result.duration},
                                             result.loudness || {},
                                             result.fingerprint || {});
-                return tagDatabase.insert(job.uid, flattened)
-                    .catch(function(e) {})
+                return db.insert(job.uid, flattened)
+                    .catch(function() {})
                     .then(function() {
                         reportSuccess(id, flattened);
                     });

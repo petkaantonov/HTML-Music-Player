@@ -45,9 +45,9 @@ const EBUR128_MODE_SAMPLE_PEAK = (1 << 4) | EBUR128_MODE_M;
 const EBUR128_MODE_TRUE_PEAK = (1 << 5) | EBUR128_MODE_M | EBUR128_MODE_SAMPLE_PEAK;
 const EBUR128_MODE_HISTOGRAM = (1 << 6);
 
-const relative_gate = -10.0
+const relative_gate = -10.0;
 const relative_gate_factor = Math.pow(10.0, relative_gate / 10.0);
-const minus_twenty_decibels = Math.pow(10.0, -20.0 / 10.0);
+//const minus_twenty_decibels = Math.pow(10.0, -20.0 / 10.0);
 const histogram_energies = new Float32Array(1000);
 const histogram_energy_boundaries = new Float32Array(1001);
 histogram_energy_boundaries[0] = Math.pow(10.0, (-70.0 + 0.691) / 10.0);
@@ -74,7 +74,7 @@ function find_histogram_index(energy) {
         } else {
             index_max = index_mid;
         }
-    } while (index_max - index_min != 1);
+    } while (index_max - index_min !== 1);
 
     return index_min;
 }
@@ -110,9 +110,9 @@ export default function Ebur128(channels, samplerate, mode) {
     this.audio_data_index = 0;
     this.audio_data_frames = 0;
 
-    if ((mode & EBUR128_MODE_S) == EBUR128_MODE_S) {
+    if ((mode & EBUR128_MODE_S) === EBUR128_MODE_S) {
         this.audio_data_frames = this.samples_in_100ms * 30;
-    } else if ((mode & EBUR128_MODE_M) == EBUR128_MODE_M) {
+    } else if ((mode & EBUR128_MODE_M) === EBUR128_MODE_M) {
         this.audio_data_frames = this.samples_in_100ms * 4;
     } else {
         throw new Error("invalid mode");
@@ -263,7 +263,7 @@ var interpolationCoeffs = new Float32Array([
 
 Ebur128.prototype.updateTruePeak = function(src, srcStart, length) {
     var factor = this.samplerate < 96000 ? 4
-                                         : (this.samplerate < 96000 * 2 ? 2 : 1)
+                                         : (this.samplerate < 96000 * 2 ? 2 : 1);
     if (factor === 1) {
         for (var c = 0; c < this.channels; ++c) {
             this.true_peak[c] = this.sample_peak[c];
@@ -429,7 +429,6 @@ Ebur128.prototype.energy_shortterm = function () {
 
 Ebur128.prototype.add_frames = function(src, frames) {
     var src_index = 0;
-    var originalFrames = frames;
 
     while (frames > 0) {
         if (frames >= this.needed_frames) {

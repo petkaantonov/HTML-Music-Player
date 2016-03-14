@@ -57,7 +57,7 @@ const curveInterpolator = {
     },
 
     exponentialFromStart: function(ticks, maxTicks, progressDirection) {
-        var ret = (ticks == maxTicks) ? 1 : -Math.pow(2, -10 * ticks /
+        var ret = (ticks === maxTicks) ? 1 : -Math.pow(2, -10 * ticks /
             maxTicks) + 1;
         if (progressDirection === PROGRESS_DECREASE) {
             return 1 - ret;
@@ -66,7 +66,7 @@ const curveInterpolator = {
     },
 
     exponentialToEnd: function(ticks, maxTicks, progressDirection) {
-        var ret = (ticks == 0) ? 0 : Math.pow(2, 10 * (ticks / maxTicks -
+        var ret = (ticks === 0) ? 0 : Math.pow(2, 10 * (ticks / maxTicks -
             1));
         if (progressDirection === PROGRESS_DECREASE) {
             return 1 - ret;
@@ -186,13 +186,13 @@ export default function CrossfadingPreferences(opts) {
     this.popup = opts.popupMaker.makePopup("Crossfading", this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
-        action: function(e) {
+        action: function() {
             this.manager.restoreDefaults();
         }.bind(this)
     }, {
         id: UNDO_CHANGES_BUTTON,
         text: "Undo changes",
-        action: function(e) {
+        action: function() {
             this.manager.undoChanges();
         }.bind(this)
     }]);
@@ -424,7 +424,7 @@ CrossFadeManager.prototype.destroy = function() {
 
 CrossFadeManager.prototype.shouldAlbumCrossFadeChanged = function(e) {
     var val = $(e.target).prop("checked");
-    this.preferences.shouldAlbumCrossFade = CrossFadePreferences.asValidShouldAlbumCrossFade(!val);
+    this.preferences.setShouldAlbumCrossFade(!val);
     this.update();
     this.emit("update");
 };

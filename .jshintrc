@@ -89,6 +89,13 @@
     // Custom Globals
     "globals"       : {
         "devicePixelRatio": true,
-        "FileReaderSync": true
+        "FileReaderSync": true,
+        "EventEmitter": true,
+        "codecLoaded": true,
+        "MediaError": true,
+        "cssLoaded": true,
+        "AudioContext": true,
+        "webkitAudioContext": true,
+        "indexedDB": true
     }        // additional predefined global variables
 }

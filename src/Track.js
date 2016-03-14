@@ -1,11 +1,9 @@
 "use strict";
-import $ from "jquery";
 
 import PlayerPictureManager from "ui/PlayerPictureManager";
 import EventEmitter from "events";
 import { inherits } from "lib/util";
 import TagData from "TagData";
-import sha1 from "sha1";
 import Promise from "bluebird";
 import { calculateUid, getSearchTerm } from "lib/searchUtil";
 
@@ -173,7 +171,7 @@ Track.prototype.getImage = Promise.method(function() {
         var self = this;
         return image.promise.then(function() {
             return image;
-        }).catch(function(e) {
+        }).catch(function() {
             image.src = "";
             if (image.blob) {
                 image.blob.close();

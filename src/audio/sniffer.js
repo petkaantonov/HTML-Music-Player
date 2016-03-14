@@ -77,7 +77,7 @@ export function getCodecName(fileView) {
 
         var ext = getExtension(file.name);
 
-        if (ext) return extMap[etx] || null;
+        if (ext) return extMap[ext] || null;
 
         return null;
     });

@@ -9,7 +9,8 @@ const codeToString = function(code) {
     })[0] || "ERROR_UNKNOWN";
 };
 
-export default var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
+export default AcoustIdApiError;
+var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
     this.code = code;
     this.message = message || codeToString(code);
 });

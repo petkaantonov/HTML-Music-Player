@@ -23,7 +23,7 @@ const loadCodec = function(name, retries) {
                         return loadCodec(name, retries + 1);
                     }));
                 }
-                return reject(new Error("http error when loading codec: " + xhr.status + " " + xhr.statusText))
+                return reject(new Error("http error when loading codec: " + xhr.status + " " + xhr.statusText));
             } else {
                 var code = xhr.responseText;
                 expectedCodec = null;
@@ -58,4 +58,4 @@ globalObject.codecLoaded = function(name, Context) {
 
 export function getCodec(name) {
     return loadCodec(name);
-};
+}

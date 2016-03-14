@@ -24,13 +24,13 @@ var featureCheckResults = env.getRequiredPlatformFeatures();
 cssLoaded(Promise).then(function() {
     return Promise.all([featureCheckResults, ready]);
 }).then(function(featureCheckResults) {
-    var featureMissing = featureResults.some(function(v) {return !v.supported;});
+    var featureMissing = featureCheckResults.some(function(v) {return !v.supported;});
 
     if (featureMissing) {
         $("#app-load-text").remove();
         $("#app-loader .missing-features").removeClass("no-display");
 
-        featureResults.forEach(function(v) {
+        featureCheckResults.forEach(function(v) {
             if (!v.supported) {
                 var link = $("<a>", {
                     target: "_blank",
@@ -59,7 +59,11 @@ cssLoaded(Promise).then(function() {
     self.soitaApp = new Application(env, db, dbValues, defaultTitle);
 });
 
-var desc = {value: function() {return ""}, writable: false, configurable: false};
+var desc = {
+    value: function() {},
+    writable: false,
+    configurable: false
+};
 try {
     Object.defineProperties(window, {
         alert: desc,

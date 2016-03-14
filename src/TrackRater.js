@@ -1,12 +1,14 @@
 "use strict";
 
+import $ from "jquery";
+
 const HTML = "<div class='track-rating'>                                                               \
         <div data-rating='1' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
         <div data-rating='2' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
         <div data-rating='3' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
         <div data-rating='4' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
-    </div>"
+    </div>";
 
 export default function TrackRater(opts) {
     opts = Object(opts);
@@ -31,7 +33,7 @@ TrackRater.prototype._addClassToRatingsAtLeast = function(inputs, value, classNa
     inputs.filter(function() {
         return parseInt($(this).data("rating"), 10) <= value;
     }).addClass(className);
-}
+};
 
 TrackRater.prototype._hovered = function(e) {
     var inputs = this.$().find(".rating-input");

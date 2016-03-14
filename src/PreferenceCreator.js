@@ -2,11 +2,11 @@
 
 import { titleCase } from "lib/util";
 
-const isObject = function(val) {
+var isObject = function(val) {
     return typeof val === "object" && val !== null;
 };
 
-const valueFunction = function(value) {
+var valueFunction = function(value) {
     if (Array.isArray(value)) {
         var ret = new Array(value.length);
         for (var i = 0; i < value.length; ++i) {
@@ -25,7 +25,7 @@ const valueFunction = function(value) {
     }
 };
 
-const arrayEquals = function(a, b) {
+var arrayEquals = function(a, b) {
     if (!Array.isArray(a) || !Array.isArray(b)) {
         return false;
     }
@@ -40,7 +40,7 @@ const arrayEquals = function(a, b) {
     return true;
 };
 
-const objectEquals = function(a, b) {
+var objectEquals = function(a, b) {
     if (!isObject(a) || !isObject(b)) {
         return false;
     }
@@ -71,7 +71,7 @@ const objectEquals = function(a, b) {
     return true;
 };
 
-const equals = function(a, b) {
+var equals = function(a, b) {
     if (Array.isArray(a) || Array.isArray(b)) {
         return arrayEquals(a, b);
     }
@@ -84,7 +84,7 @@ const equals = function(a, b) {
 };
 
 export default createPreferences;
-const createPreferences = function(spec) {
+var createPreferences = function(spec) {
     spec = Object(spec);
     spec.preferences = Object(spec.preferences);
     spec.methods = Object(spec.methods);
@@ -97,7 +97,7 @@ const createPreferences = function(spec) {
 
     const constructorCode = "fields = Object(fields);\n" +
         fieldsCode + ";\n" +
-        "Object.seal(this);\n"
+        "Object.seal(this);\n";
 
     const Constructor = new Function("fields", constructorCode);
 

@@ -1,5 +1,6 @@
 "use strict";
 
+import $ from "jquery";
 import EventEmitter from "events";
 import { inherits } from "lib/util";
 

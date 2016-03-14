@@ -79,7 +79,7 @@ const kaiser6_table = new Float64Array([
     0.05031820, 0.03607231, 0.02432151, 0.01487334, 0.00752000, 0.00000000
 ]);
 
-const resampler_basic_direct_double_accum = new Float64Array(4);
+//const resampler_basic_direct_double_accum = new Float64Array(4);
 
 function QualityMapping(v) {
    this.base_length = v[0] | 0;
@@ -153,7 +153,7 @@ export default function Resampler(nb_channels, in_rate, out_rate, quality) {
     this.sinc_table_length = 0;
     this.mem_alloc_size = 0;
     this.filt_len = 0;
-    this.mem = null
+    this.mem = null;
     this.cutoff = Math.fround(1);
     this.nb_channels = nb_channels;
     this.in_stride = 1;
@@ -413,11 +413,11 @@ Resampler.prototype.getLength = function(length) {
 Resampler.prototype.resample = function(channels, length, output) {
     if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
     if (!this.started) throw new Error("start() not called");
-    if (length == undefined) length = channels[0].length;
+    if (length == null) length = channels[0].length;
 
     const outLength = this.getLength(length);
 
-    if (output == undefined) {
+    if (output == null) {
         output = new Array(channels.length);
         for (var ch = 0; ch < channels.length; ++ch) {
             output[ch] = getBuffer(ch, outLength);

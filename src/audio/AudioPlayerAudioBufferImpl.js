@@ -77,7 +77,7 @@ const getPreloadBufferCount = function() {
         return (PRELOAD_BUFFER_COUNT * 1.5)|0;
     }
     return PRELOAD_BUFFER_COUNT;
-}
+};
 
 var nodeId = 0;
 var instances = false;
@@ -128,7 +128,7 @@ export default function AudioPlayer(opts) {
     this._hardwareLatency = 0;
 
     this.ready = new Promise(function(resolve) {
-        var ready = function(event) {
+        var ready = function() {
             this._worker.removeEventListener("message", ready, false);
             this.setEffects(this.effectPreferences.getAudioPlayerEffects());
             resolve();
@@ -667,7 +667,6 @@ AudioPlayerSourceNode.prototype._stopSources = function() {
     }
 };
 
-var prevWithElapsed = -1;
 const MAX_ANALYSER_SIZE = 65536;
 const analyserChannelMixer = new ChannelMixer(1);
 // When visualizing audio it is better to visualize samples that will play right away
@@ -699,7 +698,6 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         }
 
         var samplesIndex = 0;
-        var additionalTime = 0;
         var bufferQueue = this._bufferQueue;
         var playedBufferQueue = this._playedBufferQueue;
         var latency = this._player.getHardwareLatency();

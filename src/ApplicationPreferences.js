@@ -79,13 +79,13 @@ export default function ApplicationPreferences(opts) {
     this.popup = opts.popupMaker.makePopup("Preferences", this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
-        action: function(e) {
+        action: function() {
             this.manager.restoreDefaults();
         }.bind(this)
     }, {
         id: UNDO_CHANGES_BUTTON,
         text: "Undo changes",
-        action: function(e) {
+        action: function() {
             this.manager.undoChanges();
         }.bind(this)
     }]);

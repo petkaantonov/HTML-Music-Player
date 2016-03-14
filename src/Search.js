@@ -1,11 +1,9 @@
 "use strict";
 
 import $ from "jquery";
-import EventEmitter from "events";
 import AbstractTrackContainer from "AbstractTrackContainer";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "lib/util";
 import Selectable from "ui/Selectable";
-import DraggableSelection from "ui/DraggableSelection";
 import Track from "Track";
 import TrackView from "ui/TrackView";
 
@@ -417,7 +415,7 @@ Search.prototype._gotInput = throttle(function() {
     if (this._session) {
         this._session.destroy();
     }
-    this._session = new SearchSession(this, value, normalized)
+    this._session = new SearchSession(this, value, normalized);
     this._session.start();
 }, 33);
 

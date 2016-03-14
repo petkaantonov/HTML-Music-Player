@@ -57,7 +57,7 @@ MetadataParser.prototype.parse = function() {
             case "mp3":
                 return parseMp3Metadata(data, self.fileView);
         }
-    }).catch(function(e) {
+    }).catch(function() {
         throw codecNotSupportedError();
     }).tap(function() {
         MetadataParser.searchIndex.add(file, data, self.transientId);
@@ -80,14 +80,14 @@ MetadataParser.parse = function(args) {
         } else {
             var parser = new MetadataParser(args.file, resolve, args.transientId);
             active++;
-            parser.parse()
+            parser.parse();
         }
     }).finally(next);
 };
 
-MetadataParser.fetchAnalysisData = function(args) {
-    var data = tagDatabase.query(args.uid);
-    var albumImage = tagDatabase.getAlbumImage(args.albumKey);
+MetadataParser.fetchAnalysisData = function(db, args) {
+    var data = db.query(args.uid);
+    var albumImage = db.getAlbumImage(args.albumKey);
 
     return Promise.join(data, albumImage, function(data, albumImage) {
         if (data && albumImage) {

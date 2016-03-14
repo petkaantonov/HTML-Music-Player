@@ -5,7 +5,7 @@ const copy = function(a, b, length) {
         b[i] = a[i];
     }
     return b;
-}
+};
 
 const bufferCache = Object.create(null);
 const getBuffer = function(samples) {
@@ -86,12 +86,12 @@ ChannelMixer.prototype._mix1to2 = function(input) {
     return [input[0], input[0]];
 };
 
-ChannelMixer.prototype._mix1to4 = function(input, length, output) {
+ChannelMixer.prototype._mix1to4 = function(input, length) {
     var silent = getBuffer(length);
     return [input[0], input[0], silent, silent];
 };
 
-ChannelMixer.prototype._mix1to6 = function(input, length, output) {
+ChannelMixer.prototype._mix1to6 = function(input, length) {
     var silent = getBuffer(length);
     return [
         silent,

@@ -34,10 +34,8 @@ const DECODER_DELAY = 529;
 
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
-const MAX_MP3_SAMPLE_RATE = 48000;
 
 const NULL = null;
-const MP3_FRAME_SIZE = 1152;
 const SBLIMIT = 32;
 const SB_HYBRID_SIZE = SBLIMIT * 18;
 
@@ -46,7 +44,6 @@ const MPA_JSTEREO = 1;
 
 const FRAC_BITS = 15;
 const WFRAC_BITS = 14;
-const OUT_SHIFT = (WFRAC_BITS + FRAC_BITS - 15);
 
 const MODE_EXT_MS_STEREO = 2;
 const MODE_EXT_I_STEREO = 1;
@@ -95,7 +92,7 @@ const libc_frexp = (function() {
     return function(x) {
         f64[0] = x;
         var high = i32[HIGH_INDEX];
-    
+
         if ((high & 0x7F000000) === 0) {
             libc_frexp_result_e = 0;
             return x;
@@ -857,7 +854,7 @@ function buildTable(vlc, table_nb_bits, nb_codes, bits, bits_wrap, bits_size,
             if (n <= table_nb_bits) {
                 j = (code << (table_nb_bits - n)) & (table_size - 1);
                 nb = 1 << (table_nb_bits -n);
-                
+
                 for (var k = 0; k < nb; ++k) {
                     if (table[table_ptr + (j * 2) + 1] !== 0) {
                         throw new Error("should be 0");
@@ -1331,7 +1328,7 @@ const getBuffer = function(channelIndex, type, length, id) {
     var key = channelIndex + " " + type + " " + length + " " + id;
     var result = bufferCache[key];
     if (!result) {
-        result = 
+        result =
             bufferCache[key] = type === INT16 ? new Int16Array(length) : new Float32Array(length);
     }
     return result;
@@ -1413,7 +1410,7 @@ Mp3Context.prototype.constructor = Mp3Context;
 
 Mp3Context.prototype.setBufferLength = function(targetBufferLengthSeconds) {
     if (!isFinite(+targetBufferLengthSeconds)) throw new Error("targetBufferLengthSeconds must be a number");
-    
+
     targetBufferLengthSeconds = Math.max(Math.min(targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS),
                             MIN_BUFFER_LENGTH_SECONDS);
     this._flush();
@@ -1497,9 +1494,9 @@ Mp3Context.prototype.update = function(src, srcStart, length, breakOnFlush) {
                         this.state = PENDING_HEADER;
                         this.header = 0;
                         continue;
-                    }    
+                    }
                 }
-                
+
                 // Doesn't include' next frame's header.
                 this.sourceByteLength = l - HEADER_SIZE;
                 length -= (i - HEADER_SIZE);
@@ -1615,7 +1612,7 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
             var srcIndex = ch * 1152 + skipped;
             var dstIndex = this.sampleLength;
             var dst = this.samples[ch];
-            
+
             for (var i = 0; i < remaining; ++i) {
                 dst[dstIndex + i] = src[srcIndex + i];
             }
@@ -1625,7 +1622,7 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
         for (var ch = 0; ch < this.nb_channels; ++ch) {
             var srcIndex = ch * 1152 + remaining + skipped;
             var dst = this.samples[ch];
-            
+
             for (var i = 0; i < overflow; ++i) {
                 dst[i] = src[srcIndex + i];
             }
@@ -1635,7 +1632,7 @@ Mp3Context.prototype._updateOutputState = function(nb_frames, targetSamples) {
         var sampleStart = this.sampleLength;
         if (skipped > 0) {
             for (var ch = 0; ch < this.nb_channels; ++ch) {
-                
+
                 var dst = this.samples[ch];
                 for (var j = 0; j < size; ++j) {
                     dst[sampleStart + j] = dst[sampleStart + j + skipped];
@@ -1699,7 +1696,7 @@ Mp3Context.prototype.decodeMain = function() {
     var willOverflow = this.sampleLength + (nb_frames * 32) > targetSamples;
     for (var ch = 0; ch < this.nb_channels; ++ch) {
         var dst, dstStart;
-    
+
         if (willOverflow) {
             dst = this.dataType === FLOAT ? tmp_samples_f32 : tmp_samples_i16;
             dstStart = ch * 1152;
@@ -1874,7 +1871,7 @@ Mp3Context.prototype.decodeHeader = function(header) {
         this.lsf = 1;
         mpeg25 = 1;
     }
-    this.version = (header >> 19) & 3
+    this.version = (header >> 19) & 3;
     sample_rate_index = (header >> 10) & 3;
 
     if (sample_rate_index === 3) return false;
@@ -2016,7 +2013,7 @@ Mp3Context.prototype._granuleLoop3 = function(g) {
 
 Mp3Context.prototype._granuleLoop4 = function(g, gb) {
     /* compute band indexes */
-    if (g.block_type == 2) {
+    if (g.block_type === 2) {
         if (g.switch_point !== 0) {
             /* if switched mode, we handle the 36 first samples as
                long blocks.  For 8000Hz, we handle the 72 first
@@ -2391,7 +2388,6 @@ var synthMidSamples2_sum2 = 0;
 const synthMidSamples2 = function(sum, j, synth_buf_values, synth_buf_ptr) {
     var sum2 = 0;
     var p_ptr = (synth_buf_ptr + 16 + j)|0;
-    var w2_ptr = 32 - j;
     var tmp;
 
     tmp = synth_buf_values[p_ptr];
@@ -2425,7 +2421,7 @@ const synthMidSamples2 = function(sum, j, synth_buf_values, synth_buf_ptr) {
     tmp = synth_buf_values[p_ptr + 448];
     sum += (Math.imul(window_values[j + 448], tmp));
     sum2 -= (Math.imul(window_values[480 - j], tmp));
-    
+
 
     p_ptr = (synth_buf_ptr + 48 - j)|0;
 

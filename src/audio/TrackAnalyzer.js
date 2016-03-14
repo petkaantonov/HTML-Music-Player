@@ -3,7 +3,6 @@ import Promise from "bluebird";
 import { documentHidden, throttle } from "lib/util";
 import TrackWasRemovedError from "TrackWasRemovedError";
 import Track from "Track";
-import AudioError from "audio/AudioError";
 import TagData from "TagData";
 
 var instances = false;
@@ -33,7 +32,7 @@ export default function TrackAnalyzer(playlist, opts) {
 
     var self = this;
     this.ready = new Promise(function(resolve) {
-        var ready = function(event) {
+        var ready = function() {
             self._worker.removeEventListener("message", ready, false);
             resolve();
         };
@@ -90,7 +89,7 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(function(track) {
                 id: id,
                 uid: track.uid(),
                 transientId: track.transientId(),
-                albumKey: track.tagData.albumNameKey(),
+                albumKey: albumKey,
                 acoustId: acoustId
             }
         });
@@ -100,6 +99,11 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(function(track) {
 TrackAnalyzer.prototype.fillInAcoustId = function(track, duration, fingerprint, _retries) {
     if (!_retries) _retries = 0;
     var self = this;
+
+    if (this._playlist.isTrackHighlyRelevant(track)) {
+        this.prioritize(track);
+    }
+
     return self.fetchTrackAcoustId(track, {
         duration: duration,
         fingerprint: fingerprint
@@ -109,7 +113,7 @@ TrackAnalyzer.prototype.fillInAcoustId = function(track, duration, fingerprint, 
         if (self._playlist.isTrackHighlyRelevant(track)) {
             self.fetchAcoustIdImage(track);
         }
-    }).catch(function(e) {
+    }).catch(function() {
         if (_retries <= 5) {
             Promise.delay(5000).then(function() {
                 if (track.isDetachedFromPlaylist()) return;
@@ -117,10 +121,6 @@ TrackAnalyzer.prototype.fillInAcoustId = function(track, duration, fingerprint, 
             });
         }
     });
-
-    if (this._playlist.isTrackHighlyRelevant(track)) {
-        this.prioritize(track);
-    }
 };
 
 TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error) {
@@ -167,7 +167,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
                 }
             }).lastly(function() {
                 track.unsetAnalysisStatus();
-            }).catch(function(e) {});
+            }).catch(function() {});
         }
     }
 };
@@ -503,7 +503,6 @@ TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
         });
     }
 
-    var audioBuffer = null;
     this._currentlyAnalysing = true;
     var id = ++this._nextJobId;
     track.once("destroy", this.abortJobForTrack);

@@ -1,6 +1,5 @@
 "use strict";
 import $ from "jquery";
-import EventEmitter from "events";
 import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
@@ -41,6 +40,7 @@ const DUMMY_TRACK = {
 };
 
 function TrackListDeletionUndo(playlist) {
+    this.playlist = playlist;
     this.tracksAndViews = playlist.getTrackViews().map(function(v) {
         return {
             track: v.track(),
@@ -55,7 +55,7 @@ function TrackListDeletionUndo(playlist) {
 }
 
 TrackListDeletionUndo.prototype.destroy = function() {
-    snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
+    this.playlist.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
     for (var i = 0; i < this.tracksAndViews.length; ++i) {
         var track = this.tracksAndViews[i].track;
         if (track.isDetachedFromPlaylist()) {
@@ -94,7 +94,7 @@ export default function Playlist(domNode, opts) {
 
     this._fixedItemListScroller = opts.scrollerMaker.createFixedItemListScroller(this.$(), this._trackViews, {
         shouldScroll: function() {
-            return !this._draggable.isDragging()
+            return !this._draggable.isDragging();
         }.bind(this),
         scrollingX: false,
         snapping: true,

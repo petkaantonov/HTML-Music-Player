@@ -400,7 +400,7 @@ AudioPlayer.prototype.passError = function(errorMessage, stack, name, transferLi
         stack: stack,
         name: name
     }, transferList);
-}
+};
 
 AudioPlayer.prototype._errored = function(e) {
     this.passError(e.message, e.stack, e.name);
@@ -610,7 +610,7 @@ AudioPlayer.prototype._fillBuffers = Promise.method(function(count, requestId, t
                         length: decodeResult.length,
                         startTime: decodeResult.startTime,
                         endTime: decodeResult.endTime
-                    })
+                    });
                     result.count++;
 
                     if (that.ended) {
@@ -720,5 +720,5 @@ AudioPlayer.prototype.sourceEndedPing = function(args) {
     }).catch(function (e) {
         that.passError(e.message, e.stack, e.name);
     });
-}
+};
 

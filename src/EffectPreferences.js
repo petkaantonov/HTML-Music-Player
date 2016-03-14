@@ -83,7 +83,7 @@ const Preferences = createPreferences({
 
     preferences: {
         equalizer: {
-            defaultValue: equalizerPresets["None"],
+            defaultValue: equalizerPresets.None,
             asValidValue: function(value) {
                 if (!Array.isArray(value) || value.length !== 10) {
                     return this.defaultEqualizer;
@@ -127,13 +127,13 @@ export default function EffectPreferences(opts) {
     this.popup = opts.popupMaker.makePopup("Effects", this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
-        action: function(e) {
+        action: function() {
             this.manager.restoreDefaults();
         }.bind(this)
     }, {
         id: UNDO_CHANGES_BUTTON,
         text: "Undo changes",
-        action: function(e) {
+        action: function() {
             this.manager.undoChanges();
         }.bind(this)
     }]);
@@ -194,14 +194,14 @@ EffectPreferences.prototype.indexToFrequency = function(index) {
     return equalizerBands[index][0];
 };
 
-EffectPreferences.prototype.getEqualizerSetup = function(track) {
+EffectPreferences.prototype.getEqualizerSetup = function() {
     return {
         specs: equalizerBands,
         gains: this.preferences.getEqualizer()
     };
 };
 
-EffectPreferences.prototype.getAudioPlayerEffects = function(track) {
+EffectPreferences.prototype.getAudioPlayerEffects = function() {
     var pref = this.preferences;
     return [{
         name: "noise-sharpening",

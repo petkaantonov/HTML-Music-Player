@@ -883,7 +883,7 @@ export const asError = function(value) {
     return ret;
 };
 
-export const IDBPromisify = function(ee) {
+export const iDbPromisify = function(ee) {
     return new Promise(function(resolve, reject) {
         ee.onerror = function(event) {
             reject(asError(event.target.transaction.error || ee.error));

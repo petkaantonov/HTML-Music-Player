@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import Promise from "bluebird";
 import parser from "ua-parser-js";
 
@@ -26,7 +25,7 @@ export default function Env() {
     this._directories = ("webkitdirectory" in input ||
                         "directory" in input ||
                         "mozdirectory" in input);
-    this._readFiles = typeof FileReader == "function" && new FileReader().readAsBinaryString;
+    this._readFiles = typeof FileReader === "function" && new FileReader().readAsBinaryString;
 
     this._supportedMimes = "audio/mp3,audio/mpeg".split(",");
     this._rSupportedMimes = new RegExp("^(?:"+this._supportedMimes.join("|")+")$", "i");
@@ -47,7 +46,7 @@ export default function Env() {
     this._isSafari = browserName === "safari";
     this._browserName = browserName;
     this._browserVersion = browserVersion;
-    this._requiredFeaturesChecked = false;
+    this._retChecked = false;
     this._isDevelopment = window.DEBUGGING === true;
 }
 
@@ -92,8 +91,8 @@ Env.prototype.supportedMimes = function() {
 };
 
 Env.prototype.getRequiredPlatformFeatures = function() {
-    if (this._requiredFeaturesChecked) return Promise.reject(new Error("already called"));
-    this._requiredFeaturesChecked = true;
+    if (this._retChecked) return Promise.reject(new Error("already called"));
+    this._retChecked = true;
     var self = this;
     var ret = {
         "Audio playback capability": [Promise.method(function() {
@@ -131,7 +130,7 @@ Env.prototype.getRequiredPlatformFeatures = function() {
                 return false;
             }
             var worker, url;
-            return new Promise(function(resolve, reject) {
+            return new Promise(function(resolve) {
                 var code = "var abc;";
                 var blob = new Blob([code], {type: "application/javascript"});
                 url = URL.createObjectURL(blob);
@@ -142,7 +141,7 @@ Env.prototype.getRequiredPlatformFeatures = function() {
                     new Uint8Array([0xFF]),
                     new Uint8Array([0xFF])
                 ];
-                var transferList = buffers.map(function(v) {return v.buffer});
+                var transferList = buffers.map(function(v) {return v.buffer;});
                 worker.postMessage({
                     transferList: transferList
                 }, transferList);
@@ -159,11 +158,11 @@ Env.prototype.getRequiredPlatformFeatures = function() {
     };
 
     return Promise.map(Object.keys(ret), function(description) {
-        var checker = requiredFeatures[description][0];
-        var canIUseUrl = requiredFeatures[description][1];
-        var apiName = requiredFeatures[description][2];
+        var checker = ret[description][0];
+        var canIUseUrl = ret[description][1];
+        var apiName = ret[description][2];
 
-        return checker().catch(function(e) {return false}).then(function(result) {
+        return checker().catch(function() {return false;}).then(function(result) {
             return {
                 supported: result,
                 canIUseUrl: canIUseUrl,

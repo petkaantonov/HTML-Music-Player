@@ -1,5 +1,6 @@
 "use strict";
 
+import $ from "jquery";
 import Snackbar from "ui/Snackbar";
 import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
@@ -34,7 +35,7 @@ import ApplicationPreferences from "ApplicationPreferences";
 import EffectPreferences from "EffectPreferences";
 import CrossfadingPreferences from "CrossfadingPreferences";
 import ServiceWorkerManager from "ServiceWorkerManager";
-import { onCapture, offCapture } from "lib/util";
+import { onCapture } from "lib/util";
 import { isTextInputElement } from "lib/DomUtil";
 
 const ITEM_HEIGHT = 44;
@@ -153,8 +154,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
-        src: window.DEBUGGING
-            ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js"
+        src: env.isDevelopment() ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js"
     });
 
     this.search = new Search(".search-list-container", {
@@ -200,7 +200,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         fileButton: ".menul-files, .add-files-link"
     });
 
-    if (false && window.DEBUGGING) {
+    if (false && env.isDevelopment()) {
         this.localFileHandler.generateFakeFiles(8);
     }
 
@@ -215,15 +215,13 @@ export default function Application(env, db, dbValues, defaultTitle) {
         recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
-        snackbar: this.snackbar,
         gestureEducator: this.gestureEducator,
         rippler: this.rippler,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences,
         tooltipMaker: this.tooltipMaker,
-        src: window.DEBUGGING
-            ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js"
+        src: env.isDevelopment() ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js"
     });
 
     this.playerPictureManager = new PlayerPictureManager(".picture-container", this.player, {
@@ -316,7 +314,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     $(document).on("selectstart", this.selectStarted.bind(this));
     window.onbeforeunload = this.beforeUnload.bind(this);
     this.player.on("stop", this.playerStopped.bind(this));
-    onCapture(document, "keydown", documentKeydowned);
+    onCapture(document, "keydown", this.documentKeydowned.bind(this));
 
     var self = this;
     requestAnimationFrame(function() {
@@ -340,7 +338,7 @@ Application.prototype.longTapEnded = function() {
 };
 
 Application.prototype.beforeUnload = function() {
-    if (!window.DEBUGGING && (this.playlist.length > 0 ||
+    if (!this.env.isDevelopment() && (this.playlist.length > 0 ||
         ((this.player.isPlaying  || this.player.isPaused) && !this.player.isStopped))) {
         return "Are you sure you want to exit?";
     }

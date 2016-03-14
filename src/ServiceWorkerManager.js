@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import { documentHidden, inherits } from "lib/util";
 import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
@@ -77,9 +76,7 @@ ServiceWorkerManager.prototype._checkForUpdates = function() {
         return reg.update();
     }).finally(function() {
         self._currentUpdateCheck = null;
-    }).catch(function(e) {
-
-    });
+    }).catch(function() {});
 };
 
 ServiceWorkerManager.prototype.checkForUpdates = function() {
@@ -102,10 +99,10 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
     }).then(function(outcome) {
         switch (outcome) {
             case Snackbar.ACTION_CLICKED:
-                worker.postMessage({action: 'skipWaiting'}).catch(function(e) {});
+                worker.postMessage({action: 'skipWaiting'}).catch(function() {});
                 return;
             case Snackbar.DISMISSED:
-                worker.postMessage({action: 'skipWaiting'}).catch(function(e) {});
+                worker.postMessage({action: 'skipWaiting'}).catch(function() {});
                 return;
             case Snackbar.TIMED_OUT:
                 setTimeout(function() {

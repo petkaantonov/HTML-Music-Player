@@ -6,7 +6,7 @@ const decoderPool = Object.create(null);
 const resamplers = Object.create(null);
 const bufferPool = Object.create(null);
 
-export const allocBuffer = function(size, channels) {
+export function allocBuffer(size, channels) {
     var key = size + " " + channels;
 
     var buffers = bufferPool[key];
@@ -22,12 +22,12 @@ export const allocBuffer = function(size, channels) {
     return bufferPool[key].shift();
 }
 
-export const freeBuffer = function(size, channels, buffer) {
+export function freeBuffer(size, channels, buffer) {
     var key = size + " " + channels;
     bufferPool[key].push(buffer);
 }
 
-export const allocResampler = function(channels, from, to, quality) {
+export function allocResampler(channels, from, to, quality) {
     quality = quality || 0;
     var key = channels + " " + from + " " + to;
     var entry = resamplers[key];
@@ -47,15 +47,15 @@ export const allocResampler = function(channels, from, to, quality) {
     var ret = entry.instances.shift();
     ret.start();
     return ret;
-};
+}
 
-export const freeResampler = function(resampler) {
+export function freeResampler(resampler) {
     var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
     resamplers[key].instances.push(resampler);
     resampler.end();
-};
+}
 
-export const allocDecoderContext = function(name, Context, contextOpts) {
+export function allocDecoderContext(name, Context, contextOpts) {
     var entry = decoderPool[name];
 
     if (!entry) {
@@ -74,10 +74,10 @@ export const allocDecoderContext = function(name, Context, contextOpts) {
     }
 
     return entry.instances.shift();
-};
+}
 
-export const freeDecoderContext = function(name, context) {
+export function freeDecoderContext(name, context) {
     context.removeAllListeners();
     decoderPool[name].instances.push(context);
     context.end();
-};
+}
