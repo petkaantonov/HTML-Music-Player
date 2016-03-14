@@ -1,7 +1,7 @@
 "use strict";
 import Promise from "bluebird";
 import { inherits } from "lib/util";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import unitBezier from "lib/bezier";
 import { getFilter, getTransform, setFilter, setTransform } from "lib/DomUtil";
 

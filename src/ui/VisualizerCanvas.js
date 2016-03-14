@@ -1,12 +1,12 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import Animator from "ui/Animator";
 import { addLegacyListener, inherits } from "lib/util";
 import { canvasToImage } from "lib/DomUtil";
 import Default2dImageRenderer from "ui/Default2dImageRenderer";
 import WebGl2dImageRenderer from "ui/WebGl2dImageRenderer";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 const pixelRatio = window.devicePixelRatio || 1;
 const SHADOW_BLUR = 2 * pixelRatio | 0;

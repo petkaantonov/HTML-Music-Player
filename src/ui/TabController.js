@@ -2,8 +2,8 @@
 
 import { inherits } from "lib/util";
 import { setFilter, setTransform } from "lib/DomUtil";
-import $ from "lib/jquery";
-import EventEmitter from "lib/events";
+import $ from "jquery";
+import EventEmitter from "events";
 
 function Tab(spec, controller, index) {
     EventEmitter.call(this);

@@ -1,5 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
 const REPEAT = "repeat";

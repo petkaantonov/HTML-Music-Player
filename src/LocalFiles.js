@@ -1,7 +1,7 @@
 "use strict";
 import Track from "Track";
 import Promise from "bluebird";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 const MIN_FILES_BEFORE_TRIGGER = 10;
 const MAX_FILE_COUNT = Math.pow(2, 31);

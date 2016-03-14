@@ -1,5 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;

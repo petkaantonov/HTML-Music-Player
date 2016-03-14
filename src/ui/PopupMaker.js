@@ -1,6 +1,6 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import { slugTitle } from "lib/util";
 import { setFilter } from "lib/DomUtil";
 import Animator from "ui/Animator";

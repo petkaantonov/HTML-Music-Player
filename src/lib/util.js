@@ -1,7 +1,7 @@
 "use strict";
 
 import Promise from "bluebird";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 var FunctionBind = Function.prototype.bind;
 Function.prototype.bind = function(ctx) {

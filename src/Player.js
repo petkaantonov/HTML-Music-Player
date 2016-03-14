@@ -1,10 +1,10 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import Promise from "bluebird";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import AudioVisualizer from "audio/AudioVisualizer";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { documentHidden, inherits, onCapture } from "lib/util";
 import Track from "Track";
 import { isTouchEvent } from "lib/DomUtil";

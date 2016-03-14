@@ -1,7 +1,7 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { changeDom, isTouchEvent, originProperty } from "lib/DomUtil";
 
 const NULL = $(null);

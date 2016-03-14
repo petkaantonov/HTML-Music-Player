@@ -14,7 +14,7 @@ import sniffer from "audio/sniffer";
 import {allocBuffer, freeBuffer, allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "pool";
 import AcoustId from "audio/AcoustId";
 import Ebur128 from "audio/ebur128";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 initTextCodec(self);
 self.EventEmitter = EventEmitter;

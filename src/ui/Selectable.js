@@ -1,5 +1,5 @@
 "use strict";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "lib/util";
 import { SortedSet } from "lib/DataStructures";
 

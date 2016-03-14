@@ -1,7 +1,7 @@
 "use strict";
 
 import Animator from "ui/Animator";
-import $ from "lib/jquery";
+import $ from "jquery";
 import Promise from "bluebird";
 
 const gestureIcon = function(icon) {

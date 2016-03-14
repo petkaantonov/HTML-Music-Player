@@ -1,5 +1,6 @@
 "use strict";
 
+import $ from "jquery";
 import { offCapture, onCapture } from "lib/util";
 
 export default function OpenableSubmenu(dom, opener, opts) {

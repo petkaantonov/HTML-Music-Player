@@ -1,5 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import { setTransform } from "lib/DomUtil";
 import { documentHidden } from "lib/util";
 

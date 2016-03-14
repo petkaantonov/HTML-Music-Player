@@ -1,7 +1,7 @@
 "use strict";
 
 import { reflow, setTransform } from "lib/DomUtil";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 
 const LONG_PRESS_DURATION = 600;

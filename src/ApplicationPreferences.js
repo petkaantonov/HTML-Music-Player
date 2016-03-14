@@ -1,6 +1,6 @@
 "use strict";
-import $ from "lib/jquery";
-import EventEmitter from "lib/events";
+import $ from "jquery";
+import EventEmitter from "events";
 import { inherits, throttle } from "lib/util";
 import createPreferences from "PreferenceCreator";
 

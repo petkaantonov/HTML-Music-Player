@@ -1,7 +1,7 @@
 "use strict";
 
 import LocalFiles from "LocalFiles";
-import $ from "lib/jquery";
+import $ from "jquery";
 import Track from "Track";
 import Promise from "bluebird";
 

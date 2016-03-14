@@ -1,5 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 import { toTimeString } from "lib/util";
 import { changeDom, setTransform } from "lib/DomUtil";

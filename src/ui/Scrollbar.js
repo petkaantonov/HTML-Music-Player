@@ -1,6 +1,6 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import { offCapture, onCapture } from "lib/util";
 import { setTransform } from "lib/DomUtil";
 

@@ -1,6 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
-import Animator from "ui/Animator";
+import $ from "jquery";
 import jdenticon from "jdenticon";
 import Promise from "bluebird";
 import { addLegacyListener } from "lib/util";

@@ -1,7 +1,7 @@
 "use strict";
 
 import { setTransform } from "lib/DomUtil";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 const NULL = $(null);
 const ANALYSIS_TOOLTIP_MESSAGE =

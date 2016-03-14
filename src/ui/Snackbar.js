@@ -1,7 +1,7 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import Promise from "bluebird";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { documentHidden, inherits } from "lib/util";
 import { changeDom } from "lib/DomUtil";
 

@@ -1,6 +1,6 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import TabController from "ui/TabController";
 import TrackRater from "TrackRater";
 

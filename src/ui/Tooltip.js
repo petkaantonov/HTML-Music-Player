@@ -1,6 +1,6 @@
 "use strict";
-import $ from "lib/jquery";
-import EventEmitter from "lib/events";
+import $ from "jquery";
+import EventEmitter from "events";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import { reflow } from "lib/DomUtil";
 

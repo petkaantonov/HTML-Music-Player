@@ -1,10 +1,10 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import { documentHidden, inherits } from "lib/util";
 import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());

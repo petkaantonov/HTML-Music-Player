@@ -1,8 +1,8 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 import PlayerPictureManager from "ui/PlayerPictureManager";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { inherits } from "lib/util";
 import TagData from "TagData";
 import sha1 from "sha1";

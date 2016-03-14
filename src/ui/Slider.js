@@ -1,6 +1,6 @@
 "use strict";
-import $ from "lib/jquery";
-import EventEmitter from "lib/events";
+import $ from "jquery";
+import EventEmitter from "events";
 import { documentHidden, inherits, offCapture, onCapture } from "lib/util";
 import { isTouchEvent, setTransform } from "lib/DomUtil";
 

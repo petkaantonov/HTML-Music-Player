@@ -1,6 +1,6 @@
 "use strict";
 
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import Promise from "bluebird";
 import blobPatch from "lib/blobpatch";
 import ChannelMixer from "audio/ChannelMixer";

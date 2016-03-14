@@ -1,6 +1,6 @@
 "use strict";
 
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import { inherits } from "lib/util";
 
 export default function AbstractTrackContainer() {

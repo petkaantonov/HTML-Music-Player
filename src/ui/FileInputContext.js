@@ -1,4 +1,4 @@
-import $ from "lib/jquery";
+import $ from "jquery";
 
 function FileInput(context, dom, attributes) {
     this._nodes = dom;

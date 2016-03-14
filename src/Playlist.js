@@ -1,6 +1,6 @@
 "use strict";
-import $ from "lib/jquery";
-import EventEmitter from "lib/events";
+import $ from "jquery";
+import EventEmitter from "events";
 import { buildConsecutiveRanges, indexMapper, inherits } from "lib/util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";

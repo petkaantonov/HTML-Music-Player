@@ -2,7 +2,7 @@
 
 import Promise from "bluebird";
 import base64 from "base64-js";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 export const setFilter = (function() {
    var div = document.createElement("div");

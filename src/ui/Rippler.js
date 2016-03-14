@@ -1,7 +1,7 @@
 "use strict";
 
 import Animator from "ui/Animator";
-import $ from "lib/jquery";
+import $ from "jquery";
 
 const NULL = $(null);
 

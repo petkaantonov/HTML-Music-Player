@@ -1,9 +1,9 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import { inherits } from "lib/util";
 import Selectable from "ui/Selectable";
 import { isTouchEvent } from "lib/DomUtil";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 
 const DRAG_START_DELAY_MS = 300;
 

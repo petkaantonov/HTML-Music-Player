@@ -12,7 +12,7 @@
 
 import Promise from "bluebird";
 import { inherits, throttle, onCapture  } from "lib/util";
-import EventEmitter from "lib/events";
+import EventEmitter from "events";
 import ChannelMixer from "audio/ChannelMixer";
 import patchAudioContext from "lib/audiocontextpatch";
 import simulateTick from "lib/patchtimers";

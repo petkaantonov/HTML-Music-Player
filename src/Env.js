@@ -1,6 +1,6 @@
 "use strict";
 
-import $ from "lib/jquery";
+import $ from "jquery";
 import Promise from "bluebird";
 import parser from "ua-parser-js";
 

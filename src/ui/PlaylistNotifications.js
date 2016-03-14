@@ -1,5 +1,5 @@
 "use strict";
-import $ from "lib/jquery";
+import $ from "jquery";
 import Promise from "bluebird";
 import { preventDefault } from "lib/DomUtil";
 
