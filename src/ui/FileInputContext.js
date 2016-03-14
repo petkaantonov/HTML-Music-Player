@@ -1,3 +1,5 @@
+"use strict";
+
 import $ from "jquery";
 
 function FileInput(context, dom, attributes) {

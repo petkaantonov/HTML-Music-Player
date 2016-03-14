@@ -2,11 +2,9 @@
 
 import Animator from "ui/Animator";
 import $ from "jquery";
-import Promise from "bluebird";
 
 const gestureIcon = function(icon) {
-    return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon
-                +'"></span></div>';
+    return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon + '"></span></div>';
 };
 
 const gestureNameMap = {

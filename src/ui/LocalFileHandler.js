@@ -155,14 +155,14 @@ LocalFileHandler.prototype.directoryInputChanged = function(e) {
             fileEmitter.on("end", function() {
                 fileEmitter.removeAllListeners();
             });
-        })
+        });
     } else {
         this.addFilesToPlaylist(this.filterFiles(input.files));
     }
     this.directoryFileInput.resetFiles();
 };
 
-const toTrack = function(v) { return new Track(v); }
+const toTrack = function(v) { return new Track(v); };
 LocalFileHandler.prototype.addFilesToPlaylist = function(files) {
     this.playlist.add(files.map(toTrack));
 };

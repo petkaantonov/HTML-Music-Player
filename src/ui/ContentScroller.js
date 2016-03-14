@@ -1,8 +1,9 @@
-"use strict"
+"use strict";
 
-import { bindScrollerEvents, setTransform } from "lib/DomUtil";
+import { setTransform } from "lib/DomUtil";
 import Scroller from "scroller";
 import Scrollbar from "ui/Scrollbar";
+import $ from "jquery";
 
 export default function ContentScroller(node, opts) {
     opts = Object(opts);
@@ -92,7 +93,7 @@ ContentScroller.prototype._setWillChange = function() {
     this.$contentContainer().css("willChange", "transform");
 };
 
-ContentScroller.prototype._renderScroller = function(left, top, zoom) {
+ContentScroller.prototype._renderScroller = function(left, top) {
     if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
     this._scheduleRender();
@@ -147,7 +148,6 @@ ContentScroller.prototype.settledScrollTop = function() {
 };
 
 ContentScroller.prototype.scrollIntoView = function(elem, animate) {
-    var maxTop = this.maxTop();
     var scrollTop = this.settledScrollTop();
     var height = this.contentHeight();
     var rect = elem.getBoundingClientRect();

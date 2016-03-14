@@ -1,8 +1,9 @@
 "use strict";
 import Promise from "bluebird";
+import $ from "jquery";
 import { inherits } from "lib/util";
 import EventEmitter from "events";
-import unitBezier from "lib/bezier";
+import unitBezier from "bezier";
 import { getFilter, getTransform, setFilter, setTransform } from "lib/DomUtil";
 
 function Line(x1, y1, x2, y2, progress) {
@@ -173,9 +174,9 @@ AnimationPath.prototype.quadraticCurveTo = function(cpx, cpy, x, y, progress) {
 };
 
 AnimationPath.prototype.curveTo = function(endX, endY, gap, positionMultiplier, side, progress) {
-    if (side == undefined) side = 1;
-    if (positionMultiplier == undefined) positionMultiplier = 0.5;
-    if (gap == undefined) gap = 5;
+    if (side == null) side = 1;
+    if (positionMultiplier == null) positionMultiplier = 0.5;
+    if (gap == null) gap = 5;
     var prev = this._previous();
     var startX = prev.endX();
     var startY = prev.endY();

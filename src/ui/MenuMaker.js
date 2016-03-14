@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 import { slugTitle } from "lib/util";
 import ActionMenu, { ContextMenu } from "ui/ActionMenu";

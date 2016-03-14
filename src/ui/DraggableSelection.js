@@ -110,7 +110,7 @@ DraggableSelection.prototype._onTouchend = function(e) {
     return this._onMouseRelease(e);
 };
 
-DraggableSelection.prototype._onMouseRelease = function(e) {
+DraggableSelection.prototype._onMouseRelease = function() {
     this._clearDragStartDelay();
     if (!this._isDragging) return;
     var dragStartWasFired = this._dragStartFired;

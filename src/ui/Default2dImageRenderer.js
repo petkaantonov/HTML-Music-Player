@@ -41,8 +41,8 @@ Default2dImageRenderer.prototype.drawCaps = function(bins) {
         var y1 = (binValue < currentCapBasePosition ? (currentCapBasePosition * highestBinHeight)
                                                   : (binValue * highestBinHeight))|0;
         y1 += capSeparator;
-        var x2 = x1 + capWidth;
-        var y2 = y2 + capHeight;
+        /*var x2 = x1 + capWidth;
+        var y2 = y2 + capHeight;*/
 
         this.context.drawImage(this.image, capSourceX, capSourceY, capWidth, capHeight,
                                            x1, this.height - y1 - capHeight, capWidth, capHeight);
@@ -56,20 +56,20 @@ Default2dImageRenderer.prototype.drawBins = function(bins) {
     var fullWidth = binWidth + gapWidth * 2;
     var width = binWidth + gapWidth;
     // TODO this is actually sourceRowHeight.
-    var canvasHeight = this.height;
+    //var canvasHeight = this.height;
     var sourceBinPositions = this.visualizerCanvas.source.binPositions;
 
     for (var i = 0; i < bins.length; ++i) {
         var binValue = bins[i];
         var x1 = i * width - gapWidth;
         var y1 = 0;
-        var x2 = x1 + fullWidth;
+        //var x2 = x1 + fullWidth;
         var y2 = (binValue * highestBinHeight)|0;
 
         var srcX1 = sourceBinPositions[y2 * 2];
         var srcY1 = sourceBinPositions[y2 * 2 + 1];
-        var srcX2 = srcX1 + fullWidth;
-        var srcY2 = srcY1 + (highestBinHeight - (srcY1 % canvasHeight));
+        /*var srcX2 = srcX1 + fullWidth;
+        var srcY2 = srcY1 + (highestBinHeight - (srcY1 % canvasHeight));*/
 
         this.context.drawImage(this.image, srcX1, srcY1,
                                            fullWidth, highestBinHeight - srcY1,

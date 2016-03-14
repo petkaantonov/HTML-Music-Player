@@ -39,7 +39,7 @@
 
     // Relaxing
     "asi"           : false,     // true: Tolerate Automatic Semicolon Insertion (no semicolons)
-    "boss"          : false,     // true: Tolerate assignments where comparisons would be expected
+    "boss"          : true,     // true: Tolerate assignments where comparisons would be expected
     "debug"         : false,     // true: Allow debugger statements e.g. browser breakpoints.
     "eqnull"        : true,     // true: Tolerate use of `== null`
     "esversion"     : 6,         // {int} Specify the ECMAScript version to which the code must adhere.
@@ -82,7 +82,7 @@
     "rhino"         : false,    // Rhino
     "shelljs"       : false,    // ShellJS
     "typed"         : false,    // Globals for typed array constructions
-    "worker"        : false,    // Web Workers
+    "worker"        : true,    // Web Workers
     "wsh"           : false,    // Windows Scripting Host
     "yui"           : false,    // Yahoo User Interface
 

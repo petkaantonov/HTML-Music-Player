@@ -51,7 +51,7 @@ export default function DefaultShortcuts(opts) {
     this.keyboardShortcuts.defaultContext.addShortcut("z", this.shortcutPlay);
     this.keyboardShortcuts.defaultContext.addShortcut(["x", "MediaStop"], this.shortcutPause);
     this.keyboardShortcuts.defaultContext.addShortcut(["mod+ArrowRight", "MediaTrackNext"], this.shortcutNext);
-    this.keyboardShortcuts.defaultContext.addShortcut(["mod+ArrowLeft", "MediaTrackPrevious"], thos.shortcutPrev);
+    this.keyboardShortcuts.defaultContext.addShortcut(["mod+ArrowLeft", "MediaTrackPrevious"], this.shortcutPrev);
     this.keyboardShortcuts.defaultContext.addShortcut(["-", "VolumeDown"], this.shortcutVolumeDown);
     this.keyboardShortcuts.defaultContext.addShortcut(["+", "VolumeUp"], this.shortcutVolumeUp);
     this.keyboardShortcuts.defaultContext.addShortcut([" ", "MediaPlayPause"], this.shortcutTogglePlayback);
@@ -134,7 +134,7 @@ DefaultShortcuts.prototype.shortcutPlaylistRepeat = function() {
     this.playlist.tryChangeMode("repeat");
 };
 
-DefaultShortcuts.prototype.shortcutSeekBack = function() {
+DefaultShortcuts.prototype.shortcutSeekBack = function(e) {
     offCapture(document, "keyup", this.commitSeek);
 
     var p;
@@ -152,7 +152,7 @@ DefaultShortcuts.prototype.shortcutSeekBack = function() {
     }
 };
 
-DefaultShortcuts.prototype.shortcutSeekForward = function() {
+DefaultShortcuts.prototype.shortcutSeekForward = function(e) {
     offCapture(document, "keyup", this.commitSeek);
 
     var p;
@@ -170,9 +170,9 @@ DefaultShortcuts.prototype.shortcutSeekForward = function() {
     }
 };
 
-DefaultShortcuts.prototype.screenTapped = tapHandler(function(e) {
+DefaultShortcuts.prototype.screenTapped = function(e) {
     this.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
-});
+};
 
 DefaultShortcuts.prototype.shortcutGestureTogglePlayback = function() {
     var gesture = this.player.isPlaying ? "pause" : "play";

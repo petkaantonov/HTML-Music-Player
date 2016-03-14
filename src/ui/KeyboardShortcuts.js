@@ -5,6 +5,8 @@ import keyboard from "js-polyfills/keyboard";
 import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 
+self.keyboard = keyboard;
+
 function KeyboardShortcutContext() {
     this._active = false;
     this._shortCutsMap = {};
@@ -45,7 +47,7 @@ KeyboardShortcutContext.prototype.addShortcut = function(shortcut, handler, opti
             ctrlModifiers = split.slice();
             metaModifiers = split.slice();
             ctrlModifiers[i] = "ctrl";
-            metaModifiers[i] = "meta;"
+            metaModifiers[i] = "meta;";
             break;
         }
     }

@@ -1,9 +1,10 @@
-"use strict"
+"use strict";
 
 import { throttle } from "lib/util";
-import { bindScrollerEvents, setTransform } from "lib/DomUtil";
+import { setTransform } from "lib/DomUtil";
 import Scroller from "scroller";
 import Scrollbar from "ui/Scrollbar";
+import $ from "jquery";
 
 export default function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
@@ -135,7 +136,7 @@ FixedItemListScroller.prototype._scheduleRender = function() {
     }
 };
 
-FixedItemListScroller.prototype._renderScroller = function(left, top, zoom) {
+FixedItemListScroller.prototype._renderScroller = function(left, top) {
     if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
     this._scheduleRender();
@@ -181,8 +182,6 @@ FixedItemListScroller.prototype._resetChangingDimensions = throttle(function() {
 }, 50);
 
 FixedItemListScroller.prototype.resize = function() {
-    var previousPhysicalHeight = this._previousPhysicalHeight;
-    var heightChange = this.physicalHeight() - previousPhysicalHeight;
     this._previousPhysicalHeight = this.physicalHeight();
     var nodeRect = this.$()[0].getBoundingClientRect();
     this._rect = this.$contentContainer()[0].getBoundingClientRect();
@@ -243,7 +242,7 @@ FixedItemListScroller.prototype.coordsToIndexRange = function(startY, endY) {
     if (startIndex > endIndex) {
         var tmp = startIndex;
         startIndex = endIndex;
-        endIndex = startIndex
+        endIndex = tmp;
     }
 
     return {

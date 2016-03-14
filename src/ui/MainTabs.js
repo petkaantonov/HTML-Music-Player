@@ -8,14 +8,6 @@ const PLAYLIST_TAB_ID = "playlist";
 const SEARCH_TAB_ID = "search";
 const QUEUE_TAB_ID = "queue";
 
-const noneSelected = function(selectedCount, totalCount) {
-    return selectedCount === 0;
-};
-
-const allSelected = function(selectedCount, totalCount) {
-    return selectedCount === totalCount && totalCount > 0;
-};
-
 const lessThanAllSelected = function(selectedCount, totalCount) {
     return selectedCount < totalCount && totalCount > 0;
 };
@@ -35,6 +27,7 @@ const moreThan1Selected = function(selectedCount, totalCount) {
 export default function MainTabs(opts) {
     opts = Object(opts);
     this.opts = opts;
+    this.menuMaker = opts.menuMaker;
     this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this.itemHeight = opts.itemHeight;
@@ -87,15 +80,15 @@ export default function MainTabs(opts) {
     this.playlistActionSpec = this.getPlaylistActionSpec();
     this.searchActionSpec = this.getSearchActionSpec();
 
-    this.playlistContextMenu = new ContextMenu(this.playlist.$(), this.playlistActionSpec);
-    this.searchContextMenu = new ContextMenu(this.search.$(), this.searchActionSpec);
+    this.playlistContextMenu = this.menuMaker.createContextMenu(this.playlist.$(), this.playlistActionSpec);
+    this.searchContextMenu = this.menuMaker.createContextMenu(this.search.$(), this.searchActionSpec);
 
     this.playlistContextMenu.on("beforeOpen", this.beforePlaylistContextMenuOpen.bind(this));
     this.searchContextMenu.on("beforeOpen", this.beforeSearchContextMenuOpen.bind(this));
     this.playlist.on("tracksSelected", this.updatePlaylistContextMenuEnabledStates.bind(this));
     this.playlist.on("lengthChange", this.updatePlaylistContextMenuEnabledStates.bind(this));
-    this.search.on("tracksSelected", updateSearchContextMenuEnabledStates.bind(this));
-    this.search.on("lengthChange", updateSearchContextMenuEnabledStates.bind(this));
+    this.search.on("tracksSelected", this.updateSearchContextMenuEnabledStates.bind(this));
+    this.search.on("lengthChange", this.updateSearchContextMenuEnabledStates.bind(this));
     $(window).on("sizechange", this.layoutChanged.bind(this));
 }
 
@@ -121,18 +114,16 @@ MainTabs.prototype.actionHandler = function(preventDefault, contentInstance, met
 
 MainTabs.prototype.getPlaylistActionSpec = function() {
     return {
-        env: this.env,
-        rippler: this.rippler,
         menu: [{
             id: "play",
             disabled: true,
-            content: contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
+            content: this.menuMaker.createMenuItem("Play", "glyphicon glyphicon-play-circle"),
             onClick: this.actionHandler(false, this.playlist, "playPrioritySelection"),
             enabledPredicate: moreThan0Selected
         }, {
             id: "delete",
             disabled: true,
-            content: contextMenuItem("Delete", "material-icons small-material-icon delete"),
+            content: this.menuMaker.createMenuItem("Delete", "material-icons small-material-icon delete"),
             onClick: this.actionHandler(false, this.playlist, "removeSelected"),
             enabledPredicate: moreThan0Selected
         }, {
@@ -140,64 +131,64 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
         }, {
             id: "clear-selection",
             disabled: true,
-            content: contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
+            content: this.menuMaker.createMenuItem("Select none", "material-icons small-material-icon crop_square"),
             onClick: this.actionHandler(true, this.playlist, "clearSelection"),
             enabledPredicate: moreThan0Selected
         }, {
             id: "select-all",
             disabled: true,
-            content: contextMenuItem("Select all", "material-icons small-material-icon select_all"),
+            content: this.menuMaker.createMenuItem("Select all", "material-icons small-material-icon select_all"),
             onClick: this.actionHandler(true, this.playlist, "selectAll"),
             enabledPredicate: lessThanAllSelected
         }, {
             id: "sort",
             disabled: true,
-            content: contextMenuItem("Sort by", "glyphicon glyphicon-sort"),
+            content: this.menuMaker.createMenuItem("Sort by", "glyphicon glyphicon-sort"),
             enabledPredicate: moreThan1Selected,
             children: [{
                 id: "sort-by-album",
-                content: contextMenuItem("Album", "material-icons small-material-icon album"),
+                content: this.menuMaker.createMenuItem("Album", "material-icons small-material-icon album"),
                 onClick: this.actionHandler(true, this.playlist, "sortByAlbum"),
                 enabledPredicate: moreThan1Selected
             }, {
                 id: "sort-by-artist",
-                content: contextMenuItem("Artist", "material-icons small-material-icon mic"),
+                content: this.menuMaker.createMenuItem("Artist", "material-icons small-material-icon mic"),
                 onClick: this.actionHandler(true, this.playlist, "sortByArtist"),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: "sort-by-album-artist",
-                content: contextMenuItem("Album artist", "material-icons small-material-icon perm_camera_mic"),
+                content: this.menuMaker.createMenuItem("Album artist", "material-icons small-material-icon perm_camera_mic"),
                 onClick: this.actionHandler(true, this.playlist, "sortByAlbumArtist"),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: "sort-by-title",
-                content: contextMenuItem("Title", "material-icons small-material-icon music_note"),
+                content: this.menuMaker.createMenuItem("Title", "material-icons small-material-icon music_note"),
                 onClick: this.actionHandler(true, this.playlist, "sortByTitle"),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: "sort-by-rating",
-                content: contextMenuItem("Rating", "material-icons small-material-icon grade"),
+                content: this.menuMaker.createMenuItem("Rating", "material-icons small-material-icon grade"),
                 onClick: this.actionHandler(true, this.playlist, "sortByRating"),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: "sort-by-duration",
-                content: contextMenuItem("Duration", "material-icons small-material-icon access_time"),
+                content: this.menuMaker.createMenuItem("Duration", "material-icons small-material-icon access_time"),
                 onClick: this.actionHandler(true, this.playlist, "sortByDuration"),
                 enabledPredicate: moreThan1Selected
             }, {
                 divider: true
             }, {
                 id: "sort-by-shuffling",
-                content: contextMenuItem("Shuffle", "material-icons small-material-icon shuffle"),
+                content: this.menuMaker.createMenuItem("Shuffle", "material-icons small-material-icon shuffle"),
                 onClick: this.actionHandler(true, this.playlist, "sortByShuffling"),
                 enabledPredicate: moreThan1Selected
             }, {
                 id: "sort-by-reverse-order",
-                content: contextMenuItem("Reverse order", "material-icons small-material-icon undo"),
+                content: this.menuMaker.createMenuItem("Reverse order", "material-icons small-material-icon undo"),
                 onClick: this.actionHandler(true, this.playlist, "sortByReverseOrder"),
                 enabledPredicate: moreThan1Selected
             }]
@@ -219,12 +210,10 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
 
 MainTabs.prototype.getSearchActionSpec = function() {
     return {
-        env: this.env,
-        rippler: this.rippler,
         menu: [{
             id: "play",
             disabled: true,
-            content: contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
+            content: this.menuMaker.createMenuItem("Play", "glyphicon glyphicon-play-circle"),
             onClick: this.actionHandler(false, this.search, "playPrioritySelection"),
             enabledPredicate: moreThan0Selected
         }, {
@@ -232,13 +221,13 @@ MainTabs.prototype.getSearchActionSpec = function() {
         }, {
             id: "clear-selection",
             disabled: true,
-            content: contextMenuItem("Select none", "material-icons small-material-icon crop_square"),
+            content: this.menuMaker.createMenuItem("Select none", "material-icons small-material-icon crop_square"),
             onClick: this.actionHandler(true, this.search, "clearSelection"),
             enabledPredicate: moreThan0Selected
         }, {
             id: "select-all",
             disabled: true,
-            content: contextMenuItem("Select all", "material-icons small-material-icon select_all"),
+            content: this.menuMaker.createMenuItem("Select all", "material-icons small-material-icon select_all"),
             onClick: this.actionHandler(true, this.search, "selectAll"),
             enabledPredicate: lessThanAllSelected
         }, {

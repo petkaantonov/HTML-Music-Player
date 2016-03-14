@@ -177,6 +177,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.mainTabs = new MainTabs({
         keyboardShortcuts: this.keyboardShortcuts,
+        menuMaker: this.menuMaker,
         playlist: this.playlist,
         search: this.search,
         queue: this.queue,
