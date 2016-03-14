@@ -23,7 +23,7 @@
  */
 
 import realFft from "lib/realfft";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import AcoustIdApiError from "audio/AcoustIdApiError";
 import { queryString } from "lib/util";
 

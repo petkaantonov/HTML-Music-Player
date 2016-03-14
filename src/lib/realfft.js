@@ -1,4 +1,5 @@
 "use strict";
+export default realFft;
 var realFft = (function() {
     const MAX_SIZE = 32768;
     const MAX_SIZE_LOG2 = Math.log(MAX_SIZE) * Math.LOG2E|0;
@@ -173,5 +174,3 @@ var realFft = (function() {
     };
 
 })();
-
-module.exports = realFft;

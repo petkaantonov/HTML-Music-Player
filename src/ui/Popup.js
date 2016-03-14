@@ -1,6 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import EventEmitter from "lib/events";
 import { combineClasses, documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import { changeDom, isTouchEvent, preventDefault, setTransform } from "lib/DomUtil";

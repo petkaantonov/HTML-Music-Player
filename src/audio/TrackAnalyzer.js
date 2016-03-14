@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { documentHidden, throttle } from "lib/util";
 import TrackWasRemovedError from "TrackWasRemovedError";
 import Track from "Track";

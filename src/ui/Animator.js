@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { inherits } from "lib/util";
 import EventEmitter from "lib/events";
 import unitBezier from "lib/bezier";

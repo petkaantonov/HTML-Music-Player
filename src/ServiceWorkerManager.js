@@ -2,7 +2,7 @@
 
 import $ from "lib/jquery";
 import { documentHidden, inherits } from "lib/util";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
 import EventEmitter from "lib/events";
 

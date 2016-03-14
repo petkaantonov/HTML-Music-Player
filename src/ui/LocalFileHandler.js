@@ -3,9 +3,9 @@
 import LocalFiles from "LocalFiles";
 import $ from "lib/jquery";
 import Track from "Track";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 
-function LocalFileHandler(opts) {
+export default function LocalFileHandler(opts) {
     opts = Object(opts);
     this.env = opts.env;
     this.opts = opts;

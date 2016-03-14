@@ -1,7 +1,7 @@
 "use strict";
 
 import $ from "lib/jquery";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import Application from "Application";
 import KeyValueDatabase from "KeyValueDatabase";
 import Env from "Env";

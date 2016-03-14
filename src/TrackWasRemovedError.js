@@ -1,2 +1,3 @@
 import { subClassError } from "lib/util";
-export default var TrackWasRemovedError = subClassError("TrackWasRemovedError");
+export default TrackWasRemovedError;
+var TrackWasRemovedError = subClassError("TrackWasRemovedError");

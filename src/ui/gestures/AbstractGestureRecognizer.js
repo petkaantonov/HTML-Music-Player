@@ -29,7 +29,7 @@ AbstractGestureRecognizer.prototype.recognizeBubbledOn = function($elem, selecto
 
     if (arguments.length <= 1) {
         $elem.on(this._eventType, this._recognizerHandler);
-    } else if arguments.length === 2) {
+    } else if (arguments.length === 2) {
         $elem.on(this._eventType, selector, this._recognizerHandler);
     } else {
         throw new Error("invalid arguments");
@@ -41,7 +41,7 @@ AbstractGestureRecognizer.prototype.unrecognizeBubbledOf = function($elem, selec
 
     if (arguments.length <= 1) {
         $elem.off(this._eventType, this._recognizerHandler);
-    } else if arguments.length === 2) {
+    } else if (arguments.length === 2) {
         $elem.off(this._eventType, selector, this._recognizerHandler);
     } else {
         throw new Error("invalid arguments");

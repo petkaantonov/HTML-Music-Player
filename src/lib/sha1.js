@@ -1,6 +1,6 @@
-export default var sha1;
+export default sha1;
 
-sha1 = (function() {
+var sha1 = (function() {
 
 /*
 CryptoJS v3.1.2

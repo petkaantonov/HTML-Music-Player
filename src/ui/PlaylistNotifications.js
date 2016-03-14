@@ -1,6 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { preventDefault } from "lib/DomUtil";
 import PlayerPictureManager from "ui/PlayerPictureManager";
 

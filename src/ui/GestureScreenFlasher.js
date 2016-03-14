@@ -2,7 +2,7 @@
 
 import Animator from "ui/Animator";
 import $ from "lib/jquery";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 
 const gestureIcon = function(icon) {
     return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon

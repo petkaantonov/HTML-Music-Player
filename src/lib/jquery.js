@@ -1,10 +1,3 @@
-export default var $;
-(function () {
-var module = {
-    set exports (value) {
-        $ = value;
-    }
-};
 /*!
  * jQuery JavaScript Library v2.2.0 -ajax/script,-deprecated,-effects,-effects/Tween,-effects/animatedSelector,-wrap,-css/hiddenVisibleSelectors,-offset,-event/focusin
  * http://jquery.com/
@@ -18,6 +11,8 @@ var module = {
  *
  * Date: 2016-01-16T06:53Z
  */
+
+export default jQueryModule;
 
 (function( global, factory ) {
 
@@ -6733,4 +6728,4 @@ if ( !noGlobal ) {
 return jQuery;
 }));
 
-})();
+var jQueryModule = jQuery;

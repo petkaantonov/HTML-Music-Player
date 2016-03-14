@@ -6,8 +6,8 @@ import EventEmitter from "lib/events";
 import { inherits } from "lib/util";
 import TagData from "TagData";
 import sha1 from "lib/sha1";
-import Promise from "lib/bluebird";
-import searchUtil from "searchUtil";
+import Promise from "bluebird";
+import { calculateUid, getSearchTerm } from "lib/searchUtil";
 
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
@@ -61,7 +61,7 @@ Track.prototype.matches = function(matchers) {
     if (!this.tagData) return false;
 
     if (!this._searchTerm) {
-        this._searchTerm = searchUtil.getSearchTerm(this.tagData, this.file);
+        this._searchTerm = getSearchTerm(this.tagData, this.file);
     }
     for (var i = 0; i < matchers.length; ++i) {
         if (!matchers[i].test(this._searchTerm)) {
@@ -348,7 +348,7 @@ Track.prototype.tagDataUpdated = function() {
 Track.prototype.uid = function() {
     if (this.tagData) {
         if (this._uid) return this._uid;
-        this._uid = searchUtil.calculateUid(this.file, this.tagData, true);
+        this._uid = calculateUid(this.file, this.tagData, true);
         return this._uid;
     } else {
         throw new Error("cannot get uid before having tagData");

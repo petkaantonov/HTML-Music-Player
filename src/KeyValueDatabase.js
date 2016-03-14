@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import $ from "lib/jquery";
 import { IDBPromisify, throttle } from "lib/util";
 

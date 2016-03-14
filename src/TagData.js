@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { capitalize, formatTagString, toTimeString } from "lib/util";
 import blobPatch from "lib/blobpatch";
 

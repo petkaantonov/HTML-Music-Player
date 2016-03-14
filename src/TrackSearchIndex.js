@@ -2,7 +2,7 @@
 
 import SearchTree from "lib/SearchTree";
 import SearchTreeEntry from "SearchTreeEntry";
-import searchUtil from "searchUtil";
+import { getSearchTerm } from "lib/searchUtil";
 import sortedArrays from "lib/sortedArrays";
 import { getFirstWord, getLastWord, reverseString } from "lib/util";
 
@@ -80,7 +80,7 @@ TrackSearchIndex.prototype.update = function(transientId, metadata) {
 };
 
 TrackSearchIndex.prototype._addToSearchTree = function(transientId, metadata, file) {
-    var entry = new SearchTreeEntry(transientId, searchUtil.getSearchTerm(metadata, file));
+    var entry = new SearchTreeEntry(transientId, getSearchTerm(metadata, file));
     var keywords = entry.keywords();
     for (var i = 0; i < keywords.length; ++i) {
         var keyword = keywords[i];

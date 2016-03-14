@@ -10,7 +10,7 @@
 // in the catastrophic case where ui is blocked, the output will be silence
 // instead of ear destroying noise.
 
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { inherits, throttle, onCapture  } from "lib/util";
 import EventEmitter from "lib/events";
 import ChannelMixer from "audio/ChannelMixer";

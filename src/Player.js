@@ -1,6 +1,6 @@
 "use strict";
 import $ from "lib/jquery";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import AudioVisualizer from "audio/AudioVisualizer";

@@ -1,7 +1,7 @@
 "use strict";
 import initTextCodec from "lib/text_codec";
 import simulateTick from "lib/patchtimers";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import blobPatch from "lib/blobpatch";
 import { assign } from "lib/util";
 import TagDatabase from "TagDatabase";

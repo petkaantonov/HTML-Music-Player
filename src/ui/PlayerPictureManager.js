@@ -1,8 +1,8 @@
 "use strict";
 import $ from "lib/jquery";
 import Animator from "ui/Animator";
-import jdenticon from "lib/jdenticon";
-import Promise from "lib/bluebird";
+import jdenticon from "jdenticon";
+import Promise from "bluebird";
 import { addLegacyListener } from "lib/util";
 import { canvasToImage } from "lib/DomUtil";
 

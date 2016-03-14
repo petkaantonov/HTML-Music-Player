@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import FileView from "lib/FileView";
 import { Mp3SeekTable } from "audio/demuxer";
 

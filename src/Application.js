@@ -208,7 +208,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         pauseButtonDom: ".pause-button",
         previousButtonDom: ".previous-button",
         stopButtonDom: ".stop-button",
-        nextButtonDom: ".next-button"
+        nextButtonDom: ".next-button",
         snackbar: this.snackbar,
         env: this.env,
         recognizerMaker: this.recognizerMaker,
@@ -222,7 +222,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         applicationPreferences: this.applicationPreferences,
         tooltipMaker: this.tooltipMaker,
         src: window.DEBUGGING
-            ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
+            ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js"
     });
 
     this.playerPictureManager = new PlayerPictureManager(".picture-container", this.player, {

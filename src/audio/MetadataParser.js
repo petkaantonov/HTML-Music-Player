@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import sniffer from "audio/sniffer";
 import FileView from "lib/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";

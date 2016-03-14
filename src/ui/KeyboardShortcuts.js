@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "lib/events";
-import initializeKeyboard from "lib/keyboard";
+import keyboard from "js-polyfills/keyboard";
 import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 
@@ -78,7 +78,6 @@ KeyboardShortcutContext.prototype._deactivate = function() {
 
 export default function KeyboardShortcuts() {
     EventEmitter.call(this);
-    initializeKeyboard();
     this._defaultContext = new KeyboardShortcutContext();
     this._defaultContext._activate();
     this._enabled = true;

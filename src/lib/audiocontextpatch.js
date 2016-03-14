@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 
 export default function patch(AudioContext, instance) {
     if (!instance.suspend) {

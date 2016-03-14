@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import { IDBPromisify, assign } from "lib/util";
 const VERSION = 3;
 const NAME = "TagDatabase";

@@ -181,7 +181,7 @@ export default function Search(domNode, opts) {
     this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 
     if (SEARCH_HISTORY_KEY in this.dbValues) {
-        this.tryLoadHistory(this.dbValues([SEARCH_HISTORY_KEY]);
+        this.tryLoadHistory(this.dbValues([SEARCH_HISTORY_KEY]));
     }
 }
 inherits(Search, AbstractTrackContainer);

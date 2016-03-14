@@ -1,6 +1,6 @@
 "use strict";
 import Track from "Track";
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import EventEmitter from "lib/events";
 
 const MIN_FILES_BEFORE_TRIGGER = 10;

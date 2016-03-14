@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
 
 const GESTURE_EDUCATION_KEY = "gesture-education";

@@ -10,7 +10,6 @@ delete timers[500000000];
 const GlobalSetTimeout = setTimeout;
 const GlobalClearTimeout = clearTimeout;
 
-
 self.setTimeout = function(fn, time) {
     time = +time;
 
@@ -39,7 +38,7 @@ self.clearTimeout = function(id) {
     return GlobalClearTimeout.apply(self, arguments);
 };
 
-module.exports = function simulateTick() {
+export default function simulateTick() {
     var keys = Object.keys(timers);
     var now = Date.now();
     var timersToFire = [];
@@ -57,4 +56,4 @@ module.exports = function simulateTick() {
     for (var i = 0; i < timersToFire.length; ++i) {
         timersToFire[i].callback();
     }
-};
+}

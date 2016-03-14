@@ -1,7 +1,7 @@
 "use strict";
 
-import Promise from "lib/bluebird";
-import base64 from "lib/base64";
+import Promise from "bluebird";
+import base64 from "base64-js";
 import $ from "lib/jquery";
 
 export const setFilter = (function() {

@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "lib/bluebird";
+import Promise from "bluebird";
 import blobPatch from "lib/blobpatch";
 import { readAsArrayBuffer } from "lib/util";
 

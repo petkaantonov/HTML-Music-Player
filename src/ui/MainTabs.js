@@ -2,11 +2,7 @@
 
 import $ from "lib/jquery";
 import TabController from "ui/TabController";
-import { ContextMenu } from "ui/ActionMenu";
-import { contextMenuItem } from "ui/GlobalUi";
 import TrackRater from "TrackRater";
-
-
 
 const PLAYLIST_TAB_ID = "playlist";
 const SEARCH_TAB_ID = "search";
@@ -131,7 +127,7 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
             id: "play",
             disabled: true,
             content: contextMenuItem("Play", "glyphicon glyphicon-play-circle"),
-            onClick: this.actionHandler(false, this.playlist, "playPrioritySelection")
+            onClick: this.actionHandler(false, this.playlist, "playPrioritySelection"),
             enabledPredicate: moreThan0Selected
         }, {
             id: "delete",

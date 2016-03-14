@@ -251,7 +251,8 @@
  * License: MIT + Apache (V2)
  */
 
-export default var Scroller;
+export default Scroller;
+var Scroller;
 
 (function() {
     var NOOP = function(){};
