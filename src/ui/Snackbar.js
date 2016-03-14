@@ -2,7 +2,7 @@
 import $ from "jquery";
 import Promise from "bluebird";
 import EventEmitter from "events";
-import { documentHidden, inherits } from "lib/util";
+import { inherits } from "lib/util";
 import { changeDom } from "lib/DomUtil";
 
 const NO_TAG = {};
@@ -15,7 +15,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.visibilityTime = opts.visibilityTime || snackbar.visibilityTime || 5000;
 
     this._exiting = false;
-    this._visible = !documentHidden.value();
+    this._visible = !snackbar.globalEvents.isWindowBackgrounded();
     this._snackbar = snackbar;
     this._startedShowing = this._visible ? Date.now() : -1;
     this._initialShowing = Date.now();
@@ -33,9 +33,10 @@ function SnackbarInstance(snackbar, message, opts) {
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
-    $(window).on("sizechange", this._resized);
+    this._snackbar.globalEvents.on("resize", this._resized);
+    this._snackbar.globalEvents.on("visibilityChange", this._visibilityChanged);
+
     snackbar.recognizerMaker.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
-    documentHidden.on("change", this._visibilityChanged);
     this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
 
     if (this._snackbar.transitionInClass) {
@@ -131,7 +132,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
     var visibilityTime = this.visibilityTime;
     var shownTime = this._startedShowing === -1 ? 0 : Date.now() - this._startedShowing;
 
-    if (!documentHidden.value() && !this._isHovering) {
+    if (!this._snackbar.globalEvents.isWindowBackgrounded() && !this._isHovering) {
         if (shownTime > visibilityTime) {
             this.outcome = Snackbar.TIMED_OUT;
             this._hide();
@@ -200,8 +201,8 @@ SnackbarInstance.prototype._hide = function() {
 
 SnackbarInstance.prototype._removeListeners = function() {
     this.$().off("click", this._clicked);
-    $(window).off("sizechange", this._resized);
-    documentHidden.removeListener("change", this._visibilityChanged);
+    this._snackbar.globalEvents.removeListener("resize", this._resized);
+    this._snackbar.globalEvents.removeListener("visibilityChange", this._visibilityChanged);
     this._clearTimer();
 };
 
@@ -212,6 +213,7 @@ SnackbarInstance.prototype._destroy = function() {
 
 export default function Snackbar(opts) {
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";

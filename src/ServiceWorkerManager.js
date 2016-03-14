@@ -1,6 +1,6 @@
 "use strict";
 
-import { documentHidden, inherits } from "lib/util";
+import { inherits } from "lib/util";
 import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
 import EventEmitter from "events";
@@ -12,6 +12,7 @@ export default function ServiceWorkerManager(opts) {
     opts = Object(opts);
     EventEmitter.call(this);
 
+    this._globalEvents = opts.globalEvents;
     this._env = opts.env;
     this._snackbar = opts.snackbar;
 
@@ -30,10 +31,9 @@ export default function ServiceWorkerManager(opts) {
     this._appClosed = this._appClosed.bind(this);
 
     this._updateCheckInterval = setInterval(this._updateChecker, 10000);
-    documentHidden.on("foreground", this._foregrounded);
-    documentHidden.on("background", this._backgrounded);
-    window.addEventListener("unload", this._appClosed, false);
-
+    this._globalEvents.on("foreground", this._foregrounded);
+    this._globalEvents.on("background", this._backgrounded);
+    this._globalEvents.on("shutdown", this._appClosed);
 }
 inherits(ServiceWorkerManager, EventEmitter);
 

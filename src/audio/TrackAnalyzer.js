@@ -1,6 +1,6 @@
 "use strict";
 import Promise from "bluebird";
-import { documentHidden, throttle } from "lib/util";
+import { throttle } from "lib/util";
 import TrackWasRemovedError from "TrackWasRemovedError";
 import Track from "Track";
 import TagData from "TagData";
@@ -9,6 +9,7 @@ var instances = false;
 export default function TrackAnalyzer(playlist, opts) {
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     opts = Object(opts);
+    this._globalEvents = opts.globalEvents;
     instances = true;
     this._worker = new Worker(opts.src);
     this._analyzerJobs = [];
@@ -41,7 +42,7 @@ export default function TrackAnalyzer(playlist, opts) {
         self.ready = null;
     });
 
-    documentHidden.on("foreground", this._foregrounded.bind(this));
+    this.globalEvents.on("foreground", this._foregrounded.bind(this));
 }
 
 TrackAnalyzer.prototype._foregrounded = function() {

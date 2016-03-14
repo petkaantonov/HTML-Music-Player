@@ -80,6 +80,7 @@ Tab.prototype.deactivate = function() {
 export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
     this._domNode = $($(domNode)[0]);
@@ -95,8 +96,7 @@ export default function TabController(domNode, specs, opts) {
     this._indicatorNode = $($(opts.indicator)[0]);
 
     this._relayout = this._relayout.bind(this);
-
-    $(window).on("sizechange", this._relayout);
+    this.globalEvents.on("resize", this._relayout);
 
     this._dragStart = this._dragStart.bind(this);
     this._dragMove = this._dragMove.bind(this);

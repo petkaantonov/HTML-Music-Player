@@ -10,6 +10,7 @@ const NULL = $(null);
 
 export default function PopupMaker(opts) {
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.db = opts.db;
     this.scrollerMaker = opts.scrollerMaker;
     this.recognizerMaker = opts.recognizerMaker;
@@ -111,6 +112,7 @@ PopupMaker.prototype.toPreferenceKey = function(popupTitle) {
 PopupMaker.prototype.makePopup = function(title, body, opener, footerButtons) {
     var self = this;
     var popup = new Popup({
+        globalEvents: this.globalEvents,
         recognizerMaker: this.recognizerMaker,
         scrollerMaker: this.scrollerMaker,
         rippler: this.rippler,
@@ -166,7 +168,7 @@ PopupMaker.prototype.makePopup = function(title, body, opener, footerButtons) {
         popup.setScrollPosition(data.scrollPosition);
     }
 
-    $(window).on("clear", popup.close.bind(popup));
+    this.globalEvents.on("clear", popup.close.bind(popup));
 
     return popup;
 };

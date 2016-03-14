@@ -5,6 +5,7 @@ import Promise from "bluebird";
 import Application from "Application";
 import KeyValueDatabase from "KeyValueDatabase";
 import Env from "Env";
+import GlobalEvents from "GlobalEvents";
 
 const defaultTitle = "Soita";
 
@@ -18,6 +19,7 @@ var ready = new Promise(function(resolve) { $(resolve); });
 var db = new KeyValueDatabase();
 var dbValues = db.getInitialValues();
 var env = new Env();
+var globalEvents = new GlobalEvents();
 
 var featureCheckResults = env.getRequiredPlatformFeatures();
 
@@ -56,7 +58,13 @@ cssLoaded(Promise).then(function() {
     }
     return dbValues;
 }).then(function(dbValues) {
-    self.soitaApp = new Application(env, db, dbValues, defaultTitle);
+    self.soitaApp = new Application({
+        env: env,
+        db: db,
+        dbValues: dbValues,
+        defaultTitle: defaultTitle,
+        globalEvents: globalEvents
+    });
 });
 
 var desc = {

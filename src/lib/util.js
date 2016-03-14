@@ -1,7 +1,6 @@
 "use strict";
 
 import Promise from "bluebird";
-import EventEmitter from "events";
 
 var FunctionBind = Function.prototype.bind;
 Function.prototype.bind = function(ctx) {
@@ -894,59 +893,6 @@ export const iDbPromisify = function(ee) {
         ee.oncomplete = resolve;
     });
 };
-
-export const documentHidden = (function() {
-    if (typeof document === "undefined") return;
-
-    var prefix = ["h", "mozH", "msH", "webkitH"].reduce(function(prefix, curr) {
-        if (prefix) return prefix;
-        return (curr + "idden") in document ? curr : prefix;
-    }, null);
-    var prop = prefix + "idden";
-    var eventName = prefix.slice(0, -1) + "visibilitychange";
-
-    var ret = new EventEmitter();
-    ret.setMaxListeners(99999999);
-
-    var blurred;
-
-    ret.value = function() {
-        if (blurred === undefined) return document[prop];
-        if (blurred === true) return true;
-        return document[prop];
-    };
-
-    ret.isBackgrounded = function() {
-        return document[prop];
-    };
-
-    var changed = throttle(function() {
-        ret.emit("change");
-    }, 10);
-
-    document.addEventListener(eventName, function() {
-        if (document[prop]) {
-            ret.emit("background");
-        } else {
-            ret.emit("foreground");
-        }
-        changed();
-    }, false);
-
-    window.addEventListener("blur", function() {
-        blurred = true;
-        changed();
-    }, false);
-
-    window.addEventListener("focus", function() {
-        blurred = false;
-        changed();
-    }, false);
-
-
-    return ret;
-})();
-
 
 export const reverseString = (function() {
     var utf16decoder = null;

@@ -173,6 +173,7 @@ GraphicsSource.prototype.isReady = function() {
 
 export default function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
+    this.globalEvents = opts.globalEvents;
     this.player = player;
     player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported();
@@ -243,7 +244,7 @@ VisualizerCanvas.prototype.initialize = function() {
 
     if (this.binSizeChangeMatcher) {
         addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
-        $(window).on("sizechange", this.binSizeMediaMatchChanged);
+        this.globalEvents.on("resize", this.binSizeMediaMatchChanged);
     }
 
     this.latencyPopup.on("open", this.latencyPopupOpened);

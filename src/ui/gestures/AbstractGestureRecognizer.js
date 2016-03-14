@@ -7,11 +7,11 @@ export default function AbstractGestureRecognizer(recognizerMaker) {
 }
 
 AbstractGestureRecognizer.prototype.fireLongPressStart = function(t) {
-    this.recognizerMaker.longPressEvents.fireLongPressStart(t);
+    this.recognizerMaker.globalEvents._fireLongPressStart(t);
 };
 
 AbstractGestureRecognizer.prototype.fireLongPressEnd = function(t) {
-    this.recognizerMaker.longPressEvents.fireLongPressEnd(t);
+    this.recognizerMaker.globalEvents._fireLongPressEnd(t);
 };
 
 AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {

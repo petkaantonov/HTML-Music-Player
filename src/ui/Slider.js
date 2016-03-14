@@ -1,12 +1,13 @@
 "use strict";
 import $ from "jquery";
 import EventEmitter from "events";
-import { documentHidden, inherits, offCapture, onCapture } from "lib/util";
+import { inherits, offCapture, onCapture } from "lib/util";
 import { isTouchEvent, setTransform } from "lib/DomUtil";
 
 export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
@@ -29,8 +30,8 @@ export default function Slider(domNode, opts) {
         this._setupKeyboard();
     }
 
-    documentHidden.on("foreground", this._onReLayout);
-    $(window).on("sizechange", this._onReLayout);
+    this.globalEvents.on("foreground", this._onReLayout);
+    this.globalEvents.on("resize", this._onReLayout);
     this.$().on("mousedown", this._onMousedown);
     this.touchdownRecognizer.recognizeBubbledOn(this.$());
 }

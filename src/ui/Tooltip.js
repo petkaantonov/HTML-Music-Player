@@ -1,7 +1,7 @@
 "use strict";
 import $ from "jquery";
 import EventEmitter from "events";
-import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { inherits, offCapture, onCapture, toFunction } from "lib/util";
 import { reflow } from "lib/DomUtil";
 
 const getLongestTransitionDuration = function(node) {
@@ -80,6 +80,7 @@ export default function Tooltip(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this.recognizerMaker = opts.recognizerMaker;
+    this.globalEvents = opts.globalEvents;
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = $(opts.container);
     this._onContent = toFunction(opts.content);
@@ -129,9 +130,9 @@ export default function Tooltip(opts) {
         this.tapRecognizer.recognizeBubbledOn(this._target);
         this.documentTapRecognizer.recognizeCapturedOn(document);
     }
-    $(window).on("sizechange", this.position);
-    $(window).on("blur", this.hide);
-    documentHidden.on("change", this.hide);
+
+    this.globalEvents.on("resize", this.position);
+    this.globalEvents.on("visibilityChange", this.hide);
 }
 inherits(Tooltip, EventEmitter);
 
@@ -500,9 +501,9 @@ Tooltip.prototype.mouseLeft = function() {
 };
 
 Tooltip.prototype.destroy = function() {
-    $(window).off("sizechange", this.position);
-    $(window).off("blur", this.hide);
-    documentHidden.removeListener("change", this.hide);
+    this.globalEvents.removeListener("resize", this.position);
+    this.globalEvents.removeListener("visibilityChange", this.hide);
+
     offCapture(document, "click", this.documentClicked);
     this.documentTapRecognizer.unrecognizeCapturedOn(document);
 

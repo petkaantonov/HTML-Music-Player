@@ -66,6 +66,7 @@ TrackListDeletionUndo.prototype.destroy = function() {
 
 export default function Playlist(domNode, opts) {
     AbstractTrackContainer.call(this);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this.env = opts.env;
     this.db = opts.db;
@@ -116,7 +117,8 @@ export default function Playlist(domNode, opts) {
 
     this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
-    $(window).on("sizechange", this._windowLayoutChanged.bind(this));
+    this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
+    this.globalEvents.on("clear", this.clearSelection.bind(this));
 
     if (PLAYLIST_MODE_KEY in this.dbValues) {
         this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);

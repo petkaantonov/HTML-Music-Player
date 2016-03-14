@@ -2,7 +2,7 @@
 import $ from "jquery";
 import Promise from "bluebird";
 import EventEmitter from "events";
-import { combineClasses, documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { combineClasses, inherits, offCapture, onCapture, toFunction } from "lib/util";
 import { reflow, isTouchEvent, preventDefault, setTransform } from "lib/DomUtil";
 
 const NULL = $(null);
@@ -59,6 +59,7 @@ PopupButton.prototype.destroy = function() {
 export default function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this.scrollerMaker = opts.scrollerMaker;
     this.rippler = opts.rippler;
@@ -109,7 +110,7 @@ export default function Popup(opts) {
     this.headerTouchedRecognizer = this.recognizerMaker.createTouchdownRecognizer(this.headerMouseDowned);
     this.popupDragRecognizer = this.recognizerMaker.createDragRecognizer(this.mousemoved, this.draggingEnd);
 
-    $(window).on("sizechange", this._reLayout);
+    this.globalEvents.on("resize", this._reLayout);
 
     this._popupDom = NULL;
     this._rect = null;
@@ -211,9 +212,7 @@ Popup.prototype._initDom = function() {
 };
 
 Popup.prototype.destroy = function() {
-    $(window).off("resize blur", this.draggingEnd);
-    $(window).off("sizechange", this.position);
-    documentHidden.removeListener("change", this.draggingEnd);
+    this.globalEvents.removeListener("resize", this._reLayout);
     this._deinitDom();
 };
 

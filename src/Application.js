@@ -17,7 +17,6 @@ import KeyboardShortcuts from "ui/KeyboardShortcuts";
 import OpenableSubmenu from "ui/OpenableSubmenu";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "ui/DefaultShortcuts";
-import AndroidKeyboardFixer from "ui/AndroidKeyboardFixer";
 import PopupMaker from "ui/PopupMaker";
 import TooltipMaker from "ui/TooltipMaker";
 import TrackAnalyzer from "audio/TrackAnalyzer";
@@ -41,8 +40,13 @@ import { isTextInputElement } from "lib/DomUtil";
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 
-export default function Application(env, db, dbValues, defaultTitle) {
-    dbValues = Object(dbValues);
+export default function Application(opts) {
+    opts = Object(opts);
+    var env = opts.env;
+    var db = opts.db;
+    var dbValues = Object(opts.dbValues);
+    var defaultTitle = opts.defaultTitle;
+    var globalEvents = opts.globalEvents;
 
     if (!env.hasTouch()) {
         $("body").addClass("no-touch");
@@ -52,28 +56,29 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.db = db;
     this.dbValues = dbValues;
     this.defaultTitle = defaultTitle;
+    this.globalEvents = globalEvents;
 
-    this.recognizerMaker = new GestureRecognizerMaker(this.env);
-    this.sliderMaker = new SliderMaker(this.recognizerMaker);
+    this.recognizerMaker = new GestureRecognizerMaker(this.env, this.globalEvents);
+    this.sliderMaker = new SliderMaker(this.recognizerMaker, this.globalEvents);
     this.scrollEvents = new ScrollEvents(this.env, this.recognizerMaker);
-    this.androidKeyboardFixer = new AndroidKeyboardFixer();
     this.gestureScreenFlasher = new GestureScreenFlasher();
     this.rippler = new Rippler("body");
     this.keyboardShortcuts = new KeyboardShortcuts();
-    this.menuMaker = new MenuMaker(this.recognizerMaker, this.rippler);
+    this.menuMaker = new MenuMaker(this.recognizerMaker, this.rippler, this.globalEvents);
     this.fileInputContext = new FileInputContext(this.recognizerMaker, this.rippler);
 
     this.scrollEvents = new ScrollEvents(this.recognizerMaker);
     this.scrollerMaker = new ScrollerMaker(this.recognizerMaker, this.scrollEvents, ITEM_HEIGHT);
 
-    this.tooltipMaker = new TooltipMaker(this.env);
+    this.tooltipMaker = new TooltipMaker(this.env, this.globalEvents);
 
     this.snackbar = new Snackbar({
         transitionInClass: "transition-in",
         transitionOutClass: "transition-out",
         nextDelay: 400,
         visibilityTime: 4400,
-        recognizerMaker: this.recognizerMaker
+        recognizerMaker: this.recognizerMaker,
+        globalEvents: this.globalEvents
     });
 
     this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
@@ -82,6 +87,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.popupMaker = new PopupMaker({
+        globalEvents: this.globalEvents,
         recognizerMaker: this.recognizerMaker,
         scrollerMaker: this.scrollerMaker,
         dbValues: this.dbValues,
@@ -100,7 +106,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.serviceWorkerManager = new ServiceWorkerManager({
         snackbar: this.snackbar,
-        recognizerMaker: this.recognizerMaker
+        recognizerMaker: this.recognizerMaker,
+        globalEvents: this.globalEvents
     });
     this.serviceWorkerManager.start();
 
@@ -146,6 +153,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         scrollerMaker: this.scrollerMaker,
         rippler: this.rippler,
         snackbar: this.snackbar,
+        globalEvents: this.globalEvents,
         keyboardShortcuts: this.keyboardShortcuts,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
@@ -154,6 +162,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
+        globalEvents: this.globalEvents,
         src: env.isDevelopment() ? "dist/worker/TrackAnalyzerWorker.js" : "dist/worker/TrackAnalyzerWorker.min.js"
     });
 
@@ -162,6 +171,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         itemHeight: ITEM_HEIGHT,
         db: this.db,
         dbValues: this.dbValues,
+        globalEvents: this.globalEvents,
         recognizerMaker: this.recognizerMaker,
         scrollerMaker: this.scrollerMaker,
         keyboardShortcuts: this.keyboardShortcuts,
@@ -177,6 +187,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     this.mainTabs = new MainTabs({
         keyboardShortcuts: this.keyboardShortcuts,
+        globalEvents: this.globalEvents,
         menuMaker: this.menuMaker,
         playlist: this.playlist,
         search: this.search,
@@ -212,6 +223,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
         nextButtonDom: ".next-button",
         snackbar: this.snackbar,
         env: this.env,
+        globalEvents: this.globalEvents,
         recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
@@ -264,6 +276,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
+        globalEvents: this.globalEvents,
         recognizerMaker: this.recognizerMaker,
         dbValues: this.dbValues,
         db: this.db,
@@ -288,7 +301,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
     this.trackDisplay = new TrackDisplay(".track-display-container", this.playlist, {
         delay: 3500,
         target: ".track-display",
-        defaultTitle: this.defaultTitle
+        defaultTitle: this.defaultTitle,
+        globalEvents: this.globalEvents
     });
 
     this.defaultShortcuts = new DefaultShortcuts({
@@ -309,8 +323,8 @@ export default function Application(env, db, dbValues, defaultTitle) {
         tooltipMaker: this.tooltipMaker
     });
 
-    $(document).on("longPressStart", this.longTapStarted.bind(this));
-    $(document).on("longPressEnd", this.longTapEnded.bind(this));
+    this.globalEvents.on("longPressStart", this.longTapStarted.bind(this));
+    this.globalEvents.on("longPressEnd", this.longTapEnded.bind(this));
     $(document).on("selectstart", this.selectStarted.bind(this));
     window.onbeforeunload = this.beforeUnload.bind(this);
     this.player.on("stop", this.playerStopped.bind(this));
@@ -318,7 +332,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
 
     var self = this;
     requestAnimationFrame(function() {
-        self.androidKeyboardFixer.triggerSizeChange();
+        self.globalEvents._triggerSizeChange();
         self.visualizerCanvas.initialize();
     });
 }
@@ -352,7 +366,7 @@ const rinput = /^(input|select|textarea|button)$/i;
 Application.prototype.documentKeydowned = function(e) {
     var key = e.key;
     if (key === "Escape") {
-        $(window).trigger("clear");
+        this.globalEvents._fireClear();
     }
 
     if (e.target === document.activeElement &&

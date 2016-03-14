@@ -36,8 +36,9 @@ const TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
 const TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
 const rinput = /^(?:input|select|textarea|option|button|label)$/i;
-export default function GestureRecognizerMaker(env) {
+export default function GestureRecognizerMaker(env, globalEvents) {
     this.env = env;
+    this.globalEvents = globalEvents;
     this.modifierTouch = null;
     this.documentActives = new ActiveTouchList();
     this.singleTapTimeouts = [];

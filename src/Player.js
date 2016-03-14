@@ -4,7 +4,7 @@ import Promise from "bluebird";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
-import { documentHidden, inherits } from "lib/util";
+import { inherits } from "lib/util";
 import Track from "Track";
 import { isTouchEvent } from "lib/DomUtil";
 
@@ -18,6 +18,7 @@ export default function Player(dom, playlist, opts) {
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.recognizerMaker = opts.recognizerMaker;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
@@ -294,7 +295,7 @@ Player.prototype.audioManagerProgressed = function(audioManager) {
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
-        } else if (this.isPlaying && !documentHidden.isBackgrounded()) {
+        } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
             this.emit("progress", currentTime, totalTime);
         }
     }

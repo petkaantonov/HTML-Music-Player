@@ -106,6 +106,7 @@ SearchSession.prototype._gotResults = function(results) {
 export default function Search(domNode, opts) {
     AbstractTrackContainer.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.env = opts.env;
     this.recognizerMaker = opts.recognizerMaker;
     this.db = opts.db;
@@ -170,7 +171,9 @@ export default function Search(domNode, opts) {
 
     this._bindListEvents({dragging: false});
 
-    $(window).on("sizechange", this._windowLayoutChanged.bind(this));
+    this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
+    this.globalEvents.on("clear", this.clearSelection.bind(this));
+
     this.$input().on("input", this._gotInput.bind(this));
     this.$input().on("focus", this._inputFocused.bind(this));
     this.$input().on("blur", this._inputBlurred.bind(this));

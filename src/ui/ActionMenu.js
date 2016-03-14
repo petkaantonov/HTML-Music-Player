@@ -1,6 +1,6 @@
 "use strict";
 import $ from "jquery";
-import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { inherits, offCapture, onCapture, toFunction } from "lib/util";
 import EventEmitter from "events";
 import { changeDom, isTouchEvent, originProperty } from "lib/DomUtil";
 
@@ -463,6 +463,7 @@ function createMenuItem(root, spec, level) {
 export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
     this.rippler = opts.rippler;
     this.recognizerMaker = opts.recognizerMaker;
     this.rootClass = opts.rootClass || "action-menu-root";
@@ -656,22 +657,18 @@ export function ContextMenu(dom, opts) {
     this.longTapRecognizer.recognizeBubbledOn(this._targetDom);
     this.documentTouchedRecognizer.recognizeCapturedOn(document);
     document.addEventListener("keydown", this.keypressed, true);
-    window.addEventListener("blur", this.hide, true);
-    window.addEventListener("scroll", this.position, true);
-    window.addEventListener("sizechange", this.position, true);
 
     this._menu.on("itemClick", this.hide);
-    documentHidden.on("change", this.hide);
+    this._menu.globalEvents.on("resize", this.position);
+    this._menu.globalEvents.on("visibilityChange", this.hide);
 }
 inherits(ContextMenu, EventEmitter);
 
 ContextMenu.prototype.destroy = function() {
     this.hide();
-    documentHidden.removeListener("change", this.hide);
     this._menu.removeListener("itemClick", this.hide);
-    window.removeEventListener("blur", this.hide, true);
-    window.removeEventListener("scroll", this.position, true);
-    window.removeEventListener("sizechange", this.position, true);
+    this._menu.globalEvents.removeListener("resize", this.position);
+    this._menu.globalEvents.removeListener("visibilityChange", this.hide);
 
     offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);

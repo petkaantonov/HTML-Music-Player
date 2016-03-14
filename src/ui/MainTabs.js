@@ -27,6 +27,7 @@ const moreThan1Selected = function(selectedCount, totalCount) {
 export default function MainTabs(opts) {
     opts = Object(opts);
     this.opts = opts;
+    this.globalEvents = opts.globalEvents;
     this.menuMaker = opts.menuMaker;
     this.recognizerMaker = opts.recognizerMaker;
     this.rippler = opts.rippler;
@@ -57,7 +58,8 @@ export default function MainTabs(opts) {
     }], {
         indicator: opts.activeTabIndicator,
         recognizerMaker: this.recognizerMaker,
-        rippler: opts.rippler
+        rippler: opts.rippler,
+        globalEvents: this.globalEvents
     });
 
     this.tabController.on("tabWillDeactivate", this.tabEventHandler("tabWillHide"));
@@ -89,7 +91,7 @@ export default function MainTabs(opts) {
     this.playlist.on("lengthChange", this.updatePlaylistContextMenuEnabledStates.bind(this));
     this.search.on("tracksSelected", this.updateSearchContextMenuEnabledStates.bind(this));
     this.search.on("lengthChange", this.updateSearchContextMenuEnabledStates.bind(this));
-    $(window).on("sizechange", this.layoutChanged.bind(this));
+    this.globalEvents.on("resize", this.layoutChanged.bind(this));
 }
 
 MainTabs.prototype.tabEventHandler = function(methodName) {
