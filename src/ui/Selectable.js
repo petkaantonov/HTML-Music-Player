@@ -1,7 +1,7 @@
 "use strict";
 import EventEmitter from "events";
 import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "lib/util";
-import { SortedSet } from "lib/DataStructures";
+import { SortedSet } from "DataStructures";
 
 export default function Selectable(playlist) {
     EventEmitter.call(this);

@@ -16,7 +16,7 @@ export default function FileView(file) {
     this.start = -1;
     this.end = -1;
     this._readInProgress = false;
-};
+}
 
 FileView.prototype.toBufferOffset = function(fileOffset) {
     return fileOffset - this.start;
@@ -101,7 +101,7 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
     var self = this;
     size = Math.ceil(size);
     startOffset = Math.ceil(startOffset);
-    return new Promise(function(resolve, reject) {
+    return new Promise(function(resolve) {
         if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
         var maxSize = self.file.size;
         var start = Math.min(maxSize - 1, Math.max(0, startOffset));
@@ -117,7 +117,7 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
         self.end = end;
         self._freeBuffer();
 
-        resolve(function loop(retries) {
+        resolve((function loop(retries) {
             var blob = self.file.slice(self.start, self.end);
             return readAsArrayBuffer(blob).finally(function() {
                 blob.close();
@@ -134,8 +134,8 @@ FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor
                 self.start = self.end = -1;
                 self._freeBuffer();
                 throw e;
-            })
-        }(0));
+            });
+        })(0));
     }).finally(function() {
         self._readInProgress = false;
     });

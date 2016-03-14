@@ -1,6 +1,6 @@
 "use strict";
 
-import { onCapture, offCapture, throttle } from "lib/util";
+import { onCapture, throttle } from "lib/util";
 import { isTextInputElement } from "lib/DomUtil";
 
 export default function AndroidKeyboardFixer() {

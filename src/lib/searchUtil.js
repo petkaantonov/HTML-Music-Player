@@ -3,7 +3,7 @@
 import { normalizeQuery } from "lib/util";
 import sha1 from "sha1";
 const EMPTY_ARRAY = [];
-const rext = /\.[a-zA-Z0-9_\-]+$/
+const rext = /\.[a-zA-Z0-9_\-]+$/;
 
 export const calculateUid = function(file, metadata, useTagged) {
     var title, album, artist;

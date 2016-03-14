@@ -7,7 +7,7 @@ import $ from "jquery";
 export const setFilter = (function() {
    var div = document.createElement("div");
 
-    if ("webkitFilter" in (document.createElement("div").style)) {
+    if ("webkitFilter" in (div.style)) {
         return function(elem, value) {
             if (elem.style) {
                 elem.style.webkitFilter = value;
@@ -17,7 +17,7 @@ export const setFilter = (function() {
         };
     }
 
-    if ("mozFilter" in (document.createElement("div").style)) {
+    if ("mozFilter" in (div.style)) {
         return function(elem, value) {
             if (elem.style) {
                 elem.style.mozFilter = value;
@@ -47,13 +47,13 @@ export function reflow(elem) {
 export const getFilter = (function() {
     var div = document.createElement("div");
 
-    if ("webkitFilter" in (document.createElement("div").style)) {
+    if ("webkitFilter" in (div.style)) {
         return function(elem) {
             return elem.style ? elem.style.webkitFilter : elem.css("webkitFilter");
         };
     }
 
-    if ("mozFilter" in (document.createElement("div").style)) {
+    if ("mozFilter" in (div.style)) {
         return function(elem) {
             return elem.style ? elem.style.mozFilter : elem.css("mozFilter");
         };
@@ -66,7 +66,7 @@ export const getFilter = (function() {
 
 export const setTransform = (function() {
     var div = document.createElement("div");
-    if ("transform" in (document.createElement("div").style)) {
+    if ("transform" in (div.style)) {
         return function(elem, value) {
             if (elem.style) {
                 elem.style.transform = value;
@@ -75,7 +75,7 @@ export const setTransform = (function() {
             }
         };
     }
-    if ("webkitTransform" in (document.createElement("div").style)) {
+    if ("webkitTransform" in (div.style)) {
         return function(elem, value) {
             if (elem.style) {
                 elem.style.webkitTransform = value;
@@ -96,12 +96,12 @@ export const setTransform = (function() {
 
 export const getTransform = (function() {
     var div = document.createElement("div");
-    if ("transform" in (document.createElement("div").style)) {
+    if ("transform" in (div.style)) {
         return function(elem) {
             return elem.style ? elem.style.transform : elem.css("transform");
         };
     }
-    if ("webkitTransform" in (document.createElement("div").style)) {
+    if ("webkitTransform" in (div.style)) {
         return function(elem) {
             return elem.style ? elem.style.webkitTransform : elem.css("webkitTransform");
         };

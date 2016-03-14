@@ -120,7 +120,6 @@ var realFft = (function() {
     };
 
     const fftHalf = function(array) {
-        const pi2 = Math.PI * 2;
         const N = array.length >> 1;
         const table = getTable(N);
         const sinTable = table.sin;

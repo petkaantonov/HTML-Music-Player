@@ -261,7 +261,7 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
     var encoding = fileView.getUint8(offset);
     var buffer = fileView.block();
     offset++;
-    var language = decoders[0].decode(new Uint8Array(buffer.buffer, offset - fileView.start, 3));
+    decoders[0].decode(new Uint8Array(buffer.buffer, offset - fileView.start, 3));
     offset += 3;
 
     var decoder = decoders[encoding];
@@ -327,7 +327,7 @@ const getFlags = function(fileView, offset, version) {
     };
 };
 
-const getMainFlags = function(fileView, offset, version) {
+const getMainFlags = function(fileView, offset) {
     var bits = fileView.getUint8(offset + 5);
 
     var hasBeenUnsynchronized = readBit(bits, 7);
@@ -507,4 +507,4 @@ export default function parseMp3Metadata(data, fileView) {
             return parseId3v1Data(data, fileView);
         }).return(data);
     });
-};
+}

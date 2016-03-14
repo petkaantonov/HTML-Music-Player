@@ -68,4 +68,4 @@ export default function patch() {
             return buffer;
         };
     }
-};
+}

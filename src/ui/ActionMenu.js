@@ -505,7 +505,7 @@ export default function ActionMenu(opts) {
 }
 inherits(ActionMenu, EventEmitter);
 
-prototype.setEnabledStateFromPredicate = function() {
+ActionMenu.prototype.setEnabledStateFromPredicate = function() {
     var args = new Array(arguments.length);
     for (var i = 0; i < args.length; ++i) {
         args[i] = arguments[i];
@@ -517,7 +517,7 @@ prototype.setEnabledStateFromPredicate = function() {
     });
 };
 
-prototype.destroy = function() {
+ActionMenu.prototype.destroy = function() {
     this.clearDelayTimer();
     this.forEach(function(child) { child.destroy(); });
     this.hideContainer();
@@ -525,7 +525,7 @@ prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-prototype.menuItemTouchStarted = function(child) {
+ActionMenu.prototype.menuItemTouchStarted = function(child) {
     for (var i = 0; i < this._menuItems.length; ++i) {
         var otherChild = this._menuItems[i];
         if (child !== otherChild) {
@@ -535,7 +535,7 @@ prototype.menuItemTouchStarted = function(child) {
     }
 };
 
-prototype.$containers = function() {
+ActionMenu.prototype.$containers = function() {
     var ret = this.$();
     this.forEach(function(item) {
         if (item.children && item.isShown())  {
@@ -545,18 +545,18 @@ prototype.$containers = function() {
     return ret;
 };
 
-prototype.$ = function() {
+ActionMenu.prototype.$ = function() {
     return this._domNode;
 };
 
-prototype.clearDelayTimer = function() {
+ActionMenu.prototype.clearDelayTimer = function() {
     if (this._delayTimerId !== -1) {
         clearTimeout(this._delayTimerId);
         this._delayTimerId = -1;
     }
 };
 
-prototype.startHideTimer = function() {
+ActionMenu.prototype.startHideTimer = function() {
     this.clearDelayTimer();
     var self = this;
     this._delayTimerId = setTimeout(function() {
@@ -565,13 +565,13 @@ prototype.startHideTimer = function() {
     }, this.hideDelay);
 };
 
-prototype.hideContainer = function() {
+ActionMenu.prototype.hideContainer = function() {
     this._menuItems.forEach(function(item) {
         item.hideContainer();
     });
 };
 
-prototype.forEach = function(fn, ctx) {
+ActionMenu.prototype.forEach = function(fn, ctx) {
     var items = this._menuItems.slice();
     var index = 0;
 
@@ -587,21 +587,21 @@ prototype.forEach = function(fn, ctx) {
     }
 };
 
-prototype.refreshAll = function() {
+ActionMenu.prototype.refreshAll = function() {
     this.forEach(ActionMenuItem.prototype.refresh);
 };
 
-prototype.disableAll = function() {
+ActionMenu.prototype.disableAll = function() {
     this.forEach(ActionMenuItem.prototype.disable);
     this.emit("activationChange", this);
 };
 
-prototype.enableAll = function() {
+ActionMenu.prototype.enableAll = function() {
     this.forEach(ActionMenuItem.prototype.enable);
     this.emit("activationChange", this);
 };
 
-prototype.disable = function(actions) {
+ActionMenu.prototype.disable = function(actions) {
     if (!Array.isArray(actions)) {
         actions = [actions];
     }
@@ -612,7 +612,7 @@ prototype.disable = function(actions) {
     this.emit("activationChange", this);
 };
 
-prototype.enable = function(actions) {
+ActionMenu.prototype.enable = function(actions) {
     if (!Array.isArray(actions)) {
         actions = [actions];
     }
@@ -662,7 +662,7 @@ export function ContextMenu(dom, opts) {
 
     this._menu.on("itemClick", this.hide);
     documentHidden.on("change", this.hide);
-};
+}
 inherits(ContextMenu, EventEmitter);
 
 ContextMenu.prototype.destroy = function() {
@@ -800,7 +800,7 @@ ContextMenu.prototype.hide = function() {
 
 ["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
 "forEach"].forEach(function(methodName) {
-    var menuMethod = prototype[methodName];
+    var menuMethod = ActionMenu.prototype[methodName];
     ContextMenu.prototype[methodName] = function()  {
         return menuMethod.apply(this._menu, arguments);
     };

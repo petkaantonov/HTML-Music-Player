@@ -70,6 +70,8 @@ function Node(word) {
     this.color = RED;
     this.values = [];
 }
+const NULL = new Node("");
+NULL.color = BLACK;
 
 Node.prototype.add = function(value, comparer) {
     insertSorted(comparer, this.values, value);
@@ -212,9 +214,6 @@ const spaces = function(level) {
     return ret;
 };
 
-const NULL = new Node("");
-NULL.color = BLACK;
-
 const mkNode = function(word, value, comparer) {
     var ret = new Node(word);
     ret.add(value, comparer);
@@ -235,7 +234,7 @@ SearchTree.prototype._print = function(node, level) {
     console.log(spaces(level), node.word, node.color === BLACK ? "BLACK" : "RED");
     this._print(node.left, level + 1);
     this._print(node.right, level + 1);
-}
+};
 
 SearchTree.prototype.print = function() {
     this._print(this._root, 0);
@@ -487,7 +486,7 @@ SearchTree.prototype._rebalanceTree = function(root, node) {
         if (node.isLeftChild()) {
             node = this._rebalanceLeft(root, node);
         } else {
-            node = this._rebalanceRight(root, node)
+            node = this._rebalanceRight(root, node);
         }
     }
     node.color = BLACK;
