@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "events";
-import keyboard from "js-polyfills/keyboard";
+import keyboard from "keyboard";
 import { inherits, onCapture } from "lib/util";
 const MOD = "mod";
 
