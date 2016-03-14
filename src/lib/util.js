@@ -51,7 +51,7 @@ if (typeof Math.fdzround !== "function") {
 
 if (typeof Math.gcd !== "function") {
     Object.defineProperty(Math, "gcd", {
-        value: function(a, b) {
+        value: function gcd(a, b) {
             if (b === 0) {
                 return a;
             }
@@ -431,7 +431,7 @@ export const readAsBinaryString = function(file) {
     if (typeof FileReader !== "function") {
         return new Promise(function(resolve) {
             var reader = new FileReaderSync();
-            result = reader.readAsBinaryString(file);
+            var result = reader.readAsBinaryString(file);
             file = null;
             var e = checkSize(expectedSize, result.length);
             if (e) {
@@ -746,7 +746,7 @@ const initialize = function() {
     }
 
     regexp = new RegExp("[" + regexpSource + "]", "g");
-}
+};
 
 const diacriticReplacer = function(theChar) {
     var encodedBaseValue = mapping[theChar.charCodeAt(0) & 0xFFFF];
@@ -953,7 +953,7 @@ export const reverseString = (function() {
     return function (str) {
         if (utf16decoder === null) utf16decoder = new TextDecoder("utf-16");
 
-        const l = str.length
+        const l = str.length;
         if (l <= 1) return str;
         var ret = new Uint8Array(str.length * 2 + 2);
         var view = new Uint16Array(ret.buffer);

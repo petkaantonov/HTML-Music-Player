@@ -1,11 +1,18 @@
-"use strict"
+"use strict";
 
 import { onCapture, offCapture } from "lib/util";
-import $ from "lib/jquery";
 
 export default function AbstractGestureRecognizer(recognizerMaker) {
     this.recognizerMaker = recognizerMaker;
 }
+
+AbstractGestureRecognizer.prototype.fireLongPressStart = function(t) {
+    this.recognizerMaker.longPressEvents.fireLongPressStart(t);
+};
+
+AbstractGestureRecognizer.prototype.fireLongPressEnd = function(t) {
+    this.recognizerMaker.longPressEvents.fireLongPressEnd(t);
+};
 
 AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {
     var modifierTouch = this.recognizerMaker.modifierTouch;

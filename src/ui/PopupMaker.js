@@ -1,10 +1,10 @@
 "use strict";
 
 import $ from "lib/jquery";
-import Promise from "bluebird";
 import { slugTitle } from "lib/util";
-import { setFilter, setTransform, changeDom } from "lib/DomUtil";
+import { setFilter } from "lib/DomUtil";
 import Animator from "ui/Animator";
+import Popup from "ui/Popup";
 
 const NULL = $(null);
 

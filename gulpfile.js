@@ -30,7 +30,7 @@ function bundleJs(opts) {
 
     var plugins = [includePaths({
         include: {},
-        paths: ['src'],
+        paths: ['src', 'vendor'],
         external: [],
         extensions: ['.js']
     }), nodeResolve({

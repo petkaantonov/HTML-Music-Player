@@ -1,8 +1,8 @@
 "use strict";
 
-import EventEmitter from "lib/events";
 import { setTransform } from "lib/DomUtil";
-import Tooltip from "ui/Tooltip";
+import $ from "lib/jquery";
+
 const NULL = $(null);
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
@@ -70,7 +70,6 @@ TrackView.prototype.track = function() {
 TrackView.prototype._ensureDomNode = function() {
     if (this._domNode !== NULL) return;
     var selectable = this._selectable;
-    var self = this;
     this._domNode = $("<div>", {
         class: "track-container"
     }).html("<div class='track'>                                                                      \

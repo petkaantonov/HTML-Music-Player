@@ -1,3 +1,5 @@
+"use strict";
+
 export default function SingleTapTimeout(recognizer, successHandler, clearHandler, timeout) {
     this.id = setTimeout(this.timeoutHandler.bind(this), timeout);
     this.successHandler = successHandler;

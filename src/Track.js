@@ -5,7 +5,7 @@ import PlayerPictureManager from "ui/PlayerPictureManager";
 import EventEmitter from "lib/events";
 import { inherits } from "lib/util";
 import TagData from "TagData";
-import sha1 from "lib/sha1";
+import sha1 from "sha1";
 import Promise from "bluebird";
 import { calculateUid, getSearchTerm } from "lib/searchUtil";
 

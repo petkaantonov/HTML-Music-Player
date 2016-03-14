@@ -256,6 +256,7 @@ export default function Application(env, db, dbValues, defaultTitle) {
     });
 
     this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player, {
+        serviceWorkerManager: this.serviceWorkerManager,
         recognizerMaker: this.recognizerMaker,
         rippler: this.rippler,
         db: this.db,

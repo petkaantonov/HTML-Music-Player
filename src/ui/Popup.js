@@ -3,8 +3,7 @@ import $ from "lib/jquery";
 import Promise from "bluebird";
 import EventEmitter from "lib/events";
 import { combineClasses, documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
-import { changeDom, isTouchEvent, preventDefault, setTransform } from "lib/DomUtil";
-import Animator from "ui/Animator";
+import { reflow, isTouchEvent, preventDefault, setTransform } from "lib/DomUtil";
 
 const NULL = $(null);
 
@@ -325,14 +324,14 @@ Popup.prototype.open = function() {
 
     if (this.transitionClass) {
         var $node = this.$();
-        $node[0].offsetHeight;
+        reflow($node);
         $node.detach();
         $node.addClass(this.transitionClass + " initial");
-        $node[0].offsetHeight;
+        reflow($node[0]);
         $node.appendTo("body");
-        $node[0].offsetHeight;
+        reflow($node[0]);
         $node.removeClass("initial");
-        $node[0].offsetHeight;
+        reflow($node[0]);
     }
     this.beforeTransitionIn(this.$());
     this.$().focus();
@@ -352,7 +351,7 @@ Popup.prototype.mousemoved = function(e) {
     }
 };
 
-Popup.prototype.headerMouseDowned = function(e, isClick, isTouch) {
+Popup.prototype.headerMouseDowned = function(e) {
     if (!this._shown || this._dragging || (isTouchEvent(e) && e.isFirst === false)) return;
     if ($(e.target).closest("." + this.closerContainerClass).length > 0) return;
     this._dragging = true;
@@ -395,7 +394,6 @@ Popup.prototype.close = function() {
     offCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
     this._shown = false;
     this._scrollTop = this._contentScroller.settledScrollTop();
-    shownPopups.splice(shownPopups.indexOf(this), 1);
 
     this.emit("close", this);
     var self = this;

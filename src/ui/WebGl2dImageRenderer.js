@@ -394,7 +394,7 @@ WebGl2dImageRenderer.prototype.actuallyChangedAlphaValuesStartIndex = function()
     return this.alphaCount() / 3 * 2;
 };
 
-WebGl2dImageRenderer.prototype.setDimensions = function(width, height) {
+WebGl2dImageRenderer.prototype.setDimensions = function() {
     this.width = this.gl.drawingBufferWidth;
     this.height = this.gl.drawingBufferHeight;
     this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);

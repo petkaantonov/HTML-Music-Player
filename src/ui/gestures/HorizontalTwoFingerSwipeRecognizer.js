@@ -2,7 +2,6 @@
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
 
 const TOUCH_START = "touchstart";
@@ -79,7 +78,7 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
         if (this.getDocumentActives().length() > 2) {
             this.clear();
             return;
-        };
+        }
         if (this.currentATouch !== null || this.currentBTouch !== null) {
             var now = (e.timeStamp || e.originalEvent.timeStamp);
             this.elapsedTotal += (now - this.previousTime);

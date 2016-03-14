@@ -91,9 +91,9 @@ Slider.prototype._keydowned = function(e) {
             if (this._direction === "horizontal") {
                 var value;
                 if (key === "ArrowLeft") {
-                    value = this._value - 0.01
+                    value = this._value - 0.01;
                 } else {
-                    value = this._value + 0.01
+                    value = this._value + 0.01;
                 }
                 value = Math.min(1, Math.max(0, value));
                 this.setValue(value);
@@ -106,9 +106,9 @@ Slider.prototype._keydowned = function(e) {
             if (this._direction === "vertical") {
                 var value;
                 if (key === "ArrowDown") {
-                    value = this._value - 0.01
+                    value = this._value - 0.01;
                 } else {
-                    value = this._value + 0.01
+                    value = this._value + 0.01;
                 }
                 value = Math.min(1, Math.max(0, value));
                 this.setValue(value);
@@ -206,7 +206,7 @@ Slider.prototype._onMouseup = function(e) {
 Slider.prototype._calculateDimensions = function() {
     this._containerRect = this.$()[0].getBoundingClientRect();
     if (this.shouldUpdateDom()) {
-        this._knobRect = this.$knob()[0].getBoundingClientRect()
+        this._knobRect = this.$knob()[0].getBoundingClientRect();
         this._fillRect = this.$fill()[0].getBoundingClientRect();
     }
 };

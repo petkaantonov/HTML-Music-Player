@@ -1,8 +1,8 @@
 "use strict";
 
 import { onCapture } from "lib/util";
-import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import SingleTapTimeout from "ui/gestures/SingleTapTimeout";
+import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import TapRecognizer from "ui/gestures/TapRecognizer";
 import TouchdownRecognizer from "ui/gestures/TouchdownRecognizer";
 import HoverRecognizer from "ui/gestures/HoverRecognizer";
@@ -140,7 +140,7 @@ GestureRecognizerMaker.prototype.updateModifierTouch = function(e) {
 };
 
 GestureRecognizerMaker.prototype.singleTapTimeoutRemoved = function(singleTapTimeout) {
-    var i = this.singleTapTimeouts.indexOf(this);
+    var i = this.singleTapTimeouts.indexOf(singleTapTimeout);
     if (i >= 0) {
         this.singleTapTimeouts.splice(i, 1);
     }

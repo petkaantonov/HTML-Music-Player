@@ -1,7 +1,6 @@
 "use strict";
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
-import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
 
@@ -56,7 +55,7 @@ ModifierDragRecognizer.prototype._recognizerHandler = function(e) {
 
         if (yDelta > 0 || xDelta > 0) {
             this.currentTouch = touch;
-            var g = new GestureObject(e, currentTouch);
+            var g = new GestureObject(e, this.currentTouch);
             this.moveHandler.call(e.currentTarget, g);
         }
     }

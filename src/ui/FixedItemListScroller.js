@@ -2,7 +2,7 @@
 
 import { throttle } from "lib/util";
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
-import Scroller from "lib/scroller";
+import Scroller from "scroller";
 import Scrollbar from "ui/Scrollbar";
 
 export default function FixedItemListScroller(node, itemList, itemHeight, opts) {

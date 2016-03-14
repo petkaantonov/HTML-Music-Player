@@ -2,6 +2,7 @@
 import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 import { documentHidden, inherits, offCapture, onCapture, toFunction } from "lib/util";
+import { reflow } from "lib/DomUtil";
 
 const getLongestTransitionDuration = function(node) {
     var $node = $(node);
@@ -300,7 +301,7 @@ Tooltip.prototype._show = function(isForRepaintOnly) {
             $node.detach();
             $node.addClass(this._transitionClass + " initial");
             $node.appendTo($parent);
-            $node[0].offsetHeight;
+            reflow($node);
             $node.removeClass("initial");
         }
     }
@@ -465,7 +466,7 @@ Tooltip.prototype.hide = function() {
         $node.detach();
         $node.addClass(this._transitionClass).removeClass("initial");
         $node.appendTo($parent);
-        $node[0].offsetHeight;
+        reflow($node[0]);
         $node.addClass("initial");
         var duration = getLongestTransitionDuration($node);
         var self = this;

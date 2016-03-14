@@ -1,30 +1,8 @@
 "use strict";
 
+import $ from "lib/jquery";
 import { offCapture, onCapture } from "lib/util";
 import { setTransform } from "lib/DomUtil";
-
-const NO_PREFERENCE = -1;
-const NO_INVERSION = 0;
-const INVERT = 1;
-var invertedScrolling = NO_PREFERENCE;
-
-const isInverted = function(e) {
-    if (invertedScrolling === NO_PREFERENCE) {
-        var directionInvertedFromDevice;
-
-        if ("webkitDirectionInvertedFromDevice" in e) {
-            directionInvertedFromDevice = e.webkitDirectionInvertedFromDevice;
-        } else if ("directionInvertedFromDevice" in e) {
-            directionInvertedFromDevice = e.directionInvertedFromDevice;
-        } else if (e.sourceCapabilities && ("directionInvertedFromDevice" in e.sourceCapabilities)) {
-            directionInvertedFromDevice = e.sourceCapabilities.directionInvertedFromDevice;
-        }
-
-        return directionInvertedFromDevice === true;
-    } else {
-        return invertedScrolling === INVERT;
-    }
-};
 
 export default function Scrollbar(container, scrollerInfo, opts) {
     opts = Object(opts);
@@ -64,7 +42,7 @@ Scrollbar.prototype.willStopScrolling = function() {
     this.$knob().css("willChange", "");
 };
 
-Scrollbar.prototype.determineScrollInversion = function(delta, e) {
+Scrollbar.prototype.determineScrollInversion = function(delta) {
     return delta;
 };
 

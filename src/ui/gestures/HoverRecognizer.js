@@ -62,7 +62,7 @@ HoverRecognizer.prototype._recognizerHandler = function(e) {
 
 HoverRecognizer.prototype.end = function(e, touch) {
     if (this.currentTouch !== null) {
-        var g = new GestureObject(e, touch || this.currentTouch)
+        var g = new GestureObject(e, touch || this.currentTouch);
         this.currentTouch = null;
         this.endHandler.call(e.currentTarget, g);
     }

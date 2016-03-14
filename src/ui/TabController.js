@@ -2,9 +2,10 @@
 
 import { inherits } from "lib/util";
 import { setFilter, setTransform } from "lib/DomUtil";
+import $ from "lib/jquery";
 import EventEmitter from "lib/events";
 
-function Tab(spec, controller, index, opts) {
+function Tab(spec, controller, index) {
     EventEmitter.call(this);
     this._id = spec.id;
     this._domNode = $($(spec.tab)[0]);

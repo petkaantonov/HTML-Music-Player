@@ -1,7 +1,7 @@
 "use strict"
 
 import { bindScrollerEvents, setTransform } from "lib/DomUtil";
-import Scroller from "lib/scroller";
+import Scroller from "scroller";
 import Scrollbar from "ui/Scrollbar";
 
 export default function ContentScroller(node, opts) {

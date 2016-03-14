@@ -72,7 +72,7 @@ export default function PlayerTimeManager(dom, player, opts) {
 
     if (TIME_DISPLAY_PREFERENCE_KEY in opts.dbValues) {
         var val = +opts.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
-        if (val === DISPLAY_REMAINING || val == DISPLAY_ELAPSED) {
+        if (val === DISPLAY_REMAINING || val === DISPLAY_ELAPSED) {
             this.displayMode = val;
         }
     }
@@ -140,7 +140,7 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
     this.setTimes(playedTime, totalTime);
 };
 
-PlayerTimeManager.prototype._updateTimeText = function(now) {
+PlayerTimeManager.prototype._updateTimeText = function() {
     this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.currentTimeCtx.fillText(toTimeString(this._displayedTimeLeft),

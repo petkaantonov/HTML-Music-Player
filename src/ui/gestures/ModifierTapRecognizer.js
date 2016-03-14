@@ -1,7 +1,6 @@
 "use strict";
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
-import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
 
@@ -43,9 +42,11 @@ ModifierTapRecognizer.prototype._recognizerHandler = function(e) {
         }
         this.clear();
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-        if (this.currentTouch === null) return;
+        if (this.currentTouch === null) {
+            return;
+        }
         if (this.getDocumentActives().length() !== 1) {
-            return clear();
+            return this.clear();
         }
         var touch = null;
         for (var i = 0; i < changedTouches.length; ++i) {

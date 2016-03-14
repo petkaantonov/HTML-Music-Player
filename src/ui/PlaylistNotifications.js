@@ -2,7 +2,6 @@
 import $ from "lib/jquery";
 import Promise from "bluebird";
 import { preventDefault } from "lib/DomUtil";
-import PlayerPictureManager from "ui/PlayerPictureManager";
 
 const supported = typeof Notification === "function" &&
                   typeof Notification.maxActions === "number" &&
@@ -19,6 +18,7 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overl
 
 export default function PlaylistNotifications(dom, player, opts) {
     opts = Object(opts);
+    this.serviceWorkerManager = opts.serviceWorkerManager;
     this.db = opts.db;
     this.recognizerMaker = opts.recognizerMaker;
     this.dbValues = opts.dbValues;
@@ -58,10 +58,10 @@ export default function PlaylistNotifications(dom, player, opts) {
     this.player.on("play", this.stateChanged);
     this.player.on("stop", this.stateChanged);
     this.player.on("currentTrackMetadataChange", this.stateChanged);
-    serviceWorkerManager.on("actionNext-" + NOTIFICATION_TAG, this.actionNext);
-    serviceWorkerManager.on("actionPause-" + NOTIFICATION_TAG, this.actionPause);
-    serviceWorkerManager.on("actionPlay-" + NOTIFICATION_TAG, this.actionPlay);
-    serviceWorkerManager.on("notificationClose-" + NOTIFICATION_TAG, this.notificationClosed);
+    this.serviceWorkerManager.on("actionNext-" + NOTIFICATION_TAG, this.actionNext);
+    this.serviceWorkerManager.on("actionPause-" + NOTIFICATION_TAG, this.actionPause);
+    this.serviceWorkerManager.on("actionPlay-" + NOTIFICATION_TAG, this.actionPlay);
+    this.serviceWorkerManager.on("notificationClose-" + NOTIFICATION_TAG, this.notificationClosed);
 
     this._currentAction = Promise.resolve();
     this._currentState = {enabled: false};
@@ -108,19 +108,19 @@ PlaylistNotifications.prototype.update = function() {
     this.stateChanged();
 };
 
-PlaylistNotifications.prototype.actionNext = function(data) {
+PlaylistNotifications.prototype.actionNext = function() {
     this.playlist.next();
 };
 
-PlaylistNotifications.prototype.actionPlay = function(data) {
+PlaylistNotifications.prototype.actionPlay = function() {
     this.player.play();
 };
 
-PlaylistNotifications.prototype.actionPause = function(data) {
+PlaylistNotifications.prototype.actionPause = function() {
     this.player.pause();
 };
 
-PlaylistNotifications.prototype.notificationClosed = function(data) {
+PlaylistNotifications.prototype.notificationClosed = function() {
     if (this.permissionsPromise) {
         this.permissionsPromise.cancel();
         this.permissionsPromise = null;
@@ -136,7 +136,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
         if (this._shouldRenderNewState(state)) {
             this._currentState = state;
             this._currentAction.cancel();
-            this._currentAction = serviceWorkerManager.hideNotifications(NOTIFICATION_TAG);
+            this._currentAction = this.serviceWorkerManager.hideNotifications(NOTIFICATION_TAG);
         }
     } else {
         var isPausedOrStopped = (this.player.isPaused || this.player.isStopped);
@@ -167,7 +167,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
         }
 
         if ((this.player.isPaused || this.player.isStopped) && actions.length < MAX_ACTIONS) {
-            actions.push({action: "Play", title: PLAY + " Play"})
+            actions.push({action: "Play", title: PLAY + " Play"});
         } else if (this.player.isPlaying && actions.length < MAX_ACTIONS) {
             actions.push({action: "Pause", title: PAUSE + " Pause"});
         }
@@ -187,7 +187,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
             var body = info.artist;
             var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
 
-            return serviceWorkerManager.showNotification(title, {
+            return this.serviceWorkerManager.showNotification(title, {
                 tag: NOTIFICATION_TAG,
                 body: body,
                 //icon: imageUrl,

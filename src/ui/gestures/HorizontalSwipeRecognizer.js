@@ -3,13 +3,7 @@
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import DragRecognizer from "ui/gestures/DragRecognizer";
-import GestureObject from "ui/gestures/GestureObject";
 import { inherits } from "lib/util";
-
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
 
 export default function HorizontalSwipeRecognizer(recognizerMaker, handler, direction) {
     AbstractGestureRecognizer.call(this, recognizerMaker);

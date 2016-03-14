@@ -36,7 +36,7 @@ DragRecognizer.prototype._recognizerHandler = function(e) {
         if (this.actives.length() > 0) {
             this.currentTouch = this.actives.first();
         } else {
-            this.end( e, currentTouch);
+            this.end(e, this.currentTouch);
             this.currentTouch = null;
         }
     } else if (e.type === TOUCH_MOVE) {

@@ -49,7 +49,7 @@ LongTapRecognizer.prototype._recognizerHandler = function(e) {
                                                                       this.recognizerMaker.LONG_TAP_TIME);
             this.timeoutId = timeout.id;
             if (!this.noTrigger) {
-                $(document).trigger("longPressStart", this.currentTouch);
+                this.fireLongPressStart(this.currentTouch);
             }
         } else {
             this.clear();
@@ -83,7 +83,7 @@ LongTapRecognizer.prototype.clear = function() {
     }
     if (this.currentTouch !== null) {
         if (!this.noTrigger) {
-            $(document).trigger("longPressEnd");
+            this.fireLongPressEnd(this.currentTouch);
         }
         this.currentTouch = null;
     }

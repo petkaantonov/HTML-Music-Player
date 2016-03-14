@@ -1,3 +1,9 @@
+"use strict";
+
+const TOUCH_START = "touchstart";
+const TOUCH_END = "touchend";
+const TOUCH_CANCEL = "touchcancel";
+
 export default function ActiveTouchList() {
     this.activeTouches = [];
 }

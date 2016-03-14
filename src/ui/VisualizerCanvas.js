@@ -280,7 +280,7 @@ VisualizerCanvas.prototype.initialize = function() {
         this.refreshContextMenu();
     });
     this.setupCanvasContextMenu();
-}
+};
 
 VisualizerCanvas.prototype.refreshContextMenu = function() {
     if (this.contextMenu) {
@@ -297,7 +297,7 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
             id: "hardware-acceleration",
             disabled: true,
             onClick: function(e) {
-                e.preventDefault()
+                e.preventDefault();
             },
             content: function() {
                 return factory.createMenuItem("Hardware acceleration",
@@ -308,7 +308,7 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
         }, {
             id: "hardware-latency",
             content: factory.createMenuItem("Synchronize with audio..."),
-            onClick: function(e) {
+            onClick: function() {
                 self.latencyPopup.open();
             }
         }, {
@@ -376,7 +376,7 @@ VisualizerCanvas.prototype.useSoftwareRendering = function() {
     }
     this.resetCanvas();
     this.renderer = new Default2dImageRenderer(this.source.image, this);
-    snackbar.show("Hardware acceleration disabled");
+    this.snackbar.show("Hardware acceleration disabled");
 };
 
 VisualizerCanvas.prototype.useHardwareRendering = function() {

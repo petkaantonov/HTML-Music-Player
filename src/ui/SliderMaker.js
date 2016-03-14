@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 import Slider from "ui/Slider";
 

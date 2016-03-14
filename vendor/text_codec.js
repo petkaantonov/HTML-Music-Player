@@ -2,16 +2,6 @@
 // See LICENSE.md for more information.
 export var TextDecoder;
 export var TextEncoder;
-(function () {
-var module = {
-    set exports (value) {
-        TextDecoder = value.TextDecoder;
-        TextEncoder = value.TextEncoder;
-    }
-    get exports() {
-      return {};
-    }
-};
 (function(global) {
   'use strict';
 
@@ -1397,5 +1387,5 @@ var module = {
   }
 }(self));
 
-
-})();
+TextDecoder = self.TextDecoder;
+TextEncoder = self.TextEncoder;

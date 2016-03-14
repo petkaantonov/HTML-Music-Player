@@ -1,6 +1,8 @@
 "use strict";
 
-import { reflow } from "lib/DomUtil";
+import { reflow, setTransform } from "lib/DomUtil";
+import $ from "lib/jquery";
+
 
 const LONG_PRESS_DURATION = 600;
 const SPINNER_TRANSITION_OUT_DELAY = 300;

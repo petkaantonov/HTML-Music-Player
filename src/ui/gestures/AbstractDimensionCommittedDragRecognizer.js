@@ -16,7 +16,6 @@ const UNCOMMITTED = 0;
 
 export default function AbstractDimensionCommittedDragRecognizer(recognizerMaker, fnStart, fnMove, fnEnd) {
     AbstractGestureRecognizer.call(this, recognizerMaker);
-    this.handler = handler;
     this.actives = new ActiveTouchList();
     this.startHandler = fnStart;
     this.moveHandler = fnMove;
@@ -57,7 +56,7 @@ AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function
         this.currentTouch = this.actives.first();
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (this.actives.length() > 0) {
-            this.currentTouch = actives.first();
+            this.currentTouch = this.actives.first();
         } else {
             this.end(e, this.currentTouch);
             this.currentTouch = null;

@@ -26,7 +26,7 @@ TapRecognizer.prototype._recognizerHandler = function(e) {
     this.actives.update(e, changedTouches);
 
     if (e.type === TOUCH_START) {
-        if (actives.length() <= 1) {
+        if (this.actives.length() <= 1) {
             this.started = (e.timeStamp || e.originalEvent.timeStamp);
             this.currentTouch = this.actives.first();
         } else {
