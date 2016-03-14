@@ -17,6 +17,7 @@ var commonjs = require("rollup-plugin-commonjs");
 var nodeResolve = require("rollup-plugin-node-resolve");
 var gulpUglify = require("gulp-uglify");
 var rename = require("gulp-rename");
+var sass = require('gulp-sass');
 
 var licenseHeader = fs.readFileSync("./LICENSE_header", "utf8");
 
@@ -178,8 +179,25 @@ function bundleServiceWorker() {
                 .pipe(gulp.dest("."));
 }
 
+function bundleSass() {
+    mkdirp("dist/css");
+    return Promise.resolve(gulp.src("sass/**/*.scss")
+                .pipe(sourcemaps.init({loadMaps: true}))
+                .pipe(sass({outputStyle: "compressed", recursive: true}).on("error", sass.logError))
+                .pipe(sourcemaps.write("."))
+                .pipe(gulp.dest("dist/css"))).then(function() {
+            var criticalCss = fs.readFileSync("dist/css/critical.css", "utf8").replace(/\.\.\/(.+?)\//g, "dist/$1/");
+            criticalCss = '<style type="text/css">' + criticalCss + '</style>';
+            return gulp.src("index_base.html").pipe(replace("$critical_css", criticalCss))
+                                .pipe(rename("index.html"))
+                                .pipe(gulp.dest("."));
+        });
+
+}
+
 gulp.task("audio-player-worker", bundleAudioPlayerBackend);
 gulp.task("track-analyzer-worker", bundleTrackAnalyzerBackend);
 gulp.task("service-worker", bundleServiceWorker);
 gulp.task("codecs", bundleCodecs);
 gulp.task("gui", bundleGui);
+gulp.task("css", bundleSass);
