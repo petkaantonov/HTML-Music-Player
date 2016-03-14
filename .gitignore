@@ -12,6 +12,7 @@ dist/main.js.map
 dist/main.min.js.map
 dist/worker/*
 sw.js
+sw.js.map
 .sass-cache/*
 dist/css/*
 worker/AudioPlayerWorker.js
