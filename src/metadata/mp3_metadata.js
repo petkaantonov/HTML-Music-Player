@@ -3,6 +3,8 @@
 import { readBit } from "lib/util";
 import { MD5 } from "jsmd5";
 import demux from "audio/demuxer";
+import { TextDecoder } from "text_codec";
+
 const ID3 = 0x494433|0;
 const TAG = 0x544147|0;
 

@@ -1,6 +1,7 @@
 "use strict";
 
 import Promise from "bluebird";
+import { TextDecoder } from "text_codec";
 
 var FunctionBind = Function.prototype.bind;
 Function.prototype.bind = function(ctx) {
