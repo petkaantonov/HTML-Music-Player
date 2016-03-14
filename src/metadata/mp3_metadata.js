@@ -275,7 +275,7 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
     length = distanceUntilNull(offset - fileView.start, buffer, (size - (offset - originalOffset)), nullLength);
     var value = decoder.decode(new Uint8Array(buffer.buffer, offset - fileView.start, length));
 
-    if (key === "iTunSMPB" || key === "") {
+    if (key === "iTunSMPB" || key === "") {
         var matches = riTunesGapless.exec(value.trim());
         if (matches) {
             data.encoderDelay = parseInt(matches[1], 16);

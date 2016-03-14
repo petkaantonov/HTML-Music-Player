@@ -177,7 +177,7 @@ export default function Resampler(nb_channels, in_rate, out_rate, quality) {
 
 Resampler.prototype.setQuality = function(quality) {
     quality = quality|0;
-    if (quality > 10 || quality < 0 || !isFinite(quality)) {
+    if (quality > 10 || quality < 0 || !isFinite(quality)) {
         throw new Error("bad quality value");
     }
     if (this.quality === quality) return;
@@ -195,7 +195,7 @@ Resampler.prototype.setRateFrac = function(ratio_num, ratio_den, in_rate, out_ra
     ratio_num = ratio_num|0;
     ratio_den = ratio_den|0;
 
-    if (in_rate <= 0 || out_rate <= 0 || ratio_num <= 0 || ratio_den <= 0) {
+    if (in_rate <= 0 || out_rate <= 0 || ratio_num <= 0 || ratio_den <= 0) {
         throw new Error("invalid params");
     }
 

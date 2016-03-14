@@ -220,7 +220,7 @@ export default function Snackbar(opts) {
     this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
     this.actionClass = opts.actionClass || "snackbar-action";
     this.titleClass = opts.titleClass || "snackbar-title";
-    this.nextDelay = opts.nextDelay || 300;
+    this.nextDelay = opts.nextDelay || 300;
     this.visibilityTime = opts.visibilityTime || 5000;
     this.initialUndismissableWindow = opts.initialUndismissableWindow || 500;
     this.maxLength = opts.maxLength || 3;

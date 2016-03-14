@@ -22,7 +22,7 @@ export default function patch(AudioContext, instance) {
         p.createGain = p.createGainNode || p.createGain;
         p.createDelay = p.createDelayNode || p.createDelay;
         p.createScriptProcessor = p.createJavaScriptNode || p.createScriptProcessor;
-        p.createPeriodicWave = p.createWaveTable || p.createPeriodicWave;
+        p.createPeriodicWave = p.createWaveTable || p.createPeriodicWave;
     })();
 
     (function() {

@@ -939,7 +939,7 @@ AudioPlayerSourceNode.prototype._freeTransferList = function(transferList) {
 };
 
 AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
-    if (args.requestId !== this._seekRequestId || this._destroyed) {
+    if (args.requestId !== this._seekRequestId || this._destroyed) {
         return this._freeTransferList(transferList);
     }
     this._nullifyPendingRequests();

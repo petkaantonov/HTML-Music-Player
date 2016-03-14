@@ -521,7 +521,7 @@ export default function Animator(dom, opts) {
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
     this._baseStyleFilter = (havePersistentFilters ? baseFilter : getTransform(this._domNode)) || "";
-    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : getTransform(this._domNode)) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : getTransform(this._domNode)) || "";
 
     this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {

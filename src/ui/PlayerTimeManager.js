@@ -55,7 +55,7 @@ export default function PlayerTimeManager(dom, player, opts) {
     var currentTimeDom = this.$currentTime()[0];
     var totalTimeDom = this.$totalTime()[0];
     var width = this.$currentTime().width() * pixelRatio | 0;
-    var height = this.$currentTime().height() * pixelRatio | 0;
+    var height = this.$currentTime().height() * pixelRatio | 0;
 
     this.timeDisplayWidth = width;
     this.timeDisplayHeight = height;
@@ -72,7 +72,7 @@ export default function PlayerTimeManager(dom, player, opts) {
 
     if (TIME_DISPLAY_PREFERENCE_KEY in opts.dbValues) {
         var val = +opts.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
-        if (val === DISPLAY_REMAINING || val == DISPLAY_ELAPSED) {
+        if (val === DISPLAY_REMAINING || val == DISPLAY_ELAPSED) {
             this.displayMode = val;
         }
     }

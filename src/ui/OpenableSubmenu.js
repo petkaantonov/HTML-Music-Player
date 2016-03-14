@@ -14,7 +14,7 @@ export default function OpenableSubmenu(dom, opener, opts) {
 
     this._opened = false;
 
-    this.activeClass = opts.activeClass || "shown";
+    this.activeClass = opts.activeClass || "shown";
     this.transitionClass = opts.transitionClass || "transition-in";
     this.openerActiveClass = opts.openerActiveClass || "opener-active";
 
@@ -100,7 +100,7 @@ OpenableSubmenu.prototype._keydowned = function(e) {
     if (!activeElement) return;
     var key = e.key;
 
-    if (key === "ArrowUp" || key === "ArrowDown") {
+    if (key === "ArrowUp" || key === "ArrowDown") {
         var activeIndex = -1;
 
         this._keyboardElements.each(function(index) {

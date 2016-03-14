@@ -123,7 +123,7 @@ LocalFiles.prototype.fileEmitterFromFilesAndDirs = function(filesAndDirs, maxFil
         stack: [],
         maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
-        filter: filter || this.defaultFilter
+        filter: filter || this.defaultFilter
     };
 
     this.traverseFilesAndDirs(filesAndDirs, ret, context).finally(function() {
@@ -142,7 +142,7 @@ LocalFiles.prototype.fileEmitterFromEntries = function(entries, maxFileCount, fi
         stack: [],
         maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
-        filter: filter || this.defaultFilter
+        filter: filter || this.defaultFilter
     };
 
     this.traverseEntries(entries, ret, context).finally(function() {

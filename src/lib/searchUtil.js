@@ -10,10 +10,10 @@ export const calculateUid = function(file, metadata, useTagged) {
     if (useTagged) {
         title = metadata.taggedTitle || undefined;
         album = metadata.taggedAlbum || undefined;
-        artist = metadata.taggedArtist || undefined;
+        artist = metadata.taggedArtist || undefined;
     } else {
         title = metadata.title || undefined;
-        album = metadata.album || undefined;
+        album = metadata.album || undefined;
         artist = metadata.artist || undefined;
     }
     var name = file.name;
@@ -23,10 +23,10 @@ export const calculateUid = function(file, metadata, useTagged) {
 
 export const getSearchTerm = function(metadata, file) {
     var title = normalizeQuery(metadata.taggedTitle || metadata.title || "");
-    var artist = normalizeQuery(metadata.taggedArtist || metadata.artist || "");
+    var artist = normalizeQuery(metadata.taggedArtist || metadata.artist || "");
     var album = normalizeQuery(metadata.taggedAlbum || metadata.album || "");
-    var genres = normalizeQuery((metadata.genres || EMPTY_ARRAY).join(" "));
-    var albumArtist = normalizeQuery(metadata.albumArtist || "");
+    var genres = normalizeQuery((metadata.genres || EMPTY_ARRAY).join(" "));
+    var albumArtist = normalizeQuery(metadata.albumArtist || "");
 
     if (albumArtist.length > 0 &&
         artist.length > 0 &&

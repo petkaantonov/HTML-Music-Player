@@ -28,7 +28,7 @@ export const freeBuffer = function(size, channels, buffer) {
 }
 
 export const allocResampler = function(channels, from, to, quality) {
-    quality = quality || 0;
+    quality = quality || 0;
     var key = channels + " " + from + " " + to;
     var entry = resamplers[key];
     if (!entry) {

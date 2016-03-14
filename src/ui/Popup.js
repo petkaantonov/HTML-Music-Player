@@ -428,7 +428,7 @@ Popup.prototype.setScrollPosition = function(pos) {
 };
 
 Popup.prototype.getScreenPosition = function() {
-    if (this._x === -1 || this._y === -1) return null;
+    if (this._x === -1 || this._y === -1) return null;
     return {
         x: this._x,
         y: this._y

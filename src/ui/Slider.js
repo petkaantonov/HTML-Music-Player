@@ -54,12 +54,12 @@ Slider.prototype.shouldUpdateDom = function() {
 
 Slider.prototype._onMousedown = function(e) {
     var isTouchEvent = isTouchEvent(e);
-    if (this._sliding ||
+    if (this._sliding ||
         (!isTouchEvent && e.which !== 1) ||
         (isTouchEvent && e.isFirst === false)) {
         return;
     }
-    this._sliding = true;
+    this._sliding = true;
     this._calculateDimensions();
 
     if (this.shouldUpdateDom()) {

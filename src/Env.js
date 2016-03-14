@@ -36,7 +36,7 @@ export default function Env() {
     var isIe = false;
     if (ua.browser) {
         browserName = (ua.browser.name || "").toLowerCase();
-        browserVersion = +(ua.browser.major || 0);
+        browserVersion = +(ua.browser.major || 0);
     }
 
     if (ua.engine && ua.engine.name && ua.engine.name.toLowerCase().indexOf("trident") >= 0) {
@@ -71,7 +71,7 @@ Env.prototype.isMobile = function() {
     return !this._isDesktop;
 };
 
-Env.prototype.supportsDirectories = function() {
+Env.prototype.supportsDirectories = function() {
     return this._directories;
 };
 
@@ -106,7 +106,7 @@ Env.prototype.getRequiredPlatformFeatures = function() {
 
         "Database capability": [Promise.method(function() {
             try {
-                if ((self._browserName === "edge" && self._browserVersion < 14) || self._browserName === "safari" || self._isIe) {
+                if ((self._browserName === "edge" && self._browserVersion < 14) || self._browserName === "safari" || self._isIe) {
                     return false;
                 }
                 return !!indexedDB && typeof indexedDB.open === "function";

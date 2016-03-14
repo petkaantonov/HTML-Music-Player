@@ -304,7 +304,7 @@ Playlist.prototype._updateNextTrack = function(forced) {
         nextTrack.removeListener("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
     }
 
-    this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack) || DUMMY_TRACK;
+    this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack) || DUMMY_TRACK;
 
     if (this._nextTrack === DUMMY_TRACK ||
         this._nextTrack.isDetachedFromPlaylist() ||
@@ -556,7 +556,7 @@ Playlist.prototype.removeSelected = function() {
 };
 
 Playlist.prototype.isTrackHighlyRelevant = function(track) {
-    if (!track || !(track instanceof Track)) {
+    if (!track || !(track instanceof Track)) {
         return false;
     }
     return track.isDetachedFromPlaylist() ? false

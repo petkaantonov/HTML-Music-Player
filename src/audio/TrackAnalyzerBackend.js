@@ -404,7 +404,7 @@ self.onmessage = function(event) {
 
     if (typeof method === "function") {
         method(data.args);
-    } else {
+    } else {
         throw new Error("unknown api action: " + data.action);
     }
 };

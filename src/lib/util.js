@@ -399,7 +399,7 @@ export const SORT_NUMBER_ASC = function (a, b) {
 };
 
 export const once = function(eventTarget, eventName, handler) {
-    eventTarget.addEventListener(eventName, function handle() {
+    eventTarget.addEventListener(eventName, function handle() {
         try {
             eventTarget.removeEventListener(eventName, handle, false);
         } finally {
@@ -538,7 +538,7 @@ export const indexOfCodePoint = function(string, codePoint, start) {
     return -1;
 };
 
-export const capitalize = function(str) {
+export const capitalize = function(str) {
     if (!str.length) return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };

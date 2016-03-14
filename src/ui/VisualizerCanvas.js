@@ -80,7 +80,7 @@ function GraphicsSource(visualizerCanvas) {
     var binsNeeded = (highestBinHeight + 1);
     var binWidthPixels = visualizerCanvas.binWidthSourcePixels();
     var binHeightPixels = visualizerCanvas.binHeightSourcePixels();
-    var capWidthPixels = (16 * pixelRatio + 2 + binWidthPixels) | 0;
+    var capWidthPixels = (16 * pixelRatio + 2 + binWidthPixels) | 0;
     var totalWidth = binsNeeded * binWidthPixels + capWidthPixels;
     var width = Math.min(Math.pow(2, Math.ceil(Math.log(totalWidth) * Math.LOG2E)), 1024);
     var rows = 1;
@@ -195,13 +195,13 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.sectionContainerSelector = opts.sectionContainerSelector || ".visualizer-section-container";
     this.capInterpolator = null;
     this.setCapInterpolator(opts.capInterpolator || "ACCELERATE_QUAD");
-    this.ghostOpacity = opts.ghostOpacity || 0.25;
+    this.ghostOpacity = opts.ghostOpacity || 0.25;
     this.capDropTime = opts.capDropTime;
     this.currentCapPositions = null;
     this.emptyBins = null;
     this.transitionInfoArray = null;
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
-    this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
+    this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
     this.emptyBinDrawerFrameId = -1;
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
@@ -380,7 +380,7 @@ VisualizerCanvas.prototype.useSoftwareRendering = function() {
 };
 
 VisualizerCanvas.prototype.useHardwareRendering = function() {
-    if (this.renderer.usesHardwareAcceleration() || !this.webglSupported) return;
+    if (this.renderer.usesHardwareAcceleration() || !this.webglSupported) return;
 };
 
 VisualizerCanvas.prototype.canUseHardwareRendering = function() {
@@ -403,7 +403,7 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
     if (!this.shown) return;
-    var width = $(this.canvas).width() * pixelRatio | 0;
+    var width = $(this.canvas).width() * pixelRatio | 0;
     if (width !== this.width) {
         this.width = width;
         this.canvas.width = width;

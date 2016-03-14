@@ -56,8 +56,8 @@ TargetHoverRecognizer.prototype._recognizerHandler = function(e) {
 
 TargetHoverRecognizer.prototype.end = function(e, touch) {
     if (this.currentTouch !== null) {
-        var g = new GestureObject(e, touch || this.currentTouch);
-        this.bounds =  this.currentTouch = null;
+        var g = new GestureObject(e, touch || this.currentTouch);
+        this.bounds =  this.currentTouch = null;
         this.endHandler.call(e.currentTarget, g);
     }
 };

@@ -166,7 +166,7 @@ const rTagStrip = new RegExp("\\-"+tabId+"$");
 ServiceWorkerManager.prototype._messaged = function(e) {
     if (e.data.data.tabId !== tabId || e.data.eventType !== "swEvent") return;
     var data = e.data;
-    var tag = data.tag || null;
+    var tag = data.tag || null;
 
     if (tag) {
         tag = (tag + "").replace(rTagStrip, "");

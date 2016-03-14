@@ -469,10 +469,10 @@ export default function ActionMenu(opts) {
     this.containerClass = opts.containerClass || "action-menu-submenu";
     this.itemClass = opts.itemClass || "action-menu-item";
     this.disabledClass = opts.disabledClass || "action-menu-disabled";
-    this.dividerClass = opts.dividerClass || "action-menu-divider";
-    this.activeSubMenuClass = opts.activeSubMenuClass || "action-menu-active";
-    this.showDelay = Math.min(1000, Math.max(0, +opts.subMenuShowDelay || 300));
-    this.hideDelay = Math.min(3000, Math.max(0, +opts.subMenuHideDelay || 800));
+    this.dividerClass = opts.dividerClass || "action-menu-divider";
+    this.activeSubMenuClass = opts.activeSubMenuClass || "action-menu-active";
+    this.showDelay = Math.min(1000, Math.max(0, +opts.subMenuShowDelay || 300));
+    this.hideDelay = Math.min(3000, Math.max(0, +opts.subMenuHideDelay || 800));
 
 
     this._delayTimerId = -1;
@@ -801,7 +801,7 @@ ContextMenu.prototype.hide = function() {
 ["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
 "forEach"].forEach(function(methodName) {
     var menuMethod = prototype[methodName];
-    ContextMenu.prototype[methodName] = function()  {
+    ContextMenu.prototype[methodName] = function()  {
         return menuMethod.apply(this._menu, arguments);
     };
 });

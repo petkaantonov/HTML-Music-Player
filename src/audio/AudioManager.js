@@ -349,7 +349,7 @@ AudioManager.prototype.resume = function() {
 };
 
 AudioManager.prototype.start = function() {
-    if (this.destroyed || this.started) return;
+    if (this.destroyed || this.started) return;
     this.intendingToSeek = -1;
     this.started = true;
     this.normalizeLoudness();

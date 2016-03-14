@@ -18,8 +18,8 @@ export default function TagData(track, data, trackAnalyzer) {
     this.track = track;
 
     this.title = data.title || null;
-    this.artist = data.artist || null;
-    this.album = data.album || null;
+    this.artist = data.artist || null;
+    this.album = data.album || null;
     this.taggedArtist = this.artist;
     this.taggedTitle = this.title;
     this.taggedAlbum = this.album;
@@ -99,7 +99,7 @@ TagData.trackInfoFromFileName = function(fileName) {
         title = capitalize(fileName);
         artist = UNKNOWN;
     } else {
-        artist = capitalize(matches[1]) || UNKNOWN;
+        artist = capitalize(matches[1]) || UNKNOWN;
         title = capitalize(matches[2]) || UNKNOWN;
     }
 
@@ -112,8 +112,8 @@ TagData.trackInfoFromFileName = function(fileName) {
 TagData.prototype.ensureArtistAndTitle = function() {
     if (!this.title || !this.artist) {
         var artistAndTitle = TagData.trackInfoFromFileName(this.track.getFileName());
-        this.artist = this.artist || artistAndTitle.artist || UNKNOWN;
-        this.title = this.title || artistAndTitle.title || UNKNOWN;
+        this.artist = this.artist || artistAndTitle.artist || UNKNOWN;
+        this.title = this.title || artistAndTitle.title || UNKNOWN;
     }
 };
 
