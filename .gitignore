@@ -9,8 +9,13 @@ coverage/*
 dist/main.js
 dist/main.min.js
 dist/main.js.map
+dist/main.min.js.map
 dist/worker/*
+dist/worker/codecs/*
+*.log
+rewrite.js
 sw.js
+sw.js.map
 .sass-cache/*
 dist/css/*
 worker/AudioPlayerWorker.js

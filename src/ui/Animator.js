@@ -1,9 +1,10 @@
 "use strict";
-const Promise = require("lib/bluebird");
-const util = require("lib/util");
-const EventEmitter = require("lib/events");
-const unitBezier = require("lib/bezier");
-const domUtil = require("lib/DomUtil");
+import Promise from "bluebird";
+import $ from "jquery";
+import { inherits } from "util";
+import EventEmitter from "events";
+import unitBezier from "bezier";
+import { getFilter, getTransform, setFilter, setTransform } from "platform/DomUtil";
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -77,7 +78,7 @@ function QuadraticCurve(x1, y1, x2, y2, cpx, cpy, progress) {
     this.aY = (y1 - 2 * cpy + y2);
     this.bY = (2 * cpy - 2 * y1);
 }
-util.inherits(QuadraticCurve, Line);
+inherits(QuadraticCurve, Line);
 
 QuadraticCurve.prototype.xAt = function(progress) {
     var p2 = progress * progress;
@@ -100,7 +101,7 @@ function CubicCurve(x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2, progress) {
     this.bY = 3 * (cpy2 - cpy1) - this.cY;
     this.aY = (y2 - y1) - this.cY - this.bY;
 }
-util.inherits(CubicCurve, Line);
+inherits(CubicCurve, Line);
 
 CubicCurve.prototype.xAt = function(progress) {
     var p3 = progress * progress * progress;
@@ -173,9 +174,9 @@ AnimationPath.prototype.quadraticCurveTo = function(cpx, cpy, x, y, progress) {
 };
 
 AnimationPath.prototype.curveTo = function(endX, endY, gap, positionMultiplier, side, progress) {
-    if (side == undefined) side = 1;
-    if (positionMultiplier == undefined) positionMultiplier = 0.5;
-    if (gap == undefined) gap = 5;
+    if (side == null) side = 1;
+    if (positionMultiplier == null) positionMultiplier = 0.5;
+    if (gap == null) gap = 5;
     var prev = this._previous();
     var startX = prev.endX();
     var startY = prev.endY();
@@ -222,14 +223,14 @@ AnimationPath.prototype.fastOutLinearInCurveTo = function(x, y, progress) {
     var prev = this._previous();
     var startX = prev.endX();
     var startY = prev.endY();
-    
+
     // CP1(0.4, 0)
     // CP2(1, 1)
     var cpx1 = 0.4 * (x - startX) + startX;
     var cpy1 = startY;
     var cpx2 = x;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -245,7 +246,7 @@ AnimationPath.prototype.fastOutSlowInCurveTo = function(x, y, progress) {
     var cpy1 = startY;
     var cpx2 = 0.2 * (x - startX) + startX;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -261,7 +262,7 @@ AnimationPath.prototype.linearOutSlowInCurveTo = function(x, y, progress) {
     var cpy1 = startY;
     var cpx2 = 0.2 * (x - startX) + startX;
     var cpy2 = y;
-    
+
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -291,7 +292,7 @@ AnimationPath.prototype.close = function() {
         range.progressStart = now;
         range.progressEnd = now + dist / max;
         now = range.progressEnd;
-    }    
+    }
 };
 
 function Animation(animator, path, duration) {
@@ -426,7 +427,7 @@ function AdditionalAnimationProperty(animator, property) {
     this.end = property.end;
     this.unit = property.unit || "";
     this.duration = "duration" in property ? +property.duration : -1;
-    this.repeat = property.repeat || "none";
+    this.repeat = property.repeat || "none";
 
     if (this.isMulti) {
         if (!Array.isArray(this.start)) {
@@ -436,7 +437,7 @@ function AdditionalAnimationProperty(animator, property) {
         if (!Array.isArray(this.end)) {
             this.end = [this.end, this.end];
         }
-        
+
         if (this.start.length !== this.end.length) {
             throw new Error("must be same length");
         }
@@ -489,7 +490,7 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     }
 };
 
-function Animator(dom, opts) {
+export default function Animator(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     this._domNode = dom;
@@ -514,14 +515,14 @@ function Animator(dom, opts) {
 
     var havePersistentTransforms = this._transforms.filter(filterIsPersistent).length > 0;
     var havePersistentFilters = this._filters.filter(filterIsPersistent).length > 0;
-    var baseFilter = domUtil.getFilter($(this._domNode));
+    var baseFilter = getFilter($(this._domNode));
     baseFilter = baseFilter === "none" ? "" : baseFilter;
     this._baseFilter = baseFilter + " ";
-    var baseTransform = domUtil.getTransform($(this._domNode));
+    var baseTransform = getTransform($(this._domNode));
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
-    this._baseStyleFilter = (havePersistentFilters ? baseFilter : domUtil.getTransform(this._domNode)) || "";
-    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : domUtil.getTransform(this._domNode)) || "";
+    this._baseStyleFilter = (havePersistentFilters ? baseFilter : getTransform(this._domNode)) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : getTransform(this._domNode)) || "";
 
     this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {
@@ -531,7 +532,7 @@ function Animator(dom, opts) {
     this._gotAnimationFrame = this._gotAnimationFrame.bind(this);
     this.stop = this.stop.bind(this);
 }
-util.inherits(Animator, EventEmitter);
+inherits(Animator, EventEmitter);
 
 const parsePath = (function() {
     const number = "[01]+(?:\\.\\d+)?";
@@ -688,12 +689,12 @@ Animator.prototype._progress = function(current, total) {
 
     var transforms = this._getTransforms(current, total);
     if (transforms) {
-        domUtil.setTransform(node, this._baseTransform + transforms);
+        setTransform(node, this._baseTransform + transforms);
     }
 
     var filters = this._getFilters(current, total);
     if (filters) {
-        domUtil.setFilter(node, this._baseFilter + filters);
+        setFilter(node, this._baseFilter + filters);
     }
 
     this._applyDirectProperties(node, current, total);
@@ -704,9 +705,9 @@ Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
     var transforms = this._getTransforms(current, total);
     var filters = this._getFilters(current, total);
 
-    domUtil.setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
+    setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
     if (filters) {
-        domUtil.setFilter(node, this._baseFilter + filters);
+        setFilter(node, this._baseFilter + filters);
     }
     this._applyDirectProperties(node, current, total);
 };
@@ -728,15 +729,15 @@ Animator.prototype._applyEndValues = function() {
     var baseTransforms = this._baseStyleTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        domUtil.setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
+        setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
     } else {
-        domUtil.setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
+        setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        domUtil.setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
+        setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
     } else {
-        domUtil.setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
+        setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
     }
 };
 
@@ -806,5 +807,3 @@ Animator.prototype.animate = function(duration, path) {
 Animator.prototype.createPath = function(addX, addY) {
     return new AnimationPath(addX || 0, addY || 0);
 };
-
-module.exports = Animator;

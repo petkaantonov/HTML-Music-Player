@@ -1,6 +1,6 @@
 "use strict";
 /* Ported from libspeex resampler.c, BSD license follows */
-/* 
+/*
    Copyright (C) 2015 Petka Antonov
    Copyright (C) 2007-2008 Jean-Marc Valin
    Copyright (C) 2008      Thorvald Natvig
@@ -79,11 +79,11 @@ const kaiser6_table = new Float64Array([
     0.05031820, 0.03607231, 0.02432151, 0.01487334, 0.00752000, 0.00000000
 ]);
 
-const resampler_basic_direct_double_accum = new Float64Array(4);
+//const resampler_basic_direct_double_accum = new Float64Array(4);
 
 function QualityMapping(v) {
    this.base_length = v[0] | 0;
-   this.oversample = v[1] | 0;
+   this.oversample = v[1] | 0;
    this.downsample_bandwidth = Math.fround(v[2]);
    this.upsample_bandwidth = Math.fround(v[3]);
    this.table = v[4];
@@ -140,7 +140,7 @@ const sinc = function(cutoff, x, N, table) {
 };
 
 var id = 0;
-function Resampler(nb_channels, in_rate, out_rate, quality) {
+export default function Resampler(nb_channels, in_rate, out_rate, quality) {
     if (quality === undefined) quality = 0;
     this.id = id++;
     this.initialised = 0;
@@ -153,7 +153,7 @@ function Resampler(nb_channels, in_rate, out_rate, quality) {
     this.sinc_table_length = 0;
     this.mem_alloc_size = 0;
     this.filt_len = 0;
-    this.mem = null
+    this.mem = null;
     this.cutoff = Math.fround(1);
     this.nb_channels = nb_channels;
     this.in_stride = 1;
@@ -177,7 +177,7 @@ function Resampler(nb_channels, in_rate, out_rate, quality) {
 
 Resampler.prototype.setQuality = function(quality) {
     quality = quality|0;
-    if (quality > 10 || quality < 0 || !isFinite(quality)) {
+    if (quality > 10 || quality < 0 || !isFinite(quality)) {
         throw new Error("bad quality value");
     }
     if (this.quality === quality) return;
@@ -195,7 +195,7 @@ Resampler.prototype.setRateFrac = function(ratio_num, ratio_den, in_rate, out_ra
     ratio_num = ratio_num|0;
     ratio_den = ratio_den|0;
 
-    if (in_rate <= 0 || out_rate <= 0 || ratio_num <= 0 || ratio_den <= 0) {
+    if (in_rate <= 0 || out_rate <= 0 || ratio_num <= 0 || ratio_den <= 0) {
         throw new Error("invalid params");
     }
 
@@ -282,7 +282,7 @@ Resampler.prototype._updateFilter = function() {
 
     if (STDLIB_MAX_INT / SIZEOF_SPX_WORD / this.den_rate < this.filt_len) {
         throw new Error("INT_MAX/sizeof(spx_word16_t)/this.den_rate < this.filt_len");
-    } 
+    }
 
     var min_sinc_table_length = this.filt_len * this.den_rate;
 
@@ -334,7 +334,7 @@ Resampler.prototype._updateFilter = function() {
                     }
                     this.magic_samples[i] = 0;
                 }
-                
+
                 if (this.filt_len > olen) {
                     /* If the new filter length is still bigger than the "augmented" length */
                     /* Copy data going backward */
@@ -413,11 +413,11 @@ Resampler.prototype.getLength = function(length) {
 Resampler.prototype.resample = function(channels, length, output) {
     if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
     if (!this.started) throw new Error("start() not called");
-    if (length == undefined) length = channels[0].length;
-    
+    if (length == null) length = channels[0].length;
+
     const outLength = this.getLength(length);
 
-    if (output == undefined) {
+    if (output == null) {
         output = new Array(channels.length);
         for (var ch = 0; ch < channels.length; ++ch) {
             output[ch] = getBuffer(ch, outLength);
@@ -501,7 +501,7 @@ Resampler.prototype._resamplerMagic = function(channel_index, out_len) {
     var tmp_in_len = this.magic_samples[channel_index];
     var mem_ptr = this.mem_alloc_size + channel_index;
     const N = this.filt_len;
-   
+
     process_ref.out_len = out_len;
     process_ref.in_len = tmp_in_len;
     this._processNative(channel_index);
@@ -572,5 +572,3 @@ Resampler.prototype._resamplerBasicDirectSingle = function(channel_index) {
     this.samp_frac_num[channel_index] = samp_frac_num;
     return out_sample;
 };
-
-module.exports = Resampler;

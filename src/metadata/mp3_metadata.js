@@ -1,8 +1,10 @@
 "use strict";
 
-const util = require("lib/util");
-const jsmd5 = require("lib/jsmd5");
-const demux = require("audio/demuxer");
+import { readBit } from "util";
+import { MD5 } from "jsmd5";
+import demux from "audio/demuxer";
+import { TextDecoder } from "text_codec";
+
 const ID3 = 0x494433|0;
 const TAG = 0x544147|0;
 
@@ -193,7 +195,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         if (typeString.indexOf("/") === -1) {
             if (/jpg|jpeg|png/.test(typeString)) {
                 type = "image/" + typeString;
-            } else {
+            } else {
                 return;
             }
         } else {
@@ -239,7 +241,7 @@ tagMap[0x504943|0] = tagMap[0x41504943|0] = function(offset, fileView, flags, ve
         data = new Uint8Array(buffer.buffer, offset - fileView.start, dataLength);
     }
 
-    var tag = jsmd5.MD5(data);
+    var tag = MD5(data);
     var dataBlob = new Blob([data], {type: type});
 
     pictures.push({
@@ -261,7 +263,7 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
     var encoding = fileView.getUint8(offset);
     var buffer = fileView.block();
     offset++;
-    var language = decoders[0].decode(new Uint8Array(buffer.buffer, offset - fileView.start, 3));
+    decoders[0].decode(new Uint8Array(buffer.buffer, offset - fileView.start, 3));
     offset += 3;
 
     var decoder = decoders[encoding];
@@ -275,7 +277,7 @@ tagMap[0x434f4d4d|0] = tagMap[0x434f4d|0] = function(offset, fileView, flags, ve
     length = distanceUntilNull(offset - fileView.start, buffer, (size - (offset - originalOffset)), nullLength);
     var value = decoder.decode(new Uint8Array(buffer.buffer, offset - fileView.start, length));
 
-    if (key === "iTunSMPB" || key === "") {
+    if (key === "iTunSMPB" || key === "") {
         var matches = riTunesGapless.exec(value.trim());
         if (matches) {
             data.encoderDelay = parseInt(matches[1], 16);
@@ -305,14 +307,14 @@ const getFlags = function(fileView, offset, version) {
 
     if (version >= 3) {
         var bits = fileView.getUint16(offset);
-        tagAlterPreservation = util.bit(bits, 14);
-        fileAlterPreservation = util.bit(bits, 13);
-        readOnly = util.bit(bits, 12);
-        containsGroupInfo = util.bit(bits, 6);
-        isCompressed = util.bit(bits, 3);
-        isEncrypted = util.bit(bits, 2);
-        hasBeenUnsynchronized = util.bit(bits, 1);
-        hasDataLengthIndicator = util.bit(bits, 0);
+        tagAlterPreservation = readBit(bits, 14);
+        fileAlterPreservation = readBit(bits, 13);
+        readOnly = readBit(bits, 12);
+        containsGroupInfo = readBit(bits, 6);
+        isCompressed = readBit(bits, 3);
+        isEncrypted = readBit(bits, 2);
+        hasBeenUnsynchronized = readBit(bits, 1);
+        hasDataLengthIndicator = readBit(bits, 0);
     }
 
     return {
@@ -327,13 +329,13 @@ const getFlags = function(fileView, offset, version) {
     };
 };
 
-const getMainFlags = function(fileView, offset, version) {
+const getMainFlags = function(fileView, offset) {
     var bits = fileView.getUint8(offset + 5);
 
-    var hasBeenUnsynchronized = util.bit(bits, 7);
-    var isExtended = util.bit(bits, 6);
-    var isExperimental = util.bit(bits, 5);
-    var hasFooter = util.bit(bits, 4);
+    var hasBeenUnsynchronized = readBit(bits, 7);
+    var isExtended = readBit(bits, 6);
+    var isExperimental = readBit(bits, 5);
+    var hasFooter = readBit(bits, 4);
 
     return {
         hasBeenUnsynchronized: hasBeenUnsynchronized,
@@ -485,7 +487,7 @@ const parseId3v1Data = function(data, fileView) {
     });
 };
 
-const parseMp3Metadata = function(data, fileView) {
+export default function parseMp3Metadata(data, fileView) {
     return parseBasicInfo(fileView).then(function(basicInfo) {
         if (basicInfo) data.basicInfo = basicInfo;
         const length = 16384;
@@ -507,6 +509,4 @@ const parseMp3Metadata = function(data, fileView) {
             return parseId3v1Data(data, fileView);
         }).return(data);
     });
-};
-
-module.exports = parseMp3Metadata;
+}

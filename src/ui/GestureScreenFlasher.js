@@ -1,13 +1,10 @@
 "use strict";
 
-const Animator = require("ui/Animator");
-const util = require("lib/util");
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
+import Animator from "ui/Animator";
+import $ from "jquery";
 
 const gestureIcon = function(icon) {
-    return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon
-                +'"></span></div>';
+    return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon + '"></span></div>';
 };
 
 const gestureNameMap = {
@@ -17,7 +14,7 @@ const gestureNameMap = {
     previous: gestureIcon("glyphicon glyphicon-step-backward")
 };
 
-function GestureScreenFlasher() {
+export default function GestureScreenFlasher() {
     this._queue = [];
     this._current = null;
 }
@@ -69,5 +66,3 @@ GestureScreenFlasher.prototype.flashGesture = function(name) {
         this._next();
     }
 };
-
-module.exports = new GestureScreenFlasher();

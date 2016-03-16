@@ -10,22 +10,15 @@
 // in the catastrophic case where ui is blocked, the output will be silence
 // instead of ear destroying noise.
 
-const Promise = require("lib/bluebird");
-const util = require("lib/util");
-const EventEmitter = require("lib/events");
-const ChannelMixer = require("audio/ChannelMixer");
-const patchAudioContext = require("lib/audiocontextpatch");
-const env = require("env");
-const simulateTick = require("lib/patchtimers");
+import Promise from "bluebird";
+import { inherits, throttle, onCapture  } from "util";
+import EventEmitter from "events";
+import ChannelMixer from "audio/ChannelMixer";
+import patchAudioContext from "platform/audiocontextpatch";
+import simulateTick from "platform/patchtimers";
+
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
-
-const AUDIO_PLAYER_WORKER_SRC = window.DEBUGGING
-    ? "dist/worker/AudioPlayerWorker.js" : "dist/worker/AudioPlayerWorker.min.js";
-
-const asap = function(fn) {
-    fn();
-};
 
 const makeAudioContext = function() {
     var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -84,18 +77,32 @@ const getPreloadBufferCount = function() {
         return (PRELOAD_BUFFER_COUNT * 1.5)|0;
     }
     return PRELOAD_BUFFER_COUNT;
-}
+};
 
 var nodeId = 0;
 var instances = false;
-function AudioPlayer(audioContext, suspensionTimeout) {
+export default function AudioPlayer(opts) {
     EventEmitter.call(this);
     if (instances) throw new Error("only 1 AudioPlayer instance can be made");
-    if (!suspensionTimeout) suspensionTimeout = 20;
+    opts = Object(opts);
+    var audioContext = opts.audioContext || null;
+    var suspensionTimeout = +opts.suspensionTimeout || 20;
     instances = true;
+
+    this.env = opts.env;
+    this.db = opts.db;
+    this.dbValues = opts.dbValues;
+    this.crossfadingPreferences = opts.crossfadingPreferences;
+    this.effectPreferences = opts.effectPreferences;
+    this.applicationPreferences = opts.applicationPreferences;
+
     this._audioContext = audioContext || makeAudioContext();
+    this._unprimedAudioContext = this._audioContext;
+    this._silentBuffer = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
+                                                         8192,
+                                                         this._audioContext.sampleRate);
     this._previousAudioContextTime = this._audioContext.currentTime;
-    this._worker = new Worker(AUDIO_PLAYER_WORKER_SRC);
+    this._worker = new Worker(opts.src);
     this._arrayBufferPool = [];
     this._audioBufferPool = [];
     this._sourceNodes = [];
@@ -121,15 +128,38 @@ function AudioPlayer(audioContext, suspensionTimeout) {
     this._hardwareLatency = 0;
 
     this.ready = new Promise(function(resolve) {
-        var ready = function(event) {
+        var ready = function() {
             this._worker.removeEventListener("message", ready, false);
+            this.setEffects(this.effectPreferences.getAudioPlayerEffects());
             resolve();
         }.bind(this);
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
+
+    this.effectPreferences.on("change", function() {
+        if (!this.ready.isResolved()) return;
+        this.setEffects(this.effectPreferences.getAudioPlayerEffects());
+    }.bind(this));
+
+    onCapture(document, "touchend", this._touchended.bind(this));
 }
-util.inherits(AudioPlayer, EventEmitter);
+inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
+
+AudioPlayer.prototype._touchended = function() {
+    if (this._unprimedAudioContext) {
+        var audioCtx = this._unprimedAudioContext;
+        try {
+            audioCtx.resume().catch(function(){});
+        } catch (e) {}
+
+        var source = audioCtx.createBufferSource();
+        source.buffer = this._silentBuffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        this._unprimedAudioContext = null;
+    }
+};
 
 AudioPlayer.prototype._suspend = function() {
     if (this._audioContext.state === "suspended") return Promise.resolve();
@@ -159,6 +189,7 @@ AudioPlayer.prototype._resetAudioContext = function() {
         this._audioContext.close();
     } catch (e) {}
     this._audioContext = makeAudioContext();
+    this._unprimedAudioContext = this._audioContext;
     for (var i = 0; i < this._sourceNodes.length; ++i) {
         this._sourceNodes[i].adoptNewAudioContext(this._audioContext);
     }
@@ -250,7 +281,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
 const LOWEST = 2;
 const DESKTOP = 4;
 AudioPlayer.prototype._determineResamplerQuality = function() {
-    return env.isMobile() ? LOWEST : DESKTOP;
+    return this.env.isMobile() ? LOWEST : DESKTOP;
 };
 
 AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
@@ -404,7 +435,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._bufferQueue = [];
     this._playedBufferQueue = [];
 }
-util.inherits(AudioPlayerSourceNode, EventEmitter);
+inherits(AudioPlayerSourceNode, EventEmitter);
 
 AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
@@ -478,7 +509,7 @@ AudioPlayerSourceNode.prototype._timeUpdate = function() {
 };
 
 AudioPlayerSourceNode.prototype._ended = function() {
-    if (this._endedEmitted || this._destroyed || this._loadingNext) return;
+    if (this._endedEmitted || this._destroyed || this._loadingNext) return;
 
     this._player.playbackStopped();
     this._endedEmitted = true;
@@ -636,7 +667,6 @@ AudioPlayerSourceNode.prototype._stopSources = function() {
     }
 };
 
-var prevWithElapsed = -1;
 const MAX_ANALYSER_SIZE = 65536;
 const analyserChannelMixer = new ChannelMixer(1);
 // When visualizing audio it is better to visualize samples that will play right away
@@ -668,7 +698,6 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         }
 
         var samplesIndex = 0;
-        var additionalTime = 0;
         var bufferQueue = this._bufferQueue;
         var playedBufferQueue = this._playedBufferQueue;
         var latency = this._player.getHardwareLatency();
@@ -908,7 +937,7 @@ AudioPlayerSourceNode.prototype._freeTransferList = function(transferList) {
 };
 
 AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
-    if (args.requestId !== this._seekRequestId || this._destroyed) {
+    if (args.requestId !== this._seekRequestId || this._destroyed) {
         return this._freeTransferList(transferList);
     }
     this._nullifyPendingRequests();
@@ -946,7 +975,7 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
     }
 };
 
-AudioPlayerSourceNode.prototype._throttledSeek = util.throttle(function(time) {
+AudioPlayerSourceNode.prototype._throttledSeek = throttle(function(time) {
     this._seek(time, true);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
@@ -1125,7 +1154,7 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
     }, this._getBuffersForTransferList(getPreloadBufferCount()));
 };
 
-AudioPlayerSourceNode.prototype._replaceThrottled = util.throttle(function(blob, seekTime, gaplessPreload, metadata) {
+AudioPlayerSourceNode.prototype._replaceThrottled = throttle(function(blob, seekTime, gaplessPreload, metadata) {
     this._actualReplace(blob, seekTime, gaplessPreload, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
@@ -1160,7 +1189,7 @@ AudioPlayerSourceNode.prototype._actualLoad = function(blob, seekTime, metadata)
     });
 };
 
-AudioPlayerSourceNode.prototype._loadThrottled = util.throttle(function(blob, seekTime, metadata) {
+AudioPlayerSourceNode.prototype._loadThrottled = throttle(function(blob, seekTime, metadata) {
     this._actualLoad(blob, seekTime, metadata);
 }, EXPENSIVE_CALL_THROTTLE_TIME);
 
@@ -1180,5 +1209,3 @@ AudioPlayerSourceNode.prototype.load = function(blob, seekTime, metadata) {
     }
     this._lastExpensiveCall = now;
 };
-
-module.exports = AudioPlayer;

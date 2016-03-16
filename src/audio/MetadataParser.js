@@ -1,14 +1,13 @@
 "use strict";
 
-const tagDatabase = require("TagDatabase");
-const Promise = require("lib/bluebird");
-const sniffer = require("audio/sniffer");
-const FileView = require("lib/FileView");
-const parseMp3Metadata = require("metadata/mp3_metadata");
-const TrackSearchIndex = require("TrackSearchIndex");
+import Promise from "bluebird";
+import getCodecName from "audio/sniffer";
+import FileView from "platform/FileView";
+import parseMp3Metadata from "metadata/mp3_metadata";
+import TrackSearchIndex from "search/TrackSearchIndex";
 
 const maxActive = 8;
-const queue = [];
+const queue = [];
 var active = 0;
 
 const codecNotSupportedError = function() {
@@ -27,7 +26,7 @@ const next = function() {
     }
 };
 
-function MetadataParser(file, resolve, transientId) {
+export default function MetadataParser(file, resolve, transientId) {
     this.file = file;
     this.resolve = resolve;
     this.transientId = transientId;
@@ -44,7 +43,7 @@ MetadataParser.prototype.parse = function() {
             channels: 2
         }
     };
-    var done = sniffer.getCodecName(this.fileView).then(function(codecName) {
+    var done = getCodecName(this.fileView).then(function(codecName) {
         if (!codecName) {
             throw codecNotSupportedError();
         }
@@ -58,7 +57,7 @@ MetadataParser.prototype.parse = function() {
             case "mp3":
                 return parseMp3Metadata(data, self.fileView);
         }
-    }).catch(function(e) {
+    }).catch(function() {
         throw codecNotSupportedError();
     }).tap(function() {
         MetadataParser.searchIndex.add(file, data, self.transientId);
@@ -81,14 +80,14 @@ MetadataParser.parse = function(args) {
         } else {
             var parser = new MetadataParser(args.file, resolve, args.transientId);
             active++;
-            parser.parse()
+            parser.parse();
         }
     }).finally(next);
 };
 
-MetadataParser.fetchAnalysisData = function(args) {
-    var data = tagDatabase.query(args.uid);
-    var albumImage = tagDatabase.getAlbumImage(args.albumKey);
+MetadataParser.fetchAnalysisData = function(db, args) {
+    var data = db.query(args.uid);
+    var albumImage = db.getAlbumImage(args.albumKey);
 
     return Promise.join(data, albumImage, function(data, albumImage) {
         if (data && albumImage) {
@@ -97,5 +96,3 @@ MetadataParser.fetchAnalysisData = function(args) {
         return data;
     });
 };
-
-module.exports = MetadataParser;

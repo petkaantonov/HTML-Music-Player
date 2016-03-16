@@ -13,7 +13,7 @@ var expectedCodec = null;
 const loadCodec = function(name, retries) {
     if (codecs[name]) return codecs[name];
     if (retries === undefined) retries = 0;
-    codecs[name] = new Promise(function(resolve, reject) {
+    codecs[name] = new Promise(function(resolve, reject) {
         var url = globalObject.DEBUGGING === false ? "codecs/" + name + ".min.js" : "codecs/" + name + ".js";
         var xhr = new XMLHttpRequest();
         xhr.addEventListener("load", function() {
@@ -23,7 +23,7 @@ const loadCodec = function(name, retries) {
                         return loadCodec(name, retries + 1);
                     }));
                 }
-                return reject(new Error("http error when loading codec: " + xhr.status + " " + xhr.statusText))
+                return reject(new Error("http error when loading codec: " + xhr.status + " " + xhr.statusText));
             } else {
                 var code = xhr.responseText;
                 expectedCodec = null;
@@ -56,10 +56,6 @@ globalObject.codecLoaded = function(name, Context) {
     };
 };
 
-var codec = {};
-
-codec.getCodec = function(name) {
+export default function getCodec(name) {
     return loadCodec(name);
-};
-
-module.exports = codec;
+}

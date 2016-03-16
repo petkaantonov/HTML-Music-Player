@@ -1,11 +1,9 @@
 "use strict";
-const $ = require("lib/jquery");
-const Promise = require("lib/bluebird");
-
-const EventEmitter = require("lib/events");
-const util = require("lib/util");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import $ from "jquery";
+import Promise from "bluebird";
+import EventEmitter from "events";
+import { inherits } from "util";
+import { changeDom } from "platform/DomUtil";
 
 const NO_TAG = {};
 
@@ -17,7 +15,7 @@ function SnackbarInstance(snackbar, message, opts) {
     this.visibilityTime = opts.visibilityTime || snackbar.visibilityTime || 5000;
 
     this._exiting = false;
-    this._visible = !util.documentHidden.value();
+    this._visible = !snackbar.globalEvents.isWindowBackgrounded();
     this._snackbar = snackbar;
     this._startedShowing = this._visible ? Date.now() : -1;
     this._initialShowing = Date.now();
@@ -26,22 +24,19 @@ function SnackbarInstance(snackbar, message, opts) {
     this._domNode = this._createDom(message, opts);
     this._visibilityChanged = this._visibilityChanged.bind(this);
     this._clicked = this._clicked.bind(this);
-    this._clickedTouch = domUtil.tapHandler(this._clicked);
     this._timeoutChecker = this._timeoutChecker.bind(this);
     this._mouseEntered = this._mouseEntered.bind(this);
     this._mouseLeft = this._mouseLeft.bind(this);
     this._resized = this._resized.bind(this);
 
+
     this.$().on("click", this._clicked);
     this.$().on("mouseenter", this._mouseEntered);
     this.$().on("mouseleave", this._mouseLeft);
-    $(window).on("sizechange", this._resized);
+    this._snackbar.globalEvents.on("resize", this._resized);
+    this._snackbar.globalEvents.on("visibilityChange", this._visibilityChanged);
 
-    if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, this._clickedTouch);
-    }
-
-    util.documentHidden.on("change", this._visibilityChanged);
+    snackbar.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
     this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
 
     if (this._snackbar.transitionInClass) {
@@ -54,7 +49,7 @@ function SnackbarInstance(snackbar, message, opts) {
         this.$().width();
         this._snackbar.beforeTransitionIn(this.$());
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
             setTimeout(function() {
                 self.$().css("willChange", "");
@@ -65,7 +60,7 @@ function SnackbarInstance(snackbar, message, opts) {
         this._resized();
     }
 }
-util.inherits(SnackbarInstance, EventEmitter);
+inherits(SnackbarInstance, EventEmitter);
 
 SnackbarInstance.prototype._resized = function() {
     var box = this.$()[0].getBoundingClientRect();
@@ -137,7 +132,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
     var visibilityTime = this.visibilityTime;
     var shownTime = this._startedShowing === -1 ? 0 : Date.now() - this._startedShowing;
 
-    if (!util.documentHidden.value() && !this._isHovering) {
+    if (!this._snackbar.globalEvents.isWindowBackgrounded() && !this._isHovering) {
         if (shownTime > visibilityTime) {
             this.outcome = Snackbar.TIMED_OUT;
             this._hide();
@@ -186,7 +181,7 @@ SnackbarInstance.prototype._hide = function() {
         this.$().height();
         this._snackbar.beforeTransitionOut(this.$());
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -206,8 +201,8 @@ SnackbarInstance.prototype._hide = function() {
 
 SnackbarInstance.prototype._removeListeners = function() {
     this.$().off("click", this._clicked);
-    $(window).off("sizechange", this._resized);
-    util.documentHidden.removeListener("change", this._visibilityChanged);
+    this._snackbar.globalEvents.removeListener("resize", this._resized);
+    this._snackbar.globalEvents.removeListener("visibilityChange", this._visibilityChanged);
     this._clearTimer();
 };
 
@@ -216,16 +211,18 @@ SnackbarInstance.prototype._destroy = function() {
     this.$().remove();
 };
 
-function Snackbar(opts) {
+export default function Snackbar(opts) {
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
+    this.recognizerContext = opts.recognizerContext;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";
-    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
+    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
     this.actionClass = opts.actionClass || "snackbar-action";
     this.titleClass = opts.titleClass || "snackbar-title";
-    this.nextDelay = opts.nextDelay || 300;
+    this.nextDelay = opts.nextDelay || 300;
     this.visibilityTime = opts.visibilityTime || 5000;
     this.initialUndismissableWindow = opts.initialUndismissableWindow || 500;
     this.maxLength = opts.maxLength || 3;
@@ -325,5 +322,3 @@ Snackbar.NO_OUTCOME = -1;
 Snackbar.ACTION_CLICKED = 0;
 Snackbar.DISMISSED = 1;
 Snackbar.TIMED_OUT = 2;
-
-module.exports = Snackbar;

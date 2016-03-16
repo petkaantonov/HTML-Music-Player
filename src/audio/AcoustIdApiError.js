@@ -1,15 +1,16 @@
 "use strict";
 
-const util = require("lib/util");
+import { subClassError } from "util";
 
 const codeToString = function(code) {
     return Object.keys(AcoustIdApiError).filter(function(key) {
         var value = AcoustIdApiError[key];
         return typeof value === "number" && code === value;
-    })[0] || "ERROR_UNKNOWN";
+    })[0] || "ERROR_UNKNOWN";
 };
 
-var AcoustIdApiError = util.subClassError("AcoustIdApiError", function(message, code) {
+export default AcoustIdApiError;
+var AcoustIdApiError = subClassError("AcoustIdApiError", function(message, code) {
     this.code = code;
     this.message = message || codeToString(code);
 });
@@ -56,6 +57,3 @@ AcoustIdApiError.prototype.isFatal = function() {
 AcoustIdApiError.prototype.isRetryable = function() {
     return !this.isFatal();
 };
-
-module.exports = AcoustIdApiError;
-

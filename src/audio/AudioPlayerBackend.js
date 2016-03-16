@@ -1,7 +1,18 @@
 "use strict";
-self.EventEmitter = require("lib/events");
 
-const Promise = require("lib/bluebird");
+import EventEmitter from "events";
+import Promise from "bluebird";
+import blobPatch from "platform/blobpatch";
+import ChannelMixer from "audio/ChannelMixer";
+import getCodecName from "audio/sniffer";
+import getCodec from "audio/codec";
+import demuxer from "audio/demuxer";
+import FileView from "platform/FileView";
+import seeker from "audio/seeker";
+import { allocResampler, allocDecoderContext, freeResampler, freeDecoderContext } from "audio/pool";
+import Effect from "audio/Effect";
+import simulateTick from "platform/patchtimers";
+
 Promise.setScheduler(function(fn) {
     fn();
 });
@@ -10,24 +21,10 @@ Promise.config({
     warnings: false,
     longStackTraces: false
 });
-const blobPatch = require("lib/blobpatch");
+
 blobPatch();
 
-const ChannelMixer = require("audio/ChannelMixer");
-const sniffer = require("audio/sniffer");
-const codec = require("audio/codec");
-const demuxer = require("audio/demuxer");
-const FileView = require("lib/FileView");
-const seeker = require("seeker");
-const pool = require("pool");
-const Effect = require("Effect");
-const simulateTick = require("lib/patchtimers");
-
-const allocResampler = pool.allocResampler;
-const allocDecoderContext = pool.allocDecoderContext;
-const freeResampler = pool.freeResampler;
-const freeDecoderContext = pool.freeDecoderContext;
-
+self.EventEmitter = EventEmitter;
 
 const channelMixer = new ChannelMixer(2);
 var hardwareSampleRate = 0;
@@ -35,6 +32,12 @@ var bufferTime = 0;
 var resamplerQuality = 0;
 
 const audioPlayerMap = Object.create(null);
+
+// Preload mp3.
+getCodec("mp3").then(function() {
+    self.postMessage({type: "ready"});
+});
+
 
 const effects = [];
 const setEffects = function(spec) {
@@ -99,7 +102,7 @@ self.onmessage = function(event) {
     var args = data.args;
     if (receiver === -1) {
         if (data.methodName === "audioConfiguration") {
-            resamplerQuality = args.resamplerQuality || 0;
+            resamplerQuality = args.resamplerQuality || 0;
             channelMixer.setChannels(args.channels);
             hardwareSampleRate = args.sampleRate;
             if (args.bufferTime) {
@@ -123,12 +126,6 @@ self.onmessage = function(event) {
         });
     }
 };
-
-// Preload mp3.
-codec.getCodec("mp3").then(function() {
-    self.postMessage({type: "ready"});
-});
-
 
 function AudioPlayer(id, parent) {
     EventEmitter.call(this);
@@ -403,7 +400,7 @@ AudioPlayer.prototype.passError = function(errorMessage, stack, name, transferLi
         stack: stack,
         name: name
     }, transferList);
-}
+};
 
 AudioPlayer.prototype._errored = function(e) {
     this.passError(e.message, e.stack, e.name);
@@ -482,14 +479,14 @@ AudioPlayer.prototype.loadBlob = function(args) {
         }
         that.fileView = new FileView(blob);
         that.blob = blob;
-        return sniffer.getCodecName(that.fileView).then(function(codecName) {
+        return getCodecName(that.fileView).then(function(codecName) {
             if (!codecName) {
                 that.fileView = that.blob = null;
                 that.sendMessage("_error", {message: "Codec not supported"});
                 return;
             }
             that.codecName = codecName;
-            return codec.getCodec(codecName).then(function(codec) {
+            return getCodec(codecName).then(function(codec) {
                 that.blob = blob;
                 return that.gotCodec(codec, args.requestId, args.metadata);
             }).catch(function(e) {
@@ -613,7 +610,7 @@ AudioPlayer.prototype._fillBuffers = Promise.method(function(count, requestId, t
                         length: decodeResult.length,
                         startTime: decodeResult.startTime,
                         endTime: decodeResult.endTime
-                    })
+                    });
                     result.count++;
 
                     if (that.ended) {
@@ -723,5 +720,5 @@ AudioPlayer.prototype.sourceEndedPing = function(args) {
     }).catch(function (e) {
         that.passError(e.message, e.stack, e.name);
     });
-}
+};
 

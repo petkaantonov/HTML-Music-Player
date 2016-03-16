@@ -1,41 +1,37 @@
 "use strict";
 
-const GlobalUi = require("ui/GlobalUi");
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
-const features = require("features");
-const touch = features.touch;
+import $ from "jquery";
+import { offCapture, onCapture } from "util";
 
-function OpenableSubmenu(dom, opener, opts) {
+export default function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
+    this._recognizerContext = opts.recognizerContext;
+    this._rippler = opts.rippler;
     this._domNode = $($(dom)[0]);
     this._opener = $($(opener)[0]);
-    this._keyboardElements = this.$().find("*").filter(function() {
+    this._keyboardElements = this.$().find("*").filter(function() {
         return this.tabIndex >= 0;
     });
 
     this._opened = false;
 
-    this.activeClass = opts.activeClass || "shown";
+    this.activeClass = opts.activeClass || "shown";
     this.transitionClass = opts.transitionClass || "transition-in";
     this.openerActiveClass = opts.openerActiveClass || "opener-active";
 
     this._openerFocused = this._openerFocused.bind(this);
     this._openerClicked = this._openerClicked.bind(this);
     this._documentClicked = this._documentClicked.bind(this);
-    this._documentTapped = domUtil.tapHandler(this._documentClicked);
+    this._documentTapRecognizer = this._recognizerContext.createTapRecognizer(this._documentClicked);
 
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    if (touch) {
-        this.$opener().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this._openerClicked));
-    }
-
     this.$opener().on("click", this._openerClicked)
                   .on("focus", this._openerFocused);
+    this._recognizerContext.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
 
-    util.onCapture(document, "blur", this._elementBlurred);
+    onCapture(document, "blur", this._elementBlurred);
 }
 
 OpenableSubmenu.prototype.$ = function() {
@@ -53,15 +49,13 @@ OpenableSubmenu.prototype.open = function() {
     this.$().addClass(this.activeClass);
     this.$().width();
     var self = this;
-    util.onCapture(document, "keydown", this._keydowned);
+    onCapture(document, "keydown", this._keydowned);
     requestAnimationFrame(function() {
         self.$().addClass(self.transitionClass);
     });
-    util.onCapture(document, "click", this._documentClicked);
+    onCapture(document, "click", this._documentClicked);
 
-    if (touch) {
-        util.onCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
-    }
+    this._documentTapRecognizer.recognizeCapturedOn(document);
 };
 
 OpenableSubmenu.prototype.close = function() {
@@ -70,13 +64,11 @@ OpenableSubmenu.prototype.close = function() {
     if ($(document.activeElement).closest(this.$().add(this.$opener())).length > 0) {
         document.activeElement.blur();
     }
-    util.offCapture(document, "keydown", this._keydowned);
+    offCapture(document, "keydown", this._keydowned);
     this.$opener().removeClass(this.openerActiveClass);
     this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
-    util.offCapture(document, "click", this._documentClicked);
-    if (touch) {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, this._documentTapped);
-    }
+    offCapture(document, "click", this._documentClicked);
+    this._documentTapRecognizer.unrecognizeCapturedOn(document);
 };
 
 OpenableSubmenu.prototype._documentClicked = function(e) {
@@ -100,7 +92,7 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
 };
 
 OpenableSubmenu.prototype._openerClicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.open();
 };
 
@@ -109,7 +101,7 @@ OpenableSubmenu.prototype._keydowned = function(e) {
     if (!activeElement) return;
     var key = e.key;
 
-    if (key === "ArrowUp" || key === "ArrowDown") {
+    if (key === "ArrowUp" || key === "ArrowDown") {
         var activeIndex = -1;
 
         this._keyboardElements.each(function(index) {
@@ -128,6 +120,3 @@ OpenableSubmenu.prototype._keydowned = function(e) {
         }
     }
 };
-
-
-module.exports = OpenableSubmenu;

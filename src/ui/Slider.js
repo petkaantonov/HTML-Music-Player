@@ -1,17 +1,18 @@
 "use strict";
-const $ = require("lib/jquery");
-const EventEmitter = require("lib/events");
-const util = require("lib/util");
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
+import $ from "jquery";
+import EventEmitter from "events";
+import { inherits, offCapture, onCapture } from "util";
+import { isTouchEvent, setTransform } from "platform/DomUtil";
 
-function Slider(domNode, opts) {
+export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
+    this.globalEvents = opts.globalEvents;
+    this.recognizerContext = opts.recognizerContext;
     this._domNode = $(domNode);
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
-    this._sliding = false;
+    this._sliding = false;
     this._value = "value" in opts ? +opts.value : 0;
 
     this._onMousemove = this._onMousemove.bind(this);
@@ -19,14 +20,9 @@ function Slider(domNode, opts) {
     this._onMousedown = this._onMousedown.bind(this);
     this._onReLayout = this._onReLayout.bind(this);
 
-    this._onMousedownTouch = domUtil.touchDownHandler(this._onMousedown);
-    this._touchDragHandler = domUtil.dragHandler(this._onMousemove, this._onMouseup);
+    this.dragRecognizer = this.recognizerContext.createDragRecognizer(this._onMousemove, this._onMouseup);
+    this.touchdownRecognizer = this.recognizerContext.createTouchdownRecognizer(this._onMousedown);
 
-    this.$().on("mousedown", this._onMousedown);
-
-    if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, this._onMousedownTouch);
-    }
 
     this._shouldUpdateDom = "updateDom" in opts ? !!opts.updateDom : true;
     if (this.shouldUpdateDom()) {
@@ -34,10 +30,12 @@ function Slider(domNode, opts) {
         this._setupKeyboard();
     }
 
-    util.documentHidden.on("foreground", this._onReLayout);
-    $(window).on("sizechange", this._onReLayout);
+    this.globalEvents.on("foreground", this._onReLayout);
+    this.globalEvents.on("resize", this._onReLayout);
+    this.$().on("mousedown", this._onMousedown);
+    this.touchdownRecognizer.recognizeBubbledOn(this.$());
 }
-util.inherits(Slider, EventEmitter);
+inherits(Slider, EventEmitter);
 
 Slider.prototype.$ = function() {
     return this._domNode;
@@ -56,13 +54,13 @@ Slider.prototype.shouldUpdateDom = function() {
 };
 
 Slider.prototype._onMousedown = function(e) {
-    var isTouchEvent = domUtil.isTouchEvent(e);
-    if (this._sliding ||
-        (!isTouchEvent && e.which !== 1) ||
-        (isTouchEvent && e.isFirst === false)) {
+    var wasTouchEvent = isTouchEvent(e);
+    if (this._sliding ||
+        (!wasTouchEvent && e.which !== 1) ||
+        (wasTouchEvent && e.isFirst === false)) {
         return;
     }
-    this._sliding = true;
+    this._sliding = true;
     this._calculateDimensions();
 
     if (this.shouldUpdateDom()) {
@@ -75,11 +73,7 @@ Slider.prototype._onMousedown = function(e) {
     this.emit("slide", this._percentage(e));
 
     $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
-
-    if (touch) {
-        $(document).on(domUtil.TOUCH_EVENTS, this._touchDragHandler);
-    }
-
+    this.dragRecognizer.recognizeBubbledOn($(document));
 
     e.preventDefault();
 };
@@ -98,9 +92,9 @@ Slider.prototype._keydowned = function(e) {
             if (this._direction === "horizontal") {
                 var value;
                 if (key === "ArrowLeft") {
-                    value = this._value - 0.01
+                    value = this._value - 0.01;
                 } else {
-                    value = this._value + 0.01
+                    value = this._value + 0.01;
                 }
                 value = Math.min(1, Math.max(0, value));
                 this.setValue(value);
@@ -113,9 +107,9 @@ Slider.prototype._keydowned = function(e) {
             if (this._direction === "vertical") {
                 var value;
                 if (key === "ArrowDown") {
-                    value = this._value - 0.01
+                    value = this._value - 0.01;
                 } else {
-                    value = this._value + 0.01
+                    value = this._value + 0.01;
                 }
                 value = Math.min(1, Math.max(0, value));
                 this.setValue(value);
@@ -128,7 +122,7 @@ Slider.prototype._keydowned = function(e) {
 };
 
 Slider.prototype._knobFocused = function() {
-    util.onCapture(this.$knob()[0], "keydown", this._keydowned);
+    onCapture(this.$knob()[0], "keydown", this._keydowned);
     this.$knob().addClass("focused").css("willChange", "transform");
     this.$fill().css("willChange", "transform");
     this.$().addClass("sliding");
@@ -136,7 +130,7 @@ Slider.prototype._knobFocused = function() {
 };
 
 Slider.prototype._knobBlurred = function() {
-    util.offCapture(this.$knob()[0], "keydown", this._keydowned);
+    offCapture(this.$knob()[0], "keydown", this._keydowned);
     this.$knob().removeClass("focused").css("willChange", "");
     this.$fill().css("willChange", "");
     this.$().removeClass("sliding");
@@ -154,7 +148,7 @@ Slider.prototype._setupKeyboard = function() {
 };
 
 Slider.prototype._onMousemove = function(e) {
-    if (!domUtil.isTouchEvent(e) && e.which !== 1) {
+    if (!isTouchEvent(e) && e.which !== 1) {
         return this._onMouseup(this._lastEvent);
     }
 
@@ -187,8 +181,8 @@ Slider.prototype.setValue = function(value, force) {
             knobTranslate += "translateY(" + knobValuePx + "px)";
             fillTranslate += "translateY(" + ((1 - value) * 100) + "%)";
         }
-        domUtil.setTransform(this.$fill(), fillTranslate);
-        domUtil.setTransform(this.$knob(), knobTranslate);
+        setTransform(this.$fill(), fillTranslate);
+        setTransform(this.$knob(), knobTranslate);
     }
 };
 
@@ -205,11 +199,7 @@ Slider.prototype._onMouseup = function(e) {
     this.emit("slideEnd", this._percentage(e));
 
     $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
-
-    if (touch) {
-        $(document).off(domUtil.TOUCH_EVENTS, this._touchDragHandler);
-    }
-
+    this.dragRecognizer.unrecognizeBubbledOn($(document));
     e.preventDefault();
 };
 
@@ -217,7 +207,7 @@ Slider.prototype._onMouseup = function(e) {
 Slider.prototype._calculateDimensions = function() {
     this._containerRect = this.$()[0].getBoundingClientRect();
     if (this.shouldUpdateDom()) {
-        this._knobRect = this.$knob()[0].getBoundingClientRect()
+        this._knobRect = this.$knob()[0].getBoundingClientRect();
         this._fillRect = this.$fill()[0].getBoundingClientRect();
     }
 };
@@ -238,5 +228,3 @@ Slider.prototype._percentage = function(e) {
     }
     return Math.max(0, Math.min(1, r));
 };
-
-module.exports = Slider;

@@ -1,12 +1,11 @@
 "use strict";
 
-const util = require("lib/util");
-const domUtil = require("lib/DomUtil");
-const EventEmitter = require("lib/events");
-const touch = require("features").touch;
-const GlobalUi = require("ui/GlobalUi");
+import { inherits } from "util";
+import { setFilter, setTransform } from "platform/DomUtil";
+import $ from "jquery";
+import EventEmitter from "events";
 
-function Tab(spec, controller, index, opts) {
+function Tab(spec, controller, index) {
     EventEmitter.call(this);
     this._id = spec.id;
     this._domNode = $($(spec.tab)[0]);
@@ -17,14 +16,11 @@ function Tab(spec, controller, index, opts) {
     this._clicked = this._clicked.bind(this);
     this._contentRect = this.$content()[0].getBoundingClientRect();
     this.$().on("click", this._clicked);
-    if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this._clicked));
-    }
-
+    controller.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
     var position = this._contentRect.width * this._index;
-    domUtil.setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
+    setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
 }
-util.inherits(Tab, EventEmitter);
+inherits(Tab, EventEmitter);
 
 Tab.prototype.$ = function() {
     return this._domNode;
@@ -35,7 +31,7 @@ Tab.prototype.$content = function() {
 };
 
 Tab.prototype._clicked = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+    this._controller.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.emit("click", this);
 };
 
@@ -66,9 +62,9 @@ Tab.prototype.prepareForSetColor = function() {
 
 Tab.prototype.setColor = function() {
     if (this.isActive()) {
-        domUtil.setFilter(this.$(), "grayscale(0%) brightness(100%)");
+        setFilter(this.$(), "grayscale(0%) brightness(100%)");
     } else {
-        domUtil.setFilter(this.$(), "grayscale(100%) brightness(60%)");
+        setFilter(this.$(), "grayscale(100%) brightness(60%)");
     }
 };
 
@@ -81,9 +77,12 @@ Tab.prototype.deactivate = function() {
     this._active = false;
 };
 
-function TabController(domNode, specs, opts) {
+export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.globalEvents = opts.globalEvents;
+    this.recognizerContext = opts.recognizerContext;
+    this.rippler = opts.rippler;
     this._domNode = $($(domNode)[0]);
     this._tabClicked = this._tabClicked.bind(this);
 
@@ -97,8 +96,7 @@ function TabController(domNode, specs, opts) {
     this._indicatorNode = $($(opts.indicator)[0]);
 
     this._relayout = this._relayout.bind(this);
-
-    $(window).on("sizechange", this._relayout);
+    this.globalEvents.on("resize", this._relayout);
 
     this._dragStart = this._dragStart.bind(this);
     this._dragMove = this._dragMove.bind(this);
@@ -108,13 +106,10 @@ function TabController(domNode, specs, opts) {
     this._dragAnchorEnd = -1;
     this._activeTabRect = null;
 
-    if (touch) {
-        this.$().on(domUtil.TOUCH_EVENTS, domUtil.horizontalDragHandler(this._dragStart,
-                                                                        this._dragMove,
-                                                                        this._dragEnd));
-    }
+    this.recognizerContext.createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd)
+        .recognizeBubbledOn(this.$());
 }
-util.inherits(TabController, EventEmitter);
+inherits(TabController, EventEmitter);
 
 TabController.prototype.$ = function() {
     return this._domNode;
@@ -122,6 +117,18 @@ TabController.prototype.$ = function() {
 
 TabController.prototype.$indicator = function() {
     return this._indicatorNode;
+};
+
+TabController.prototype.$containers = function() {
+    return $(this._tabs.map(function(v) {
+        return v.$content()[0];
+    }));
+};
+
+TabController.prototype.$tabs = function() {
+    return $(this._tabs.map(function(v) {
+        return v.$()[0];
+    }));
 };
 
 TabController.prototype._dragStart = function(gesture) {
@@ -163,21 +170,21 @@ TabController.prototype._dragMove = function(gesture) {
         var tab = this._tabs[i];
         var newPosition = ((i - activeIndex) + progress) * contentWidth;
         var translate3d = "translate3d(" + newPosition + "px, 0, 0)";
-        domUtil.setTransform(tab.$content(), translate3d);
+        setTransform(tab.$content(), translate3d);
 
         if (i === activeIndex) {
             var brightness = ((1 - absProgress) * (100 - 60) + 60);
             var grayscale = ((absProgress) * 100);
-            domUtil.setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else if (i === nextIndex) {
             var brightness = (absProgress * (100 - 60) + 60);
             var grayscale = ((1 - absProgress) * 100);
-            domUtil.setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else {
-            domUtil.setFilter(tab.$(), "grayscale(100%) brightness(60%)");
+            setFilter(tab.$(), "grayscale(100%) brightness(60%)");
         }
     }
-    domUtil.setTransform(this.$indicator(), "translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
+    setTransform(this.$indicator(), "translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
     this._dragAnchorEnd = gesture.clientX;
 };
 
@@ -260,9 +267,9 @@ TabController.prototype._activateTab = function(tab, force) {
         var tab = this._tabs[i];
         tab.setColor();
         var contentPosition = (tab.index() - activeIndex) * contentWidth;
-        domUtil.setTransform(tab.$content(), "translate3d(" + contentPosition + "px, 0, 0)");
+        setTransform(tab.$content(), "translate3d(" + contentPosition + "px, 0, 0)");
     }
-    domUtil.setTransform(this.$indicator(), "translate3d(" + (100 * activeIndex) + "%, 0, 0)");
+    setTransform(this.$indicator(), "translate3d(" + (100 * activeIndex) + "%, 0, 0)");
 
     self._contentHideTimeoutId = setTimeout(function() {
         self._contentHideTimeoutId = -1;
@@ -294,6 +301,3 @@ TabController.prototype.activateTabById = function(id) {
     }
     throw new Error("unknown id: " + id);
 };
-
-
-module.exports = TabController;

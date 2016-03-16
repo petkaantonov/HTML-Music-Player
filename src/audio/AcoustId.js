@@ -22,15 +22,14 @@
  * USA
  */
 
-var realFft = require("lib/realfft");
-const Promise = require("lib/bluebird");
-const AcoustIdApiError = require("audio/AcoustIdApiError");
-const util = require("lib/util");
-const tagDatabase = require("TagDatabase");
+import realFft from "audio/realfft";
+import Promise from "bluebird";
+import AcoustIdApiError from "audio/AcoustIdApiError";
+import { queryString } from "util";
 
 const DURATION = 120;
 const SAMPLE_RATE = 11025;
-const MAX_FRAMES = DURATION * SAMPLE_RATE;
+//const MAX_FRAMES = DURATION * SAMPLE_RATE;
 const OVERLAP = 1365;
 const FRAMES = 4096;
 const IM_OFFSET = FRAMES / 2;
@@ -41,7 +40,6 @@ const COEFFS = new Float64Array([0.25, 0.75, 1.0, 0.75, 0.25]);
 const TMP = new Float64Array(NOTES);
 const IMAGE = new Float64Array(ROWS * NOTES);
 const NOTE_BUFFER = new Float64Array(8 * NOTES);
-const pi2 = Math.PI * 2;
 const a = 2 * Math.pow(Math.sin(-Math.PI / FRAMES), 2);
 const b = Math.sin(-Math.PI * 2 / FRAMES);
 const NOTE_FREQUENCY_START = 10;
@@ -126,8 +124,7 @@ const classify3 = function(x, y, h, w, t0, t1, t2) {
 };
 
 const classify4 = function(x, y, h, w, t0, t1, t2) {
-        const h_3 = h/3|0
-        const w_3 = w/3|0;
+        const h_3 = h/3|0;
 
         const a = area(x, y + h_3, x + w - 1, y + 2 * h_3 - 1);
 
@@ -138,7 +135,6 @@ const classify4 = function(x, y, h, w, t0, t1, t2) {
 };
 
 const classify5 = function(x, y, h, w, t0, t1, t2) {
-        const h_3 = h/3|0
         const w_3 = w/3|0;
 
         const a = area(x + w_3, y, x + 2 * w_3 - 1, y + h - 1);
@@ -150,7 +146,7 @@ const classify5 = function(x, y, h, w, t0, t1, t2) {
 };
 
 
-function AcoustId(src, srcLength) {
+export default function AcoustId(src, srcLength) {
     this.src = src;
     this.srcLength = srcLength;
     this.offset = OVERLAP;
@@ -551,7 +547,7 @@ const parseAcoustId = function (data) {
     var result = data.results && data.results[0] || null;
 
     if (!result) return null;
-    if (!result.recordings || result.recordings.length === 0) return null;
+    if (!result.recordings || result.recordings.length === 0) return null;
     var bestRecordingGroup = getBestRecordingGroup(result.recordings);
     if (!bestRecordingGroup) return null;
     var recording = bestRecordingGroup.recording;
@@ -587,13 +583,13 @@ const parseAcoustId = function (data) {
     };
 };
 
-AcoustId.fetch = function(args, _retries) {
+AcoustId.fetch = function(db, args, _retries) {
     if (!_retries) _retries = 0;
 
     return new Promise(function(resolve, reject) {
         var duration = (+args.duration)|0;
         var fingerprint = args.fingerprint;
-        var data = util.queryString({
+        var data = queryString({
             client: "djbbrJFK",
             format: "json",
             duration: duration,
@@ -632,42 +628,18 @@ AcoustId.fetch = function(args, _retries) {
         }
     }).tap(function(result) {
         if (result || result === null) {
-            tagDatabase.updateAcoustId(args.uid, result);
+            db.updateAcoustId(args.uid, result);
         }
-    })
+    });
 };
 
 var imageFetchQueue = [];
 var currentImageFetch = false;
 
-const next = function() {
-    if (imageFetchQueue.length > 0) {
-        var item = imageFetchQueue.shift();
-        item.resolve(actualFetchImage(item.args));
-    } else {
-        currentImageFetch = false;
-    }
-};
-AcoustId.fetchImage = function(args) {
-    return new Promise(function(resolve) {
-        if (!currentImageFetch) {
-            currentImageFetch = true;
-            resolve(actualFetchImage(args));
-        } else {
-            imageFetchQueue.push({
-                args: args,
-                resolve: resolve
-            });
-        }
-    }).finally(next);
-
-};
-
-const actualFetchImage = function(args) {
+const actualFetchImage = function(db, args) {
     var albumKey = args.albumKey;
-    var uid = args.uid;
     var acoustId = args.acoustId;
-    return tagDatabase.getAlbumImage(albumKey).then(function(image) {
+    return db.getAlbumImage(albumKey).then(function(image) {
         if (image) return image;
 
         if (acoustId && acoustId.album) {
@@ -675,7 +647,7 @@ const actualFetchImage = function(args) {
             var mbid = acoustId.album.mbid;
             var url = "https://coverartarchive.org/" + type + "/" + mbid + "/front-250";
             var ret = {url: url};
-            tagDatabase.setAlbumImage(albumKey, url);
+            db.setAlbumImage(albumKey, url);
             return ret;
         } else {
             return null;
@@ -683,5 +655,25 @@ const actualFetchImage = function(args) {
     });
 };
 
-
-module.exports = AcoustId;
+const next = function() {
+    if (imageFetchQueue.length > 0) {
+        var item = imageFetchQueue.shift();
+        item.resolve(actualFetchImage(item.db, item.args));
+    } else {
+        currentImageFetch = false;
+    }
+};
+AcoustId.fetchImage = function(db, args) {
+    return new Promise(function(resolve) {
+        if (!currentImageFetch) {
+            currentImageFetch = true;
+            resolve(actualFetchImage(db, args));
+        } else {
+            imageFetchQueue.push({
+                args: args,
+                resolve: resolve,
+                db: db
+            });
+        }
+    }).finally(next);
+};

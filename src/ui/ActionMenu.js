@@ -1,12 +1,10 @@
 "use strict";
-const $ = require("lib/jquery");
-const util = require("lib/util");
-const EventEmitter = require("lib/events");
-const NULL = $(null);
-const touch = require("features").touch;
-const domUtil = require("lib/DomUtil");
-const GlobalUi = require("ui/GlobalUi");
+import $ from "jquery";
+import { inherits, offCapture, onCapture, toFunction } from "util";
+import EventEmitter from "events";
+import { changeDom, isTouchEvent, originProperty } from "platform/DomUtil";
 
+const NULL = $(null);
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
 
@@ -23,7 +21,7 @@ function ActionMenuItem(root, spec, children, level) {
     this._preferredHorizontalDirection = "end";
     this._preferredVerticalDirection = "end";
     this._delayTimerId = -1;
-    this._content = util.toFunction(spec.content);
+    this._content = toFunction(spec.content);
     this._containerDom = NULL;
     this._domNode = this._createDom();
 
@@ -37,6 +35,10 @@ function ActionMenuItem(root, spec, children, level) {
     this.positionSubMenu = this.positionSubMenu.bind(this);
     this.itemTouchStarted = this.itemTouchStarted.bind(this);
 
+    this.containerTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.containerMouseEntered);
+    this.tapRecognizer = this.root.recognizerContext.createTapRecognizer(this.itemClicked);
+    this.itemTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.itemTouchStarted);
+
     if (this.children) {
         this._containerDom = this._createContainerDom(level);
         this.children.forEach(function(child) {
@@ -48,18 +50,13 @@ function ActionMenuItem(root, spec, children, level) {
         this.$container().on("mouseenter", this.containerMouseEntered);
         this.$container().on("mouseleave", this.containerMouseLeft);
 
-        if (touch) {
-            this.$container().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.containerMouseEntered));
-        }
+        this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
     }
 
     if (!this.divider) {
         this.$().on("click", this.itemClicked);
-
-        if (touch) {
-            this.$().on(domUtil.TOUCH_EVENTS, domUtil.tapHandler(this.itemClicked));
-            this.$().on(domUtil.TOUCH_EVENTS_NO_MOVE, domUtil.touchDownHandler(this.itemTouchStarted));
-        }
+        this.tapRecognizer.recognizeBubbledOn(this.$());
+        this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
     }
 }
 
@@ -109,7 +106,7 @@ ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
 };
 
 ActionMenuItem.prototype.itemTouchStarted = function(e) {
-    GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+    this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
     var parent = this.parent ? this.parent : this.root;
     parent.menuItemTouchStarted(this);
     if (this.children) {
@@ -180,7 +177,7 @@ ActionMenuItem.prototype.containerMouseEntered = function(e) {
 
 ActionMenuItem.prototype.itemClicked = function(e) {
     if (this.disabled) {
-        GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+        this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
         return;
     }
     if (this.children) {
@@ -197,7 +194,7 @@ ActionMenuItem.prototype.itemClicked = function(e) {
                 this.root.hideContainer();
                 this.root.emit("itemClick", this.id);
             } else {
-                GlobalUi.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
+                this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
             }
         }
     }
@@ -235,7 +232,7 @@ ActionMenuItem.prototype._createDom = function() {
         var node = $('<div>', {class: this.root.itemClass});
         if (typeof content === "string") {
             node.html(content);
-        } else if (content == null) {
+        } else if (content == null) {
             node.hide();
         } else {
             node.empty().append(content);
@@ -415,13 +412,13 @@ ActionMenuItem.prototype.showContainer = function() {
     this.$container().css("willChange", "transform");
     this.$container().removeClass("transition-out transition-in initial").appendTo("body");
     var origin = this.positionSubMenu();
-    this.$container().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$container().css(originProperty, origin.x + "px " + origin.y + "px 0px");
     this.$container().detach();
     this.$container().removeClass("transition-out").addClass("initial transition-in");
     this.$container().appendTo("body");
     this.$container().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$container().removeClass("initial");
         setTimeout(function() {
             self.$container().css("willChange", "");
@@ -437,7 +434,7 @@ ActionMenuItem.prototype.hideContainer = function() {
     this.$container().removeClass("transition-in").addClass("initial transition-out");
     this.$container().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$container().removeClass("initial");
         self._delayTimerId = setTimeout(function() {
             self._delayTimerId = -1;
@@ -463,18 +460,20 @@ function createMenuItem(root, spec, level) {
     return new ActionMenuItem(root, spec, children, level);
 }
 
-function ActionMenu(opts) {
+export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
-
+    this.globalEvents = opts.globalEvents;
+    this.rippler = opts.rippler;
+    this.recognizerContext = opts.recognizerContext;
     this.rootClass = opts.rootClass || "action-menu-root";
     this.containerClass = opts.containerClass || "action-menu-submenu";
     this.itemClass = opts.itemClass || "action-menu-item";
     this.disabledClass = opts.disabledClass || "action-menu-disabled";
-    this.dividerClass = opts.dividerClass || "action-menu-divider";
-    this.activeSubMenuClass = opts.activeSubMenuClass || "action-menu-active";
-    this.showDelay = Math.min(1000, Math.max(0, +opts.subMenuShowDelay || 300));
-    this.hideDelay = Math.min(3000, Math.max(0, +opts.subMenuHideDelay || 800));
+    this.dividerClass = opts.dividerClass || "action-menu-divider";
+    this.activeSubMenuClass = opts.activeSubMenuClass || "action-menu-active";
+    this.showDelay = Math.min(1000, Math.max(0, +opts.subMenuShowDelay || 300));
+    this.hideDelay = Math.min(3000, Math.max(0, +opts.subMenuHideDelay || 800));
 
 
     this._delayTimerId = -1;
@@ -505,7 +504,7 @@ function ActionMenu(opts) {
         this._idToItem[id] = item;
     }, this);
 }
-util.inherits(ActionMenu, EventEmitter);
+inherits(ActionMenu, EventEmitter);
 
 ActionMenu.prototype.setEnabledStateFromPredicate = function() {
     var args = new Array(arguments.length);
@@ -624,7 +623,7 @@ ActionMenu.prototype.enable = function(actions) {
     this.emit("activationChange", this);
 };
 
-ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
+export function ContextMenu(dom, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
@@ -648,57 +647,43 @@ ActionMenu.ContextMenu = function ContextMenu(dom, opts) {
     this.rightClicked = this.rightClicked.bind(this);
     this.keypressed = this.keypressed.bind(this);
     this.position = this.position.bind(this);
-    this.rightClickedTouch = domUtil.longTapHandler(this.rightClicked);
-    this.documentClickedTouch = domUtil.touchDownHandler(this.documentClicked);
 
+    this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
+    this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
     this.preventDefault = $.noop;
 
-    // Use event capturing so that these are handled even if stopPropagation()
-    // is called.
     this._targetDom.on("contextmenu", this.rightClicked);
-    util.onCapture(document, "mousedown", this.documentClicked);
-
-    if (touch) {
-        this._targetDom.on(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
-        util.onCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
-    }
-
+    onCapture(document, "mousedown", this.documentClicked);
+    this.longTapRecognizer.recognizeBubbledOn(this._targetDom);
+    this.documentTouchedRecognizer.recognizeCapturedOn(document);
     document.addEventListener("keydown", this.keypressed, true);
-    window.addEventListener("blur", this.hide, true);
-    window.addEventListener("scroll", this.position, true);
-    window.addEventListener("sizechange", this.position, true);
 
     this._menu.on("itemClick", this.hide);
-    util.documentHidden.on("change", this.hide);
-};
-util.inherits(ActionMenu.ContextMenu, EventEmitter);
+    this._menu.globalEvents.on("resize", this.position);
+    this._menu.globalEvents.on("visibilityChange", this.hide);
+}
+inherits(ContextMenu, EventEmitter);
 
-ActionMenu.ContextMenu.prototype.destroy = function() {
+ContextMenu.prototype.destroy = function() {
     this.hide();
-    util.documentHidden.removeListener("change", this.hide);
     this._menu.removeListener("itemClick", this.hide);
-    window.removeEventListener("blur", this.hide, true);
-    window.removeEventListener("scroll", this.position, true);
-    window.removeEventListener("sizechange", this.position, true);
+    this._menu.globalEvents.removeListener("resize", this.position);
+    this._menu.globalEvents.removeListener("visibilityChange", this.hide);
 
-    util.offCapture(document, "mousedown", this.documentClicked);
+    offCapture(document, "mousedown", this.documentClicked);
     this._targetDom.off("contextmenu", this.rightClicked);
-
-    if (touch) {
-        util.offCapture(document, domUtil.TOUCH_EVENTS, this.documentClickedTouch);
-        this._targetDom.off(domUtil.TOUCH_EVENTS, this.rightClickedTouch);
-    }
-
+    this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
+    this.documentTouchedRecognizer.unrecognizeCapturedOn(document);
     document.removeEventListener("keydown", this.keypressed, true);
     this.removeAllListeners();
     this._menu.destroy();
 };
 
-ActionMenu.ContextMenu.prototype.$ = function() {
+ContextMenu.prototype.$ = function() {
     return this._domNode;
 };
 
-ActionMenu.ContextMenu.prototype.position = function() {
+ContextMenu.prototype.position = function() {
     if (!this._shown) return;
     var x = this._x;
     var y = this._y;
@@ -743,7 +728,7 @@ ActionMenu.ContextMenu.prototype.position = function() {
     return origin;
 };
 
-ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
+ContextMenu.prototype.rightClicked = function(e) {
     this.hide();
     var defaultPrevented = false;
     var ev = {
@@ -758,7 +743,7 @@ ActionMenu.ContextMenu.prototype.rightClicked = function(e) {
     }
 };
 
-ActionMenu.ContextMenu.prototype.show = function(e) {
+ContextMenu.prototype.show = function(e) {
     if (this._shown) return;
     if (this._delayTimerId !== -1) {
         clearTimeout(this._delayTimerId);
@@ -775,16 +760,16 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this._xMax = $(window).width();
     this._yMax = $(window).height();
     var origin = this.position();
-    this.$().css(domUtil.originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$().css(originProperty, origin.x + "px " + origin.y + "px 0px");
 
     // Transition from desktop right click feels weird so only do it on touch.
-    if (domUtil.isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.$().detach();
         this.$().addClass("initial transition-in");
         this.$().appendTo("body");
         this.$().width();
         var self = this;
-        domUtil.changeDom(function() {
+        changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -792,14 +777,14 @@ ActionMenu.ContextMenu.prototype.show = function(e) {
     this.emit("didShowMenu", e, this);
 };
 
-ActionMenu.ContextMenu.prototype.hide = function() {
+ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
     this.emit("willHideMenu", this);
     this._shown = false;
     this.$().removeClass("transition-in").addClass("initial transition-out");
     this.$().width();
     var self = this;
-    domUtil.changeDom(function() {
+    changeDom(function() {
         self.$().removeClass("initial");
         self._delayTimerId = setTimeout(function() {
             self._delayTimerId = -1;
@@ -813,12 +798,12 @@ ActionMenu.ContextMenu.prototype.hide = function() {
 ["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
 "forEach"].forEach(function(methodName) {
     var menuMethod = ActionMenu.prototype[methodName];
-    ActionMenu.ContextMenu.prototype[methodName] = function()  {
+    ContextMenu.prototype[methodName] = function()  {
         return menuMethod.apply(this._menu, arguments);
     };
 });
 
-ActionMenu.ContextMenu.prototype.documentClicked = function(e) {
+ContextMenu.prototype.documentClicked = function(e) {
     if (!this._shown) return;
 
     var $target = $(e.target);
@@ -835,9 +820,7 @@ ActionMenu.ContextMenu.prototype.documentClicked = function(e) {
     }
 };
 
-ActionMenu.ContextMenu.prototype.keypressed = function() {
+ContextMenu.prototype.keypressed = function() {
     if (!this._shown) return;
     this.hide();
 };
-
-module.exports = ActionMenu;

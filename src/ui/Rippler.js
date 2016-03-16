@@ -1,9 +1,9 @@
 "use strict";
 
-const Animator = require("ui/Animator");
-const $ = require("lib/jquery");
+import Animator from "ui/Animator";
+import $ from "jquery";
 
-const NULL = $(null);
+const NULL = $(null);
 
 const interp = function(currentTime, endTime) {
     var value = currentTime / endTime;
@@ -168,8 +168,8 @@ Ripple.prototype.end = function() {
     this.rippler.rippleEnded(this);
 };
 
-function Rippler() {
-    this._domNode = $("body");
+export default function Rippler(base) {
+    this._domNode = $(base);
     this._freeRipples = [];
     this._ongoingRipples = [];
     this._shown = false;
@@ -209,8 +209,8 @@ Rippler.prototype.rippleElement = function(elem, x, y, color, zIndex) {
     }
 
     if (!color) color = "#000";
-    if (zIndex == undefined) zIndex = "";
-    if (zIndex !== "") zIndex = (+zIndex) + ""
+    if (zIndex == null) zIndex = "";
+    if (zIndex !== "") zIndex = (+zIndex) + "";
     if (zIndex === "") zIndex = 900;
     var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
     this.rippleStarted(ripple);
@@ -244,6 +244,4 @@ Rippler.prototype.rippleAt = function(x, y, size, color) {
     var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
     this.rippleStarted(ripple);
     ripple.initUnbounded(x, y, size, color);
-}
-
-module.exports = Rippler;
+};
