@@ -148,7 +148,7 @@ export default function Search(domNode, opts) {
         railSelector: ".scrollbar-rail",
         knobSelector: ".scrollbar-knob"
     });
-    this._selectable = new Selectable(this);
+    this._selectable = new Selectable(this, this.page);
     this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
     this._keyboardShortcutContext.addShortcut("ctrl+f", this._focusInput.bind(this));
     this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));

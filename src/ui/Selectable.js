@@ -60,7 +60,6 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
         this._add(idx);
     }
     this._playlist.emit("tracksSelected", this);
-    e.preventDefault();
 };
 
 Selectable.prototype.trackViewClick = function(e, trackView) {

@@ -44,7 +44,7 @@ const after = function(node, frag) {
     var next = node.nextElementSibling;
 
     if (next) {
-        parent.before(frag, next);
+        parent.insertBefore(frag, next);
     } else {
         append(parent, frag);
     }
@@ -53,12 +53,12 @@ const after = function(node, frag) {
 const before = function(node, frag) {
     var parent = node.parentElement;
     if (!parent) return;
-    parent.before(frag, node);
+    parent.insertBefore(frag, node);
 };
 
 const prepend = function(node, frag) {
     if (node.firstChild) {
-        node.before(frag, node.firstChild);
+        node.insertBefore(frag, node.firstChild);
     } else {
         return append(node, frag);
     }
