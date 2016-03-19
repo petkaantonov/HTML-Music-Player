@@ -67,7 +67,7 @@ export default function Player(dom, playlist, opts) {
     this._nextTooltip = this.tooltipContext.makeTooltip(this.$next(), "Next track");
     this._previousTooltip = this.tooltipContext.makeTooltip(this.$previous(), "Previous track");
 
-    playlist.on("loadNeed", this.loadTrack.bind(this));
+    playlist.on("currentTrackChange", this.loadTrack.bind(this));
     playlist.on("playlistEmpty", this.stop.bind(this));
     playlist.on("nextTrackChange", this.nextTrackChanged);
     playlist.on("historyChange", this.historyChanged.bind(this));

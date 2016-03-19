@@ -160,35 +160,35 @@ DomWrapper.prototype._toFragment = function() {
 };
 
 DomWrapper.prototype.innerHeight = function() {
-    if (this._length === 0) return -1;
+    if (this._length === 0) return 0;
     var style = this.style();
-    var padding = (+style.paddingTop || 0) +
-                  (+style.paddingBottom || 0);
+    var padding = (parseInt(style.paddingTop, 10) || 0) +
+                  (parseInt(style.paddingBottom, 10) || 0);
     return this[0].clientHeight - padding;
 };
 
 DomWrapper.prototype.innerWidth = function() {
-    if (this._length === 0) return -1;
+    if (this._length === 0) return 0;
     var style = this.style();
-    var padding = (+style.paddingLeft || 0) +
-                  (+style.paddingRight || 0);
+    var padding = (parseInt(style.paddingLeft, 10) || 0) +
+                  (parseInt(style.paddingRight, 10) || 0);
     return this[0].clientWidth - padding;
 };
 
 DomWrapper.prototype.outerHeight = function() {
-    if (this._length === 0) return -1;
+    if (this._length === 0) return 0;
     var style = this.style();
-    var margin = (+style.marginTop || 0) +
-                  (+style.marginBottom || 0);
-    return this[0].offsetHeight - margin;
+    var margin = (parseInt(style.marginTop, 10) || 0) +
+                  (parseInt(style.marginBottom, 10) || 0);
+    return this[0].offsetHeight + margin;
 };
 
 DomWrapper.prototype.outerWidth = function() {
-    if (this._length === 0) return -1;
+    if (this._length === 0) return 0;
     var style = this.style();
-    var margin = (+style.marginLeft || 0) +
-                  (+style.marginRight || 0);
-    return this[0].offsetWidth - margin;
+    var margin = (parseInt(style.marginLeft, 10) || 0) +
+                  (parseInt(style.marginRight, 10) || 0);
+    return this[0].offsetWidth + margin;
 };
 
 DomWrapper.prototype.find = function(selector) {

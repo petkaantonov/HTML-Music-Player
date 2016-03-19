@@ -372,8 +372,8 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
 
     track.played();
     this._currentPlayId = nextPlayId++;
-    this.emit("trackChange", track);
-    this.emit("loadNeed", track);
+    this.emit("trackPlayingStatusChange", track);
+    this.emit("currentTrackChange", track);
     return true;
 };
 
@@ -494,7 +494,7 @@ Playlist.prototype._restoreStateForUndo = function() {
         trackView.setIndex(i);
     }
 
-    this.emit("trackChange", this.getCurrentTrack());
+    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
     this.emit("lengthChange", this.length, oldLength);
     this._updateNextTrack();
     this._fixedItemListScroller.refresh();
@@ -538,7 +538,7 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
         }
     }
 
-    this.emit("trackChange", this.getCurrentTrack());
+    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
     this._updateNextTrack();
     this._fixedItemListScroller.refresh();
     this._listContentsChanged();
@@ -609,7 +609,7 @@ Playlist.prototype.stop = function() {
 
 Playlist.prototype.trackIndexChanged = function() {
     this._edited();
-    this.emit("trackChange", this.getCurrentTrack());
+    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
     this._updateNextTrack();
 };
 

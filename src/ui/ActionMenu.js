@@ -247,7 +247,7 @@ ActionMenuItem.prototype.refresh = function() {
     if (this.divider) {
         if (typeof this.divider === "function") {
             if (this.divider()) {
-                this.$().show("inline-block");
+                this.$().show();
             } else {
                 this.$().hide();
             }
@@ -258,7 +258,7 @@ ActionMenuItem.prototype.refresh = function() {
     var content = this._content(this);
 
     if (typeof content === "string") {
-        this.$().setHtml(content).show("inline-block");
+        this.$().setHtml(content).show();
     } else if (content == null) {
         this.$().empty().hide();
     } else {

@@ -28,7 +28,7 @@ export default function TrackAnalyzer(playlist, opts) {
 
     this._worker.addEventListener("message", this._messaged.bind(this), false);
     this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
-    this._playlist.on("trackChange", this.currentTrackChanged.bind(this));
+    this._playlist.on("trackPlayingStatusChange", this.currentTrackChanged.bind(this));
     this._playlist.on("unparsedTracksAvailable", this.unparsedTracksAvailable.bind(this));
     this.trackRemovedWhileInQueue = this.trackRemovedWhileInQueue.bind(this);
     this.abortJobForTrack = this.abortJobForTrack.bind(this);

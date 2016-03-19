@@ -29,7 +29,7 @@ export default function TrackDisplay(dom, playlist, opts) {
 
     this._globalEvents.on("foreground", this._windowResized);
     this._globalEvents.on("resize", this._windowResized);
-    this._playlist.on("trackChange", this._trackChanged.bind(this));
+    this._playlist.on("trackPlayingStatusChange", this._trackChanged.bind(this));
 
     this._updateText();
     this._reset();
