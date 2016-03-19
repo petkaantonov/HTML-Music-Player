@@ -1,6 +1,7 @@
 "use strict";
 
 import realFft from "audio/realfft";
+import { Float32Array, Float64Array } from "platform/platform";
 
 const weights = new Float32Array([
     0, 0,
@@ -82,11 +83,15 @@ export default function AudioVisualizer(audioContext, sourceNode, visualizerCanv
     this.destroyed = false;
     this.paused = false;
     this.gotFrame = this.gotFrame.bind(this);
-    this.frameId = requestAnimationFrame(this.gotFrame);
+    this.frameId = this.page().requestAnimationFrame(this.gotFrame);
     this.lastFrameTimeStamp = 0;
     this.frameSkip = 1;
     this.frameNumber = 0;
 }
+
+AudioVisualizer.prototype.page = function() {
+    return this.visualizerCanvas.page;
+};
 
 AudioVisualizer.prototype.binSizeChanged = function() {
     this.bins = new Float32Array(this.binCount());
@@ -118,14 +123,14 @@ AudioVisualizer.prototype.resume = function() {
 
 AudioVisualizer.prototype.destroy = function() {
     this.destroyed = true;
-    cancelAnimationFrame(this.frameId);
+    this.page().cancelAnimationFrame(this.frameId);
     this.sourceNode = null;
 };
 
 
 AudioVisualizer.prototype.gotFrame = function(now) {
     if (this.destroyed) return;
-    this.frameId = requestAnimationFrame(this.gotFrame);
+    this.frameId = this.page().requestAnimationFrame(this.gotFrame);
 
     if (!this.visualizerCanvas.needsToDraw()) return;
 

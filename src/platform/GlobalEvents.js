@@ -1,28 +1,16 @@
 "use strict";
 
 import EventEmitter from "events";
-import { inherits, onCapture, throttle } from "util";
-import { isTextInputElement } from "platform/DomUtil";
+import { inherits, throttle } from "util";
 
-const documentHidden = (function() {
-    var prefix = ["h", "mozH", "msH", "webkitH"].reduce(function(prefix, curr) {
-        if (prefix) return prefix;
-        return (curr + "idden") in document ? curr : prefix;
-    }, null);
-    var prop = prefix + "idden";
-    var eventName = prefix.slice(0, -1) + "visibilitychange";
-    return {
-        propertyName: prop,
-        eventName: eventName
-    };
-})();
-
-export default function GlobalEvents() {
+export default function GlobalEvents(page) {
     EventEmitter.call(this);
     this.setMaxListeners(99999999);
+    this._page = page;
     this._blurred = undefined;
     this._fireSizeChangeEvents = true;
     this._pendingSizeChange = false;
+    this._beforeUnloadListener = null;
 
     this._triggerSizeChange = this._triggerSizeChange.bind(this);
     this._firePendingSizeChangeEvent = this._firePendingSizeChangeEvent.bind(this);
@@ -30,13 +18,15 @@ export default function GlobalEvents() {
     this._elementFocused = this._elementFocused.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    document.addEventListener(documentHidden.eventName, this._windowVisibilityChanged.bind(this), false);
-    window.addEventListener("blur", this._windowBlurred.bind(this), false);
-    window.addEventListener("focus", this._windowFocused.bind(this), false);
-    onCapture(document, "focus", this._elementFocused);
-    onCapture(document, "blur", this._elementBlurred);
-    onCapture(window, "resize", this._triggerSizeChange);
-    window.addEventListener("unload", this.emit.bind(this, "shutdown"), false);
+    this._page.onDocumentVisibilityChange(this._windowVisibilityChanged.bind(this));
+
+    this._page.addDocumentListener("focus", this._elementFocused, true);
+    this._page.addDocumentListener("blur", this._elementBlurred, true);
+    this._page.addWindowListener("blur", this._windowBlurred.bind(this));
+    this._page.addWindowListener("focus", this._windowFocused.bind(this));
+    this._page.addWindowListener("resize", this._triggerSizeChange, true);
+    this._page.addWindowListener("unload", this.emit.bind(this, "shutdown"));
+    this._page.addWindowListener("beforeunload", this._beforeUnload.bind(this));
 }
 inherits(GlobalEvents, EventEmitter);
 
@@ -76,8 +66,8 @@ GlobalEvents.prototype._triggerSizeChange = function() {
         return;
     }
 
-    var activeElement = document.activeElement;
-    if (activeElement && isTextInputElement(activeElement)) {
+    var activeElement = this._page.activeElement();
+    if (activeElement && this._page.isTextInputElement(activeElement)) {
         this._pendingSizeChange = true;
         return;
     }
@@ -92,18 +82,36 @@ GlobalEvents.prototype._resetFireSizeChangeEvents = throttle(function() {
 }, 500);
 
 GlobalEvents.prototype._elementFocused = function(e) {
-    if (isTextInputElement(e.target)) {
+    if (this._page.isTextInputElement(e.target)) {
         this._fireSizeChangeEvents = false;
         this._resetFireSizeChangeEvents();
     }
 };
 
 GlobalEvents.prototype._elementBlurred = function(e) {
-    if (isTextInputElement(e.target)) {
-        window.scrollTo(0, 0);
+    if (this._page.isTextInputElement(e.target)) {
+        this._page.window().scrollTo(0, 0);
         if (this._pendingSizeChange) {
             this._pendingSizeChange = false;
             this._firePendingSizeChangeEvent();
+        }
+    }
+};
+
+GlobalEvents.prototype.disableBeforeUnloadHandler = function() {
+    this._beforeUnloadListener = null;
+};
+
+GlobalEvents.prototype.addBeforeUnloadListener = function(fn) {
+    this._beforeUnloadListener = fn;
+};
+
+GlobalEvents.prototype._beforeUnload = function(e) {
+    if (this._beforeUnloadListener) {
+        var ret = this._beforeUnloadListener(e);
+        if (ret) {
+            e.returnValue = ret;
+            return ret;
         }
     }
 };
@@ -115,6 +123,6 @@ GlobalEvents.prototype.isWindowBlurred = function() {
 };
 
 GlobalEvents.prototype.isWindowBackgrounded = function() {
-    return document[documentHidden.propertyName];
+    return this._page.isDocumentHidden();
 };
 

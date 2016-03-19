@@ -1,8 +1,7 @@
 "use strict";
-import $ from "jquery";
+
 import { inherits } from "util";
 import Selectable from "ui/Selectable";
-import { isTouchEvent } from "platform/DomUtil";
 import EventEmitter from "events";
 
 const DRAG_START_DELAY_MS = 300;
@@ -10,11 +9,13 @@ const DRAG_START_DELAY_MS = 300;
 export default function DraggableSelection(dom, viewList, fixedItemListScroller, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this._page = opts.page;
     this._recognizerContext = opts.recognizerContext;
+    this._globalEvents = opts.globalEvents;
     this._mustMatchSelector = opts.mustMatchSelector || null;
     this._mustNotMatchSelector = opts.mustNotMatchSelector || null;
     this._fixedItemListScroller = fixedItemListScroller;
-    this._domNode = $(dom);
+    this._domNode = this._page.$(dom).eq(0);
     this._selection = null;
     this._viewList = viewList;
     this._previousRawY = -1;
@@ -46,8 +47,8 @@ DraggableSelection.prototype.recentlyStoppedDragging = function() {
 
 DraggableSelection.prototype.bindEvents = function() {
     this._touchdownRecognizer.recognizeBubbledOn(this.$());
-    this.$().on("mousedown", this._onItemViewMouseDown);
-    this.$().on("selectstart", function(e) {e.preventDefault();});
+    this.$().addEventListener("mousedown", this._onItemViewMouseDown);
+    this.$().addEventListener("selectstart", this._page.preventDefaultHandler);
 };
 
 DraggableSelection.prototype.isDragging = function() {
@@ -55,10 +56,8 @@ DraggableSelection.prototype.isDragging = function() {
 };
 
 DraggableSelection.prototype._clearScrollInterval = function() {
-    if (this._scrollIntervalId !== -1) {
-        clearInterval(this._scrollIntervalId);
-        this._scrollIntervalId = -1;
-    }
+    this._page.clearInterval(this._scrollIntervalId);
+    this._scrollIntervalId = -1;
 };
 
 DraggableSelection.prototype._startDragFromTimeout = function() {
@@ -74,14 +73,12 @@ DraggableSelection.prototype._startDragFromTimeout = function() {
 DraggableSelection.prototype._startDragStartDelay = function() {
     this._justStoppedDragging = false;
     this._clearDragStartDelay();
-    this._dragStartDelayId = setTimeout(this._startDragFromTimeout, DRAG_START_DELAY_MS);
+    this._dragStartDelayId = this._page.setTimeout(this._startDragFromTimeout, DRAG_START_DELAY_MS);
 };
 
 DraggableSelection.prototype._clearDragStartDelay = function() {
-    if (this._dragStartDelayId !== -1) {
-        clearTimeout(this._dragStartDelayId);
-        this._dragStartDelayId = -1;
-    }
+    this._page.clearTimeout(this._dragStartDelayId);
+    this._dragStartDelayId = -1;
 };
 
 DraggableSelection.prototype._scroll = function() {
@@ -116,15 +113,17 @@ DraggableSelection.prototype._onMouseRelease = function() {
     var dragStartWasFired = this._dragStartFired;
     this._dragStartFired = false;
     this._isDragging = false;
-    this.$().off("scroll", this._onMovement);
+    this.$().removeEventListener("scroll", this._onMovement);
 
-    $(document).off("mousemove", this._onMovement).off("mouseup", this._onMouseRelease);
-    this._dragRecognizer.unrecognizeBubbledOn($(document));
+    this._page.removeDocumentListener("mousemove", this._onMovement);
+    this._page.removeDocumentListener("mouseup", this._onMouseRelease);
+    this._globalEvents.removeListener("resize", this._onReLayout);
+    this._dragRecognizer.unrecognizeBubbledOn(this._page.document());
 
     this._viewList.removeListener("tracksSelected", this._restart);
     this._viewList.removeListener("lengthChange", this._restart);
     this._viewList.removeListener("trackOrderChange", this._restart);
-    $(window).off("relayout", this._onReLayout);
+
     this._holdingStartedY = this._currentReferenceItemView = this._previousRawY = -1;
     this._clearScrollInterval();
     if (dragStartWasFired) {
@@ -138,7 +137,7 @@ DraggableSelection.prototype._onMouseRelease = function() {
     if (dragStartWasFired) {
         var self = this;
         this._justStoppedDragging = true;
-        this._dragStartDelayId = setTimeout(function() {
+        this._dragStartDelayId = this._page.setTimeout(function() {
             self._justStoppedDragging = false;
         }, 13);
     }
@@ -155,7 +154,7 @@ DraggableSelection.prototype._fireDragStart = function() {
 };
 
 DraggableSelection.prototype._onMovement = function(e) {
-    if (!isTouchEvent(e) && e.which !== 1) {
+    if (!this._page.isTouchEvent(e) && e.which !== 1) {
         return this._onMouseRelease();
     }
 
@@ -167,7 +166,7 @@ DraggableSelection.prototype._onMovement = function(e) {
     }
 
     if (this._scrollIntervalId === -1) {
-        this._scrollIntervalId = setInterval(this._scroll, 100);
+        this._scrollIntervalId = this._page.setInterval(this._scroll, 100);
     }
 
     var itemHeight = this._fixedItemListScroller.itemHeight();
@@ -242,7 +241,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
         return;
     }
 
-    var $target = $(e.target);
+    var $target = this._page.$(e.target);
     if (this._mustMatchSelector && !$target.closest(this._mustMatchSelector).length) {
         return;
     }
@@ -255,7 +254,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
         return;
     }
 
-    if (isTouchEvent(e) &&
+    if (this._page.isTouchEvent(e) &&
         (!this._viewList.selectionContainsAnyItemViewsBetween(e.clientY, e.clientY) ||
         e.isFirst === false)) {
         return;
@@ -272,10 +271,10 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
 
     this._onReLayout();
 
-    $(document).on("mousemove", this._onMovement);
-    $(document).on("mouseup", this._onMouseRelease);
-    this._dragRecognizer.recognizeBubbledOn($(document));
-    $(window).on("relayout", this._onReLayout);
+    this._page.addDocumentListener("mousemove", this._onMovement);
+    this._page.addDocumentListener("mouseup", this._onMouseRelease);
+    this._globalEvents.on("resize", this._onReLayout);
+    this._dragRecognizer.recognizeBubbledOn(this._page.document());
     this._viewList.on("tracksSelected", this._restart);
     this._viewList.on("lengthChange", this._restart);
     this._viewList.on("trackOrderChange", this._restart);

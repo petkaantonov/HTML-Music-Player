@@ -1,7 +1,7 @@
 "use strict";
-import Promise from "bluebird";
-import $ from "jquery";
+
 import { iDbPromisify, throttle } from "util";
+import { indexedDB } from "platform/platform";
 
 const VERSION = 2;
 const NAME = "KeyValueDatabase2";
@@ -10,18 +10,12 @@ const TABLE_NAME = "keyValueDatabase2";
 const READ_WRITE = "readwrite";
 const READ_ONLY = "readonly";
 
-const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
-
 export default function KeyValueDatabase() {
     var request = indexedDB.open(NAME, VERSION);
     this.db = iDbPromisify(request);
-    this.db.suppressUnhandledRejections();
-
-    this._onUpgradeNeeded = $.proxy(this._onUpgradeNeeded, this);
+    this._onUpgradeNeeded = this._onUpgradeNeeded.bind(this);
     request.onupgradeneeded = this._onUpgradeNeeded;
     this.initialValues = this.getAll();
-    this.initialValues.suppressUnhandledRejections();
-
     this.keySetters = Object.create(null);
 }
 
@@ -29,11 +23,13 @@ KeyValueDatabase.prototype.getKeySetter = function(key) {
     if (!this.keySetters[key]) {
         this.keySetters[key] = throttle(function(value) {
             var self = this;
-            return this.db.then(function(db) {
+            var db;
+            return this.db.then(function(_db) {
+                db = _db;
                 var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
                 return iDbPromisify(store.get(key));
             }).then(function(existingData) {
-                var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+                var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
                 if (existingData) {
                     existingData.value = value;
                     return iDbPromisify(store.put(existingData));

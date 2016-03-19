@@ -1,16 +1,15 @@
 "use strict";
 
-import $ from "jquery";
-import { offCapture, onCapture } from "util";
-
 export default function OpenableSubmenu(dom, opener, opts) {
     opts = Object(opts);
+    this._page = opts.page;
     this._recognizerContext = opts.recognizerContext;
     this._rippler = opts.rippler;
-    this._domNode = $($(dom)[0]);
-    this._opener = $($(opener)[0]);
-    this._keyboardElements = this.$().find("*").filter(function() {
-        return this.tabIndex >= 0;
+    this._domNode = this._page.$(dom).eq(0);
+    this._opener = this._page.$(opener).eq(0);
+
+    this._keyboardElements = this.$().find("*").filter(function(elem) {
+        return elem.tabIndex >= 0;
     });
 
     this._opened = false;
@@ -27,11 +26,11 @@ export default function OpenableSubmenu(dom, opener, opts) {
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    this.$opener().on("click", this._openerClicked)
-                  .on("focus", this._openerFocused);
+    this.$opener().addEventListener("click", this._openerClicked)
+                  .addEventListener("focus", this._openerFocused);
     this._recognizerContext.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
 
-    onCapture(document, "blur", this._elementBlurred);
+    this._page.addDocumentListener("blur", this._elementBlurred, true);
 }
 
 OpenableSubmenu.prototype.$ = function() {
@@ -46,34 +45,35 @@ OpenableSubmenu.prototype.open = function() {
     if (this._opened) return;
     this._opened = true;
     this.$opener().addClass(this.openerActiveClass);
-    this.$().addClass(this.activeClass);
-    this.$().width();
+    this.$().addClass(this.activeClass).forceReflow();
     var self = this;
-    onCapture(document, "keydown", this._keydowned);
-    requestAnimationFrame(function() {
+    this._page.addDocumentListener("keydown", this._keydowned, true);
+    this._page.addDocumentListener("click", this._documentClicked, true);
+    this._page.changeDom(function() {
         self.$().addClass(self.transitionClass);
     });
-    onCapture(document, "click", this._documentClicked);
-
-    this._documentTapRecognizer.recognizeCapturedOn(document);
+    this._documentTapRecognizer.recognizeCapturedOn(this._page.document());
 };
 
 OpenableSubmenu.prototype.close = function() {
     if (!this._opened) return;
     this._opened = false;
-    if ($(document.activeElement).closest(this.$().add(this.$opener())).length > 0) {
-        document.activeElement.blur();
+    if (this._page.$(this._page.activeElement()).closest(this.$().add(this.$opener())).length > 0) {
+        this._page.activeElement().blur();
     }
-    offCapture(document, "keydown", this._keydowned);
+    this._page.removeDocumentListener("keydown", this._keydowned, true);
+    this._page.removeDocumentListener("click", this._documentClicked, true);
+
     this.$opener().removeClass(this.openerActiveClass);
-    this.$().removeClass(this.activeClass).removeClass(this.transitionClass);
-    offCapture(document, "click", this._documentClicked);
-    this._documentTapRecognizer.unrecognizeCapturedOn(document);
+    this.$().removeClass(this.activeClass)
+            .removeClass(this.transitionClass);
+
+    this._documentTapRecognizer.unrecognizeCapturedOn(this._page.document());
 };
 
 OpenableSubmenu.prototype._documentClicked = function(e) {
     if (!this._opened) return;
-    var $target = $(e.target);
+    var $target = this._page.$(e.target);
     if ($target.closest(this.$().add(this.$opener())).length === 0) {
         this.close();
     }
@@ -85,7 +85,7 @@ OpenableSubmenu.prototype._openerFocused = function() {
 
 OpenableSubmenu.prototype._elementBlurred = function(e) {
     if (!this._opened) return;
-    var $newFocus = $(e.relatedTarget);
+    var $newFocus = this._page.$(e.relatedTarget);
     if ($newFocus.closest(this.$().add(this.$opener())).length === 0) {
         this.close();
     }
@@ -97,15 +97,17 @@ OpenableSubmenu.prototype._openerClicked = function(e) {
 };
 
 OpenableSubmenu.prototype._keydowned = function(e) {
-    var activeElement = document.activeElement;
+    var activeElement = this._page.activeElement();
     if (!activeElement) return;
     var key = e.key;
+
+
 
     if (key === "ArrowUp" || key === "ArrowDown") {
         var activeIndex = -1;
 
-        this._keyboardElements.each(function(index) {
-            if (this === activeElement) {
+        this._keyboardElements.forEach(function(elem, index) {
+            if (elem === activeElement) {
                 activeIndex = index;
                 return false;
             }

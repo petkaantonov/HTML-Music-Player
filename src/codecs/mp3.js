@@ -1,4 +1,9 @@
 "use strict";
+
+import { Float64Array, Uint32Array, Uint16Array,
+        Uint8Array, Float32Array, Int32Array,
+        Int16Array, Int8Array, EventEmitter, codecLoaded } from "platform/platform";
+
 /* Ported from minimp3.c, LGPL license follows */
 /*
  * MPEG Audio Layer III decoder

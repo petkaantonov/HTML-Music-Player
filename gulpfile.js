@@ -192,7 +192,7 @@ function bundleServiceWorker() {
                     .concat(glob("dist/images/**/*.*"))
                     .concat(glob("dist/fonts/**/*.woff*"))
                     .concat(codecPaths)
-                    .concat("dist/worker/AudioPlayerWorker.min.js", "dist/worker/TrackAnalyzerWorker.min.js");
+                    .concat("dist/worker/AudioPlayerBackend.min.js", "dist/worker/TrackAnalyzerBackend.min.js");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
     var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4) + ";\n";
@@ -263,7 +263,7 @@ function runWatchSass() {
 
 
 gulp.task("lint", function() {
-    return awaitStream(gulp.src("src/**/*.js").pipe(jshint(".jshintrc")).pipe(jshint.reporter("jshint-stylish")));
+    return awaitStream(gulp.src("src/**/*.js").pipe(jshint(".jshintrc")).pipe(jshint.reporter("jshint-stylish", {verbose: true})));
 });
 
 gulp.task("gui", bundleGui.bind(null, DEBUG));

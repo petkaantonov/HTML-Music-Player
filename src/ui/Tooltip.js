@@ -1,17 +1,7 @@
 "use strict";
-import $ from "jquery";
-import EventEmitter from "events";
-import { inherits, offCapture, onCapture, toFunction } from "util";
-import { reflow } from "platform/DomUtil";
 
-const getLongestTransitionDuration = function(node) {
-    var $node = $(node);
-    var prop = $node.css("transitionDuration");
-    if (+!prop) return 0;
-    return prop.split(",").reduce(function(max, cur) {
-        return Math.max(max, parseFloat(cur));
-    }, 0) * 1000;
-};
+import EventEmitter from "events";
+import { inherits, toFunction } from "util";
 
 const getDirection = function(value) {
     value = ("" + value).trim().toLowerCase();
@@ -40,8 +30,6 @@ const getActivationStyle = function(value) {
     }
     return "hover";
 };
-
-const NULL = $(null);
 
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     var arrowAligns, directions;
@@ -79,19 +67,20 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
 export default function Tooltip(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.recognizerContext = opts.recognizerContext;
     this.globalEvents = opts.globalEvents;
     this._preferredDirection = getDirection(opts.preferredDirection);
-    this._domNode = $(opts.container);
+    this._domNode = this.page.$(opts.container);
     this._onContent = toFunction(opts.content);
     this._delay = Math.min(20000, Math.max(0, parseInt(opts.delay, 10))) || 300;
     this._delayTimeoutId = -1;
     this._target = typeof opts.target === "string" ? this.$().find(opts.target)
-                                                   : opts.target;
+                                                   : this.page.$(opts.target).eq(0);
     this._classPrefix = opts.classPrefix || "unprefixed-tooltip";
     this._transitionClass = opts.transitionClass || "";
     this._shown = false;
-    this._tooltip = NULL;
+    this._tooltip = this.page.NULL();
     this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
     this._activationStyle = getActivationStyle(opts.activation);
     this._arrow = "arrow" in opts ? !!opts.arrow : this._activationStyle === "hover";
@@ -118,16 +107,17 @@ export default function Tooltip(opts) {
 
 
     if (this._activationStyle === "hover") {
-        this._target.on("mouseenter", this.mouseEntered);
-        this._target.on("mouseleave", this.mouseLeft);
-        this._target.on("click", this.targetClicked);
-        this.hoverRecognizer.recognizeBubbledOn(this._target);
-        this.targetTapRecognizer.recognizeBubbledOn(this._target);
+        this.$target()
+                .addEventListener("mouseenter", this.mouseEntered)
+                .addEventListener("mouseleave", this.mouseLeft)
+                .addEventListener("click", this.targetClicked);
+        this.hoverRecognizer.recognizeBubbledOn(this.$target());
+        this.targetTapRecognizer.recognizeBubbledOn(this.$target());
     } else if (this._activationStyle === "click") {
-        this._target.on("click", this.clicked);
-        onCapture(document, "click", this.documentClicked);
-        this.tapRecognizer.recognizeBubbledOn(this._target);
-        this.documentTapRecognizer.recognizeCapturedOn(document);
+        this.$target().addEventListener("click", this.clicked);
+        this.page.addDocumentListener("click", this.documentClicked);
+        this.tapRecognizer.recognizeBubbledOn(this.$target());
+        this.documentTapRecognizer.recognizeCapturedOn(this.page.document());
     }
 
     this.globalEvents.on("resize", this.position);
@@ -135,11 +125,21 @@ export default function Tooltip(opts) {
 }
 inherits(Tooltip, EventEmitter);
 
+Tooltip.prototype.$ = function() {
+    return this._domNode;
+};
+
+Tooltip.prototype.$target = function() {
+    return this._target;
+};
+
+Tooltip.prototype.$tooltip = function() {
+    return this._tooltip;
+};
+
 Tooltip.prototype._clearDelay = function() {
-    if (this._delayTimeoutId !== -1) {
-        clearTimeout(this._delayTimeoutId);
-        this._delayTimeoutId = -1;
-    }
+    this.page.clearTimeout(this._delayTimeoutId);
+    this._delayTimeoutId = -1;
 };
 
 Tooltip.prototype._createTooltipNode = function(message) {
@@ -153,7 +153,7 @@ Tooltip.prototype._createTooltipNode = function(message) {
     var html = "<div class='"+containerClass+"'>" +
             "<div class='"+messageClass+"'>" + message + "</div></div>";
 
-    return $($.parseHTML(html)[0]);
+    return this.page.parse(html);
 };
 
 Tooltip.prototype.clicked = function() {
@@ -161,7 +161,7 @@ Tooltip.prototype.clicked = function() {
     if (this._shown) {
         this.hide();
     } else {
-        var box = this._target[0].getBoundingClientRect();
+        var box = this.$target()[0].getBoundingClientRect();
         this._x = box.left;
         this._y = box.top;
         this._show();
@@ -170,7 +170,7 @@ Tooltip.prototype.clicked = function() {
 
 Tooltip.prototype.documentClicked = function(e) {
     if (!this._shown) return;
-    if ($(e.target).closest(this._target[0]).length === 0) {
+    if (this.page.$(e.target).closest(this.$target()).length === 0) {
         this._clearDelay();
         this.hide();
     }
@@ -178,11 +178,11 @@ Tooltip.prototype.documentClicked = function(e) {
 
 Tooltip.prototype.position = function() {
     if (!this._shown) return;
-    var $node = this._tooltip;
+    var $node = this.$tooltip();
     var baseX = this._x;
     var baseY = this._y;
-    var maxX = $(window).width();
-    var maxY = $(window).height();
+    var maxX = this.page.width();
+    var maxY = this.page.height();
     var box = $node[0].getBoundingClientRect();
 
     if (maxX !== this._maxX || maxY !== this._maxY) {
@@ -199,7 +199,7 @@ Tooltip.prototype.position = function() {
     var gap = this._gap;
     var configurations = getConfigurationsToTryInOrder(this._preferredDirection, this._preferredArrowAlign);
     var direction, align;
-    var targetBox = this._target[0].getBoundingClientRect();
+    var targetBox = this.$target()[0].getBoundingClientRect();
     var cursorSize = this._activationStyle === "hover" ? 21 : 0;
     var targetSizeX = this._activationStyle === "hover" ? 0 : targetBox.width;
     var targetSizeY = this._activationStyle === "hover" ? 0 : targetBox.height;
@@ -250,13 +250,13 @@ Tooltip.prototype.position = function() {
                 top = Math.min(maxY - box.height, Math.max(0, top));
                 if (left >= 0 && left + box.width <= maxX &&
                     top >= 0 && top + box.height <= maxY) {
-                    $node.css({left: left, top: top});
+                    $node.setStyles({left: left + "px", top: top + "px"});
                     positionFound = true;
                     break;
                 }
             } else if (left >= 0 && left + box.width <= maxX &&
                 top >= 0 && top + box.height <= maxY) {
-                $node.css({left: left, top: top});
+                $node.setStyles({left: left + "px", top: top + "px"});
                 positionFound = true;
                 break;
             }
@@ -275,22 +275,27 @@ Tooltip.prototype.position = function() {
 };
 
 Tooltip.prototype._show = function(isForRepaintOnly) {
-    this._target.off("mousemove", this.mousemoved);
+    this.$target().removeEventListener("mousemove", this.mousemoved);
     this._clearDelay();
     if (this._shown) return;
-    this._maxX = $(window).width();
-    this._maxY = $(window).height();
+    this._maxX = this.page.width();
+    this._maxY = this.page.height();
     var content = this._onContent();
     if (content === false) return;
     this._shown = true;
     content = content + "";
 
-    var $parent = $("body");
+    var $parent = this.page.$("body");
     var $node = this._createTooltipNode(content);
 
     this._tooltip = $node;
     $parent.append($node);
-    $node.css({position: "absolute", left: -9999, top: -9999, zIndex: 1000});
+    $node.setStyles({
+        position: "absolute",
+        left: "-9999px",
+        top: "-9999px",
+        zIndex: "1000"
+    });
 
     this.position();
 
@@ -298,11 +303,11 @@ Tooltip.prototype._show = function(isForRepaintOnly) {
         if (isForRepaintOnly) {
             $node.addClass(this._transitionClass);
         } else {
-            $node.detach();
-            $node.addClass(this._transitionClass + " initial");
-            $node.appendTo($parent);
-            reflow($node);
-            $node.removeClass("initial");
+            $node.detach()
+                .addClass([this._transitionClass, "initial"])
+                .appendTo($parent)
+                .forceReflow($node)
+                .removeClass("initial");
         }
     }
 
@@ -320,12 +325,13 @@ Tooltip.prototype.refresh = function() {
 Tooltip.prototype.renderArrow = function($node, direction, align) {
     var gap = this._gap;
     if (gap <= 0) return;
-    var backgroundColor = $node.css("backgroundColor");
-    var borderColor = $node.css("borderColor");
-    var borderWidth = parseInt($node.css("borderWidth"), 10) || 0;
+    var style = $node.style();
+    var backgroundColor = style.backgroundColor;
+    var borderColor = style.borderColor;
+    var borderWidth = parseInt(style.borderWidth, 10) || 0;
 
-    var nodeWidth = $node.outerWidth();
-    var nodeHeight = $node.outerHeight();
+    var nodeWidth = $node[0].offsetWidth;
+    var nodeHeight = $node[0].offsetHeight;
     var backGroundArrowGap = borderWidth === 0 ? gap : Math.max(1, gap - borderWidth);
     var borderArrowTop = 0;
     var borderArrowLeft = 0;
@@ -412,40 +418,44 @@ Tooltip.prototype.renderArrow = function($node, direction, align) {
         borderArrowLeft = left + borderWidth;
     }
 
-    var backgroundArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
-        position: "absolute",
-        top: top,
-        left: left,
-        borderStyle: "solid",
-        borderRightWidth: borderSpec.right[0],
-        borderLeftWidth: borderSpec.left[0],
-        borderTopWidth: borderSpec.top[0],
-        borderBottomWidth: borderSpec.bottom[0],
-        borderRightColor: borderSpec.right[1] ? backgroundColor : "transparent",
-        borderLeftColor: borderSpec.left[1] ? backgroundColor : "transparent",
-        borderTopColor: borderSpec.top[1] ? backgroundColor : "transparent",
-        borderBottomColor: borderSpec.bottom[1] ? backgroundColor : "transparent",
-        zIndex: 2
-    });
+    var backgroundArrow = this.page.createElement("div")
+                    .addClass("tooltip-arrow-rendering")
+                    .setStyles({
+                        position: "absolute",
+                        top: top + "px",
+                        left: left + "px",
+                        borderStyle: "solid",
+                        borderRightWidth: borderSpec.right[0] + "px",
+                        borderLeftWidth: borderSpec.left[0] + "px",
+                        borderTopWidth: borderSpec.top[0] + "px",
+                        borderBottomWidth: borderSpec.bottom[0] + "px",
+                        borderRightColor: borderSpec.right[1] ? backgroundColor : "transparent",
+                        borderLeftColor: borderSpec.left[1] ? backgroundColor : "transparent",
+                        borderTopColor: borderSpec.top[1] ? backgroundColor : "transparent",
+                        borderBottomColor: borderSpec.bottom[1] ? backgroundColor : "transparent",
+                        zIndex: "2"
+                    });
 
     backgroundArrow.appendTo($node);
 
     if (borderWidth !== 0) {
-        var borderArrow = $("<div>").addClass("tooltip-arrow-rendering").css({
-            position: "absolute",
-            top: borderArrowTop,
-            left: borderArrowLeft,
-            borderStyle: "solid",
-            borderRightWidth: borderSpec.right[0],
-            borderLeftWidth: borderSpec.left[0],
-            borderTopWidth: borderSpec.top[0],
-            borderBottomWidth: borderSpec.bottom[0],
-            borderRightColor: borderSpec.right[1] ? borderColor : "transparent",
-            borderLeftColor: borderSpec.left[1] ? borderColor : "transparent",
-            borderTopColor: borderSpec.top[1] ? borderColor : "transparent",
-            borderBottomColor: borderSpec.bottom[1] ? borderColor : "transparent",
-            zIndex: 1
-        });
+        var borderArrow = this.page.createElement("div")
+            .addClass("tooltip-arrow-rendering")
+            .setStyles({
+                position: "absolute",
+                top: borderArrowTop + "px",
+                left: borderArrowLeft + "px",
+                borderStyle: "solid",
+                borderRightWidth: borderSpec.right[0] + "px",
+                borderLeftWidth: borderSpec.left[0] + "px",
+                borderTopWidth: borderSpec.top[0] + "px",
+                borderBottomWidth: borderSpec.bottom[0] + "px",
+                borderRightColor: borderSpec.right[1] ? borderColor : "transparent",
+                borderLeftColor: borderSpec.left[1] ? borderColor : "transparent",
+                borderTopColor: borderSpec.top[1] ? borderColor : "transparent",
+                borderBottomColor: borderSpec.bottom[1] ? borderColor : "transparent",
+                zIndex: "1"
+            });
 
         borderArrow.appendTo($node);
     }
@@ -456,29 +466,30 @@ Tooltip.prototype.targetClicked = function() {
 };
 
 Tooltip.prototype.hide = function() {
-    this._target.off("mousemove", this.mousemoved);
+    this.$target().removeEventListener("mousemove", this.mousemoved);
     this._clearDelay();
     if (!this._shown) return;
     this._shown = false;
     if (this._transitionClass) {
-        var $node = this._tooltip;
+        var $node = this.$tooltip();
         var $parent = $node.parent();
-        $node.detach();
-        $node.addClass(this._transitionClass).removeClass("initial");
-        $node.appendTo($parent);
-        reflow($node[0]);
-        $node.addClass("initial");
-        var duration = getLongestTransitionDuration($node);
+        $node.detach()
+            .addClass(this._transitionClass)
+            .removeClass("initial")
+            .appendTo($parent)
+            .forceReflow()
+            .addClass("initial");
+
         var self = this;
-        setTimeout(function() {
+        this.page.setTimeout(function() {
             if (!self._shown) {
-                self._tooltip.remove();
-                self._tooltip = NULL;
+                self.$tooltip().remove();
+                self._tooltip = self.page.NULL();
             }
-        }, duration);
+        }, 500);
     } else {
-        this._tooltip.remove();
-        this._tooltip = NULL;
+        this.$tooltip().remove();
+        this._tooltip = this.page.NULL();
     }
     this.emit("hide", this);
 };
@@ -487,11 +498,11 @@ Tooltip.prototype.mousemoved = function(e) {
     this._clearDelay();
     this._x = e.clientX;
     this._y = e.clientY;
-    this._delayTimeoutId = setTimeout(this._show, this._delay);
+    this._delayTimeoutId = this.page.setTimeout(this._show, this._delay);
 };
 
 Tooltip.prototype.mouseEntered = function(e) {
-    this._target.on("mousemove", this.mousemoved);
+    this.$target().addEventListener("mousemove", this.mousemoved);
     this.mousemoved(e);
 };
 
@@ -503,22 +514,18 @@ Tooltip.prototype.destroy = function() {
     this.globalEvents.removeListener("resize", this.position);
     this.globalEvents.removeListener("visibilityChange", this.hide);
 
-    offCapture(document, "click", this.documentClicked);
-    this.documentTapRecognizer.unrecognizeCapturedOn(document);
+    this.page.removeDocumentListener("click", this.documentClicked);
+    this.documentTapRecognizer.unrecognizeCapturedOn(this.page.document());
 
-    if (this._target) {
+    if (this.$target() && this.$target().length) {
         this.hide();
-        this._target.off("mouseenter", this.mouseEntered);
-        this._target.off("mouseleave", this.mouseLeft);
-        this.hoverRecognizer.unrecognizeBubbledOn(this._target);
-        this._target.off("click", this.targetClicked);
-        this.targetTapRecognizer.unrecognizeBubbledOn(this._target);
-        this._target.off("click", this.clicked);
-        this.tapRecognizer.unrecognizeBubbledOn(this._target);
+        this.$target().removeEventListener("mouseenter", this.mouseEntered)
+                        .removeEventListener("mouseleave", this.mouseLeft)
+                        .removeEventListener("click", this.targetClicked)
+                        .removeEventListener("click", this.clicked);
+        this.hoverRecognizer.unrecognizeBubbledOn(this.$target());
+        this.targetTapRecognizer.unrecognizeBubbledOn(this.$target());
+        this.tapRecognizer.unrecognizeBubbledOn(this.$target());
         this._target = this._domNode = null;
     }
-};
-
-Tooltip.prototype.$ = function() {
-    return this._domNode;
 };

@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "bluebird";
+import Promise from "platform/PromiseExtensions";
 import getCodecName from "audio/sniffer";
 import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
@@ -59,7 +59,7 @@ MetadataParser.prototype.parse = function() {
         }
     }).catch(function() {
         throw codecNotSupportedError();
-    }).tap(function() {
+    }).then(function() {
         MetadataParser.searchIndex.add(file, data, self.transientId);
         return data;
     });

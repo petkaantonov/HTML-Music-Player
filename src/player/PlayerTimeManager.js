@@ -1,10 +1,7 @@
 "use strict";
-import $ from "jquery";
 
 import { toTimeString } from "util";
-import { changeDom, setTransform } from "platform/DomUtil";
 
-const pixelRatio = window.devicePixelRatio || 1;
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
 
@@ -12,10 +9,11 @@ const TIME_DISPLAY_PREFERENCE_KEY = "time-display";
 
 export default function PlayerTimeManager(dom, player, opts) {
     opts = Object(opts);
+    this.page = opts.page;
     this.recognizerContext = opts.recognizerContext;
     this.db = opts.db;
     this.rippler = opts.rippler;
-    this._domNode = $(dom);
+    this._domNode = this.page.$(dom).eq(0);
     this.player = player;
     this.displayMode = DISPLAY_REMAINING;
     this.seeking = false;
@@ -49,13 +47,13 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.player.on("progress", this.playerTimeProgressed);
     this.player.on("newTrackLoad", this.newTrackLoaded);
 
-    this.$totalTime().click(this.containerClicked);
+    this.$totalTime().addEventListener("click", this.containerClicked);
     this.recognizerContext.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());
 
     var currentTimeDom = this.$currentTime()[0];
     var totalTimeDom = this.$totalTime()[0];
-    var width = this.$currentTime().width() * pixelRatio | 0;
-    var height = this.$currentTime().height() * pixelRatio | 0;
+    var width = this.$currentTime()[0].clientWidth * this.page.devicePixelRatio() | 0;
+    var height = this.$currentTime()[0].clientHeight * this.page.devicePixelRatio() | 0;
 
     this.timeDisplayWidth = width;
     this.timeDisplayHeight = height;
@@ -65,7 +63,7 @@ export default function PlayerTimeManager(dom, player, opts) {
 
     this.currentTimeCtx = currentTimeDom.getContext("2d");
     this.totalTimeCtx = totalTimeDom.getContext("2d");
-    this.totalTimeCtx.font = this.currentTimeCtx.font = ((14 * devicePixelRatio)|0) + "px Droid Sans";
+    this.totalTimeCtx.font = this.currentTimeCtx.font = ((14 * this.page.devicePixelRatio())|0) + "px Droid Sans";
     this.totalTimeCtx.fillStyle = this.currentTimeCtx.fillStyle = "#7a7a7a";
     this.totalTimeCtx.textAlign = this.currentTimeCtx.textAlign = "center";
     this.totalTimeCtx.textBaseline = this.currentTimeCtx.textBaseline = "bottom";
@@ -144,11 +142,11 @@ PlayerTimeManager.prototype._updateTimeText = function() {
     this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
     this.currentTimeCtx.fillText(toTimeString(this._displayedTimeLeft),
-                                ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
-                                (this.timeDisplayHeight + 2 * pixelRatio)|0);
+                                ((this.timeDisplayWidth - 1 * this.page.devicePixelRatio()) / 2)|0,
+                                (this.timeDisplayHeight + 2 * this.page.devicePixelRatio())|0);
     this.totalTimeCtx.fillText(toTimeString(this._displayedTimeRight),
-                                ((this.timeDisplayWidth - 1 * pixelRatio) / 2)|0,
-                                (this.timeDisplayHeight + 2 * pixelRatio)|0);
+                                ((this.timeDisplayWidth - 1 * this.page.devicePixelRatio()) / 2)|0,
+                                (this.timeDisplayHeight + 2 * this.page.devicePixelRatio())|0);
 };
 
 PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
@@ -159,7 +157,7 @@ PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
             var totalTimeFloored = Math.floor(totalTime);
             if (this._displayedTimeRight !== totalTimeFloored) {
                 this._displayedTimeRight = totalTimeFloored;
-                changeDom(this._updateTimeText);
+                this.page.changeDom(this._updateTimeText);
             }
         }
 
@@ -171,7 +169,7 @@ PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
 
         if (this._displayedTimeLeft !== currentTimeFloored) {
             this._displayedTimeLeft = currentTimeFloored;
-            changeDom(this._updateTimeText);
+            this.page.changeDom(this._updateTimeText);
 
             if (this.displayMode === DISPLAY_REMAINING) {
                 this._displayedTimeRight = -(Math.floor(Math.max(0, this.totalTime - currentTime)));
@@ -189,12 +187,12 @@ PlayerTimeManager.prototype._updateProgress = function() {
     } else {
         percentage = this.currentTime / this.totalTime * 100;
     }
-    setTransform(this.$timeProgress()[0], "translate3d(" + (percentage - 100) + "%,0,0)");
+    this.$timeProgress().setTransform("translate3d(" + (percentage - 100) + "%,0,0)");
 };
 
 PlayerTimeManager.prototype._scheduleUpdate = function() {
     if (this.frameId === -1) {
-        this.frameId = requestAnimationFrame(this._updateProgress);
+        this.frameId = this.page.requestAnimationFrame(this._updateProgress);
     }
 };
 

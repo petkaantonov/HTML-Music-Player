@@ -1,6 +1,6 @@
 "use strict";
 
-import Promise from "bluebird";
+import { Float32Array } from "platform/platform";
 import AudioVisualizer from "visualization/AudioVisualizer";
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
@@ -30,6 +30,7 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.fadeOutGain = null;
     this.filterNodes = [];
     this.visualizer = null;
+    this.pauseResumeFadeRequestId = 0;
 
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
@@ -65,7 +66,6 @@ AudioManager.prototype.setupNodes = function() {
     this.filterNodes = [];
 
     this.pauseResumeFadeGain.gain.value = 1;
-    this.pauseResumeFadePromise = null;
     this.muteGain.gain.value = this.player.isMuted() ? 0 : 1;
     this.volumeGain.gain.value = this.player.getVolume() * VOLUME_RATIO;
 
@@ -219,8 +219,8 @@ AudioManager.prototype.normalizeLoudness = function() {
     }
 };
 
-AudioManager.prototype.getImage = function() {
-    return this.track.getImage();
+AudioManager.prototype.getImage = function(pictureManager) {
+    return this.track.getImage(pictureManager);
 };
 
 AudioManager.prototype.effectsChanged = function() {
@@ -327,14 +327,16 @@ AudioManager.prototype.pause = function() {
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
         PAUSE_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
     var self = this;
-    this.pauseResumeFadePromise = Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
+    var id = ++this.pauseResumeFadeRequestId;
+    Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
+        if (id !== self.pauseResumeFadeRequestId) {
+            return;
+        }
         if (self.destroyed) return;
         self.sourceNode.pause();
         if (self.visualizer) {
             self.visualizer.pause();
         }
-    }).finally(function() {
-        self.pauseResumeFadePromise  = null;
     });
 };
 
@@ -494,10 +496,7 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
 };
 
 AudioManager.prototype.cancelPauseResumeFade = function() {
-    if (this.pauseResumeFadePromise) {
-        this.pauseResumeFadePromise.cancel();
-        this.pauseResumeFadePromise = null;
-    }
+    this.pauseResumeFadeRequestId++;
 };
 
 AudioManager.prototype.getVisualizer = function() {

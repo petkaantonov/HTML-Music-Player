@@ -1,15 +1,14 @@
 "use strict";
 
 import { throttle } from "util";
-import { setTransform } from "platform/DomUtil";
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
-import $ from "jquery";
 
 export default function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
-    this._domNode = $($(node)[0]);
-    this._contentContainer = $($((opts.contentContainer || node))[0]);
+    this._page = opts.page;
+    this._domNode = this._page.$(node).eq(0);
+    this._contentContainer = this._page.$(opts.contentContainer || node).eq(0);
     this._itemHeight = itemHeight;
     this._itemList = itemList;
     this._displayedItems = new Array(300);
@@ -43,7 +42,7 @@ export default function FixedItemListScroller(node, itemList, itemHeight, opts) 
 
 FixedItemListScroller.prototype._clearWillChangeTimer = function() {
     if (this._clearWillChangeTimerId !== -1) {
-        clearTimeout(this._clearWillChangeTimerId);
+        this._page.clearTimeout(this._clearWillChangeTimerId);
         this._clearWillChangeTimerId = -1;
     }
 };
@@ -54,7 +53,7 @@ FixedItemListScroller.prototype._forceRenderItems = function() {
 
 FixedItemListScroller.prototype._renderScrollTop = function() {
     var y = -this._scrollTop;
-    setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
+    this.$contentContainer().setTransform("translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop, this._changingDimensions);
 };
 
@@ -69,17 +68,17 @@ FixedItemListScroller.prototype.$contentContainer = function() {
 FixedItemListScroller.prototype._clearWillChange = function() {
     if (!this._willChangeSet) return;
     this._willChangeSet = false;
-    this.$contentContainer().css("willChange", "");
+    this.$contentContainer().setStyle("willChange", "");
 };
 
 FixedItemListScroller.prototype._setWillChange = function() {
     if (this._willChangeSet) return;
     this._willChangeSet = true;
-    this.$contentContainer().css("willChange", "transform");
+    this.$contentContainer().setStyle("willChange", "transform");
 };
 
 FixedItemListScroller.prototype._renderItems = function(now, forced) {
-    this._clearWillChangeTimerId = setTimeout(this._clearWillChange, 500);
+    this._clearWillChangeTimerId = this._page.setTimeout(this._clearWillChange, 500);
     this._renderScrollTop();
     this._virtualRenderFrameId = -1;
     var itemHeight = this._itemHeight;
@@ -132,7 +131,7 @@ FixedItemListScroller.prototype._scheduleRender = function() {
     if (this._virtualRenderFrameId === -1) {
         this._clearWillChangeTimer();
         this._setWillChange();
-        this._virtualRenderFrameId = requestAnimationFrame(this._renderItems);
+        this._virtualRenderFrameId = this._page.requestAnimationFrame(this._renderItems);
     }
 };
 

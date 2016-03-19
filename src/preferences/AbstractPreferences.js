@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import EventEmitter from "events";
 import { inherits, throttle } from "util";
 
@@ -10,6 +9,7 @@ const UNDO_CHANGES_BUTTON = "undo-changes";
 export default function AbstractPreferences(preferences, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this._page = opts.page;
     this._preferences = preferences;
     this._env = opts.env;
     this._rippler = opts.rippler;
@@ -29,8 +29,8 @@ export default function AbstractPreferences(preferences, opts) {
     this._manager = null;
 
     var popupOpen = this._popup.open.bind(this._popup);
-    $(opts.preferencesButton).click(popupOpen);
-    this._recognizerContext.createTapRecognizer(popupOpen).recognizeBubbledOn($(opts.preferencesButton));
+    this.page().$(opts.preferencesButton).addEventListener("click", popupOpen);
+    this._recognizerContext.createTapRecognizer(popupOpen).recognizeBubbledOn(this.page().$(opts.preferencesButton));
     this._popup.on("open", this.popupOpened.bind(this));
     if (opts.dbValues && this.STORAGE_KEY in opts.dbValues) {
         this.preferences().copyFrom(opts.dbValues[this.STORAGE_KEY]);
@@ -38,6 +38,10 @@ export default function AbstractPreferences(preferences, opts) {
     }
 }
 inherits(AbstractPreferences, EventEmitter);
+
+AbstractPreferences.prototype.page = function() {
+    return this._page;
+};
 
 AbstractPreferences.prototype.env = function() {
     return this._env;

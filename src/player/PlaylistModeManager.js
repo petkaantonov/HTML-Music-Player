@@ -1,20 +1,25 @@
 "use strict";
-import $ from "jquery";
+
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
 const REPEAT = "repeat";
-
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
+var instance = false;
 export default function PlaylistModeManager(dom, playlist, opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     opts = Object(opts);
+    this.page = opts.page;
     this.recognizerContext = opts.recognizerContext;
     this.rippler = opts.rippler;
     this.tooltipContext = opts.tooltipContext;
     var self = this;
     this.playlist = playlist;
-    this._domNode = $(dom);
+    this._domNode = this.page.$(dom).eq(0);
+    this._shuffleButton = this.$().find(".shuffle-mode-button");
+    this._repeatButton = this.$().find(".repeat-mode-button");
 
     this.shuffleTooltip = this.tooltipContext.makeTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
@@ -27,15 +32,15 @@ export default function PlaylistModeManager(dom, playlist, opts) {
                                          : "<p><strong>Enable</strong> repeat mode</p>";
     });
 
+    this.justDeactivatedMouseLeft = this.justDeactivatedMouseLeft.bind(this);
     this.shuffleClicked = this.shuffleClicked.bind(this);
     this.repeatClicked = this.repeatClicked.bind(this);
     this.update = this.update.bind(this);
 
     playlist.on("modeChange", this.update);
 
-
-    this.$shuffle().on("click", this.shuffleClicked);
-    this.$repeat().on("click", this.repeatClicked);
+    this.$shuffle().addEventListener("click", this.shuffleClicked);
+    this.$repeat().addEventListener("click", this.repeatClicked);
     this.recognizerContext.createTapRecognizer(this.shuffleClicked).recognizeBubbledOn(this.$shuffle());
     this.recognizerContext.createTapRecognizer(this.repeatClicked).recognizeBubbledOn(this.$repeat());
     this.update();
@@ -50,11 +55,16 @@ PlaylistModeManager.prototype.$allButtons = function() {
 };
 
 PlaylistModeManager.prototype.$shuffle = function() {
-    return this.$().find(".shuffle-mode-button");
+    return this._shuffleButton;
 };
 
 PlaylistModeManager.prototype.$repeat = function() {
-    return this.$().find(".repeat-mode-button");
+    return this._repeatButton;
+};
+
+PlaylistModeManager.prototype.justDeactivatedMouseLeft = function(e) {
+    e.currentTarget.removeEventListener("mouseleave", this.justDeactivatedMouseLeft);
+    e.currentTarget.classList.remove("just-deactivated");
 };
 
 PlaylistModeManager.prototype.shuffleClicked = function(e) {
@@ -65,9 +75,7 @@ PlaylistModeManager.prototype.shuffleClicked = function(e) {
     if (this.getMode() !== SHUFFLE) {
         this.$shuffle().addClass("just-deactivated");
     }
-    this.$shuffle().one("mouseleave", function() {
-        $(this).removeClass("just-deactivated");
-    });
+    this.$shuffle().addEventListener("mouseleave", this.justDeactivatedMouseLeft);
 };
 
 PlaylistModeManager.prototype.repeatClicked = function(e) {
@@ -79,9 +87,7 @@ PlaylistModeManager.prototype.repeatClicked = function(e) {
         this.$repeat().addClass("just-deactivated");
     }
 
-    this.$repeat().one("mouseleave", function() {
-        $(this).removeClass("just-deactivated");
-    });
+    this.$repeat().addEventListener("mouseleave", this.justDeactivatedMouseLeft);
 };
 
 PlaylistModeManager.prototype.getMode = function() {

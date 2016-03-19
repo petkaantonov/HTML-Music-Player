@@ -1,5 +1,5 @@
 "use strict";
-import Promise from "bluebird";
+import Promise from "platform/PromiseExtensions";
 import { Mp3SeekTable } from "audio/demuxer";
 
 const seekMp3 = Promise.method(function(time, metadata, context, fileView) {

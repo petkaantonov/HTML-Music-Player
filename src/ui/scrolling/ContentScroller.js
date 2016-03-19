@@ -1,14 +1,13 @@
 "use strict";
 
-import { setTransform } from "platform/DomUtil";
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
-import $ from "jquery";
 
 export default function ContentScroller(node, opts) {
     opts = Object(opts);
-    this._domNode = $($(node)[0]);
-    this._contentContainer = $($((opts.contentContainer || node))[0]);
+    this._page = opts.page;
+    this._domNode = this._page.$(node).eq(0);
+    this._contentContainer = this._page.$(opts.contentContainer || node).eq(0);
 
     this._scrollTop = 0;
     this._frameId = -1;
@@ -45,12 +44,12 @@ ContentScroller.prototype.getTopLeft = function() {
 };
 
 ContentScroller.prototype.refresh = function() {
-    this._containerHeight = this.$().innerHeight();
-    this._containerPadding = this._containerHeight - this.$().height();
+    this._containerHeight = this.$()[0].clientHeight;
+    this._containerPadding = this._containerHeight - this.$().innerHeight();
 };
 
 ContentScroller.prototype.physicalHeight = function() {
-    return this.$contentContainer().innerHeight() + this._containerPadding;
+    return this.$contentContainer()[0].clientHeight;
 };
 
 ContentScroller.prototype.contentHeight = function() {
@@ -61,36 +60,34 @@ ContentScroller.prototype._scheduleRender = function() {
     if (this._frameId === -1) {
         this._clearWillChangeTimer();
         this._setWillChange();
-        this._frameId = requestAnimationFrame(this._renderScrollTop);
+        this._frameId = this._page.requestAnimationFrame(this._renderScrollTop);
     }
 };
 
 ContentScroller.prototype._renderScrollTop = function() {
-    this._clearWillChangeTimerId = setTimeout(this._clearWillChange, 500);
+    this._clearWillChangeTimerId = this._page.setTimeout(this._clearWillChange, 500);
     this._frameId = -1;
     var y = -this._scrollTop;
-    setTransform(this.$contentContainer()[0], "translate3d(0px, "+y+"px, 0px)");
+    this.$contentContainer().setTransform("translate3d(0px, "+y+"px, 0px)");
     this._scrollbar.render(this._scrollTop);
 };
 
 
 ContentScroller.prototype._clearWillChangeTimer = function() {
-    if (this._clearWillChangeTimerId !== -1) {
-        clearTimeout(this._clearWillChangeTimerId);
-        this._clearWillChangeTimerId = -1;
-    }
+    this._page.clearTimeout(this._clearWillChangeTimerId);
+    this._clearWillChangeTimerId = -1;
 };
 
 ContentScroller.prototype._clearWillChange = function() {
     if (!this._willChangeSet) return;
     this._willChangeSet = false;
-    this.$contentContainer().css("willChange", "");
+    this.$contentContainer().setStyle("willChange", "");
 };
 
 ContentScroller.prototype._setWillChange = function() {
     if (this._willChangeSet) return;
     this._willChangeSet = true;
-    this.$contentContainer().css("willChange", "transform");
+    this.$contentContainer().setStyle("willChange", "transform");
 };
 
 ContentScroller.prototype._renderScroller = function(left, top) {

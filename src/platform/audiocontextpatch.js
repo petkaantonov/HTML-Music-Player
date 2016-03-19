@@ -1,8 +1,8 @@
 "use strict";
 
-import Promise from "bluebird";
+import { AudioContext, webkitAudioContext } from "platform/platform";
 
-export default function patch(AudioContext, instance) {
+export default function patch(instance) {
     if (!instance.suspend) {
         instance.constructor.prototype.suspend = function() {
             return Promise.resolve();
@@ -12,8 +12,8 @@ export default function patch(AudioContext, instance) {
         };
     }
 
-    if (window.webkitAudioContext === undefined) return;
-    if (window.webkitAudioContext === window.AudioContext) return;
+    if (webkitAudioContext === undefined) return;
+    if (webkitAudioContext === AudioContext) return;
     if (AudioContext.webkitPatched) return;
     AudioContext.webkitPatched = true;
 

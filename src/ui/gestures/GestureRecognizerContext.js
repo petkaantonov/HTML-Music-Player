@@ -1,6 +1,5 @@
 "use strict";
 
-import { onCapture } from "util";
 import SingleTapTimeout from "ui/gestures/SingleTapTimeout";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import TapRecognizer from "ui/gestures/TapRecognizer";
@@ -22,8 +21,8 @@ import DoubleTapRecognizer from "ui/gestures/DoubleTapRecognizer";
 
 const TOUCH_START = "touchstart";
 const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
 const TOUCH_CANCEL = "touchcancel";
+const TOUCH_MOVE = "touchmove";
 const TAP_TIME = 270;
 const LONG_TAP_TIME = 600;
 const SWIPE_LENGTH = 100;
@@ -32,40 +31,40 @@ const TWO_FINGER_TAP_MINIMUM_DISTANCE = 100;
 const TAP_MAX_MOVEMENT = 24;
 const PINCER_MINIMUM_MOVEMENT = 24;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
-const TOUCH_EVENTS = "touchstart touchmove touchend touchcancel";
-const TOUCH_EVENTS_NO_MOVE = "touchstart touchend touchcancel";
 
-const rinput = /^(?:input|select|textarea|option|button|label)$/i;
-export default function GestureRecognizerContext(env, globalEvents) {
+export default function GestureRecognizerContext(page, env, globalEvents) {
     this.env = env;
+    this.page = page;
     this.globalEvents = globalEvents;
     this.modifierTouch = null;
     this.documentActives = new ActiveTouchList();
     this.singleTapTimeouts = [];
+    this.checkTouchPropagation = this.checkTouchPropagation.bind(this);
+    this.updateModifierTouch = this.updateModifierTouch.bind(this);
 
     if (this.isTouchSupported()) {
-        onCapture(document, TOUCH_EVENTS_NO_MOVE, this.checkTouchPropagation.bind(this));
-        onCapture(document, TOUCH_EVENTS, this.updateModifierTouch.bind(this));
-        onCapture(document, [
-            "gesturestart",
-            "gesturechange",
-            "gestureend",
-            "MSGestureStart",
-            "MSGestureEnd",
-            "MSGestureTap",
-            "MSGestureHold",
-            "MSGestureChange",
-            "MSInertiaStart"
-        ].join(" "), function(e) {
-            if (e.cancelable) {
-                e.preventDefault();
-            }
-        });
+        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch);
+        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch);
+        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch);
+        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch);
+        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation);
+        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation);
+        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation);
+        this.page.addDocumentListener("gesturestart", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("gesturechange", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("gestureend", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSGestureStart", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSGestureEnd", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSGestureTap", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSGestureHold", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSGestureChange", this.page.preventDefaultHandler);
+        this.page.addDocumentListener("MSInertiaStart", this.page.preventDefaultHandler);
     }
 }
 
-GestureRecognizerContext.prototype.TOUCH_EVENTS = TOUCH_EVENTS;
-GestureRecognizerContext.prototype.TOUCH_EVENTS_NO_MOVE = TOUCH_EVENTS_NO_MOVE;
+GestureRecognizerContext.prototype.TOUCH_EVENTS = [TOUCH_START, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_END];
+GestureRecognizerContext.prototype.TOUCH_EVENTS_NO_MOVE = [TOUCH_START, TOUCH_CANCEL, TOUCH_END];
+
 GestureRecognizerContext.prototype.TAP_TIME = TAP_TIME;
 GestureRecognizerContext.prototype.LONG_TAP_TIME = LONG_TAP_TIME;
 GestureRecognizerContext.prototype.SWIPE_LENGTH = SWIPE_LENGTH;
@@ -82,14 +81,14 @@ GestureRecognizerContext.prototype.isTouchSupported = function() {
 GestureRecognizerContext.prototype.checkTouchPropagation = function(e) {
     if (e.cancelable) {
         var node = e.target;
-        var activeElement = document.activeElement;
+        var activeElement = this.page.activeElement();
         var matchesActive = false;
         while (node != null) {
             if (!matchesActive) {
                 matchesActive = node === activeElement;
             }
 
-            if (rinput.test(node.nodeName)) {
+            if (this.page.isAnyInputElement(node)) {
                 return;
             }
             node = node.parentNode;
@@ -116,7 +115,7 @@ GestureRecognizerContext.prototype.updateModifierTouch = function(e) {
     if (e.type === TOUCH_START) {
         if (this.modifierTouch === null) {
             this.modifierTouch = this.documentActives.first();
-            this.modifierTouch.started = e.timeStamp || e.originalEvent.timeStamp;
+            this.modifierTouch.started = e.timeStamp;
         }
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (!this.documentActives.contains(this.modifierTouch)) {

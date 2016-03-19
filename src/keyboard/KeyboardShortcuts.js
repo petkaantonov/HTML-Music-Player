@@ -1,11 +1,9 @@
 "use strict";
 
 import EventEmitter from "events";
-import keyboard from "keyboard";
-import { inherits, onCapture } from "util";
+import keyboard from "keyboard"; // jshint ignore:line
+import { inherits } from "util";
 const MOD = "mod";
-
-self.keyboard = keyboard;
 
 function KeyboardShortcutContext() {
     this._active = false;
@@ -16,7 +14,6 @@ KeyboardShortcutContext.prototype.getHandlerFor = function(shortcut) {
     return this._shortCutsMap[shortcut];
 };
 
-const rinput = /^(?:textarea|input|select|button)$/i;
 const rshortcut = /^(?:(?:ctrl|alt|meta|shift|mod)\+)*(?: |\+|\-|[a-zA-Z0-9]+)$/;
 KeyboardShortcutContext.prototype.addShortcut = function(shortcut, handler, options) {
     if (Array.isArray(shortcut)) {
@@ -78,56 +75,57 @@ KeyboardShortcutContext.prototype._deactivate = function() {
     this._active = false;
 };
 
-export default function KeyboardShortcuts() {
+export default function KeyboardShortcuts(page) {
     EventEmitter.call(this);
+    this._page = page;
     this._defaultContext = new KeyboardShortcutContext();
     this._defaultContext._activate();
     this._enabled = true;
     this._activeContext = null;
+    this._page.addDocumentListener("keydown", this._documentKeyDowned.bind(this), true);
+}
+inherits(KeyboardShortcuts, EventEmitter);
 
-    onCapture(document, "keydown", function(e) {
-        if (!this._enabled) return;
+KeyboardShortcuts.prototype._documentKeyDowned = function(e) {
+    if (!this._enabled) return;
 
-        if (rinput.test(e.target.nodeName) || e.target.tabIndex >= 0 || e.target.isContentEditable) {
-            return;
+    if (this._page.isAnyInputElement(e.target) || e.target.tabIndex >= 0 || e.target.isContentEditable) {
+        return;
+    }
+
+    var mods = [];
+    var key = e.key;
+
+    if (e.altKey && key !== "Alt") mods.push("alt");
+    if (e.ctrlKey && key !== "Control") mods.push("ctrl");
+    if (e.metaKey && key !== "Meta") mods.push("meta");
+    if (e.shiftKey && key !== "Shift") mods.push("shift");
+
+    if (mods.length > 0) {
+        key = mods.join("+") + "+" + key;
+    }
+
+    var handler = this._defaultContext.getHandlerFor(key);
+    var called = false;
+    try {
+        if (handler) {
+            called = true;
+            handler.handler.call(this, e);
         }
 
-        var mods = [];
-        var key = e.key;
-
-        if (e.altKey && key !== "Alt") mods.push("alt");
-        if (e.ctrlKey && key !== "Control") mods.push("ctrl");
-        if (e.metaKey && key !== "Meta") mods.push("meta");
-        if (e.shiftKey && key !== "Shift") mods.push("shift");
-
-        if (mods.length > 0) {
-            key = mods.join("+") + "+" + key;
-        }
-
-        var handler = this._defaultContext.getHandlerFor(key);
-        var called = false;
-        try {
+        if (this._activeContext) {
+            handler = this._activeContext.getHandlerFor(key);
             if (handler) {
                 called = true;
                 handler.handler.call(this, e);
             }
-
-            if (this._activeContext) {
-                handler = this._activeContext.getHandlerFor(key);
-                if (handler) {
-                    called = true;
-                    handler.handler.call(this, e);
-                }
-            }
-        } finally {
-            if (called) {
-                e.preventDefault();
-            }
         }
-    }.bind(this));
-
-}
-inherits(KeyboardShortcuts, EventEmitter);
+    } finally {
+        if (called) {
+            e.preventDefault();
+        }
+    }
+};
 
 KeyboardShortcuts.prototype.createContext = function() {
     return new KeyboardShortcutContext();

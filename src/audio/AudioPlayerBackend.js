@@ -1,7 +1,8 @@
+/* globals self: false */
 "use strict";
 
 import EventEmitter from "events";
-import Promise from "bluebird";
+import Promise from "platform/PromiseExtensions";
 import blobPatch from "platform/blobpatch";
 import ChannelMixer from "audio/ChannelMixer";
 import getCodecName from "audio/sniffer";
@@ -12,15 +13,7 @@ import seeker from "audio/seeker";
 import { allocResampler, allocDecoderContext, freeResampler, freeDecoderContext } from "audio/pool";
 import Effect from "audio/Effect";
 import simulateTick from "platform/patchtimers";
-
-Promise.setScheduler(function(fn) {
-    fn();
-});
-Promise.config({
-    cancellation: false,
-    warnings: false,
-    longStackTraces: false
-});
+import { Blob, ArrayBuffer, File, Float32Array } from "platform/platform";
 
 blobPatch();
 
@@ -88,7 +81,7 @@ const message = function(nodeId, methodName, args, transferList) {
         }
     }
 
-    postMessage({
+    self.postMessage({
         nodeId: nodeId,
         methodName: methodName,
         args: args,

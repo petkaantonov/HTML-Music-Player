@@ -1,12 +1,9 @@
 "use strict";
 
-import $ from "jquery";
-import { offCapture, onCapture } from "util";
-import { setTransform } from "platform/DomUtil";
-
 export default function Scrollbar(container, scrollerInfo, opts) {
     opts = Object(opts);
-    this._domNode = $($(container)[0]);
+    this._page = opts.page;
+    this._domNode = this._page.$(container).eq(0);
     this._rail = this.$().find(opts.railSelector);
     this._knob = this.$().find(opts.knobSelector);
     this._rect = this.$()[0].getBoundingClientRect();
@@ -27,19 +24,19 @@ export default function Scrollbar(container, scrollerInfo, opts) {
     this._restoreClicks = this._restoreClicks.bind(this);
     this.resize();
 
-    this.$knob().on("mousedown", this._knobMousedowned);
-    onCapture(this.$knob()[0], "click", this._clicked);
-    onCapture(this.$rail()[0], "click", this._clicked);
-    $(document).on("mouseup", this._rebindRailmouseDowned);
+    this.$knob().addEventListener("mousedown", this._knobMousedowned);
+    this.$knob().addEventListener("click", this._clicked, true);
+    this.$rail().addEventListener("click", this._clicked, true);
+    this._page.addDocumentListener("mouseup", this._rebindRailmouseDowned);
     this._rebindRailmouseDowned();
 }
 
 Scrollbar.prototype.willScroll = function() {
-    this.$knob().css("willChange", "transform");
+    this.$knob().setStyle("willChange", "transform");
 };
 
 Scrollbar.prototype.willStopScrolling = function() {
-    this.$knob().css("willChange", "");
+    this.$knob().setStyle("willChange", "");
 };
 
 Scrollbar.prototype.determineScrollInversion = function(delta) {
@@ -59,13 +56,14 @@ Scrollbar.prototype.$knob = function() {
 };
 
 Scrollbar.prototype._restoreClicks = function() {
-    offCapture(document, "click dblclick", this._clicked);
+    this._page.removeDocumentListener("click", this._clicked, true);
+    this._page.removeDocumentListener("dblclick", this._clicked, true);
 };
 
 Scrollbar.prototype._rebindRailmouseDowned = function() {
-    setTimeout(this._restoreClicks, 0);
-    this.$rail().off("mousedown", this._railMousedowned)
-                .on("mousedown", this._railMousedowned);
+    this._page.setTimeout(this._restoreClicks, 0);
+    this.$rail().removeEventListener("mousedown", this._railMousedowned)
+                .addEventListener("mousedown", this._railMousedowned);
 };
 
 Scrollbar.prototype._scrollByCoordinate = function(y, animate) {
@@ -77,13 +75,14 @@ Scrollbar.prototype._scrollByCoordinate = function(y, animate) {
 
 Scrollbar.prototype._railMousedowned = function(e) {
     if (!this._hasScroll) return;
-    if ($(e.target).closest(this.$knob()[0]).length > 0) return;
+    if (this._page.$(e.target).closest(this.$knob()).length > 0) return;
     if (e.which !== 1) return;
     this.willScroll();
     e.stopImmediatePropagation();
     this._scrollByCoordinate(e.clientY, false);
-    this.$rail().off("mousedown", this._railMousedowned);
-    onCapture(document, "click dblclick", this._clicked);
+    this.$rail().removeEventListener("mousedown", this._railMousedowned);
+    this._page.addDocumentListener("click", this._clicked, true);
+    this._page.addDocumentListener("dblclick", this._clicked, true);
 };
 
 Scrollbar.prototype._knobMousedowned = function(e) {
@@ -94,15 +93,17 @@ Scrollbar.prototype._knobMousedowned = function(e) {
     this._rect = this.$()[0].getBoundingClientRect();
     this._knobRect = this.$knob()[0].getBoundingClientRect();
     this._anchorDistance = e.clientY - this._knobRect.top;
-    $(document).on("mousemove", this._knobMousemoved);
-    $(document).on("mouseup", this._knobMousereleased);
-    onCapture(document, "click dblclick", this._clicked);
+
+    this._page.addDocumentListener("mousemove", this._knobMousemoved);
+    this._page.addDocumentListener("mouseup", this._knobMousereleased);
+    this._page.addDocumentListener("click", this._clicked, true);
+    this._page.addDocumentListener("dblclick", this._clicked, true);
 };
 
 Scrollbar.prototype._knobMousereleased = function() {
-    $(document).off("mousemove", this._knobMousemoved);
-    $(document).off("mouseup", this._knobMousereleased);
-    setTimeout(this._restoreClicks, 0);
+    this._page.removeDocumentListener("mousemove", this._knobMousemoved);
+    this._page.removeDocumentListener("mouseup", this._knobMousereleased);
+    this._page.setTimeout(this._restoreClicks, 0);
     this.willStopScrolling();
 };
 
@@ -112,9 +113,7 @@ Scrollbar.prototype._clicked = function(e) {
 };
 
 Scrollbar.prototype._stopScrolling = function() {
-    if (this._timerId !== -1) {
-        clearTimeout(this._timerId);
-    }
+    this._page.clearTimeout(this._timerId);
     this._scrolling = false;
     this.$().removeClass("scrolling");
     this._timerId = -1;
@@ -146,13 +145,11 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
             this._scrolling = true;
             this.$().addClass("scrolling");
         }
-        if (this._timerId !== -1) {
-            clearTimeout(this._timerId);
-        }
-        this._timerId = setTimeout(this._stopScrolling, 450);
+        this._page.clearTimeout(this._timerId);
+        this._timerId = this._page.setTimeout(this._stopScrolling, 450);
     }
 
-    setTransform(this.$knob()[0], "translate3d(0, " + px + "px, 0)");
+    this.$knob().setTransform("translate3d(0, " + px + "px, 0)");
 };
 
 Scrollbar.prototype.resize = function() {
@@ -160,13 +157,13 @@ Scrollbar.prototype.resize = function() {
     var rect = this._rect = this.$()[0].getBoundingClientRect();
 
     if (rect.height >= physicalHeight) {
-        this.$knob().css("height", 0);
+        this.$knob().setStyle("height", "0px");
         this._hasScroll = false;
         this._stopScrolling();
     } else {
         var percentage = rect.height / physicalHeight;
         var pxHeight = Math.max(20, percentage * rect.height|0);
-        this.$knob().css("height", pxHeight);
+        this.$knob().setStyle("height", pxHeight + "px");
         this._hasScroll = true;
     }
 

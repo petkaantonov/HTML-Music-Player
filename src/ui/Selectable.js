@@ -1,10 +1,11 @@
 "use strict";
 import EventEmitter from "events";
-import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, modifierKeyProp } from "util";
+import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits } from "util";
 import { SortedSet } from "DataStructures";
 
-export default function Selectable(playlist) {
+export default function Selectable(playlist, page) {
     EventEmitter.call(this);
+    this._page = page;
     this._playlist = playlist;
     this._selectionPointer = null;
     this._lastIdx = null;
@@ -20,6 +21,8 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
         return true;
     }
 
+    var modifierKeyPropertyName = this._page.modifierKeyPropertyName();
+
     if (e.which === 3) {
         if (!this.contains(trackView)) {
             this.selectTrackView(trackView);
@@ -30,16 +33,16 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
 
     var idx = trackView.getIndex();
 
-    if (e.shiftKey && e[modifierKeyProp]) {
+    if (e.shiftKey && e[modifierKeyPropertyName]) {
         if (this._selectionPointer === null) {
             this._shiftSelection(idx);
         } else {
             this._appendingShiftSelection(idx);
         }
 
-    } else if (e.shiftKey && !e[modifierKeyProp]) {
+    } else if (e.shiftKey && !e[modifierKeyPropertyName]) {
         this._shiftSelection(idx);
-    } else if (e[modifierKeyProp]) {
+    } else if (e[modifierKeyPropertyName]) {
         if (this._selection.contains(trackView)) {
             this._remove(idx);
         } else {
@@ -47,7 +50,7 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
             this._selectionPointer = idx;
         }
         this._lastIdx = null;
-    } else if (!e[modifierKeyProp] && !e.shiftKey) {
+    } else if (!e[modifierKeyPropertyName] && !e.shiftKey) {
         if (this._selection.contains(trackView)) {
             this._selectionPointer = idx;
             return true;
@@ -61,7 +64,7 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
 };
 
 Selectable.prototype.trackViewClick = function(e, trackView) {
-    if (!e[modifierKeyProp] && !e.shiftKey) {
+    if (!e[this._page.modifierKeyPropertyName()] && !e.shiftKey) {
         this._resetPointers();
         this._clearSelection();
         this._add(trackView.getIndex());

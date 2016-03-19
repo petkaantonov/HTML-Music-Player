@@ -1,7 +1,8 @@
 "use strict";
-import Promise from "bluebird";
+
 import { capitalize, formatTagString, toTimeString } from "util";
 import blobPatch from "platform/blobpatch";
+import { URL, Image } from "platform/platform";
 
 blobPatch();
 

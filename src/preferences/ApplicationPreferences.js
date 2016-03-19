@@ -1,7 +1,6 @@
 "use strict";
 
 import AbstractPreferences from "preferences/AbstractPreferences";
-import $ from "jquery";
 import EventEmitter from "events";
 import { inherits } from "util";
 import createPreferences from "preferences/PreferenceCreator";
@@ -223,26 +222,29 @@ CpuUsagePreferenceManager.prototype.update = function() {
 
 CpuUsagePreferenceManager.prototype._updateSlider = function(value) {
     this._slider.setValue((value - 0.1) / (1 - 0.1));
-    this.$().find(".cpu-usage-value").text((value * 100).toFixed(0) + "%");
+    this.$().find(".cpu-usage-value").setText((value * 100).toFixed(0) + "%");
 };
 
 function PreferencesManager(domNode, applicationPreferences) {
     EventEmitter.call(this);
     this.applicationPreferences = applicationPreferences;
-    this._domNode = $($(domNode)[0]);
+    this._domNode = applicationPreferences.page().$(domNode).eq(0);
     this.preferences = applicationPreferences.preferences();
     this.defaultPreferences = new Preferences();
     this.unchangedPreferences = null;
     this._cpuUsagePreferenceManager = new CpuUsagePreferenceManager(this);
 
-    this.$().find(".visualizer-enable-checkbox").on("change", this._visualizerEnabledChanged.bind(this));
-    this.$().find(".mobile-network-enable-checkbox").on("change", this._mobileNetworkEnabledChanged.bind(this));
-    this.$().find(".silence-start-enable-checkbox").on("change", this._silenceStartEnabledChanged.bind(this));
-    this.$().find(".silence-end-enable-checkbox").on("change", this._silenceEndEnabledChanged.bind(this));
-    this.$().find(".longtap-indicator-enable-checkbox").on("change", this._longtapIndicatorEnabledChanged.bind(this));
-    this.$().find(".offline-enable-checkbox").on("change", this._offlineEnabledChanged.bind(this));
-    this.$().find(".loudness-normalization-enable-checkbox").on("change", this._loudnessNormalizationEnabledChanged.bind(this));
-    this.$().find(".album-art-enable-checkbox").on("change", this._albumArtEnabledChanged.bind(this));
+    this.$().find(".visualizer-enable-checkbox").addEventListener("change", this._visualizerEnabledChanged.bind(this));
+    this.$().find(".mobile-network-enable-checkbox").addEventListener("change", this._mobileNetworkEnabledChanged.bind(this));
+    this.$().find(".silence-start-enable-checkbox").addEventListener("change", this._silenceStartEnabledChanged.bind(this));
+    this.$().find(".silence-end-enable-checkbox").addEventListener("change", this._silenceEndEnabledChanged.bind(this));
+    this.$().find(".offline-enable-checkbox").addEventListener("change", this._offlineEnabledChanged.bind(this));
+    this.$().find(".loudness-normalization-enable-checkbox").addEventListener("change", this._loudnessNormalizationEnabledChanged.bind(this));
+    this.$().find(".album-art-enable-checkbox").addEventListener("change", this._albumArtEnabledChanged.bind(this));
+
+    if (applicationPreferences.env().hasTouch()) {
+        this.$().find(".longtap-indicator-enable-checkbox").addEventListener("change", this._longtapIndicatorEnabledChanged.bind(this));
+    }
 }
 inherits(PreferencesManager, EventEmitter);
 
@@ -268,15 +270,17 @@ PreferencesManager.prototype.update = function(buttonsOnly) {
         return;
     }
 
-    this.$().find(".visualizer-enable-checkbox").prop("checked", this.preferences.getEnableVisualizer());
-    this.$().find(".mobile-network-enable-checkbox").prop("checked", this.preferences.getEnableMobileNetwork());
-    this.$().find(".silence-start-enable-checkbox").prop("checked", this.preferences.getEnableTrimStart());
-    this.$().find(".silence-end-enable-checkbox").prop("checked", this.preferences.getEnableTrimEnd());
-    this.$().find(".longtap-indicator-enable-checkbox").prop("checked", this.preferences.getEnableHideLongTapIndicator());
-    this.$().find(".offline-enable-checkbox").prop("checked", this.preferences.getEnableOffline());
-    this.$().find(".loudness-normalization-enable-checkbox").prop("checked", this.preferences.getEnableLoudnessNormalization());
-    this.$().find(".album-art-enable-checkbox").prop("checked", this.preferences.getEnableAlbumArt());
+    this.$().find(".visualizer-enable-checkbox").setProperty("checked", this.preferences.getEnableVisualizer());
+    this.$().find(".mobile-network-enable-checkbox").setProperty("checked", this.preferences.getEnableMobileNetwork());
+    this.$().find(".silence-start-enable-checkbox").setProperty("checked", this.preferences.getEnableTrimStart());
+    this.$().find(".silence-end-enable-checkbox").setProperty("checked", this.preferences.getEnableTrimEnd());
+    this.$().find(".offline-enable-checkbox").setProperty("checked", this.preferences.getEnableOffline());
+    this.$().find(".loudness-normalization-enable-checkbox").setProperty("checked", this.preferences.getEnableLoudnessNormalization());
+    this.$().find(".album-art-enable-checkbox").setProperty("checked", this.preferences.getEnableAlbumArt());
 
+    if (this.applicationPreferences.env().hasTouch()) {
+        this.$().find(".longtap-indicator-enable-checkbox").setProperty("checked", this.preferences.getEnableHideLongTapIndicator());
+    }
     this._cpuUsagePreferenceManager.update();
 };
 
@@ -294,49 +298,49 @@ PreferencesManager.prototype.setUnchangedPreferences = function() {
 };
 
 PreferencesManager.prototype._visualizerEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableVisualizer(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._mobileNetworkEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableMobileNetwork(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._silenceStartEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableTrimStart(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._silenceEndEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableTrimEnd(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._longtapIndicatorEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableHideLongTapIndicator(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._offlineEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableOffline(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._loudnessNormalizationEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableLoudnessNormalization(enabled);
     this.preferencesUpdated();
 };
 
 PreferencesManager.prototype._albumArtEnabledChanged = function(e) {
-    var enabled = $(e.target).prop("checked");
+    var enabled = e.target.checked;
     this.preferences.setEnableAlbumArt(enabled);
     this.preferencesUpdated();
 };

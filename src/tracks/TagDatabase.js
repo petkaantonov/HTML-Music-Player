@@ -1,6 +1,8 @@
 "use strict";
-import Promise from "bluebird";
+
 import { iDbPromisify, assign } from "util";
+import { indexedDB } from "platform/platform";
+
 const VERSION = 3;
 const NAME = "TagDatabase";
 const KEY_NAME = "trackUid";
@@ -10,13 +12,10 @@ const COVERART_TABLE_NAME = "coverart";
 const READ_WRITE = "readwrite";
 const READ_ONLY = "readonly";
 
-const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
 
 export default function TagDatabase() {
     var request = indexedDB.open(NAME, VERSION);
     this.db = iDbPromisify(request);
-    this.db.suppressUnhandledRejections();
-
     this._onUpgradeNeeded = this._onUpgradeNeeded.bind(this);
     request.onupgradeneeded = this._onUpgradeNeeded;
 }
@@ -68,11 +67,13 @@ TagDatabase.prototype.setAlbumImage = function(album, url) {
 TagDatabase.prototype.insert = function(trackUid, data) {
     data.trackUid = trackUid;
     var self = this;
-    return this.db.then(function(db) {
+    var db;
+    return this.db.then(function(_db) {
+        db = _db;
         var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
         return iDbPromisify(store.get(trackUid));
     }).then(function(previousData) {
-        var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
         var newData = assign({}, previousData || {}, data);
         return iDbPromisify(store.put(newData));
     });
@@ -81,11 +82,13 @@ TagDatabase.prototype.insert = function(trackUid, data) {
 const fieldUpdater = function(fieldName) {
     return function(trackUid, value) {
         var self = this;
-        return this.db.then(function(db) {
+        var db;
+        return this.db.then(function(_db) {
+            db = _db;
             var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
             return iDbPromisify(store.get(trackUid));
         }).then(function(data) {
-            var store = self.db.value().transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+            var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
             data = Object(data);
             data.trackUid = trackUid;
             data[fieldName] = value;

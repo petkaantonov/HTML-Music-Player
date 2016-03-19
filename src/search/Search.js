@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import AbstractTrackContainer from "tracks/AbstractTrackContainer";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "util";
 import Selectable from "ui/Selectable";
@@ -13,16 +12,18 @@ const TrackViewOptions = {
     updateTrackIndex: false,
     updateSearchDisplayStatus: true,
     itemHeight: -1,
-    playlist: null
+    playlist: null,
+    page: null
 };
 
 var searchSessionNextId = 0;
 
-function SearchHistoryEntry(query) {
+function SearchHistoryEntry(page, query) {
     query = "" + query;
-    var opt = document.createElement("option");
-    opt.value = query;
-    this._domNode = $(opt);
+    this._page = page;
+    var opt = page.createElement("option");
+    opt.setValue(query);
+    this._domNode = opt;
     this._query = query;
 }
 
@@ -32,7 +33,7 @@ SearchHistoryEntry.prototype.$ = function() {
 
 SearchHistoryEntry.prototype.update = function(query) {
     this._query = query;
-    this.$()[0].value = query;
+    this.$().setValue(query);
 };
 
 SearchHistoryEntry.prototype.query = function() {
@@ -103,9 +104,13 @@ SearchSession.prototype._gotResults = function(results) {
     this._search.newResults(this, results);
 };
 
+var instance = false;
 export default function Search(domNode, opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     AbstractTrackContainer.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.env = opts.env;
     this.recognizerContext = opts.recognizerContext;
@@ -114,7 +119,7 @@ export default function Search(domNode, opts) {
     this.keyboardShortcuts = opts.keyboardShortcuts;
 
     this._trackAnalyzer = opts.trackAnalyzer;
-    this._domNode = $($(domNode)[0]);
+    this._domNode = this.page.$(domNode).eq(0);
     this._trackContainer = this.$().find(".tracklist-transform-container");
     this._inputNode = this.$().find(".search-input-box");
     this._dataListNode = this.$().find(".search-history");
@@ -126,6 +131,7 @@ export default function Search(domNode, opts) {
 
     TrackViewOptions.itemHeight = opts.itemHeight;
     TrackViewOptions.playlist = opts.playlist;
+    TrackViewOptions.page = this.page;
 
     this._topHistoryEntry = null;
     this._visible = false;
@@ -168,16 +174,16 @@ export default function Search(domNode, opts) {
     this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
     this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
 
-    this._bindListEvents({dragging: false});
+    this._bindListEvents();
 
     this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
     this.globalEvents.on("clear", this.clearSelection.bind(this));
 
-    this.$input().on("input", this._gotInput.bind(this));
-    this.$input().on("focus", this._inputFocused.bind(this));
-    this.$input().on("blur", this._inputBlurred.bind(this));
-    this.$input().on("keydown", this._inputKeydowned.bind(this));
-    this.$().find(".search-next-tab-focus").on("focus", this._searchNextTabFocused.bind(this));
+    this.$input().addEventListener("input", this._gotInput.bind(this))
+                 .addEventListener("focus", this._inputFocused.bind(this))
+                 .addEventListener("blur", this._inputBlurred.bind(this))
+                 .addEventListener("keydown", this._inputKeydowned.bind(this));
+    this.$().find(".search-next-tab-focus").addEventListener("focus", this._searchNextTabFocused.bind(this));
     this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 
     if (SEARCH_HISTORY_KEY in this.dbValues) {
@@ -235,8 +241,8 @@ Search.prototype.tabDidShow = function() {
 Search.prototype.tryLoadHistory = function(values) {
     if (Array.isArray(values) && values.length <= MAX_SEARCH_HISTORY_ENTRIES) {
         this._searchHistory = values.map(function(query) {
-            return new SearchHistoryEntry(query);
-        });
+            return new SearchHistoryEntry(this.page, query);
+        }, this);
 
         var parent = this.$historyDataList();
         for (var i = 0; i < this._searchHistory.length; ++i) {
@@ -294,7 +300,7 @@ Search.prototype.clear = function() {
 
 Search.prototype._windowLayoutChanged = function() {
     var self = this;
-    requestAnimationFrame(function() {
+    this.page.requestAnimationFrame(function() {
         self._fixedItemListScroller.resize();
     });
 };
@@ -323,10 +329,10 @@ Search.prototype._trackViewsWereDestroyed = function() {
 
 Search.prototype._inputKeydowned = function(e) {
     if (e.key === "Enter") {
-        $(e.target).blur();
+        e.target.blur();
         this.selectFirst();
-    } else if (e.key === "Escape" && !$(e.target).val()) {
-        $(e.target).blur();
+    } else if (e.key === "Escape" && !e.target.value) {
+        e.target.blur();
     }
 };
 
@@ -352,7 +358,7 @@ Search.prototype._inputBlurred = function() {
                 }
             }
 
-            this._topHistoryEntry = new SearchHistoryEntry(newQuery);
+            this._topHistoryEntry = new SearchHistoryEntry(this.page, newQuery);
             this._searchHistory.unshift(this._topHistoryEntry);
             this.$historyDataList().prepend(this._topHistoryEntry.$());
             if (this._searchHistory.length > MAX_SEARCH_HISTORY_ENTRIES) {
@@ -368,7 +374,7 @@ Search.prototype._inputBlurred = function() {
 
 Search.prototype._searchNextTabFocused = function(e) {
     if (this._trackViews.length > 0) {
-        $(e.target).blur();
+        e.target.blur();
         this.selectFirst();
     }
 };
@@ -397,7 +403,7 @@ Search.prototype.removeTrackViews = function(trackViews, silent) {
 };
 
 Search.prototype._gotInput = throttle(function() {
-    var value = this.$input().val() + "";
+    var value = this.$input().value();
 
     if (value.length === 0) {
         this._topHistoryEntry = null;

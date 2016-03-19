@@ -34,6 +34,9 @@
    ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
    POSSIBILITY OF SUCH DAMAGE.
 */
+
+import { Float64Array, Float32Array, Int32Array, Uint32Array, ArrayBuffer} from "platform/platform";
+
 const SIZEOF_SPX_WORD = 4;
 const STDLIB_MAX_INT = 2147483647;
 

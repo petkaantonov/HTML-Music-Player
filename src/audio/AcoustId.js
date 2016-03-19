@@ -23,7 +23,7 @@
  */
 
 import realFft from "audio/realfft";
-import Promise from "bluebird";
+import { Float64Array, Uint8Array, Int32Array, XMLHttpRequest } from "platform/platform";
 import AcoustIdApiError from "audio/AcoustIdApiError";
 import { queryString } from "util";
 

@@ -1,4 +1,7 @@
+/* globals self: false */
 "use strict";
+
+import { Blob, File, ArrayBuffer,  Worker, URL } from "platform/platform";
 
 function titleCase(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);

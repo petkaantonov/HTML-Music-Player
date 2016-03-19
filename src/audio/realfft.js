@@ -1,5 +1,8 @@
 "use strict";
-export default realFft;
+
+import { Float64Array } from "platform/platform";
+
+
 var realFft = (function() {
     const MAX_SIZE = 32768;
     const MAX_SIZE_LOG2 = Math.log(MAX_SIZE) * Math.LOG2E|0;
@@ -173,3 +176,5 @@ var realFft = (function() {
     };
 
 })();
+
+export default realFft;

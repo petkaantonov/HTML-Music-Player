@@ -1,29 +1,33 @@
+/* globals self: false, window: false, document: false, cssLoaded: false, CSS_LOAD_START: false */
 "use strict";
 
-import $ from "jquery";
-import Promise from "bluebird";
+import { console } from "platform/platform";
+import Promise from "platform/PromiseExtensions";
 import Application from "Application";
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import Env from "platform/Env";
 import GlobalEvents from "platform/GlobalEvents";
+import Page from "platform/dom/Page";
 
 const defaultTitle = "Soita";
+
+try {
+    Object.defineProperty(self, "Promise", {
+        value: Promise,
+        writable: false, configurable: false, enumerable: false
+    });
+} catch (e) {}
 
 if (typeof console === "undefined" || !console) {
     window.console = {log: function() {}};
 }
 
-Promise.config({
-    warnings: false,
-    longStackTraces: false,
-    cancellation: true
-});
-
-var ready = new Promise(function(resolve) { $(resolve); });
+var page = new Page(document, window);
+var ready = page.ready();
 var db = new KeyValueDatabase();
 var dbValues = db.getInitialValues();
-var env = new Env();
-var globalEvents = new GlobalEvents();
+var env = new Env(page);
+var globalEvents = new GlobalEvents(page);
 var featureCheckResults = env.getRequiredPlatformFeatures();
 
 cssLoaded(Promise).then(function() {
@@ -33,32 +37,32 @@ cssLoaded(Promise).then(function() {
     var featureMissing = featureCheckResults.some(function(v) {return !v.supported;});
 
     if (featureMissing) {
-        $("#app-load-text").remove();
-        $("#app-loader .missing-features").removeClass("no-display");
+        page.$("#app-load-text").remove();
+        page.$("#app-loader .missing-features").removeClass("no-display");
 
         featureCheckResults.forEach(function(v) {
             if (!v.supported) {
-                var link = $("<a>", {
+                var link = page.createElement("a", {
                     target: "_blank",
                     class: "link-text",
                     href: v.canIUseUrl
-                }).text(v.apiName);
+                }).setText(v.apiName);
 
                 var children = [
-                    $("<span>").text(v.description),
-                    $("<sup>").append(link)
+                    page.createElement("span").setText(v.description),
+                    page.createElement("sup").append(link)
                 ];
 
-                $("<li>", {class: "missing-feature-list-item"})
+                page.createElement("li", {class: "missing-feature-list-item"})
                     .append(children)
-                    .appendTo($("#app-loader .missing-features .missing-feature-list"));
+                    .appendTo(page.$("#app-loader .missing-features .missing-feature-list"));
             }
         });
 
         throw new Error("missing features");
     } else {
-        $("#app-loader").remove();
-        $("#app-container").show();
+        page.$("#app-loader").remove();
+        page.$("#app-container").show();
     }
 
     var foregrounded = Promise.resolve();
@@ -73,7 +77,8 @@ cssLoaded(Promise).then(function() {
         db: db,
         dbValues: dbValues,
         defaultTitle: defaultTitle,
-        globalEvents: globalEvents
+        globalEvents: globalEvents,
+        page: page
     });
 });
 
@@ -83,19 +88,17 @@ var desc = {
     configurable: false
 };
 try {
-    Object.defineProperties(window, {
+    Object.defineProperties(self, {
         alert: desc,
         prompt: desc,
         confirm: desc
     });
 } catch (e) {}
 
-
-document.title = defaultTitle;
-
-window.onerror = function(a, b, c, d, e) {
+page.setTitle(defaultTitle);
+page.window().onerror = function(a, b, c, d, e) {
     var date = new Date().toISOString();
-    if (window.DEBUGGING) {
+    if (env.isDevelopment()) {
         if (e && e.stack) {
             console.log(date, e.stack);
         } else {

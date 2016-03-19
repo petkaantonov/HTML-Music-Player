@@ -1,12 +1,10 @@
 "use strict";
-import $ from "jquery";
-import Promise from "bluebird";
+
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
 import { inherits } from "util";
 import Track from "tracks/Track";
-import { isTouchEvent } from "platform/DomUtil";
 
 const MINIMUM_DURATION = 3;
 
@@ -14,10 +12,14 @@ const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
 const LATENCY_KEY = "audio-hardware-latency";
 
+var instance = false;
 export default function Player(dom, playlist, opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
     this.db = opts.db;
@@ -29,7 +31,7 @@ export default function Player(dom, playlist, opts) {
     this.gestureEducator = opts.gestureEducator;
     this.tooltipContext = opts.tooltipContext;
 
-    this._domNode = $(dom);
+    this._domNode = this.page.$(dom);
 
     this._playButtonDomNode = this.$().find(opts.playButtonDom);
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
@@ -50,9 +52,9 @@ export default function Player(dom, playlist, opts) {
     this.audioPlayer = new AudioPlayer(opts);
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
-    this.$play().click(this.playButtonClicked.bind(this));
-    this.$next().click(this.nextButtonClicked.bind(this));
-    this.$previous().click(this.prevButtonClicked.bind(this));
+    this.$play().addEventListener("click", this.playButtonClicked.bind(this));
+    this.$next().addEventListener("click", this.nextButtonClicked.bind(this));
+    this.$previous().addEventListener("click", this.prevButtonClicked.bind(this));
     this.recognizerContext.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
     this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
     this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
@@ -129,8 +131,7 @@ Player.prototype.setPictureManager = function(pictureManager) {
 };
 
 Player.prototype.$allButtons = function() {
-    return this.$play().add(this.$previous())
-                      .add(this.$next());
+    return this.$play().add(this.$previous(), this.$next());
 };
 
 Player.prototype.$ = function() {
@@ -310,11 +311,11 @@ Player.prototype.getSampleRate = function() {
     return tagData.basicInfo.sampleRate;
 };
 
-Player.prototype.getImage = function() {
+Player.prototype.getImage = function(pictureManager) {
     if (this.currentAudioManager) {
-        return this.currentAudioManager.getImage();
+        return this.currentAudioManager.getImage(pictureManager);
     }
-    return Promise.resolve(null);
+    return Promise.resolve(pictureManager.defaultImage());
 };
 
 Player.prototype.pause = function() {
@@ -368,7 +369,7 @@ Player.prototype.stop = function() {
 
 var loadId = 0;
 Player.prototype.loadTrack = function(track) {
-    if (this.ready && !this.ready.isResolved()) {
+    if (this.ready) {
         var self = this;
         var id = ++loadId;
         this.ready = this.ready.then(function() {
@@ -378,6 +379,7 @@ Player.prototype.loadTrack = function(track) {
         });
         return;
     }
+    ++loadId;
 
     this.isStopped = false;
     this.isPlaying = true;
@@ -419,7 +421,7 @@ Player.prototype.loadTrack = function(track) {
 Player.prototype.nextButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.next();
-    if (isTouchEvent(e)) {
+    if (this.page.isTouchEvent(e)) {
         this.gestureEducator.educate("next");
     }
 };
@@ -427,7 +429,7 @@ Player.prototype.nextButtonClicked = function(e) {
 Player.prototype.prevButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.prev();
-    if (isTouchEvent(e)) {
+    if (this.page.isTouchEvent(e)) {
         this.gestureEducator.educate("previous");
     }
 };
@@ -439,7 +441,7 @@ Player.prototype.playButtonClicked = function(e) {
     } else {
         this.play();
     }
-    if (isTouchEvent(e)) {
+    if (this.page.isTouchEvent(e)) {
         this.gestureEducator.educate("playpause");
     }
 };
@@ -538,7 +540,7 @@ Player.prototype.toggleMute = function() {
         this.forEachAudioManager(function(am) {
             am.unmute();
         });
-        this.set(MUTED_KEY, false);
+        this.db.set(MUTED_KEY, false);
     }
 };
 

@@ -1,5 +1,7 @@
 "use strict";
 
+import { Int16Array, Int32Array, Uint8Array } from "platform/platform";
+
 const VERTEX_SHADER_SOURCE = "                                              \n\
     precision mediump float;                                                \n\
                                                                             \n\
@@ -129,7 +131,7 @@ WebGl2dImageRenderer.prototype.canvasChanged = function(newCanvas, oldCanvas) {
     newCanvas.addEventListener("webglcontextcreationerror", this.contextCreationErrored, false);
 };
 
-WebGl2dImageRenderer.isSupported = function() {
+WebGl2dImageRenderer.isSupported = function(document) {
     return !!getContext(document.createElement("canvas"));
 };
 

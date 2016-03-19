@@ -81,16 +81,17 @@ function insertSortedLinear(comparer, array, value, length) {
         var result = comparer(array[i], value);
 
         if (result === 0) {
-            return;
+            return false;
         } else if (result > 0) {
             for (var j = length; j > i; --j) {
                 array[j] = array[j - 1];
             }
             array[i] = value;
-            return;
+            return true;
         }
     }
     array.push(value);
+    return true;
 }
 
 export function insert(comparer, array, value) {
@@ -112,7 +113,7 @@ export function insert(comparer, array, value) {
         var result = comparer(array[mid], value);
 
         if (result === 0) {
-            return;
+            return false;
         } else if (result > 0) {
             right = mid - 1;
         } else {
@@ -128,4 +129,5 @@ export function insert(comparer, array, value) {
         }
         array[left] = value;
     }
+    return true;
 }

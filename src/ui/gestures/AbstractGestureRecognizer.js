@@ -1,10 +1,14 @@
 "use strict";
 
-import { onCapture, offCapture } from "util";
+import { DomWrapper } from "platform/dom/Page";
 
 export default function AbstractGestureRecognizer(recognizerContext) {
     this.recognizerContext = recognizerContext;
 }
+
+AbstractGestureRecognizer.prototype.page = function() {
+    return this.recognizerContext.page;
+};
 
 AbstractGestureRecognizer.prototype.fireLongPressStart = function(t) {
     this.recognizerContext.globalEvents._fireLongPressStart(t);
@@ -31,37 +35,42 @@ AbstractGestureRecognizer.prototype.getModifierTouch = function() {
     return this.recognizerContext.modifierTouch;
 };
 
-AbstractGestureRecognizer.prototype.recognizeBubbledOn = function($elem, selector) {
-    if (!this.recognizerContext.isTouchSupported()) return;
-
-    if (arguments.length <= 1) {
-        $elem.on(this._eventType, this._recognizerHandler);
-    } else if (arguments.length === 2) {
-        $elem.on(this._eventType, selector, this._recognizerHandler);
-    } else {
-        throw new Error("invalid arguments");
+AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
+    if (!elem || (typeof elem.nodeType !== "number" || !(elem instanceof DomWrapper))) {
+        throw new TypeError("elem is not a dom node");
+    }
+    var eventTypes = this._eventType;
+    for (var i = 0; i < eventTypes.length; ++i) {
+        elem.addEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
     }
 };
 
-AbstractGestureRecognizer.prototype.unrecognizeBubbledOn = function($elem, selector) {
-    if (!this.recognizerContext.isTouchSupported()) return;
-
-    if (arguments.length <= 1) {
-        $elem.off(this._eventType, this._recognizerHandler);
-    } else if (arguments.length === 2) {
-        $elem.off(this._eventType, selector, this._recognizerHandler);
-    } else {
-        throw new Error("invalid arguments");
+AbstractGestureRecognizer.prototype._unrecognizeOn = function(elem, useCapture) {
+    if (!elem || (typeof elem.nodeType !== "number" || !(elem instanceof DomWrapper))) {
+        throw new TypeError("elem is not a dom node");
     }
+    var eventTypes = this._eventType;
+    for (var i = 0; i < eventTypes.length; ++i) {
+        elem.removeEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
+    }
+};
+
+AbstractGestureRecognizer.prototype.recognizeBubbledOn = function(elem) {
+    if (!this.recognizerContext.isTouchSupported()) return;
+    this._recognizeOn(elem, false);
+};
+
+AbstractGestureRecognizer.prototype.unrecognizeBubbledOn = function(elem) {
+    if (!this.recognizerContext.isTouchSupported()) return;
+    this._unrecognizeOn(elem, false);
 };
 
 AbstractGestureRecognizer.prototype.recognizeCapturedOn = function(elem) {
     if (!this.recognizerContext.isTouchSupported()) return;
-    onCapture(elem, this._eventType, this._recognizerHandler);
+    this._recognizeOn(elem, true);
 };
 
 AbstractGestureRecognizer.prototype.unrecognizeCapturedOn = function(elem) {
     if (!this.recognizerContext.isTouchSupported()) return;
-    offCapture(elem, this._eventType, this._recognizerHandler);
+    this._unrecognizeOn(elem, true);
 };
-

@@ -1,14 +1,16 @@
 "use strict";
-import Promise from "bluebird";
+
 import { throttle } from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
 import Track from "tracks/Track";
 import TagData from "tracks/TagData";
+import { Worker } from "platform/platform";
 
 var instances = false;
 export default function TrackAnalyzer(playlist, opts) {
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     opts = Object(opts);
+    this._page = opts.page;
     this._globalEvents = opts.globalEvents;
     instances = true;
     this._worker = new Worker(opts.src);
@@ -166,7 +168,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
                         track.tagData.setLoudness(result.loudness);
                     }
                 }
-            }).lastly(function() {
+            }).finally(function() {
                 track.unsetAnalysisStatus();
             }).catch(function() {});
         }
@@ -364,7 +366,7 @@ TrackAnalyzer.prototype.abortJobForTrack = function(track) {
 TrackAnalyzer.prototype.parseMetadata = function(track) {
     var self = this;
 
-    if (this.ready && !this.ready.isResolved()) {
+    if (this.ready) {
         this.ready = this.ready.then(function() {
             if (!track.isDetachedFromPlaylist()) {
                 self.parseMetadata(track);
@@ -481,7 +483,7 @@ TrackAnalyzer.prototype.removeFromSearchIndex = function(track, metadata) {
 
 TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
     var self = this;
-    if (this.ready && !this.ready.isResolved()) {
+    if (this.ready) {
         this.ready = this.ready.then(function() {
             return self.analyzeTrack(track, opts);
         });

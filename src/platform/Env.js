@@ -1,9 +1,13 @@
 "use strict";
 
-import Promise from "bluebird";
+import { AudioContext, webkitAudioContext, indexedDB, File, Blob, URL, Worker, Uint8Array } from "platform/platform";
 import parser from "ua-parser-js";
 
-export default function Env() {
+export default function Env(page) {
+    var document = page.document();
+    var navigator = page.navigator();
+    var window = page.window();
+
     var input = document.createElement("input");
     const desktopOs = /^(CentOS|Fedora|FreeBSD|Debian|Gentoo|GNU|Linux|Mac OS|Minix|Mint|NetBSD|OpenBSD|PCLinuxOS|RedHat|Solaris|SUSE|Ubuntu|UNIX VectorLinux|Windows)$/;
     var ua = parser(navigator.userAgent);
@@ -25,7 +29,7 @@ export default function Env() {
     this._directories = ("webkitdirectory" in input ||
                         "directory" in input ||
                         "mozdirectory" in input);
-    this._readFiles = typeof FileReader === "function" && new FileReader().readAsBinaryString;
+    this._readFiles = typeof window.FileReader === "function";
 
     this._supportedMimes = "audio/mp3,audio/mpeg".split(",");
     this._rSupportedMimes = new RegExp("^(?:"+this._supportedMimes.join("|")+")$", "i");
@@ -48,7 +52,19 @@ export default function Env() {
     this._browserVersion = browserVersion;
     this._retChecked = false;
     this._isDevelopment = window.DEBUGGING === true;
+
+    this._maxNotificationActions = 0;
+
+    if (typeof window.Notification === "function" &&
+        typeof window.Notification.maxActions === "number" &&
+        typeof navigator.serviceWorker !== "undefined") {
+        this._maxNotificationActions = window.Notification.maxActions;
+    }
 }
+
+Env.prototype.maxNotificationActions = function() {
+    return this._maxNotificationActions;
+};
 
 Env.prototype.isDevelopment = function() {
     return this._isDevelopment;
@@ -150,14 +166,14 @@ Env.prototype.getRequiredPlatformFeatures = function() {
                     return v.buffer.byteLength === 0;
                 }).length === 2;
                 resolve(buffersAreNeutered);
-            }).timeout(2500).finally(function() {
+            }).finally(function() {
                 if (url) URL.revokeObjectURL(url);
                 if (worker) worker.terminate();
             });
         }), "http://caniuse.com/#feat=webworkers", "Web Worker API"]
     };
 
-    return Promise.map(Object.keys(ret), function(description) {
+    return Promise.all(Object.keys(ret).map(function(description) {
         var checker = ret[description][0];
         var canIUseUrl = ret[description][1];
         var apiName = ret[description][2];
@@ -170,5 +186,5 @@ Env.prototype.getRequiredPlatformFeatures = function() {
                 description: description
             };
         });
-    });
+    }));
 };

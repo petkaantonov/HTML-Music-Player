@@ -1,24 +1,23 @@
 "use strict";
 
 import { inherits } from "util";
-import { setFilter, setTransform } from "platform/DomUtil";
-import $ from "jquery";
 import EventEmitter from "events";
 
 function Tab(spec, controller, index) {
     EventEmitter.call(this);
-    this._id = spec.id;
-    this._domNode = $($(spec.tab)[0]);
-    this._contentNode = $($(spec.content)[0]);
     this._controller = controller;
+    this._id = spec.id;
+    this._domNode = this.page().$(spec.tab).eq(0);
+    this._contentNode = this.page().$(spec.content).eq(0);
     this._index = index;
     this._active = false;
     this._clicked = this._clicked.bind(this);
     this._contentRect = this.$content()[0].getBoundingClientRect();
-    this.$().on("click", this._clicked);
+    this.$().addEventListener("click", this._clicked);
     controller.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
     var position = this._contentRect.width * this._index;
-    setTransform(this.$content(), "translate3d("+position+"px, 0px, 0px)");
+
+    this.$content().setTransform("translate3d("+position+"px, 0px, 0px)");
 }
 inherits(Tab, EventEmitter);
 
@@ -57,14 +56,14 @@ Tab.prototype.activate = function() {
 };
 
 Tab.prototype.prepareForSetColor = function() {
-    this.$().removeClass("no-transition").width();
+    this.$().removeClass("no-transition").forceReflow();
 };
 
 Tab.prototype.setColor = function() {
     if (this.isActive()) {
-        setFilter(this.$(), "grayscale(0%) brightness(100%)");
+        this.$().setFilter("grayscale(0%) brightness(100%)");
     } else {
-        setFilter(this.$(), "grayscale(100%) brightness(60%)");
+        this.$().setFilter("grayscale(100%) brightness(60%)");
     }
 };
 
@@ -77,13 +76,18 @@ Tab.prototype.deactivate = function() {
     this._active = false;
 };
 
+Tab.prototype.page = function() {
+    return this._controller.page;
+};
+
 export default function TabController(domNode, specs, opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
     this.rippler = opts.rippler;
-    this._domNode = $($(domNode)[0]);
+    this._domNode = this.page.$(domNode).eq(0);
     this._tabClicked = this._tabClicked.bind(this);
 
     this._contentHideTimeoutId = -1;
@@ -93,7 +97,7 @@ export default function TabController(domNode, specs, opts) {
         tab.on("click", this._tabClicked);
         return tab;
     }, this);
-    this._indicatorNode = $($(opts.indicator)[0]);
+    this._indicatorNode = this.page.$(opts.indicator).eq(0);
 
     this._relayout = this._relayout.bind(this);
     this.globalEvents.on("resize", this._relayout);
@@ -120,13 +124,13 @@ TabController.prototype.$indicator = function() {
 };
 
 TabController.prototype.$containers = function() {
-    return $(this._tabs.map(function(v) {
+    return this.page.$(this._tabs.map(function(v) {
         return v.$content()[0];
     }));
 };
 
 TabController.prototype.$tabs = function() {
-    return $(this._tabs.map(function(v) {
+    return this.page.$(this._tabs.map(function(v) {
         return v.$()[0];
     }));
 };
@@ -135,12 +139,12 @@ TabController.prototype._dragStart = function(gesture) {
     this._dragAnchorStart = gesture.clientX;
     this._dragStartTime = gesture.timeStamp;
 
-    this.$indicator().addClass("no-transition").css("willChange", "transform");
+    this.$indicator().addClass("no-transition").setStyle("willChange", "transform");
 
     for (var i = 0; i < this._tabs.length; ++i) {
         var tab = this._tabs[i];
-        tab.$content().show().addClass("no-transition").css("willChange", "transform");
-        tab.$().addClass("no-transition");//.css("willChange", "-webkit-filter");
+        tab.$content().show().addClass("no-transition").setStyle("willChange", "transform");
+        tab.$().addClass("no-transition");
         tab.updateRectCache();
     }
     this._activeTabRect = this._activeTab.contentRect();
@@ -169,22 +173,21 @@ TabController.prototype._dragMove = function(gesture) {
     for (var i = 0; i < this._tabs.length; ++i) {
         var tab = this._tabs[i];
         var newPosition = ((i - activeIndex) + progress) * contentWidth;
-        var translate3d = "translate3d(" + newPosition + "px, 0, 0)";
-        setTransform(tab.$content(), translate3d);
+        tab.$content().setTransform("translate3d(" + newPosition + "px, 0, 0)");
 
         if (i === activeIndex) {
             var brightness = ((1 - absProgress) * (100 - 60) + 60);
             var grayscale = ((absProgress) * 100);
-            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            tab.$().setFilter("grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else if (i === nextIndex) {
             var brightness = (absProgress * (100 - 60) + 60);
             var grayscale = ((1 - absProgress) * 100);
-            setFilter(tab.$(), "grayscale("+grayscale+"%) brightness("+brightness+"%)");
+            tab.$().setFilter("grayscale("+grayscale+"%) brightness("+brightness+"%)");
         } else {
-            setFilter(tab.$(), "grayscale(100%) brightness(60%)");
+            tab.$().setFilter("grayscale(100%) brightness(60%)");
         }
     }
-    setTransform(this.$indicator(), "translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
+    this.$indicator().setTransform("translate3d(" + ((activeIndex * 100) + (-1 * progress * 100))+ "%, 0, 0)");
     this._dragAnchorEnd = gesture.clientX;
 };
 
@@ -206,10 +209,8 @@ TabController.prototype._dragEnd = function(gesture) {
 };
 
 TabController.prototype._clearContentHideTimeout = function() {
-    if (this._contentHideTimeoutId !== -1) {
-        clearTimeout(this._contentHideTimeoutId);
-        this._contentHideTimeoutId = -1;
-    }
+    this.page.clearTimeout(this._contentHideTimeoutId);
+    this._contentHideTimeoutId = -1;
 };
 
 TabController.prototype._relayout = function() {
@@ -254,11 +255,18 @@ TabController.prototype._activateTab = function(tab, force) {
     var contentWidth = this._activeTabRect.width;
 
     if (!initialTabActivation) {
-        this.$indicator().removeClass("no-transition").css("willChange", "transform").width();
+        this.$indicator()
+            .removeClass("no-transition")
+            .setStyle("willChange", "transform")
+            .forceReflow();
+
         for (var i = 0; i < this._tabs.length; ++i) {
             var tab = this._tabs[i];
-            tab.$content().removeClass("no-transition").show().css("willChange", "transform");
-            tab.$content().width();
+            tab.$content()
+                .removeClass("no-transition")
+                .show()
+                .setStyle("willChange", "transform")
+                .forceReflow();
             tab.prepareForSetColor();
         }
     }
@@ -267,21 +275,21 @@ TabController.prototype._activateTab = function(tab, force) {
         var tab = this._tabs[i];
         tab.setColor();
         var contentPosition = (tab.index() - activeIndex) * contentWidth;
-        setTransform(tab.$content(), "translate3d(" + contentPosition + "px, 0, 0)");
+        tab.$content().setTransform("translate3d(" + contentPosition + "px, 0, 0)");
     }
-    setTransform(this.$indicator(), "translate3d(" + (100 * activeIndex) + "%, 0, 0)");
+    this.$indicator().setTransform("translate3d(" + (100 * activeIndex) + "%, 0, 0)");
 
-    self._contentHideTimeoutId = setTimeout(function() {
+    self._contentHideTimeoutId = this.page.setTimeout(function() {
         self._contentHideTimeoutId = -1;
         for (var i = 0; i < self._tabs.length; ++i) {
             var tab = self._tabs[i];
             if (!tab.isActive()) {
                 tab.$content().hide();
             }
-            tab.$content().css("willChange", "");
+            tab.$content().setStyle("willChange", "");
         }
 
-        self.$indicator().css("willChange", "");
+        self.$indicator().setStyle("willChange", "");
 
         if (previousActiveTabId) {
             self.emit("tabDidDeactivate", previousActiveTabId);

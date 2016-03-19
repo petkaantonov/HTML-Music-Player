@@ -1,9 +1,7 @@
 "use strict";
-import $ from "jquery";
-import Promise from "bluebird";
+
 import EventEmitter from "events";
-import { inherits } from "util";
-import { changeDom } from "platform/DomUtil";
+import { inherits, noop } from "util";
 
 const NO_TAG = {};
 
@@ -30,29 +28,29 @@ function SnackbarInstance(snackbar, message, opts) {
     this._resized = this._resized.bind(this);
 
 
-    this.$().on("click", this._clicked);
-    this.$().on("mouseenter", this._mouseEntered);
-    this.$().on("mouseleave", this._mouseLeft);
+    this.$().addEventListener("click", this._clicked);
+    this.$().addEventListener("mouseenter", this._mouseEntered);
+    this.$().addEventListener("mouseleave", this._mouseLeft);
     this._snackbar.globalEvents.on("resize", this._resized);
     this._snackbar.globalEvents.on("visibilityChange", this._visibilityChanged);
 
     snackbar.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
-    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+    this._checkerTimerId = this.page().setTimeout(this._timeoutChecker, this.visibilityTime);
 
     if (this._snackbar.transitionInClass) {
-        this.$().addClass(this._snackbar.transitionInClass + " initial");
-        this.$().css("willChange", "transform");
+        this.$().addClass([this._snackbar.transitionInClass, "initial"]);
+        this.$().setStyle("willChange", "transform");
         this.$().appendTo("body");
         this._resized();
         this.$().detach();
         this.$().appendTo("body");
-        this.$().width();
+        this.$().forceReflow();
         this._snackbar.beforeTransitionIn(this.$());
         var self = this;
-        changeDom(function() {
+        this.page().changeDom(function() {
             self.$().removeClass("initial");
-            setTimeout(function() {
-                self.$().css("willChange", "");
+            self.page().setTimeout(function() {
+                self.$().setStyle("willChange", "");
             }, 500);
         });
     } else {
@@ -64,10 +62,10 @@ inherits(SnackbarInstance, EventEmitter);
 
 SnackbarInstance.prototype._resized = function() {
     var box = this.$()[0].getBoundingClientRect();
-    var maxWidth = $(window).width();
-    this.$().css({
-        left: Math.max(0, maxWidth - box.width) / 2,
-        height: box.height
+    var maxWidth = this.page().width();
+    this.$().setStyles({
+        left: (Math.max(0, maxWidth - box.width) / 2) + "px",
+        height: box.height + "px"
     });
 };
 
@@ -76,36 +74,32 @@ SnackbarInstance.prototype.$ = function() {
 };
 
 SnackbarInstance.prototype._clearTimer = function() {
-    if (this._checkerTimerId !== -1) {
-        this._checkerTimerId = -1;
-        clearTimeout(this._checkerTimerId);
-    }
+    this.page().clearTimeout(this._checkerTimerId);
+    this._checkerTimerId = -1;
 };
 
 SnackbarInstance.prototype._createDom = function(message, opts) {
-    var action = $(null);
+    var action = this.page().$();
     if (opts.action) {
-        action = $("<div>", {
+        action = this.page().createElement("div", {
             class: this._snackbar.actionClass + " snackbar-action-" + this._initialShowing
         });
 
-        action.html('<div class="text-container"><div class="text"></div></div>');
-        action.find(".text").text(opts.action + "");
+        action.setHtml('<div class="text-container"><div class="text"></div></div>');
+        action.find(".text").setText(opts.action + "");
     }
-    var title = $("<div>", {
-        class: this._snackbar.titleClass + " snackbar-title-" + this._initialShowing,
-        text: message
-    });
+    var title = this.page().createElement("div", {
+        class: this._snackbar.titleClass + " snackbar-title-" + this._initialShowing
+    }).setText(message);
 
-    return $("<div>", {
+    return this.page().createElement("div", {
         class: this._snackbar.containerClass
-    }).append(title)
-      .append(action);
+    }).append(title).append(action);
 };
 
 SnackbarInstance.prototype.replace = function(message) {
     var self = this;
-    this.$().find(".snackbar-title-" + this._initialShowing).text(message + "");
+    this.$().find(".snackbar-title-" + this._initialShowing).setText(message + "");
     this._startedShowing = Date.now();
     return new Promise(function(resolve) {
         self.once("hide", function() {
@@ -123,7 +117,7 @@ SnackbarInstance.prototype._mouseLeft = function() {
     this._clearTimer();
     this._startedShowing = Date.now();
     this._isHovering = false;
-    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+    this._checkerTimerId = this.page().setTimeout(this._timeoutChecker, this.visibilityTime);
 };
 
 SnackbarInstance.prototype._timeoutChecker = function() {
@@ -137,7 +131,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
             this.outcome = Snackbar.TIMED_OUT;
             this._hide();
         } else {
-            this._checkerTimerId = setTimeout(this._timeoutChecker, Math.max(0, visibilityTime - shownTime));
+            this._checkerTimerId = this.page().setTimeout(this._timeoutChecker, Math.max(0, visibilityTime - shownTime));
         }
     }
 };
@@ -145,7 +139,7 @@ SnackbarInstance.prototype._timeoutChecker = function() {
 SnackbarInstance.prototype._visibilityChanged = function() {
     this._clearTimer();
     this._startedShowing = Date.now();
-    this._checkerTimerId = setTimeout(this._timeoutChecker, this.visibilityTime);
+    this._checkerTimerId = this.page().setTimeout(this._timeoutChecker, this.visibilityTime);
 };
 
 SnackbarInstance.prototype._clicked = function(e) {
@@ -155,7 +149,7 @@ SnackbarInstance.prototype._clicked = function(e) {
 
 
     var action = this.$().find(".snackbar-action-" + this._initialShowing)[0];
-    if ($(e.target).closest(action).length > 0) {
+    if (this.page().$(e.target).closest(action).length > 0) {
         this.outcome = Snackbar.ACTION_CLICKED;
     } else if (dismissable) {
         this.outcome = Snackbar.DISMISSED;
@@ -173,15 +167,15 @@ SnackbarInstance.prototype._hide = function() {
     if (this._snackbar.transitionOutClass) {
         this.$().detach();
         if (this._snackbar.transitionInClass) {
-            this.$().removeClass(this._snackbar.transitionInClass + " initial");
+            this.$().removeClass([this._snackbar.transitionInClass, "initial"]);
         }
-        this.$().css("willChange", "transform");
-        this.$().addClass(this._snackbar.transitionOutClass + " initial");
+        this.$().setStyle("willChange", "transform");
+        this.$().addClass([this._snackbar.transitionOutClass, "initial"]);
         this.$().appendTo("body");
-        this.$().height();
+        this.$().forceReflow();
         this._snackbar.beforeTransitionOut(this.$());
         var self = this;
-        changeDom(function() {
+        this.page().changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -193,14 +187,14 @@ SnackbarInstance.prototype._hide = function() {
     }
 
     if (this.outcome !== Snackbar.ACTION_CLICKED) {
-        setTimeout(doHide, this._snackbar.nextDelay);
+        this.page().setTimeout(doHide, this._snackbar.nextDelay);
     } else {
         doHide();
     }
 };
 
 SnackbarInstance.prototype._removeListeners = function() {
-    this.$().off("click", this._clicked);
+    this.$().removeEventListener("click", this._clicked);
     this._snackbar.globalEvents.removeListener("resize", this._resized);
     this._snackbar.globalEvents.removeListener("visibilityChange", this._visibilityChanged);
     this._clearTimer();
@@ -211,15 +205,20 @@ SnackbarInstance.prototype._destroy = function() {
     this.$().remove();
 };
 
+SnackbarInstance.prototype.page = function() {
+    return this._snackbar.page;
+};
+
 export default function Snackbar(opts) {
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";
-    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
-    this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
+    this.beforeTransitionIn = opts.beforeTransitionIn || noop;
+    this.beforeTransitionOut = opts.beforeTransitionOut || noop;
     this.actionClass = opts.actionClass || "snackbar-action";
     this.titleClass = opts.titleClass || "snackbar-title";
     this.nextDelay = opts.nextDelay || 300;
@@ -235,12 +234,11 @@ export default function Snackbar(opts) {
 }
 
 Snackbar.prototype._next = function() {
-    if (this._nextDelayId !== -1) {
-        clearTimeout(this._nextDelayId);
-        this._nextDelayId = -1;
-    }
+    this.page.clearTimeout(this._nextDelayId);
+    this._nextDelayId = -1;
+
     var self = this;
-    this._nextDelayId = setTimeout(function() {
+    this._nextDelayId = this.page.setTimeout(function() {
         self._currentInstance = null;
         if (self._queue.length) {
             var item = self._queue.shift();

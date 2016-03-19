@@ -1,10 +1,8 @@
 "use strict";
-import Promise from "bluebird";
-import $ from "jquery";
+
 import { inherits } from "util";
 import EventEmitter from "events";
 import unitBezier from "bezier";
-import { getFilter, getTransform, setFilter, setTransform } from "platform/DomUtil";
 
 function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;
@@ -412,6 +410,7 @@ const replace = function(baseStr, topStr) {
 };
 
 function AdditionalAnimationProperty(animator, property) {
+    this.animator = animator;
     this.name = property.name + "";
     this.isTransform = transformProperties.indexOf(this.name) >= 0;
     this.isFilter = filterProperties.indexOf(this.name) >= 0;
@@ -446,6 +445,10 @@ function AdditionalAnimationProperty(animator, property) {
         this.end -= 0;
     }
 }
+
+AdditionalAnimationProperty.prototype.page = function() {
+    return this.animator._page;
+};
 
 AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     if (this.duration !== -1) total = this.duration;
@@ -490,10 +493,12 @@ AdditionalAnimationProperty.prototype.getCssValue = function(current, total) {
     }
 };
 
-export default function Animator(dom, opts) {
+export default function Animator(dom, page, opts) {
     EventEmitter.call(this);
+    this._page = page;
     opts = Object(opts);
     this._domNode = dom;
+    this._wrappedDom = this._page.$(dom);
     this._animations = [];
     this._frameId = -1;
     this._interpolate = opts.interpolate || Animator.SWIFT_OUT;
@@ -513,16 +518,17 @@ export default function Animator(dom, opts) {
         return !value.isTransform;
     });
 
+
     var havePersistentTransforms = this._transforms.filter(filterIsPersistent).length > 0;
     var havePersistentFilters = this._filters.filter(filterIsPersistent).length > 0;
-    var baseFilter = getFilter($(this._domNode));
+    var baseFilter = this.$().getFilter();
     baseFilter = baseFilter === "none" ? "" : baseFilter;
     this._baseFilter = baseFilter + " ";
-    var baseTransform = getTransform($(this._domNode));
+    var baseTransform = this.$().getTransform();
     baseTransform = baseTransform === "none" ? "" : baseTransform;
     this._baseTransform = baseTransform + " ";
-    this._baseStyleFilter = (havePersistentFilters ? baseFilter : getTransform(this._domNode)) || "";
-    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : getTransform(this._domNode)) || "";
+    this._baseStyleFilter = (havePersistentFilters ? baseFilter : this.$().getFilter()) || "";
+    this._baseStyleTransform = (havePersistentTransforms ? baseTransform : this.$().getTransform()) || "";
 
     this._applyStartValues();
     this._hasCycles = this._additionalProperties.filter(function(value) {
@@ -533,6 +539,10 @@ export default function Animator(dom, opts) {
     this.stop = this.stop.bind(this);
 }
 inherits(Animator, EventEmitter);
+
+Animator.prototype.$ = function() {
+    return this._wrappedDom;
+};
 
 const parsePath = (function() {
     const number = "[01]+(?:\\.\\d+)?";
@@ -655,11 +665,11 @@ Animator.RECT2_TRANSLATE_X = makePathEasing("M 0.0,0.0 C 0.0375,0.0 0.1287646077
 
 Animator.prototype.stop = function() {
     if (this.isAnimating()) {
-        cancelAnimationFrame(this._frameId);
+        this._page.cancelAnimationFrame(this._frameId);
     }
     this._applyEndValues();
     this._animations = [];
-    this.emit("animationEnd", this);
+    this.emit("animationEnd", this, true);
 };
 
 Animator.prototype.isAnimating = function() {
@@ -678,38 +688,35 @@ Animator.prototype._getTransforms = function(current, total) {
     }).join(" ");
 };
 
-Animator.prototype._applyDirectProperties = function(node, current, total) {
+Animator.prototype._applyDirectProperties = function(current, total) {
     this._directProperties.forEach(function(v) {
-        node.style[v.name] = v.getCssValue(current, total);
-    });
+        this.$().setStyle(v.name, v.getCssValue(current, total));
+    }, this);
 };
 
 Animator.prototype._progress = function(current, total) {
-    var node = this._domNode;
-
     var transforms = this._getTransforms(current, total);
     if (transforms) {
-        setTransform(node, this._baseTransform + transforms);
+        this.$().setTransform(this._baseTransform + " " + transforms);
     }
 
     var filters = this._getFilters(current, total);
     if (filters) {
-        setFilter(node, this._baseFilter + filters);
+        this.$().setFilter(this._baseFilter + " " + filters);
     }
 
-    this._applyDirectProperties(node, current, total);
+    this._applyDirectProperties(current, total);
 };
 
 Animator.prototype._progressPathedAnimation = function(x, y, current, total) {
-    var node = this._domNode;
     var transforms = this._getTransforms(current, total);
     var filters = this._getFilters(current, total);
 
-    setTransform(node, this._baseTransform + "translate3d("+x+"px, "+y+"px, 0) " + transforms);
+    this.$().setTransform(this._baseTransform + " translate3d("+x+"px, "+y+"px, 0) " + transforms);
     if (filters) {
-        setFilter(node, this._baseFilter + filters);
+        this.$().setFilter(this._baseFilter + " " + filters);
     }
-    this._applyDirectProperties(node, current, total);
+    this._applyDirectProperties(current, total);
 };
 
 const filterIsPersistent = function(v) {return v.isPersistent;};
@@ -729,15 +736,15 @@ Animator.prototype._applyEndValues = function() {
     var baseTransforms = this._baseStyleTransform.trim();
 
     if (baseFilters.length > 0 && persistentFilters.length > 0) {
-        setFilter(this._domNode, merge(baseFilters, persistentFilters).trim());
+        this.$().setFilter(merge(baseFilters, persistentFilters).trim());
     } else {
-        setFilter(this._domNode, (baseFilters + " " + persistentFilters).trim());
+        this.$().setFilter((baseFilters + " " + persistentFilters).trim());
     }
 
     if (baseTransforms.length > 0 && persistentTransforms.length > 0) {
-        setTransform(this._domNode, merge(baseTransforms, persistentTransforms).trim());
+        this.$().setTransform(merge(baseTransforms, persistentTransforms).trim());
     } else {
-        setTransform(this._domNode, (baseTransforms + " " + persistentTransforms).trim());
+        this.$().setTransform((baseTransforms + " " + persistentTransforms).trim());
     }
 };
 
@@ -774,21 +781,22 @@ Animator.prototype._gotAnimationFrame = function() {
         this._scheduleFrame();
     } else {
         this._applyEndValues();
-        this.emit("animationEnd");
+        this.emit("animationEnd", this, false);
     }
 };
 
 Animator.prototype._scheduleFrame = function() {
     if (this._frameId === -1) {
-        this._frameId = requestAnimationFrame(this._gotAnimationFrame);
+        this._frameId = this._page.requestAnimationFrame(this._gotAnimationFrame);
     }
 };
 
 Animator.prototype.animationEnd = function() {
     var self = this;
-    return new Promise(function(resolve, _, onCancel) {
-        self.on("animationEnd", resolve);
-        onCancel(self.stop);
+    return new Promise(function(resolve) {
+        self.on("animationEnd", function(animator, wasCancelled) {
+            resolve(wasCancelled);
+        });
     });
 };
 

@@ -1,6 +1,7 @@
 "use strict";
 
-import Promise from "bluebird";
+import { Uint16Array, Uint8Array } from "platform/platform";
+import Promise from "platform/PromiseExtensions";
 
 const MINIMUM_DURATION = 3;
 const MP3_DECODER_DELAY = 529;
@@ -356,7 +357,6 @@ export default function(codecName, fileView, noSeekTable, maxSize) {
             return demuxMp3(fileView, noSeekTable, maxSize);
         }
     } catch (e) {
-        console.log(e.stack);
         return null;
     }
     return null;

@@ -10,8 +10,10 @@
 // in the catastrophic case where ui is blocked, the output will be silence
 // instead of ear destroying noise.
 
-import Promise from "bluebird";
-import { inherits, throttle, onCapture  } from "util";
+import { inherits, throttle  } from "util";
+import { AudioContext, webkitAudioContext,
+         Worker, ArrayBuffer, Float32Array,
+         performance, Blob, File, console } from "platform/platform";
 import EventEmitter from "events";
 import ChannelMixer from "audio/ChannelMixer";
 import patchAudioContext from "platform/audiocontextpatch";
@@ -21,9 +23,9 @@ const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
 const makeAudioContext = function() {
-    var AudioContext = window.AudioContext || window.webkitAudioContext;
-    var ret = new AudioContext();
-    patchAudioContext(AudioContext, ret);
+    var Constructor = AudioContext || webkitAudioContext;
+    var ret = new Constructor();
+    patchAudioContext(ret);
     return ret;
 };
 
@@ -89,6 +91,7 @@ export default function AudioPlayer(opts) {
     var suspensionTimeout = +opts.suspensionTimeout || 20;
     instances = true;
 
+    this.page = opts.page;
     this.env = opts.env;
     this.db = opts.db;
     this.dbValues = opts.dbValues;
@@ -124,7 +127,7 @@ export default function AudioPlayer(opts) {
     this._suspend = this._suspend.bind(this);
 
     this._worker.addEventListener("message", this._messaged, false);
-    this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
+    this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
     this._hardwareLatency = 0;
 
     this.ready = new Promise(function(resolve) {
@@ -132,16 +135,17 @@ export default function AudioPlayer(opts) {
             this._worker.removeEventListener("message", ready, false);
             this.setEffects(this.effectPreferences.getAudioPlayerEffects());
             resolve();
+            this.ready = null;
         }.bind(this);
         this._worker.addEventListener("message", ready, false);
     }.bind(this));
 
     this.effectPreferences.on("change", function() {
-        if (!this.ready.isResolved()) return;
+        if (this.ready) return;
         this.setEffects(this.effectPreferences.getAudioPlayerEffects());
     }.bind(this));
 
-    onCapture(document, "touchend", this._touchended.bind(this));
+    this.page.addDocumentListener("touchend", this._touchended.bind(this), true);
 }
 inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;
@@ -198,10 +202,8 @@ AudioPlayer.prototype._resetAudioContext = function() {
 
 AudioPlayer.prototype._clearSuspensionTimer = function() {
     this._playbackStoppedTime = -1;
-    if (this._suspensionTimeoutId !== -1) {
-        clearTimeout(this._suspensionTimeoutId);
-        this._suspensionTimeoutId = -1;
-    }
+    this.page.clearTimeout(this._suspensionTimeoutId);
+    this._suspensionTimeoutId = -1;
 };
 
 AudioPlayer.prototype._messaged = function(event) {
@@ -252,9 +254,7 @@ AudioPlayer.prototype._allocAudioBuffer = function() {
                                               this._audioContext.sampleRate);
     this._audioBuffersAllocated++;
     if (this._audioBuffersAllocated > MAX_AUDIO_BUFFERS) {
-        if (window.console && console.warn) {
-            console.warn("Possible memory leak: over " + MAX_AUDIO_BUFFERS + " audio buffers allocated");
-        }
+        console.warn("Possible memory leak: over " + MAX_AUDIO_BUFFERS + " audio buffers allocated");
     }
     return ret;
 };
@@ -270,9 +270,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
     if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
     this._arrayBuffersAllocated++;
     if (this._arrayBuffersAllocated > MAX_ARRAY_BUFFERS) {
-        if (window.console && console.warn) {
-            console.warn("Possible memory leak: over " + MAX_ARRAY_BUFFERS + " array buffers allocated");
-        }
+        console.warn("Possible memory leak: over " + MAX_ARRAY_BUFFERS + " array buffers allocated");
     }
     var buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
     return new Float32Array(buffer, 0, size);
@@ -336,7 +334,7 @@ AudioPlayer.prototype.resume = function() {
 AudioPlayer.prototype.playbackStopped = function() {
     this._clearSuspensionTimer();
     this._playbackStoppedTime = Date.now();
-    this._suspensionTimeoutId = setTimeout(this._suspend, this._suspensionTimeoutMs);
+    this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
 };
 
 AudioPlayer.prototype.playbackStarted = function() {
@@ -425,7 +423,7 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
     this._sourceEnded = this._sourceEnded.bind(this);
     this._ended = this._ended.bind(this);
 
-    this._timeUpdater = setInterval(this._timeUpdate, 32);
+    this._timeUpdater = this.page().setInterval(this._timeUpdate, 32);
 
     this._worker.addEventListener("message", this._messaged, false);
     this._player._message(-1, "register", {
@@ -437,10 +435,14 @@ function AudioPlayerSourceNode(player, id, audioContext, worker) {
 }
 inherits(AudioPlayerSourceNode, EventEmitter);
 
+AudioPlayerSourceNode.prototype.page = function() {
+    return this._player.page;
+};
+
 AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
     this.removeAllListeners();
-    clearInterval(this._timeUpdater);
+    this.page().clearInterval(this._timeUpdater);
     this._player._message(this._id, "destroy");
     this.unload();
     this._worker.removeEventListener("message", this._messaged, false);

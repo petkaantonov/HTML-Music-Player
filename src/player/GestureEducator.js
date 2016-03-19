@@ -1,6 +1,5 @@
 "use strict";
 
-import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
 
 const GESTURE_EDUCATION_KEY = "gesture-education";
@@ -11,7 +10,8 @@ const gestureEducationMessages = {
     "previous": "Swip left with two fingers to play the previous track"
 };
 
-export default function GestureEducator(snackbar, db, dbValues) {
+export default function GestureEducator(page, snackbar, db, dbValues) {
+    this.page = page;
     this.snackbar = snackbar;
     this.db = db;
     this.dbValues = dbValues;

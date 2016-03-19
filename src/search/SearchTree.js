@@ -206,14 +206,6 @@ Node.prototype.putValues = function(sortedArray, comparer) {
     mergeSorted(comparer, sortedArray, this.values);
 };
 
-const spaces = function(level) {
-    var ret = "";
-    for (var i = 0; i < level; ++i) {
-        ret += "  ";
-    }
-    return ret;
-};
-
 const mkNode = function(word, value, comparer) {
     var ret = new Node(word);
     ret.add(value, comparer);
@@ -227,18 +219,6 @@ export default function SearchTree(valueComparer) {
     this._valueComparer = valueComparer;
     this.lcp = 0;
 }
-
-SearchTree.prototype._print = function(node, level) {
-    if (node === null || node === NULL) return;
-
-    console.log(spaces(level), node.word, node.color === BLACK ? "BLACK" : "RED");
-    this._print(node.left, level + 1);
-    this._print(node.right, level + 1);
-};
-
-SearchTree.prototype.print = function() {
-    this._print(this._root, 0);
-};
 
 SearchTree.prototype.insert = function(word, value) {
     this._insertNode(word, value);

@@ -1,6 +1,9 @@
 "use strict";
 
-import Promise from "bluebird";
+import { Uint8Array, Uint16Array, Uint32Array,
+         Int32Array, Float32Array, Float64Array,
+         FileReader, FileReaderSync,
+         clearTimeout, setTimeout } from "platform/platform";
 import { TextDecoder } from "text_codec";
 
 var FunctionBind = Function.prototype.bind;
@@ -69,12 +72,9 @@ export const queryString = function(obj) {
 
 export const combineClasses = function(a, b) {
     if (!a) return b;
-    return a + " " + b;
+    if (Array.isArray(a)) return a.concat(b);
+    return [a].concat(b);
 };
-
-export const modifierKey = /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? 'meta' : 'ctrl';
-
-export const modifierKeyProp = modifierKey + "Key";
 
 export const arrayEquals = function(arrayA, arrayB) {
     if (arrayA === arrayB) return true;
@@ -94,48 +94,6 @@ export const toFunction = function(value) {
     };
 };
 
-const rInput = /textarea|input|select/i;
-const rTextInput = /^(?:text|search|tel|url|email|password|number)$/i;
-export const isTextInputNode = function(node) {
-    if (rInput.test(node.nodeName)) {
-        if (node.nodeName.toLowerCase() !== "input") {
-            return true;
-        }
-
-        if (rTextInput.test(node.type)) {
-            return true;
-        }
-
-        return false;
-    } else if (node.isContentEditable) {
-        return true;
-    }
-    return false;
-};
-
-export const onCapture = function onCapture(dom, eventName, handler) {
-    eventName.split(" ").forEach(function(eventName) {
-        dom.addEventListener(eventName, handler, true);
-    });
-};
-
-export const offCapture = function offCapture(dom, eventName, handler) {
-    eventName.split(" ").forEach(function(eventName) {
-        dom.removeEventListener(eventName, handler, true);
-    });
-};
-
-export const onBubble = function onCapture(dom, eventName, handler) {
-    eventName.split(" ").forEach(function(eventName) {
-        dom.addEventListener(eventName, handler, false);
-    });
-};
-
-export const offBubble = function offCapture(dom, eventName, handler) {
-    eventName.split(" ").forEach(function(eventName) {
-        dom.removeEventListener(eventName, handler, false);
-    });
-};
 
 const bits = (function() {
     const masks = new Int32Array([0x0,
@@ -260,19 +218,6 @@ export const callableEveryMs = function(callback, delay) {
         }
     };
 };
-
-if (typeof String.prototype.htmlEncode !== "function") {
-    String.prototype.htmlEncode = (function() {
-        var UNESC_DQ = new RegExp('"', "g");
-        return function() {
-            var div = document.createElement("DIV"),
-                ret, str = this.toString();
-            div.innerText = div.textContent = str;
-            ret = div.innerHTML;
-            return ret.replace(UNESC_DQ, "&quot;");
-        };
-    })();
-}
 
 if (typeof Array.prototype.first !== "function") {
     Array.prototype.first = function() {
@@ -1168,3 +1113,5 @@ export function int16LE(bytes, offset) {
     return ((bytes.charCodeAt(offset + 1) & 0xFF) << 8) |
            (bytes.charCodeAt(offset + 0) & 0xFF);
 }
+
+export function noop() {}

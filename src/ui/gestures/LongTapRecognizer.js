@@ -77,10 +77,9 @@ LongTapRecognizer.prototype._recognizerHandler = function(e) {
 };
 
 LongTapRecognizer.prototype.clear = function() {
-    if (this.timeoutId !== -1) {
-        clearTimeout(this.timeoutId);
-        this.timeoutId = -1;
-    }
+    this.recognizerContext.page.clearTimeout(this.timeoutId);
+    this.timeoutId = -1;
+
     if (this.currentTouch !== null) {
         if (!this.noTrigger) {
             this.fireLongPressEnd(this.currentTouch);

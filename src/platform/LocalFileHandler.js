@@ -1,40 +1,69 @@
 "use strict";
 
+import { File, Uint8Array } from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
-import $ from "jquery";
 import Track from "tracks/Track";
-import Promise from "bluebird";
 
+const MAX_FILE_COUNT = 75000;
+
+var instance = false;
 export default function LocalFileHandler(opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     opts = Object(opts);
+    this.page = opts.page;
     this.env = opts.env;
     this.opts = opts;
     this.fileInputContext = opts.fileInputContext;
     this.localFiles = new LocalFiles(this.env);
     this.playlist = opts.playlist;
+
+    this.gotFiles = this.gotFiles.bind(this);
+    this.gotEntries = this.gotEntries.bind(this);
     this.addFilesToPlaylist = this.addFilesToPlaylist.bind(this);
+    this.gotFilesAndDirectories = this.gotFilesAndDirectories.bind(this);
+
     this.directoryFileInput = null;
     if (this.env.supportsDirectories()) {
-        this.directoryFileInput = this.fileInputContext.createFileInput($(opts.directoryButton), {
+        this.directoryFileInput = this.fileInputContext.createFileInput(this.page.$(opts.directoryButton), {
             onchange: this.directoryInputChanged.bind(this),
             webkitdirectory: true,
             directory: true
         });
     } else {
-        $(opts.directoryButton).remove();
+        this.page.$(opts.directoryButton).remove();
     }
 
-    this.filesFileInput = this.fileInputContext.createFileInput($(opts.fileButton), {
+    this.filesFileInput = this.fileInputContext.createFileInput(this.page.$(opts.fileButton), {
         onchange: this.fileInputChanged.bind(this),
         multiple: true,
         accept: this.env.supportedMimes().join(",")
     });
 
-    $(document).on("dragenter", this._dragEntered.bind(this));
-    $(document).on("dragleave", this._dragLeft.bind(this));
-    $(document).on("dragover", this._dragOvered.bind(this));
-    $(document).on("drop", this._dropped.bind(this));
+    this.page.addDocumentListener("dragenter", this._dragEntered.bind(this));
+    this.page.addDocumentListener("dragleave", this._dragLeft.bind(this));
+    this.page.addDocumentListener("dragover", this._dragOvered.bind(this));
+    this.page.addDocumentListener("drop", this._dropped.bind(this));
 }
+
+LocalFileHandler.prototype.receiveFiles = function(fileEmitter) {
+    fileEmitter.on("files", this.addFilesToPlaylist);
+    fileEmitter.on("end", function() {
+        fileEmitter.removeAllListeners();
+    });
+};
+
+LocalFileHandler.prototype.gotFiles = function(files) {
+    this.addFilesToPlaylist(this.filterFiles(files));
+};
+
+LocalFileHandler.prototype.gotEntries = function(entries) {
+    this.receiveFiles(this.localFiles.fileEmitterFromEntries(entries, MAX_FILE_COUNT));
+};
+
+LocalFileHandler.prototype.gotFilesAndDirectories = function(filesAndDirs) {
+    this.receiveFiles(this.localFiles.fileEmitterFromFilesAndDirs(filesAndDirs, MAX_FILE_COUNT));
+};
 
 LocalFileHandler.prototype._dragEntered = function(e) {
     e.preventDefault();
@@ -51,22 +80,16 @@ LocalFileHandler.prototype._dragOvered = function(e) {
     return false;
 };
 
-LocalFileHandler.prototype._dropped = function(ev) {
-    ev.preventDefault();
-    ev.stopPropagation();
-    var dt = ev.originalEvent.dataTransfer;
+LocalFileHandler.prototype._dropped = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var dt = e.dataTransfer;
     if (!dt) return;
     if (!dt.items && !dt.files) return;
 
     var files;
-    if (dt.getFilesAndDirectories) {
-        Promise.resolve(dt.getFilesAndDirectories()).bind(this).then(function(filesAndDirs) {
-            var fileEmitter = this.localFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
-            fileEmitter.on("files", this.addFilesToPlaylist);
-            fileEmitter.on("end", function() {
-                fileEmitter.removeAllListeners();
-            });
-        });
+    if (typeof dt.getFilesAndDirectories === "function") {
+        dt.getFilesAndDirectories().then(this.gotFilesAndDirectories);
     } else if (dt.items && dt.items.length > 0) {
         var item = dt.items[0];
         var entry = item.getAsEntry || item.webkitGetAsEntry;
@@ -76,11 +99,7 @@ LocalFileHandler.prototype._dropped = function(ev) {
             var entries = [].map.call(dt.items, function(v) {
                 return entry.call(v);
             });
-            var fileEmitter = this.localFiles.fileEmitterFromEntries(entries, 10000);
-            fileEmitter.on("files", this.addFilesToPlaylist);
-            fileEmitter.on("end", function() {
-                fileEmitter.removeAllListeners();
-            });
+            this.gotEntries(entries);
         }
     } else if (dt.files && dt.files.length > 0) {
         files = Promise.resolve(dt.files);
@@ -89,10 +108,7 @@ LocalFileHandler.prototype._dropped = function(ev) {
     if (!files) {
         return;
     }
-
-    files.bind(this).then(function(files) {
-        this.addFilesToPlaylist(this.filterFiles(files));
-    });
+    files.then(this.gotFiles);
 };
 
 LocalFileHandler.prototype.generateFakeFiles = function(count) {
@@ -135,29 +151,22 @@ LocalFileHandler.prototype.generateFakeFiles = function(count) {
         files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
     }
     var self = this;
-    setTimeout(function() {
+    this.page.setTimeout(function() {
         self.addFilesToPlaylist(files);
     }, 100);
 };
 
 LocalFileHandler.prototype.fileInputChanged = function(e) {
-    var input = e.target;
-    this.addFilesToPlaylist(this.filterFiles(input.files));
+    this.gotFiles(e.target.files);
     this.filesFileInput.resetFiles();
 };
 
 LocalFileHandler.prototype.directoryInputChanged = function(e) {
     var input = e.target;
-    if ('getFilesAndDirectories' in input) {
-        Promise.resolve(input.getFilesAndDirectories()).bind(this).then(function(filesAndDirs) {
-            var fileEmitter = this.localFiles.fileEmitterFromFilesAndDirs(filesAndDirs, 10000);
-            fileEmitter.on("files", this.addFilesToPlaylist);
-            fileEmitter.on("end", function() {
-                fileEmitter.removeAllListeners();
-            });
-        });
+    if (typeof input.getFilesAndDirectories === "function") {
+        input.getFilesAndDirectories().then(this.gotFilesAndDirectories);
     } else {
-        this.addFilesToPlaylist(this.filterFiles(input.files));
+        this.gotFiles(input.files);
     }
     this.directoryFileInput.resetFiles();
 };

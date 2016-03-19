@@ -20,3 +20,4 @@ sw.js.map
 dist/css/*
 worker/AudioPlayerWorker.js
 worker/TrackAnalyzerWorker.js
+*.pem

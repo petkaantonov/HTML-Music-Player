@@ -1,6 +1,8 @@
+/* globals self: false */
 "use strict";
+
 import simulateTick from "platform/patchtimers";
-import Promise from "bluebird";
+import Promise from "platform/PromiseExtensions";
 import blobPatch from "platform/blobpatch";
 import { assign } from "util";
 import TagDatabase from "tracks/TagDatabase";
@@ -24,14 +26,6 @@ const getDowntime = function(cpuUsedTime) {
     return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;
 };
 
-
-Promise.setScheduler(function(fn) { fn(); });
-Promise.config({
-    cancellation: false,
-    warnings: false,
-    longStackTraces: false
-});
-
 blobPatch();
 
 
@@ -50,7 +44,7 @@ var currentJobId = -1;
 
 const promiseMessageSuccessErrorHandler = function(args, p, jobType) {
     return p.then(function(result) {
-        postMessage({
+        self.postMessage({
             id: args.id,
             result: result,
             jobType: jobType,
@@ -58,8 +52,8 @@ const promiseMessageSuccessErrorHandler = function(args, p, jobType) {
         });
         return result;
     }).catch(function(e) {
-        console.log(e.stack);
-        postMessage({
+        self.console.log(e.stack);
+        self.postMessage({
             id: args.id,
             type: "error",
             jobType: jobType,
@@ -105,10 +99,11 @@ const apiActions = {
     tick: simulateTick,
 
     search: function(args) {
+        var results = MetadataParser.searchIndex.search(args.normalizedQuery);
         self.postMessage({
             searchSessionId: args.sessionId,
             type: "searchResults",
-            results: MetadataParser.searchIndex.search(args.normalizedQuery)
+            results: results
         });
     },
 

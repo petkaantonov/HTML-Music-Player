@@ -1,15 +1,14 @@
 "use strict";
 
-import $ from "jquery";
 import Animator from "ui/Animator";
 import { addLegacyListener, inherits } from "util";
-import { canvasToImage } from "platform/DomUtil";
+import { canvasToImage } from "platform/dom/util";
+import { Int16Array, Float32Array } from "platform/platform";
 import Default2dImageRenderer from "visualization/Default2dImageRenderer";
 import WebGl2dImageRenderer from "visualization/WebGl2dImageRenderer";
 import EventEmitter from "events";
 
-const pixelRatio = window.devicePixelRatio || 1;
-const SHADOW_BLUR = 2 * pixelRatio | 0;
+const SHADOW_BLUR = 2;
 const SHADOW_COLOR = "rgb(11,32,53)";
 
 const LATENCY_POPUP_HTML = "<div class='settings-container latency-popup-content-container'>            \
@@ -75,12 +74,14 @@ TransitionInfo.prototype.start = function(peakSample, now) {
 };
 
 function GraphicsSource(visualizerCanvas) {
+    var page = visualizerCanvas.page;
+    var document = page.document();
     var gapWidth = visualizerCanvas.gapWidth;
     var highestBinHeight = visualizerCanvas.getHighestBinHeight();
     var binsNeeded = (highestBinHeight + 1);
     var binWidthPixels = visualizerCanvas.binWidthSourcePixels();
     var binHeightPixels = visualizerCanvas.binHeightSourcePixels();
-    var capWidthPixels = (16 * pixelRatio + 2 + binWidthPixels) | 0;
+    var capWidthPixels = (16 * page.devicePixelRatio() + 2 + binWidthPixels) | 0;
     var totalWidth = binsNeeded * binWidthPixels + capWidthPixels;
     var width = Math.min(Math.pow(2, Math.ceil(Math.log(totalWidth) * Math.LOG2E)), 1024);
     var rows = 1;
@@ -115,7 +116,7 @@ function GraphicsSource(visualizerCanvas) {
     for (var i = 0; i <= highestBinHeight; i++) {
         var height = i;
         var x = col * binWidthPixels;
-        var y = (row * binHeightPixels + SHADOW_BLUR) + (highestBinHeight - height);
+        var y = (row * binHeightPixels + ((SHADOW_BLUR * page.devicePixelRatio())|0)) + (highestBinHeight - height);
         var gradient = context.createLinearGradient(0, y, 0, y + height);
         gradient.addColorStop(0.0, 'rgb(250, 250, 250)');
         gradient.addColorStop(0.7, "rgb(189, 196, 204)");
@@ -150,21 +151,21 @@ function GraphicsSource(visualizerCanvas) {
         row++;
     }
 
-    context.shadowBlur = SHADOW_BLUR;
+    context.shadowBlur = (SHADOW_BLUR * page.devicePixelRatio())|0;
     context.shadowColor = SHADOW_COLOR;
     context.globalAlpha = 1;
     context.fillStyle = visualizerCanvas.capStyle;
     var x = col * binWidthPixels + visualizerCanvas.binWidth + 5;
-    var y = (row * binHeightPixels + SHADOW_BLUR) + (16 * pixelRatio)|0;
+    var y = (row * binHeightPixels + ((SHADOW_BLUR * page.devicePixelRatio())|0)) + (16 * page.devicePixelRatio())|0;
     context.fillRect(x, y, visualizerCanvas.binWidth, visualizerCanvas.capHeight);
 
     this.capX = x;
     this.capY = y;
     this.image = null;
-    this.ready = canvasToImage(canvas).bind(this).then(function(image) {
+    this.ready = canvasToImage(canvas, page).then(function(image) {
         this.image = image;
         canvas.width = canvas.height = 0;
-    }).bind();
+    }.bind(this));
 }
 
 GraphicsSource.prototype.isReady = function() {
@@ -173,10 +174,11 @@ GraphicsSource.prototype.isReady = function() {
 
 export default function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.player = player;
     player.setVisualizerCanvas(this);
-    this.webglSupported = WebGl2dImageRenderer.isSupported();
+    this.webglSupported = WebGl2dImageRenderer.isSupported(this.page.document());
     this.snackbar = opts.snackbar;
     this.db = opts.db;
     this.recognizerContext = opts.recognizerContext;
@@ -184,13 +186,13 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.menuContext = opts.menuContext;
     this.rippler = opts.rippler;
     this.needToDraw = true;
-    this.canvas = $(targetCanvas)[0];
+    this.canvas = this.page.$(targetCanvas).get(0);
     this.width = -1;
     this.height = -1;
-    this.binWidth = opts.binWidth * pixelRatio | 0;
-    this.gapWidth = opts.gapWidth * pixelRatio | 0;
-    this.capHeight = opts.capHeight * pixelRatio | 0;
-    this.capSeparator = opts.capSeparator * pixelRatio | 0;
+    this.binWidth = opts.binWidth * this.page.devicePixelRatio() | 0;
+    this.gapWidth = opts.gapWidth * this.page.devicePixelRatio() | 0;
+    this.capHeight = opts.capHeight * this.page.devicePixelRatio() | 0;
+    this.capSeparator = opts.capSeparator * this.page.devicePixelRatio() | 0;
     this.capStyle = opts.capStyle;
     this.targetFps = opts.targetFps;
     this.sectionContainerSelector = opts.sectionContainerSelector || ".visualizer-section-container";
@@ -202,7 +204,6 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.emptyBins = null;
     this.transitionInfoArray = null;
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
-    this.binSizeChangeMatcher = opts.binSizeChangeMatcher || null;
     this.emptyBinDrawerFrameId = -1;
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
@@ -222,9 +223,8 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
 inherits(VisualizerCanvas, EventEmitter);
 
 VisualizerCanvas.prototype.initialize = function() {
-    var $targetCanvas = $(this.canvas);
-    var width = $targetCanvas.width() * pixelRatio | 0;
-    var height = $targetCanvas.height() * pixelRatio | 0;
+    var width = this.canvas.clientWidth * this.page.devicePixelRatio() | 0;
+    var height = this.canvas.clientHeight * this.page.devicePixelRatio() | 0;
     this.width = width;
     this.height = height;
     this.currentCapPositions = new Float32Array(this.getNumBins());
@@ -242,17 +242,15 @@ VisualizerCanvas.prototype.initialize = function() {
         this.enabledMediaMatchChanged();
     }
 
-    if (this.binSizeChangeMatcher) {
-        addLegacyListener(this.binSizeChangeMatcher, "change", this.binSizeMediaMatchChanged);
-        this.globalEvents.on("resize", this.binSizeMediaMatchChanged);
-    }
 
+
+    this.globalEvents.on("resize", this.binSizeMediaMatchChanged);
     this.latencyPopup.on("open", this.latencyPopupOpened);
     this.player.on("stop", this.playerStopped);
     this.player.on("play", this.playerStarted);
 
     this.source = new GraphicsSource(this);
-    this.source.ready.bind(this).then(function onSourceReady() {
+    this.source.ready.then(function onSourceReady() {
         if (this.canUseHardwareRendering()) {
             this.renderer = new WebGl2dImageRenderer(this.source.image, this);
         } else {
@@ -279,7 +277,7 @@ VisualizerCanvas.prototype.initialize = function() {
         }
         this.drawIdleBins(Date.now());
         this.refreshContextMenu();
-    });
+    }.bind(this));
     this.setupCanvasContextMenu();
 };
 
@@ -336,15 +334,15 @@ VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitializat
         var sliderValue = this.latencyPopup.$().find(".latency-value");
         var slider = this.sliderContext.createSlider(this.latencyPopup.$().find(".latency-slider"));
         slider.setValue((latency + minLatency) / (maxLatency - minLatency));
-        sliderValue.text(latency + "ms");
+        sliderValue.setText(latency + "ms");
         popup.on("open", function() {
             slider.setValue((latency + minLatency) / (maxLatency - minLatency));
-            sliderValue.text(latency + "ms");
+            sliderValue.setText(latency + "ms");
         });
 
         slider.on("slide", function(p) {
             var latency = Math.round(p * (maxLatency - minLatency) + minLatency);
-            sliderValue.text(latency + "ms");
+            sliderValue.setText(latency + "ms");
             self.player.setAudioHardwareLatency(latency / 1000);
         });
     }
@@ -359,7 +357,7 @@ VisualizerCanvas.prototype.destroyCanvasContextMenu = function() {
 
 VisualizerCanvas.prototype.resetCanvas = function() {
     this.destroyCanvasContextMenu();
-    var canvas = document.createElement("canvas");
+    var canvas = this.page.createElement("canvas").get(0);
     canvas.className = this.canvas.className;
     canvas.width = this.width;
     canvas.height = this.height;
@@ -404,7 +402,7 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
     if (!this.shown) return;
-    var width = $(this.canvas).width() * pixelRatio | 0;
+    var width = this.canvas.clientWidth * this.page.devicePixelRatio() | 0;
     if (width !== this.width) {
         this.width = width;
         this.canvas.width = width;
@@ -446,7 +444,7 @@ VisualizerCanvas.prototype.binWidthSourcePixels = function() {
 };
 
 VisualizerCanvas.prototype.binHeightSourcePixels = function() {
-    return (this.height + SHADOW_BLUR);
+    return (this.height + (SHADOW_BLUR * this.page.devicePixelRatio())|0);
 };
 
 VisualizerCanvas.prototype.setCapInterpolator = function(name) {
@@ -459,7 +457,7 @@ VisualizerCanvas.prototype.getTargetFps = function() {
 };
 
 VisualizerCanvas.prototype.getMaxBins = function() {
-    return Math.floor((762 * pixelRatio) / (this.binWidth + this.gapWidth));
+    return Math.floor((762 * this.page.devicePixelRatio()) / (this.binWidth + this.gapWidth));
 };
 
 VisualizerCanvas.prototype.getNumBins = function() {
@@ -496,22 +494,20 @@ VisualizerCanvas.prototype.emptyBinDraw = function(now) {
     this.emptyBinDrawerFrameId = -1;
     this.drawIdleBins(now);
     if (this.needToDraw) {
-        this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
+        this.emptyBinDrawerFrameId = this.page.requestAnimationFrame(this.emptyBinDraw);
     } else {
         this.hide();
     }
 };
 
 VisualizerCanvas.prototype.playerStarted = function() {
-    if (this.emptyBinDrawerFrameId !== -1) {
-        cancelAnimationFrame(this.emptyBinDrawerFrameId);
-        this.emptyBinDrawerFrameId = -1;
-    }
+    this.page.cancelAnimationFrame(this.emptyBinDrawerFrameId);
+    this.emptyBinDrawerFrameId = -1;
 };
 
 VisualizerCanvas.prototype.playerStopped = function() {
     this.needToDraw = true;
-    this.emptyBinDrawerFrameId = requestAnimationFrame(this.emptyBinDraw);
+    this.emptyBinDrawerFrameId = this.page.requestAnimationFrame(this.emptyBinDraw);
 };
 
 VisualizerCanvas.prototype.show = function() {
@@ -520,15 +516,15 @@ VisualizerCanvas.prototype.show = function() {
         return this.hide();
     }
     this.shown = true;
-    $(this.canvas).closest(this.sectionContainerSelector).show();
-    $(window).trigger("resize");
+    this.page.$(this.canvas).closest(this.sectionContainerSelector).show();
+    this.binSizeMediaMatchChanged();
 };
 
 VisualizerCanvas.prototype.hide = function() {
     if (!this.shown || (this.enabled && (this.enabledMediaMatcher && this.enabledMediaMatcher.matches))) return;
     this.shown = false;
-    $(this.canvas).closest(this.sectionContainerSelector).hide();
-    $(window).trigger("resize");
+    this.page.$(this.canvas).closest(this.sectionContainerSelector).hide();
+    this.binSizeMediaMatchChanged();
 };
 
 VisualizerCanvas.prototype.drawBins = function(now, bins) {

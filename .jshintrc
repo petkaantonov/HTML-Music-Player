@@ -65,7 +65,7 @@
     "validthis"     : false,     // true: Tolerate using this in a non-constructor function
 
     // Environments
-    "browser"       : true,     // Web Browser (window, document, etc)
+    "browser"       : false,     // Web Browser (window, document, etc)
     "browserify"    : false,    // Browserify (node.js code in the browser)
     "couch"         : false,    // CouchDB
     "devel"         : false,     // Development/debugging (alert, confirm, etc)
@@ -74,7 +74,7 @@
     "jquery"        : false,    // jQuery
     "mocha"         : false,     // Mocha
     "mootools"      : false,    // MooTools
-    "node"          : true,    // Node.js
+    "node"          : false,    // Node.js
     "nonstandard"   : false,    // Widely adopted globals (escape, unescape, etc)
     "phantom"       : false,    // PhantomJS
     "prototypejs"   : false,    // Prototype and Scriptaculous
@@ -82,21 +82,9 @@
     "rhino"         : false,    // Rhino
     "shelljs"       : false,    // ShellJS
     "typed"         : false,    // Globals for typed array constructions
-    "worker"        : true,    // Web Workers
+    "worker"        : false,    // Web Workers
     "wsh"           : false,    // Windows Scripting Host
     "yui"           : false,    // Yahoo User Interface
 
-    // Custom Globals
-    "globals"       : {
-        "devicePixelRatio": false,
-        "FileReaderSync": false,
-        "EventEmitter": false,
-        "codecLoaded": false,
-        "MediaError": false,
-        "cssLoaded": false,
-        "AudioContext": false,
-        "webkitAudioContext": false,
-        "indexedDB": true,
-        "CSS_LOAD_START": true
-    }        // additional predefined global variables
+    "-W097": false
 }

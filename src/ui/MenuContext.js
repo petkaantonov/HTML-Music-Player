@@ -3,7 +3,8 @@
 import { slugTitle } from "util";
 import ActionMenu, { ContextMenu } from "ui/ActionMenu";
 
-export default function MenuContext(recognizerContext, rippler, globalEvents) {
+export default function MenuContext(page, recognizerContext, rippler, globalEvents) {
+    this.page = page;
     this.rippler = rippler;
     this.recognizerContext = recognizerContext;
     this.globalEvents = globalEvents;
@@ -11,6 +12,7 @@ export default function MenuContext(recognizerContext, rippler, globalEvents) {
 
 MenuContext.prototype.createActionMenu = function(dom, opts) {
     opts = Object(opts);
+    opts.page = this.page;
     opts.recognizerContext = this.recognizerContext;
     opts.rippler = this.rippler;
     opts.globalEvents = this.globalEvents;
@@ -19,6 +21,7 @@ MenuContext.prototype.createActionMenu = function(dom, opts) {
 
 MenuContext.prototype.createContextMenu = function(dom, opts) {
     opts = Object(opts);
+    opts.page = this.page;
     opts.recognizerContext = this.recognizerContext;
     opts.rippler = this.rippler;
     opts.globalEvents = this.globalEvents;

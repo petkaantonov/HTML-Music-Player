@@ -1,10 +1,10 @@
 "use strict";
 
 import AbstractPreferences from "preferences/AbstractPreferences";
-import $ from "jquery";
 import EventEmitter from "events";
 import { inherits } from "util";
 import preferenceCreator from "preferences/PreferenceCreator";
+import { Float32Array } from "platform/platform";
 
 const PROGRESS_INCREASE = 1;
 const PROGRESS_DECREASE = 2;
@@ -262,29 +262,29 @@ function FadeConfigurator(manager, domNode, config) {
     this.curveChanged = this.curveChanged.bind(this);
     this.enabledChanged = this.enabledChanged.bind(this);
 
-    this.$().html(FADE_CONFIGURATOR_HTML);
-    this.$().find(".fade-curve-container").html(CURVE_SELECTOR_HTML);
+    this.$().setHtml(FADE_CONFIGURATOR_HTML);
+    this.$().find(".fade-curve-container").setHtml(CURVE_SELECTOR_HTML);
     var enabledId = (config.enablerText + "").replace(/[^a-zA-Z0-9]+/g, "");
-    this.$().find(".fade-enable-checkbox").prop("id", enabledId);
-    this.$().find(".fade-enable-text").text(config.enablerText).prop("htmlFor", enabledId);
+    this.$().find(".fade-enable-checkbox").setProperty("id", enabledId);
+    this.$().find(".fade-enable-text").setText(config.enablerText).setProperty("htmlFor", enabledId);
 
-    this.slider = manager.crossfadingPreferences.sliderContext().createSlider($(".fade-time-slider", this.$()));
+    this.slider = manager.crossfadingPreferences.sliderContext().createSlider(this.$().find(".fade-time-slider"));
     this.slider.on("slide", this.slided);
-    this.$().find(".fade-enable-checkbox").on("change", this.enabledChanged);
-    this.$().find(".fade-curve-select").on("change", this.curveChanged);
+    this.$().find(".fade-enable-checkbox").addEventListener("change", this.enabledChanged);
+    this.$().find(".fade-curve-select").addEventListener("change", this.curveChanged);
     this.update();
 }
 
 FadeConfigurator.prototype.destroy = function() {
     this.slider.removeAllListeners();
     this.slider = null;
-    this.$().find(".fade-enable-checkbox").off("change", this.enabledChanged);
-    this.$().find(".fade-curve-select").off("change", this.curveChanged);
+    this.$().find(".fade-enable-checkbox").removeEventListener("change", this.enabledChanged);
+    this.$().find(".fade-curve-select").removeEventListener("change", this.curveChanged);
     this._domNode = null;
 };
 
 FadeConfigurator.prototype.curveChanged = function(e) {
-    this.setCurve($(e.target).val());
+    this.setCurve(this.manager.crossfadingPreferences.page().$(e.target).value());
 };
 
 FadeConfigurator.prototype.enabledChanged = function(e) {
@@ -298,9 +298,9 @@ FadeConfigurator.prototype.slided = function(p) {
 FadeConfigurator.prototype.update = function() {
     var time = this.getTime();
     var timePercentage = (time - MIN_TIME) / (MAX_TIME - MIN_TIME);
-    this.$().find(".fade-time-value").text(time.toPrecision(2) + "s");
-    this.$().find(".fade-curve-select").val(this.getCurve());
-    this.$().find(".fade-enable-checkbox").prop("checked", this.getEnabled());
+    this.$().find(".fade-time-value").setText(time.toPrecision(2) + "s");
+    this.$().find(".fade-curve-select").setValue(this.getCurve());
+    this.$().find(".fade-enable-checkbox").setProperty("checked", this.getEnabled());
 
 
     if (!this.getEnabled()) {
@@ -353,7 +353,7 @@ FadeConfigurator.prototype.$ = function() {
 
 function CrossFadeManager(domNode, crossfadingPreferences) {
     EventEmitter.call(this);
-    this._domNode = $(domNode);
+    this._domNode = crossfadingPreferences.page().$(domNode).eq(0);
     this.crossfadingPreferences = crossfadingPreferences;
     this.preferences = crossfadingPreferences.preferences();
     this.defaultPreferences = presets["Default (Disabled)"].snapshot();
@@ -367,10 +367,10 @@ function CrossFadeManager(domNode, crossfadingPreferences) {
         preferenceKey: "Out"
     });
 
-    this.shouldAlbumCrossFadeChanged = $.proxy(this.shouldAlbumCrossFadeChanged, this);
+    this.shouldAlbumCrossFadeChanged = this.shouldAlbumCrossFadeChanged.bind(this);
     this.presetChanged = this.presetChanged.bind(this);
-    this.$().find(".fade-preset-select").on("change", this.presetChanged);
-    this.$().find(".album-preference-checkbox").on("change", this.shouldAlbumCrossFadeChanged);
+    this.$().find(".fade-preset-select").addEventListener("change", this.presetChanged);
+    this.$().find(".album-preference-checkbox").addEventListener("change", this.shouldAlbumCrossFadeChanged);
     this.update();
 }
 inherits(CrossFadeManager, EventEmitter);
@@ -379,20 +379,20 @@ CrossFadeManager.prototype.destroy = function() {
     this.inFadeConfigurator.destroy();
     this.outFadeConfigurator.destroy();
     this.removeAllListeners();
-    this.$().find(".fade-preset-select").off("change", this.presetChanged);
-    this.$().find(".album-preference-checkbox").off("change", this.shouldAlbumCrossFadeChanged);
+    this.$().find(".fade-preset-select").removeEventListener("change", this.presetChanged);
+    this.$().find(".album-preference-checkbox").removeEventListener("change", this.shouldAlbumCrossFadeChanged);
     this._domNode = null;
 };
 
 CrossFadeManager.prototype.shouldAlbumCrossFadeChanged = function(e) {
-    var val = $(e.target).prop("checked");
+    var val = e.target.checked;
     this.preferences.setShouldAlbumCrossFade(!val);
     this.update();
     this.emit("update");
 };
 
 CrossFadeManager.prototype.presetChanged = function(e) {
-    var val = $(e.target).val();
+    var val = this.crossfadingPreferences.page().$(e.target).value();
 
     if (presets[val]) {
         this.applyPreferencesFrom(presets[val]);
@@ -413,8 +413,8 @@ CrossFadeManager.prototype.configuratorUpdated = function() {
 
 CrossFadeManager.prototype.update = function() {
     var presetName = this.preferences.getMatchingPresetName();
-    this.$().find(".fade-preset-select").val(presetName);
-    this.$().find(".album-preference-checkbox").prop("checked", !this.preferences.shouldAlbumCrossFade);
+    this.$().find(".fade-preset-select").setValue(presetName);
+    this.$().find(".album-preference-checkbox").setProperty("checked", !this.preferences.shouldAlbumCrossFade);
 
     this.crossfadingPreferences.setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
     this.crossfadingPreferences.setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));

@@ -1,11 +1,7 @@
 "use strict";
-import $ from "jquery";
-import Promise from "bluebird";
-import EventEmitter from "events";
-import { combineClasses, inherits, offCapture, onCapture, toFunction } from "util";
-import { reflow, isTouchEvent, preventDefault, setTransform } from "platform/DomUtil";
 
-const NULL = $(null);
+import EventEmitter from "events";
+import { inherits, toFunction, combineClasses, noop } from "util";
 
 function PopupButton(popup, opts) {
     opts = Object(opts);
@@ -14,14 +10,21 @@ function PopupButton(popup, opts) {
     this._action = opts.action;
     this._text = opts.text;
     this._enabled = true;
-    this._domNode = $("<div>", {class: popup.popupButtonClass}).prop("tabIndex", 0).text(this._text);
+    this._domNode = this.page().createElement("div").addClass(popup.popupButtonClass)
+                            .setProperty("tabIndex", 0)
+                            .setText(this._text);
 
     this._clicked = this._clicked.bind(this);
     this._tapRecognizer = this._popup.recognizerContext.createTapRecognizer(this._clicked);
 
-    this.$().on("click", this._clicked).mousedown(preventDefault);
+    this.$().addEventListener("click", this._clicked)
+            .addEventListener("mousedown", this.page().preventDefaultHandler);
     this._tapRecognizer.recognizeBubbledOn(this.$());
 }
+
+PopupButton.prototype.page = function() {
+    return this._popup.page;
+};
 
 PopupButton.prototype.id = function() {
     return this._id;
@@ -34,14 +37,14 @@ PopupButton.prototype.$ = function() {
 PopupButton.prototype.disable = function() {
     if (!this._enabled) return;
     this._enabled = false;
-    this.$().blur().prop("tabIndex", -1);
+    this.$().blur().setProperty("tabIndex", -1);
     this.$().addClass(this._popup.buttonDisabledClass);
 };
 
 PopupButton.prototype.enable = function() {
     if (this._enabled) return;
     this._enabled = true;
-    this.$().prop("tabIndex", 0);
+    this.$().setProperty("tabIndex", 0);
     this.$().removeClass(this._popup.buttonDisabledClass);
 };
 
@@ -52,24 +55,24 @@ PopupButton.prototype._clicked = function(e) {
 };
 
 PopupButton.prototype.destroy = function() {
-    this.removeAllListeners();
     this.$().remove();
 };
 
 export default function Popup(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
     this.scrollerContext = opts.scrollerContext;
     this.rippler = opts.rippler;
     this.transitionClass = opts.transitionClass || "";
-    this.beforeTransitionIn = opts.beforeTransitionIn || $.noop;
-    this.beforeTransitionOut = opts.beforeTransitionOut || $.noop;
+    this.beforeTransitionIn = opts.beforeTransitionIn || noop;
+    this.beforeTransitionOut = opts.beforeTransitionOut || noop;
     this.containerClass = combineClasses(opts.containerClass, "popup-container");
     this.headerClass = combineClasses(opts.headerClass, "popup-header");
     this.footerClass = combineClasses(opts.footerClass, "popup-footer");
-    this.bodyClass = combineClasses(opts.bodyClass, "popup-body scrollbar-scrollarea");
+    this.bodyClass = combineClasses(opts.bodyClass, ["popup-body", "scrollbar-scrollarea"]);
     this.bodyContentClass = combineClasses(opts.bodyContentClass, "popup-body-content");
     this.closerContainerClass = combineClasses(opts.closerContainerClass, "popup-closer-container");
     this.scrollbarContainerClass = combineClasses(opts.scrollbarContainerClass, "scrollbar-container");
@@ -113,7 +116,7 @@ export default function Popup(opts) {
 
     this.globalEvents.on("resize", this._reLayout);
 
-    this._popupDom = NULL;
+    this._popupDom = this.page.NULL();
     this._rect = null;
     this._viewPort = null;
     this._activeElementBeforeOpen = null;
@@ -146,31 +149,31 @@ Popup.prototype.setButtonEnabledState = function(id, state) {
 };
 
 Popup.prototype._deinitDom = function() {
-    this.$().hide().removeClass(this.transitionClass).removeClass("initial");
+    this.$().hide().removeClass([this.transitionClass, "initial"]);
 };
 
 Popup.prototype._initDom = function() {
-    if (this._popupDom !== NULL) {
+    if (this._popupDom !== this.page.NULL()) {
         this.$().show();
         return;
     }
 
-    var ret = $("<div>", {
-        class: this.containerClass,
-    }).css({
-        position: "absolute"
-    }).prop("tabIndex", -1).appendTo("body");
+    var ret = this.page.createElement("div")
+       .addClass(this.containerClass)
+       .setStyle("position", "absolute")
+       .setProperty("tabIndex", -1)
+       .appendTo("body");
 
-    var lastFocusItem = $("<div>", {class: "last-focus-item"}).prop("tabIndex", 0);
-    var headerText = $("<h2>").text(this.title() + "");
-    var header = $("<div>", {class: this.headerClass});
+    var lastFocusItem = this.page.createElement("div").addClass("last-focus-item").setProperty("tabIndex", 0);
+    var headerText = this.page.createElement("h2").setText(this.title() + "");
+    var header = this.page.createElement("div").addClass(this.headerClass);
 
-    var body = $("<div>", {class: this.bodyClass});
-    var bodyContent = $("<div>", {class: this.bodyContentClass}).html(this.body() + "");
-    var closer = $("<div>", {class: this.closerContainerClass}).html(this.closer() + "");
-    var scrollbar = $("<div>", {class: this.scrollbarContainerClass});
-    var scrollbarRail = $("<div>", {class: this.scrollbarRailClass});
-    var scrollbarKnob = $("<div>", {class: this.scrollbarKnobClass});
+    var body = this.page.createElement("div").addClass(this.bodyClass);
+    var bodyContent = this.page.createElement("div").addClass(this.bodyContentClass).setHtml(this.body() + "");
+    var closer = this.page.createElement("div").addClass(this.closerContainerClass).setHtml(this.closer() + "");
+    var scrollbar = this.page.createElement("div").addClass(this.scrollbarContainerClass);
+    var scrollbarRail = this.page.createElement("div").addClass(this.scrollbarRailClass);
+    var scrollbarKnob = this.page.createElement("div").addClass(this.scrollbarKnobClass);
 
     headerText.appendTo(header);
     closer.appendTo(header);
@@ -180,7 +183,7 @@ Popup.prototype._initDom = function() {
     body.appendTo(ret);
 
     if (this._footerButtons.length > 0) {
-        var footer = $("<div>", {class: this.footerClass});
+        var footer = this.page.createElement("div").addClass(this.footerClass);
         for (var i = 0; i < this._footerButtons.length; ++i) {
             this._footerButtons[i].$().appendTo(footer);
         }
@@ -193,8 +196,8 @@ Popup.prototype._initDom = function() {
     scrollbarRail.appendTo(scrollbar);
     scrollbarKnob.appendTo(scrollbar);
 
-    closer.on("click", this.closerClicked);
-    header.on("mousedown", this.headerMouseDowned);
+    closer.addEventListener("click", this.closerClicked);
+    header.addEventListener("mousedown", this.headerMouseDowned);
     this.closerTapRecognizer.recognizeBubbledOn(closer);
     this.headerTouchedRecognizer.recognizeBubbledOn(header);
 
@@ -232,8 +235,8 @@ Popup.prototype.$ = function() {
 
 Popup.prototype._getViewPort = function() {
     return {
-        width: $(window).width(),
-        height: $(window).height()
+        width: this.page.width(),
+        height: this.page.height()
     };
 };
 
@@ -243,7 +246,7 @@ Popup.prototype._bodyScrolled = function(e) {
 
 Popup.prototype._elementFocused = function(e) {
     if (this._shown) {
-        var $target = $(e.target);
+        var $target = this.page.$(e.target);
         if ($target.closest(this.$()).length === 0 || $target.hasClass("last-focus-item")) {
             e.stopPropagation();
             this.$().focus();
@@ -259,7 +262,7 @@ Popup.prototype._elementFocused = function(e) {
 Popup.prototype._reLayout = function() {
     if (!this._shown) return;
     var self = this;
-    requestAnimationFrame(function() {
+    this.page.changeDom(function() {
         self._viewPort = self._getViewPort();
         self.position();
         self._setMinimumNecessaryHeight();
@@ -299,30 +302,30 @@ Popup.prototype.closerClicked = function() {
 
 Popup.prototype._renderCssPosition = function() {
     if (this._dragging) {
-        setTransform(this.$()[0], "translate(" +
+        this.$().setTransform("translate(" +
             (this._x /*- this._rect.width / 2*/) + "px, " +
             (this._y /*- this._rect.height / 2*/) + "px");
     } else {
-        this.$().css({
-            left: this._x,
-            top: this._y
+        this.$().setStyles({
+            left: this._x + "px",
+            top: this._y + "px"
         });
     }
 };
 
 Popup.prototype._setMinimumNecessaryHeight = function() {
-    var headerHeight = this.$().find(".popup-header").outerHeight(true);
-    var footerHeight = this.$().find(".popup-footer").outerHeight(true) || 0;
-    var contentHeight = this.$().find(".popup-body-content").outerHeight() + 2;
-    this.$().css("height", Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight));
+    var headerHeight = this.$().find(".popup-header").outerHeight();
+    var footerHeight = this.$().find(".popup-footer").outerHeight() || 0;
+    var contentHeight = this.$().find(".popup-body-content")[0].offsetHeight + 2;
+    this.$().setStyle("height", Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight) + "px");
 };
 
 Popup.prototype.open = function() {
     if (this._shown) return;
-    this._activeElementBeforeOpen = document.activeElement;
+    this._activeElementBeforeOpen = this.page.activeElement();
     this._shown = true;
 
-    var firstOpen = this._popupDom === NULL;
+    var firstOpen = this._popupDom === this.page.NULL();
     this._initDom();
     this.emit("open", this, firstOpen);
     this._rect = this.$()[0].getBoundingClientRect();
@@ -332,75 +335,69 @@ Popup.prototype.open = function() {
     this._contentScroller.loadScrollTop(this._scrollTop);
 
     if (this.transitionClass) {
-        var $node = this.$();
-        reflow($node);
-        $node.detach();
-        $node.addClass(this.transitionClass + " initial");
-        reflow($node[0]);
-        $node.appendTo("body");
-        reflow($node[0]);
-        $node.removeClass("initial");
-        reflow($node[0]);
+        this.$()
+            .detach()
+            .addClass([this.transitionClass, "initial"])
+            .forceReflow()
+            .appendTo("body")
+            .removeClass("initial")
+            .forceReflow();
     }
     this.beforeTransitionIn(this.$());
     this.$().focus();
-    onCapture(document, "focus", this._elementFocused);
-    onCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
+
+    this.page.addDocumentListener("focus", this._elementFocused, true);
+    this.$().find(".popup-body").addEventListener("scroll", this._bodyScrolled, true);
 };
 
 Popup.prototype.mousemoved = function(e) {
     if (!this._shown) return;
-    if (!isTouchEvent(e) && e.which !== 1) {
+    if (!this.page.isTouchEvent(e) && e.which !== 1) {
         return this.draggingEnd();
     }
     this._x = Math.max(0, e.clientX - this._anchorDistanceX);
     this._y = Math.max(0, e.clientY - this._anchorDistanceY);
     if (this._frameId === -1) {
-        this._frameId = requestAnimationFrame(this.position);
+        this._frameId = this.page.requestAnimationFrame(this.position);
     }
 };
 
 Popup.prototype.headerMouseDowned = function(e) {
-    if (!this._shown || this._dragging || (isTouchEvent(e) && e.isFirst === false)) return;
-    if ($(e.target).closest("." + this.closerContainerClass).length > 0) return;
+    if (!this._shown || this._dragging || (this.page.isTouchEvent(e) && e.isFirst === false)) return;
+    if (this.page.$(e.target).closest("." + this.closerContainerClass).length > 0) return;
     this._dragging = true;
     this._anchorDistanceX = e.clientX - this._x;
     this._anchorDistanceY = e.clientY - this._y;
     this._rect = this._popupDom[0].getBoundingClientRect();
     this._viewPort = this._getViewPort();
-    onCapture(document, "mouseup", this.draggingEnd);
-    onCapture(document, "mousemove", this.mousemoved);
-    this.popupDragRecognizer.recognizeCapturedOn(document);
 
-    this.$().css({
-        left: 0,
-        top: 0,
-        willChange: "transform"
-    });
-    setTransform(this.$()[0], "translate("+this._x+"px,"+this._y+"px)");
+    this.page.addDocumentListener("mouseup", this.draggingEnd);
+    this.page.addDocumentListener("mousemove", this.mousemoved);
+    this.popupDragRecognizer.recognizeCapturedOn(this.page.document());
+
+    this.$()
+        .setStyles({left: "0px", top: "0px", willChange: "transform"})
+        .setTransform("translate("+this._x+"px,"+this._y+"px)");
 };
 
 Popup.prototype.draggingEnd = function() {
     if (!this._dragging) return;
     this._dragging = false;
-    offCapture(document, "mouseup", this.draggingEnd);
-    offCapture(document, "mousemove", this.mousemoved);
-    this.popupDragRecognizer.unrecognizeCapturedOn(document);
+    this.page.removeDocumentListener("mouseup", this.draggingEnd);
+    this.page.removeDocumentListener("mousemove", this.mousemoved);
+    this.popupDragRecognizer.unrecognizeCapturedOn(this.page.document());
 
-    this.$().css({
-        left: this._x,
-        top: this._y,
-        willChange: ""
-    });
-    setTransform(this.$()[0], "none");
+    this.$().setStyles({left: this._x + "px", top: this._y + "px", willChange: "" })
+            .setTransform("none");
 };
 
 Popup.prototype.close = function() {
     if (!this._shown) return;
     var elementToFocus = this._activeElementBeforeOpen;
     this._activeElementBeforeOpen = null;
-    offCapture(document, "focus", this._elementFocused);
-    offCapture(this.$().find(".popup-body")[0], "scroll", this._bodyScrolled);
+
+    this.page.removeDocumentListener("focus", this._elementFocused, true);
+    this.$().find(".popup-body").removeEventListener("scroll", this._bodyScrolled, true);
     this._shown = false;
     this._scrollTop = this._contentScroller.settledScrollTop();
 

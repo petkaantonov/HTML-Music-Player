@@ -23,6 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+import { Float32Array, Int32Array, Uint32Array } from "platform/platform";
 import { float32BE, float32BEString, int32BE, int32BEString, uint32BEString } from "util";
 
 const SILENCE_THRESHOLD = -63;

@@ -1,25 +1,21 @@
+/* globals self: false */
 "use strict";
 
-const globalObject = typeof self !== "undefined" ? self : global;
-const codecs = Object.create(null);
+import { XMLHttpRequest } from "platform/platform";
 
-const delay = function(ms) {
-    return new Promise(function(resolve) {
-        setTimeout(resolve, ms);
-    });
-};
+const codecs = Object.create(null);
 
 var expectedCodec = null;
 const loadCodec = function(name, retries) {
     if (codecs[name]) return codecs[name];
     if (retries === undefined) retries = 0;
     codecs[name] = new Promise(function(resolve, reject) {
-        var url = globalObject.DEBUGGING === false ? "codecs/" + name + ".min.js" : "codecs/" + name + ".js";
+        var url = self.DEBUGGING === false ? "codecs/" + name + ".min.js" : "codecs/" + name + ".js";
         var xhr = new XMLHttpRequest();
         xhr.addEventListener("load", function() {
             if (xhr.status >= 300) {
                 if (xhr.status >= 500 && retries < 5) {
-                    return resolve(delay(1000).then(function() {
+                    return resolve(Promise.delay(1000).then(function() {
                         return loadCodec(name, retries + 1);
                     }));
                 }
@@ -49,7 +45,7 @@ const loadCodec = function(name, retries) {
     return codecs[name];
 };
 
-globalObject.codecLoaded = function(name, Context) {
+self.codecLoaded = function(name, Context) {
     expectedCodec = {
         name: name,
         Context: Context

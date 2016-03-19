@@ -1,12 +1,11 @@
 "use strict";
-import $ from "jquery";
-import { setTransform } from "platform/DomUtil";
 
 export default function TrackDisplay(dom, playlist, opts) {
     opts = Object(opts);
+    this._page = opts.page;
     this._globalEvents = opts.globalEvents;
     this._playlist = playlist;
-    this._containerNode = $($(dom)[0]);
+    this._containerNode = this._page.$(dom).eq(0);
     this._domNode = this.$container().find(opts.target);
     this._delay = +opts.delay || 5000;
     this._pixelsPerSecond = +opts.pixelsPerSecond || 22;
@@ -45,17 +44,13 @@ TrackDisplay.prototype.$container = function() {
 };
 
 TrackDisplay.prototype._clearFrame = function() {
-    if (this._frameId !== -1) {
-        cancelAnimationFrame(this._frameId);
-        this._frameId = -1;
-    }
+    this._page.cancelAnimationFrame(this._frameId);
+    this._frameId = -1;
 };
 
 TrackDisplay.prototype._clearDelayTimeout = function() {
-    if (this._delayTimeoutId !== -1) {
-        clearTimeout(this._delayTimeoutId);
-        this._delayTimeoutId = -1;
-    }
+    this._page.clearTimeout(this._delayTimeoutId);
+    this._delayTimeoutId = -1;
 };
 
 TrackDisplay.prototype._updateText = function() {
@@ -65,11 +60,11 @@ TrackDisplay.prototype._updateText = function() {
         var index = track.getIndex();
         var trackNumber = index >= 0 ? (index + 1) + ". " : "";
         var title = trackNumber + track.formatFullName();
-        this.$().text(title);
-        document.title = title;
+        this.$().setText(title);
+        this._page.setTitle(title);
     } else {
-        this.$().text("");
-        document.title = this._defaultTitle;
+        this.$().setText("");
+        this._page.setTitle(this._defaultTitle);
     }
 };
 
@@ -117,7 +112,7 @@ TrackDisplay.prototype._frame = function(now) {
     } else if (progress >= 0.5 && previousProgress < 0.5) {
         this._startTimer();
     } else {
-        this._frameId = requestAnimationFrame(this._frame);
+        this._frameId = this._page.requestAnimationFrame(this._frame);
     }
 
     var x;
@@ -130,20 +125,20 @@ TrackDisplay.prototype._frame = function(now) {
 
     if (this._renderedX !== x) {
         this._renderedX = x;
-        setTransform(this.$(), "translate3d(-"+x+"px, 0, 0)");
+        this.$().setTransform("translate3d(-"+x+"px, 0, 0)");
     }
 };
 
 TrackDisplay.prototype._delayElapsed = function() {
     this._clearFrame();
-    requestAnimationFrame(this._frame);
+    this._frameId = this._page.requestAnimationFrame(this._frame);
 };
 
 TrackDisplay.prototype._startTimer = function() {
     this._previousTime = -1;
     this._clearDelayTimeout();
     this._clearFrame();
-    this._delayTimeoutId = setTimeout(this._delayElapsed, this._delay);
+    this._delayTimeoutId = this._page.setTimeout(this._delayElapsed, this._delay);
 };
 
 TrackDisplay.prototype._reset = function() {
@@ -151,7 +146,7 @@ TrackDisplay.prototype._reset = function() {
     this._clearFrame();
     this._progress = 0;
     this._previousTime = -1;
-    setTransform(this.$(), "translate3d(0, 0, 0)");
+    this.$().setTransform("translate3d(0, 0, 0)");
     this._renderedX = 0;
 
     if (!this._globalEvents.isWindowBackgrounded()) {
@@ -162,9 +157,9 @@ TrackDisplay.prototype._reset = function() {
     var scrollWidth = this._getScrollWidth();
     if (scrollWidth > 0) {
         this._startTimer();
-        this.$().css("willChange", "transform");
+        this.$().setStyle("willChange", "transform");
     } else {
-        this.$().css("willChange", "");
+        this.$().setStyle("willChange", "");
     }
 };
 

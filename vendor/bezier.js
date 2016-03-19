@@ -1,4 +1,3 @@
-export default unitBezier;
 /*
  * Copyright (C) 2008 Apple Inc. All Rights Reserved.
  *
@@ -118,3 +117,5 @@ var unitBezier = (function() {'use strict';
         };
     };
 })();
+
+export default unitBezier;

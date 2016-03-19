@@ -1,10 +1,8 @@
 "use strict";
-import $ from "jquery";
-import { inherits, offCapture, onCapture, toFunction } from "util";
-import EventEmitter from "events";
-import { changeDom, isTouchEvent, originProperty } from "platform/DomUtil";
 
-const NULL = $(null);
+import { inherits, toFunction } from "util";
+import EventEmitter from "events";
+
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
 
@@ -15,14 +13,14 @@ function ActionMenuItem(root, spec, children, level) {
     this.id = spec.id;
     this.divider = !!spec.divider;
     this.disabled = !!spec.disabled;
-    this.handler = typeof spec.onClick === "function" ? spec.onClick : $.noop;
+    this.handler = toFunction(spec.onClick);
     this.enabledPredicate = spec.enabledPredicate;
 
     this._preferredHorizontalDirection = "end";
     this._preferredVerticalDirection = "end";
     this._delayTimerId = -1;
     this._content = toFunction(spec.content);
-    this._containerDom = NULL;
+    this._containerDom = this.page().NULL();
     this._domNode = this._createDom();
 
     if (this.disabled) this.$().addClass(this.root.disabledClass);
@@ -45,20 +43,24 @@ function ActionMenuItem(root, spec, children, level) {
             child.setParent(this);
         }, this);
 
-        this.$().on("mouseenter", this.itemMouseEntered);
-        this.$().on("mouseleave", this.itemMouseLeft);
-        this.$container().on("mouseenter", this.containerMouseEntered);
-        this.$container().on("mouseleave", this.containerMouseLeft);
+        this.$().addEventListener("mouseenter", this.itemMouseEntered);
+        this.$().addEventListener("mouseleave", this.itemMouseLeft);
+        this.$container().addEventListener("mouseenter", this.containerMouseEntered);
+        this.$container().addEventListener("mouseleave", this.containerMouseLeft);
 
         this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
     }
 
     if (!this.divider) {
-        this.$().on("click", this.itemClicked);
+        this.$().addEventListener("click", this.itemClicked);
         this.tapRecognizer.recognizeBubbledOn(this.$());
         this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
     }
 }
+
+ActionMenuItem.prototype.page = function() {
+    return this.root.page;
+};
 
 ActionMenuItem.prototype.destroy = function() {
     this._clearDelayTimer();
@@ -67,16 +69,14 @@ ActionMenuItem.prototype.destroy = function() {
 };
 
 ActionMenuItem.prototype._clearDelayTimer = function() {
-    if (this._delayTimerId !== -1) {
-        clearTimeout(this._delayTimerId);
-        this._delayTimerId = -1;
-    }
+    this.page().clearTimeout(this._delayTimerId);
+    this._delayTimerId = -1;
 };
 
 ActionMenuItem.prototype.startHideTimer = function() {
     this._clearDelayTimer();
     var self = this;
-    this._delayTimerId = setTimeout(function() {
+    this._delayTimerId = this.page().setTimeout(function() {
         self._delayTimerId = -1;
         self.hideContainer();
     }, this.root.hideDelay);
@@ -86,7 +86,7 @@ ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
     for (var i = 0; i < this.children.length; ++i) {
         var child = this.children[i];
         if (child.children) {
-            if (targetMenuItem && $(targetMenuItem).closest(child.$()).length) {
+            if (targetMenuItem && this.page().$(targetMenuItem).closest(child.$()).length) {
                 continue;
             }
             child.startHideTimer();
@@ -124,7 +124,7 @@ ActionMenuItem.prototype.initSubMenuShowing = function(delay) {
         return;
     }
     var self = this;
-    this._delayTimerId = setTimeout(function() {
+    this._delayTimerId = this.page().setTimeout(function() {
         self._delayTimerId = -1;
         self.showContainer();
     }, delay);
@@ -137,7 +137,7 @@ ActionMenuItem.prototype.itemMouseEntered = function() {
 ActionMenuItem.prototype.itemMouseLeft = function(e) {
     this._clearDelayTimer();
     if (this.disabled) return;
-    if (!$(e.relatedTarget).closest(this.$container()).length) {
+    if (!this.page().$(e.relatedTarget).closest(this.$container()).length) {
         this.removeActiveClass();
         this.startHideTimer();
     }
@@ -145,13 +145,13 @@ ActionMenuItem.prototype.itemMouseLeft = function(e) {
 
 ActionMenuItem.prototype.zIndex = function() {
     var container = this.parent ? this.parent.$container() : this.root.$();
-    return +container.css("zIndex");
+    return +container.style().zIndex;
 };
 
 ActionMenuItem.prototype.containerMouseLeft = function(e) {
     if (this.disabled) return;
     this._clearDelayTimer();
-    var $related = $(e.relatedTarget);
+    var $related = this.page().$(e.relatedTarget);
     if ($related.closest(this.$()).length) {
         return;
     }
@@ -212,9 +212,9 @@ ActionMenuItem.prototype._createContainerDom = function(level) {
     var levelClass = level <= 5 ? "action-menu-level-" + level
                                 : "action-menu-level-too-deep";
 
-    return $('<div>', {
+    return this.page().createElement("div", {
         class: this.root.containerClass + " " + levelClass
-    }).css({
+    }).setStyles({
         position: "absolute",
         zIndex: Math.max(50, level * 100000)
     });
@@ -222,16 +222,16 @@ ActionMenuItem.prototype._createContainerDom = function(level) {
 
 ActionMenuItem.prototype._createDom = function() {
     if (this.divider) {
-        var node = $('<div>', {class: this.root.dividerClass});
+        var node = this.page().createElement("div", {class: this.root.dividerClass});
         if (typeof this.divider === "function" && !this.divider()) {
             node.hide();
         }
         return node;
     } else {
         var content = this._content(this);
-        var node = $('<div>', {class: this.root.itemClass});
+        var node = this.page().createElement("div", {class: this.root.itemClass});
         if (typeof content === "string") {
-            node.html(content);
+            node.setHtml(content);
         } else if (content == null) {
             node.hide();
         } else {
@@ -247,7 +247,7 @@ ActionMenuItem.prototype.refresh = function() {
     if (this.divider) {
         if (typeof this.divider === "function") {
             if (this.divider()) {
-                this.$().show();
+                this.$().show("inline-block");
             } else {
                 this.$().hide();
             }
@@ -258,7 +258,7 @@ ActionMenuItem.prototype.refresh = function() {
     var content = this._content(this);
 
     if (typeof content === "string") {
-        this.$().html(content).show();
+        this.$().setHtml(content).show("inline-block");
     } else if (content == null) {
         this.$().empty().hide();
     } else {
@@ -298,7 +298,7 @@ ActionMenuItem.prototype.disable = function() {
 };
 
 ActionMenuItem.prototype.isShown = function() {
-    if (this.$container() !== NULL) {
+    if (this.$container() !== this.page().NULL()) {
         return this.$container().parent().length > 0;
     }
     return this.$().parent().length > 0;
@@ -368,8 +368,8 @@ ActionMenuItem.prototype.positionSubMenu = function() {
     if (!this.isShown()) return;
     var itemBox = this.$()[0].getBoundingClientRect();
     var containerBox = this.$container()[0].getBoundingClientRect();
-    var xMax = $(window).width();
-    var yMax = $(window).height();
+    var xMax = this.page().width();
+    var yMax = this.page().height();
 
     var origin = {x: 0, y: 0};
     var left = -1;
@@ -387,9 +387,9 @@ ActionMenuItem.prototype.positionSubMenu = function() {
     top = positionResult.coordStart;
     this._preferredVerticalDirection = positionResult.preferredDirection;
 
-    this.$container().css({
-        top: top,
-        left: left
+    this.$container().setStyles({
+        top: top + "px",
+        left: left + "px"
     });
 
     origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
@@ -409,19 +409,21 @@ ActionMenuItem.prototype.removeActiveClass = function() {
 
 ActionMenuItem.prototype.showContainer = function() {
     this.addActiveClass();
-    this.$container().css("willChange", "transform");
-    this.$container().removeClass("transition-out transition-in initial").appendTo("body");
+    this.$container().setStyle("willChange", "transform")
+                    .removeClass(["transition-out", "transition-in", "initial"])
+                    .appendTo("body");
     var origin = this.positionSubMenu();
-    this.$container().css(originProperty, origin.x + "px " + origin.y + "px 0px");
-    this.$container().detach();
-    this.$container().removeClass("transition-out").addClass("initial transition-in");
-    this.$container().appendTo("body");
-    this.$container().width();
+    this.$container().setTransformOrigin(origin.x + "px " + origin.y + "px 0px")
+                    .detach()
+                    .removeClass("transition-out")
+                    .addClass(["initial", "transition-in"])
+                    .appendTo("body")
+                    .forceReflow();
     var self = this;
-    changeDom(function() {
+    this.page().changeDom(function() {
         self.$container().removeClass("initial");
-        setTimeout(function() {
-            self.$container().css("willChange", "");
+        self.page().setTimeout(function() {
+            self.$container().setStyle("willChange", "");
         }, TRANSITION_IN_DURATION);
     });
 };
@@ -430,15 +432,16 @@ ActionMenuItem.prototype.hideContainer = function() {
     this._preferredVerticalDirection = "end";
     this._preferredHorizontalDirection = "end";
     this._clearDelayTimer();
-    this.$container().css("willChange", "transform");
-    this.$container().removeClass("transition-in").addClass("initial transition-out");
-    this.$container().width();
+    this.$container().setStyle("willChange", "transform")
+                    .removeClass("transition-in")
+                    .addClass(["initial", "transition-out"])
+                    .forceReflow();
     var self = this;
-    changeDom(function() {
+    this.page().changeDom(function() {
         self.$container().removeClass("initial");
-        self._delayTimerId = setTimeout(function() {
+        self._delayTimerId = self.page().setTimeout(function() {
             self._delayTimerId = -1;
-            self.$container().detach().css("willChange", "");
+            self.$container().detach().setStyle("willChange", "");
         }, TRANSITION_OUT_DURATION);
     });
     this.removeActiveClass();
@@ -463,6 +466,7 @@ function createMenuItem(root, spec, level) {
 export default function ActionMenu(opts) {
     EventEmitter.call(this);
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.rippler = opts.rippler;
     this.recognizerContext = opts.recognizerContext;
@@ -477,7 +481,7 @@ export default function ActionMenu(opts) {
 
 
     this._delayTimerId = -1;
-    this._domNode = $('<div>', {
+    this._domNode = this.page.createElement("div", {
         class: this.rootClass
     });
 
@@ -551,16 +555,14 @@ ActionMenu.prototype.$ = function() {
 };
 
 ActionMenu.prototype.clearDelayTimer = function() {
-    if (this._delayTimerId !== -1) {
-        clearTimeout(this._delayTimerId);
-        this._delayTimerId = -1;
-    }
+    this.page.clearTimeout(this._delayTimerId);
+    this._delayTimerId = -1;
 };
 
 ActionMenu.prototype.startHideTimer = function() {
     this.clearDelayTimer();
     var self = this;
-    this._delayTimerId = setTimeout(function() {
+    this._delayTimerId = this.page.setTimeout(function() {
         self._delayTimerId = -1;
         self.hideContainer();
     }, this.hideDelay);
@@ -630,12 +632,12 @@ export function ContextMenu(dom, opts) {
     opts.rootClass = opts.rootClass ? opts.rootClass + " action-menu-context-root"
                                     : "action-menu-root action-menu-context-root";
     this._menu = new ActionMenu(opts);
-    this._domNode = this._menu.$().css({
+    this._domNode = this._menu.$().setStyles({
         position: "absolute",
         zIndex: 50
     });
     this._shown = false;
-    this._targetDom = $(dom);
+    this._targetDom = this.page().$(dom);
     this._x = 0;
     this._y = 0;
     this._xMax = 0;
@@ -650,13 +652,13 @@ export function ContextMenu(dom, opts) {
 
     this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
     this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
-    this.preventDefault = $.noop;
+    this.preventDefault = this.page().preventDefaultHandler;
 
-    this._targetDom.on("contextmenu", this.rightClicked);
-    onCapture(document, "mousedown", this.documentClicked);
-    this.longTapRecognizer.recognizeBubbledOn(this._targetDom);
-    this.documentTouchedRecognizer.recognizeCapturedOn(document);
-    document.addEventListener("keydown", this.keypressed, true);
+    this.$target().addEventListener("contextmenu", this.rightClicked);
+    this.page().addDocumentListener("mousedown", this.documentClicked, true);
+    this.page().addDocumentListener("keydown", this.keypressed, true);
+    this.longTapRecognizer.recognizeBubbledOn(this.$target());
+    this.documentTouchedRecognizer.recognizeCapturedOn(this.page().document());
 
     this._menu.on("itemClick", this.hide);
     this._menu.globalEvents.on("resize", this.position);
@@ -664,19 +666,26 @@ export function ContextMenu(dom, opts) {
 }
 inherits(ContextMenu, EventEmitter);
 
+ContextMenu.prototype.page = function() {
+    return this._menu.page;
+};
+
 ContextMenu.prototype.destroy = function() {
     this.hide();
     this._menu.removeListener("itemClick", this.hide);
     this._menu.globalEvents.removeListener("resize", this.position);
     this._menu.globalEvents.removeListener("visibilityChange", this.hide);
-
-    offCapture(document, "mousedown", this.documentClicked);
-    this._targetDom.off("contextmenu", this.rightClicked);
+    this.page().removeDocumentListener("mousedown", this.documentClicked, true);
+    this.page().removeDocumentListener("keydown", this.keypressed, true);
+    this.$target().removeEventListener("contextmenu", this.rightClicked);
     this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
-    this.documentTouchedRecognizer.unrecognizeCapturedOn(document);
-    document.removeEventListener("keydown", this.keypressed, true);
+    this.documentTouchedRecognizer.unrecognizeCapturedOn(this.page().document());
     this.removeAllListeners();
     this._menu.destroy();
+};
+
+ContextMenu.prototype.$target = function() {
+    return this._targetDom;
 };
 
 ContextMenu.prototype.$ = function() {
@@ -688,8 +697,8 @@ ContextMenu.prototype.position = function() {
     var x = this._x;
     var y = this._y;
     var box = this.$()[0].getBoundingClientRect();
-    var xMax = $(window).width();
-    var yMax = $(window).height();
+    var xMax = this.page().width();
+    var yMax = this.page().height();
 
     var positionChanged = false;
     if (xMax !== this._xMax || yMax !== this._yMax) {
@@ -716,7 +725,7 @@ ContextMenu.prototype.position = function() {
         origin.y = Math.max(0, this._y - y);
     }
 
-    this.$().css({left: x, top: y});
+    this.$().setStyles({left: x + "px", top: y + "px"});
 
     if (positionChanged) {
         this._menu.forEach(function(child) {
@@ -745,31 +754,30 @@ ContextMenu.prototype.rightClicked = function(e) {
 
 ContextMenu.prototype.show = function(e) {
     if (this._shown) return;
-    if (this._delayTimerId !== -1) {
-        clearTimeout(this._delayTimerId);
-        this._delayTimerId = -1;
-    }
+    this.page().clearTimeout(this._delayTimerId);
+    this._delayTimerId = -1;
+
     var prevented = false;
     this.preventDefault = function() {prevented = true;};
     this.emit("willShowMenu", e, this);
     if (prevented) return;
     this._shown = true;
-    this.$().removeClass("transition-out transition-in initial").appendTo("body");
+    this.$().removeClass(["transition-out", "transition-in", "initial"]).appendTo("body");
     this._x = e.clientX;
     this._y = e.clientY;
-    this._xMax = $(window).width();
-    this._yMax = $(window).height();
+    this._xMax = this.page().width();
+    this._yMax = this.page().height();
     var origin = this.position();
-    this.$().css(originProperty, origin.x + "px " + origin.y + "px 0px");
+    this.$().setTransformOrigin(origin.x + "px " + origin.y + "px 0px");
 
     // Transition from desktop right click feels weird so only do it on touch.
-    if (isTouchEvent(e)) {
-        this.$().detach();
-        this.$().addClass("initial transition-in");
-        this.$().appendTo("body");
-        this.$().width();
+    if (this.page().isTouchEvent(e)) {
+        this.$().detach()
+                .addClass(["initial", "transition-in"])
+                .appendTo("body")
+                .forceReflow();
         var self = this;
-        changeDom(function() {
+        this.page().changeDom(function() {
             self.$().removeClass("initial");
         });
     }
@@ -781,12 +789,14 @@ ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
     this.emit("willHideMenu", this);
     this._shown = false;
-    this.$().removeClass("transition-in").addClass("initial transition-out");
-    this.$().width();
+    this.$().removeClass("transition-in")
+            .addClass(["initial", "transition-out"])
+            .forceReflow();
+
     var self = this;
-    changeDom(function() {
+    this.page().changeDom(function() {
         self.$().removeClass("initial");
-        self._delayTimerId = setTimeout(function() {
+        self._delayTimerId = self.page().setTimeout(function() {
             self._delayTimerId = -1;
             self.$().detach();
         }, TRANSITION_OUT_DURATION);
@@ -806,10 +816,10 @@ ContextMenu.prototype.hide = function() {
 ContextMenu.prototype.documentClicked = function(e) {
     if (!this._shown) return;
 
-    var $target = $(e.target);
+    var $target = this.page().$(e.target);
     var containerClicked = false;
-    this._menu.$containers().each(function() {
-        if ($target.closest(this).length > 0) {
+    this._menu.$containers().forEach(function(elem) {
+        if ($target.closest(elem).length > 0) {
             containerClicked = true;
             return false;
         }

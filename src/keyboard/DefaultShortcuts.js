@@ -1,9 +1,8 @@
 "use strict";
 
-import { onCapture, offCapture } from "util";
-
 export default function DefaultShortcuts(opts) {
     opts = Object(opts);
+    this.page = opts.page;
     this.recognizerContext = opts.recognizerContext;
     this.player = opts.player;
     this.playlist = opts.playlist;
@@ -68,16 +67,16 @@ export default function DefaultShortcuts(opts) {
     this.keyboardShortcuts.on("disable", this.disableGestures);
     this.keyboardShortcuts.on("enable", this.enableGestures);
 
-    this.rippleRecognizer.recognizeCapturedOn(document);
+    this.rippleRecognizer.recognizeCapturedOn(this.page.document());
 }
 
 DefaultShortcuts.prototype.playerLoadedNewTrack = function() {
-    offCapture(document, "keyup", this.commitSeek);
+    this.page.removeDocumentListener("keyup", this.commitSeek, true);
 };
 
 DefaultShortcuts.prototype.commitSeek = function(e) {
     if (e.key !== this.seekShortcut) return;
-    offCapture(document, "keyup", this.commitSeek);
+    this.page.removeDocumentListener("keyup", this.commitSeek, true);
     this.player.setProgress(this.seekValueToCommit);
     this.seekValueToCommit = -1;
 };
@@ -135,7 +134,7 @@ DefaultShortcuts.prototype.shortcutPlaylistRepeat = function() {
 };
 
 DefaultShortcuts.prototype.shortcutSeekBack = function(e) {
-    offCapture(document, "keyup", this.commitSeek);
+    this.page.removeDocumentListener("keyup", this.commitSeek, true);
 
     var p;
     if (this.seekValueToCommit !== -1) {
@@ -147,13 +146,13 @@ DefaultShortcuts.prototype.shortcutSeekBack = function(e) {
     if (p !== -1) {
         this.seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
         this.seekShortcut = e.key;
-        onCapture(document, "keyup", this.commitSeek);
+        this.page.addDocumentListener("keyup", this.commitSeek, true);
         this.player.seekIntent(this.seekValueToCommit);
     }
 };
 
 DefaultShortcuts.prototype.shortcutSeekForward = function(e) {
-    offCapture(document, "keyup", this.commitSeek);
+    this.page.removeDocumentListener("keyup", this.commitSeek, true);
 
     var p;
     if (this.seekValueToCommit !== -1) {
@@ -165,7 +164,7 @@ DefaultShortcuts.prototype.shortcutSeekForward = function(e) {
     if (p !== -1) {
         this.seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
         this.seekShortcut = e.key;
-        onCapture(document, "keyup", this.commitSeek);
+        this.page.addDocumentListener("keyup", this.commitSeek, true);
         this.player.seekIntent(this.seekValueToCommit);
     }
 };
@@ -191,13 +190,13 @@ DefaultShortcuts.prototype.shortcutGesturePrev = function() {
 };
 
 DefaultShortcuts.prototype.enableGestures = function() {
-    this.prevGestureRecognizer.recognizeCapturedOn(document);
-    this.nextGestureRecognizer.recognizeCapturedOn(document);
-    this.togglePlaybackGestureRecognizer.recognizeCapturedOn(document);
+    this.prevGestureRecognizer.recognizeCapturedOn(this.page.document());
+    this.nextGestureRecognizer.recognizeCapturedOn(this.page.document());
+    this.togglePlaybackGestureRecognizer.recognizeCapturedOn(this.page.document());
 };
 
 DefaultShortcuts.prototype.disableGestures = function() {
-    this.prevGestureRecognizer.unrecognizeCapturedOn(document);
-    this.nextGestureRecognizer.unrecognizeCapturedOn(document);
-    this.togglePlaybackGestureRecognizer.unrecognizeCapturedOn(document);
+    this.prevGestureRecognizer.unrecognizeCapturedOn(this.page.document());
+    this.nextGestureRecognizer.unrecognizeCapturedOn(this.page.document());
+    this.togglePlaybackGestureRecognizer.unrecognizeCapturedOn(this.page.document());
 };

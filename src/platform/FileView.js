@@ -1,6 +1,7 @@
 "use strict";
 
-import Promise from "bluebird";
+import { Uint8Array, DataView, ArrayBuffer } from "platform/platform";
+import Promise from "platform/PromiseExtensions";
 import blobPatch from "platform/blobpatch";
 import { readAsArrayBuffer } from "util";
 

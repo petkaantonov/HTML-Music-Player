@@ -1,6 +1,7 @@
 "use strict";
-import Promise from "bluebird";
+
 import EventEmitter from "events";
+import { Directory } from "platform/platform";
 
 const MIN_FILES_BEFORE_TRIGGER = 10;
 const MAX_FILE_COUNT = Math.pow(2, 31);
@@ -88,7 +89,6 @@ LocalFiles.prototype.traverseEntries = function(entries, ee, context) {
     });
 };
 
-const Directory = window.Directory || function() {};
 LocalFiles.prototype.traverseFilesAndDirs = function(filesAndDirs, ee, context) {
     var self = this;
     return Promise.resolve(0).then(function loop(i) {

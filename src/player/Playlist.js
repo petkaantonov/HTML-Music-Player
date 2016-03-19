@@ -1,5 +1,5 @@
 "use strict";
-import $ from "jquery";
+
 import { buildConsecutiveRanges, indexMapper, inherits } from "util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
@@ -16,6 +16,7 @@ const TrackViewOptions = {
     updateTrackIndex: true,
     updateSearchDisplayStatus: false,
     itemHeight: -1,
+    page: null,
     playlist: null
 };
 
@@ -64,8 +65,12 @@ TrackListDeletionUndo.prototype.destroy = function() {
     }
 };
 
+var instance = false;
 export default function Playlist(domNode, opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     AbstractTrackContainer.call(this);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
     this.keyboardShortcuts = opts.keyboardShortcuts;
@@ -88,9 +93,10 @@ export default function Playlist(domNode, opts) {
 
     TrackViewOptions.playlist = this;
     TrackViewOptions.itemHeight = opts.itemHeight;
+    TrackViewOptions.page = this.page;
 
     this._errorCount = 0;
-    this._$domNode = $(domNode);
+    this._$domNode = this.page.$(domNode);
     this._$trackContainer = this.$().find(".tracklist-transform-container");
     this._nextTrack = null;
 
@@ -109,12 +115,14 @@ export default function Playlist(domNode, opts) {
         railSelector: ".scrollbar-rail",
         knobSelector: ".scrollbar-knob"
     });
-    this._selectable = new Selectable(this);
+    this._selectable = new Selectable(this, this.page);
     this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
         mustNotMatchSelector: ".track-rating",
         mustMatchSelector: ".track-container",
         env: this.env,
-        recognizerContext: this.recognizerContext
+        recognizerContext: this.recognizerContext,
+        page: this.page,
+        globalEvents: this.globalEvents
     });
 
     this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
@@ -172,7 +180,7 @@ export default function Playlist(domNode, opts) {
         this.showPlaylistEmptyIndicator();
     }
 
-    this._bindListEvents({dragging: true});
+    this._bindListEvents();
     this._draggable.bindEvents();
 }
 inherits(Playlist, AbstractTrackContainer);
@@ -260,7 +268,7 @@ Playlist.Modes = {
 
 Playlist.prototype._windowLayoutChanged = function() {
     var self = this;
-    requestAnimationFrame(function() {
+    this.page.requestAnimationFrame(function() {
         self._fixedItemListScroller.resize();
     });
 };

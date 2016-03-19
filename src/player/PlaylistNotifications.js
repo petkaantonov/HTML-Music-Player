@@ -1,13 +1,7 @@
 "use strict";
-import $ from "jquery";
-import Promise from "bluebird";
-import { preventDefault } from "platform/DomUtil";
 
-const supported = typeof Notification === "function" &&
-                  typeof Notification.maxActions === "number" &&
-                  typeof navigator.serviceWorker !== "undefined";
+import { URL } from "platform/platform";
 
-const MAX_ACTIONS = supported ? Notification.maxActions : 0;
 const PAUSE = "\u275a\u275a";
 const PLAY = "\u23f5";
 const NEXT = "\u23f5\u275a";
@@ -18,20 +12,25 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overl
 
 export default function PlaylistNotifications(dom, player, opts) {
     opts = Object(opts);
+    this.env = opts.env;
+    this.page = opts.page;
+    this.pictureManager = opts.pictureManager;
     this.serviceWorkerManager = opts.serviceWorkerManager;
     this.db = opts.db;
     this.recognizerContext = opts.recognizerContext;
     this.dbValues = opts.dbValues;
     this.rippler = opts.rippler;
     this.tooltipContext = opts.tooltipContext;
+
     var self = this;
-    this._domNode = $(dom);
+    this._domNode = this.page.$(dom);
     this.playlist = player.playlist;
     this.player = player;
     this.enabled = false;
     this.permissionsPromise = null;
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
+    this.nextNotificationId = -1;
     this.tooltip = this.tooltipContext.makeTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
@@ -43,9 +42,11 @@ export default function PlaylistNotifications(dom, player, opts) {
     this.actionPlay = this.actionPlay.bind(this);
     this.actionPause = this.actionPause.bind(this);
     this.notificationClosed = this.notificationClosed.bind(this);
+    this.justDeactivatedMouseleft = this.justDeactivatedMouseleft.bind(this);
 
-    if (supported) {
-        this.$().on("click", this.settingClicked).mousedown(preventDefault);
+    if (this.env.maxNotificationActions() > 0) {
+        this.$().addEventListener("click", this.settingClicked)
+                .addEventListener("mousedown", this.page.preventDefaultHandler);
         this.recognizerContext.createTapRecognizer(this.settingClicked).recognizeBubbledOn(this.$());
     } else {
         this.$().addClass("no-display");
@@ -94,15 +95,21 @@ PlaylistNotifications.prototype.$ = function() {
     return this._domNode;
 };
 
+PlaylistNotifications.prototype.justDeactivatedMouseleft = function(e) {
+    e.currentTarget.classList.remove("just-deactivated");
+    e.currentTarget.removeEventListener("mouseleave", this.justDeactivatedMouseleft);
+};
+
 PlaylistNotifications.prototype.update = function() {
     if (this.enabled) {
-        this.$().off("mouseleave.justdectivated");
-        this.$().removeClass("just-deactivated").addClass("active");
+        this.$().removeEventListener("mouseleave", this.justDeactivatedMouseleft)
+                .removeClass("just-deactivated")
+                .addClass("active");
     } else {
-        this.$().removeClass("active").addClass("just-deactivated");
-        this.$().one("mouseleave.justdectivated", function() {
-            $(this).removeClass("just-deactivated");
-        });
+        this.$()
+            .removeClass("active")
+            .addClass("just-deactivated")
+            .addEventListener("mouseleave", this.justDeactivatedMouseleft);
     }
     this.tooltip.refresh();
     this.stateChanged();
@@ -121,10 +128,6 @@ PlaylistNotifications.prototype.actionPause = function() {
 };
 
 PlaylistNotifications.prototype.notificationClosed = function() {
-    if (this.permissionsPromise) {
-        this.permissionsPromise.cancel();
-        this.permissionsPromise = null;
-    }
     this.enabled = false;
     this.update();
     this.db.set(PREFERENCE_KEY, false);
@@ -135,7 +138,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
         var state = {enabled: false};
         if (this._shouldRenderNewState(state)) {
             this._currentState = state;
-            this._currentAction.cancel();
+            ++this.nextNotificationId;
             this._currentAction = this.serviceWorkerManager.hideNotifications(NOTIFICATION_TAG);
         }
     } else {
@@ -160,23 +163,25 @@ PlaylistNotifications.prototype.stateChanged = function() {
         }
 
         this._currentState = state;
+        var maxActions = this.env.maxNotificationActions();
         var actions = [];
 
-        if (this.playlist.getNextTrack() && actions.length < MAX_ACTIONS) {
+        if (this.playlist.getNextTrack() && actions.length < maxActions) {
             actions.push({action: "Next", title: NEXT + " Next track"});
         }
 
-        if ((this.player.isPaused || this.player.isStopped) && actions.length < MAX_ACTIONS) {
+        if ((this.player.isPaused || this.player.isStopped) && actions.length < maxActions) {
             actions.push({action: "Play", title: PLAY + " Play"});
-        } else if (this.player.isPlaying && actions.length < MAX_ACTIONS) {
+        } else if (this.player.isPlaying && actions.length < maxActions) {
             actions.push({action: "Pause", title: PAUSE + " Pause"});
         }
 
-        this._currentAction.cancel();
+        var id = ++this.nextNotificationId;
         var imageUrl;
         // Chrome flickers and reloads the image every time, unusable
-        // this._currentAction = track.getImage().bind(this).then(function(image) {
-        this._currentAction = Promise.bind(this).delay(100).then(function() {
+        // this._currentAction = track.getImage().then(function(image) {
+        this._currentAction = Promise.delay(100).then(function() {
+            if (id !== this.nextNotificationId) return;
             //if (image.blob) {
                 //imageUrl = URL.createObjectURL(image.blob);
             //} else {
@@ -199,7 +204,7 @@ PlaylistNotifications.prototype.stateChanged = function() {
                 sticky: true,
                 actions: actions
             });
-        }).finally(function() {
+        }.bind(this)).finally(function() {
             if (imageUrl) {
                 try {
                     URL.revokeObjectURL(imageUrl);
@@ -213,10 +218,6 @@ PlaylistNotifications.prototype.stateChanged = function() {
 PlaylistNotifications.prototype.toggleSetting = function() {
     var self = this;
     if (this.enabled) {
-        if (this.permissionsPromise) {
-            this.permissionsPromise.cancel();
-            this.permissionsPromise = null;
-        }
         this.enabled = false;
         self.update();
         this.db.set(PREFERENCE_KEY, false);
@@ -241,21 +242,22 @@ PlaylistNotifications.prototype.isEnabled = function() {
 };
 
 PlaylistNotifications.prototype.notificationsEnabled = function() {
-    return supported && Notification.permission === "granted";
+    return this.env.maxNotificationActions() > 0 &&
+            this.page.window().Notification.permission === "granted";
 };
 
 PlaylistNotifications.prototype.requestPermission = function() {
     if (this.permissionsPromise) return Promise.reject(new Error("already requested"));
     var ret;
     var self = this;
-    if (!supported) {
+    if (this.env.maxNotificationActions() <= 0) {
         ret = Promise.resolve(false);
-    } else if (Notification.permission === "granted") {
+    } else if (this.page.window().Notification.permission === "granted") {
         ret = Promise.resolve(true);
     } else {
         ret = new Promise(function(resolve) {
-            Notification.requestPermission(function() {
-                setTimeout(function() {
+            self.page.window().Notification.requestPermission(function() {
+                self.page.setTimeout(function() {
                     resolve(self.notificationsEnabled());
                 }, 1);
             });

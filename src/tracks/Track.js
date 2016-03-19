@@ -1,11 +1,10 @@
 "use strict";
 
-import PlayerPictureManager from "player/PlayerPictureManager";
 import EventEmitter from "events";
 import { inherits } from "util";
 import TagData from "tracks/TagData";
-import Promise from "bluebird";
 import { calculateUid, getSearchTerm } from "search/searchUtil";
+import { URL }  from "platform/platform";
 
 Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
 Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
@@ -149,7 +148,7 @@ Track.prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-Track.prototype.getImage = Promise.method(function() {
+Track.prototype.getImage = Promise.method(function(pictureManager) {
     var image;
     if (this.tagData) {
         image = this.tagData.getImage();
@@ -159,12 +158,12 @@ Track.prototype.getImage = Promise.method(function() {
     }
     if (!image) {
         if (!this.tagData) {
-            return PlayerPictureManager.getDefaultImage();
+            return pictureManager.defaultImage();
         }
-        return PlayerPictureManager.generateImageForTrack(this).bind(this).tap(function(result) {
+        return pictureManager.generateImageForTrack(this).tap(function(result) {
             this._generatedImage = result;
             result.tag = this.uid();
-        });
+        }.bind(this));
     }
 
     if (image.promise) {
@@ -177,7 +176,7 @@ Track.prototype.getImage = Promise.method(function() {
                 image.blob.close();
                 image.blob = null;
             }
-            return PlayerPictureManager.generateImageForTrack(self).tap(function(result) {
+            return pictureManager.generateImageForTrack(self).tap(function(result) {
                 self._generatedImage = result;
                 result.tag = self.uid();
                 return self._generatedImage;

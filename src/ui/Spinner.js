@@ -1,9 +1,5 @@
 "use strict";
 
-import { reflow, setTransform } from "platform/DomUtil";
-import $ from "jquery";
-
-
 const LONG_PRESS_DURATION = 600;
 const SPINNER_TRANSITION_OUT_DELAY = 300;
 const SPINNER_DELAY = LONG_PRESS_DURATION * 0.2 | 0;
@@ -11,8 +7,9 @@ const SPINNER_SIZE = 142;
 
 export default function Spinner(opts) {
     opts = Object(opts);
-    this.$clockwise = $(opts.clockwise);
-    this.$counterclockwise = $(opts.counterclockwise);
+    this.page = opts.page;
+    this.$clockwise = this.page.$(opts.clockwise);
+    this.$counterclockwise = this.page.$(opts.counterclockwise);
     this.currentSpinner = null;
     this.timerId = -1;
     this.spinnerRemovalId = 0;
@@ -21,10 +18,10 @@ export default function Spinner(opts) {
 Spinner.prototype._clear = function() {
     ++this.spinnerRemovalId;
     if (this.currentSpinner) {
-        this.currentSpinner.find(".arc, .arc-container").each(function() {
-            $(this).addClass("_clear-transition");
-            setTransform(this, "");
-            $(this).removeClass("_clear-transition");
+        this.currentSpinner.find(".arc, .arc-container").forEach(function(elem) {
+            elem.classList.add("clear-transition");
+            elem.setAttribute("style", "");
+            elem.classList.remove("clear-transition");
         });
 
         this.currentSpinner.removeClass("visible");
@@ -37,23 +34,36 @@ Spinner.prototype._start = function(x, y) {
     // to determine which one will be more visible at the start of the animation.
     this.currentSpinner = (x - SPINNER_SIZE / 2) > 0 ? this.$counterclockwise : this.$clockwise;
 
-    this.currentSpinner.removeClass("initial transition-out").addClass("visible").css({
-        left: x - SPINNER_SIZE / 2,
-        top: y - SPINNER_SIZE / 2
-    });
+    this.currentSpinner.removeClass(["initial", "transition-out"])
+                .addClass("visible")
+                .setStyles({
+                    left: (x - SPINNER_SIZE / 2) + "px",
+                    top: (y - SPINNER_SIZE / 2) + "px"
+                });
 
     var self = this;
-    requestAnimationFrame(function() {
+    this.page.changeDom(function() {
         if (self.currentSpinner === self.$clockwise) {
-            setTransform(reflow(self.currentSpinner.find(".arc-1-container, .arc")), "rotate(180deg)");
-            setTransform(reflow(self.currentSpinner.find(".nogap")), "rotate(360deg)");
+            self.currentSpinner.find(".arc-1-container, .arc")
+                            .forceReflow()
+                            .setTransform("rotate(180deg)");
+
+            self.currentSpinner.find(".nogap")
+                            .forceReflow()
+                            .setTransform("rotate(360deg)");
         } else if (self.currentSpinner === self.$counterclockwise) {
-            setTransform(reflow(self.currentSpinner.find(".arc-2-container, .arc")), "rotate(-180deg)");
-            setTransform(reflow(self.currentSpinner.find(".nogap")), "rotate(-360deg)");
+            self.currentSpinner.find(".arc-2-container, .arc")
+                            .forceReflow()
+                            .setTransform("rotate(-180deg)");
+            self.currentSpinner.find(".nogap")
+                            .forceReflow()
+                            .setTransform("rotate(-360deg)");
         }
     });
 
-    this.timerId = setTimeout(function() {
+
+
+    this.timerId = this.page.setTimeout(function() {
         self.timerId = -1;
         self.stop();
     }, LONG_PRESS_DURATION - SPINNER_DELAY);
@@ -61,16 +71,17 @@ Spinner.prototype._start = function(x, y) {
 
 Spinner.prototype.stop = function() {
     if (this.timerId !== -1) {
-        clearTimeout(this.timerId);
+        this.page.clearTimeout(this.timerId);
         this.timerId = -1;
 
         if (this.currentSpinner) {
             var id = ++this.spinnerRemovalId;
-            this.currentSpinner.addClass("initial transition-out");
-            this.currentSpinner.reflow();
-            this.currentSpinner.removeClass("initial");
+            this.currentSpinner.addClass(["initial", "transition-out"])
+                                .forceReflow()
+                                .removeClass("initial");
+
             var self = this;
-            setTimeout(function() {
+            this.page.setTimeout(function() {
                 if (id === self.spinnerRemovalId) self._clear();
             }, SPINNER_TRANSITION_OUT_DELAY);
         }
@@ -81,7 +92,7 @@ Spinner.prototype.spinAt = function(x, y) {
    if (this.timerId !== -1) return;
     this._clear();
     var self = this;
-    this.timerId = setTimeout(function() {
+    this.timerId = this.page.setTimeout(function() {
         self.timerId = -1;
         self._start(x, y);
     }, SPINNER_DELAY);

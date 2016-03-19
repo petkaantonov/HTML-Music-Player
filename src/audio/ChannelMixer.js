@@ -1,4 +1,7 @@
 "use strict";
+
+import { Float32Array } from "platform/platform";
+
 const copy = function(a, b, length) {
     if (a === b) return a;
     for (var i = 0; i < length; ++i) {

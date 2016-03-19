@@ -1,21 +1,19 @@
 "use strict";
 
-import $ from "jquery";
-
-function FileInput(context, dom, attributes) {
+function FileInput(context, dom, properties) {
     this._nodes = dom;
     this._context = context;
-    this._attributes = Object(attributes);
+    this._properties = Object(properties);
     this._clicked = this._clicked.bind(this);
     this._mousedowned = this._mousedowned.bind(this);
     this._input = this._createInput();
     this._tapRecognizer = context.recognizerContext.createTapRecognizer(this._clicked);
 
     var self = this;
-    this.$().each(function() {
-        $(this).on("click", self._clicked);
-        $(this).on("mousedown", self._mousedowned);
-        self._tapRecognizer.recognizeBubbledOn($(this));
+    this.$().forEach(function(elem) {
+        elem.addEventListener("click", self._clicked);
+        elem.addEventListener("mousedown", self._mousedowned);
+        self._tapRecognizer.recognizeBubbledOn(elem);
     });
 }
 
@@ -37,32 +35,36 @@ FileInput.prototype._clicked = function(e) {
 };
 
 FileInput.prototype._createInput = function() {
-    var input = document.createElement("input");
-    Object.keys(this._attributes).forEach(function(key) {
-        input[key] = this._attributes[key];
-    }, this);
-    input.type = "file";
-    input.tabIndex = -1;
-
-    $(input).css({
-        position: "absolute",
-        top: "-9999px",
-        left: "-9999px"
-    });
-    $("body").append(input);
-    return input;
+    return this.page().createElement("input")
+        .setProperties(this._properties)
+        .setProperties({
+            type: "file",
+            tabIndex: -1
+        })
+        .setStyles({
+            position: "absolute",
+            top: "-9999px",
+            left: "-9999px"
+        })
+        .appendTo("body")
+        .get(0);
 };
 
 FileInput.prototype.resetFiles = function() {
-    $(this._input).remove();
+    this.page().$(this._input).remove();
     this._input = this._createInput();
 };
 
-export default function FileInputContext(recognizerContext, rippler) {
+FileInput.prototype.page = function() {
+    return this._context.page;
+};
+
+export default function FileInputContext(page, recognizerContext, rippler) {
+    this.page = page;
     this.recognizerContext = recognizerContext;
     this.rippler = rippler;
 }
 
-FileInputContext.prototype.createFileInput = function(dom, attributes) {
-    return new FileInput(this, dom, attributes);
+FileInputContext.prototype.createFileInput = function(dom, properties) {
+    return new FileInput(this, dom, properties);
 };

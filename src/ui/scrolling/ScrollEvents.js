@@ -1,9 +1,5 @@
 "use strict";
 
-const wheelEvents = "wheel mousewheel DOMMouseScroll".split(" ").map(function(v) {
-    return v + ".scrollerns";
-}).join(" ");
-
 function ScrollEventsBinding(scrollEvents, target, scroller, shouldScroll, scrollbar) {
     this.scrollEvents = scrollEvents;
     this.shouldScroll = shouldScroll || this.defaultShouldScroll;
@@ -24,11 +20,12 @@ function ScrollEventsBinding(scrollEvents, target, scroller, shouldScroll, scrol
 
     this.verticalDragRecognizer.recognizeBubbledOn(this.target);
 
-    target.on(wheelEvents, this._mouseWheeled);
+    target.addEventListener("wheel", this._mouseWheeled)
+        .addEventListener("mousewheel", this._mouseWheeled)
+        .addEventListener("DOMMouseScroll", this._mouseWheeled);
 }
 
 ScrollEventsBinding.prototype._mouseWheeled = function(e) {
-    if (e.originalEvent) e = e.originalEvent;
     e.preventDefault();
     e.stopPropagation();
 
@@ -63,7 +60,7 @@ ScrollEventsBinding.prototype._verticalDragMove = function(gesture) {
 
 ScrollEventsBinding.prototype._verticalDragEnd = function(gesture) {
     this.scroller.doTouchEnd(gesture.timeStamp);
-    this.stopTimerId = setTimeout(this._stopTimedOut, 500);
+    this.stopTimerId = this.scrollEvents.page.setTimeout(this._stopTimedOut, 500);
 };
 
 ScrollEventsBinding.prototype._stopTimedOut = function() {
@@ -72,10 +69,8 @@ ScrollEventsBinding.prototype._stopTimedOut = function() {
 };
 
 ScrollEventsBinding.prototype.clearStopTimerId = function() {
-    if (this.stopTimerId !== -1) {
-        clearTimeout(this.stopTimerId);
-        this.stopTimerId = -1;
-    }
+    this.scrollEvents.page.clearTimeout(this.stopTimerId);
+    this.stopTimerId = -1;
 };
 
 ScrollEventsBinding.prototype.defaultShouldScroll = function() {
@@ -84,10 +79,13 @@ ScrollEventsBinding.prototype.defaultShouldScroll = function() {
 
 ScrollEventsBinding.prototype.unbind = function() {
     this.verticalDragRecognizer.unrecognizeBubbledOn(this.target);
-    this.target.off(wheelEvents, this._mouseWheeled);
+    this.target.removeEventListener("wheel", this._mouseWheeled)
+        .removeEventListener("mousewheel", this._mouseWheeled)
+        .removeEventListener("DOMMouseScroll", this._mouseWheeled);
 };
 
-export default function ScrollEvents(recognizerContext) {
+export default function ScrollEvents(page, recognizerContext) {
+    this.page = page;
     this.recognizerContext = recognizerContext;
 }
 

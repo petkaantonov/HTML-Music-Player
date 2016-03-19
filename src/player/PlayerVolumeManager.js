@@ -1,9 +1,9 @@
 "use strict";
-import $ from "jquery";
 
 export default function PlayerVolumeManager(dom, player, opts) {
     var self = this;
     opts = Object(opts);
+    this.page = opts.page;
     this.sliderContext = opts.sliderContext;
     this.recognizerContext = opts.recognizerContext;
     this.rippler = opts.rippler;
@@ -11,7 +11,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
     this.tooltipContext = opts.tooltipContext;
     this.volumeSlider = opts.sliderContext.createSlider(opts.volumeSlider);
 
-    this._domNode = $(dom);
+    this._domNode = this.page.$(dom);
     this._muteDom = this.$().find(opts.muteDom);
     this._muteTooltip = this.tooltipContext.makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
@@ -27,7 +27,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
     this.player.on("volumeChange", this.volumeChanged);
     this.player.on("muted", this.muteChanged);
 
-    this.$mute().click(this.muteClicked);
+    this.$mute().addEventListener("click", this.muteClicked);
     this.recognizerContext.createTapRecognizer(this.muteClicked).recognizeBubbledOn(this.$mute());
 
     this.volumeChanged();

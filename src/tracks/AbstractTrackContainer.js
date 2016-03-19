@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import EventEmitter from "events";
 import { inherits } from "util";
 
@@ -9,28 +8,35 @@ export default function AbstractTrackContainer() {
 }
 inherits(AbstractTrackContainer, EventEmitter);
 
-AbstractTrackContainer.prototype._bindListEvents = function(opts) {
+AbstractTrackContainer.prototype._bindListEvents = function() {
+    var page = this.page;
     var self = this;
-    opts = Object(opts);
-    const dragging = !!opts.dragging;
-    self.$().on("click mousedown dblclick", function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        if ($(e.target).closest(".track-container").length === 0) return;
-        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
-        if (!trackView) return;
-        switch (e.type) {
-            case "click": {
-                if (dragging && self._draggable.recentlyStoppedDragging()) return;
-                return self._selectable.trackViewClick(e, trackView);
-            }
-            case "mousedown": return self._selectable.trackViewMouseDown(e, trackView);
-            case "dblclick": self.changeTrackExplicitly(trackView.track()); break;
-        }
-    });
 
-    self.recognizerContext.createModifierTapRecognizer(function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+    self.$().addEventListener("click", page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+        if (!trackView) return;
+        if (self._draggable && self._draggable.recentlyStoppedDragging()) return;
+        return self._selectable.trackViewClick(e, trackView);
+    }, ".track-container"));
+
+    self.$().addEventListener("mousedown", page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+        if (!trackView) return;
+        self._selectable.trackViewMouseDown(e, trackView);
+    }, ".track-container"));
+
+    self.$().addEventListener("dblclick", page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+        if (!trackView) return;
+        self.changeTrackExplicitly(trackView.track());
+    }, ".track-container"));
+
+    self.recognizerContext.createModifierTapRecognizer(page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
         if (!trackView) return;
 
         if (self._selectable.contains(trackView)) {
@@ -39,33 +45,33 @@ AbstractTrackContainer.prototype._bindListEvents = function(opts) {
             self._selectable.addTrackView(trackView);
             self._selectable.setPriorityTrackView(trackView);
         }
-    }).recognizeBubbledOn(self.$(), ".track-container");
+    }, ".track-container")).recognizeBubbledOn(self.$());
 
-    self.recognizerContext.createTapRecognizer(function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+    self.recognizerContext.createTapRecognizer(page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
         if (!trackView) return;
         self._selectable.selectTrackView(trackView);
-    }).recognizeBubbledOn(self.$(), ".track-container");
+    }, ".track-container")).recognizeBubbledOn(self.$());
 
-    self.recognizerContext.createLongTapRecognizer(function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+    self.recognizerContext.createLongTapRecognizer(page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
         if (!trackView) return;
         if (!self._selectable.contains(trackView)) {
             self._selectable.selectTrackView(trackView);
         }
         self._selectable.setPriorityTrackView(trackView);
-    }).recognizeBubbledOn(self.$(), ".track-container");
+    }, ".track-container")).recognizeBubbledOn(self.$());
 
-    self.recognizerContext.createDoubleTapRecognizer(function(e) {
-        if ($(e.target).closest(".unclickable").length > 0) return;
-        var trackView = self._fixedItemListScroller.itemByRect(e.target.getBoundingClientRect());
+    self.recognizerContext.createDoubleTapRecognizer(page.delegatedEventHandler(function(e) {
+        if (page.$(e.target).closest(".unclickable").length > 0) return;
+        var trackView = self._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
         if (!trackView) return;
         self.changeTrackExplicitly(trackView.track());
-    }).recognizeBubbledOn(self.$(), ".track-container");
+    }, ".track-container")).recognizeBubbledOn(self.$());
 
-    if (dragging) {
+    if (self._draggable) {
         self._draggable.on("dragStart", function() {
             self.$().find(".tracklist-transform-container").addClass("tracks-dragging");
         });
@@ -271,11 +277,17 @@ AbstractTrackContainer.prototype.centerOnTrackView = function(trackView) {
 };
 
 AbstractTrackContainer.prototype.getTrackByIndex = function(index) {
-    return this._trackViews[index].track();
+    if (index >= 0 && index <= this._trackViews.length - 1) {
+        return this._trackViews[index].track();
+    }
+    return null;
 };
 
 AbstractTrackContainer.prototype.getTrackViewByIndex = function(index) {
-    return this._trackViews[index];
+    if (index >= 0 && index <= this._trackViews.length - 1) {
+        return this._trackViews[index];
+    }
+    return null;
 };
 
 AbstractTrackContainer.prototype.getSelectable = function() {

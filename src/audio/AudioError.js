@@ -1,5 +1,7 @@
 "use strict";
+
 import { subClassError } from "util";
+import { MediaError } from "platform/platform";
 
 export default AudioError;
 

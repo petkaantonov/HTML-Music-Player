@@ -1,15 +1,12 @@
 "use strict";
 
-import $ from "jquery";
 import { slugTitle } from "util";
-import { setFilter } from "platform/DomUtil";
 import Animator from "ui/Animator";
 import Popup from "ui/Popup";
 
-const NULL = $(null);
-
 export default function PopupContext(opts) {
     opts = Object(opts);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.db = opts.db;
     this.scrollerContext = opts.scrollerContext;
@@ -20,8 +17,8 @@ export default function PopupContext(opts) {
     this.popupZIndex = opts.zIndex;
 
     this.shownPopups = [];
-    this.blocker = NULL;
-    this.anim = null;
+    this.blocker = this.page.NULL();
+    this.animator = null;
 
     this.popupOpened = this.popupOpened.bind(this);
     this.popupClosed = this.popupClosed.bind(this);
@@ -37,18 +34,17 @@ PopupContext.prototype.closePopups = function() {
 };
 
 PopupContext.prototype.showBlocker = function() {
-    if (this.anim) {
-        this.anim.cancel();
-        this.anim = null;
+    if (this.animator) {
+        this.animator.stop();
+        this.animator = null;
         this.blocker.remove();
     }
 
-    this.blocker = $("<div>", {class: "popup-blocker"}).appendTo("body");
-    this.blocker.on("click", this.closePopups);
-
+    this.blocker = this.page.createElement("div", {class: "popup-blocker"}).appendTo("body");
+    this.blocker.addEventListener("click", this.closePopups);
     this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
 
-    var animator = new Animator(this.blocker[0], {
+    var animator = new Animator(this.blocker[0], this.page, {
         properties: [{
             name: "opacity",
             start: 0,
@@ -63,7 +59,7 @@ PopupContext.prototype.showBlocker = function() {
 
 PopupContext.prototype.hideBlocker = function() {
     if (!this.blocker.length) return;
-    var animator = new Animator(this.blocker[0], {
+    var animator = new Animator(this.blocker[0], this.page, {
         properties: [{
             name: "opacity",
             start: 55,
@@ -74,12 +70,16 @@ PopupContext.prototype.hideBlocker = function() {
         interpolate: Animator.DECELERATE_CUBIC
     });
 
-    this.anim = animator.animate().bind(this).then(function() {
-        this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
-        this.blocker.remove();
-        this.blocker = NULL;
-        this.anim = null;
-    });
+    this.animator = animator;
+
+    animator.animate().then(function(wasCancelled) {
+        if (!wasCancelled) {
+            this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
+            this.blocker.remove();
+            this.blocker = this.page.NULL();
+            this.animator = null;
+        }
+    }.bind(this));
 };
 
 PopupContext.prototype.popupOpened = function(popup) {
@@ -113,6 +113,7 @@ PopupContext.prototype.toPreferenceKey = function(popupTitle) {
 PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) {
     var self = this;
     var popup = new Popup({
+        page: this.page,
         zIndex: this.popupZIndex,
         globalEvents: this.globalEvents,
         recognizerContext: this.recognizerContext,
@@ -123,8 +124,8 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
-            setFilter($node, "");
-            var animator = new Animator($node[0], {
+            $node.setFilter("");
+            var animator = new Animator($node[0], self.page, {
                 interpolate: Animator.DECELERATE_CUBIC,
                 properties: [{
                     name: "opacity",
@@ -144,7 +145,7 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
         },
 
         beforeTransitionOut: function($node) {
-            var animator = new Animator($node[0], {
+            var animator = new Animator($node[0], self.page, {
                 interpolate: Animator.DECELERATE_CUBIC,
                 properties: [{
                     name: "opacity",

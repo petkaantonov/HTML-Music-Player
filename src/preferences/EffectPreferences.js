@@ -1,7 +1,6 @@
 "use strict";
 
 import AbstractPreferences from "preferences/AbstractPreferences";
-import $ from "jquery";
 import EventEmitter from "events";
 import { inherits } from "util";
 import createPreferences from "preferences/PreferenceCreator";
@@ -267,7 +266,7 @@ function NoiseSharpeningEffectManager(effectsManager) {
     this._enabledChanged = this._enabledChanged.bind(this);
 
     this._slider.on("slide", this._strengthChanged);
-    this.$().find(".noise-sharpening-enable-checkbox").on("change", this._enabledChanged);
+    this.$().find(".noise-sharpening-enable-checkbox").addEventListener("change", this._enabledChanged);
     this._renderedStrength = -1;
     this._renderedEnabled = null;
 }
@@ -286,7 +285,7 @@ NoiseSharpeningEffectManager.prototype._strengthChanged = function(p) {
 };
 
 NoiseSharpeningEffectManager.prototype._enabledChanged = function() {
-    var enabled = this.$().find(".noise-sharpening-enable-checkbox").prop("checked");
+    var enabled = this.$().find(".noise-sharpening-enable-checkbox")[0].checked;
     this._effectsManager.preferences.setNoiseSharpeningEnabled(enabled);
     this._updateSlider(this._effectsManager.preferences.getNoiseSharpeningStrength(), enabled);
     this._effectsManager.preferencesUpdated(true);
@@ -294,7 +293,7 @@ NoiseSharpeningEffectManager.prototype._enabledChanged = function() {
 
 NoiseSharpeningEffectManager.prototype._updateSlider = function(strength, enabled) {
     this._renderedStrength = strength;
-    this.$().find(".noise-sharpening-value").text(strength.toFixed(1));
+    this.$().find(".noise-sharpening-value").setText(strength.toFixed(1));
     if (enabled) {
         this.$().find(".noise-sharpening-slider").removeClass("slider-inactive");
     } else {
@@ -305,7 +304,7 @@ NoiseSharpeningEffectManager.prototype._updateSlider = function(strength, enable
 
 NoiseSharpeningEffectManager.prototype._updateCheckbox = function(enabled) {
     this._renderedEnabled = enabled;
-    this.$().find(".noise-sharpening-enable-checkbox").prop("checked", enabled);
+    this.$().find(".noise-sharpening-enable-checkbox").setProperty("checked", enabled);
 };
 
 NoiseSharpeningEffectManager.prototype.update = function() {
@@ -348,7 +347,7 @@ function EqualizerEffectManager(effectsManager) {
         return slider;
     }, this);
 
-    this.$().find(".equalizer-preset-selector").on("change", this.equalizerPresetChanged.bind(this));
+    this.$().find(".equalizer-preset-selector").addEventListener("change", this.equalizerPresetChanged.bind(this));
 }
 
 EqualizerEffectManager.prototype.$ = function() {
@@ -356,7 +355,7 @@ EqualizerEffectManager.prototype.$ = function() {
 };
 
 EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
-    var val = $(e.target).val();
+    var val = this._effectsManager.effectPreferences.page().$(e.target).value();
 
     if (equalizerPresets[val]) {
         this._effectsManager.preferences.setEqualizer(equalizerPresets[val]);
@@ -367,7 +366,7 @@ EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
 
 EqualizerEffectManager.prototype._updatePreset = function() {
     var presetName = this._effectsManager.preferences.getMatchingEqualizerPresetName();
-    this.$().find(".equalizer-preset-selector").val(presetName);
+    this.$().find(".equalizer-preset-selector").setValue(presetName);
 };
 
 EqualizerEffectManager.prototype._updateSliders = function() {
@@ -385,7 +384,7 @@ EqualizerEffectManager.prototype.update = function() {
 function EffectManager(domNode, effectPreferences) {
     EventEmitter.call(this);
     this.effectPreferences = effectPreferences;
-    this._domNode = $($(domNode)[0]);
+    this._domNode = effectPreferences.page().$(domNode).eq(0);
     this.preferences = effectPreferences.preferences();
     this.defaultPreferences = new Preferences();
     this.unchangedPreferences = null;

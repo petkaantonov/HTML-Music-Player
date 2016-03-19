@@ -1,6 +1,5 @@
 "use strict";
 
-import $ from "jquery";
 import TabController from "ui/TabController";
 import TrackRater from "tracks/TrackRater";
 
@@ -24,8 +23,12 @@ const moreThan1Selected = function(selectedCount, totalCount) {
     return selectedCount > 1 && totalCount > 1;
 };
 
+var instance = false;
 export default function MainTabs(opts) {
+    if (instance) throw new Error("only one instance can be made");
+    instance = true;
     opts = Object(opts);
+    this.page = opts.page;
     this.opts = opts;
     this.globalEvents = opts.globalEvents;
     this.menuContext = opts.menuContext;
@@ -39,6 +42,7 @@ export default function MainTabs(opts) {
     this.playlist = opts.playlist;
     this.search = opts.search;
     this.queue = opts.queue;
+    this.tabHolder = this.page.$(opts.tabHolder);
     this.contentInstancesByTabId = Object.create(null);
     this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;
     this.contentInstancesByTabId[SEARCH_TAB_ID] = this.search;
@@ -59,7 +63,8 @@ export default function MainTabs(opts) {
         indicator: opts.activeTabIndicator,
         recognizerContext: this.recognizerContext,
         rippler: opts.rippler,
-        globalEvents: this.globalEvents
+        globalEvents: this.globalEvents,
+        page: this.page
     });
     this.tabController.activateTabById(PLAYLIST_TAB_ID);
 
@@ -250,16 +255,17 @@ MainTabs.prototype.getSearchActionSpec = function() {
 };
 
 MainTabs.prototype.layoutChanged = function() {
+    var page = this.page;
     var elems = this.tabController.$containers();
 
-    var visible = elems.filter(function() {
-        return $(this).css("display") !== "none";
-    }).first();
+    var visible = elems.filter(function(elem) {
+        return page.$(elem).style().display !== "none";
+    }).get(0);
 
-    var rect = visible[0].getBoundingClientRect();
+    var rect = visible.getBoundingClientRect();
     var USED_HEIGHT = rect.top;
 
-    var height = $(window).height() - USED_HEIGHT;
+    var height = page.height() - USED_HEIGHT;
     height = Math.max(height - this.itemHeight / 2, this.itemHeight + this.itemHeight / 2);
     var remainder = height % this.itemHeight;
 
@@ -267,8 +273,8 @@ MainTabs.prototype.layoutChanged = function() {
         height -= remainder;
     }
 
-    elems.css("height", height);
-    $(this.opts.tabHolder).height(height + this.tabHeight);
+    elems.setStyle("height", height + "px");
+    this.tabHolder.setStyle("height", (height + this.tabHeight) + "px");
 };
 
 MainTabs.prototype.updatePlaylistContextMenuEnabledStates = function() {
@@ -293,14 +299,14 @@ MainTabs.prototype.updateSearchContextMenuEnabledStates = function() {
 
 MainTabs.prototype.beforePlaylistContextMenuOpen = function(e) {
     this.playlistTrackRater.update();
-    if ($(e.originalEvent.target).closest(".unclickable").length > 0) {
+    if (this.page.$(e.originalEvent.target).closest(".unclickable").length > 0) {
         e.preventDefault();
     }
 };
 
 MainTabs.prototype.beforeSearchContextMenuOpen = function(e) {
     this.searchTrackRater.update();
-    if ($(e.originalEvent.target).closest(".unclickable").length > 0) {
+    if (this.page.$(e.originalEvent.target).closest(".unclickable").length > 0) {
         e.preventDefault();
     }
 };

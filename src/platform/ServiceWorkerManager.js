@@ -1,7 +1,6 @@
 "use strict";
 
 import { inherits } from "util";
-import Promise from "bluebird";
 import Snackbar from "ui/Snackbar";
 import EventEmitter from "events";
 
@@ -12,6 +11,7 @@ export default function ServiceWorkerManager(opts) {
     opts = Object(opts);
     EventEmitter.call(this);
 
+    this._page = opts.page;
     this._globalEvents = opts.globalEvents;
     this._env = opts.env;
     this._snackbar = opts.snackbar;
@@ -30,7 +30,7 @@ export default function ServiceWorkerManager(opts) {
     this._updateChecker = this._updateChecker.bind(this);
     this._appClosed = this._appClosed.bind(this);
 
-    this._updateCheckInterval = setInterval(this._updateChecker, 10000);
+    this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
     this._globalEvents.on("foreground", this._foregrounded);
     this._globalEvents.on("background", this._backgrounded);
     this._globalEvents.on("shutdown", this._appClosed);
@@ -38,9 +38,10 @@ export default function ServiceWorkerManager(opts) {
 inherits(ServiceWorkerManager, EventEmitter);
 
 ServiceWorkerManager.prototype._appClosed = function() {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    if (this._page.navigator().serviceWorker &&
+        this._page.navigator().serviceWorker.controller) {
         try {
-            navigator.serviceWorker.controller.postMessage({
+            this._page.navigator().serviceWorker.controller.postMessage({
                 action: "closeNotifications",
                 tabId: tabId
             });
@@ -58,14 +59,12 @@ ServiceWorkerManager.prototype._updateChecker = function() {
 };
 
 ServiceWorkerManager.prototype._backgrounded = function() {
-    if (this._updateCheckInterval !== -1) {
-        clearInterval(this._updateCheckInterval);
-        this._updateCheckInterval = -1;
-    }
+    this._page.clearInterval(this._updateCheckInterval);
+    this._updateCheckInterval = -1;
 };
 
 ServiceWorkerManager.prototype._foregrounded = function() {
-    this._updateCheckInterval = setInterval(this._updateChecker, 10000);
+    this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
     this._updateChecker();
 };
 
@@ -105,7 +104,7 @@ ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeou
                 worker.postMessage({action: 'skipWaiting'}).catch(function() {});
                 return;
             case Snackbar.TIMED_OUT:
-                setTimeout(function() {
+                self._page.setTimeout(function() {
                     self._updateAvailable(worker, nextAskTimeout * 3);
                 }, nextAskTimeout);
                 break;
@@ -127,11 +126,11 @@ ServiceWorkerManager.prototype._updateFound = function(worker) {
 };
 
 ServiceWorkerManager.prototype.start = function() {
-    if (this._started || !navigator.serviceWorker) return;
+    if (this._started || !this._page.navigator().serviceWorker) return;
     this._started = true;
     var self = this;
-    this._registration = Promise.resolve(navigator.serviceWorker.register("/sw.js").then(function(reg) {
-        if (!navigator.serviceWorker.controller) return;
+    this._registration = Promise.resolve(this._page.navigator().serviceWorker.register("/sw.js").then(function(reg) {
+        if (!self._page.navigator().serviceWorker.controller) return;
 
         if (reg.waiting) {
             self._updateAvailable(reg.waiting);
@@ -143,19 +142,19 @@ ServiceWorkerManager.prototype.start = function() {
             });
         }
 
-        navigator.serviceWorker.addEventListener("message", self._messaged);
-        navigator.serviceWorker.addEventListener("ServiceWorkerMessageEvent", self._messaged);
-        window.addEventListener("message", self._messaged);
-        window.addEventListener("ServiceWorkerMessageEvent", self._messaged);
+        self._page.navigator().serviceWorker.addEventListener("message", self._messaged);
+        self._page.navigator().serviceWorker.addEventListener("ServiceWorkerMessageEvent", self._messaged);
+        self._page.addWindowListener("message", self._messaged);
+        self._page.addWindowListener("ServiceWorkerMessageEvent", self._messaged);
         return reg;
     }));
 
     var reloading = false;
-    navigator.serviceWorker.addEventListener("controllerchange", function() {
+    self._page.navigator().serviceWorker.addEventListener("controllerchange", function() {
         if (reloading) return;
         reloading = true;
-        window.onbeforeunload = null;
-        location.reload();
+        self._globalEvents.disableBeforeUnloadHandler();
+        self._page.location().reload();
     });
 };
 

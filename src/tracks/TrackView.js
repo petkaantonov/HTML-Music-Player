@@ -1,9 +1,5 @@
 "use strict";
 
-import { setTransform } from "platform/DomUtil";
-import $ from "jquery";
-
-const NULL = $(null);
 const ANALYSIS_TOOLTIP_MESSAGE =
 "<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
 "<p>Playing this track before the analysis has been completed may require manually adjusting volume.</p>";
@@ -12,13 +8,17 @@ const ERROR_HEADER = "<p>There was an error with this track:</p>";
 
 export default function TrackView(track, selectable, opts) {
     opts = Object(opts);
+    this.page = opts.page;
+    this.updateTrackIndex = !!opts.updateTrackIndex;
+    this.updateSearchDisplayStatus = !!opts.updateSearchDisplayStatus;
+
     this._track = track;
     this._isDestroyed = false;
     this._index = -1;
     this._playlist = opts.playlist;
     this._itemHeight = opts.itemHeight;
     this._error = null;
-    this._domNode = NULL;
+    this._domNode = null;
     this._isAttached = false;
     this._errorTooltip = null;
     this._analysisTooltip = null;
@@ -28,8 +28,6 @@ export default function TrackView(track, selectable, opts) {
     this._renderedPlayingStatus = false;
     this._selectable = selectable;
 
-    this.updateTrackIndex = !!opts.updateTrackIndex;
-    this.updateSearchDisplayStatus = !!opts.updateSearchDisplayStatus;
 
     this._viewUpdated = this._viewUpdated.bind(this);
 
@@ -67,12 +65,16 @@ TrackView.prototype.track = function() {
     return this._track;
 };
 
+TrackView.prototype._shouldUpdateDom = function() {
+    return this._domNode !== null;
+};
+
 TrackView.prototype._ensureDomNode = function() {
-    if (this._domNode !== NULL) return;
+    if (this._shouldUpdateDom()) return;
     var selectable = this._selectable;
-    this._domNode = $("<div>", {
+    this._domNode = this.page.createElement("div", {
         class: "track-container"
-    }).html("<div class='track'>                                                                      \
+    }).setHtml("<div class='track'>                                                                   \
         <div class='track-status'>                                                                    \
             <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                     \
         </div>                                                                                        \
@@ -132,8 +134,11 @@ TrackView.prototype.destroy = function() {
     }
     this.destroyTooltips();
     this._track.removeListener("viewUpdate", this._viewUpdated);
-    this.$().remove();
-    this._domNode = NULL;
+
+    if (this._shouldUpdateDom()) {
+        this.$().remove();
+        this._domNode = null;
+    }
     this._track = null;
     this._selectable = null;
     this._isAttached = false;
@@ -151,7 +156,7 @@ TrackView.prototype.isVisible = function() {
 TrackView.prototype.setIndex = function(index) {
     if (this._index !== index) {
         this._index = index;
-        if (this._domNode !== NULL) {
+        if (this._shouldUpdateDom()) {
             this._updateTranslate();
         }
     }
@@ -181,16 +186,16 @@ TrackView.prototype._viewUpdated = function(methodName) {
 TrackView.prototype.renderTrackInfo = function() {
     var artistAndTitle = this._track.getTrackInfo();
 
-    this.$().find(".track-title").text(artistAndTitle.title);
-    this.$().find(".track-artist").text(artistAndTitle.artist);
+    this.$().find(".track-title").setText(artistAndTitle.title);
+    this.$().find(".track-artist").setText(artistAndTitle.artist);
 };
 
 TrackView.prototype.renderTrackNumber = function() {
-    this.$trackNumber().text((this._track.getIndex() + 1) + ".");
+    this.$trackNumber().setText((this._track.getIndex() + 1) + ".");
 };
 
 TrackView.prototype.renderTrackDuration = function() {
-    this.$trackDuration().text(this._track.formatTime());
+    this.$trackDuration().setText(this._track.formatTime());
 };
 
 TrackView.prototype.destroyTooltips = function() {
@@ -207,8 +212,11 @@ TrackView.prototype.destroyTooltips = function() {
 
 TrackView.prototype.stageRemoval = function() {
     this.detach();
-    this.$().remove();
-    this._domNode = NULL;
+
+    if (this._shouldUpdateDom()) {
+        this.$().remove();
+        this._domNode = null;
+    }
 };
 
 TrackView.prototype.unstageRemoval = function() {
@@ -223,7 +231,9 @@ TrackView.prototype.attach = function(target) {
 
 TrackView.prototype.detach = function() {
     if (this._isAttached) {
-        this.$().detach();
+        if (this._shouldUpdateDom()) {
+            this.$().detach();
+        }
         this._isAttached = false;
         if (this._analysisTooltip) {
             this._analysisTooltip.hide();
@@ -236,12 +246,12 @@ TrackView.prototype.detach = function() {
 };
 
 TrackView.prototype.selected = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     this.$().addClass("track-active");
 };
 
 TrackView.prototype.unselected = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     this.$().removeClass("track-active");
 };
 
@@ -250,22 +260,20 @@ TrackView.prototype._updateAnalysisEstimate = function() {
     var transitionDuration = this._analysisCompletionEstimate - Date.now();
     if (transitionDuration < 0) return;
     this.$().addClass("track-container-progress");
-    var bar = $("<div>", {class: "track-progress-bar"}).appendTo(this.$());
+    var bar = this.page.createElement("div", {class: "track-progress-bar"})
+                .appendTo(this.$())
+                .setStyle("transitionDuration", (transitionDuration / 1000) + "s")
+                .forceReflow();
 
-    bar.css({
-        "transitionDuration": (transitionDuration / 1000) + "s"
-    });
-    bar.width();
-    requestAnimationFrame(function() {
-        setTransform(bar[0], "translateX(0)");
+    this.page.requestAnimationFrame(function() {
+        bar.setTransform("translateX(0)");
     });
 };
 
 TrackView.prototype.viewUpdateAnalysisEstimate = function(analysisEstimate) {
     this._analysisCompletionEstimate = analysisEstimate + Date.now();
-    if (this._domNode !== NULL) {
-        this._updateAnalysisEstimate();
-    }
+    if (!this._shouldUpdateDom()) return;
+    this._updateAnalysisEstimate();
 };
 
 TrackView.prototype.viewUpdateDestroyed = function() {
@@ -273,7 +281,7 @@ TrackView.prototype.viewUpdateDestroyed = function() {
 };
 
 TrackView.prototype.viewUpdateOfflineStatusChange = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     if (this._track.isAvailableOffline()) {
         this.$().find(".offline").addClass("active");
     } else {
@@ -282,7 +290,7 @@ TrackView.prototype.viewUpdateOfflineStatusChange = function() {
 };
 
 TrackView.prototype.viewUpdateSyncStatusChange = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     if (this._track.isSyncedToCloud()) {
         this.$().find(".cloud").addClass("active");
     } else {
@@ -291,7 +299,7 @@ TrackView.prototype.viewUpdateSyncStatusChange = function() {
 };
 
 TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     if (this._renderedPlayingStatus === playingStatus) return;
     this._renderedPlayingStatus = playingStatus;
 
@@ -309,21 +317,22 @@ TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
         this._analysisTooltip.destroy();
         this._analysisTooltip = null;
 
-        if (this._domNode !== NULL) {
-            this.$().removeClass("track-container-progress");
-            this.$().find(".track-progress-bar").remove();
-            this.$trackStatus().find(".track-analysis-status").remove();
-            this.$trackStatus().removeClass("unclickable");
-        }
+        if (!this._shouldUpdateDom()) return;
+        this.$().removeClass("track-container-progress")
+                .find(".track-progress-bar")
+                .remove();
+        this.$trackStatus().find(".track-analysis-status").remove();
+        this.$trackStatus().removeClass("unclickable");
+
     }
 };
 
 TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append("<span " +
+    this.$trackStatus().append(this.page.parse("<span " +
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
-        "></span>");
+        "></span>"));
 
     this._analysisTooltip = this._playlist.tooltipContext.makeTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
@@ -332,11 +341,11 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append("<span " +
+    this.$trackStatus().append(this.page.parse("<span " +
         "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
-        "></span>");
+        "></span>"));
 
     this._errorTooltip = this._playlist.tooltipContext.makeTooltip(this.$trackStatus(),
                                                                  ERROR_HEADER + this._track._error);
@@ -344,30 +353,29 @@ TrackView.prototype.viewUpdateShowErrorStatus = function() {
 };
 
 TrackView.prototype.viewUpdateHideErrorStatus = function() {
-    if (this._domNode !== NULL) {
-        if (this._errorTooltip) {
-            this._errorTooltip.destroy();
-            this._errorTooltip = null;
-        }
-        this.$trackStatus().find(".track-error-status").remove();
-        this.$trackStatus().removeClass("unclickable");
+    if (!this._shouldUpdateDom()) return;
+    if (this._errorTooltip) {
+        this._errorTooltip.destroy();
+        this._errorTooltip = null;
     }
+    this.$trackStatus().find(".track-error-status").remove();
+    this.$trackStatus().removeClass("unclickable");
 };
 
 TrackView.prototype.viewUpdatePositionChange = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     this.renderTrackNumber();
 };
 
 TrackView.prototype.viewUpdateTagDataChange = function() {
-    if (this._domNode === NULL) return;
+    if (!this._shouldUpdateDom()) return;
     this.renderTrackNumber();
     this.renderTrackDuration();
     this.renderTrackInfo();
 };
 
 TrackView.prototype._updateTranslate = function() {
-    setTransform(this.$()[0], this._getTranslate());
+    this.$().setTransform(this._getTranslate());
 };
 
 TrackView.prototype._getTranslate = function() {
@@ -384,31 +392,29 @@ TrackView.prototype._getTranslate = function() {
 
 TrackView.prototype.setOffset = function(value) {
     this._offset = value;
-    if (this._domNode !== NULL) {
-        this._updateTranslate();
-    }
+    if (!this._shouldUpdateDom()) return;
+    this._updateTranslate();
 };
 
 TrackView.prototype.startDragging = function() {
     if (this._dragged) return;
     this._dragged = true;
-    if (this._domNode !== NULL) {
-        this.$().addClass("track-dragging").removeClass("transition");
-        this._updateTranslate();
-    }
+    if (!this._shouldUpdateDom()) return;
+    this.$().addClass("track-dragging").removeClass("transition");
+    this._updateTranslate();
 };
 
 TrackView.prototype.stopDragging = function() {
     if (!this._dragged) return;
     this._dragged = false;
     this._offset = 0;
-    if (this._domNode !== NULL) {
-        this.$().removeClass("track-dragging").addClass("transition");
-        this._updateTranslate();
-        var self = this;
-        setTimeout(function() {
-            var node = self.$();
-            if (node) node.removeClass("transition");
-        }, 220);
-    }
+    if (!this._shouldUpdateDom()) return;
+    this.$().removeClass("track-dragging").addClass("transition");
+    this._updateTranslate();
+    var self = this;
+    this.page.setTimeout(function() {
+        if (!self._shouldUpdateDom()) return;
+        self.$().removeClass("transition");
+    }, 220);
+
 };

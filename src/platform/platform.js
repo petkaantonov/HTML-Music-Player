@@ -1,0 +1,37 @@
+/* globals self: false */
+"use strict";
+
+export const ArrayBuffer = self.ArrayBuffer;
+export const Blob = self.Blob;
+export const File = self.File;
+export const Int8Array = self.Int8Array;
+export const Uint8Array = self.Uint8Array;
+export const Uint8ClampedArray = self.Uint8ClampedArray;
+export const Int16Array = self.Int16Array;
+export const Uint16Array = self.Uint16Array;
+export const Int32Array = self.Int32Array;
+export const Uint32Array = self.Uint32Array;
+export const Float32Array = self.Float32Array;
+export const Float64Array = self.Float64Array;
+export const AudioContext = self.AudioContext;
+export const webkitAudioContext = self.webkitAudioContext;
+export const URL = self.URL;
+export const FileReader = self.FileReader;
+export const FileReaderSync = self.FileReaderSync;
+export const DataView = self.DataView;
+export const MouseEvent = self.MouseEvent;
+export const EventEmitter = self.EventEmitter;
+export const Worker = self.Worker;
+export const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
+export const Directory = self.Directory || function() {};
+export const Image = self.Image;
+export const codecLoaded = self.codecLoaded;
+export const XMLHttpRequest = self.XMLHttpRequest;
+export const setTimeout = self.setTimeout;
+export const setInterval = self.setInterval;
+export const clearTimeout = self.clearTimeout;
+export const clearInterval = self.clearInterval;
+export const performance = self.performance;
+export const console = self.console || {log: function() {}, warn: function() {}};
+export const MediaError = self.MediaError;
+export const matchMedia = self.matchMedia;

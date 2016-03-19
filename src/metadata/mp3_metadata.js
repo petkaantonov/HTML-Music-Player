@@ -1,5 +1,6 @@
 "use strict";
 
+import { Uint8Array, Blob } from "platform/platform";
 import { readBit } from "util";
 import { MD5 } from "jsmd5";
 import demux from "audio/demuxer";

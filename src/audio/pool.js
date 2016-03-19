@@ -1,5 +1,6 @@
 "use strict";
 
+import { Float32Array } from "platform/platform";
 import Resampler from "audio/Resampler";
 
 const decoderPool = Object.create(null);

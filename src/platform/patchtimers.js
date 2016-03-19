@@ -1,3 +1,4 @@
+/* globals self: false */
 "use strict";
 
 // Timers are silently dropped on mobile and never called when backgrounded.
@@ -7,8 +8,8 @@ const timers = {};
 timers[500000000] = true;
 delete timers[500000000];
 
-const GlobalSetTimeout = setTimeout;
-const GlobalClearTimeout = clearTimeout;
+const GlobalSetTimeout = self.setTimeout;
+const GlobalClearTimeout = self.clearTimeout;
 
 self.setTimeout = function(fn, time) {
     time = +time;

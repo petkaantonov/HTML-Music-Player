@@ -1,15 +1,17 @@
 "use strict";
-import $ from "jquery";
+
 import EventEmitter from "events";
-import { inherits, offCapture, onCapture } from "util";
-import { isTouchEvent, setTransform } from "platform/DomUtil";
+import { inherits } from "util";
 
 export default function Slider(domNode, opts) {
     opts = Object(opts);
     EventEmitter.call(this);
+    this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.recognizerContext = opts.recognizerContext;
-    this._domNode = $(domNode);
+    this._domNode = this.page.$(domNode);
+    this._knobNode = this.$().find(".slider-knob");
+    this._fillNode = this.$().find(".slider-fill");
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
     this._sliding = false;
@@ -32,7 +34,7 @@ export default function Slider(domNode, opts) {
 
     this.globalEvents.on("foreground", this._onReLayout);
     this.globalEvents.on("resize", this._onReLayout);
-    this.$().on("mousedown", this._onMousedown);
+    this.$().addEventListener("mousedown", this._onMousedown);
     this.touchdownRecognizer.recognizeBubbledOn(this.$());
 }
 inherits(Slider, EventEmitter);
@@ -42,11 +44,11 @@ Slider.prototype.$ = function() {
 };
 
 Slider.prototype.$knob = function() {
-    return this.$().find(".slider-knob");
+    return this._knobNode;
 };
 
 Slider.prototype.$fill = function() {
-    return this.$().find(".slider-fill");
+    return this._fillNode;
 };
 
 Slider.prototype.shouldUpdateDom = function() {
@@ -54,7 +56,7 @@ Slider.prototype.shouldUpdateDom = function() {
 };
 
 Slider.prototype._onMousedown = function(e) {
-    var wasTouchEvent = isTouchEvent(e);
+    var wasTouchEvent = this.page.isTouchEvent(e);
     if (this._sliding ||
         (!wasTouchEvent && e.which !== 1) ||
         (wasTouchEvent && e.isFirst === false)) {
@@ -64,16 +66,17 @@ Slider.prototype._onMousedown = function(e) {
     this._calculateDimensions();
 
     if (this.shouldUpdateDom()) {
-        this.$knob().addClass("focused").css("willChange", "transform");
-        this.$fill().css("willChange", "transform");
+        this.$knob().addClass("focused").setStyle("willChange", "transform");
+        this.$fill().setStyle("willChange", "transform");
         this.$().addClass("sliding");
     }
 
     this.emit("slideBegin", e);
     this.emit("slide", this._percentage(e));
 
-    $(document).on("mousemove", this._onMousemove).on("mouseup", this._onMouseup);
-    this.dragRecognizer.recognizeBubbledOn($(document));
+    this.page.addDocumentListener("mousemove", this._onMousemove);
+    this.page.addDocumentListener("mouseup", this._onMouseup);
+    this.dragRecognizer.recognizeBubbledOn(this.page.document());
 
     e.preventDefault();
 };
@@ -122,33 +125,34 @@ Slider.prototype._keydowned = function(e) {
 };
 
 Slider.prototype._knobFocused = function() {
-    onCapture(this.$knob()[0], "keydown", this._keydowned);
-    this.$knob().addClass("focused").css("willChange", "transform");
-    this.$fill().css("willChange", "transform");
+    this.$knob().addEventListener("keydown", this._keydowned, true)
+                .addClass("focused")
+                .setStyle("willChange", "transform");
+    this.$fill().setStyle("willChange", "transform");
     this.$().addClass("sliding");
     this.emit("slideBegin");
 };
 
 Slider.prototype._knobBlurred = function() {
-    offCapture(this.$knob()[0], "keydown", this._keydowned);
-    this.$knob().removeClass("focused").css("willChange", "");
-    this.$fill().css("willChange", "");
+    this.$knob().removeEventListener("keydown", this._keydowned, true)
+                .removeClass("focused").setStyle("willChange", "")
+                .setStyle("willChange", "");
     this.$().removeClass("sliding");
     this.emit("slideEnd");
 };
 
 Slider.prototype._setupKeyboard = function() {
-    this.$knob().prop("tabIndex", 0);
+    this.$knob().setProperty("tabIndex", 0);
     this._knobFocused = this._knobFocused.bind(this);
     this._knobBlurred = this._knobBlurred.bind(this);
     this._keydowned = this._keydowned.bind(this);
 
-    this.$knob().on("focus", this._knobFocused)
-                .on("blur", this._knobBlurred);
+    this.$knob().addEventListener("focus", this._knobFocused)
+                .addEventListener("blur", this._knobBlurred);
 };
 
 Slider.prototype._onMousemove = function(e) {
-    if (!isTouchEvent(e) && e.which !== 1) {
+    if (!this.page.isTouchEvent(e) && e.which !== 1) {
         return this._onMouseup(this._lastEvent);
     }
 
@@ -181,8 +185,9 @@ Slider.prototype.setValue = function(value, force) {
             knobTranslate += "translateY(" + knobValuePx + "px)";
             fillTranslate += "translateY(" + ((1 - value) * 100) + "%)";
         }
-        setTransform(this.$fill(), fillTranslate);
-        setTransform(this.$knob(), knobTranslate);
+
+        this.$fill().setTransform(fillTranslate);
+        this.$knob().setTransform(knobTranslate);
     }
 };
 
@@ -191,15 +196,16 @@ Slider.prototype._onMouseup = function(e) {
     this._sliding = false;
 
     if (this.shouldUpdateDom()) {
-        this.$knob().removeClass("focused").css("willChange", "");
-        this.$fill().css("willChange", "");
+        this.$knob().removeClass("focused").setStyle("willChange", "");
+        this.$fill().setStyle("willChange", "");
         this.$().removeClass("sliding");
     }
 
     this.emit("slideEnd", this._percentage(e));
 
-    $(document).off("mousemove", this._onMousemove).off("mouseup", this._onMouseup);
-    this.dragRecognizer.unrecognizeBubbledOn($(document));
+    this.page.removeDocumentListener("mousemove", this._onMousemove);
+    this.page.removeDocumentListener("mouseup", this._onMouseup);
+    this.dragRecognizer.unrecognizeBubbledOn(this.page.document());
     e.preventDefault();
 };
 
@@ -214,7 +220,7 @@ Slider.prototype._calculateDimensions = function() {
 
 Slider.prototype._onReLayout = function() {
     var self = this;
-    requestAnimationFrame(function() {
+    this.page.changeDom(function() {
         self._calculateDimensions();
         self.setValue(self._value, true);
     });
