@@ -777,9 +777,13 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
         for (var i = bufferIndex; i < buffers.length; ++i) {
             var j = bufferDataIndex;
             var buffer = buffers[i];
-            var samplesRemainingInBuffer = buffer.length - j;
+            var samplesRemainingInBuffer = Math.max(0, buffer.length - j);
+            if (samplesRemainingInBuffer <= 0) {
+                bufferDataIndex = 0;
+                continue;
+            }
             var byteLength = buffer.channelData[0].buffer.byteLength - j * 4;
-            var fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, byteLength / 4);
+            var fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, (byteLength / 4) | 0);
             var channelData = buffer.channelData;
             var sampleViews = new Array(channelData.length);
             for (var ch = 0; ch < sampleViews.length; ++ch) {
