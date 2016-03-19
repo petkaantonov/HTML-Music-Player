@@ -88,8 +88,8 @@ export default function MainTabs(opts) {
     this.playlistActionSpec = this.getPlaylistActionSpec();
     this.searchActionSpec = this.getSearchActionSpec();
 
-    this.playlistContextMenu = this.menuContext.createContextMenu(this.playlist.$(), this.playlistActionSpec);
-    this.searchContextMenu = this.menuContext.createContextMenu(this.search.$(), this.searchActionSpec);
+    this.playlistContextMenu = this.menuContext.createContextMenu(this.playlist.$trackContainer(), this.playlistActionSpec);
+    this.searchContextMenu = this.menuContext.createContextMenu(this.search.$trackContainer(), this.searchActionSpec);
 
     this.playlistContextMenu.on("beforeOpen", this.beforePlaylistContextMenuOpen.bind(this));
     this.searchContextMenu.on("beforeOpen", this.beforeSearchContextMenuOpen.bind(this));

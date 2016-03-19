@@ -38,10 +38,10 @@ const append = function(node, frag) {
 };
 
 const after = function(node, frag) {
-    var parent = node.parentElement;
+    var parent = node.parentNode;
     if (!parent) return;
 
-    var next = node.nextElementSibling;
+    var next = node.nextSibling;
 
     if (next) {
         parent.insertBefore(frag, next);
@@ -51,7 +51,7 @@ const after = function(node, frag) {
 };
 
 const before = function(node, frag) {
-    var parent = node.parentElement;
+    var parent = node.parentNode;
     if (!parent) return;
     parent.insertBefore(frag, node);
 };
