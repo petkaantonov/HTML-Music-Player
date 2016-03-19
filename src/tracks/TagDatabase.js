@@ -79,8 +79,14 @@ TagDatabase.prototype.insert = function(trackUid, data) {
     });
 };
 
-const fieldUpdater = function(fieldName) {
-    return function(trackUid, value) {
+const fieldUpdater = function() {
+    var fieldNames = new Array(arguments.length);
+    for (var i = 0; i < fieldNames.length; ++i) fieldNames[i] = arguments[i];
+
+    return function(trackUid) {
+        var values = new Array(arguments.length - 1);
+        for (var i = 1; i < arguments.length; ++i) values[i - 1] = arguments[i];
+
         var self = this;
         var db;
         return this.db.then(function(_db) {
@@ -91,7 +97,12 @@ const fieldUpdater = function(fieldName) {
             var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
             data = Object(data);
             data.trackUid = trackUid;
-            data[fieldName] = value;
+
+            for (var i = 0; i < fieldNames.length; ++i) {
+                var name = fieldNames[i];
+                var value = values[i];
+                data[name] = value;
+            }
             return iDbPromisify(store.put(data));
         });
     };
@@ -100,3 +111,4 @@ const fieldUpdater = function(fieldName) {
 TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
+TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater("playthroughCounter", "lastPlayed");

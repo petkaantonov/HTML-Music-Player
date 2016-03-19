@@ -51,6 +51,8 @@ export default function TagData(track, data, trackAnalyzer) {
     this.rating = -1;
     this.acoustId = null;
 
+    this.playthroughCounter = 0;
+    this.lastPlayed = 0;
     this.pictures = data.pictures || [];
 
     this._formattedTime = null;
@@ -410,6 +412,12 @@ TagData.prototype.hasBeenAnalyzed = function() {
     return this._hasBeenAnalyzed;
 };
 
+TagData.prototype.triggerPlaythrough = function() {
+    this.playthroughCounter++;
+    this.lastPlayed = Date.now();
+    this._trackAnalyzer.setPlaythroughCounter(this.track, this.playthroughCounter);
+};
+
 TagData.prototype.setLoudness = function(data) {
     this.trackGain = data.trackGain;
     this.trackPeak = data.trackPeak || 1;
@@ -432,6 +440,8 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     if (this.acoustId) {
         this.updateFieldsFromAcoustId(this.acoustId);
     }
+    this.playthroughCounter = +data.playthroughCounter || 0;
+    this.lastPlayed = +data.lastPlayed || 0;
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;

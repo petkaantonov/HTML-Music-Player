@@ -96,6 +96,10 @@ const apiActions = {
         db.updateRating(args.uid, args.rating);
     },
 
+    setPlaythroughCounter: function(args) {
+        db.updatePlaythroughCounter(args.uid, args.counter, Date.now());
+    },
+
     tick: simulateTick,
 
     search: function(args) {

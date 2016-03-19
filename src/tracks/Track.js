@@ -19,7 +19,6 @@ export default function Track(audioFile) {
     this.tagData = null;
     this.index = -1;
     this._error = null;
-    this._lastPlayed = 0;
     this._uid = null;
     this._transientId = ++nextTransientId;
     this._generatedImage = null;
@@ -425,12 +424,27 @@ Track.prototype.hasSilenceAtEnd = function() {
     return false;
 };
 
-Track.prototype.played = function() {
-    this._lastPlayed = Date.now();
+Track.prototype.triggerPlaythrough = function() {
+    if (this.hasError()) {
+        this.unsetError();
+    }
+    if (this.tagData) {
+        this.tagData.triggerPlaythrough();
+    }
+};
+
+Track.prototype.getPlaythroughCount = function() {
+    if (!this.tagData) return false;
+    return this.tagData.playthroughCounter;
+};
+
+Track.prototype.getLastPlayed = function() {
+    if (!this.tagData) return 0;
+    return this.tagData.lastPlayed;
 };
 
 Track.prototype.hasBeenPlayedWithin = function(time) {
-    return this._lastPlayed >= time;
+    return this.getLastPlayed() >= time;
 };
 
 Track.prototype.shouldRetrieveAcoustIdImage = function() {

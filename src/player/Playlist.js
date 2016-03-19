@@ -370,7 +370,6 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
         }
     }
 
-    track.played();
     this._currentPlayId = nextPlayId++;
     this.emit("trackPlayingStatusChange", track);
     this.emit("currentTrackChange", track);

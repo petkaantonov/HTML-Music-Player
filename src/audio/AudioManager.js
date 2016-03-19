@@ -2,6 +2,7 @@
 
 import { Float32Array } from "platform/platform";
 import AudioVisualizer from "visualization/AudioVisualizer";
+import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
@@ -11,12 +12,15 @@ const SEEK_END_CURVE = new Float32Array([0.001, 1]);
 const SEEK_START_FADE_TIME = 0.5;
 const SEEK_END_FADE_TIME = 0.5;
 const VOLUME_RATIO = 2;
+const PLAYTHROUGH_COUNTER_THRESHOLD = 15;
+
 
 export default function AudioManager(player, track, implicitlyLoaded) {
     this.gaplessPreloadTrack = null;
     this.implicitlyLoaded = implicitlyLoaded;
     this.player = player;
     this.destroyed = false;
+    this.tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
     this.intendingToSeek = -1;
     this.track = track;
     this.currentTime = 0;
@@ -160,6 +164,7 @@ AudioManager.prototype.replaceTrack = function(track) {
 
     if (this.sourceNode.hasGaplessPreload()) {
         if (track === gaplessPreloadTrack) {
+            this.tickCounter.reset();
             this.intendingToSeek = -1;
             this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
             this.track = track;
@@ -181,6 +186,7 @@ AudioManager.prototype.replaceTrack = function(track) {
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
     this.sourceNode.once("replacementLoaded", function() {
+        self.tickCounter.reset();
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
         self.normalizeLoudness();
@@ -313,8 +319,19 @@ AudioManager.prototype.seekIntent = function(value) {
 
 AudioManager.prototype.timeUpdated = function() {
     if (this.destroyed || this.intendingToSeek !== -1) return;
-    if (this.getCurrentTime() >= this.getDuration()) {
+    var currentTime = this.getCurrentTime();
+    var duration = this.getDuration();
+    if (currentTime >= duration) {
         this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
+    }
+    if (!this.tickCounter.hasTriggered() &&
+        this.track &&
+        currentTime >= 5 &&
+        duration >= 10) {
+
+        if (this.tickCounter.tick()) {
+            this.track.triggerPlaythrough();
+        }
     }
     this.player.audioManagerProgressed(this);
 };
@@ -322,6 +339,7 @@ AudioManager.prototype.timeUpdated = function() {
 AudioManager.prototype.pause = function() {
     if (this.destroyed || !this.started) return;
     var now = this.player.getAudioContext().currentTime;
+    this.tickCounter.pause();
     this.cancelPauseResumeFade();
     this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
@@ -355,6 +373,7 @@ AudioManager.prototype.resume = function() {
 
 AudioManager.prototype.start = function() {
     if (this.destroyed || this.started) return;
+    this.tickCounter.reset();
     this.intendingToSeek = -1;
     this.started = true;
     this.normalizeLoudness();
