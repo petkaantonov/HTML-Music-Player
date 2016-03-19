@@ -411,7 +411,7 @@ Player.prototype.loadTrack = function(track) {
     }
     this.currentAudioManager = new AudioManager(this, track, implicit);
     this.audioManagers.push(this.currentAudioManager);
-    this.currentAudioManager.trackTagDataUpdated();
+    this.currentAudioManager.trackPictureUpdated();
     this.startedPlay();
     this.emit("trackPlaying");
     this.emit("newTrackLoad");

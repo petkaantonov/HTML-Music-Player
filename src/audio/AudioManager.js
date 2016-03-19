@@ -205,8 +205,13 @@ AudioManager.prototype.nextTrackChanged = function() {
 
 AudioManager.prototype.trackTagDataUpdated = function() {
     if (this.destroyed || this.player.currentAudioManager !== this) return;
-    this.player.getPictureManager().updateImageFromTrack(this.track);
+    this.trackPictureUpdated();
     this.normalizeLoudness();
+};
+
+AudioManager.prototype.trackPictureUpdated = function() {
+    if (this.destroyed || this.player.currentAudioManager !== this) return;
+    this.player.getPictureManager().updateImageFromTrack(this.track);
 };
 
 AudioManager.prototype.normalizeLoudness = function() {
