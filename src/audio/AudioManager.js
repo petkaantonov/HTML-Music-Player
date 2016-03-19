@@ -25,6 +25,7 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.track = track;
     this.currentTime = 0;
     this.sourceNode = null;
+    this.paused = false;
     this.pauseResumeFadeGain = null;
     this.replayGain = null;
     this.seekGain = null;
@@ -190,9 +191,14 @@ AudioManager.prototype.replaceTrack = function(track) {
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
         self.normalizeLoudness();
-        self.updateSchedules();
-        self.resume();
-        self.fadeInSeekGain();
+        if (!self.paused) {
+            self.updateSchedules();
+            self.fadeInSeekGain();
+            self.sourceNode.play();
+            if (self.visualizer) {
+                self.visualizer.resume();
+            }
+        }
     });
     this.currentTime = track.convertFromSilenceAdjustedTime(0);
     this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
@@ -342,7 +348,8 @@ AudioManager.prototype.timeUpdated = function() {
 };
 
 AudioManager.prototype.pause = function() {
-    if (this.destroyed || !this.started) return;
+    if (this.destroyed || !this.started || this.paused) return;
+    this.paused = true;
     var now = this.player.getAudioContext().currentTime;
     this.tickCounter.pause();
     this.cancelPauseResumeFade();
@@ -352,9 +359,7 @@ AudioManager.prototype.pause = function() {
     var self = this;
     var id = ++this.pauseResumeFadeRequestId;
     Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
-        if (id !== self.pauseResumeFadeRequestId) {
-            return;
-        }
+        if (id !== self.pauseResumeFadeRequestId) return;
         if (self.destroyed) return;
         self.sourceNode.pause();
         if (self.visualizer) {
@@ -364,7 +369,10 @@ AudioManager.prototype.pause = function() {
 };
 
 AudioManager.prototype.resume = function() {
-    if (this.destroyed || !this.started) return;
+    if (this.destroyed || !this.started || !this.paused) return;
+    this.seekGain.gain.cancelScheduledValues(0);
+    this.seekGain.gain.value = 1;
+    this.paused = false;
     var now = this.player.getAudioContext().currentTime;
     this.cancelPauseResumeFade();
     this.sourceNode.play();
