@@ -540,6 +540,7 @@ AudioPlayerSourceNode.prototype._ended = function() {
 
 AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor) {
     if (sourceDescriptor.source) {
+        sourceDescriptor.source.descriptor = null;
         sourceDescriptor.source.onended = null;
         sourceDescriptor.source = null;
     }
@@ -571,17 +572,54 @@ AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
     this._fillBuffers();
 };
 
-AudioPlayerSourceNode.prototype._sourceEnded = function(event) {
+AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
     simulateTick();
-    var source = event.target;
-    if (!source.onended) return;
-    var sourceDescriptor = this._bufferQueue.shift();
+    if (!descriptor) {
+        console.warn(new Date().toISOString(), "!descriptor",
+                        "ended emitted", this._endedEmitted,
+                        "length", this._bufferQueue.length);
+        return;
+    }
 
-    if (sourceDescriptor.source !== source) {
-        throw new Error("should not happen");
+    var length = this._bufferQueue.length;
+    var sourceDescriptor = null;
+    if (length > 0) {
+        sourceDescriptor = this._bufferQueue.shift();
+    }
+
+    if (!sourceDescriptor) {
+        this._destroySourceDescriptor(descriptor);
+        console.warn(new Date().toISOString(), "!sourceDescriptor",
+                     "ended emitted", this._endedEmitted,
+                     "prelen", length,
+                     "postlen", this._bufferQueue.length,
+                     "referencedStart", descriptor.startTime,
+                     "referencedEnd", descriptor.endTime);
+        return this._ended();
+    }
+
+    if (sourceDescriptor !== descriptor) {
+        console.warn(new Date().toISOString(), "sourceDescriptor !== descriptor",
+                     "ended emitted", this._endedEmitted,
+                     "prelen", length,
+                     "postlen", this._bufferQueue.length,
+                     "queuedStart", sourceDescriptor.startTime,
+                     "queuedEnd", sourceDescriptor.endTime,
+                     "referencedStart", descriptor.startTime,
+                     "referencedEnd", descriptor.endTime);
+        this._destroySourceDescriptor(descriptor);
+
+        if (descriptor.startTime < sourceDescriptor.startTime) {
+            this._bufferQueue.unshift(sourceDescriptor);
+            return;
+        } else {
+            this._destroySourceDescriptor(sourceDescriptor);
+            return this._ended();
+        }
     }
     this._baseTime += sourceDescriptor.duration;
 
+    source.descriptor = null;
     source.onended = null;
     sourceDescriptor.source = null;
     this._playedBufferQueue.push(sourceDescriptor);
@@ -615,13 +653,20 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
     var buffer = sourceDescriptor.buffer;
     var duration = sourceDescriptor.getRemainingDuration();
     var src = this._audioContext.createBufferSource();
+    var endedEmitted = false;
+    sourceDescriptor.source = src;
     sourceDescriptor.started = when;
     src.buffer = buffer;
     src.connect(this.node());
     src.start(when, sourceDescriptor.playedSoFar);
     src.stop(when + duration);
-    src.onended = this._sourceEnded;
-    sourceDescriptor.source = src;
+    var self = this;
+    src.onended = function() {
+        if (endedEmitted) return;
+        endedEmitted = true;
+        src.onended = null;
+        self._sourceEnded(sourceDescriptor, src);
+    };
     return when + duration;
 };
 
