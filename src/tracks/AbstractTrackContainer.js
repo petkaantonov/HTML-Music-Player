@@ -62,7 +62,7 @@ AbstractTrackContainer.prototype._bindListEvents = function() {
             self._selectable.selectTrackView(trackView);
         }
         self._selectable.setPriorityTrackView(trackView);
-    }, ".track-container")).recognizeBubbledOn(self.$());
+    }, ".track-container")).recognizeBubbledOn(self.$trackContainer());
 
     self.recognizerContext.createDoubleTapRecognizer(page.delegatedEventHandler(function(e) {
         if (page.$(e.target).closest(".unclickable").length > 0) return;

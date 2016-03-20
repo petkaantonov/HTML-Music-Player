@@ -24,7 +24,6 @@ inherits(TapRecognizer, AbstractGestureRecognizer);
 TapRecognizer.prototype._recognizerHandler = function(e) {
     var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
-
     if (e.type === TOUCH_START) {
         if (this.actives.length() <= 1) {
             this.started = (e.timeStamp || e.originalEvent.timeStamp);
@@ -34,7 +33,9 @@ TapRecognizer.prototype._recognizerHandler = function(e) {
         }
 
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-        if (this.actives.length() !== 0 || this.currentTouch === null || this.getDocumentActives().length() !== 0) {
+        if (this.actives.length() !== 0 ||
+            this.currentTouch === null ||
+            this.getDocumentActives().length() !== 0) {
             this.clear();
             return;
         }
@@ -43,7 +44,6 @@ TapRecognizer.prototype._recognizerHandler = function(e) {
         var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
         var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
         var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
-
         if (elapsed > 20 && elapsed < this.recognizerContext.TAP_TIME && xDelta <= 25 && yDelta <= 25) {
             var g = new GestureObject(e, touch);
             this.handler.call(e.currentTarget, g);

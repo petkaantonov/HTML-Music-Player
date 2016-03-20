@@ -233,7 +233,10 @@ Search.prototype.tabWillShow = function() {
 Search.prototype.tabDidShow = function() {
     this.$().find(".search-next-tab-focus").show();
     this._visible = true;
-    this.$input().focus();
+
+    if (!this.env.isMobile()) {
+        this.$input().focus();
+    }
     this._fixedItemListScroller.resize();
     this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
 };

@@ -41,6 +41,12 @@ AbstractDimensionCommittedDragRecognizer.prototype.end = function(e, touch) {
             this.endHandler.call(e.currentTouch, g);
         }
     }
+    this.committed = UNCOMMITTED;
+};
+
+AbstractDimensionCommittedDragRecognizer.prototype.clear = function() {
+    this.currentTouch = null;
+    this.committed = UNCOMMITTED;
 };
 
 AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function(e) {
@@ -48,7 +54,7 @@ AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 1) {
-        this.end(e);
+        this.clear();
         return;
     }
 
@@ -56,15 +62,15 @@ AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function
         this.currentTouch = this.actives.first();
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (this.actives.length() > 0) {
-            this.currentTouch = this.actives.first();
+            this.clear();
         } else {
             this.end(e, this.currentTouch);
-            this.currentTouch = null;
         }
     } else if (e.type === TOUCH_MOVE) {
         if (!this.actives.contains(this.currentTouch) ||
             this.actives.length() > 1 ||
             this.getDocumentActives().length() > 1) {
+            this.clear();
             return;
         }
 

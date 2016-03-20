@@ -2,7 +2,7 @@
 
 export default function SingleTapTimeout(recognizer, successHandler, clearHandler, timeout) {
     this.recognizer = recognizer;
-    this.id = this.recognizer.setTimeout(this.timeoutHandler.bind(this), timeout);
+    this.id = this.recognizer.page.setTimeout(this.timeoutHandler.bind(this), timeout);
     this.successHandler = successHandler;
     this.clearHandler = clearHandler;
 }

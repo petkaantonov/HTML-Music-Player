@@ -22,16 +22,15 @@ export default function HorizontalTwoFingerSwipeRecognizer(recognizerContext, ha
     this.lastAX = -1;
     this.lastBX = -1;
     this.lastBY = -1;
-    this.previousTime = -1;
-    this.elapsedTotal = 0;
+    this.startTime = -1;
     this._recognizerHandler = this._recognizerHandler.bind(this);
     this._eventType = recognizerContext.TOUCH_EVENTS;
 }
 inherits(HorizontalTwoFingerSwipeRecognizer, AbstractGestureRecognizer);
 
 HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-    var now = (e.timeStamp || e.originalEvent.timeStamp);
+    var changedTouches = e.changedTouches;
+    var now = e.timeStamp;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 2) {
@@ -45,10 +44,9 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
             this.startAX = this.currentATouch.clientX;
             this.lastAX = this.startAX;
             this.lastAY = this.currentATouch.clientY;
-            this.previousTime = now;
+            this.startTime = now;
         } else if (this.actives.length() === 2 && this.currentATouch !== null) {
-            this.elapsedTotal += (now - this.previousTime);
-            this.previousTime = this.now;
+            this.startTime = now;
             this.currentBTouch = this.actives.nth(1);
             this.startBX = this.currentBTouch.clientX;
             this.lastBX = this.startBX;
@@ -72,7 +70,7 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
             }
         }
         if (this.actives.length() === 0) {
-            this.checkCompletion();
+            this.checkCompletion(now - this.startTime);
         }
     } else if (e.type === TOUCH_MOVE) {
         if (this.getDocumentActives().length() > 2) {
@@ -80,8 +78,6 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
         if (this.currentATouch !== null || this.currentBTouch !== null) {
-            var now = (e.timeStamp || e.originalEvent.timeStamp);
-            this.elapsedTotal += (now - this.previousTime);
 
             for (var i = 0; i < changedTouches.length; ++i) {
                 var touch = changedTouches[i];
@@ -100,19 +96,18 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
                  Math.abs(this.lastAY - this.lastBY) > 150)) {
                 this.clear();
             }
-            this.previousTime = now;
         }
     }
 };
 
-HorizontalTwoFingerSwipeRecognizer.prototype.checkCompletion = function() {
+HorizontalTwoFingerSwipeRecognizer.prototype.checkCompletion = function(elapsedTotal) {
     if (this.startAX !== -1 && this.startBX !== -1 && this.getDocumentActives().length() === 0) {
         var aDiff = this.lastAX - this.startAX;
         var bDiff = this.lastBX - this.startBX;
         var aAbsDiff = Math.abs(aDiff);
         var bAbsDiff = Math.abs(bDiff);
-        var aVelocity = (aAbsDiff / this.elapsedTotal * 1000)|0;
-        var bVelocity = (bAbsDiff / this.elapsedTotal * 1000)|0;
+        var aVelocity = (aAbsDiff / elapsedTotal * 1000)|0;
+        var bVelocity = (bAbsDiff / elapsedTotal * 1000)|0;
         var direction = this.direction;
         var minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
         var minSwipeVelocity = this.recognizerContext.SWIPE_VELOCITY;
@@ -131,8 +126,7 @@ HorizontalTwoFingerSwipeRecognizer.prototype.checkCompletion = function() {
 };
 
 HorizontalTwoFingerSwipeRecognizer.prototype.clear = function() {
-    this.previousTime = -1;
     this.currentATouch = this.currentBTouch = null;
     this.lastAY = this.lastBY = this.startAX = this.startBX = this.lastAX = this.lastBX = -1;
-    this.elapsedTotal = 0;
+    this.startTime = -1;
 };

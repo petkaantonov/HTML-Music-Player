@@ -36,7 +36,7 @@ AbstractGestureRecognizer.prototype.getModifierTouch = function() {
 };
 
 AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
-    if (!elem || (typeof elem.nodeType !== "number" || !(elem instanceof DomWrapper))) {
+    if (!elem || (typeof elem.nodeType !== "number" && !(elem instanceof DomWrapper))) {
         throw new TypeError("elem is not a dom node");
     }
     var eventTypes = this._eventType;
@@ -46,7 +46,7 @@ AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
 };
 
 AbstractGestureRecognizer.prototype._unrecognizeOn = function(elem, useCapture) {
-    if (!elem || (typeof elem.nodeType !== "number" || !(elem instanceof DomWrapper))) {
+    if (!elem || (typeof elem.nodeType !== "number" && !(elem instanceof DomWrapper))) {
         throw new TypeError("elem is not a dom node");
     }
     var eventTypes = this._eventType;

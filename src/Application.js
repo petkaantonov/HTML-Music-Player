@@ -182,6 +182,7 @@ export default function Application(opts) {
     });
 
     this.search = new Search(".search-list-container", {
+        env: this.env,
         page: this.page,
         playlist: this.playlist,
         itemHeight: ITEM_HEIGHT,
@@ -230,7 +231,7 @@ export default function Application(opts) {
     });
 
     if (false && env.isDevelopment()) {
-        this.localFileHandler.generateFakeFiles(8);
+        this.localFileHandler.generateFakeFiles(30);
     }
 
     this.player = new Player(".app-player-controls", this.playlist, {
@@ -374,7 +375,7 @@ Application.prototype.selectStarted = function(e) {
     }
 };
 
-Application.prototype.longTapStarted = function(e, touch) {
+Application.prototype.longTapStarted = function(touch) {
     this.spinner.spinAt(touch.clientX|0, touch.clientY|0);
 };
 

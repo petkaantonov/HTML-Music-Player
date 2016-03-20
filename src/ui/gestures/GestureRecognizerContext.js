@@ -43,13 +43,13 @@ export default function GestureRecognizerContext(page, env, globalEvents) {
     this.updateModifierTouch = this.updateModifierTouch.bind(this);
 
     if (this.isTouchSupported()) {
-        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch);
-        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch);
-        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch);
-        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch);
-        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation);
-        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation);
-        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation);
+        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, true);
+        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, true);
+        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, true);
+        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, true);
+        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, true);
+        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, true);
+        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, true);
         this.page.addDocumentListener("gesturestart", this.page.preventDefaultHandler);
         this.page.addDocumentListener("gesturechange", this.page.preventDefaultHandler);
         this.page.addDocumentListener("gestureend", this.page.preventDefaultHandler);

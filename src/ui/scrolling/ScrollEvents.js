@@ -48,6 +48,7 @@ ScrollEventsBinding.prototype._verticalDragStart = function(gesture) {
         this.clearStopTimerId();
         this.gestureArray[0] = gesture;
         this.scroller.doTouchStart(this.gestureArray, gesture.timeStamp);
+        this.scrollbar.willScroll();
     }
 };
 

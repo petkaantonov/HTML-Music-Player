@@ -26,7 +26,10 @@ export default function AbstractPreferences(preferences, opts) {
         action: this.undoChangesClicked.bind(this)
     }]);
 
+    this.savePreferences = throttle(this.savePreferences, 250);
+
     this._manager = null;
+
 
     var popupOpen = this._popup.open.bind(this._popup);
     this.page().$(opts.preferencesButton).addEventListener("click", popupOpen);
@@ -79,10 +82,10 @@ AbstractPreferences.prototype.undoChangesClicked = function() {
     return this._manager.undoChanges();
 };
 
-AbstractPreferences.prototype.savePreferences = throttle(function() {
+AbstractPreferences.prototype.savePreferences = function() {
     this.emit("change", this.preferences());
     this._db.set(this.STORAGE_KEY, this.preferences().toJSON());
-}, 250);
+};
 
 AbstractPreferences.prototype.setResetDefaultsEnabled = function(value) {
     this.popup().setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, !!value);

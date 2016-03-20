@@ -6,6 +6,7 @@ import Scrollbar from "ui/scrolling/Scrollbar";
 
 export default function FixedItemListScroller(node, itemList, itemHeight, opts) {
     opts = Object(opts);
+
     this._page = opts.page;
     this._domNode = this._page.$(node).eq(0);
     this._contentContainer = this._page.$(opts.contentContainer || node).eq(0);
@@ -31,6 +32,7 @@ export default function FixedItemListScroller(node, itemList, itemHeight, opts) 
     this._renderScroller = this._renderScroller.bind(this);
     this._renderItems = this._renderItems.bind(this);
     this._clearWillChange = this._clearWillChange.bind(this);
+    this._resetChangingDimensions = throttle(this._resetChangingDimensions, 50);
 
     this._scroller = new Scroller(this._renderScroller, opts);
     this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
@@ -176,9 +178,9 @@ FixedItemListScroller.prototype.scrollBy = function(amount) {
     this._scheduleRender();
 };
 
-FixedItemListScroller.prototype._resetChangingDimensions = throttle(function() {
+FixedItemListScroller.prototype._resetChangingDimensions = function() {
     this._changingDimensions = false;
-}, 50);
+};
 
 FixedItemListScroller.prototype.resize = function() {
     this._previousPhysicalHeight = this.physicalHeight();

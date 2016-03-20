@@ -92,7 +92,6 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
 };
 
 OpenableSubmenu.prototype._openerClicked = function(e) {
-    this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.open();
 };
 
