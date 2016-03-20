@@ -328,6 +328,10 @@ AudioManager.prototype.seekIntent = function(value) {
     this.player.audioManagerSeekIntent(this, this.intendingToSeek);
 };
 
+AudioManager.prototype.hasPlaythroughBeenTriggered = function() {
+    return this.tickCounter.hasTriggered();
+};
+
 AudioManager.prototype.timeUpdated = function() {
     if (this.destroyed || this.intendingToSeek !== -1) return;
     var currentTime = this.getCurrentTime();

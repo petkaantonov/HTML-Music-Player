@@ -94,7 +94,7 @@ DefaultShortcuts.prototype.shortcutStop = function() {
 };
 
 DefaultShortcuts.prototype.shortcutNext = function() {
-    this.playlist.next();
+    this.playlist.next(true);
 };
 
 DefaultShortcuts.prototype.shortcutPrev = function() {
@@ -181,7 +181,7 @@ DefaultShortcuts.prototype.shortcutGestureTogglePlayback = function() {
 
 DefaultShortcuts.prototype.shortcutGestureNext = function() {
     this.gestureScreenFlasher.flashGesture("next");
-    this.playlist.next();
+    this.playlist.next(true);
 };
 
 DefaultShortcuts.prototype.shortcutGesturePrev = function() {

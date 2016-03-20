@@ -334,7 +334,7 @@ Playlist.prototype._highlyRelevantTrackMetadataUpdated = function() {
 };
 
 var nextPlayId = 10;
-Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind) {
+Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
     if (track === undefined || track === null || this._errorCount >= MAX_ERRORS) {
         this._errorCount = 0;
         this.setCurrentTrack(null, trackChangeKind);
@@ -366,13 +366,13 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
             track = Playlist.Modes.normal.call(this, track);
             this.setCurrentTrack(track, KIND_IMPLICIT);
         } else {
-            return this.next();
+            return this.next(false);
         }
     }
 
     this._currentPlayId = nextPlayId++;
     this.emit("trackPlayingStatusChange", track);
-    this.emit("currentTrackChange", track);
+    this.emit("currentTrackChange", track, !!isUserInitiatedSkip);
     return true;
 };
 
@@ -644,8 +644,8 @@ Playlist.prototype.isUsingShuffleMode = function() {
     return this._mode === SHUFFLE_MODE;
 };
 
-Playlist.prototype.changeTrackImplicitly = function(track, doNotRecordHistory) {
-    return this._changeTrack(track, !!doNotRecordHistory, KIND_IMPLICIT);
+Playlist.prototype.changeTrackImplicitly = function(track, doNotRecordHistory, isUserInitiatedSkip) {
+    return this._changeTrack(track, !!doNotRecordHistory, KIND_IMPLICIT, !!isUserInitiatedSkip);
 };
 
 Playlist.prototype.changeTrackExplicitly = function(track, doNotRecordHistory) {
@@ -714,9 +714,9 @@ Playlist.prototype.prev = function() {
     }
 };
 
-Playlist.prototype.next = function() {
+Playlist.prototype.next = function(userInitiated) {
     if (!this.getNextTrack()) return this.stop();
-    return this.changeTrackImplicitly(this.getNextTrack());
+    return this.changeTrackImplicitly(this.getNextTrack(), false, userInitiated);
 };
 
 Playlist.prototype.tryChangeMode = function(mode) {

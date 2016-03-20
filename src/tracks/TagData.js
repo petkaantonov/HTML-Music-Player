@@ -51,6 +51,7 @@ export default function TagData(track, data, trackAnalyzer) {
     this.rating = -1;
     this.acoustId = null;
 
+    this.skipCounter = 0;
     this.playthroughCounter = 0;
     this.lastPlayed = 0;
     this.pictures = data.pictures || [];
@@ -412,6 +413,12 @@ TagData.prototype.hasBeenAnalyzed = function() {
     return this._hasBeenAnalyzed;
 };
 
+TagData.prototype.recordSkip = function() {
+    this.skipCounter++;
+    this.lastPlayed = Date.now();
+    this._trackAnalyzer.setSkipCounter(this.track, this.skipCounter);
+};
+
 TagData.prototype.triggerPlaythrough = function() {
     this.playthroughCounter++;
     this.lastPlayed = Date.now();
@@ -440,8 +447,9 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     if (this.acoustId) {
         this.updateFieldsFromAcoustId(this.acoustId);
     }
-    this.playthroughCounter = +data.playthroughCounter || 0;
-    this.lastPlayed = +data.lastPlayed || 0;
+    this.skipCounter = +data.skipCounter || this.skipCounter || 0;
+    this.playthroughCounter = +data.playthroughCounter || this.playthroughCounter || 0;
+    this.lastPlayed = +data.lastPlayed || this.lastPlayed || 0;
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;

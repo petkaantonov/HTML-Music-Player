@@ -424,6 +424,19 @@ Track.prototype.hasSilenceAtEnd = function() {
     return false;
 };
 
+Track.prototype.getSkipCount = function() {
+    if (this.tagData) {
+        return this.tagData.skipCounter;
+    }
+    return 0;
+};
+
+Track.prototype.recordSkip = function() {
+    if (this.tagData) {
+        this.tagData.recordSkip();
+    }
+};
+
 Track.prototype.triggerPlaythrough = function() {
     if (this.hasError()) {
         this.unsetError();

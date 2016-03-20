@@ -116,7 +116,7 @@ PlaylistNotifications.prototype.update = function() {
 };
 
 PlaylistNotifications.prototype.actionNext = function() {
-    this.playlist.next();
+    this.playlist.next(true);
 };
 
 PlaylistNotifications.prototype.actionPlay = function() {

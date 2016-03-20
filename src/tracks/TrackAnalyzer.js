@@ -444,6 +444,20 @@ TrackAnalyzer.prototype.fetchTrackAcoustId = function(track, opts) {
     });
 };
 
+TrackAnalyzer.prototype.setSkipCounter = function(track, counter) {
+    if (!track.tagData) return;
+
+    this._worker.postMessage({
+        action: "setSkipCounter",
+        args: {
+            uid: track.uid(),
+            transientId: track.transientId(),
+            counter: counter,
+            id: ++this._nextJobId
+        }
+    });
+};
+
 TrackAnalyzer.prototype.setPlaythroughCounter = function(track, counter) {
     if (!track.tagData) return;
 

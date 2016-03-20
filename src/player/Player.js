@@ -195,7 +195,7 @@ Player.prototype.nextTrackImplicitly = function() {
     }
 
     this.implicitLoading = true;
-    if (!this.playlist.next()) {
+    if (!this.playlist.next(false)) {
         this.implicitLoading = false;
     }
 };
@@ -368,18 +368,28 @@ Player.prototype.stop = function() {
 };
 
 var loadId = 0;
-Player.prototype.loadTrack = function(track) {
+Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
     if (this.ready) {
         var self = this;
         var id = ++loadId;
         this.ready = this.ready.then(function() {
             if (id === loadId) {
-                self.loadTrack(track);
+                self.loadTrack(track, isUserInitiatedSkip);
             }
         });
         return;
     }
     ++loadId;
+
+    if (isUserInitiatedSkip &&
+        this.currentAudioManager &&
+        !this.currentAudioManager.hasPlaythroughBeenTriggered()) {
+        var track = this.currentAudioManager.track;
+
+        if (track) {
+            track.recordSkip();
+        }
+    }
 
     if (this.isPaused && this.currentAudioManager) {
         this.currentAudioManager.resume();
@@ -424,7 +434,7 @@ Player.prototype.loadTrack = function(track) {
 
 Player.prototype.nextButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-    this.playlist.next();
+    this.playlist.next(true);
     if (this.page.isTouchEvent(e)) {
         this.gestureEducator.educate("next");
     }

@@ -110,3 +110,4 @@ TagDatabase.prototype.updateAcoustId = fieldUpdater("acoustId");
 TagDatabase.prototype.updateRating = fieldUpdater("rating");
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater("hasCoverArt");
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater("playthroughCounter", "lastPlayed");
+TagDatabase.prototype.updateSkipCounter = fieldUpdater("skipCounter", "lastPlayed");

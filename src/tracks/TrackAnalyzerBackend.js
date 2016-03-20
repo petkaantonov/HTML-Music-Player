@@ -96,6 +96,10 @@ const apiActions = {
         db.updateRating(args.uid, args.rating);
     },
 
+    setSkipCounter: function(args) {
+        db.updateSkipCounter(args.uid, args.counter, Date.now());
+    },
+
     setPlaythroughCounter: function(args) {
         db.updatePlaythroughCounter(args.uid, args.counter, Date.now());
     },
