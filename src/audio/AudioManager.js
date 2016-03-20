@@ -12,7 +12,7 @@ const SEEK_END_CURVE = new Float32Array([0.001, 1]);
 const SEEK_START_FADE_TIME = 0.5;
 const SEEK_END_FADE_TIME = 0.5;
 const VOLUME_RATIO = 2;
-const PLAYTHROUGH_COUNTER_THRESHOLD = 15;
+const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
 
 export default function AudioManager(player, track, implicitlyLoaded) {

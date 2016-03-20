@@ -381,6 +381,10 @@ Player.prototype.loadTrack = function(track) {
     }
     ++loadId;
 
+    if (this.isPaused && this.currentAudioManager) {
+        this.currentAudioManager.resume();
+    }
+
     this.isStopped = false;
     this.isPlaying = true;
     this.isPaused = false;
