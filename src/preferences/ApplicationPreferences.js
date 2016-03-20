@@ -278,7 +278,7 @@ PreferencesManager.prototype.update = function(buttonsOnly) {
     this.$().find(".loudness-normalization-enable-checkbox").setProperty("checked", this.preferences.getEnableLoudnessNormalization());
     this.$().find(".album-art-enable-checkbox").setProperty("checked", this.preferences.getEnableAlbumArt());
 
-    if (this.applicationPreferences.env().hasTouch()) {
+    if (this.applicationPreferences.env().hasTouch()) {
         this.$().find(".longtap-indicator-enable-checkbox").setProperty("checked", this.preferences.getEnableHideLongTapIndicator());
     }
     this._cpuUsagePreferenceManager.update();

@@ -22,7 +22,6 @@ export default function KeyValueDatabase() {
 KeyValueDatabase.prototype.getKeySetter = function(key) {
     if (!this.keySetters[key]) {
         this.keySetters[key] = throttle(function(value) {
-            var self = this;
             var db;
             return this.db.then(function(_db) {
                 db = _db;

@@ -91,7 +91,7 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
     }
 };
 
-OpenableSubmenu.prototype._openerClicked = function(e) {
+OpenableSubmenu.prototype._openerClicked = function() {
     this.open();
 };
 

@@ -441,7 +441,7 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
         this.updateFieldsFromAcoustId(this.acoustId);
     }
     this.playthroughCounter = +data.playthroughCounter || 0;
-    this.lastPlayed = +data.lastPlayed || 0;
+    this.lastPlayed = +data.lastPlayed || 0;
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;

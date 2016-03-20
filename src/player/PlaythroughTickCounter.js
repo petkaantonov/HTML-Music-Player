@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 export default function PlaythroughTickCounter(threshold) {
     this._threshold = threshold;
@@ -10,7 +10,7 @@ export default function PlaythroughTickCounter(threshold) {
 PlaythroughTickCounter.prototype.reset = function() {
     this._ticks = 0;
     this._triggered = false;
-    this._lastTick;
+    this._lastTick = -1;
 };
 
 PlaythroughTickCounter.prototype.hasTriggered = function() {

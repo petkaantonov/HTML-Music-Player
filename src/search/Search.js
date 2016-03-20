@@ -336,7 +336,7 @@ Search.prototype._inputKeydowned = function(e) {
         this.selectFirst();
     } else if (e.key === "Escape" && !e.target.value) {
         e.target.blur();
-    } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (this._session && this._session.resultCount() > 0) {
             e.preventDefault();
             e.target.blur();

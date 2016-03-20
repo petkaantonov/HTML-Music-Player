@@ -66,7 +66,6 @@ TagDatabase.prototype.setAlbumImage = function(album, url) {
 
 TagDatabase.prototype.insert = function(trackUid, data) {
     data.trackUid = trackUid;
-    var self = this;
     var db;
     return this.db.then(function(_db) {
         db = _db;
@@ -87,7 +86,6 @@ const fieldUpdater = function() {
         var values = new Array(arguments.length - 1);
         for (var i = 1; i < arguments.length; ++i) values[i - 1] = arguments[i];
 
-        var self = this;
         var db;
         return this.db.then(function(_db) {
             db = _db;
