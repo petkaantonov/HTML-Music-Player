@@ -19,8 +19,8 @@ import EventEmitter from "events";
 self.EventEmitter = EventEmitter;
 
 const db = new TagDatabase();
-// Utilize 20% of one core.
-const MAX_CPU_UTILIZATION = 0.2;
+// Utilize 50% of one core.
+const MAX_CPU_UTILIZATION = 0.5;
 
 const getDowntime = function(cpuUsedTime) {
     return cpuUsedTime / MAX_CPU_UTILIZATION - cpuUsedTime;

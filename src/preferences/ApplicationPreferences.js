@@ -39,7 +39,7 @@ const Preferences = createPreferences({
         },
 
         backgroundCpuMaxUtilization: {
-            defaultValue: 0.2,
+            defaultValue: 0.5,
             asValidValue: function(val) {
                 val = +val;
                 if (!isFinite(val)) return this.defaultBackgroundCpuMaxUtilization;
