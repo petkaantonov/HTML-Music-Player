@@ -65,6 +65,8 @@ export default function AnimationProperty(animator, name, spec) {
     this._duration = +spec.duration || 300;
     this._baseValue = spec.baseValue === undefined ? "" : (spec.baseValue + "");
 
+    if (this._baseValue === "none") this._baseValue = "";
+
     var range = spec.range;
 
     if (this._isMulti) {
@@ -111,7 +113,7 @@ AnimationProperty.prototype.tween = function($dom, timeElapsed) {
     }
 
     var progress = this._interp(timeElapsed, total);
-    var result = this._baseValue;
+    var result = "";
 
     if (this._isMulti) {
         for (var i = 0; i < this._start.length; ++i) {
@@ -133,8 +135,10 @@ AnimationProperty.prototype.tween = function($dom, timeElapsed) {
     }
 
     if (this._type === FILTER) {
+        result = this._baseValue + " " + this._name + "(" + result + ")";
         $dom.setFilter(result);
     } else if (this._type === TRANSFORM) {
+        result = this._baseValue + " " + this._name + "(" + result + ")";
         $dom.setTransform(result);
     } else {
         $dom.setStyle(this._name, result);

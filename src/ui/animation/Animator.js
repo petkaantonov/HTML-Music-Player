@@ -162,7 +162,6 @@ Animator.prototype._gotAnimationFrame = function(now) {
     for (var i = 0; i < this._properties.length; ++i) {
         var property = this._properties[i];
         var propertyIsFinished = property.tween($elem, elapsed);
-
         if (!propertyIsFinished) {
             finished = false;
         }
