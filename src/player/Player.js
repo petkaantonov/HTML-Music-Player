@@ -384,10 +384,9 @@ Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
     if (isUserInitiatedSkip &&
         this.currentAudioManager &&
         !this.currentAudioManager.hasPlaythroughBeenTriggered()) {
-        var track = this.currentAudioManager.track;
 
-        if (track) {
-            track.recordSkip();
+        if (this.currentAudioManager.track) {
+            this.currentAudioManager.track.recordSkip();
         }
     }
 

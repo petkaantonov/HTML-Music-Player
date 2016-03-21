@@ -26,7 +26,6 @@ FileInput.prototype._mousedowned = function(e) {
 };
 
 FileInput.prototype._clicked = function(e) {
-    this._context.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     if (this._input.chooseDirectory && this._input.directory) {
         this._input.chooseDirectory();
     } else {
