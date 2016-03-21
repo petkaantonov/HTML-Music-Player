@@ -1,7 +1,5 @@
 "use strict";
 
-import Animator from "ui/Animator";
-
 const interp = function(currentTime, endTime) {
     var value = currentTime / endTime;
     return (1 - Math.pow(400, -value * 0.7142857142857143)) * 1.0140424162340527;
@@ -102,24 +100,27 @@ Ripple.prototype.initBounded = function(x, y, boundsRect, color, zIndex) {
 
     var startScale = radiusToScale(1);
     var endScale = radiusToScale(endRadius);
-    var animator = new Animator(this.$ripple()[0], this.page(), {
-        properties: [{
-            name: "opacity",
-            start: BOUNDED_START_OPACITY,
-            end: BOUNDED_END_OPACITY,
-            unit: "%",
+
+    var animator = this.animationContext().createAnimator(this.$ripple(), {
+        opacity: {
+            range: [BOUNDED_START_OPACITY, BOUNDED_END_OPACITY],
+            interpolate: this.animationContext().LINEAR,
             duration: BOUNDED_OPACITY_DURATION,
-            interpolate: Animator.LINEAR
-        }, {
-            name: "scale",
-            start: [startScale, startScale],
-            end: [endScale, endScale],
+            unit: "%"
+        },
+        scale: {
+            range: [
+                [startScale, startScale],
+                [endScale, endScale]
+            ],
+            interpolate: interp,
             duration: BOUNDED_RADIUS_DURATION,
-            interpolate: interp
-        }]
+            baseValue: this.$ripple().getTransform()
+        }
     });
+
     this.animator = animator;
-    animator.animate(Math.max(BOUNDED_RADIUS_DURATION, BOUNDED_OPACITY_DURATION)).finally(this.end);
+    animator.start(Math.max(BOUNDED_RADIUS_DURATION, BOUNDED_OPACITY_DURATION)).finally(this.end);
 };
 
 Ripple.prototype.initUnbounded = function(x, y, size, color) {
@@ -136,25 +137,26 @@ Ripple.prototype.initUnbounded = function(x, y, size, color) {
     var startScale = radiusToScale(1);
     var endScale = radiusToScale(endRadius);
 
-    var animator = new Animator(this.$ripple()[0], this.page(), {
-        properties: [{
-            name: "opacity",
-            start: UNBOUNDED_START_OPACITY,
-            end: UNBOUNDED_END_OPACITY,
-            unit: "%",
+    var animator = this.animationContext().createAnimator(this.$ripple(), {
+        opacity: {
+            range: [UNBOUNDED_START_OPACITY, UNBOUNDED_END_OPACITY],
+            interpolate: this.animationContext().LINEAR,
             duration: UNBOUNDED_OPACITY_DURATION,
-            interpolate: Animator.LINEAR
-        }, {
-            name: "scale",
-            start: [startScale, startScale],
-            end: [endScale, endScale],
+            unit: "%"
+        },
+        scale: {
+            range: [
+                [startScale, startScale],
+                [endScale, endScale]
+            ],
+            interpolate: interp,
             duration: UNBOUNDED_RADIUS_DURATION,
-            interpolate: interp
-        }]
+            baseValue: this.$ripple().getTransform()
+        }
     });
 
     this.animator = animator;
-    animator.animate(Math.max(UNBOUNDED_RADIUS_DURATION, UNBOUNDED_OPACITY_DURATION)).finally(this.end);
+    animator.start(Math.max(UNBOUNDED_RADIUS_DURATION, UNBOUNDED_OPACITY_DURATION)).finally(this.end);
 };
 
 Ripple.prototype.end = function() {
@@ -170,7 +172,12 @@ Ripple.prototype.page = function() {
     return this.rippler._page;
 };
 
-export default function Rippler(page, baseZIndex, base) {
+Ripple.prototype.animationContext = function() {
+    return this.rippler._animationContext;
+};
+
+export default function Rippler(page, animationContext, baseZIndex, base) {
+    this._animationContext = animationContext;
     this._page = page;
     this._domNode = page.$(base);
     this._freeRipples = [];

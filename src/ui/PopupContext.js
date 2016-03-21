@@ -1,11 +1,11 @@
 "use strict";
 
 import { slugTitle } from "util";
-import Animator from "ui/Animator";
 import Popup from "ui/Popup";
 
 export default function PopupContext(opts) {
     opts = Object(opts);
+    this.animationContext = opts.animationContext;
     this.page = opts.page;
     this.globalEvents = opts.globalEvents;
     this.db = opts.db;
@@ -35,7 +35,7 @@ PopupContext.prototype.closePopups = function() {
 
 PopupContext.prototype.showBlocker = function() {
     if (this.animator) {
-        this.animator.stop();
+        this.animator.stop(true);
         this.animator = null;
         this.blocker.remove();
     }
@@ -44,35 +44,33 @@ PopupContext.prototype.showBlocker = function() {
     this.blocker.addEventListener("click", this.closePopups);
     this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
 
-    var animator = new Animator(this.blocker[0], this.page, {
-        properties: [{
-            name: "opacity",
-            start: 0,
-            end: 55,
+    var animator = this.animationContext.createAnimator(this.blocker, {
+        opacity: {
+            range: [0, 55],
             unit: "%",
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
+            duration: 300,
+            interpolate: this.animationContext.DECELERATE_CUBIC
+        }
     });
-    animator.animate();
+
+    animator.start();
 };
 
 PopupContext.prototype.hideBlocker = function() {
     if (!this.blocker.length) return;
-    var animator = new Animator(this.blocker[0], this.page, {
-        properties: [{
-            name: "opacity",
-            start: 55,
-            end: 0,
+
+    var animator = this.animationContext.createAnimator(this.blocker, {
+        opacity: {
+            range: [55, 0],
             unit: "%",
-            duration: 300
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
+            duration: 300,
+            interpolate: this.animationContext.DECELERATE_CUBIC
+        }
     });
 
     this.animator = animator;
 
-    animator.animate().then(function(wasCancelled) {
+    animator.start().then(function(wasCancelled) {
         if (!wasCancelled) {
             this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
             this.blocker.remove();
@@ -124,39 +122,34 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
         body: body,
         closer: '<span class="icon glyphicon glyphicon-remove"></span>',
         beforeTransitionIn: function($node) {
-            $node.setFilter("");
-            var animator = new Animator($node[0], self.page, {
-                interpolate: Animator.DECELERATE_CUBIC,
-                properties: [{
-                    name: "opacity",
-                    start: 0,
-                    end: 100,
-                    unit: "%",
-                    persist: false
-                }, {
-                    name: "scale",
-                    start: [0.95, 0.95],
-                    end: [1, 1],
-                    persist: false
-                }]
-            });
-
-            return animator.animate(300);
+            return self.animationContext.createAnimator($node, {
+                opacity: {
+                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    duration: 300,
+                    range: [0, 100],
+                    unit: "%"
+                },
+                scale: {
+                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    duration: 300,
+                    range: [
+                        [0.95, 0.95],
+                        [1, 1]
+                    ],
+                    baseValue: $node.getTransform()
+                }
+            }).start();
         },
 
         beforeTransitionOut: function($node) {
-            var animator = new Animator($node[0], self.page, {
-                interpolate: Animator.DECELERATE_CUBIC,
-                properties: [{
-                    name: "opacity",
-                    start: 100,
-                    end: 0,
-                    unit: "%",
-                    persist: false
-                }]
-            });
-
-            return animator.animate(300);
+            return self.animationContext.createAnimator($node, {
+                opacity: {
+                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    duration: 300,
+                    range: [100, 0],
+                    unit: "%"
+                }
+            }).start();
         },
 
         containerClass: "ui-text"

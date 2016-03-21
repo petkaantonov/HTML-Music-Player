@@ -1,6 +1,5 @@
 "use strict";
 
-import Animator from "ui/Animator";
 import { addLegacyListener, inherits } from "util";
 import { canvasToImage } from "platform/dom/util";
 import { Int16Array, Float32Array } from "platform/platform";
@@ -175,6 +174,7 @@ GraphicsSource.prototype.isReady = function() {
 export default function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
     this.page = opts.page;
+    this.animationContext = opts.animationContext;
     this.globalEvents = opts.globalEvents;
     this.player = player;
     player.setVisualizerCanvas(this);
@@ -448,8 +448,8 @@ VisualizerCanvas.prototype.binHeightSourcePixels = function() {
 };
 
 VisualizerCanvas.prototype.setCapInterpolator = function(name) {
-    if (typeof Animator[name] !== "function") throw new Error(name + " is not a known interpolator");
-    this.capInterpolator = Animator[name];
+    if (typeof this.animationContext[name] !== "function") throw new Error(name + " is not a known interpolator");
+    this.capInterpolator = this.animationContext[name];
 };
 
 VisualizerCanvas.prototype.getTargetFps = function() {

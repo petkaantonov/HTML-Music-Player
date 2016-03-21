@@ -1,6 +1,7 @@
 "use strict";
 
 import { console, matchMedia } from "platform/platform";
+import AnimationContext from "ui/animation/AnimationContext";
 import Snackbar from "ui/Snackbar";
 import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
@@ -62,11 +63,12 @@ export default function Application(opts) {
     this.defaultTitle = defaultTitle;
     this.globalEvents = globalEvents;
 
+    this.animationContext = new AnimationContext(this.page);
     this.recognizerContext = new GestureRecognizerContext(this.page, this.env, this.globalEvents);
     this.sliderContext = new SliderContext(this.page, this.recognizerContext, this.globalEvents);
     this.scrollEvents = new ScrollEvents(this.page, this.env, this.recognizerContext);
-    this.gestureScreenFlasher = new GestureScreenFlasher(this.page);
-    this.rippler = new Rippler(this.page, POPUP_ZINDEX - 60, "body");
+    this.gestureScreenFlasher = new GestureScreenFlasher(this.page, this.animationContext);
+    this.rippler = new Rippler(this.page, this.animationContext, POPUP_ZINDEX - 60, "body");
     this.keyboardShortcuts = new KeyboardShortcuts(this.page);
     this.menuContext = new MenuContext(this.page, this.recognizerContext, this.rippler, this.globalEvents);
     this.fileInputContext = new FileInputContext(this.page, this.recognizerContext, this.rippler);
@@ -92,6 +94,7 @@ export default function Application(opts) {
     });
 
     this.popupContext = new PopupContext({
+        animationContext: this.animationContext,
         page: this.page,
         globalEvents: this.globalEvents,
         recognizerContext: this.recognizerContext,
@@ -305,6 +308,7 @@ export default function Application(opts) {
 
     this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
         page: this.page,
+        animationContext: this.animationContext,
         globalEvents: this.globalEvents,
         recognizerContext: this.recognizerContext,
         dbValues: this.dbValues,

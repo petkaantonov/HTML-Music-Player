@@ -1,7 +1,5 @@
 "use strict";
 
-import Animator from "ui/Animator";
-
 const gestureIcon = function(icon) {
     return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon + '"></span></div>';
 };
@@ -13,8 +11,9 @@ const gestureNameMap = {
     previous: gestureIcon("glyphicon glyphicon-step-backward")
 };
 
-export default function GestureScreenFlasher(page) {
+export default function GestureScreenFlasher(page, animationContext) {
     this._page = page;
+    this._animationContext = animationContext;
     this._queue = [];
     this._current = null;
     this._gestureMap = {};
@@ -30,31 +29,27 @@ GestureScreenFlasher.prototype._next = function() {
     var $dom = this._gestureMap[name].remove().removeAttribute("style");
     $dom.appendTo("body");
 
-    var fadeIn = new Animator($dom[0], this._page, {
-        properties: [{
-            name: "opacity",
-            start: 0,
-            end: 80,
+    var fadeIn = this._animationContext.createAnimator($dom, {
+        opacity: {
+            range: [0, 80],
             unit: "%",
-            duration: 100
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
+            duration: 100,
+            interpolate: this._animationContext.DECELERATE_CUBIC
+        }
     });
 
-    var fadeOut = new Animator($dom[0], this._page, {
-        properties: [{
-            name: "opacity",
-            start: 80,
-            end: 0,
+    var fadeOut = this._animationContext.createAnimator($dom, {
+        opacity: {
+            range: [80, 0],
             unit: "%",
-            duration: 250
-        }],
-        interpolate: Animator.DECELERATE_CUBIC
+            duration: 250,
+            interpolate: this._animationContext.DECELERATE_CUBIC
+        }
     });
 
     var self = this;
-    this._current = fadeIn.animate().then(function() {
-        return fadeOut.animate();
+    this._current = fadeIn.start().then(function() {
+        return fadeOut.start();
     }).then(function() {
         $dom.remove().removeAttribute("style");
     }).finally(function() {
