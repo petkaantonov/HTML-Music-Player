@@ -123,12 +123,8 @@ inherits(EffectPreferences, AbstractPreferences);
 EffectPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
 EffectPreferences.prototype.TITLE = "Effects";
 
-EffectPreferences.prototype.popupOpened = function() {
-    if (!this._manager) {
-        this._manager = new EffectManager(".equalizer-popup-content-container", this);
-        this._manager.on("update", this.savePreferences.bind(this));
-    }
-    this._manager.setUnchangedPreferences();
+EffectPreferences.prototype._createManager = function() {
+    return new EffectManager(".equalizer-popup-content-container", this);
 };
 
 EffectPreferences.prototype.amplitudeRatioToDecibelChange = function(ratio) {

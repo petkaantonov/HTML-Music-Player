@@ -42,6 +42,14 @@ export default function AbstractPreferences(preferences, opts) {
 }
 inherits(AbstractPreferences, EventEmitter);
 
+AbstractPreferences.prototype.popupOpened = function() {
+    if (!this._manager) {
+        this._manager = this._createManager();
+        this._manager.on("update", this.savePreferences.bind(this));
+    }
+    this._manager.setUnchangedPreferences();
+};
+
 AbstractPreferences.prototype.page = function() {
     return this._page;
 };

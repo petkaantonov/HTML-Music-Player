@@ -70,13 +70,15 @@ export default function ApplicationPreferences(opts) {
 }
 inherits(ApplicationPreferences, AbstractPreferences);
 
-ApplicationPreferences.prototype.popupOpened = function() {
-    if (!this._manager) {
-        this._manager = new PreferencesManager(this.popup().$(), this);
-        this._manager.on("update", this.savePreferences.bind(this));
-    }
-    this._manager.setUnchangedPreferences();
+ApplicationPreferences.prototype._createManager = function() {
+    return new PreferencesManager(this.popup().$(), this);
 };
+
+ApplicationPreferences.prototype.toggleVisualizerEnabled = function() {
+    this.preferences().setEnableVisualizer(!this.preferences().getEnableVisualizer());
+    this.savePreferences();
+};
+
 
 ApplicationPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
 ApplicationPreferences.prototype.TITLE = "Preferences";

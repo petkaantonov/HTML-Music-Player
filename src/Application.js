@@ -311,6 +311,7 @@ export default function Application(opts) {
         animationContext: this.animationContext,
         globalEvents: this.globalEvents,
         recognizerContext: this.recognizerContext,
+        applicationPreferences: this.applicationPreferences,
         dbValues: this.dbValues,
         db: this.db,
         snackbar: this.snackbar,

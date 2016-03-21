@@ -182,12 +182,8 @@ inherits(CrossfadingPreferences, AbstractPreferences);
 CrossfadingPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
 CrossfadingPreferences.prototype.TITLE = "Crossfading";
 
-CrossfadingPreferences.prototype.popupOpened = function() {
-    if (!this._manager) {
-        this._manager = new CrossFadeManager(this.popup().$(), this);
-        this._manager.on("update", this.savePreferences.bind(this));
-    }
-    this._manager.setUnchangedPreferences();
+CrossfadingPreferences.prototype._createManager = function() {
+    return new CrossFadeManager(this.popup().$(), this);
 };
 
 CrossfadingPreferences.prototype.getHtml = function() {
