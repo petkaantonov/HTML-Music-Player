@@ -14,10 +14,12 @@ const SHUFFLE_MODE = "shuffle";
 
 const TrackViewOptions = {
     updateTrackIndex: true,
-    updateSearchDisplayStatus: false,
     itemHeight: -1,
     page: null,
-    playlist: null
+    playlist: null,
+    tooltipContext: null,
+    selectable: null,
+    search: null
 };
 
 const KIND_IMPLICIT = 0;
@@ -90,10 +92,13 @@ export default function Playlist(domNode, opts) {
     this._trackListDeletionUndo = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
+    this._selectable = new Selectable(this, this.page);
 
     TrackViewOptions.playlist = this;
     TrackViewOptions.itemHeight = opts.itemHeight;
     TrackViewOptions.page = this.page;
+    TrackViewOptions.tooltipContext = opts.tooltipContext;
+    TrackViewOptions.selectable = this._selectable;
 
     this._errorCount = 0;
     this._$domNode = this.page.$(domNode);
@@ -115,7 +120,7 @@ export default function Playlist(domNode, opts) {
         railSelector: ".scrollbar-rail",
         knobSelector: ".scrollbar-knob"
     });
-    this._selectable = new Selectable(this, this.page);
+
     this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
         mustNotMatchSelector: ".track-rating",
         mustMatchSelector: ".track-container",
@@ -474,7 +479,7 @@ Playlist.prototype._restoreStateForUndo = function() {
                 throw new Error("should be destroyed");
             }
             trackAndView.track.unstageRemoval();
-            this._trackViews[i] = new TrackView(trackAndView.track, this._selectable, TrackViewOptions);
+            this._trackViews[i] = new TrackView(trackAndView.track, TrackViewOptions);
         } else {
             if (trackAndView.view._isDestroyed) {
                 throw new Error("should not be destroyed");
@@ -587,7 +592,7 @@ Playlist.prototype.add = function(tracks) {
     var oldLength = this.length;
 
     tracks.forEach(function(track) {
-        var view = new TrackView(track, this._selectable, TrackViewOptions);
+        var view = new TrackView(track, TrackViewOptions);
         var len = this._trackViews.push(view);
         this._unparsedTrackList.push(track);
         view.setIndex(len - 1);

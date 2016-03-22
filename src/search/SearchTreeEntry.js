@@ -3,7 +3,6 @@
 export default function SearchTreeEntry(transientId, searchTerm) {
     this._transientId = transientId;
     this._searchTerm = searchTerm;
-    this._distance = 0;
 }
 
 SearchTreeEntry.prototype.keywords = function() {
@@ -11,13 +10,6 @@ SearchTreeEntry.prototype.keywords = function() {
     return this._searchTerm.split(" ");
 };
 
-SearchTreeEntry.prototype.setDistance = function(distance) {
-    this._distance = distance;
-};
-
-SearchTreeEntry.prototype.distance = function() {
-    return this._distance;
-};
 
 SearchTreeEntry.prototype.transientId = function() {
     return this._transientId;
@@ -29,8 +21,4 @@ SearchTreeEntry.prototype.searchTerm = function() {
 
 SearchTreeEntry.comparer = function(a, b) {
     return a._transientId - b._transientId;
-};
-
-SearchTreeEntry.distanceCompare = function(a, b) {
-    return a._distance - b._distance;
 };

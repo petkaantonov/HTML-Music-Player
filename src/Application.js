@@ -171,11 +171,11 @@ export default function Application(opts) {
         rippler: this.rippler,
         snackbar: this.snackbar,
         globalEvents: this.globalEvents,
+        tooltipContext: this.tooltipContext,
         keyboardShortcuts: this.keyboardShortcuts,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences,
-        tooltipContext: this.tooltipContext
+        applicationPreferences: this.applicationPreferences
     });
 
     this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
@@ -195,6 +195,7 @@ export default function Application(opts) {
         recognizerContext: this.recognizerContext,
         scrollerContext: this.scrollerContext,
         keyboardShortcuts: this.keyboardShortcuts,
+        tooltipContext: this.tooltipContext,
         rippler: this.rippler,
         snackbar: this.snackbar,
         crossfadingPreferences: this.crossfadingPreferences,

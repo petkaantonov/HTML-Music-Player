@@ -2,8 +2,10 @@
 
 import SearchTree from "search/SearchTree";
 import SearchTreeEntry from "search/SearchTreeEntry";
+import SearchResultRater from "search/SearchResultRater";
 import { getSearchTerm } from "search/searchUtil";
-import { merge } from "search/sortedArrays";
+import { merge, insert } from "search/sortedArrays";
+import SearchResult, { cmp } from "search/SearchResult";
 import { getFirstWord, getLastWord, reverseString } from "util";
 
 export default function TrackSearchIndex() {
@@ -23,48 +25,29 @@ TrackSearchIndex.prototype.search = function(normalizedQuery) {
 
     merge(SearchTreeEntry.comparer, prefixMatches, suffixMatches);
     var results = prefixMatches;
+    var ret;
 
-    if (results.length > 0 && firstPrefixKeyword.length < normalizedQuery.length) {
-        var ret = new Array(results.length >> 1);
+    if (results.length > 0) {
+        var rater = new SearchResultRater(normalizedQuery);
+        ret = new Array(results.length >> 1);
         ret.length = 0;
-        var matchers = normalizedQuery.split(" ");
-        matchers.shift();
-
-        for (var i = 0; i < matchers.length; ++i) {
-            matchers[i] = new RegExp("\\b" + matchers[i] + "|" + matchers[i] + "\\b", "g");
-        }
 
         var length = Math.min(results.length, 2500);
-        refinementLoop: for (var i = 0; i < length; ++i) {
+
+        for (var i = 0; i < length; ++i) {
             var result = results[i];
-            var searchTerm = result.searchTerm();
-            var distance = 0;
-            var fullMatchIndex = searchTerm.indexOf(normalizedQuery);
-            if (fullMatchIndex >= 0) {
-                // Ensure all exact matches go to the beginning.
-                distance = -999999 + fullMatchIndex;
-            } else {
-                for (var j = 0; j < matchers.length; ++j) {
-                    var matcher = matchers[j];
-                    if (!matcher.test(searchTerm)) {
-                        continue refinementLoop;
-                    }
-                    distance += matcher.lastIndex;
-                    matcher.lastIndex = 0;
-                }
+            var distance = rater.getDistanceForSearchTerm(result.searchTerm());
+            if (!isFinite(distance)) {
+                continue;
             }
-            result.setDistance(distance);
-            ret.push(result);
+
+            insert(cmp, ret, new SearchResult(result.transientId(), distance));
         }
-
-        ret.sort(SearchTreeEntry.distanceCompare);
-        results = ret;
+    } else {
+        ret = [];
     }
 
-    for (var i = 0; i < results.length; ++i) {
-        results[i] = results[i].transientId();
-    }
-    return results;
+    return ret;
 };
 
 TrackSearchIndex.prototype.add = function(file, metadata, transientId) {

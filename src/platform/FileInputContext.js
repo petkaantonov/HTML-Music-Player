@@ -25,7 +25,7 @@ FileInput.prototype._mousedowned = function(e) {
     e.preventDefault();
 };
 
-FileInput.prototype._clicked = function(e) {
+FileInput.prototype._clicked = function() {
     if (this._input.chooseDirectory && this._input.directory) {
         this._input.chooseDirectory();
     } else {

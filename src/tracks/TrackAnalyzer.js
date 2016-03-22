@@ -1,13 +1,15 @@
 "use strict";
 
-import { throttle } from "util";
+import { throttle, inherits } from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
 import Track from "tracks/Track";
 import TagData from "tracks/TagData";
 import { Worker } from "platform/platform";
+import EventEmitter from "events";
 
 var instances = false;
 export default function TrackAnalyzer(playlist, opts) {
+    EventEmitter.call(this);
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     opts = Object(opts);
     this._page = opts.page;
@@ -46,6 +48,7 @@ export default function TrackAnalyzer(playlist, opts) {
 
     this._globalEvents.on("foreground", this._foregrounded.bind(this));
 }
+inherits(TrackAnalyzer, EventEmitter);
 
 TrackAnalyzer.prototype._foregrounded = function() {
     this._worker.postMessage({action: "tick"});
@@ -128,6 +131,7 @@ TrackAnalyzer.prototype.fillInAcoustId = function(track, duration, fingerprint, 
 
 TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error) {
     if (!track.isDetachedFromPlaylist() && !error) {
+        this.emit("metadataUpdate");
         var needFingerprint = true;
         var needLoudness = true;
 
@@ -168,6 +172,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error
                         track.tagData.setLoudness(result.loudness);
                     }
                 }
+                self.emit("metadataUpdate");
             }).finally(function() {
                 track.unsetAnalysisStatus();
             }).catch(function() {});
@@ -202,6 +207,7 @@ TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
     if (!track.isDetachedFromPlaylist() && !error) {
         track.setTagData(new TagData(track, data, this));
         this.fetchAnalysisData(track);
+        this.emit("metadataUpdate");
     }
 };
 

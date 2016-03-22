@@ -6,17 +6,12 @@ const ANALYSIS_TOOLTIP_MESSAGE =
 
 const ERROR_HEADER = "<p>There was an error with this track:</p>";
 
-export default function TrackView(track, selectable, opts) {
+export default function TrackView(track, opts) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.updateTrackIndex = !!opts.updateTrackIndex;
-    this.updateSearchDisplayStatus = !!opts.updateSearchDisplayStatus;
-
+    this._opts = opts;
     this._track = track;
     this._isDestroyed = false;
     this._index = -1;
-    this._playlist = opts.playlist;
-    this._itemHeight = opts.itemHeight;
     this._error = null;
     this._domNode = null;
     this._isAttached = false;
@@ -26,20 +21,34 @@ export default function TrackView(track, selectable, opts) {
     this._dragged = false;
     this._offset = 0;
     this._renderedPlayingStatus = false;
-    this._selectable = selectable;
-
-
     this._viewUpdated = this._viewUpdated.bind(this);
 
     this._track.on("viewUpdate", this._viewUpdated);
-
-    if (this.updateSearchDisplayStatus) {
-        if (track._isDisplayedAsSearchResult) {
-            throw new Error("duplicate search result view for this track");
-        }
-        track._isDisplayedAsSearchResult = true;
-    }
 }
+
+TrackView.prototype.selectable = function() {
+    return this._opts.selectable;
+};
+
+TrackView.prototype.page = function() {
+    return this._opts.page;
+};
+
+TrackView.prototype.shouldUpdateTrackIndex = function() {
+    return this._opts.updateTrackIndex;
+};
+
+TrackView.prototype.playlist = function() {
+    return this._opts.playlist;
+};
+
+TrackView.prototype.itemHeight = function() {
+    return this._opts.itemHeight;
+};
+
+TrackView.prototype.tooltipContext = function() {
+    return this._opts.tooltipContext;
+};
 
 TrackView.prototype.$ = function() {
     return this._domNode;
@@ -71,8 +80,7 @@ TrackView.prototype._shouldUpdateDom = function() {
 
 TrackView.prototype._ensureDomNode = function() {
     if (this._shouldUpdateDom()) return;
-    var selectable = this._selectable;
-    this._domNode = this.page.createElement("div", {
+    this._domNode = this.page().createElement("div", {
         class: "track-container"
     }).setHtml("<div class='track'>                                                                   \
         <div class='track-status'>                                                                    \
@@ -96,7 +104,7 @@ TrackView.prototype._ensureDomNode = function() {
         </div>                                                                                        \
     </div>");
 
-    if (selectable.contains(this)) {
+    if (this.selectable().contains(this)) {
         this.selected();
     }
 
@@ -107,7 +115,7 @@ TrackView.prototype._ensureDomNode = function() {
     this.viewUpdateTagDataChange();
     this.viewUpdateOfflineStatusChange();
     this.viewUpdateSyncStatusChange();
-    this.viewUpdatePlayingStatusChange(this._playlist.getCurrentTrack() === this._track);
+    this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
     if (this._track.isBeingAnalyzed()) {
         this.viewUpdateShowAnalysisStatus();
@@ -125,13 +133,7 @@ TrackView.prototype.isDestroyed = function() {
 };
 
 TrackView.prototype.destroy = function() {
-    if (this._isDestroyed) return;
-    if (this.updateSearchDisplayStatus) {
-        if (!this._track._isDisplayedAsSearchResult) {
-            throw new Error("track is not displayed as search result");
-        }
-        this._track._isDisplayedAsSearchResult = false;
-    }
+    if (this._isDestroyed) return false;
     this.destroyTooltips();
     this._track.removeListener("viewUpdate", this._viewUpdated);
 
@@ -139,10 +141,9 @@ TrackView.prototype.destroy = function() {
         this.$().remove();
         this._domNode = null;
     }
-    this._track = null;
-    this._selectable = null;
     this._isAttached = false;
     this._isDestroyed = true;
+    return true;
 };
 
 TrackView.prototype.isDetachedFromPlaylist = function() {
@@ -161,7 +162,7 @@ TrackView.prototype.setIndex = function(index) {
         }
     }
 
-    if (this.updateTrackIndex && this._track) {
+    if (this.shouldUpdateTrackIndex() && this._track) {
         this._track.setIndex(index);
     }
 };
@@ -260,12 +261,12 @@ TrackView.prototype._updateAnalysisEstimate = function() {
     var transitionDuration = this._analysisCompletionEstimate - Date.now();
     if (transitionDuration < 0) return;
     this.$().addClass("track-container-progress");
-    var bar = this.page.createElement("div", {class: "track-progress-bar"})
+    var bar = this.page().createElement("div", {class: "track-progress-bar"})
                 .appendTo(this.$())
                 .setStyle("transitionDuration", (transitionDuration / 1000) + "s")
                 .forceReflow();
 
-    this.page.requestAnimationFrame(function() {
+    this.page().requestAnimationFrame(function() {
         bar.setTransform("translateX(0)");
     });
 };
@@ -330,11 +331,11 @@ TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
 TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
     if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append(this.page.parse("<span " +
+    this.$trackStatus().append(this.page().parse("<span " +
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>"));
 
-    this._analysisTooltip = this._playlist.tooltipContext.makeTooltip(this.$trackStatus(),
+    this._analysisTooltip = this.tooltipContext().makeTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
     this.$trackStatus().addClass("unclickable");
     this._updateAnalysisEstimate();
@@ -343,11 +344,11 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
 TrackView.prototype.viewUpdateShowErrorStatus = function() {
     if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append(this.page.parse("<span " +
+    this.$trackStatus().append(this.page().parse("<span " +
         "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
         "></span>"));
 
-    this._errorTooltip = this._playlist.tooltipContext.makeTooltip(this.$trackStatus(),
+    this._errorTooltip = this.tooltipContext().makeTooltip(this.$trackStatus(),
                                                                  ERROR_HEADER + this._track._error);
     this.$trackStatus().addClass("unclickable");
 };
@@ -380,7 +381,7 @@ TrackView.prototype._updateTranslate = function() {
 
 TrackView.prototype._getTranslate = function() {
     var index = this._index;
-    var y = index * this._itemHeight;
+    var y = index * this.itemHeight();
     var x = 0;
     if (this._dragged) {
         x -= 25;
@@ -412,7 +413,7 @@ TrackView.prototype.stopDragging = function() {
     this.$().removeClass("track-dragging").addClass("transition");
     this._updateTranslate();
     var self = this;
-    this.page.setTimeout(function() {
+    this.page().setTimeout(function() {
         if (!self._shouldUpdateDom()) return;
         self.$().removeClass("transition");
     }, 220);

@@ -4,16 +4,24 @@ import AbstractTrackContainer from "tracks/AbstractTrackContainer";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "util";
 import Selectable from "ui/Selectable";
 import Track from "tracks/Track";
-import TrackView from "tracks/TrackView";
+import SearchResultTrackView from "search/SearchResultTrackView";
+import { insert } from "search/sortedArrays";
+import { cmp } from "search/SearchResult";
+
+const cmpTrackView = function(a, b) {
+    return cmp(a._result, b._result);
+};
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = "search-history";
 const TrackViewOptions = {
     updateTrackIndex: false,
-    updateSearchDisplayStatus: true,
     itemHeight: -1,
     playlist: null,
-    page: null
+    page: null,
+    tooltipContext: null,
+    selectable: null,
+    search: null
 };
 
 var searchSessionNextId = 0;
@@ -52,6 +60,7 @@ function SearchSession(search, rawQuery, normalizedQuery) {
     this._search = search;
     this._rawQuery = rawQuery;
     this._normalizedQuery = normalizedQuery;
+    this._initialResultsPosted = false;
     this._resultCount = 0;
     this._destroyed = false;
     this._started = false;
@@ -78,6 +87,10 @@ SearchSession.prototype.start = function() {
     if (this._started) return;
     this.worker().addEventListener("message", this._messaged, false);
     this._started = true;
+    this.update();
+};
+
+SearchSession.prototype.update = function() {
     this.worker().postMessage({
         action: "search",
         args: {
@@ -100,8 +113,15 @@ SearchSession.prototype.resultCount = function() {
 
 SearchSession.prototype._gotResults = function(results) {
     if (this._destroyed) return;
-    this._resultCount += results.length;
-    this._search.newResults(this, results);
+
+    if (!this._initialResultsPosted) {
+        this._initialResultsPosted = true;
+        this._resultCount = results.length;
+        this._search.newResults(this, results);
+    } else {
+        this._resultCount = Math.max(this._resultCount, results.length);
+        this._search.replaceResults(this, results);
+    }
 };
 
 var instance = false;
@@ -128,13 +148,18 @@ export default function Search(domNode, opts) {
     this._searchHistory = [];
     this._session = null;
     this._playlist = opts.playlist;
+    this._selectable = new Selectable(this, this.page);
 
     TrackViewOptions.itemHeight = opts.itemHeight;
     TrackViewOptions.playlist = opts.playlist;
+    TrackViewOptions.search = this;
     TrackViewOptions.page = this.page;
+    TrackViewOptions.tooltipContext = opts.tooltipContext;
+    TrackViewOptions.selectable = this._selectable;
 
     this._topHistoryEntry = null;
     this._visible = false;
+    this._dirty = false;
 
     this._fixedItemListScroller = opts.scrollerContext.createFixedItemListScroller(this.$(), this._trackViews, {
         scrollingX: false,
@@ -148,7 +173,7 @@ export default function Search(domNode, opts) {
         railSelector: ".scrollbar-rail",
         knobSelector: ".scrollbar-knob"
     });
-    this._selectable = new Selectable(this, this.page);
+
     this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
     this._keyboardShortcutContext.addShortcut("ctrl+f", this._focusInput.bind(this));
     this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
@@ -193,15 +218,18 @@ export default function Search(domNode, opts) {
 
     this._bindListEvents();
 
+    this.metadataUpdated = this.metadataUpdated.bind(this);
+
     this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
     this.globalEvents.on("clear", this.clearSelection.bind(this));
+    this._trackAnalyzer.on("metadataUpdate", this.metadataUpdated);
+    this._playlist.on("lengthChange", this.metadataUpdated);
 
     this.$input().addEventListener("input", this._gotInput.bind(this))
                  .addEventListener("focus", this._inputFocused.bind(this))
                  .addEventListener("blur", this._inputBlurred.bind(this))
                  .addEventListener("keydown", this._inputKeydowned.bind(this));
     this.$().find(".search-next-tab-focus").addEventListener("focus", this._searchNextTabFocused.bind(this));
-    this._playlist.on("tracksRemoved", this._trackViewsWereDestroyed.bind(this));
 
     if (SEARCH_HISTORY_KEY in this.dbValues) {
         this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
@@ -231,10 +259,6 @@ Search.prototype.$inputContainer = function() {
 
 Search.prototype.tabWillHide = function() {
     this._visible = false;
-    if (this._session) {
-        this._session.destroy();
-        this._session = null;
-    }
     this.$input().blur();
     this.$().find(".search-next-tab-focus").hide();
     this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
@@ -256,6 +280,23 @@ Search.prototype.tabDidShow = function() {
     }
     this._fixedItemListScroller.resize();
     this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
+
+    if (this._dirty && this._session) {
+        this._dirty = false;
+        this._session.update();
+    }
+};
+
+Search.prototype.updateResults = throttle(function() {
+    this._session.update();
+}, 50);
+
+Search.prototype.metadataUpdated = function() {
+    if (this._session && this._visible) {
+        this.updateResults();
+    } else {
+        this._dirty = true;
+    }
 };
 
 Search.prototype.tryLoadHistory = function(values) {
@@ -286,20 +327,69 @@ Search.prototype._focusInput = function() {
     this.$input().focus();
 };
 
+Search.prototype.replaceResults = function(session, results) {
+    if (this._session !== session) {
+        session.destroy();
+        return;
+    }
+    this._dirty = false;
+
+    var oldLength = this.length;
+    var trackViews = this._trackViews;
+
+    for (var i = 0; i < results.length; ++i) {
+        var result = results[i];
+        var track = Track.byTransientId(result.transientId);
+        if (!track || !track.shouldDisplayAsSearchResult()) {
+            continue;
+        }
+        var view = new SearchResultTrackView(track, result, TrackViewOptions);
+        insert(cmpTrackView, trackViews, view);
+    }
+
+    var indicesToRemove = [];
+    for (var i = 0; i < trackViews.length; ++i) {
+        var view = trackViews[i];
+        if (view.isDetachedFromPlaylist()) {
+            view.destroy();
+            indicesToRemove.push(i);
+        }
+    }
+
+
+    if (indicesToRemove.length > 0) {
+        this._selectable.removeIndices(indicesToRemove);
+        var tracksIndexRanges = buildConsecutiveRanges(indicesToRemove);
+        this.removeTracksBySelectionRanges(tracksIndexRanges);
+    }
+
+    for (var i = 0; i < trackViews.length; ++i) {
+        trackViews[i].setIndex(i);
+    }
+
+    if (this.length !== oldLength) {
+        this.emit("lengthChange", this.length, oldLength);
+        this._fixedItemListScroller.resize();
+    }
+};
+
 Search.prototype.newResults = function(session, results) {
     if (this._session !== session) {
         session.destroy();
         return;
     }
+    this._dirty = false;
+
     var trackViews = this._trackViews;
     var oldLength = this.length;
     this.removeTrackViews(trackViews, true);
     for (var i = 0; i < results.length; ++i) {
-        var track = Track.byTransientId(results[i]);
+        var result = results[i];
+        var track = Track.byTransientId(result.transientId);
         if (!track || !track.shouldDisplayAsSearchResult()) {
             continue;
         }
-        var view = new TrackView(track, this._selectable, TrackViewOptions);
+        var view = new SearchResultTrackView(track, result, TrackViewOptions);
         var len = trackViews.push(view);
         view.setIndex(len - 1);
     }
@@ -323,28 +413,6 @@ Search.prototype._windowLayoutChanged = function() {
     this.page.requestAnimationFrame(function() {
         self._fixedItemListScroller.resize();
     });
-};
-
-Search.prototype._trackViewsWereDestroyed = function() {
-    var oldLength = this.length;
-    var indices = [];
-
-    for (var i = 0; i < this._trackViews.length; ++i) {
-        if (this._trackViews[i].isDestroyed()) {
-            indices.push(i);
-        }
-    }
-
-    var tracksIndexRanges = buildConsecutiveRanges(indices);
-    this._selectable.removeIndices(indices);
-    this.removeTracksBySelectionRanges(tracksIndexRanges);
-
-    if (this.length !== oldLength) {
-        this.emit("lengthChange", this.length, oldLength);
-        if (this._visible) {
-            this._fixedItemListScroller.resize();
-        }
-    }
 };
 
 Search.prototype._inputKeydowned = function(e) {
