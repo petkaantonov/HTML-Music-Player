@@ -175,10 +175,12 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     EventEmitter.call(this);
     this.page = opts.page;
     this.animationContext = opts.animationContext;
+    this.applicationPreferences = opts.applicationPreferences;
     this.globalEvents = opts.globalEvents;
     this.player = player;
     player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported(this.page.document());
+    this.canvasSupported = true;
     this.snackbar = opts.snackbar;
     this.db = opts.db;
     this.recognizerContext = opts.recognizerContext;
@@ -206,6 +208,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.enabledMediaMatcher = opts.enabledMediaMatcher || null;
     this.emptyBinDrawerFrameId = -1;
 
+
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
     this.latencyPopupOpened = this.latencyPopupOpened.bind(this);
@@ -213,6 +216,8 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
     this.latencyPopup = opts.popupContext.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+
+    this.applicationPreferences.on("change", this.applicationPreferencesChanged.bind(this));
 
     this.enabled = true;
     this.shown = true;
@@ -242,8 +247,6 @@ VisualizerCanvas.prototype.initialize = function() {
         this.enabledMediaMatchChanged();
     }
 
-
-
     this.globalEvents.on("resize", this.binSizeMediaMatchChanged);
     this.latencyPopup.on("open", this.latencyPopupOpened);
     this.player.on("stop", this.playerStopped);
@@ -271,19 +274,37 @@ VisualizerCanvas.prototype.initialize = function() {
                 this.renderer = null;
                 return onSourceReady.call(this);
             } else {
-                this.enabled = false;
+                this.canvasSupported = false;
                 this.hide();
             }
         }
         this.drawIdleBins(Date.now());
         this.refreshContextMenu();
     }.bind(this));
+
+    this.enabled = this.applicationPreferences.preferences().getEnableVisualizer();
     this.setupCanvasContextMenu();
 };
 
 VisualizerCanvas.prototype.refreshContextMenu = function() {
     if (this.contextMenu) {
         this.contextMenu.refreshAll();
+    }
+};
+
+VisualizerCanvas.prototype.applyVisibility = function() {
+    if (this.enabled) {
+        this.show();
+    } else {
+        this.hide();
+    }
+};
+
+VisualizerCanvas.prototype.applicationPreferencesChanged = function() {
+    if (this.enabled !== this.applicationPreferences.preferences().getEnableVisualizer()) {
+        this.enabled = !this.enabled;
+        this.refreshContextMenu();
+        this.applyVisibility();
     }
 };
 
@@ -318,7 +339,9 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
             onClick: function(e) {
                 e.preventDefault();
                 self.enabled = !self.enabled;
+                self.applicationPreferences.setVisualizerEnabled(self.enabled);
                 self.refreshContextMenu();
+                self.applyVisibility();
             }
         }]
     });
@@ -392,7 +415,6 @@ VisualizerCanvas.prototype.isHardwareRendering = function() {
 };
 
 VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
-    this.enabled = !!this.enabledMediaMatcher.matches;
     this.binSizeMediaMatchChanged();
     this.refreshContextMenu();
     if (this.source && this.source.isReady()) {
@@ -431,6 +453,10 @@ VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
 
 VisualizerCanvas.prototype.isEnabled = function() {
     return this.enabled;
+};
+
+VisualizerCanvas.prototype.isSupported = function() {
+    return this.enabledMediaMatcher.matches && this.canvasSupported;
 };
 
 VisualizerCanvas.prototype.resetCaps = function() {
@@ -487,7 +513,11 @@ VisualizerCanvas.prototype.objectsPerBin = function() {
 };
 
 VisualizerCanvas.prototype.needsToDraw = function() {
-    return this.needToDraw || this.isEnabled();
+    return this.needToDraw || (this.isEnabled() && this.isSupported());
+};
+
+VisualizerCanvas.prototype.shouldHideWhenNothingToDraw = function() {
+    return !this.applicationPreferences.preferences().getEnableVisualizer() || !this.isSupported();
 };
 
 VisualizerCanvas.prototype.emptyBinDraw = function(now) {
@@ -512,25 +542,28 @@ VisualizerCanvas.prototype.playerStopped = function() {
 
 VisualizerCanvas.prototype.show = function() {
     if (this.shown) return;
-    if (!this.enabled || this.enabledMediaMatcher && !this.enabledMediaMatcher.matches) {
+    if (!this.enabled || !this.isSupported()) {
         return this.hide();
     }
     this.shown = true;
     this.page.$(this.canvas).closest(this.sectionContainerSelector).show();
     this.binSizeMediaMatchChanged();
+    this.globalEvents._triggerSizeChange();
 };
 
 VisualizerCanvas.prototype.hide = function() {
-    if (!this.shown || (this.enabled && (this.enabledMediaMatcher && this.enabledMediaMatcher.matches))) return;
+    if (!this.shown || !this.shouldHideWhenNothingToDraw()) return;
     this.shown = false;
+    this.needToDraw = false;
     this.page.$(this.canvas).closest(this.sectionContainerSelector).hide();
     this.binSizeMediaMatchChanged();
+    this.globalEvents._triggerSizeChange();
 };
 
 VisualizerCanvas.prototype.drawBins = function(now, bins) {
     if (bins.length !== this.getNumBins()) return;
     if (!this.source.isReady()) return;
-    if (!this.isEnabled()) {
+    if (!this.isEnabled() || !this.isSupported()) {
         bins = this.emptyBins;
     }
     this.show();

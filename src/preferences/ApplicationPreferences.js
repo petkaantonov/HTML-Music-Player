@@ -74,11 +74,10 @@ ApplicationPreferences.prototype._createManager = function() {
     return new PreferencesManager(this.popup().$(), this);
 };
 
-ApplicationPreferences.prototype.toggleVisualizerEnabled = function() {
-    this.preferences().setEnableVisualizer(!this.preferences().getEnableVisualizer());
+ApplicationPreferences.prototype.setVisualizerEnabled = function(value) {
+    this.preferences().setEnableVisualizer(value);
     this.savePreferences();
 };
-
 
 ApplicationPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
 ApplicationPreferences.prototype.TITLE = "Preferences";
