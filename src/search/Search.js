@@ -174,6 +174,23 @@ export default function Search(domNode, opts) {
     this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
     this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
 
+    var self = this;
+    [1, 2, 3, 4, 5].forEach(function(ratingValue) {
+        this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
+            if (self._selectable.getSelectedItemViewCount() !== 1) return;
+            var trackView = self._selectable.first();
+            if (trackView) {
+                trackView.track().rate(ratingValue);
+            }
+        });
+    }, this);
+
+    this._keyboardShortcutContext.addShortcut("alt+0", function() {
+        if (self._selectable.getSelectedItemViewCount() !== 1) return;
+        var trackView = self._selectable.first();
+        if (trackView) trackView.track().rate(-1);
+    });
+
     this._bindListEvents();
 
     this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
