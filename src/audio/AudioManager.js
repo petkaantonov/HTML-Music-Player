@@ -173,6 +173,7 @@ AudioManager.prototype.replaceTrack = function(track) {
             this.normalizeLoudness();
             this.sourceNode.replaceUsingGaplessPreload();
             this.updateSchedules();
+            this.resume();
             return;
         }
     }
@@ -191,14 +192,7 @@ AudioManager.prototype.replaceTrack = function(track) {
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
         self.normalizeLoudness();
-        if (!self.paused) {
-            self.updateSchedules();
-            self.fadeInSeekGain();
-            self.sourceNode.play();
-            if (self.visualizer) {
-                self.visualizer.resume();
-            }
-        }
+        self.resume();
     });
     this.currentTime = track.convertFromSilenceAdjustedTime(0);
     this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
