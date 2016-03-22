@@ -178,7 +178,6 @@ AudioManager.prototype.replaceTrack = function(track) {
         }
     }
 
-    this.fadeOutSeekGain();
     this.intendingToSeek = 0;
     this.player.audioManagerSeekIntent(this, 0);
     var self = this;
@@ -188,7 +187,6 @@ AudioManager.prototype.replaceTrack = function(track) {
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
     this.sourceNode.once("replacementLoaded", function() {
-        self.fadeInSeekGain();
         self.tickCounter.reset();
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
