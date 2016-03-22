@@ -188,6 +188,7 @@ AudioManager.prototype.replaceTrack = function(track) {
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
     this.sourceNode.once("replacementLoaded", function() {
+        self.fadeInSeekGain();
         self.tickCounter.reset();
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
