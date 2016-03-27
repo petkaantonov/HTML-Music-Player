@@ -463,13 +463,13 @@ function createMenuItem(root, spec, level) {
     return new ActionMenuItem(root, spec, children, level);
 }
 
-export default function ActionMenu(opts) {
+export default function ActionMenu(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.rippler = opts.rippler;
-    this.recognizerContext = opts.recognizerContext;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.rippler = deps.rippler;
+    this.recognizerContext = deps.recognizerContext;
     this.rootClass = opts.rootClass || "action-menu-root";
     this.containerClass = opts.containerClass || "action-menu-submenu";
     this.itemClass = opts.itemClass || "action-menu-item";
@@ -507,6 +507,7 @@ export default function ActionMenu(opts) {
 
         this._idToItem[id] = item;
     }, this);
+    deps.ensure();
 }
 inherits(ActionMenu, EventEmitter);
 
@@ -625,19 +626,19 @@ ActionMenu.prototype.enable = function(actions) {
     this.emit("activationChange", this);
 };
 
-export function ContextMenu(dom, opts) {
+export function ContextMenu(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
     opts.rootClass = opts.rootClass ? opts.rootClass + " action-menu-context-root"
                                     : "action-menu-root action-menu-context-root";
-    this._menu = new ActionMenu(opts);
+    this._menu = new ActionMenu(opts, deps);
     this._domNode = this._menu.$().setStyles({
         position: "absolute",
         zIndex: 50
     });
     this._shown = false;
-    this._targetDom = this.page().$(dom);
+    this._targetDom = this.page().$(opts.target);
     this._x = 0;
     this._y = 0;
     this._xMax = 0;

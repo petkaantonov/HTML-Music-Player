@@ -1,5 +1,6 @@
 "use strict";
 
+import ApplicationDependencies from "ApplicationDependencies";
 import { console, matchMedia } from "platform/platform";
 import AnimationContext from "ui/animation/AnimationContext";
 import Snackbar from "ui/Snackbar";
@@ -42,15 +43,15 @@ const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;
 const DEFAULT_IMAGE_SRC = "/dist/images/apple-touch-icon-180x180.png";
 
-export default function Application(opts) {
+export default function Application(deps) {
     var bootstrapStart = Date.now();
-    opts = Object(opts);
-    var page = opts.page;
-    var env = opts.env;
-    var db = opts.db;
-    var dbValues = Object(opts.dbValues);
-    var defaultTitle = opts.defaultTitle;
-    var globalEvents = opts.globalEvents;
+
+    var page = deps.page;
+    var env = deps.env;
+    var db = deps.db;
+    var dbValues = Object(deps.dbValues);
+    var defaultTitle = deps.defaultTitle;
+    var globalEvents = deps.globalEvents;
 
     if (!env.hasTouch()) {
         page.$("body").addClass("no-touch");
@@ -63,37 +64,94 @@ export default function Application(opts) {
     this.defaultTitle = defaultTitle;
     this.globalEvents = globalEvents;
 
-    this.animationContext = new AnimationContext(this.page);
-    this.recognizerContext = new GestureRecognizerContext(this.page, this.env, this.globalEvents);
-    this.sliderContext = new SliderContext(this.page, this.recognizerContext, this.globalEvents);
-    this.scrollEvents = new ScrollEvents(this.page, this.env, this.recognizerContext);
-    this.gestureScreenFlasher = new GestureScreenFlasher(this.page, this.animationContext);
-    this.rippler = new Rippler(this.page, this.animationContext, POPUP_ZINDEX - 60, "body");
-    this.keyboardShortcuts = new KeyboardShortcuts(this.page);
-    this.menuContext = new MenuContext(this.page, this.recognizerContext, this.rippler, this.globalEvents);
-    this.fileInputContext = new FileInputContext(this.page, this.recognizerContext, this.rippler);
-    this.scrollEvents = new ScrollEvents(this.page, this.recognizerContext);
-    this.scrollerContext = new ScrollerContext(this.page, this.recognizerContext, this.scrollEvents, ITEM_HEIGHT);
-    this.tooltipContext = new TooltipContext(this.page, this.recognizerContext, this.globalEvents);
+    this.animationContext = new AnimationContext(new ApplicationDependencies({
+        page: this.page
+    }));
+
+    this.recognizerContext = new GestureRecognizerContext(new ApplicationDependencies({
+        page: this.page,
+        env: this.env,
+        globalEvents: this.globalEvents
+    }));
+
+    this.sliderContext = new SliderContext(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        globalEvents: this.globalEvents
+    }));
+
+    this.scrollEvents = new ScrollEvents(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext
+    }));
+
+    this.gestureScreenFlasher = new GestureScreenFlasher(new ApplicationDependencies({
+        page: this.page,
+        animationContext: this.animationContext
+    }));
+
+    this.rippler = new Rippler({
+        zIndex: POPUP_ZINDEX - 60,
+        target: "body"
+    }, new ApplicationDependencies({
+        page: this.page,
+        animationContext: this.animationContext
+    }));
+
+    this.keyboardShortcuts = new KeyboardShortcuts(new ApplicationDependencies({
+        page: this.page
+    }));
+
+    this.menuContext = new MenuContext(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler,
+        globalEvents: this.globalEvents
+    }));
+
+    this.fileInputContext = new FileInputContext(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler
+    }));
+
+    this.scrollerContext = new ScrollerContext({
+        itemHeight: ITEM_HEIGHT
+    }, new ApplicationDependencies({
+        page: this.page,
+        scrollEvents: this.scrollEvents
+    }));
+
+    this.tooltipContext = new TooltipContext(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        globalEvents: this.globalEvents
+    }));
 
     this.snackbar = new Snackbar({
-        page: this.page,
         transitionInClass: "transition-in",
         transitionOutClass: "transition-out",
         nextDelay: 400,
-        visibilityTime: 4400,
+        visibilityTime: 4400
+    }, new ApplicationDependencies({
+        page: this.page,
         recognizerContext: this.recognizerContext,
         globalEvents: this.globalEvents
-    });
+    }));
 
-    this.toolbarSubmenu = new OpenableSubmenu(".toolbar-submenu", ".menul-submenu-open", {
+    this.toolbarSubmenu = new OpenableSubmenu({
+        target: ".toolbar-submenu",
+        openerTarget: ".menul-submenu-open",
+        openerActiveClass: "toolbar-item-active"
+    }, new ApplicationDependencies({
         page: this.page,
-        openerActiveClass: "toolbar-item-active",
         recognizerContext: this.recognizerContext,
         rippler: this.rippler
-    });
+    }));
 
     this.popupContext = new PopupContext({
+        zIndex: POPUP_ZINDEX
+    }, new ApplicationDependencies({
         animationContext: this.animationContext,
         page: this.page,
         globalEvents: this.globalEvents,
@@ -102,68 +160,76 @@ export default function Application(opts) {
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
-        keyboardShortcuts: this.keyboardShortcuts,
-        zIndex: POPUP_ZINDEX
-    });
+        keyboardShortcuts: this.keyboardShortcuts
+    }));
 
     this.spinner = new Spinner({
-        page: this.page,
         clockwise: "#clockwise-spinner",
-        counterclockwise: "#counterclockwise-spinner",
-        recognizerContext: this.recognizerContext
-    });
+        counterclockwise: "#counterclockwise-spinner"
+    }, new ApplicationDependencies({
+        page: this.page
+    }));
 
-    this.gestureEducator = new GestureEducator(this.page, this.snackbar, this.db, this.dbValues);
+    this.gestureEducator = new GestureEducator(new ApplicationDependencies({
+        page: this.page,
+        snackbar: this.snackbar,
+        db: this.db,
+        dbValues: this.dbValues
+    }));
 
-    this.serviceWorkerManager = new ServiceWorkerManager({
+    this.serviceWorkerManager = new ServiceWorkerManager(new ApplicationDependencies({
         env: this.env,
         page: this.page,
         snackbar: this.snackbar,
-        recognizerContext: this.recognizerContext,
         globalEvents: this.globalEvents
-    });
+    }));
     this.serviceWorkerManager.start();
 
     this.applicationPreferences = new ApplicationPreferences({
+        preferencesButton: ".menul-preferences"
+    }, new ApplicationDependencies({
         page: this.page,
-        snackbar: this.snackbar,
         recognizerContext: this.recognizerContext,
         sliderContext: this.sliderContext,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
         popupContext: this.popupContext,
-        preferencesButton: ".menul-preferences",
         env: this.env
-    });
+    }));
 
     this.effectPreferences = new EffectPreferences({
+        preferencesButton: ".menul-effects"
+    }, new ApplicationDependencies({
         page: this.page,
-        snackbar: this.snackbar,
         recognizerContext: this.recognizerContext,
         sliderContext: this.sliderContext,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
         popupContext: this.popupContext,
-        preferencesButton: ".menul-effects"
-    });
+        env: this.env
+    }));
 
     this.crossfadingPreferences = new CrossfadingPreferences({
+        preferencesButton: ".menul-crossfade"
+    }, new ApplicationDependencies({
         page: this.page,
-        snackbar: this.snackbar,
         recognizerContext: this.recognizerContext,
         sliderContext: this.sliderContext,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler,
         popupContext: this.popupContext,
-        preferencesButton: ".menul-crossfade"
-    });
+        env: this.env
+    }));
 
-    this.playlist = new Playlist("#app-playlist-container", {
+    this.playlist = new Playlist({
+        target: "#app-playlist-container",
+        itemHeight: ITEM_HEIGHT
+    }, new ApplicationDependencies({
+        env: this.env,
         page: this.page,
-        itemHeight: ITEM_HEIGHT,
         db: this.db,
         dbValues: this.dbValues,
         recognizerContext: this.recognizerContext,
@@ -173,22 +239,24 @@ export default function Application(opts) {
         globalEvents: this.globalEvents,
         tooltipContext: this.tooltipContext,
         keyboardShortcuts: this.keyboardShortcuts,
-        crossfadingPreferences: this.crossfadingPreferences,
-        effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences
-    });
+    }));
 
-    this.trackAnalyzer = new TrackAnalyzer(this.playlist, {
-        page: this.page,
-        globalEvents: this.globalEvents,
+    this.trackAnalyzer = new TrackAnalyzer({
         src: env.isDevelopment() ? "dist/worker/TrackAnalyzerBackend.js" : "dist/worker/TrackAnalyzerBackend.min.js"
-    });
+    }, new ApplicationDependencies({
+        page: this.page,
+        playlist: this.playlist,
+        globalEvents: this.globalEvents,
+    }));
 
-    this.search = new Search(".search-list-container", {
+    this.search = new Search({
+        target: ".search-list-container",
+        itemHeight: ITEM_HEIGHT
+    }, new ApplicationDependencies({
         env: this.env,
         page: this.page,
         playlist: this.playlist,
-        itemHeight: ITEM_HEIGHT,
         db: this.db,
         dbValues: this.dbValues,
         globalEvents: this.globalEvents,
@@ -196,17 +264,20 @@ export default function Application(opts) {
         scrollerContext: this.scrollerContext,
         keyboardShortcuts: this.keyboardShortcuts,
         tooltipContext: this.tooltipContext,
-        rippler: this.rippler,
-        snackbar: this.snackbar,
-        crossfadingPreferences: this.crossfadingPreferences,
-        effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences,
         trackAnalyzer: this.trackAnalyzer
-    });
+    }));
 
     this.queue = null;
 
     this.mainTabs = new MainTabs({
+        itemHeight: ITEM_HEIGHT,
+        tabHeight: TAB_HEIGHT,
+        tabHolder: "#app-content-holder",
+        playlistTab: ".playlist-tab",
+        searchTab: ".search-tab",
+        queueTab: ".queue-tab",
+        activeTabIndicator: ".active-tab-indicator"
+    }, new ApplicationDependencies({
         page: this.page,
         keyboardShortcuts: this.keyboardShortcuts,
         globalEvents: this.globalEvents,
@@ -214,38 +285,35 @@ export default function Application(opts) {
         playlist: this.playlist,
         search: this.search,
         queue: this.queue,
-        itemHeight: ITEM_HEIGHT,
-        tabHeight: TAB_HEIGHT,
-        tabHolder: "#app-content-holder",
-        playlistTab: ".playlist-tab",
-        searchTab: ".search-tab",
-        queueTab: ".queue-tab",
-        activeTabIndicator: ".active-tab-indicator",
         recognizerContext: this.recognizerContext,
         rippler: this.rippler
-    });
+    }));
 
     this.localFileHandler = new LocalFileHandler({
+        directoryButton: ".menul-folder, .add-folder-link",
+        fileButton: ".menul-files, .add-files-link"
+    }, new ApplicationDependencies({
         page: this.page,
         fileInputContext: this.fileInputContext,
         env: this.env,
-        playlist: this.playlist,
-        directoryButton: ".menul-folder, .add-folder-link",
-        fileButton: ".menul-files, .add-files-link"
-    });
+        playlist: this.playlist
+    }));
 
     if (false && env.isDevelopment()) {
         this.localFileHandler.generateFakeFiles(30);
     }
 
-    this.player = new Player(".app-player-controls", this.playlist, {
-        page: this.page,
+    this.player = new Player({
+        target: ".app-player-controls",
         playButtonDom: ".play-button",
         pauseButtonDom: ".pause-button",
         previousButtonDom: ".previous-button",
         stopButtonDom: ".stop-button",
         nextButtonDom: ".next-button",
-        snackbar: this.snackbar,
+        src: env.isDevelopment() ? "dist/worker/AudioPlayerBackend.js" : "dist/worker/AudioPlayerBackend.min.js"
+    }, new ApplicationDependencies({
+        page: this.page,
+        playlist: this.playlist,
         env: this.env,
         globalEvents: this.globalEvents,
         recognizerContext: this.recognizerContext,
@@ -256,70 +324,65 @@ export default function Application(opts) {
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences,
-        tooltipContext: this.tooltipContext,
-        src: env.isDevelopment() ? "dist/worker/AudioPlayerBackend.js" : "dist/worker/AudioPlayerBackend.min.js"
-    });
+        tooltipContext: this.tooltipContext
+    }));
 
-    this.playerPictureManager = new PlayerPictureManager(".picture-container", this.player, {
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        db: this.db,
-        dbValues: this.dbValues,
+    this.playerPictureManager = new PlayerPictureManager({
+        target: ".picture-container",
         imageDimensions: IMAGE_DIMENSIONS,
         defaultImageSrc: DEFAULT_IMAGE_SRC
-    });
-
-    this.playerTimeManager = new PlayerTimeManager(".player-upper-container", this.player, {
+    }, new ApplicationDependencies({
         page: this.page,
+        player: this.player
+    }));
+
+    this.playerTimeManager = new PlayerTimeManager({
+        target: ".player-upper-container",
         seekSlider: ".time-progress-container",
         currentTimeDom: ".current-time",
         totalTimeDom: ".total-time",
         timeContainerDom: ".playback-status-wrapper",
-        timeProgressDom: ".time-progress",
+        timeProgressDom: ".time-progress"
+    }, new ApplicationDependencies({
+        page: this.page,
+        player: this.player,
         recognizerContext: this.recognizerContext,
         sliderContext: this.sliderContext,
         dbValues: this.dbValues,
         db: this.db,
         rippler: this.rippler
-    });
+    }));
 
-    this.playerVolumeManager = new PlayerVolumeManager(".volume-controls-container", this.player, {
-        page: this.page,
+    this.playerVolumeManager = new PlayerVolumeManager({
+        target: ".volume-controls-container",
         volumeSlider: ".volume-slider",
         muteDom: ".volume-mute",
+    }, new ApplicationDependencies({
+        page: this.page,
+        player: this.player,
         recognizerContext: this.recognizerContext,
         sliderContext: this.sliderContext,
-        dbValues: this.dbValues,
-        db: this.db,
         rippler: this.rippler,
         tooltipContext: this.tooltipContext
-    });
+    }));
 
-    this.playlistNotifications = new PlaylistNotifications(".notification-setting", this.player, {
+    this.playlistNotifications = new PlaylistNotifications({
+        target: ".notification-setting"
+    }, new ApplicationDependencies({
+        player: this.player,
+        playlist: this.playlist,
         page: this.page,
         env: this.env,
-        pictureManager: this.playerPictureManager,
         serviceWorkerManager: this.serviceWorkerManager,
         recognizerContext: this.recognizerContext,
         rippler: this.rippler,
         db: this.db,
         dbValues: this.dbValues,
         tooltipContext: this.tooltipContext
-    });
+    }));
 
-    this.visualizerCanvas = new VisualizerCanvas("#visualizer", this.player, {
-        page: this.page,
-        animationContext: this.animationContext,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        applicationPreferences: this.applicationPreferences,
-        dbValues: this.dbValues,
-        db: this.db,
-        snackbar: this.snackbar,
-        rippler: this.rippler,
-        popupContext: this.popupContext,
-        menuContext: this.menuContext,
-        sliderContext: this.sliderContext,
+    this.visualizerCanvas = new VisualizerCanvas({
+        target: "#visualizer",
         binWidth: 3,
         gapWidth: 1,
         capHeight: 1,
@@ -330,17 +393,32 @@ export default function Application(opts) {
         ghostOpacity: 0.14,
         capInterpolator: "ACCELERATE_CUBIC",
         enabledMediaMatcher: matchMedia("(min-height: 500px)")
-    });
-
-    this.trackDisplay = new TrackDisplay(".track-display-container", this.playlist, {
+    }, new ApplicationDependencies({
+        player: this.player,
         page: this.page,
-        delay: 3500,
-        target: ".track-display",
+        animationContext: this.animationContext,
+        globalEvents: this.globalEvents,
+        recognizerContext: this.recognizerContext,
+        applicationPreferences: this.applicationPreferences,
+        snackbar: this.snackbar,
+        rippler: this.rippler,
+        popupContext: this.popupContext,
+        menuContext: this.menuContext,
+        sliderContext: this.sliderContext
+    }));
+
+    this.trackDisplay = new TrackDisplay({
+        target: ".track-display-container",
+        displayTarget: ".track-display",
+        delay: 3500
+    }, new ApplicationDependencies({
+        playlist: this.playlist,
+        page: this.page,
         defaultTitle: this.defaultTitle,
         globalEvents: this.globalEvents
-    });
+    }));
 
-    this.defaultShortcuts = new DefaultShortcuts({
+    this.defaultShortcuts = new DefaultShortcuts(new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
         player: this.player,
@@ -349,16 +427,17 @@ export default function Application(opts) {
         playerTimeManager: this.playerTimeManager,
         rippler: this.rippler,
         gestureScreenFlasher: this.gestureScreenFlasher
-    });
+    }));
 
-    this.playlistModeManager = new PlaylistModeManager(".playlist-controls-container", this.playlist, {
+    this.playlistModeManager = new PlaylistModeManager({
+        target: ".playlist-controls-container"
+    }, new ApplicationDependencies({
+        playlist: this.playlist,
         page: this.page,
         recognizerContext: this.recognizerContext,
-        dbValues: this.dbValues,
-        db: this.db,
         rippler: this.rippler,
         tooltipContext: this.tooltipContext
-    });
+    }));
 
     this.globalEvents.on("longPressStart", this.longTapStarted.bind(this));
     this.globalEvents.on("longPressEnd", this.longTapEnded.bind(this));
@@ -373,6 +452,7 @@ export default function Application(opts) {
         self.visualizerCanvas.initialize();
         console.log("bootstrap time:", Date.now() - bootstrapStart, "ms");
     });
+    deps.ensure();
 }
 
 Application.prototype.selectStarted = function(e) {

@@ -176,14 +176,16 @@ Ripple.prototype.animationContext = function() {
     return this.rippler._animationContext;
 };
 
-export default function Rippler(page, animationContext, baseZIndex, base) {
-    this._animationContext = animationContext;
-    this._page = page;
-    this._domNode = page.$(base);
+export default function Rippler(opts, deps) {
+    opts = Object(opts);
+    this._animationContext = deps.animationContext;
+    this._page = deps.page;
+    this._domNode = this._page.$(opts.target);
     this._freeRipples = [];
     this._ongoingRipples = [];
     this._shown = false;
-    this._baseZIndex = baseZIndex;
+    this._baseZIndex = opts.zIndex;
+    deps.ensure();
 }
 
 Rippler.prototype.$ = function() {

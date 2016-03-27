@@ -64,9 +64,9 @@ const Preferences = createPreferences({
     }
 });
 
-export default function ApplicationPreferences(opts) {
+export default function ApplicationPreferences(opts, deps) {
     opts = Object(opts);
-    AbstractPreferences.call(this, new Preferences(), opts);
+    AbstractPreferences.call(this, new Preferences(), opts, deps);
 }
 inherits(ApplicationPreferences, AbstractPreferences);
 
@@ -200,7 +200,9 @@ ApplicationPreferences.prototype.getHtml = function() {
 
 function CpuUsagePreferenceManager(preferencesManager) {
     this._preferenceManager = preferencesManager;
-    this._slider = preferencesManager.applicationPreferences.sliderContext().createSlider(this.$().find(".cpu-usage-slider"));
+    this._slider = preferencesManager.applicationPreferences.sliderContext().createSlider({
+        target: this.$().find(".cpu-usage-slider")
+    });
     this._valueChanged = this._valueChanged.bind(this);
     this._slider.on("slide", this._valueChanged);
 }

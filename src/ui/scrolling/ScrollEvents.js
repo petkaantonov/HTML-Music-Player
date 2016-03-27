@@ -85,11 +85,12 @@ ScrollEventsBinding.prototype.unbind = function() {
         .removeEventListener("DOMMouseScroll", this._mouseWheeled);
 };
 
-export default function ScrollEvents(page, recognizerContext) {
-    this.page = page;
-    this.recognizerContext = recognizerContext;
+export default function ScrollEvents(deps) {
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    deps.ensure();
 }
 
-ScrollEvents.prototype.createBinding = function(target, scroller, shouldScroll, scrollbar) {
-    return new ScrollEventsBinding(this, target, scroller, shouldScroll, scrollbar);
+ScrollEvents.prototype.createBinding = function(opts) {
+    return new ScrollEventsBinding(this, opts.target, opts.scroller, opts.shouldScroll, opts.scrollbar);
 };

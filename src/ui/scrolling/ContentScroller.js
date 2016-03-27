@@ -2,12 +2,15 @@
 
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
+import ApplicationDependencies from "ApplicationDependencies";
+import { ensuredObjectField } from "util";
 
-export default function ContentScroller(node, opts) {
+export default function ContentScroller(opts, deps) {
     opts = Object(opts);
-    this._page = opts.page;
-    this._domNode = this._page.$(node).eq(0);
-    this._contentContainer = this._page.$(opts.contentContainer || node).eq(0);
+    this._page = deps.page;
+
+    this._domNode = this._page.$(ensuredObjectField(opts, "target")).eq(0);
+    this._contentContainer = this._page.$(ensuredObjectField(opts, "contentContainer")).eq(0);
 
     this._scrollTop = 0;
     this._frameId = -1;
@@ -22,13 +25,20 @@ export default function ContentScroller(node, opts) {
     this._renderScrollTop = this._renderScrollTop.bind(this);
     this._clearWillChange = this._clearWillChange.bind(this);
 
-    this._scroller = new Scroller(this._renderScroller, opts);
-    this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    this._scrollerEventBinding = opts.scrollEvents.createBinding(this.$contentContainer(),
-                                                                 this._scroller,
-                                                                 opts.shouldScroll,
-                                                                 this._scrollbar);
+    this._scroller = new Scroller(this._renderScroller, ensuredObjectField(opts, "scrollerOpts"));
+    var scrollbarOpts = ensuredObjectField(opts, "scrollbarOpts");
+    scrollbarOpts.scrollerInfo = this;
+    this._scrollbar = new Scrollbar(scrollbarOpts, new ApplicationDependencies({
+        page: this._page
+    }));
+    this._scrollerEventBinding = deps.scrollEvents.createBinding({
+        target: this.$contentContainer(),
+        scroller: this._scroller,
+        scrollbar: this._scrollbar,
+        shouldScroll: opts.shouldScroll
+    });
     this.refresh();
+    deps.ensure();
 }
 
 ContentScroller.prototype.$ = function() {

@@ -1,17 +1,19 @@
 "use strict";
 
 import Slider from "ui/Slider";
+import ApplicationDependencies from "ApplicationDependencies";
 
-export default function SliderContext(page, recognizerContext, globalEvents) {
-    this.page = page;
-    this.recognizerContext = recognizerContext;
-    this.globalEvents = globalEvents;
+export default function SliderContext(deps) {
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.globalEvents = deps.globalEvents;
+    deps.ensure();
 }
 
-SliderContext.prototype.createSlider = function(dom, opts) {
-    opts = Object(opts);
-    opts.page = this.page;
-    opts.recognizerContext = this.recognizerContext;
-    opts.globalEvents = this.globalEvents;
-    return new Slider(dom, opts);
+SliderContext.prototype.createSlider = function(opts) {
+    return new Slider(opts, new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        globalEvents: this.globalEvents
+    }));
 };

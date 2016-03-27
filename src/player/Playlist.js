@@ -6,27 +6,19 @@ import DraggableSelection from "ui/DraggableSelection";
 import Track from "tracks/Track";
 import Snackbar from "ui/Snackbar";
 import TrackView from "tracks/TrackView";
+import TrackViewOptions from "tracks/TrackViewOptions";
 import AbstractTrackContainer from "tracks/AbstractTrackContainer";
+import ApplicationDependencies from "ApplicationDependencies";
 
 const PLAYLIST_TRACKS_REMOVED_TAG = "playlist-tracks-removed";
 const PLAYLIST_MODE_KEY = "playlist-mode";
 const SHUFFLE_MODE = "shuffle";
 
-const TrackViewOptions = {
-    updateTrackIndex: true,
-    itemHeight: -1,
-    page: null,
-    playlist: null,
-    tooltipContext: null,
-    selectable: null,
-    search: null
-};
-
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
-const EMPTY_ARRAY = [];
+const EMPTY_ARRAY = Object.freeze([]);
 
 const DUMMY_TRACK = {
     getIndex: function() {
@@ -67,22 +59,19 @@ TrackListDeletionUndo.prototype.destroy = function() {
     }
 };
 
-var instance = false;
-export default function Playlist(domNode, opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function Playlist(opts, deps) {
     AbstractTrackContainer.call(this);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
-    this.keyboardShortcuts = opts.keyboardShortcuts;
-    this.env = opts.env;
-    this.db = opts.db;
-    this.dbValues = opts.dbValues;
-    this.rippler = opts.rippler;
-    this.snackbar = opts.snackbar;
-    this.applicationPreferences = opts.applicationPreferences;
-    this.tooltipContext = opts.tooltipContext;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
+    this.keyboardShortcuts = deps.keyboardShortcuts;
+    this.env = deps.env;
+    this.db = deps.db;
+    this.dbValues = deps.dbValues;
+    this.rippler = deps.rippler;
+    this.snackbar = deps.snackbar;
+    this.applicationPreferences = deps.applicationPreferences;
+    this.tooltipContext = deps.tooltipContext;
 
     this._trackViews = [];
     this._unparsedTrackList = [];
@@ -92,43 +81,60 @@ export default function Playlist(domNode, opts) {
     this._trackListDeletionUndo = null;
     this._currentPlayId = -1;
     this._trackHistory = [];
-    this._selectable = new Selectable(this, this.page);
+    this._selectable = new Selectable({
+        listView: this
+    }, new ApplicationDependencies({
+        page: this.page
+    }));
 
-    TrackViewOptions.playlist = this;
-    TrackViewOptions.itemHeight = opts.itemHeight;
-    TrackViewOptions.page = this.page;
-    TrackViewOptions.tooltipContext = opts.tooltipContext;
-    TrackViewOptions.selectable = this._selectable;
-
+    this._trackViewOptions = new TrackViewOptions(true,
+                                                  opts.itemHeight,
+                                                  this,
+                                                  this.page,
+                                                  deps.tooltipContext,
+                                                  this._selectable,
+                                                  null);
     this._errorCount = 0;
-    this._$domNode = this.page.$(domNode);
+    this._$domNode = this.page.$(opts.target);
     this._$trackContainer = this.$().find(".tracklist-transform-container");
     this._nextTrack = null;
 
-    this._fixedItemListScroller = opts.scrollerContext.createFixedItemListScroller(this.$(), this._trackViews, {
+    this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
+        target: this.$(),
+        itemList: this._trackViews,
+        contentContainer: this.$trackContainer(),
+
+        minPrerenderedItems: 15,
+        maxPrerenderedItems: 50,
+
         shouldScroll: function() {
             return !this._draggable.isDragging();
         }.bind(this),
-        scrollingX: false,
-        snapping: true,
-        zooming: false,
-        paging: false,
-        minPrerenderedItems: 15,
-        maxPrerenderedItems: 50,
-        contentContainer: this.$trackContainer(),
-        scrollbar: this.$().find(".scrollbar-container"),
-        railSelector: ".scrollbar-rail",
-        knobSelector: ".scrollbar-knob"
+
+        scrollerOpts: {
+            scrollingX: false,
+            snapping: true,
+            zooming: false,
+            paging: false,
+        },
+        scrollbarOpts: {
+            target: this.$().find(".scrollbar-container"),
+            railSelector: ".scrollbar-rail",
+            knobSelector: ".scrollbar-knob"
+        }
     });
 
-    this._draggable = new DraggableSelection(this.$(), this, this._fixedItemListScroller, {
+    this._draggable = new DraggableSelection({
+        target: this.$(),
+        listView: this,
+        scroller: this._fixedItemListScroller,
         mustNotMatchSelector: ".track-rating",
-        mustMatchSelector: ".track-container",
-        env: this.env,
+        mustMatchSelector: ".track-container"
+    }, new ApplicationDependencies({
         recognizerContext: this.recognizerContext,
         page: this.page,
         globalEvents: this.globalEvents
-    });
+    }));
 
     this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
@@ -187,6 +193,7 @@ export default function Playlist(domNode, opts) {
 
     this._bindListEvents();
     this._draggable.bindEvents();
+    deps.ensure();
 }
 inherits(Playlist, AbstractTrackContainer);
 
@@ -479,7 +486,7 @@ Playlist.prototype._restoreStateForUndo = function() {
                 throw new Error("should be destroyed");
             }
             trackAndView.track.unstageRemoval();
-            this._trackViews[i] = new TrackView(trackAndView.track, TrackViewOptions);
+            this._trackViews[i] = new TrackView(trackAndView.track, this._trackViewOptions);
         } else {
             if (trackAndView.view._isDestroyed) {
                 throw new Error("should not be destroyed");
@@ -592,7 +599,7 @@ Playlist.prototype.add = function(tracks) {
     var oldLength = this.length;
 
     tracks.forEach(function(track) {
-        var view = new TrackView(track, TrackViewOptions);
+        var view = new TrackView(track, this._trackViewOptions);
         var len = this._trackViews.push(view);
         this._unparsedTrackList.push(track);
         view.setIndex(len - 1);

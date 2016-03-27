@@ -6,17 +6,13 @@ import Track from "tracks/Track";
 
 const MAX_FILE_COUNT = 75000;
 
-var instance = false;
-export default function LocalFileHandler(opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function LocalFileHandler(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.env = opts.env;
-    this.opts = opts;
-    this.fileInputContext = opts.fileInputContext;
+    this.page = deps.page;
+    this.env = deps.env;
+    this.fileInputContext = deps.fileInputContext;
+    this.playlist = deps.playlist;
     this.localFiles = new LocalFiles(this.env);
-    this.playlist = opts.playlist;
 
     this.gotFiles = this.gotFiles.bind(this);
     this.gotEntries = this.gotEntries.bind(this);
@@ -44,6 +40,7 @@ export default function LocalFileHandler(opts) {
     this.page.addDocumentListener("dragleave", this._dragLeft.bind(this));
     this.page.addDocumentListener("dragover", this._dragOvered.bind(this));
     this.page.addDocumentListener("drop", this._dropped.bind(this));
+    deps.ensure();
 }
 
 LocalFileHandler.prototype.receiveFiles = function(fileEmitter) {

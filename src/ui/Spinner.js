@@ -5,14 +5,15 @@ const SPINNER_TRANSITION_OUT_DELAY = 300;
 const SPINNER_DELAY = LONG_PRESS_DURATION * 0.2 | 0;
 const SPINNER_SIZE = 142;
 
-export default function Spinner(opts) {
+export default function Spinner(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
+    this.page = deps.page;
     this.$clockwise = this.page.$(opts.clockwise);
     this.$counterclockwise = this.page.$(opts.counterclockwise);
     this.currentSpinner = null;
     this.timerId = -1;
     this.spinnerRemovalId = 0;
+    deps.ensure();
 }
 
 Spinner.prototype._clear = function() {

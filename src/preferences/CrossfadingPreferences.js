@@ -173,9 +173,9 @@ const presets = {
     "Custom": new Preferences()
 };
 
-export default function CrossfadingPreferences(opts) {
+export default function CrossfadingPreferences(opts, deps) {
     opts = Object(opts);
-    AbstractPreferences.call(this, new Preferences(), opts);
+    AbstractPreferences.call(this, new Preferences(), opts, deps);
 }
 inherits(CrossfadingPreferences, AbstractPreferences);
 
@@ -264,7 +264,9 @@ function FadeConfigurator(manager, domNode, config) {
     this.$().find(".fade-enable-checkbox").setProperty("id", enabledId);
     this.$().find(".fade-enable-text").setText(config.enablerText).setProperty("htmlFor", enabledId);
 
-    this.slider = manager.crossfadingPreferences.sliderContext().createSlider(this.$().find(".fade-time-slider"));
+    this.slider = manager.crossfadingPreferences.sliderContext().createSlider({
+        target: this.$().find(".fade-time-slider")
+    });
     this.slider.on("slide", this.slided);
     this.$().find(".fade-enable-checkbox").addEventListener("change", this.enabledChanged);
     this.$().find(".fade-curve-select").addEventListener("change", this.curveChanged);

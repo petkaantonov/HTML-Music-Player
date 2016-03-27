@@ -1,18 +1,20 @@
 "use strict";
 import EventEmitter from "events";
-import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits } from "util";
+import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, ensuredObjectField } from "util";
 import { SortedSet } from "DataStructures";
 
-export default function Selectable(playlist, page) {
+export default function Selectable(opts, deps) {
+    opts = Object(opts);
     EventEmitter.call(this);
-    this._page = page;
-    this._playlist = playlist;
+    this._page = deps.page;
+    this._listView = ensuredObjectField(opts, "listView");
     this._selectionPointer = null;
     this._lastIdx = null;
     this._lastStart = null;
     this._lastEnd = null;
     this._prioritySelection = null;
     this._selection = new SortedSet(TRACK_SORTER);
+    deps.ensure();
 }
 inherits(Selectable, EventEmitter);
 
@@ -59,7 +61,7 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
         this._clearSelection();
         this._add(idx);
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.trackViewClick = function(e, trackView) {
@@ -67,7 +69,7 @@ Selectable.prototype.trackViewClick = function(e, trackView) {
         this._resetPointers();
         this._clearSelection();
         this._add(trackView.getIndex());
-        this._playlist.emit("tracksSelected", this);
+        this._listView.emit("tracksSelected", this);
     }
 };
 
@@ -80,7 +82,7 @@ Selectable.prototype._clearSelection = function() {
 };
 
 Selectable.prototype._add = function(index) {
-    var trackView = this._playlist.getTrackViewByIndex(index);
+    var trackView = this._listView.getTrackViewByIndex(index);
     trackView.selected();
     this._selection.add(trackView);
 };
@@ -170,7 +172,7 @@ Selectable.prototype._appendingShiftSelection = function(idx) {
 };
 
 Selectable.prototype._remove = function(idx) {
-    var trackView = this._playlist.getTrackViewByIndex(idx);
+    var trackView = this._listView.getTrackViewByIndex(idx);
     if (trackView === this._prioritySelection) {
         this._prioritySelection = null;
     }
@@ -185,7 +187,7 @@ Selectable.prototype._getMiddleOfSelection = function() {
 };
 
 Selectable.prototype._moveToMiddleOfSelection = function() {
-    this._playlist.centerOnTrackView(this._getMiddleOfSelection());
+    this._listView.centerOnTrackView(this._getMiddleOfSelection());
 };
 
 Selectable.prototype.contains = function(trackView) {
@@ -196,7 +198,7 @@ Selectable.prototype.removeTrackView = function(trackView) {
     var index = trackView.getIndex();
     if (index >= 0) {
         this._remove(index);
-        this._playlist.emit("tracksSelected", this);
+        this._listView.emit("tracksSelected", this);
     }
 };
 
@@ -207,7 +209,7 @@ Selectable.prototype.addTrackView = function(trackView) {
             return false;
         }
         this._add(index);
-        this._playlist.emit("tracksSelected", this);
+        this._listView.emit("tracksSelected", this);
         return true;
     }
     return false;
@@ -218,11 +220,11 @@ Selectable.prototype.moveUp = function(distance) {
 
     if (!this._selection.isEmpty()) {
         this._resetPointers();
-        Selectable.moveSelectedItemViewsUpBy(this._playlist.getTrackViews(),
+        Selectable.moveSelectedItemViewsUpBy(this._listView.getTrackViews(),
                                               this._selection.toArray(),
                                               distance);
         this._selectionPointer = this.first().getIndex();
-        this._playlist.trackIndexChanged();
+        this._listView.trackIndexChanged();
         this._moveToMiddleOfSelection();
     }
 };
@@ -232,11 +234,11 @@ Selectable.prototype.moveDown = function(distance) {
 
     if (!this._selection.isEmpty()) {
         this._resetPointers();
-        Selectable.moveSelectedItemViewsDownBy(this._playlist.getTrackViews(),
+        Selectable.moveSelectedItemViewsDownBy(this._listView.getTrackViews(),
                                                 this._selection.toArray(),
                                                 distance);
         this._selectionPointer = this.last().getIndex();
-        this._playlist.trackIndexChanged();
+        this._listView.trackIndexChanged();
         this._moveToMiddleOfSelection();
     }
 };
@@ -255,7 +257,7 @@ Selectable.prototype.removeTopmostSelection = function(distance) {
         }
 
         this._selectionPointer = this._selection.first().getIndex();
-        this._playlist.emit("tracksSelected", this);
+        this._listView.emit("tracksSelected", this);
         this._moveToMiddleOfSelection();
     }
 };
@@ -273,7 +275,7 @@ Selectable.prototype.removeBottommostSelection = function(distance) {
         }
 
         this._selectionPointer = this._selection.last().getIndex();
-        this._playlist.emit("tracksSelected", this);
+        this._listView.emit("tracksSelected", this);
         this._moveToMiddleOfSelection();
     }
 };
@@ -297,7 +299,7 @@ Selectable.prototype.appendPrev = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
@@ -307,8 +309,8 @@ Selectable.prototype.appendNext = function(distance) {
     var cur;
     if (!this._selection.isEmpty()) {
         cur = this._selection.last().getIndex();
-        if (cur < this._playlist.length - 1) {
-            var end = Math.min(this._playlist.length, cur + distance + 1);
+        if (cur < this._listView.length - 1) {
+            var end = Math.min(this._listView.length, cur + distance + 1);
             var start = cur + 1;
 
             for (var i = start; i < end; ++i) {
@@ -320,7 +322,7 @@ Selectable.prototype.appendNext = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
@@ -339,7 +341,7 @@ Selectable.prototype.prev = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
@@ -351,22 +353,22 @@ Selectable.prototype.next = function(distance) {
         cur = this._selection.last().getIndex();
         this._clearSelection();
         cur += distance;
-        this._add(Math.min(cur, this._playlist.length - 1));
+        this._add(Math.min(cur, this._listView.length - 1));
         this._selectionPointer = this._selection.last().getIndex();
     } else {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
 Selectable.prototype.selectLast = function() {
     this._resetPointers();
     this._clearSelection();
-    this._add(this._playlist.length - 1);
-    this._selectionPointer = this._playlist.length - 1;
-    this._playlist.emit("tracksSelected", this);
+    this._add(this._listView.length - 1);
+    this._selectionPointer = this._listView.length - 1;
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
@@ -375,7 +377,7 @@ Selectable.prototype.selectFirst = function() {
     this._clearSelection();
     this._add(0);
     this._selectionPointer = 0;
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
     this._moveToMiddleOfSelection();
 };
 
@@ -387,14 +389,14 @@ Selectable.prototype.removeIndices = function(indices) {
     for (var i = 0; i < indices.length; ++i) {
         this._remove(indices[i]);
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.addIndices = function(indices) {
     for (var i = 0; i < indices.length; ++i) {
         this._add(indices[i]);
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.selectIndices = function(indices) {
@@ -420,7 +422,7 @@ Selectable.prototype.updateOrder = function(selection) {
 Selectable.prototype.clearSelection = function() {
     this._resetPointers();
     this._clearSelection();
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.getSelection = function() {
@@ -439,7 +441,7 @@ Selectable.prototype.setPriorityTrackView = function(trackView) {
     if (index >= 0) {
         if (!this._selection.contains(trackView)) {
             this._add(index);
-            this._playlist.emit("tracksSelected", this);
+            this._listView.emit("tracksSelected", this);
         }
         this._prioritySelection = trackView;
     }
@@ -455,7 +457,7 @@ Selectable.prototype.getPriorityTrackView = function() {
 
 Selectable.prototype.containsAnyInRange = function(start, end) {
     for (var i = start; i <= end; ++i) {
-        if (this._selection.contains(this._playlist.getTrackViewByIndex(i))) {
+        if (this._selection.contains(this._listView.getTrackViewByIndex(i))) {
             return true;
         }
     }
@@ -480,7 +482,7 @@ Selectable.prototype.selectRange = function(start, end) {
     this._lastEnd = end;
     this._lastStart = start;
     this._selectionPointer = end;
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.first = function() {
@@ -494,11 +496,11 @@ Selectable.prototype.last = function() {
 };
 
 Selectable.prototype.all = function() {
-    var trackViews = this._playlist.getTrackViews();
+    var trackViews = this._listView.getTrackViews();
     for (var i = 0; i < trackViews.length; ++i) {
         this._add(i);
     }
-    this._playlist.emit("tracksSelected", this);
+    this._listView.emit("tracksSelected", this);
 };
 
 Selectable.prototype.remove = function(trackView) {

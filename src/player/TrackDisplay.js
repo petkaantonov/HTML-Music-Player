@@ -1,15 +1,15 @@
 "use strict";
 
-export default function TrackDisplay(dom, playlist, opts) {
+export default function TrackDisplay(opts, deps) {
     opts = Object(opts);
-    this._page = opts.page;
-    this._globalEvents = opts.globalEvents;
-    this._playlist = playlist;
-    this._containerNode = this._page.$(dom).eq(0);
-    this._domNode = this.$container().find(opts.target);
+    this._page = deps.page;
+    this._globalEvents = deps.globalEvents;
+    this._playlist = deps.playlist;
+    this._defaultTitle = deps.defaultTitle;
+    this._containerNode = this._page.$(opts.target).eq(0);
+    this._domNode = this.$container().find(opts.displayTarget);
     this._delay = +opts.delay || 5000;
     this._pixelsPerSecond = +opts.pixelsPerSecond || 22;
-    this._defaultTitle = opts.defaultTitle;
 
     this._progress = 0;
     this._currentTrack = null;
@@ -33,6 +33,7 @@ export default function TrackDisplay(dom, playlist, opts) {
 
     this._updateText();
     this._reset();
+    deps.ensure();
 }
 
 TrackDisplay.prototype.$ = function() {

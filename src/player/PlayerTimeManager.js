@@ -7,19 +7,22 @@ const DISPLAY_REMAINING = 1;
 
 const TIME_DISPLAY_PREFERENCE_KEY = "time-display";
 
-export default function PlayerTimeManager(dom, player, opts) {
+export default function PlayerTimeManager(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.recognizerContext = opts.recognizerContext;
-    this.db = opts.db;
-    this.rippler = opts.rippler;
-    this._domNode = this.page.$(dom).eq(0);
-    this.player = player;
+
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.db = deps.db;
+    this.rippler = deps.rippler;
+    this.player = deps.player;
+
+    this._domNode = this.page.$(opts.target).eq(0);
     this.displayMode = DISPLAY_REMAINING;
     this.seeking = false;
     this.totalTime = 0;
     this.currentTime = 0;
-    this.seekSlider = opts.sliderContext.createSlider(opts.seekSlider, {
+    this.seekSlider = deps.sliderContext.createSlider({
+        target: opts.seekSlider,
         updateDom: false
     });
     this._displayedTimeRight = this._displayedTimeLeft = -1;
@@ -68,14 +71,15 @@ export default function PlayerTimeManager(dom, player, opts) {
     this.totalTimeCtx.textAlign = this.currentTimeCtx.textAlign = "center";
     this.totalTimeCtx.textBaseline = this.currentTimeCtx.textBaseline = "bottom";
 
-    if (TIME_DISPLAY_PREFERENCE_KEY in opts.dbValues) {
-        var val = +opts.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
+    if (TIME_DISPLAY_PREFERENCE_KEY in deps.dbValues) {
+        var val = +deps.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
         if (val === DISPLAY_REMAINING || val === DISPLAY_ELAPSED) {
             this.displayMode = val;
         }
     }
 
     this._scheduleUpdate();
+    deps.ensure();
 }
 
 

@@ -2,6 +2,7 @@
 
 import TabController from "ui/TabController";
 import TrackRater from "tracks/TrackRater";
+import ApplicationDependencies from "ApplicationDependencies";
 
 const PLAYLIST_TAB_ID = "playlist";
 const SEARCH_TAB_ID = "search";
@@ -23,26 +24,34 @@ const moreThan1Selected = function(selectedCount, totalCount) {
     return selectedCount > 1 && totalCount > 1;
 };
 
-var instance = false;
-export default function MainTabs(opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function MainTabs(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.opts = opts;
-    this.globalEvents = opts.globalEvents;
-    this.menuContext = opts.menuContext;
-    this.recognizerContext = opts.recognizerContext;
-    this.rippler = opts.rippler;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.menuContext = deps.menuContext;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
+    this.keyboardShortcuts = deps.keyboardShortcuts;
+    this.playlist = deps.playlist;
+    this.search = deps.search;
+    this.queue = deps.queue;
+
     this.itemHeight = opts.itemHeight;
     this.tabHeight = opts.tabHeight;
-    this.keyboardShortcuts = opts.keyboardShortcuts;
-    this.playlistTrackRater = new TrackRater(opts);
-    this.searchTrackRater = new TrackRater(opts);
-    this.playlist = opts.playlist;
-    this.search = opts.search;
-    this.queue = opts.queue;
     this.tabHolder = this.page.$(opts.tabHolder);
+
+    this.playlistTrackRater = new TrackRater(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler
+    }));
+
+    this.searchTrackRater = new TrackRater(new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler
+    }));
+
     this.contentInstancesByTabId = Object.create(null);
     this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;
     this.contentInstancesByTabId[SEARCH_TAB_ID] = this.search;
@@ -60,12 +69,13 @@ export default function MainTabs(opts) {
         tab: opts.queueTab,
         content: ".queue-list-container"
     }], {
-        indicator: opts.activeTabIndicator,
+        indicator: opts.activeTabIndicator
+    }, new ApplicationDependencies({
         recognizerContext: this.recognizerContext,
-        rippler: opts.rippler,
+        rippler: this.rippler,
         globalEvents: this.globalEvents,
         page: this.page
-    });
+    }));
     this.tabController.activateTabById(PLAYLIST_TAB_ID);
 
     this.tabController.on("tabWillDeactivate", this.tabEventHandler("tabWillHide"));
@@ -88,8 +98,8 @@ export default function MainTabs(opts) {
     this.playlistActionSpec = this.getPlaylistActionSpec();
     this.searchActionSpec = this.getSearchActionSpec();
 
-    this.playlistContextMenu = this.menuContext.createContextMenu(this.playlist.$trackContainer(), this.playlistActionSpec);
-    this.searchContextMenu = this.menuContext.createContextMenu(this.search.$trackContainer(), this.searchActionSpec);
+    this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
+    this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
 
     this.playlistContextMenu.on("beforeOpen", this.beforePlaylistContextMenuOpen.bind(this));
     this.searchContextMenu.on("beforeOpen", this.beforeSearchContextMenuOpen.bind(this));
@@ -98,6 +108,7 @@ export default function MainTabs(opts) {
     this.search.on("tracksSelected", this.updateSearchContextMenuEnabledStates.bind(this));
     this.search.on("lengthChange", this.updateSearchContextMenuEnabledStates.bind(this));
     this.globalEvents.on("resize", this.layoutChanged.bind(this));
+    deps.ensure();
 }
 
 MainTabs.prototype.tabEventHandler = function(methodName) {
@@ -122,6 +133,7 @@ MainTabs.prototype.actionHandler = function(preventDefault, contentInstance, met
 
 MainTabs.prototype.getPlaylistActionSpec = function() {
     return {
+        target: this.playlist.$trackContainer(),
         menu: [{
             id: "play",
             disabled: true,
@@ -218,6 +230,7 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
 
 MainTabs.prototype.getSearchActionSpec = function() {
     return {
+        target: this.search.$trackContainer(),
         menu: [{
             id: "play",
             disabled: true,

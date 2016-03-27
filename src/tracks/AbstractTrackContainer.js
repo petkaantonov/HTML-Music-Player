@@ -298,6 +298,10 @@ AbstractTrackContainer.prototype.getSelectedItemViewCount = function() {
     return this._selectable.getSelectedItemViewCount();
 };
 
+AbstractTrackContainer.prototype.isSelected = function(trackView) {
+    return this._selectable.contains(trackView);
+};
+
 AbstractTrackContainer.prototype.toArray = function() {
     return this._trackViews.slice();
 };

@@ -1,17 +1,18 @@
 "use strict";
 
-import { throttle } from "util";
+import { throttle, ensuredObjectField, ensuredNumberField } from "util";
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
+import ApplicationDependencies from "ApplicationDependencies";
 
-export default function FixedItemListScroller(node, itemList, itemHeight, opts) {
+export default function FixedItemListScroller(opts, deps) {
     opts = Object(opts);
 
-    this._page = opts.page;
-    this._domNode = this._page.$(node).eq(0);
-    this._contentContainer = this._page.$(opts.contentContainer || node).eq(0);
-    this._itemHeight = itemHeight;
-    this._itemList = itemList;
+    this._page = deps.page;
+    this._domNode = this._page.$(ensuredObjectField(opts, "target")).eq(0);
+    this._contentContainer = this._page.$(ensuredObjectField(opts, "contentContainer")).eq(0);
+    this._itemHeight =  ensuredNumberField(opts, "itemHeight");
+    this._itemList = ensuredObjectField(opts, "itemList");
     this._displayedItems = new Array(300);
     this._displayedItems.length = 0;
     var nodeRect = this.$()[0].getBoundingClientRect();
@@ -34,12 +35,20 @@ export default function FixedItemListScroller(node, itemList, itemHeight, opts) 
     this._clearWillChange = this._clearWillChange.bind(this);
     this._resetChangingDimensions = throttle(this._resetChangingDimensions, 50);
 
-    this._scroller = new Scroller(this._renderScroller, opts);
-    this._scrollbar = new Scrollbar(opts.scrollbar, this, opts);
-    this._scrollBinding = opts.scrollEvents.createBinding(this.$contentContainer(),
-                                                          this._scroller,
-                                                          opts.shouldScroll || null,
-                                                          this._scrollbar);
+    this._scroller = new Scroller(this._renderScroller, ensuredObjectField(opts, "scrollerOpts"));
+    var scrollbarOpts = ensuredObjectField(opts, "scrollbarOpts");
+    scrollbarOpts.scrollerInfo = this;
+    this._scrollbar = new Scrollbar(scrollbarOpts, new ApplicationDependencies({
+        page: this._page
+    }));
+
+    this._scrollBinding = deps.scrollEvents.createBinding({
+        target: this.$contentContainer(),
+        scroller: this._scroller,
+        scrollbar: this._scrollbar,
+        shouldScroll: opts.shouldScroll || null,
+    });
+    deps.ensure();
 }
 
 FixedItemListScroller.prototype._clearWillChangeTimer = function() {

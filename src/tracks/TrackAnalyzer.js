@@ -8,12 +8,13 @@ import { Worker } from "platform/platform";
 import EventEmitter from "events";
 
 var instances = false;
-export default function TrackAnalyzer(playlist, opts) {
+export default function TrackAnalyzer(opts, deps) {
     EventEmitter.call(this);
     if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
     opts = Object(opts);
-    this._page = opts.page;
-    this._globalEvents = opts.globalEvents;
+    this._page = deps.page;
+    this._playlist = deps.playlist;
+    this._globalEvents = deps.globalEvents;
     instances = true;
     this._worker = new Worker(opts.src);
     this._analyzerJobs = [];
@@ -23,7 +24,6 @@ export default function TrackAnalyzer(playlist, opts) {
     this._acoustIdQueue = [];
     this._currentlyAnalysing = false;
     this._currentlyFetchingAcoustId = false;
-    this._playlist = playlist;
     this._metadataParsingTracks = {};
     this._analysisFetchingTracks = {};
     this._acoustIdImageFetchingTracks = {};
@@ -47,6 +47,7 @@ export default function TrackAnalyzer(playlist, opts) {
     });
 
     this._globalEvents.on("foreground", this._foregrounded.bind(this));
+    deps.ensure();
 }
 inherits(TrackAnalyzer, EventEmitter);
 

@@ -1,9 +1,11 @@
 "use strict";
 
+import ApplicationDependencies from "ApplicationDependencies";
 import AbstractTrackContainer from "tracks/AbstractTrackContainer";
 import { buildConsecutiveRanges, indexMapper, inherits, normalizeQuery, throttle } from "util";
 import Selectable from "ui/Selectable";
 import Track from "tracks/Track";
+import TrackViewOptions from "tracks/TrackViewOptions";
 import SearchResultTrackView from "search/SearchResultTrackView";
 import { insert } from "search/sortedArrays";
 import { cmp } from "search/SearchResult";
@@ -14,17 +16,6 @@ const cmpTrackView = function(a, b) {
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = "search-history";
-const TrackViewOptions = {
-    updateTrackIndex: false,
-    itemHeight: -1,
-    playlist: null,
-    page: null,
-    tooltipContext: null,
-    selectable: null,
-    search: null
-};
-
-var searchSessionNextId = 0;
 
 function SearchHistoryEntry(page, query) {
     query = "" + query;
@@ -64,7 +55,7 @@ function SearchSession(search, rawQuery, normalizedQuery) {
     this._resultCount = 0;
     this._destroyed = false;
     this._started = false;
-    this._id = ++searchSessionNextId;
+    this._id = search.nextSessionId();
     this._messaged = this._messaged.bind(this);
 }
 
@@ -124,22 +115,19 @@ SearchSession.prototype._gotResults = function(results) {
     }
 };
 
-var instance = false;
-export default function Search(domNode, opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function Search(opts, deps) {
     AbstractTrackContainer.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.env = opts.env;
-    this.recognizerContext = opts.recognizerContext;
-    this.db = opts.db;
-    this.dbValues = opts.dbValues;
-    this.keyboardShortcuts = opts.keyboardShortcuts;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.env = deps.env;
+    this.recognizerContext = deps.recognizerContext;
+    this.db = deps.db;
+    this.dbValues = deps.dbValues;
+    this.keyboardShortcuts = deps.keyboardShortcuts;
 
-    this._trackAnalyzer = opts.trackAnalyzer;
-    this._domNode = this.page.$(domNode).eq(0);
+    this._trackAnalyzer = deps.trackAnalyzer;
+    this._domNode = this.page.$(opts.target).eq(0);
     this._trackContainer = this.$().find(".tracklist-transform-container");
     this._inputNode = this.$().find(".search-input-box");
     this._dataListNode = this.$().find(".search-history");
@@ -147,31 +135,46 @@ export default function Search(domNode, opts) {
     this._trackViews = [];
     this._searchHistory = [];
     this._session = null;
-    this._playlist = opts.playlist;
-    this._selectable = new Selectable(this, this.page);
+    this._playlist = deps.playlist;
+    this._selectable = new Selectable({
+        listView: this
+    }, new ApplicationDependencies({
+        page: this.page
+    }));
 
-    TrackViewOptions.itemHeight = opts.itemHeight;
-    TrackViewOptions.playlist = opts.playlist;
-    TrackViewOptions.search = this;
-    TrackViewOptions.page = this.page;
-    TrackViewOptions.tooltipContext = opts.tooltipContext;
-    TrackViewOptions.selectable = this._selectable;
+    this._trackViewOptions = new TrackViewOptions(false,
+                                                  opts.itemHeight,
+                                                  this._playlist,
+                                                  this.page,
+                                                  deps.tooltipContext,
+                                                  this._selectable,
+                                                  this);
 
     this._topHistoryEntry = null;
     this._visible = false;
     this._dirty = false;
+    this._nextSessionId = 0;
 
-    this._fixedItemListScroller = opts.scrollerContext.createFixedItemListScroller(this.$(), this._trackViews, {
-        scrollingX: false,
-        snapping: true,
-        zooming: false,
-        paging: false,
+    this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
+        target: this.$(),
+        itemList: this._trackViews,
+        contentContainer: this.$trackContainer(),
+
         minPrerenderedItems: 15,
         maxPrerenderedItems: 50,
-        contentContainer: this.$trackContainer(),
-        scrollbar: this.$().find(".scrollbar-container"),
-        railSelector: ".scrollbar-rail",
-        knobSelector: ".scrollbar-knob"
+
+        scrollerOpts: {
+            scrollingX: false,
+            snapping: true,
+            zooming: false,
+            paging: false
+        },
+
+        scrollbarOpts: {
+            target: this.$().find(".scrollbar-container"),
+            railSelector: ".scrollbar-rail",
+            knobSelector: ".scrollbar-knob"
+        }
     });
 
     this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
@@ -234,6 +237,7 @@ export default function Search(domNode, opts) {
     if (SEARCH_HISTORY_KEY in this.dbValues) {
         this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
     }
+    deps.ensure();
 }
 inherits(Search, AbstractTrackContainer);
 
@@ -255,6 +259,10 @@ Search.prototype.$historyDataList = function() {
 
 Search.prototype.$inputContainer = function() {
     return this._inputContainerNode;
+};
+
+Search.prototype.nextSessionId = function() {
+    return ++this._nextSessionId;
 };
 
 Search.prototype.tabWillHide = function() {
@@ -343,7 +351,7 @@ Search.prototype.replaceResults = function(session, results) {
         if (!track || !track.shouldDisplayAsSearchResult()) {
             continue;
         }
-        var view = new SearchResultTrackView(track, result, TrackViewOptions);
+        var view = new SearchResultTrackView(track, result, this._trackViewOptions);
         insert(cmpTrackView, trackViews, view);
     }
 
@@ -389,7 +397,7 @@ Search.prototype.newResults = function(session, results) {
         if (!track || !track.shouldDisplayAsSearchResult()) {
             continue;
         }
-        var view = new SearchResultTrackView(track, result, TrackViewOptions);
+        var view = new SearchResultTrackView(track, result, this._trackViewOptions);
         var len = trackViews.push(view);
         view.setIndex(len - 1);
     }

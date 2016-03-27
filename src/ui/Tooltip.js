@@ -64,12 +64,12 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     return ret;
 };
 
-export default function Tooltip(opts) {
+export default function Tooltip(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.recognizerContext = opts.recognizerContext;
-    this.globalEvents = opts.globalEvents;
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.globalEvents = deps.globalEvents;
     this._preferredDirection = getDirection(opts.preferredDirection);
     this._domNode = this.page.$(opts.container);
     this._onContent = toFunction(opts.content);
@@ -122,6 +122,7 @@ export default function Tooltip(opts) {
 
     this.globalEvents.on("resize", this.position);
     this.globalEvents.on("visibilityChange", this.hide);
+    deps.ensure();
 }
 inherits(Tooltip, EventEmitter);
 

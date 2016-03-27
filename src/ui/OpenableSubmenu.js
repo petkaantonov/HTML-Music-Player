@@ -1,12 +1,12 @@
 "use strict";
 
-export default function OpenableSubmenu(dom, opener, opts) {
+export default function OpenableSubmenu(opts, deps) {
     opts = Object(opts);
-    this._page = opts.page;
-    this._recognizerContext = opts.recognizerContext;
-    this._rippler = opts.rippler;
-    this._domNode = this._page.$(dom).eq(0);
-    this._opener = this._page.$(opener).eq(0);
+    this._page = deps.page;
+    this._recognizerContext = deps.recognizerContext;
+    this._rippler = deps.rippler;
+    this._domNode = this._page.$(opts.target).eq(0);
+    this._opener = this._page.$(opts.openerTarget).eq(0);
 
     this._keyboardElements = this.$().find("*").filter(function(elem) {
         return elem.tabIndex >= 0;
@@ -31,6 +31,7 @@ export default function OpenableSubmenu(dom, opener, opts) {
     this._recognizerContext.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
 
     this._page.addDocumentListener("blur", this._elementBlurred, true);
+    deps.ensure();
 }
 
 OpenableSubmenu.prototype.$ = function() {

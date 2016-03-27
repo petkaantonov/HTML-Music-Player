@@ -6,18 +6,15 @@ const REPEAT = "repeat";
 const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
         "and tracks that have not been recently played are more likely to be chosen.</p>";
 
-var instance = false;
-export default function PlaylistModeManager(dom, playlist, opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function PlaylistModeManager(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.recognizerContext = opts.recognizerContext;
-    this.rippler = opts.rippler;
-    this.tooltipContext = opts.tooltipContext;
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
+    this.tooltipContext = deps.tooltipContext;
+    this.playlist = deps.playlist;
     var self = this;
-    this.playlist = playlist;
-    this._domNode = this.page.$(dom).eq(0);
+    this._domNode = this.page.$(opts.target).eq(0);
     this._shuffleButton = this.$().find(".shuffle-mode-button");
     this._repeatButton = this.$().find(".repeat-mode-button");
 
@@ -37,13 +34,14 @@ export default function PlaylistModeManager(dom, playlist, opts) {
     this.repeatClicked = this.repeatClicked.bind(this);
     this.update = this.update.bind(this);
 
-    playlist.on("modeChange", this.update);
+    this.playlist.on("modeChange", this.update);
 
     this.$shuffle().addEventListener("click", this.shuffleClicked);
     this.$repeat().addEventListener("click", this.repeatClicked);
     this.recognizerContext.createTapRecognizer(this.shuffleClicked).recognizeBubbledOn(this.$shuffle());
     this.recognizerContext.createTapRecognizer(this.repeatClicked).recognizeBubbledOn(this.$repeat());
     this.update();
+    deps.ensure();
 }
 
 PlaylistModeManager.prototype.$ = function() {

@@ -8,11 +8,10 @@ const HTML = "<div class='track-rating'>                                        
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
     </div>";
 
-export default function TrackRater(opts) {
-    opts = Object(opts);
-    this.page = opts.page;
-    this.recognizerContext = opts.recognizerContext;
-    this.rippler = opts.rippler;
+export default function TrackRater(deps) {
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
     this.track = null;
     this._domNode = this.page.parse(HTML);
     this._doubleClicked = this.page.delegatedEventHandler(this._doubleClicked, ".rating-input", this);
@@ -22,6 +21,7 @@ export default function TrackRater(opts) {
     this._tapRecognizer = this.recognizerContext.createTapRecognizer(this._clicked);
     this._update(-1);
     this._enabled = false;
+    deps.ensure();
 }
 
 TrackRater.prototype.$ = function() {

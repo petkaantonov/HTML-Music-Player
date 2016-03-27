@@ -58,10 +58,11 @@ FileInput.prototype.page = function() {
     return this._context.page;
 };
 
-export default function FileInputContext(page, recognizerContext, rippler) {
-    this.page = page;
-    this.recognizerContext = recognizerContext;
-    this.rippler = rippler;
+export default function FileInputContext(deps) {
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
+    deps.ensure();
 }
 
 FileInputContext.prototype.createFileInput = function(dom, properties) {

@@ -75,14 +75,15 @@ KeyboardShortcutContext.prototype._deactivate = function() {
     this._active = false;
 };
 
-export default function KeyboardShortcuts(page) {
+export default function KeyboardShortcuts(deps) {
     EventEmitter.call(this);
-    this._page = page;
+    this._page = deps.page;
     this._defaultContext = new KeyboardShortcutContext();
     this._defaultContext._activate();
     this._enabled = true;
     this._activeContext = null;
     this._page.addDocumentListener("keydown", this._documentKeyDowned.bind(this), true);
+    deps.ensure();
 }
 inherits(KeyboardShortcuts, EventEmitter);
 

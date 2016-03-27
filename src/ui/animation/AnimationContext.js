@@ -2,8 +2,9 @@
 
 import Animator from "ui/animation/Animator";
 
-export default function AnimationContext(page) {
-    this.page = page;
+export default function AnimationContext(deps) {
+    this.page = deps.page;
+    deps.ensure();
 }
 
 AnimationContext.prototype.LINEAR = Animator.LINEAR;

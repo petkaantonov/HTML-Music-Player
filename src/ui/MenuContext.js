@@ -2,30 +2,32 @@
 
 import { slugTitle } from "util";
 import ActionMenu, { ContextMenu } from "ui/ActionMenu";
+import ApplicationDependencies from "ApplicationDependencies";
 
-export default function MenuContext(page, recognizerContext, rippler, globalEvents) {
-    this.page = page;
-    this.rippler = rippler;
-    this.recognizerContext = recognizerContext;
-    this.globalEvents = globalEvents;
+export default function MenuContext(deps) {
+    this.page = deps.page;
+    this.rippler = deps.rippler;
+    this.recognizerContext = deps.recognizerContext;
+    this.globalEvents = deps.globalEvents;
+    deps.ensure();
 }
 
-MenuContext.prototype.createActionMenu = function(dom, opts) {
-    opts = Object(opts);
-    opts.page = this.page;
-    opts.recognizerContext = this.recognizerContext;
-    opts.rippler = this.rippler;
-    opts.globalEvents = this.globalEvents;
-    return new ActionMenu(dom, opts);
+MenuContext.prototype.createActionMenu = function(opts) {
+    return new ActionMenu(opts, new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler,
+        globalEvents: this.globalEvents
+    }));
 };
 
-MenuContext.prototype.createContextMenu = function(dom, opts) {
-    opts = Object(opts);
-    opts.page = this.page;
-    opts.recognizerContext = this.recognizerContext;
-    opts.rippler = this.rippler;
-    opts.globalEvents = this.globalEvents;
-    return new ContextMenu(dom, opts);
+MenuContext.prototype.createContextMenu = function(opts) {
+    return new ContextMenu(opts, new ApplicationDependencies({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler,
+        globalEvents: this.globalEvents
+    }));
 };
 
 MenuContext.prototype.createMenuItem = function(text, icon) {

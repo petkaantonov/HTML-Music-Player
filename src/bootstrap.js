@@ -4,6 +4,7 @@
 import { console } from "platform/platform";
 import Promise from "platform/PromiseExtensions";
 import Application from "Application";
+import ApplicationDependencies from "ApplicationDependencies";
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import Env from "platform/Env";
 import GlobalEvents from "platform/GlobalEvents";
@@ -72,14 +73,14 @@ cssLoaded(Promise).then(function() {
 
     return foregrounded.return(dbValues);
 }).then(function(dbValues) {
-    self.soitaApp = new Application({
+    self.soitaApp = new Application(new ApplicationDependencies({
         env: env,
         db: db,
         dbValues: dbValues,
         defaultTitle: defaultTitle,
         globalEvents: globalEvents,
         page: page
-    });
+    }));
 });
 
 var desc = {

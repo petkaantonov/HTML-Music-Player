@@ -2,19 +2,21 @@
 
 import { slugTitle } from "util";
 import Popup from "ui/Popup";
+import ApplicationDependencies from "ApplicationDependencies";
 
-export default function PopupContext(opts) {
+
+export default function PopupContext(opts, deps) {
     opts = Object(opts);
-    this.animationContext = opts.animationContext;
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.db = opts.db;
-    this.scrollerContext = opts.scrollerContext;
-    this.recognizerContext = opts.recognizerContext;
-    this.dbValues = opts.dbValues;
-    this.keyboardShortcuts = opts.keyboardShortcuts;
-    this.rippler = opts.rippler;
     this.popupZIndex = opts.zIndex;
+    this.animationContext = deps.animationContext;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.db = deps.db;
+    this.scrollerContext = deps.scrollerContext;
+    this.recognizerContext = deps.recognizerContext;
+    this.dbValues = deps.dbValues;
+    this.keyboardShortcuts = deps.keyboardShortcuts;
+    this.rippler = deps.rippler;
 
     this.shownPopups = [];
     this.blocker = this.page.NULL();
@@ -25,6 +27,8 @@ export default function PopupContext(opts) {
     this.closePopups = this.closePopups.bind(this);
 
     this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
+
+    deps.ensure();
 }
 
 PopupContext.prototype.closePopups = function() {
@@ -111,12 +115,7 @@ PopupContext.prototype.toPreferenceKey = function(popupTitle) {
 PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) {
     var self = this;
     var popup = new Popup({
-        page: this.page,
         zIndex: this.popupZIndex,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        scrollerContext: this.scrollerContext,
-        rippler: this.rippler,
         footerButtons: footerButtons,
         title: title,
         body: body,
@@ -153,7 +152,13 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
         },
 
         containerClass: "ui-text"
-    });
+    }, new ApplicationDependencies({
+        page: this.page,
+        globalEvents: this.globalEvents,
+        recognizerContext: this.recognizerContext,
+        scrollerContext: this.scrollerContext,
+        rippler: this.rippler
+    }));
 
     popup.on("open", this.popupOpened);
     popup.on("close", this.popupClosed);

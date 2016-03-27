@@ -10,22 +10,21 @@ const NOTIFICATION_TAG = "player-status-notification";
 const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> overlay</p>";
 const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overlay</p>";
 
-export default function PlaylistNotifications(dom, player, opts) {
+export default function PlaylistNotifications(opts, deps) {
     opts = Object(opts);
-    this.env = opts.env;
-    this.page = opts.page;
-    this.pictureManager = opts.pictureManager;
-    this.serviceWorkerManager = opts.serviceWorkerManager;
-    this.db = opts.db;
-    this.recognizerContext = opts.recognizerContext;
-    this.dbValues = opts.dbValues;
-    this.rippler = opts.rippler;
-    this.tooltipContext = opts.tooltipContext;
+    this.env = deps.env;
+    this.page = deps.page;
+    this.serviceWorkerManager = deps.serviceWorkerManager;
+    this.db = deps.db;
+    this.recognizerContext = deps.recognizerContext;
+    this.dbValues = deps.dbValues;
+    this.rippler = deps.rippler;
+    this.tooltipContext = deps.tooltipContext;
+    this.playlist = deps.playlist;
+    this.player = deps.player;
 
     var self = this;
-    this._domNode = this.page.$(dom);
-    this.playlist = player.playlist;
-    this.player = player;
+    this._domNode = this.page.$(opts.target);
     this.enabled = false;
     this.permissionsPromise = null;
     this.currentNotification = null;
@@ -67,10 +66,11 @@ export default function PlaylistNotifications(dom, player, opts) {
     this._currentAction = Promise.resolve();
     this._currentState = {enabled: false};
 
-    if (PREFERENCE_KEY in opts.dbValues) {
-        this.enabled = !!(opts.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
+    if (PREFERENCE_KEY in deps.dbValues) {
+        this.enabled = !!(deps.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
         this.update();
     }
+    deps.ensure();
 }
 
 PlaylistNotifications.prototype._shouldRenderNewState = function(newState) {

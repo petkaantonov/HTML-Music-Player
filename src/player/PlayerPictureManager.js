@@ -4,12 +4,12 @@ import jdenticon from "jdenticon";
 import { addLegacyListener } from "util";
 import { canvasToImage } from "platform/dom/util";
 
-export default function PlayerPictureManager(dom, player, opts) {
+export default function PlayerPictureManager(opts, deps) {
     opts = Object(opts);
-    this._page = opts.page;
-    this._domNode = this._page.$(dom);
-    this.player = player;
-    player.setPictureManager(this);
+    this._page = deps.page;
+    this._player = deps.player;
+    this._player.setPictureManager(this);
+    this._domNode = this._page.$(opts.target);
 
     this._imageDimensions = opts.imageDimensions;
     this._defaultImageSrc = opts.defaultImageSrc;
@@ -25,7 +25,7 @@ export default function PlayerPictureManager(dom, player, opts) {
     this.newTrackLoaded = this.newTrackLoaded.bind(this);
     this.updateImage = this.updateImage.bind(this);
 
-    this.player.on("newTrackLoad", this.newTrackLoaded);
+    this._player.on("newTrackLoad", this.newTrackLoaded);
 
     if (this._enabledMediaMatcher) {
         addLegacyListener(this._enabledMediaMatcher, "change", this._enabledMediaMatchChanged);
@@ -46,6 +46,7 @@ export default function PlayerPictureManager(dom, player, opts) {
 
     this._jdenticonCanvas = canvas;
     this._jdenticonCtx = canvas.getContext("2d");
+    deps.ensure();
 }
 
 PlayerPictureManager.prototype.size = function() {
@@ -133,7 +134,7 @@ PlayerPictureManager.prototype.updateImageFromTrack = function(track) {
 };
 
 PlayerPictureManager.prototype.newTrackLoaded = function() {
-    this.receiveImage(this.player.getImage(this));
+    this.receiveImage(this._player.getImage(this));
 };
 
 PlayerPictureManager.prototype.generateImageForTrack = Promise.method(function(track) {

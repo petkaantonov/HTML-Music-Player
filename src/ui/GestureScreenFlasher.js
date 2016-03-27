@@ -11,15 +11,16 @@ const gestureNameMap = {
     previous: gestureIcon("glyphicon glyphicon-step-backward")
 };
 
-export default function GestureScreenFlasher(page, animationContext) {
-    this._page = page;
-    this._animationContext = animationContext;
+export default function GestureScreenFlasher(deps) {
+    this._page = deps.page;
+    this._animationContext = deps.animationContext;
     this._queue = [];
     this._current = null;
     this._gestureMap = {};
     Object.keys(gestureNameMap).forEach(function(key) {
         this._gestureMap[key] = this._page.parse(gestureNameMap[key]);
     }, this);
+    deps.ensure();
 }
 
 GestureScreenFlasher.prototype._next = function() {

@@ -171,24 +171,25 @@ GraphicsSource.prototype.isReady = function() {
     return this.image !== null;
 };
 
-export default function VisualizerCanvas(targetCanvas, player, opts) {
+export default function VisualizerCanvas(opts, deps) {
     EventEmitter.call(this);
-    this.page = opts.page;
-    this.animationContext = opts.animationContext;
-    this.applicationPreferences = opts.applicationPreferences;
-    this.globalEvents = opts.globalEvents;
-    this.player = player;
-    player.setVisualizerCanvas(this);
+
+    this.page = deps.page;
+    this.snackbar = deps.snackbar;
+    this.recognizerContext = deps.recognizerContext;
+    this.sliderContext = deps.sliderContext;
+    this.menuContext = deps.menuContext;
+    this.rippler = deps.rippler;
+    this.animationContext = deps.animationContext;
+    this.applicationPreferences = deps.applicationPreferences;
+    this.globalEvents = deps.globalEvents;
+    this.player = deps.player;
+    this.player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported(this.page.document());
     this.canvasSupported = true;
-    this.snackbar = opts.snackbar;
-    this.db = opts.db;
-    this.recognizerContext = opts.recognizerContext;
-    this.sliderContext = opts.sliderContext;
-    this.menuContext = opts.menuContext;
-    this.rippler = opts.rippler;
+
     this.needToDraw = true;
-    this.canvas = this.page.$(targetCanvas).get(0);
+    this.canvas = this.page.$(opts.target).get(0);
     this.width = -1;
     this.height = -1;
     this.binWidth = opts.binWidth * this.page.devicePixelRatio() | 0;
@@ -215,7 +216,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.playerStopped = this.playerStopped.bind(this);
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
-    this.latencyPopup = opts.popupContext.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
+    this.latencyPopup = deps.popupContext.makePopup("Playback latency", LATENCY_POPUP_HTML, ".synchronize-with-audio");
 
     this.applicationPreferences.on("change", this.applicationPreferencesChanged.bind(this));
 
@@ -224,6 +225,7 @@ export default function VisualizerCanvas(targetCanvas, player, opts) {
     this.source = null;
     this.renderer = null;
     this.contextMenu = null;
+    deps.ensure();
 }
 inherits(VisualizerCanvas, EventEmitter);
 
@@ -312,7 +314,8 @@ VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
     this.destroyCanvasContextMenu();
     var factory = this.menuContext;
     var self = this;
-    this.contextMenu = factory.createContextMenu(this.canvas, {
+    this.contextMenu = factory.createContextMenu({
+        target: this.canvas,
         menu: [{
             id: "hardware-acceleration",
             disabled: true,
@@ -355,7 +358,9 @@ VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitializat
 
     if (needsInitialization) {
         var sliderValue = this.latencyPopup.$().find(".latency-value");
-        var slider = this.sliderContext.createSlider(this.latencyPopup.$().find(".latency-slider"));
+        var slider = this.sliderContext.createSlider({
+            target: this.latencyPopup.$().find(".latency-slider")
+        });
         slider.setValue((latency + minLatency) / (maxLatency - minLatency));
         sliderValue.setText(latency + "ms");
         popup.on("open", function() {

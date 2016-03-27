@@ -1,5 +1,6 @@
 "use strict";
 
+import ApplicationDependencies from "ApplicationDependencies";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
@@ -12,26 +13,25 @@ const VOLUME_KEY = "volume";
 const MUTED_KEY = "muted";
 const LATENCY_KEY = "audio-hardware-latency";
 
-var instance = false;
-export default function Player(dom, playlist, opts) {
-    if (instance) throw new Error("only one instance can be made");
-    instance = true;
+export default function Player(opts, deps) {
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
-    this.db = opts.db;
-    this.dbValues = opts.dbValues;
-    this.rippler = opts.rippler;
-    this.crossfadingPreferences = opts.crossfadingPreferences;
-    this.effectPreferences = opts.effectPreferences;
-    this.applicationPreferences = opts.applicationPreferences;
-    this.gestureEducator = opts.gestureEducator;
-    this.tooltipContext = opts.tooltipContext;
+    this.env = deps.env;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
+    this.db = deps.db;
+    this.dbValues = deps.dbValues;
+    this.rippler = deps.rippler;
+    this.crossfadingPreferences = deps.crossfadingPreferences;
+    this.effectPreferences = deps.effectPreferences;
+    this.applicationPreferences = deps.applicationPreferences;
+    this.gestureEducator = deps.gestureEducator;
+    this.tooltipContext = deps.tooltipContext;
+    this.playlist = deps.playlist;
 
-    this._domNode = this.page.$(dom);
+    this._domNode = this.page.$(opts.target);
 
     this._playButtonDomNode = this.$().find(opts.playButtonDom);
     this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
@@ -46,10 +46,19 @@ export default function Player(dom, playlist, opts) {
     this.isPlaying = false;
     this.isMutedValue = false;
     this.implicitLoading = false;
-    this.playlist = playlist;
     this.queuedNextTrackImplicitly = false;
     this.pictureManager = null;
-    this.audioPlayer = new AudioPlayer(opts);
+    this.audioPlayer = new AudioPlayer({
+        src: opts.src
+    }, new ApplicationDependencies({
+        page: this.page,
+        env: this.env,
+        db: this.db,
+        dbValues: this.dbValues,
+        crossfadingPreferences: this.crossfadingPreferences,
+        effectPreferences: this.effectPreferences,
+        applicationPreferences: this.applicationPreferences
+    }));
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
     this.$play().addEventListener("click", this.playButtonClicked.bind(this));
@@ -67,10 +76,10 @@ export default function Player(dom, playlist, opts) {
     this._nextTooltip = this.tooltipContext.makeTooltip(this.$next(), "Next track");
     this._previousTooltip = this.tooltipContext.makeTooltip(this.$previous(), "Previous track");
 
-    playlist.on("currentTrackChange", this.loadTrack.bind(this));
-    playlist.on("playlistEmpty", this.stop.bind(this));
-    playlist.on("nextTrackChange", this.nextTrackChanged);
-    playlist.on("historyChange", this.historyChanged.bind(this));
+    this.playlist.on("currentTrackChange", this.loadTrack.bind(this));
+    this.playlist.on("playlistEmpty", this.stop.bind(this));
+    this.playlist.on("nextTrackChange", this.nextTrackChanged);
+    this.playlist.on("historyChange", this.historyChanged.bind(this));
 
     if (VOLUME_KEY in this.dbValues) {
         this.setVolume(this.dbValues[VOLUME_KEY]);
@@ -95,6 +104,7 @@ export default function Player(dom, playlist, opts) {
     this.effectPreferences.on("change", this.effectPreferencesChanged.bind(this));
     this.crossfadingPreferences.on("change", this.crossfadingPreferencesChanged.bind(this));
     this.applicationPreferences.on("change", this.applicationPreferencesChanged.bind(this));
+    deps.ensure();
 }
 inherits(Player, EventEmitter);
 

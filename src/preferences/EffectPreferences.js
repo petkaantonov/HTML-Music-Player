@@ -113,9 +113,9 @@ const Preferences = createPreferences({
     }
 });
 
-export default function EffectPreferences(opts) {
+export default function EffectPreferences(opts, deps) {
     opts = Object(opts);
-    AbstractPreferences.call(this, new Preferences(), opts);
+    AbstractPreferences.call(this, new Preferences(), opts, deps);
 }
 inherits(EffectPreferences, AbstractPreferences);
 
@@ -256,7 +256,9 @@ EffectPreferences.prototype.getHtml = function() {
 
 function NoiseSharpeningEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
-    this._slider = effectsManager.effectPreferences.sliderContext().createSlider(this.$().find(".noise-sharpening-slider"));
+    this._slider = effectsManager.effectPreferences.sliderContext().createSlider({
+        target: this.$().find(".noise-sharpening-slider")
+    });
 
     this._strengthChanged = this._strengthChanged.bind(this);
     this._enabledChanged = this._enabledChanged.bind(this);
@@ -319,8 +321,9 @@ function EqualizerEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
     this._equalizerSliders = equalizerBands.map(function(band, index) {
         var self = this;
-        var slider = effectsManager.effectPreferences.sliderContext().createSlider(this.$().find(".equalizer-band-" + band[0] + "-slider"), {
-            direction: "vertical"
+        var slider = effectsManager.effectPreferences.sliderContext().createSlider({
+            direction: "vertical",
+            target: this.$().find(".equalizer-band-" + band[0] + "-slider")
         });
 
         var eq;

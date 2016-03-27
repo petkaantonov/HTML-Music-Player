@@ -1,14 +1,14 @@
 "use strict";
 
-export default function Scrollbar(container, scrollerInfo, opts) {
+export default function Scrollbar(opts, deps) {
     opts = Object(opts);
-    this._page = opts.page;
-    this._domNode = this._page.$(container).eq(0);
+    this._page = deps.page;
+    this._domNode = this._page.$(opts.target).eq(0);
     this._rail = this.$().find(opts.railSelector);
     this._knob = this.$().find(opts.knobSelector);
     this._rect = this.$()[0].getBoundingClientRect();
     this._knobRect = this.$knob()[0].getBoundingClientRect();
-    this._scrollerInfo = scrollerInfo;
+    this._scrollerInfo = opts.scrollerInfo;
     this._scrolling = false;
     this._timerId = -1;
     this._anchorDistance = -1;
@@ -29,6 +29,7 @@ export default function Scrollbar(container, scrollerInfo, opts) {
     this.$rail().addEventListener("click", this._clicked, true);
     this._page.addDocumentListener("mouseup", this._rebindRailmouseDowned);
     this._rebindRailmouseDowned();
+    deps.ensure();
 }
 
 Scrollbar.prototype.willScroll = function() {

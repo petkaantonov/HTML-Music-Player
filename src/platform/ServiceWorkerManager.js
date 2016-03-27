@@ -7,14 +7,12 @@ import EventEmitter from "events";
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
 
-export default function ServiceWorkerManager(opts) {
-    opts = Object(opts);
+export default function ServiceWorkerManager(deps) {
     EventEmitter.call(this);
-
-    this._page = opts.page;
-    this._globalEvents = opts.globalEvents;
-    this._env = opts.env;
-    this._snackbar = opts.snackbar;
+    this._page = deps.page;
+    this._globalEvents = deps.globalEvents;
+    this._env = deps.env;
+    this._snackbar = deps.snackbar;
 
     this._registration = null;
     this._started = false;
@@ -34,6 +32,7 @@ export default function ServiceWorkerManager(opts) {
     this._globalEvents.on("foreground", this._foregrounded);
     this._globalEvents.on("background", this._backgrounded);
     this._globalEvents.on("shutdown", this._appClosed);
+    deps.ensure();
 }
 inherits(ServiceWorkerManager, EventEmitter);
 

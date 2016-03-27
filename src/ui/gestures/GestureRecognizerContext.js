@@ -32,10 +32,10 @@ const TAP_MAX_MOVEMENT = 24;
 const PINCER_MINIMUM_MOVEMENT = 24;
 const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
 
-export default function GestureRecognizerContext(page, env, globalEvents) {
-    this.env = env;
-    this.page = page;
-    this.globalEvents = globalEvents;
+export default function GestureRecognizerContext(deps) {
+    this.env = deps.env;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
     this.modifierTouch = null;
     this.documentActives = new ActiveTouchList();
     this.singleTapTimeouts = [];
@@ -60,6 +60,8 @@ export default function GestureRecognizerContext(page, env, globalEvents) {
         this.page.addDocumentListener("MSGestureChange", this.page.preventDefaultHandler);
         this.page.addDocumentListener("MSInertiaStart", this.page.preventDefaultHandler);
     }
+
+    deps.ensure();
 }
 
 GestureRecognizerContext.prototype.TOUCH_EVENTS = [TOUCH_START, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_END];

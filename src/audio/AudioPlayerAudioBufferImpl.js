@@ -82,22 +82,20 @@ const getPreloadBufferCount = function() {
 };
 
 var nodeId = 0;
-var instances = false;
-export default function AudioPlayer(opts) {
+export default function AudioPlayer(opts, deps) {
     EventEmitter.call(this);
-    if (instances) throw new Error("only 1 AudioPlayer instance can be made");
     opts = Object(opts);
     var audioContext = opts.audioContext || null;
     var suspensionTimeout = +opts.suspensionTimeout || 20;
-    instances = true;
+    this._worker = new Worker(opts.src);
 
-    this.page = opts.page;
-    this.env = opts.env;
-    this.db = opts.db;
-    this.dbValues = opts.dbValues;
-    this.crossfadingPreferences = opts.crossfadingPreferences;
-    this.effectPreferences = opts.effectPreferences;
-    this.applicationPreferences = opts.applicationPreferences;
+    this.page = deps.page;
+    this.env = deps.env;
+    this.db = deps.db;
+    this.dbValues = deps.dbValues;
+    this.crossfadingPreferences = deps.crossfadingPreferences;
+    this.effectPreferences = deps.effectPreferences;
+    this.applicationPreferences = deps.applicationPreferences;
 
     this._audioContext = audioContext || makeAudioContext();
     this._unprimedAudioContext = this._audioContext;
@@ -105,7 +103,6 @@ export default function AudioPlayer(opts) {
                                                          8192,
                                                          this._audioContext.sampleRate);
     this._previousAudioContextTime = this._audioContext.currentTime;
-    this._worker = new Worker(opts.src);
     this._arrayBufferPool = [];
     this._audioBufferPool = [];
     this._sourceNodes = [];
@@ -146,6 +143,7 @@ export default function AudioPlayer(opts) {
     }.bind(this));
 
     this.page.addDocumentListener("touchend", this._touchended.bind(this), true);
+    deps.ensure();
 }
 inherits(AudioPlayer, EventEmitter);
 AudioPlayer.webAudioBlockSize = webAudioBlockSize;

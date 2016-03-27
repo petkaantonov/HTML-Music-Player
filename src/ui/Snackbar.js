@@ -209,11 +209,11 @@ SnackbarInstance.prototype.page = function() {
     return this._snackbar.page;
 };
 
-export default function Snackbar(opts) {
+export default function Snackbar(opts, deps) {
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
     this.containerClass = opts.containerClass || "snackbar-container";
     this.transitionInClass = opts.transitionInClass || "";
     this.transitionOutClass = opts.transitionOutClass || "";
@@ -231,6 +231,8 @@ export default function Snackbar(opts) {
 
     this._nextDelayId = -1;
     this._next = this._next.bind(this);
+
+    deps.ensure();
 }
 
 Snackbar.prototype._next = function() {

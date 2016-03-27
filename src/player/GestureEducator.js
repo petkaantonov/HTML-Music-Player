@@ -10,12 +10,14 @@ const gestureEducationMessages = {
     "previous": "Swip left with two fingers to play the previous track"
 };
 
-export default function GestureEducator(page, snackbar, db, dbValues) {
-    this.page = page;
-    this.snackbar = snackbar;
-    this.db = db;
-    this.dbValues = dbValues;
-    this.store = Object(dbValues[GESTURE_EDUCATION_KEY]);
+export default function GestureEducator(deps) {
+    this.page = deps.page;
+    this.snackbar = deps.snackbar;
+    this.db = deps.db;
+    this.dbValues = deps.dbValues;
+    this.store = Object(this.dbValues[GESTURE_EDUCATION_KEY]);
+
+    deps.ensure();
 }
 
 GestureEducator.prototype.educate = function(gesture) {

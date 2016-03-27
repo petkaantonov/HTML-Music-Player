@@ -58,14 +58,14 @@ PopupButton.prototype.destroy = function() {
     this.$().remove();
 };
 
-export default function Popup(opts) {
+export default function Popup(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
-    this.scrollerContext = opts.scrollerContext;
-    this.rippler = opts.rippler;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
+    this.scrollerContext = deps.scrollerContext;
+    this.rippler = deps.rippler;
     this.transitionClass = opts.transitionClass || "";
     this.beforeTransitionIn = opts.beforeTransitionIn || noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || noop;
@@ -120,6 +120,7 @@ export default function Popup(opts) {
     this._rect = null;
     this._viewPort = null;
     this._activeElementBeforeOpen = null;
+    deps.ensure();
 }
 inherits(Popup, EventEmitter);
 
@@ -201,15 +202,22 @@ Popup.prototype._initDom = function() {
     this.closerTapRecognizer.recognizeBubbledOn(closer);
     this.headerTouchedRecognizer.recognizeBubbledOn(header);
 
-    this._contentScroller = this.scrollerContext.createContentScroller(body, {
-        scrollingX: false,
-        snapping: false,
-        zooming: false,
-        paging: false,
+    this._contentScroller = this.scrollerContext.createContentScroller({
+        target: body,
         contentContainer: bodyContent,
-        scrollbar: scrollbar,
-        railSelector: "." + this.scrollbarRailClass,
-        knobSelector: "." + this.scrollbarKnobClass
+
+        scrollerOpts: {
+            scrollingX: false,
+            snapping: false,
+            zooming: false,
+            paging: false
+        },
+
+        scrollbarOpts: {
+            target: scrollbar,
+            railSelector: "." + this.scrollbarRailClass,
+            knobSelector: "." + this.scrollbarKnobClass
+        }
     });
 
     this._popupDom = ret;

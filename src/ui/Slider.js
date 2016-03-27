@@ -3,13 +3,13 @@
 import EventEmitter from "events";
 import { inherits } from "util";
 
-export default function Slider(domNode, opts) {
+export default function Slider(opts, deps) {
     opts = Object(opts);
     EventEmitter.call(this);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
-    this._domNode = this.page.$(domNode);
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
+    this._domNode = this.page.$(opts.target);
     this._knobNode = this.$().find(".slider-knob");
     this._fillNode = this.$().find(".slider-fill");
     this._direction = opts && opts.direction || "horizontal";
@@ -36,6 +36,7 @@ export default function Slider(domNode, opts) {
     this.globalEvents.on("resize", this._onReLayout);
     this.$().addEventListener("mousedown", this._onMousedown);
     this.touchdownRecognizer.recognizeBubbledOn(this.$());
+    deps.ensure();
 }
 inherits(Slider, EventEmitter);
 

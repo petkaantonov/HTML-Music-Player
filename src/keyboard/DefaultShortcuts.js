@@ -1,15 +1,14 @@
 "use strict";
 
-export default function DefaultShortcuts(opts) {
-    opts = Object(opts);
-    this.page = opts.page;
-    this.recognizerContext = opts.recognizerContext;
-    this.player = opts.player;
-    this.playlist = opts.playlist;
-    this.keyboardShortcuts = opts.keyboardShortcuts;
-    this.playerTimeManager = opts.playerTimeManager;
-    this.rippler = opts.rippler;
-    this.gestureScreenFlasher = opts.gestureScreenFlasher;
+export default function DefaultShortcuts(deps) {
+    this.page = deps.page;
+    this.recognizerContext = deps.recognizerContext;
+    this.player = deps.player;
+    this.playlist = deps.playlist;
+    this.keyboardShortcuts = deps.keyboardShortcuts;
+    this.playerTimeManager = deps.playerTimeManager;
+    this.rippler = deps.rippler;
+    this.gestureScreenFlasher = deps.gestureScreenFlasher;
 
     this.seekShortcut = null;
     this.seekValueToCommit = -1;
@@ -68,6 +67,7 @@ export default function DefaultShortcuts(opts) {
     this.keyboardShortcuts.on("enable", this.enableGestures);
 
     this.rippleRecognizer.recognizeCapturedOn(this.page.document());
+    deps.ensure();
 }
 
 DefaultShortcuts.prototype.playerLoadedNewTrack = function() {

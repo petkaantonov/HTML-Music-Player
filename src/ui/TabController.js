@@ -80,20 +80,20 @@ Tab.prototype.page = function() {
     return this._controller.page;
 };
 
-export default function TabController(domNode, specs, opts) {
+export default function TabController(domNode, specs, opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this.page = opts.page;
-    this.globalEvents = opts.globalEvents;
-    this.recognizerContext = opts.recognizerContext;
-    this.rippler = opts.rippler;
+    this.page = deps.page;
+    this.globalEvents = deps.globalEvents;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
     this._domNode = this.page.$(domNode).eq(0);
     this._tabClicked = this._tabClicked.bind(this);
 
     this._contentHideTimeoutId = -1;
     this._activeTab = null;
     this._tabs = specs.map(function(v, index) {
-        var tab = new Tab(v, this, index, opts);
+        var tab = new Tab(v, this, index);
         tab.on("click", this._tabClicked);
         return tab;
     }, this);
@@ -112,6 +112,7 @@ export default function TabController(domNode, specs, opts) {
 
     this.recognizerContext.createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd)
         .recognizeBubbledOn(this.$());
+    deps.ensure();
 }
 inherits(TabController, EventEmitter);
 

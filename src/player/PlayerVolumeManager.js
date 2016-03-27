@@ -1,17 +1,19 @@
 "use strict";
 
-export default function PlayerVolumeManager(dom, player, opts) {
+export default function PlayerVolumeManager(opts, deps) {
     var self = this;
     opts = Object(opts);
-    this.page = opts.page;
-    this.sliderContext = opts.sliderContext;
-    this.recognizerContext = opts.recognizerContext;
-    this.rippler = opts.rippler;
-    this.player = player;
-    this.tooltipContext = opts.tooltipContext;
-    this.volumeSlider = opts.sliderContext.createSlider(opts.volumeSlider);
+    this.page = deps.page;
+    this.sliderContext = deps.sliderContext;
+    this.recognizerContext = deps.recognizerContext;
+    this.rippler = deps.rippler;
+    this.player = deps.player;
+    this.tooltipContext = deps.tooltipContext;
+    this.volumeSlider = deps.sliderContext.createSlider({
+        target: opts.volumeSlider
+    });
 
-    this._domNode = this.page.$(dom);
+    this._domNode = this.page.$(opts.target);
     this._muteDom = this.$().find(opts.muteDom);
     this._muteTooltip = this.tooltipContext.makeTooltip(this.$mute(),function() {
         return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
@@ -32,6 +34,7 @@ export default function PlayerVolumeManager(dom, player, opts) {
 
     this.volumeChanged();
     this.muteChanged(this.player.isMuted());
+    deps.ensure();
 }
 
 

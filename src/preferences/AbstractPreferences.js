@@ -6,17 +6,17 @@ import { inherits, throttle } from "util";
 const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
 const UNDO_CHANGES_BUTTON = "undo-changes";
 
-export default function AbstractPreferences(preferences, opts) {
+export default function AbstractPreferences(preferences, opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
-    this._page = opts.page;
+    this._page = deps.page;
     this._preferences = preferences;
-    this._env = opts.env;
-    this._rippler = opts.rippler;
-    this._db = opts.db;
-    this._recognizerContext = opts.recognizerContext;
-    this._sliderContext = opts.sliderContext;
-    this._popup = opts.popupContext.makePopup(this.TITLE, this.getHtml(), opts.preferencesButton, [{
+    this._env = deps.env;
+    this._rippler = deps.rippler;
+    this._db = deps.db;
+    this._recognizerContext = deps.recognizerContext;
+    this._sliderContext = deps.sliderContext;
+    this._popup = deps.popupContext.makePopup(this.TITLE, this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: "Restore defaults",
         action: this.restoreDefaultsClicked.bind(this)
@@ -35,10 +35,11 @@ export default function AbstractPreferences(preferences, opts) {
     this.page().$(opts.preferencesButton).addEventListener("click", popupOpen);
     this._recognizerContext.createTapRecognizer(popupOpen).recognizeBubbledOn(this.page().$(opts.preferencesButton));
     this._popup.on("open", this.popupOpened.bind(this));
-    if (opts.dbValues && this.STORAGE_KEY in opts.dbValues) {
-        this.preferences().copyFrom(opts.dbValues[this.STORAGE_KEY]);
+    if (deps.dbValues && this.STORAGE_KEY in deps.dbValues) {
+        this.preferences().copyFrom(deps.dbValues[this.STORAGE_KEY]);
         this.emit("change", this.preferences());
     }
+    deps.ensure();
 }
 inherits(AbstractPreferences, EventEmitter);
 

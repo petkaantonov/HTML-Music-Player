@@ -1115,3 +1115,50 @@ export function int16LE(bytes, offset) {
 }
 
 export function noop() {}
+
+const checkType = function(value, type) {
+    switch (type) {
+        case "number": return typeof value === "number";
+        case "object": return typeof value === "object" && value !== null;
+        case "string": return typeof value === "string";
+        case "function": return typeof value === "function";
+        case "array": return Array.isArray(value);
+        case "boolean": return typeof value === "boolean";
+        case "integer": return (value | 0) === value;
+        default:
+            throw new Error("unknown type: " + type);
+    }
+};
+
+const ensuredField = function(obj, fieldName, type) {
+    if (typeof fieldName !== "string") {
+        throw new Error("fieldName is not a string");
+    }
+    if (typeof obj === "object" && obj !== null) {
+        var ret = obj[fieldName];
+        if (checkType(ret, type)) {
+            return ret;
+        }
+        throw new Error("obj." + fieldName + " is not " + type);
+    }
+    throw new Error("obj is not object");
+};
+
+export function ensuredObjectField(obj, fieldName) {
+    return ensuredField(obj, fieldName, "object");
+}
+
+export function ensuredNumberField(obj, fieldName) {
+    return ensuredField(obj, fieldName, "number");
+}
+
+export function ensuredStringField(obj, fieldName) {
+    return ensuredField(obj, fieldName, "string");
+}
+
+export function ensureType(value, type) {
+    if (!checkType(value, type)) {
+        throw new Error("value is not " + type);
+    }
+    return value;
+}
