@@ -18,13 +18,13 @@ export default function PlaylistModeManager(opts, deps) {
     this._shuffleButton = this.$().find(".shuffle-mode-button");
     this._repeatButton = this.$().find(".repeat-mode-button");
 
-    this.shuffleTooltip = this.tooltipContext.makeTooltip(this.$shuffle(), function() {
+    this.shuffleTooltip = this.tooltipContext.createTooltip(this.$shuffle(), function() {
         return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
                                           : "<p><strong>Enable</strong> shuffle mode</p>" +
                                             SHUFFLE_MODE_TOOLTIP;
     });
 
-    this.repeatTooltip = this.tooltipContext.makeTooltip(this.$repeat(), function() {
+    this.repeatTooltip = this.tooltipContext.createTooltip(this.$repeat(), function() {
         return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
                                          : "<p><strong>Enable</strong> repeat mode</p>";
     });

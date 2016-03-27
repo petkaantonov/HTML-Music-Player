@@ -1,7 +1,9 @@
 "use strict";
 
 import EventEmitter from "events";
-import { inherits, toFunction } from "util";
+import { inherits, toFunction,
+        ensuredStringField, ensuredObjectField, ensuredIntegerField,
+        ensuredBooleanField } from "util";
 
 const getDirection = function(value) {
     value = ("" + value).trim().toLowerCase();
@@ -9,7 +11,7 @@ const getDirection = function(value) {
     if (value === "left") return "left";
     if (value === "up") return "up";
     if (value === "down") return "down";
-    return "up";
+    throw new Error("invalid direction " + value);
 };
 
 const getArrowAlign = function(value) {
@@ -17,7 +19,7 @@ const getArrowAlign = function(value) {
     if (value === "begin") return "begin";
     if (value === "end") return "end";
     if (value === "middle") return "middle";
-    return "middle";
+    throw new Error("invalid align " + value);
 };
 
 const getActivationStyle = function(value) {
@@ -28,7 +30,7 @@ const getActivationStyle = function(value) {
         value === "click") {
         return value;
     }
-    return "hover";
+    throw new Error("invalid activation " + value);
 };
 
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
@@ -70,21 +72,22 @@ export default function Tooltip(opts, deps) {
     this.page = deps.page;
     this.recognizerContext = deps.recognizerContext;
     this.globalEvents = deps.globalEvents;
-    this._preferredDirection = getDirection(opts.preferredDirection);
-    this._domNode = this.page.$(opts.container);
+
     this._onContent = toFunction(opts.content);
-    this._delay = Math.min(20000, Math.max(0, parseInt(opts.delay, 10))) || 300;
+    this._preferredDirection = getDirection(ensuredStringField(opts, "preferredDirection"));
+    this._domNode = ensuredObjectField(opts, "container");
+    this._delay = Math.min(20000, Math.max(0, ensuredIntegerField(opts, "delay")));
+    this._target = ensuredObjectField(opts, "target");
+    this._classPrefix = ensuredStringField(opts, "classPrefix");
+    this._transitionClass = ensuredStringField(opts, "transitionClass");
+    this._preferredArrowAlign = getArrowAlign(ensuredStringField(opts, "preferredAlign"));
+    this._activationStyle = getActivationStyle(ensuredStringField(opts, "activation"));
+    this._arrow = ensuredBooleanField(opts, "arrow");
+    this._gap = ensuredIntegerField(opts, "gap");
+
     this._delayTimeoutId = -1;
-    this._target = typeof opts.target === "string" ? this.$().find(opts.target)
-                                                   : this.page.$(opts.target).eq(0);
-    this._classPrefix = opts.classPrefix || "unprefixed-tooltip";
-    this._transitionClass = opts.transitionClass || "";
     this._shown = false;
     this._tooltip = this.page.NULL();
-    this._preferredArrowAlign = getArrowAlign(opts.preferredAlign);
-    this._activationStyle = getActivationStyle(opts.activation);
-    this._arrow = "arrow" in opts ? !!opts.arrow : this._activationStyle === "hover";
-    this._gap = "gap" in opts ? parseInt(opts.gap, 10) : (this._arrow ? 7 : 0);
     this._x = 0;
     this._y = 0;
     this._maxX = 0;

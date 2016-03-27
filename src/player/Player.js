@@ -68,13 +68,13 @@ export default function Player(opts, deps) {
     this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
     this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
 
-    this._playTooltip = this.tooltipContext.makeTooltip(this.$play(), function() {
+    this._playTooltip = this.tooltipContext.createTooltip(this.$play(), function() {
         return self.isPlaying ? "Pause playback"
                             : self.isPaused ? "Resume playback" : "Start playback";
     });
 
-    this._nextTooltip = this.tooltipContext.makeTooltip(this.$next(), "Next track");
-    this._previousTooltip = this.tooltipContext.makeTooltip(this.$previous(), "Previous track");
+    this._nextTooltip = this.tooltipContext.createTooltip(this.$next(), "Next track");
+    this._previousTooltip = this.tooltipContext.createTooltip(this.$previous(), "Previous track");
 
     this.playlist.on("currentTrackChange", this.loadTrack.bind(this));
     this.playlist.on("playlistEmpty", this.stop.bind(this));

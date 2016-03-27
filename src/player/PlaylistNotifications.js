@@ -30,7 +30,7 @@ export default function PlaylistNotifications(opts, deps) {
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
     this.nextNotificationId = -1;
-    this.tooltip = this.tooltipContext.makeTooltip(this.$(), function() {
+    this.tooltip = this.tooltipContext.createTooltip(this.$(), function() {
         return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
                             : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
     });

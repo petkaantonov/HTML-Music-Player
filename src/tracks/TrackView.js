@@ -335,7 +335,7 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>"));
 
-    this._analysisTooltip = this.tooltipContext().makeTooltip(this.$trackStatus(),
+    this._analysisTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
     this.$trackStatus().addClass("unclickable");
     this._updateAnalysisEstimate();
@@ -348,7 +348,7 @@ TrackView.prototype.viewUpdateShowErrorStatus = function() {
         "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
         "></span>"));
 
-    this._errorTooltip = this.tooltipContext().makeTooltip(this.$trackStatus(),
+    this._errorTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                  ERROR_HEADER + this._track._error);
     this.$trackStatus().addClass("unclickable");
 };

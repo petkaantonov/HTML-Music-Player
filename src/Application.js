@@ -138,7 +138,17 @@ export default function Application(deps) {
         scrollEvents: this.scrollEvents
     }));
 
-    this.tooltipContext = new TooltipContext(new ApplicationDependencies({
+    this.tooltipContext = new TooltipContext({
+        activation: "hover",
+        transitionClass: "fade-in",
+        preferredDirection: "up",
+        preferredAlign: "middle",
+        arrow: false,
+        delay: 600,
+        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
+        container: this.page.$("body"),
+        gap: 0
+    }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
         globalEvents: this.globalEvents
