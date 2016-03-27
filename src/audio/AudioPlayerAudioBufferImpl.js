@@ -537,6 +537,7 @@ AudioPlayerSourceNode.prototype._ended = function() {
 };
 
 AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor) {
+    if (sourceDescriptor.buffer === null) return;
     if (sourceDescriptor.source) {
         sourceDescriptor.source.descriptor = null;
         sourceDescriptor.source.onended = null;
@@ -606,14 +607,8 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
                      "referencedStart", descriptor.startTime,
                      "referencedEnd", descriptor.endTime);
         this._destroySourceDescriptor(descriptor);
-
-        if (descriptor.startTime < sourceDescriptor.startTime) {
-            this._bufferQueue.unshift(sourceDescriptor);
-            return;
-        } else {
-            this._destroySourceDescriptor(sourceDescriptor);
-            return this._ended();
-        }
+        this._destroySourceDescriptor(sourceDescriptor);
+        return this._ended();
     }
     this._baseTime += sourceDescriptor.duration;
 

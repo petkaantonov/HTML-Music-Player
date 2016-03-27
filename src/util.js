@@ -1157,6 +1157,10 @@ export function ensuredStringField(obj, fieldName) {
     return ensuredField(obj, fieldName, "string");
 }
 
+export function ensuredIntegerField(obj, fieldName) {
+    return ensuredField(obj, fieldName, "integer");
+};
+
 export function ensureType(value, type) {
     if (!checkType(value, type)) {
         throw new Error("value is not " + type);

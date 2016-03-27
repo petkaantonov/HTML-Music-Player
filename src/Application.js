@@ -74,7 +74,10 @@ export default function Application(deps) {
         globalEvents: this.globalEvents
     }));
 
-    this.sliderContext = new SliderContext(new ApplicationDependencies({
+    this.sliderContext = new SliderContext({
+        knobSelector: ".slider-knob",
+        fillSelector: ".slider-fill"
+    }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
         globalEvents: this.globalEvents
@@ -102,7 +105,20 @@ export default function Application(deps) {
         page: this.page
     }));
 
-    this.menuContext = new MenuContext(new ApplicationDependencies({
+    this.menuContext = new MenuContext({
+        rootClass: "action-menu-root",
+        containerClass: "action-menu-submenu",
+        itemClass: "action-menu-item",
+        disabledClass: "action-menu-disabled",
+        dividerClass: "action-menu-divider",
+        activeSubMenuClass: "action-menu-active",
+        subMenuShowDelay: 300,
+        subMenuHideDelay: 800,
+        menuItemIconContainerClass: "icon-container",
+        menuItemIconClass: "icon",
+        menuItemContentClass: "action-menu-item-content",
+        menuItemTextClass: "text-container"
+    }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
         rippler: this.rippler,
@@ -142,7 +158,9 @@ export default function Application(deps) {
     this.toolbarSubmenu = new OpenableSubmenu({
         target: ".toolbar-submenu",
         openerTarget: ".menul-submenu-open",
-        openerActiveClass: "toolbar-item-active"
+        openerActiveClass: "toolbar-item-active",
+        activeClass: "shown",
+        transitionClass: "transition-in"
     }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
@@ -151,7 +169,19 @@ export default function Application(deps) {
     }));
 
     this.popupContext = new PopupContext({
-        zIndex: POPUP_ZINDEX
+        zIndex: POPUP_ZINDEX,
+        containerClass: "popup-container",
+        headerClass: "popup-header",
+        footerClass: "popup-footer",
+        bodyClass: "popup-body",
+        scrollAreaContainerClass: "scrollbar-scrollarea",
+        bodyContentClass: "popup-body-content",
+        closerContainerClass: "popup-closer-container",
+        scrollbarContainerClass: "scrollbar-container",
+        scrollbarRailClass: "scrollbar-rail",
+        scrollbarKnobClass: "scrollbar-knob",
+        popupButtonClass: "popup-button",
+        buttonDisabledClass: "popup-button-disabled"
     }, new ApplicationDependencies({
         animationContext: this.animationContext,
         page: this.page,

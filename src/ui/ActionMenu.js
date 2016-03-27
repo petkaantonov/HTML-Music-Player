@@ -1,6 +1,6 @@
 "use strict";
 
-import { inherits, toFunction } from "util";
+import { inherits, toFunction, ensuredStringField, ensuredIntegerField } from "util";
 import EventEmitter from "events";
 
 const TRANSITION_IN_DURATION = 300;
@@ -470,15 +470,15 @@ export default function ActionMenu(opts, deps) {
     this.globalEvents = deps.globalEvents;
     this.rippler = deps.rippler;
     this.recognizerContext = deps.recognizerContext;
-    this.rootClass = opts.rootClass || "action-menu-root";
-    this.containerClass = opts.containerClass || "action-menu-submenu";
-    this.itemClass = opts.itemClass || "action-menu-item";
-    this.disabledClass = opts.disabledClass || "action-menu-disabled";
-    this.dividerClass = opts.dividerClass || "action-menu-divider";
-    this.activeSubMenuClass = opts.activeSubMenuClass || "action-menu-active";
-    this.showDelay = Math.min(1000, Math.max(0, +opts.subMenuShowDelay || 300));
-    this.hideDelay = Math.min(3000, Math.max(0, +opts.subMenuHideDelay || 800));
 
+    this.rootClass = ensuredStringField(opts, "rootClass");
+    this.containerClass = ensuredStringField(opts, "containerClass");
+    this.itemClass = ensuredStringField(opts, "itemClass");
+    this.disabledClass = ensuredStringField(opts, "disabledClass");
+    this.dividerClass = ensuredStringField(opts, "dividerClass");
+    this.activeSubMenuClass = ensuredStringField(opts, "activeSubMenuClass");
+    this.showDelay = Math.min(1000, Math.max(0, ensuredIntegerField(opts, "subMenuShowDelay")));
+    this.hideDelay = Math.min(3000, Math.max(0, ensuredIntegerField(opts, "subMenuHideDelay")));
 
     this._delayTimerId = -1;
     this._domNode = this.page.createElement("div", {
@@ -630,8 +630,7 @@ export function ContextMenu(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
-    opts.rootClass = opts.rootClass ? opts.rootClass + " action-menu-context-root"
-                                    : "action-menu-root action-menu-context-root";
+    opts.rootClass = ensuredStringField(opts, "rootClass") + " action-menu-context-root";
     this._menu = new ActionMenu(opts, deps);
     this._domNode = this._menu.$().setStyles({
         position: "absolute",

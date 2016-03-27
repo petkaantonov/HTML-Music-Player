@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "events";
-import { inherits, toFunction, combineClasses, noop } from "util";
+import { inherits, toFunction, noop, ensuredStringField } from "util";
 
 function PopupButton(popup, opts) {
     opts = Object(opts);
@@ -69,17 +69,18 @@ export default function Popup(opts, deps) {
     this.transitionClass = opts.transitionClass || "";
     this.beforeTransitionIn = opts.beforeTransitionIn || noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || noop;
-    this.containerClass = combineClasses(opts.containerClass, "popup-container");
-    this.headerClass = combineClasses(opts.headerClass, "popup-header");
-    this.footerClass = combineClasses(opts.footerClass, "popup-footer");
-    this.bodyClass = combineClasses(opts.bodyClass, ["popup-body", "scrollbar-scrollarea"]);
-    this.bodyContentClass = combineClasses(opts.bodyContentClass, "popup-body-content");
-    this.closerContainerClass = combineClasses(opts.closerContainerClass, "popup-closer-container");
-    this.scrollbarContainerClass = combineClasses(opts.scrollbarContainerClass, "scrollbar-container");
-    this.scrollbarRailClass = combineClasses(opts.scrollbarRailClass, "scrollbar-rail");
-    this.scrollbarKnobClass = combineClasses(opts.scrollbarKnobClass, "scrollbar-knob");
-    this.popupButtonClass = combineClasses(opts.popupButtonClass, "popup-button");
-    this.buttonDisabledClass = combineClasses(opts.buttonDisabledClass, "popup-button-disabled");
+    this.containerClass = ensuredStringField(opts, "containerClass");
+    this.headerClass = ensuredStringField(opts, "headerClass");
+    this.footerClass = ensuredStringField(opts, "footerClass");
+    this.bodyClass = ensuredStringField(opts, "bodyClass");
+    this.scrollAreaContainerClass = ensuredStringField(opts, "scrollAreaContainerClass");
+    this.bodyContentClass = ensuredStringField(opts, "bodyContentClass");
+    this.closerContainerClass = ensuredStringField(opts, "closerContainerClass");
+    this.scrollbarContainerClass = ensuredStringField(opts, "scrollbarContainerClass");
+    this.scrollbarRailClass = ensuredStringField(opts, "scrollbarRailClass");
+    this.scrollbarKnobClass = ensuredStringField(opts, "scrollbarKnobClass");
+    this.popupButtonClass = ensuredStringField(opts, "popupButtonClass");
+    this.buttonDisabledClass = ensuredStringField(opts, "buttonDisabledClass");
 
     this.body = toFunction(opts.body || "");
     this.title = toFunction(opts.title || "");
@@ -169,7 +170,7 @@ Popup.prototype._initDom = function() {
     var headerText = this.page.createElement("h2").setText(this.title() + "");
     var header = this.page.createElement("div").addClass(this.headerClass);
 
-    var body = this.page.createElement("div").addClass(this.bodyClass);
+    var body = this.page.createElement("div").addClass([this.bodyClass, this.scrollAreaContainerClass]);
     var bodyContent = this.page.createElement("div").addClass(this.bodyContentClass).setHtml(this.body() + "");
     var closer = this.page.createElement("div").addClass(this.closerContainerClass).setHtml(this.closer() + "");
     var scrollbar = this.page.createElement("div").addClass(this.scrollbarContainerClass);

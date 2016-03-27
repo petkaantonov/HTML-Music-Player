@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "events";
-import { inherits } from "util";
+import { inherits, ensuredStringField } from "util";
 
 export default function Slider(opts, deps) {
     opts = Object(opts);
@@ -10,8 +10,8 @@ export default function Slider(opts, deps) {
     this.globalEvents = deps.globalEvents;
     this.recognizerContext = deps.recognizerContext;
     this._domNode = this.page.$(opts.target);
-    this._knobNode = this.$().find(".slider-knob");
-    this._fillNode = this.$().find(".slider-fill");
+    this._knobNode = this.$().find(ensuredStringField(opts, "knobSelector"));
+    this._fillNode = this.$().find(ensuredStringField(opts, "fillSelector"));
     this._direction = opts && opts.direction || "horizontal";
     this._containerRect = this._fillRect = this._knobRect = null;
     this._sliding = false;

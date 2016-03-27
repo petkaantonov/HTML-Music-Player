@@ -7,7 +7,7 @@ import ApplicationDependencies from "ApplicationDependencies";
 
 export default function PopupContext(opts, deps) {
     opts = Object(opts);
-    this.popupZIndex = opts.zIndex;
+
     this.animationContext = deps.animationContext;
     this.page = deps.page;
     this.globalEvents = deps.globalEvents;
@@ -17,6 +17,20 @@ export default function PopupContext(opts, deps) {
     this.dbValues = deps.dbValues;
     this.keyboardShortcuts = deps.keyboardShortcuts;
     this.rippler = deps.rippler;
+
+    this.popupZIndex = opts.zIndex;
+    this.containerClass = opts.containerClass;
+    this.headerClass = opts.headerClass;
+    this.footerClass = opts.footerClass;
+    this.bodyClass = opts.bodyClass;
+    this.scrollAreaContainerClass = opts.scrollAreaContainerClass;
+    this.bodyContentClass = opts.bodyContentClass;
+    this.closerContainerClass = opts.closerContainerClass;
+    this.scrollbarContainerClass = opts.scrollbarContainerClass;
+    this.scrollbarRailClass = opts.scrollbarRailClass;
+    this.scrollbarKnobClass = opts.scrollbarKnobClass;
+    this.popupButtonClass = opts.popupButtonClass;
+    this.buttonDisabledClass = opts.buttonDisabledClass;
 
     this.shownPopups = [];
     this.blocker = this.page.NULL();
@@ -115,6 +129,18 @@ PopupContext.prototype.toPreferenceKey = function(popupTitle) {
 PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) {
     var self = this;
     var popup = new Popup({
+        containerClass: this.containerClass,
+        headerClass: this.headerClass,
+        footerClass: this.footerClass,
+        bodyClass: this.bodyClass,
+        scrollAreaContainerClass: this.scrollAreaContainerClass,
+        bodyContentClass: this.bodyContentClass,
+        closerContainerClass: this.closerContainerClass,
+        scrollbarContainerClass: this.scrollbarContainerClass,
+        scrollbarRailClass: this.scrollbarRailClass,
+        scrollbarKnobClass: this.scrollbarKnobClass,
+        popupButtonClass: this.popupButtonClass,
+        buttonDisabledClass: this.buttonDisabledClass,
         zIndex: this.popupZIndex,
         footerButtons: footerButtons,
         title: title,
@@ -149,9 +175,7 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
                     unit: "%"
                 }
             }).start();
-        },
-
-        containerClass: "ui-text"
+        }
     }, new ApplicationDependencies({
         page: this.page,
         globalEvents: this.globalEvents,

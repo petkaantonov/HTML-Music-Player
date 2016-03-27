@@ -1,24 +1,25 @@
 "use strict";
 
+import { ensuredObjectField, ensuredStringField } from "util";
+
 export default function OpenableSubmenu(opts, deps) {
     opts = Object(opts);
     this._globalEvents = deps.globalEvents;
     this._page = deps.page;
     this._recognizerContext = deps.recognizerContext;
     this._rippler = deps.rippler;
-    this._domNode = this._page.$(opts.target).eq(0);
-    this._opener = this._page.$(opts.openerTarget).eq(0);
 
+    this._domNode = this._page.$(ensuredStringField(opts, "target")).eq(0);
+    this._opener = this._page.$(ensuredStringField(opts, "openerTarget")).eq(0);
+    this.activeClass = ensuredStringField(opts, "activeClass");
+    this.transitionClass = ensuredStringField(opts, "transitionClass");
+    this.openerActiveClass = ensuredStringField(opts, "openerActiveClass");
 
     this._keyboardElements = this.$().find("*").filter(function(elem) {
         return elem.tabIndex >= 0;
     });
 
     this._opened = false;
-
-    this.activeClass = opts.activeClass || "shown";
-    this.transitionClass = opts.transitionClass || "transition-in";
-    this.openerActiveClass = opts.openerActiveClass || "opener-active";
 
     this._open = this._open.bind(this);
     this._close = this._close.bind(this);
