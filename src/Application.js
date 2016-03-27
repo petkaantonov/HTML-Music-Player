@@ -157,8 +157,14 @@ export default function Application(deps) {
     this.snackbar = new Snackbar({
         transitionInClass: "transition-in",
         transitionOutClass: "transition-out",
+        containerClass: "snackbar-container",
+        actionClass: "snackbar-action",
+        titleClass: "snackbar-title",
+        textContainerClass: "text-container",
+        textClass: "text",
         nextDelay: 400,
-        visibilityTime: 4400
+        visibilityTime: 4400,
+        initialUndismissableWindow: 500
     }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,

@@ -1,7 +1,7 @@
 "use strict";
 
 import EventEmitter from "events";
-import { inherits, noop } from "util";
+import { inherits, noop, ensuredStringField, ensuredIntegerField } from "util";
 
 const NO_TAG = {};
 
@@ -19,7 +19,11 @@ function SnackbarInstance(snackbar, message, opts) {
     this._initialShowing = Date.now();
     this._isHovering = false;
 
-    this._domNode = this._createDom(message, opts);
+    this._actionDom = null;
+    this._titleDom = null;
+    this._domNode = null;
+    this._initDom(message, opts);
+
     this._visibilityChanged = this._visibilityChanged.bind(this);
     this._clicked = this._clicked.bind(this);
     this._timeoutChecker = this._timeoutChecker.bind(this);
@@ -73,33 +77,54 @@ SnackbarInstance.prototype.$ = function() {
     return this._domNode;
 };
 
+SnackbarInstance.prototype.$action = function() {
+    return this._actionDom;
+};
+
+SnackbarInstance.prototype.$title = function() {
+    return this._titleDom;
+};
+
 SnackbarInstance.prototype._clearTimer = function() {
     this.page().clearTimeout(this._checkerTimerId);
     this._checkerTimerId = -1;
 };
 
-SnackbarInstance.prototype._createDom = function(message, opts) {
+SnackbarInstance.prototype._initDom = function(message, opts) {
     var action = this.page().$();
     if (opts.action) {
-        action = this.page().createElement("div", {
-            class: this._snackbar.actionClass + " snackbar-action-" + this._initialShowing
+        action = this.page().createElement("div", {class: this._snackbar.actionClass});
+
+        var actionTextContainer = this.page().createElement("div", {
+            class: this._snackbar.textContainerClass
+        });
+        var actionText = this.page().createElement("div", {
+            class: this._snackbar.textClass
         });
 
-        action.setHtml('<div class="text-container"><div class="text"></div></div>');
-        action.find(".text").setText(opts.action + "");
+        actionTextContainer.append(actionText);
+        actionText.setText(opts.action + "").appendTo(actionTextContainer);
+        action.append(actionTextContainer);
+
+        this._actionDom = action;
     }
+
     var title = this.page().createElement("div", {
-        class: this._snackbar.titleClass + " snackbar-title-" + this._initialShowing
+        class: this._snackbar.titleClass
     }).setText(message);
 
-    return this.page().createElement("div", {
+    this._titleDom = title;
+
+    var snackbar = this.page().createElement("div", {
         class: this._snackbar.containerClass
     }).append(title).append(action);
+
+    this._domNode = snackbar;
 };
 
 SnackbarInstance.prototype.replace = function(message) {
     var self = this;
-    this.$().find(".snackbar-title-" + this._initialShowing).setText(message + "");
+    this.$title().setText(message + "");
     this._startedShowing = Date.now();
     return new Promise(function(resolve) {
         self.once("hide", function() {
@@ -148,8 +173,8 @@ SnackbarInstance.prototype._clicked = function(e) {
             (this._snackbar.initialUndismissableWindow + this._snackbar.nextDelay);
 
 
-    var action = this.$().find(".snackbar-action-" + this._initialShowing)[0];
-    if (this.page().$(e.target).closest(action).length > 0) {
+    var action = this.$action();
+    if (action && this.page().$(e.target).closest(action).length > 0) {
         this.outcome = Snackbar.ACTION_CLICKED;
     } else if (dismissable) {
         this.outcome = Snackbar.DISMISSED;
@@ -214,16 +239,20 @@ export default function Snackbar(opts, deps) {
     this.page = deps.page;
     this.globalEvents = deps.globalEvents;
     this.recognizerContext = deps.recognizerContext;
-    this.containerClass = opts.containerClass || "snackbar-container";
-    this.transitionInClass = opts.transitionInClass || "";
-    this.transitionOutClass = opts.transitionOutClass || "";
+
+    this.containerClass = ensuredStringField(opts, "containerClass");
+    this.actionClass = ensuredStringField(opts, "actionClass");
+    this.titleClass = ensuredStringField(opts, "titleClass");
+    this.textContainerClass = ensuredStringField(opts, "textContainerClass");
+    this.textClass = ensuredStringField(opts, "textClass");
+    this.transitionInClass = ensuredStringField(opts, "transitionInClass");
+    this.transitionOutClass = ensuredStringField(opts, "transitionOutClass");
     this.beforeTransitionIn = opts.beforeTransitionIn || noop;
     this.beforeTransitionOut = opts.beforeTransitionOut || noop;
-    this.actionClass = opts.actionClass || "snackbar-action";
-    this.titleClass = opts.titleClass || "snackbar-title";
-    this.nextDelay = opts.nextDelay || 300;
-    this.visibilityTime = opts.visibilityTime || 5000;
-    this.initialUndismissableWindow = opts.initialUndismissableWindow || 500;
+    this.nextDelay = ensuredIntegerField(opts, "nextDelay");
+    this.visibilityTime = ensuredIntegerField(opts, "visibilityTime");
+    this.initialUndismissableWindow = ensuredIntegerField(opts, "initialUndismissableWindow");
+
     this.maxLength = opts.maxLength || 3;
 
     this._currentInstance = null;
