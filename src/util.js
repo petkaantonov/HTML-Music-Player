@@ -1125,6 +1125,7 @@ const checkType = function(value, type) {
         case "array": return Array.isArray(value);
         case "boolean": return typeof value === "boolean";
         case "integer": return (value | 0) === value;
+        case "null": return value === null;
         default:
             throw new Error("unknown type: " + type);
     }

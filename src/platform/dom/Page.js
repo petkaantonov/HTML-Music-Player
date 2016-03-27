@@ -8,6 +8,7 @@ const rKeyboard = /^(?:date|datetime|color|datetime-local|email|month|number|pas
 const rtouchevent = /^touch/;
 const rAnyInput = /^(?:input|optgroup|select|textarea|option|button|label)$/i;
 const rApple = /Mac|iPod|iPhone|iPad/;
+const rClickOrTap = /^(?:click|touch)/;
 
 const documentCompare = function(a, b) {
     if (a === b) return 0;
@@ -990,4 +991,8 @@ Page.prototype.emulateClickEventFrom = function(baseEvent) {
         clientY: y
     });
     baseEvent.target.dispatchEvent(ev);
+};
+
+Page.prototype.isRealClickOrTap = function(e) {
+    return e.isTrusted && rClickOrTap.test(e.type);
 };

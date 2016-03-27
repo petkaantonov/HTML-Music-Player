@@ -2,11 +2,13 @@
 
 export default function OpenableSubmenu(opts, deps) {
     opts = Object(opts);
+    this._globalEvents = deps.globalEvents;
     this._page = deps.page;
     this._recognizerContext = deps.recognizerContext;
     this._rippler = deps.rippler;
     this._domNode = this._page.$(opts.target).eq(0);
     this._opener = this._page.$(opts.openerTarget).eq(0);
+
 
     this._keyboardElements = this.$().find("*").filter(function(elem) {
         return elem.tabIndex >= 0;
@@ -18,6 +20,10 @@ export default function OpenableSubmenu(opts, deps) {
     this.transitionClass = opts.transitionClass || "transition-in";
     this.openerActiveClass = opts.openerActiveClass || "opener-active";
 
+    this._open = this._open.bind(this);
+    this._close = this._close.bind(this);
+
+    this._openerMousedowned = this._openerMousedowned.bind(this);
     this._openerFocused = this._openerFocused.bind(this);
     this._openerClicked = this._openerClicked.bind(this);
     this._documentClicked = this._documentClicked.bind(this);
@@ -27,9 +33,10 @@ export default function OpenableSubmenu(opts, deps) {
     this._elementBlurred = this._elementBlurred.bind(this);
 
     this.$opener().addEventListener("click", this._openerClicked)
+                  .addEventListener("mousedown", this._openerMousedowned)
                   .addEventListener("focus", this._openerFocused);
     this._recognizerContext.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
-
+    this._globalEvents.on("visibilityChange", this._close);
     this._page.addDocumentListener("blur", this._elementBlurred, true);
     deps.ensure();
 }
@@ -42,7 +49,7 @@ OpenableSubmenu.prototype.$opener = function() {
     return this._opener;
 };
 
-OpenableSubmenu.prototype.open = function() {
+OpenableSubmenu.prototype._open = function() {
     if (this._opened) return;
     this._opened = true;
     this.$opener().addClass(this.openerActiveClass);
@@ -56,7 +63,7 @@ OpenableSubmenu.prototype.open = function() {
     this._documentTapRecognizer.recognizeCapturedOn(this._page.document());
 };
 
-OpenableSubmenu.prototype.close = function() {
+OpenableSubmenu.prototype._close = function() {
     if (!this._opened) return;
     this._opened = false;
     if (this._page.$(this._page.activeElement()).closest(this.$().add(this.$opener())).length > 0) {
@@ -72,6 +79,16 @@ OpenableSubmenu.prototype.close = function() {
     this._documentTapRecognizer.unrecognizeCapturedOn(this._page.document());
 };
 
+OpenableSubmenu.prototype.open = function() {
+    if (this._opened) return;
+    this._open();
+};
+
+OpenableSubmenu.prototype.close = function() {
+    if (!this._opened) return;
+    this._close();
+};
+
 OpenableSubmenu.prototype._documentClicked = function(e) {
     if (!this._opened) return;
     var $target = this._page.$(e.target);
@@ -80,7 +97,7 @@ OpenableSubmenu.prototype._documentClicked = function(e) {
     }
 };
 
-OpenableSubmenu.prototype._openerFocused = function() {
+OpenableSubmenu.prototype._openerFocused = function(e) {
     this.open();
 };
 
@@ -92,8 +109,25 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
     }
 };
 
-OpenableSubmenu.prototype._openerClicked = function() {
-    this.open();
+OpenableSubmenu.prototype.toggle = function() {
+    if (this._opened) {
+        this.close();
+    } else {
+        this.open();
+    }
+};
+
+OpenableSubmenu.prototype._openerClicked = function(e) {
+    if (this._page.isRealClickOrTap(e)) {
+        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        this.toggle();
+    } else {
+        this.open();
+    }
+};
+
+OpenableSubmenu.prototype._openerMousedowned = function(e) {
+    e.preventDefault();
 };
 
 OpenableSubmenu.prototype._keydowned = function(e) {
@@ -101,17 +135,16 @@ OpenableSubmenu.prototype._keydowned = function(e) {
     if (!activeElement) return;
     var key = e.key;
 
+    var activeIndex = -1;
 
+    this._keyboardElements.forEach(function(elem, index) {
+        if (elem === activeElement) {
+            activeIndex = index;
+            return false;
+        }
+    });
 
     if (key === "ArrowUp" || key === "ArrowDown") {
-        var activeIndex = -1;
-
-        this._keyboardElements.forEach(function(elem, index) {
-            if (elem === activeElement) {
-                activeIndex = index;
-                return false;
-            }
-        });
 
         if (activeIndex === -1) {
             this._keyboardElements[0].focus();
@@ -119,6 +152,10 @@ OpenableSubmenu.prototype._keydowned = function(e) {
             activeIndex += (key === "ArrowUp" ? -1 : 1);
             activeIndex = Math.min(this._keyboardElements.length - 1, Math.max(0, activeIndex));
             this._keyboardElements[activeIndex].focus();
+        }
+    } else if (key === " ") {
+        if (activeIndex >= 0) {
+            this._keyboardElements[activeIndex].click();
         }
     }
 };

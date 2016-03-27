@@ -1,5 +1,7 @@
 "use strict";
 
+import { ensureType } from "util";
+
 const rStackClass = /at new ([^ ]+)/;
 
 export default function ApplicationDependencies(opts) {
@@ -29,48 +31,50 @@ ApplicationDependencies.prototype.ensure = function() {
 };
 
 [
-"page",
-"env",
-"db",
-"dbValues",
-"defaultTitle",
-"globalEvents",
-"animationContext",
-"recognizerContext",
-"sliderContext",
-"gestureScreenFlasher",
-"rippler",
-"keyboardShortcuts",
-"menuContext",
-"fileInputContext",
-"scrollEvents",
-"scrollerContext",
-"tooltipContext",
-"snackbar",
-"toolbarSubmenu",
-"popupContext",
-"spinner",
-"gestureEducator",
-"serviceWorkerManager",
-"applicationPreferences",
-"effectPreferences",
-"crossfadingPreferences",
-"playlist",
-"trackAnalyzer",
-"search",
-"queue",
-"mainTabs",
-"localFileHandler",
-"player",
-"playerPictureManager",
-"playerTimeManager",
-"playerVolumeManager",
-"playlistNotifications",
-"visualizerCanvas",
-"trackDisplay",
-"defaultShortcuts",
-"playlistModeManager"
-].forEach(function(v) {
+    ["page", "object"],
+    ["env", "object"],
+    ["db", "object"],
+    ["dbValues", "object"],
+    ["defaultTitle", "string"],
+    ["globalEvents", "object"],
+    ["animationContext", "object"],
+    ["recognizerContext", "object"],
+    ["sliderContext", "object"],
+    ["gestureScreenFlasher", "object"],
+    ["rippler", "object"],
+    ["keyboardShortcuts", "object"],
+    ["menuContext", "object"],
+    ["fileInputContext", "object"],
+    ["scrollEvents", "object"],
+    ["scrollerContext", "object"],
+    ["tooltipContext", "object"],
+    ["snackbar", "object"],
+    ["toolbarSubmenu", "object"],
+    ["popupContext", "object"],
+    ["spinner", "object"],
+    ["gestureEducator", "object"],
+    ["serviceWorkerManager", "object"],
+    ["applicationPreferences", "object"],
+    ["effectPreferences", "object"],
+    ["crossfadingPreferences", "object"],
+    ["playlist", "object"],
+    ["trackAnalyzer", "object"],
+    ["search", "object"],
+    ["queue", "null"],
+    ["mainTabs", "object"],
+    ["localFileHandler", "object"],
+    ["player", "object"],
+    ["playerPictureManager", "object"],
+    ["playerTimeManager", "object"],
+    ["playerVolumeManager", "object"],
+    ["playlistNotifications", "object"],
+    ["visualizerCanvas", "object"],
+    ["trackDisplay", "object"],
+    ["defaultShortcuts", "object"],
+    ["playlistModeManager", "object"]
+].forEach(function(spec) {
+    var v = spec[0];
+    var type = spec[1];
     Object.defineProperty(ApplicationDependencies.prototype, v, {
         configurable: false,
         enumerable: true,
@@ -81,7 +85,7 @@ ApplicationDependencies.prototype.ensure = function() {
         get: function() {
             if (this._opts[v] !== undefined) {
                 this._checkedOpts[v] = true;
-                return this._opts[v];
+                return ensureType(this._opts[v], type);
             } else {
                 var stack = (new Error()).stack;
                 var message = "needed dependency unpassed: " + v;
@@ -96,4 +100,5 @@ ApplicationDependencies.prototype.ensure = function() {
             }
         }
     });
+
 });

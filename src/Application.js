@@ -146,7 +146,8 @@ export default function Application(deps) {
     }, new ApplicationDependencies({
         page: this.page,
         recognizerContext: this.recognizerContext,
-        rippler: this.rippler
+        rippler: this.rippler,
+        globalEvents: this.globalEvents
     }));
 
     this.popupContext = new PopupContext({
