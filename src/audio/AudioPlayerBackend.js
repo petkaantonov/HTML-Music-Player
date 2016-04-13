@@ -429,7 +429,7 @@ AudioPlayer.prototype.gotCodec = function(codec, requestId, playerMetadata) {
 
             that.decoderContext.start(metadata);
             if (that.metadata.sampleRate !== hardwareSampleRate) {
-                that.resampler = allocResampler(that.metadata.channels,
+                that.resampler = allocResampler(channelMixer.getChannels(),
                                                 that.metadata.sampleRate,
                                                 hardwareSampleRate,
                                                 resamplerQuality);
