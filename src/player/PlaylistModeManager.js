@@ -3,8 +3,8 @@
 const SHUFFLE = "shuffle";
 const NORMAL = "normal";
 const REPEAT = "repeat";
-const SHUFFLE_MODE_TOOLTIP = "<p>The next track is randomly chosen. Higher rated tracks " +
-        "and tracks that have not been recently played are more likely to be chosen.</p>";
+const SHUFFLE_MODE_TOOLTIP = "The next track is randomly chosen. Higher rated tracks " +
+        "and tracks that have not been recently played are more likely to be chosen.";
 
 export default function PlaylistModeManager(opts, deps) {
     opts = Object(opts);
@@ -19,14 +19,13 @@ export default function PlaylistModeManager(opts, deps) {
     this._repeatButton = this.$().find(".repeat-mode-button");
 
     this.shuffleTooltip = this.tooltipContext.createTooltip(this.$shuffle(), function() {
-        return self.getMode() === SHUFFLE ? "<p><strong>Disable</strong> shuffle mode</p>"
-                                          : "<p><strong>Enable</strong> shuffle mode</p>" +
-                                            SHUFFLE_MODE_TOOLTIP;
+        return self.getMode() === SHUFFLE ? "Disable shuffle mode"
+                                          : ["Enable shuffle mode", SHUFFLE_MODE_TOOLTIP];
     });
 
     this.repeatTooltip = this.tooltipContext.createTooltip(this.$repeat(), function() {
-        return self.getMode() === REPEAT ? "<p><strong>Disable</strong> repeat mode</p>"
-                                         : "<p><strong>Enable</strong> repeat mode</p>";
+        return self.getMode() === REPEAT ? "Disable repeat mode"
+                                         : "Enable repeat mode";
     });
 
     this.justDeactivatedMouseLeft = this.justDeactivatedMouseLeft.bind(this);

@@ -7,8 +7,8 @@ const PLAY = "\u23f5";
 const NEXT = "\u23f5\u275a";
 const PREFERENCE_KEY = "overlay-enabled";
 const NOTIFICATION_TAG = "player-status-notification";
-const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "<p><strong>Disable</strong> overlay</p>";
-const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overlay</p>";
+const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "Disable overlay";
+const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "Enable overlay";
 
 export default function PlaylistNotifications(opts, deps) {
     opts = Object(opts);

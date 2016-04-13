@@ -6,9 +6,9 @@ import TagData from "tracks/TagData";
 import { calculateUid, getSearchTerm } from "search/searchUtil";
 import { URL }  from "platform/platform";
 
-Track.DECODE_ERROR = "<p>The file could not be decoded. Check that the codec is supported and the file is not corrupted.</p>";
-Track.FILESYSTEM_ACCESS_ERROR = "<p>Access to the file was denied. It has probably been moved or altered after being added to the playlist.</p>";
-Track.UNKNOWN_ERROR = "<p>Unknown error</p>";
+Track.DECODE_ERROR = "The file could not be decoded. Check that the codec is supported and the file is not corrupted.";
+Track.FILESYSTEM_ACCESS_ERROR = "Access to the file was denied. It has probably been moved or altered after being added to the playlist.";
+Track.UNKNOWN_ERROR = "Unknown error";
 
 const transientIdToTrack = Object.create(null);
 var nextTransientId = 10000;

@@ -1,10 +1,13 @@
 "use strict";
 
-const ANALYSIS_TOOLTIP_MESSAGE =
-"<p>This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.</p>" +
-"<p>Playing this track before the analysis has been completed may require manually adjusting volume.</p>";
+const ANALYSIS_TOOLTIP_MESSAGE = [
+    "This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.",
+    "Playing this track before the analysis has been completed may require manually adjusting volume."
+];
 
-const ERROR_HEADER = "<p>There was an error with this track:</p>";
+const ERROR_HEADER = [
+    "There was an error with this track:"
+];
 
 export default function TrackView(track, opts) {
     opts = Object(opts);
@@ -335,6 +338,7 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
         "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
         "></span>"));
 
+
     this._analysisTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
     this.$trackStatus().addClass("unclickable");
@@ -349,7 +353,7 @@ TrackView.prototype.viewUpdateShowErrorStatus = function() {
         "></span>"));
 
     this._errorTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
-                                                                 ERROR_HEADER + this._track._error);
+                                                                 ERROR_HEADER.concat(this._track._error));
     this.$trackStatus().addClass("unclickable");
 };
 

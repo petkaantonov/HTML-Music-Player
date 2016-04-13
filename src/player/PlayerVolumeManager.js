@@ -16,8 +16,7 @@ export default function PlayerVolumeManager(opts, deps) {
     this._domNode = this.page.$(opts.target);
     this._muteDom = this.$().find(opts.muteDom);
     this._muteTooltip = this.tooltipContext.createTooltip(this.$mute(),function() {
-        return self.player.isMuted() ? "<p><strong>Unmute</strong> volume.</p>"
-                                     : "<p><strong>Mute</strong> volume.</p>";
+        return self.player.isMuted() ? "Unmute volume." : "Mute volume.";
     });
 
     this.slided = this.slided.bind(this);

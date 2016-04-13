@@ -146,7 +146,11 @@ Tooltip.prototype._clearDelay = function() {
     this._delayTimeoutId = -1;
 };
 
-Tooltip.prototype._createTooltipNode = function(message) {
+Tooltip.prototype._createTooltipNode = function(messages) {
+    if (typeof messages === "string") {
+        messages = [messages];
+    }
+
     var containerClass = this._classPrefix.split(" ").map(function(v) {
         return v + "-container";
     }).join(" ") + " tooltip-container";
@@ -154,10 +158,15 @@ Tooltip.prototype._createTooltipNode = function(message) {
         return v + "-message";
     }).join(" ") + " tooltip-message";
 
-    var html = "<div class='"+containerClass+"'>" +
-            "<div class='"+messageClass+"'>" + message + "</div></div>";
+    var container = this.page.createElement("div", {class: containerClass});
+    var message = this.page.createElement("div", {class: messageClass}).appendTo(container);
 
-    return this.page.parse(html);
+
+    for (var i = 0; i < messages.length; ++i) {
+        message.append(this.page.createElement("p").setText(messages[i]))
+    }
+
+    return container;
 };
 
 Tooltip.prototype.clicked = function() {
@@ -287,7 +296,6 @@ Tooltip.prototype._show = function(isForRepaintOnly) {
     var content = this._onContent();
     if (content === false) return;
     this._shown = true;
-    content = content + "";
 
     var $parent = this.page.$("body");
     var $node = this._createTooltipNode(content);
