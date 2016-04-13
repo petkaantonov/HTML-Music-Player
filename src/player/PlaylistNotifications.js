@@ -12,6 +12,7 @@ const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "<p><strong>Enable</strong> overl
 
 export default function PlaylistNotifications(opts, deps) {
     opts = Object(opts);
+    this.permissionPrompt = deps.permissionPrompt;
     this.env = deps.env;
     this.page = deps.page;
     this.serviceWorkerManager = deps.serviceWorkerManager;
@@ -255,13 +256,15 @@ PlaylistNotifications.prototype.requestPermission = function() {
     } else if (this.page.window().Notification.permission === "granted") {
         ret = Promise.resolve(true);
     } else {
-        ret = new Promise(function(resolve) {
-            self.page.window().Notification.requestPermission(function() {
-                self.page.setTimeout(function() {
-                    resolve(self.notificationsEnabled());
-                }, 1);
+        ret = this.permissionPrompt.prompt(function() {
+            return new Promise(function(resolve) {
+                self.page.window().Notification.requestPermission(resolve);
             });
-        });
+        }).then(function() {
+            return Promise.delay(1);
+        }).then(function() {
+            return self.notificationsEnabled();
+        })
     }
 
     ret = ret.finally(function() {

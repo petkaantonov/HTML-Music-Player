@@ -6,6 +6,7 @@ import AnimationContext from "ui/animation/AnimationContext";
 import Snackbar from "ui/Snackbar";
 import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
+import PermissionPrompt from "ui/PermissionPrompt";
 import TrackDisplay from "player/TrackDisplay";
 import MainTabs from "player/MainTabs";
 import PlaylistModeManager from "player/PlaylistModeManager";
@@ -92,6 +93,14 @@ export default function Application(deps) {
         page: this.page,
         animationContext: this.animationContext
     }));
+
+    this.permissionPrompt = new PermissionPrompt({
+        zIndex: POPUP_ZINDEX + 80,
+        target: "body",
+        dimmerClass: "body-dimmer"
+    }, new ApplicationDependencies({
+        page: this.page
+    }))
 
     this.rippler = new Rippler({
         zIndex: POPUP_ZINDEX - 60,
@@ -416,6 +425,7 @@ export default function Application(deps) {
     this.playlistNotifications = new PlaylistNotifications({
         target: ".notification-setting"
     }, new ApplicationDependencies({
+        permissionPrompt: this.permissionPrompt,
         player: this.player,
         playlist: this.playlist,
         page: this.page,

@@ -414,7 +414,9 @@ Resampler.prototype.getLength = function(length) {
 };
 
 Resampler.prototype.resample = function(channels, length, output) {
-    if (channels.length !== this.nb_channels) throw new Error("input doesn't have expected channel count");
+    if (channels.length !== this.nb_channels) {
+        throw new Error("input doesn't have expected channel count");
+    }
     if (!this.started) throw new Error("start() not called");
     if (length == null) length = channels[0].length;
 

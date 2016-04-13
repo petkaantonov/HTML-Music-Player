@@ -71,7 +71,8 @@ ApplicationDependencies.prototype.ensure = function() {
     ["visualizerCanvas", "object"],
     ["trackDisplay", "object"],
     ["defaultShortcuts", "object"],
-    ["playlistModeManager", "object"]
+    ["playlistModeManager", "object"],
+    ["permissionPrompt", "object"]
 ].forEach(function(spec) {
     var v = spec[0];
     var type = spec[1];
