@@ -149,7 +149,25 @@ FixedItemListScroller.prototype._scheduleRender = function() {
 FixedItemListScroller.prototype._renderScroller = function(left, top) {
     if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
+    if (this._checkBuggedScrollTop()) {
+        return;
+    }
     this._scheduleRender();
+};
+
+FixedItemListScroller.prototype._checkBuggedScrollTop = function() {
+    if (isNaN(this._scrollTop))  {
+        this._scrollTop = 0;
+        this._scroller.__decelerationVelocityX = 0;
+        this._scroller.__decelerationVelocityY = 0;
+        this._scroller.__scheduledLeft = 0;
+        this._scroller.__scheduledTop = 0;
+        this._scroller.__scrollLeft = 0;
+        this._scroller.__scrollTop = 0;
+        this.scrollBy(1);
+        return true;
+    }
+    return false;
 };
 
 FixedItemListScroller.prototype.length = function() {
@@ -171,6 +189,9 @@ FixedItemListScroller.prototype.needScrollbar = function() {
 FixedItemListScroller.prototype.scrollToUnsnapped = function(top, animate) {
     if (!this.needScrollbar()) top = 0;
     this._scrollTop = top;
+    if (this._checkBuggedScrollTop()) {
+        return;
+    }
     this._scroller.scrollTo(null, top, !!animate);
     this._scheduleRender();
 };
@@ -207,6 +228,7 @@ FixedItemListScroller.prototype.resize = function() {
     this._changingDimensions = true;
     this._scroller.scrollTo(null, top, false);
     this._resetChangingDimensions();
+    this._checkBuggedScrollTop();
 };
 
 FixedItemListScroller.prototype.refresh = function() {
