@@ -78,8 +78,11 @@ export function DomWrapper(selector, root, page) {
         }
         this._length = result.length;
     } else if (selector != null && typeof selector === "object") {
-        if (typeof selector.length === "number" &&
-            typeof selector[0] === "object") {
+        if (selector.nodeType === 1) {
+            this._length = 1;
+            this[0] = selector;
+        } else if (typeof selector.length === "number" &&
+                   typeof selector[0] === "object") {
             for (var i = 0; i < selector.length; ++i) {
                 var elem = selector[i];
                 if (elem != null) {
@@ -92,9 +95,6 @@ export function DomWrapper(selector, root, page) {
                     }
                 }
             }
-        } else if (selector.nodeType === 1) {
-            this._length = 1;
-            this[0] = selector;
         }
     }
 }
