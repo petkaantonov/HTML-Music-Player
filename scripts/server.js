@@ -33,7 +33,7 @@ Promise.join(
         organization: commonName,
         organizationUnit: commonName,
         commonName: commonName,
-        altNames: commonName,
+        altNames: [commonName],
         emailAddress: commonName+"@" + commonName,
         selfSigned: true
     }).then(function(keys) {
@@ -62,6 +62,8 @@ Promise.join(
             res.setHeader("Expires", "0");
         }
     }));
+
+
 
     return https.createServer({
         key: keys.key,

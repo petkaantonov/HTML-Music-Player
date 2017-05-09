@@ -14,7 +14,7 @@
     "watch-nongui": "gulp watch:nongui",
     "build-gui": "gulp gui",
     "build-nongui": "gulp nongui",
-    "start": "concurrently --kill-others \"node scripts/server\" \"npm run watch-css\" \"npm run watch-gui\" \"npm run watch-nongui\""
+    "start": "concurrently --kill-others \"node scripts/server --commonName=vm\" \"npm run watch-css\" \"npm run watch-gui\" \"npm run watch-nongui\""
   },
   "repository": {
     "type": "git",

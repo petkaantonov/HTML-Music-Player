@@ -1,0 +1,20 @@
+{
+  "name": "soita-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js --mySqlHost=\"$SOITA_MYSQL_HOST\" --mySqlPort=\"$SOITA_MYSQL_PORT\" --mySqlUser=\"$SOITA_MYSQL_USER\" --mySqlPassword=\"$SOITA_MYSQL_PASSWORD\" --mySqlDatabase=\"$SOITA_MYSQL_DATABASE\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "db-migrate": "^0.10.0-beta.20",
+    "express": "^4.15.2",
+    "mysql": "^2.13.0",
+    "socket.io": "^2.0.1",
+    "yargs": "^8.0.1"
+  }
+}

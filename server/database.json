@@ -1,0 +1,21 @@
+{
+    "defaultEnv": {"ENV": "NODE_ENV"},
+    "sql-file": true,
+
+    "development": {
+        "driver": "mysql",
+        "host": {"ENV": "SOITA_MYSQL_FULLHOST"},
+        "database": {"ENV": "SOITA_MYSQL_DATABASE"},
+        "user": {"ENV": "SOITA_MYSQL_USER"},
+        "password": {"ENV": "SOITA_MYSQL_PASSWORD"},
+        "multipleStatements": true
+    },
+    "production": {
+        "driver": "mysql",
+        "host": {"ENV": "SOITA_MYSQL_FULLHOST"},
+        "database": {"ENV": "SOITA_MYSQL_DATABASE"},
+        "user": {"ENV": "SOITA_MYSQL_USER"},
+        "password": {"ENV": "SOITA_MYSQL_PASSWORD"},
+        "multipleStatements": true
+    }
+}
