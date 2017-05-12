@@ -4,7 +4,8 @@ const mysql = Promise.promisifyAll(require("mysql"));
 const util = require("./util/util");
 const env = process.env.NODE_ENV|| "development";
 
-const UserDao = require("./dao/UserDao");
+const AccountDao = require("./dao/AccountDao");
+const DeviceDao = require("./dao/DeviceDao");
 
 const mySqlOptions = {
     host: argv.mySqlHost || "localhost",
@@ -22,5 +23,12 @@ const mySqlOptions = {
 };
 
 const pool = mysql.createPool(mySqlOptions);
+pool.withConnectionAsync = function(callback) {
+    return Promise.using(this.getConnectionAsync().disposer(function(connection) {
+        try {
+            connection.release();
+        } catch (e) {}
+    }), callback);
+};
 
-const userDao = new UserDao(pool);
+const accountDao = new AccountDao(pool);

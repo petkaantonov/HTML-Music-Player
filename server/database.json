@@ -4,7 +4,7 @@
 
     "development": {
         "driver": "mysql",
-        "host": {"ENV": "SOITA_MYSQL_FULLHOST"},
+        "host": {"ENV": "SOITA_MYSQL_HOST"},
         "database": {"ENV": "SOITA_MYSQL_DATABASE"},
         "user": {"ENV": "SOITA_MYSQL_USER"},
         "password": {"ENV": "SOITA_MYSQL_PASSWORD"},
@@ -12,7 +12,7 @@
     },
     "production": {
         "driver": "mysql",
-        "host": {"ENV": "SOITA_MYSQL_FULLHOST"},
+        "host": {"ENV": "SOITA_MYSQL_HOST"},
         "database": {"ENV": "SOITA_MYSQL_DATABASE"},
         "user": {"ENV": "SOITA_MYSQL_USER"},
         "password": {"ENV": "SOITA_MYSQL_PASSWORD"},

@@ -10,10 +10,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "bluebird": "^3.5.0",
     "db-migrate": "^0.10.0-beta.20",
+    "db-migrate-mysql": "^1.1.10",
     "express": "^4.15.2",
+    "mkdirp": "^0.5.1",
     "mysql": "^2.13.0",
+    "rimraf": "^2.6.1",
     "socket.io": "^2.0.1",
     "yargs": "^8.0.1"
   }
