@@ -21,7 +21,6 @@ mkdirp.sync(cacheRoot);
 function YoutubeDl(ytid) {
     this.ytid = ytid;
     this.handle = null;
-    this.ffmpegStarted = false;
     this.aborted = false;
     this.uid = (Math.random() + "").replace(/[^0-9]+/g, "");
     this.started = null;
@@ -51,6 +50,14 @@ YoutubeDl.prototype.getAudioFilePath = function() {
     return path.join(this.getDataDir(), this.ytid + ".mp3");
 };
 
+YoutubeDl.prototype.getInfoFilePath = function() {
+    return path.join(this.getDataDir(), "-.info.json");
+};
+
+YoutubeDl.prototype.getCookieFilePath = function() {
+    return path.join(this.getDataDir(), "cookie.txt");
+};
+
 YoutubeDl.prototype.abort = function() {
     if (this.aborted) return;
     this.handle.kill();
@@ -65,42 +72,58 @@ YoutubeDl.prototype.start = function() {
             var stderr = "";
             var stdout = "";
             var cwd = this.getDataDir();
-            var args = ["--ignore-config",
-                         "--no-color",
-                         "--no-mark-watched",
-                         "--no-playlist",
-                         "--no-mtime",
-                         "-o",
-                         this.ytid + ".%(ext)s",
-                         "--restrict-filenames",
-                         "-w",
-                         "--write-info-json",
-                         "--cache-dir",
-                         cacheRoot,
-                         "--cookies",
-                         path.join(this.getDataDir(), "cookies"),
-                         "--no-progress",
-                         "--no-call-home",
-                         "--no-check-certificate",
-                         "-x",
-                         "--format",
-                         "258/256/141/140/139/172/171/251/250/249/22/34/35/43/44/59/78",
-                         "--audio-format",
-                         "mp3",
-                         "--audio-quality",
-                         (OUTPUT_BITRATE / 1000) + "",
-                         "--no-post-overwrites",
-                         "--prefer-ffmpeg",
-                         "--ffmpeg-location",
-                         "/usr/bin/ffmpeg",
-                         "https://www.youtube.com/watch?v=" + this.ytid];
-            this.handle = spawn("youtube-dl", args, {cwd: cwd});
+            var shellCommand = [
+                "youtube-dl",
+                "--ignore-config",
+                "--no-color",
+                "--fixup",
+                "never",
+                "--no-mark-watched",
+                "--no-playlist",
+                "--no-mtime",
+                "-o",
+                "-",
+                "--restrict-filenames",
+                "-w",
+                "--write-info-json",
+                "--cache-dir",
+                cacheRoot,
+                "--cookies",
+                this.getCookieFilePath(),
+                "--no-progress",
+                "--no-call-home",
+                "--no-check-certificate",
+                "--format",
+                "258/256/141/140/139/172/171/251/250/249/22/34/35/43/44/59/78",
+                "--no-post-overwrites",
+                "https://www.youtube.com/watch?v=" + this.ytid,
+                "|",
+                "/usr/bin/ffmpeg",
+                "-y",
+                "-i",
+                "pipe:0",
+                "-vn",
+                "-acodec",
+                "libmp3lame",
+                "-b:a",
+                (OUTPUT_BITRATE / 1000) + "k",
+                "file:" + this.ytid + ".mp3"].join(" ");
+
+            this.handle = spawn("sh", ["-c", shellCommand], {
+                cwd: cwd
+            });
+
             this.handle.stdout.on("data", (data) => {
-                // TODO: Use streaming parser to detect when ffmpeg is ready.
-                stdout += data;
-                if (!this.ffmpegStarted && stdout.indexOf("[ffmpeg] Des") >= 0) {
-                    this.ffmpegStarted = true;
-                    resolve(fs.readFileAsync(path.join(this.getDataDir(), this.ytid + ".info.json"), "utf8").then(result => {
+                console.log("stdout", data + "");
+            });
+
+            this.handle.stderr.on("data", (data) => {
+                stderr += data;
+                console.log("stderr", data + "");
+                // TODO: Use streaming parser to detect when info is ready.
+                if (!this.infoRetrieved && stderr.indexOf("[download] Destination:") >= 0) {
+                    this.infoRetrieved = true;
+                    resolve(fs.readFileAsync(this.getInfoFilePath(), "utf8").then(result => {
                         if (this.aborted) {
                             return this.getDummyData();
                         }
@@ -122,13 +145,22 @@ YoutubeDl.prototype.start = function() {
                             if (this.aborted) {
                                 return this.getDummyData();
                             }
-                            var bitRate;
-                            if (/mp3/.test(result.acodec + "")) {
-                                bitRate = result.abr * 1000;
-                            } else {
-                                bitRate = OUTPUT_BITRATE;
-                            }
 
+                            var statlol = false;
+                            var lol = setInterval(() => {
+                                if (statlol) return;
+                                statlol = true;
+                                if (this.handle) {
+                                    fs.statAsync(this.getAudioFilePath()).get("size").then(size => {
+                                        console.log("currentSize", size);
+                                        statlol = false;
+                                    });
+                                } else {
+                                    clearInterval(lol);
+                                }
+                            }, 30);
+
+                            var bitRate = OUTPUT_BITRATE;
                             var predictedSize = (bitRate * result.duration) / 8;
 
                             this.audioFileData = {
@@ -140,19 +172,17 @@ YoutubeDl.prototype.start = function() {
                                 handle: this.getHandle()
                             };
 
+                            console.log(this.audioFileData);
+
                             return this.audioFileData;
                         });
                     }));
                 }
             });
 
-            this.handle.stderr.on("data", (data) => {
-                stderr += data;
-                // LOG ERROR
-            });
-
             this.handle.on("exit", (code) => {
                 this.handle = null;
+                console.log("code", code);
                 if ((+code) !== 0) {
                     reject(new Error(stderr));
                 }
