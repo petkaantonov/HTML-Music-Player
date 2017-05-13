@@ -8,13 +8,15 @@ const rimraf = require("rimraf");
 const path = require("path");
 const mkdirpAsync = Promise.promisify(mkdirp);
 const rimrafAsync = Promise.promisify(rimraf);
+Promise.promisifyAll(require("stream").Writable);
 
-const dataRoot = path.join(os.tmpdir(), "soita");
-const cacheRoot = path.join(dataRoot, "cache");
+
+const DATA_ROOT = "/var/lib/soita";
+const CACHE_ROOT = path.join(DATA_ROOT, "cache");
 const OUTPUT_BITRATE = 192000;
 
-mkdirp.sync(dataRoot);
-mkdirp.sync(cacheRoot);
+mkdirp.sync(DATA_ROOT);
+mkdirp.sync(CACHE_ROOT);
 
 // Clean up started handles that are never aborted or confirmed
 
@@ -23,8 +25,9 @@ function YoutubeDl(ytid) {
     this.handle = null;
     this.aborted = false;
     this.uid = (Math.random() + "").replace(/[^0-9]+/g, "");
-    this.started = null;
+    this.started = -1;
     this.audioFileData = null;
+    this.logHandle = Promise.resolve();
 }
 
 YoutubeDl.prototype.getDummyData = function() {
@@ -43,11 +46,15 @@ YoutubeDl.prototype.getHandle = function() {
 };
 
 YoutubeDl.prototype.getDataDir = function() {
-    return path.join(dataRoot, "data-" + this.getHandle());
+    return path.join(DATA_ROOT, "data-" + this.getHandle());
+};
+
+YoutubeDl.prototype.getAudioFileName = function() {
+    return this.ytid + ".mp3";
 };
 
 YoutubeDl.prototype.getAudioFilePath = function() {
-    return path.join(this.getDataDir(), this.ytid + ".mp3");
+    return path.join(this.getDataDir(), this.getAudioFileName());
 };
 
 YoutubeDl.prototype.getInfoFilePath = function() {
@@ -58,19 +65,65 @@ YoutubeDl.prototype.getCookieFilePath = function() {
     return path.join(this.getDataDir(), "cookie.txt");
 };
 
+YoutubeDl.prototype.getLogFilePath = function() {
+    return path.join(this.getDataDir(), "output.log");
+};
+
+YoutubeDl.prototype.log = function(message) {
+    this.logHandle = this.logHandle.then(handle => {
+        if (handle) {
+            message = message instanceof Buffer ? message : Buffer.from(message + "", "utf8");
+            var stream = fs.createWriteStream(null, {
+                flags: "a",
+                fd: handle,
+                autoClose: false
+            });
+            return stream.endAsync(message).thenReturn(handle);
+        }
+    });
+};
+
+YoutubeDl.prototype.closeLogFile = function() {
+    return this.logHandle.then(handle => {
+        this.logHandle = Promise.resolve();
+        if (handle) {
+            return fs.closeAsync(handle);
+        }
+    });
+};
+
+YoutubeDl.prototype.cleanup = function() {
+    if (this.aborted) return;
+    this.aborted = true;
+    this.closeLogFile();
+    if (this.handle) {
+        return new Promise(resolve => {
+            this.handle.on("exit", resolve);
+        }).then(() => rimrafAsync(this.getDataDir()));
+    } else {
+        return rimrafAsync(this.getDataDir());
+    }
+};
+
+// Client aborting the download process
 YoutubeDl.prototype.abort = function() {
     if (this.aborted) return;
     this.handle.kill();
-    return this.confirmDl();
+    return this.cleanup();
 };
 
+// Client starting the download process, returns a handle for the client from which .streamAudio() can immediately
+// be used to start streaming the audio.
 YoutubeDl.prototype.start = function() {
     if (this.handle || this.aborted) return;
     this.started = Date.now();
     return mkdirpAsync(this.getDataDir()).then(() => {
+        if (this.aborted) {
+            return rimrafAsync(this.getDataDir());
+        }
+        this.logHandle = fs.openAsync(this.getLogFilePath(), "a");
         return new Promise((resolve, reject) => {
             var stderr = "";
-            var stdout = "";
             var cwd = this.getDataDir();
             var shellCommand = [
                 "youtube-dl",
@@ -87,7 +140,7 @@ YoutubeDl.prototype.start = function() {
                 "-w",
                 "--write-info-json",
                 "--cache-dir",
-                cacheRoot,
+                CACHE_ROOT,
                 "--cookies",
                 this.getCookieFilePath(),
                 "--no-progress",
@@ -107,19 +160,15 @@ YoutubeDl.prototype.start = function() {
                 "libmp3lame",
                 "-b:a",
                 (OUTPUT_BITRATE / 1000) + "k",
-                "file:" + this.ytid + ".mp3"].join(" ");
+                "file:" + this.getAudioFileName()].join(" ");
 
             this.handle = spawn("sh", ["-c", shellCommand], {
                 cwd: cwd
             });
 
-            this.handle.stdout.on("data", (data) => {
-                console.log("stdout", data + "");
-            });
-
             this.handle.stderr.on("data", (data) => {
                 stderr += data;
-                console.log("stderr", data + "");
+                this.log(data);
                 // TODO: Use streaming parser to detect when info is ready.
                 if (!this.infoRetrieved && stderr.indexOf("[download] Destination:") >= 0) {
                     this.infoRetrieved = true;
@@ -146,20 +195,6 @@ YoutubeDl.prototype.start = function() {
                                 return this.getDummyData();
                             }
 
-                            var statlol = false;
-                            var lol = setInterval(() => {
-                                if (statlol) return;
-                                statlol = true;
-                                if (this.handle) {
-                                    fs.statAsync(this.getAudioFilePath()).get("size").then(size => {
-                                        console.log("currentSize", size);
-                                        statlol = false;
-                                    });
-                                } else {
-                                    clearInterval(lol);
-                                }
-                            }, 30);
-
                             var bitRate = OUTPUT_BITRATE;
                             var predictedSize = (bitRate * result.duration) / 8;
 
@@ -172,8 +207,6 @@ YoutubeDl.prototype.start = function() {
                                 handle: this.getHandle()
                             };
 
-                            console.log(this.audioFileData);
-
                             return this.audioFileData;
                         });
                     }));
@@ -182,32 +215,27 @@ YoutubeDl.prototype.start = function() {
 
             this.handle.on("exit", (code) => {
                 this.handle = null;
-                console.log("code", code);
+                this.log("exited with code " + code);
                 if ((+code) !== 0) {
                     reject(new Error(stderr));
                 }
+                this.closeLogFile();
             });
 
             this.handle.on("error", (error) => {
-                console.error(error && error.stack || error + "");
+                this.log(error && error.stack || error + "");
             });
         });
     });
 };
 
-YoutubeDl.prototype.confirmDl = function() {
-    if (this.aborted) return;
-    this.aborted = true;
-    if (this.handle) {
-        return new Promise(resolve => {
-            this.handle.on("exit", resolve);
-        }).then(() => rimrafAsync(this.getDataDir()));
-    } else {
-        return rimrafAsync(this.getDataDir());
-    }
+// Client has fully downloaded the file to IndexedDB
+YoutubeDl.prototype.confirmDownload = function() {
+    return this.cleanup();
 };
 
-YoutubeDl.prototype.streamAudio = function(start, end) {
+// Client requesting a chunk of the file
+YoutubeDl.prototype.streamAudio = function(offset, length) {
     if (this.aborted || !this.audioFileData) {
         throw new Error("invalid call");
     }
