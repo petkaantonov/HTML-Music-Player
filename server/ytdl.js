@@ -1,4 +1,5 @@
-
+const EventEmitter = require("events");
+const util = require("util");
 const Promise = require("bluebird");
 const os = require("os");
 const spawn = require("child_process").spawn;
@@ -6,6 +7,7 @@ const fs = Promise.promisifyAll(require("fs"));
 const mkdirp = require("mkdirp");
 const rimraf = require("rimraf");
 const path = require("path");
+const Readable = require("stream").Readable;
 const mkdirpAsync = Promise.promisify(mkdirp);
 const rimrafAsync = Promise.promisify(rimraf);
 Promise.promisifyAll(require("stream").Writable);
@@ -14,13 +16,134 @@ Promise.promisifyAll(require("stream").Writable);
 const DATA_ROOT = "/var/lib/soita";
 const CACHE_ROOT = path.join(DATA_ROOT, "cache");
 const OUTPUT_BITRATE = 192000;
+const EXPECTED_BYTES_WRITTEN_PER_MILLISECOND = 2160;
+const MAX_CONCURRENT_READ_STREAMS = 10;
 
 mkdirp.sync(DATA_ROOT);
 mkdirp.sync(CACHE_ROOT);
 
-// Clean up started handles that are never aborted or confirmed
+class GrowingAudioFileReadable extends Readable {
+    constructor(youtubeDl, offset, length) {
+        super();
+        this.youtubeDl = youtubeDl;
+        this.offset = offset;
+        this.bytesRead = 0;
+        this.handle = null;
+        this.desiredLength = length;
+        this.length = Math.min(offset + length, this._getMaximumFileSize()) - offset;
+        this.closedFromOutside = false;
+        this.on("end", () => {
+            this._clearHandle();
+        });
+    }
+
+    _clearHandle() {
+        if (this.handle) {
+            var handle = this.handle;
+            this.handle = null;
+            handle.then(handle => fs.closeAsync(handle));
+        }
+    }
+
+    _getMaximumFileSize() {
+        return this.youtubeDl.getAudioFileSize(true);
+    }
+
+    _getCurrentFileSizeAsync() {
+        if (!this.handle) {
+            if (this.closedFromOutside) {
+                return Promise.resolve(-1);
+            }
+            this.handle = fs.openAsync(this.youtubeDl.getAudioFilePath(), "r");
+        }
+        return this.handle.then(handle => fs.fstatAsync(handle).get("size"));
+    }
+
+    _bytesRemaining() {
+        return this.length - this.bytesRead;
+    }
+
+    _read(size) {
+        if (this.closedFromOutside || this._bytesRemaining() <= 0) {
+            this.push(null);
+            return;
+        }
+        var howMuchToRead = (+size) > 0 ? +size : this._bytesRemaining();
+        howMuchToRead = Math.min(this._bytesRemaining(), howMuchToRead);
+        var self = this;
+        this._getCurrentFileSizeAsync().then(function fileSizeRetrieved(currentFileSize) {
+            if (currentFileSize < 0) {
+                self.push(null);
+                return;
+            }
+            var position = self.offset + self.bytesRead;
+            var canRead = self.youtubeDl.isAudioFileFinished() || (position + howMuchToRead) <= currentFileSize;
+
+            if (self.youtubeDl.isAudioFileFinished()) {
+                self.length = Math.min(self.offset + self.desiredLength, self._getMaximumFileSize()) - self.offset;
+                howMuchToRead = (+size) > 0 ? +size : self._bytesRemaining();
+                howMuchToRead = Math.min(self._bytesRemaining(), howMuchToRead);
+            }
+
+            if (!canRead) {
+                var fileSizeGrowthNeeded = (position + howMuchToRead) - currentFileSize;
+                return Promise.delay((fileSizeGrowthNeeded / EXPECTED_BYTES_WRITTEN_PER_MILLISECOND) | 0).then(() => {
+                    return self._getCurrentFileSizeAsync().then(fileSizeRetrieved);
+                });
+            } else {
+                if (!self.handle) {
+                    if (self.closedFromOutside) {
+                        self.push(null);
+                        return;
+                    }
+                    self.handle = fs.openAsync(self.youtubeDl.getAudioFilePath(), "r");
+                }
+                return self.handle.then(handle => {
+                    if (self.closedFromOutside || !self.handle) {
+                        self.push(null);
+                        return;
+                    }
+                    var buf = Buffer.allocUnsafe(howMuchToRead);
+                    var offset = 0;
+                    return (function readLoop(bytesRead) {
+                        position += bytesRead;
+                        self.bytesRead += bytesRead;
+                        offset += bytesRead;
+                        howMuchToRead -= bytesRead;
+                        if (self.closedFromOutside || !self.handle) {
+                            self.push(null);
+                            return;
+                        }
+
+                        if (howMuchToRead > 0) {
+                            return fs.readAsync(handle, buf, offset, howMuchToRead, position).then(readLoop);
+                        } else {
+                            self.push(buf);
+                            if (self._bytesRemaining() <= 0) {
+                                self.push(null);
+                            }
+                        }
+                    })(0);
+
+                });
+            }
+        }).catch(e => {
+            this.abort();
+            this.emit("error", e);
+        });
+    }
+
+    abort() {
+        if (this.closedFromOutside) {
+            return;
+        }
+        this.closedFromOutside = true;
+        this._clearHandle();
+    }
+}
 
 function YoutubeDl(ytid) {
+    EventEmitter.call(this);
     this.ytid = ytid;
     this.handle = null;
     this.aborted = false;
@@ -28,13 +151,15 @@ function YoutubeDl(ytid) {
     this.started = -1;
     this.audioFileData = null;
     this.logHandle = Promise.resolve();
+    this.readStreams = [];
 }
+util.inherits(YoutubeDl, EventEmitter);
 
 YoutubeDl.prototype.getDummyData = function() {
     return {
         duration: 0,
         title: "",
-        currentSize: 0,
+        realSize: -1,
         predictedSize: 0,
         bitRate: 0,
         handle: this.getHandle()
@@ -92,10 +217,16 @@ YoutubeDl.prototype.closeLogFile = function() {
     });
 };
 
+YoutubeDl.prototype.closeStreams = function() {
+    this.readStreams.forEach(readStream => readStream.abort());
+    this.readStreams = [];
+};
+
 YoutubeDl.prototype.cleanup = function() {
     if (this.aborted) return;
     this.aborted = true;
     this.closeLogFile();
+    this.closeStreams();
     if (this.handle) {
         return new Promise(resolve => {
             this.handle.on("exit", resolve);
@@ -108,7 +239,7 @@ YoutubeDl.prototype.cleanup = function() {
 // Client aborting the download process
 YoutubeDl.prototype.abort = function() {
     if (this.aborted) return;
-    this.handle.kill();
+    if (this.handle) this.handle.kill();
     return this.cleanup();
 };
 
@@ -147,7 +278,7 @@ YoutubeDl.prototype.start = function() {
                 "--no-call-home",
                 "--no-check-certificate",
                 "--format",
-                "258/256/141/140/139/172/171/251/250/249/22/34/35/43/44/59/78",
+                "258/256/141/140/139/172/171/251/250/249/22/34/35/43/44/59/78/best",
                 "--no-post-overwrites",
                 "https://www.youtube.com/watch?v=" + this.ytid,
                 "|",
@@ -162,6 +293,7 @@ YoutubeDl.prototype.start = function() {
                 (OUTPUT_BITRATE / 1000) + "k",
                 "file:" + this.getAudioFileName()].join(" ");
 
+            this.emit("downloadStart");
             this.handle = spawn("sh", ["-c", shellCommand], {
                 cwd: cwd
             });
@@ -184,13 +316,13 @@ YoutubeDl.prototype.start = function() {
                                     return {size: 0};
                                 }
                                 if (e && e.code === "ENOENT") {
-                                    return Promise.delay(25).then(statLoop);
+                                    return Promise.delay(10).then(statLoop);
                                 }
                                 throw e;
                             });
                         }
 
-                        return Promise.delay(50).then(statLoop).get("size").then(currentSize => {
+                        return Promise.delay(10).then(statLoop).then(() => {
                             if (this.aborted) {
                                 return this.getDummyData();
                             }
@@ -201,8 +333,8 @@ YoutubeDl.prototype.start = function() {
                             this.audioFileData = {
                                 duration: result.duration,
                                 title: result.title,
-                                currentSize: currentSize,
                                 predictedSize: predictedSize,
+                                realSize: -1,
                                 bitRate: bitRate,
                                 handle: this.getHandle()
                             };
@@ -214,10 +346,18 @@ YoutubeDl.prototype.start = function() {
             });
 
             this.handle.on("exit", (code) => {
+                this.emit("downloadEnd");
+                var success = (+code) === 0;
                 this.handle = null;
                 this.log("exited with code " + code);
-                if ((+code) !== 0) {
+                if (!success) {
                     reject(new Error(stderr));
+                } else if (!this.aborted) {
+                    fs.statAsync(this.getAudioFilePath()).then(stat => {
+                        if (this.audioFileData) {
+                            this.audioFileData.realSize = stat.size;
+                        }
+                    }).catch(() => {});
                 }
                 this.closeLogFile();
             });
@@ -234,17 +374,45 @@ YoutubeDl.prototype.confirmDownload = function() {
     return this.cleanup();
 };
 
+YoutubeDl.prototype.getAudioFileSize = function(overEstimate) {
+    if (!this.audioFileData) {
+        throw new Error("invalid call");
+    }
+    if (this.audioFileData.realSize >= 0) {
+        return this.audioFileData.realSize;
+    } else {
+        return this.audioFileData.predictedSize + (overEstimate ? OUTPUT_BITRATE / 8 * 5 : 0);
+    }
+};
+
+YoutubeDl.prototype.isAudioFileFinished = function() {
+    return this.audioFileData && this.audioFileData.realSize >= 0;
+};
+
+YoutubeDl.prototype.isDownloading = function() {
+    if (this.handle || !this.isAudioFileFinished()) {
+        return !this.aborted;
+    }
+    return false;
+};
+
 // Client requesting a chunk of the file
 YoutubeDl.prototype.streamAudio = function(offset, length) {
     if (this.aborted || !this.audioFileData) {
         throw new Error("invalid call");
     }
-    /* Need a tailing stream
-
-    var stream = fs.createReadStream(this.getAudioFilePath(), {
-        start: 0,
-        end: currentSize
-    });*/
+    var ret = new GrowingAudioFileReadable(this, offset, length);
+    ret.on("end", () => {
+        var index = this.readStreams.indexOf(ret);
+        if (index >= 0) {
+            this.readStreams.splice(index, 1);
+        }
+    });
+    this.readStreams.push(ret);
+    while (this.readStreams.length > MAX_CONCURRENT_READ_STREAMS) {
+        this.readStreams.shift().abort();
+    }
+    return ret;
 };
 
 module.exports = YoutubeDl;
