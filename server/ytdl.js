@@ -1,5 +1,4 @@
 const EventEmitter = require("events");
-const util = require("util");
 const Promise = require("bluebird");
 const os = require("os");
 const spawn = require("child_process").spawn;
@@ -11,7 +10,6 @@ const Readable = require("stream").Readable;
 const mkdirpAsync = Promise.promisify(mkdirp);
 const rimrafAsync = Promise.promisify(rimraf);
 Promise.promisifyAll(require("stream").Writable);
-
 
 const DATA_ROOT = "/var/lib/soita";
 const CACHE_ROOT = path.join(DATA_ROOT, "cache");

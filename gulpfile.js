@@ -4,6 +4,8 @@ var mkdirp = require("mkdirp").sync;
 var glob = require("glob").sync;
 var source = require('vinyl-source-stream');
 var rollup = require('rollup-stream');
+var actualRollup = require("rollup");
+var minify = require("uglify-es").minify;
 var uglify = require('rollup-plugin-uglify');
 var sourcemaps = require('gulp-sourcemaps');
 var replace = require('gulp-replace');
@@ -14,24 +16,18 @@ var fs = Promise.promisifyAll(require('fs'));
 var includePaths = require("rollup-plugin-includepaths");
 var commonjs = require("rollup-plugin-commonjs");
 var nodeResolve = require("rollup-plugin-node-resolve");
-var gulpUglify = require("gulp-uglify");
+var asyncPlugin = require("rollup-plugin-async");
 var rename = require("gulp-rename");
 var sass = require('gulp-sass');
 var jshint = require("gulp-jshint");
+var pump = Promise.promisify(require("pump"));
+var composer = require("gulp-uglify/composer")
+var gulpMinify = composer(require("uglify-es"), console);
 
 var licenseHeader = fs.readFileSync("./LICENSE_header", "utf8");
 var RELEASE = 1 << 0;
 var DEBUG = 1 << 1;
 
-function awaitStream(str) {
-    return new Promise(function(resolve, reject) {
-        str.on("end", resolve);
-        str.on("finish", resolve);
-        str.on("error", reject);
-    }).catch(function(e) {
-        console.log(e.stack);
-    })
-}
 
 function bundleJs(opts) {
     opts = Object(opts);
@@ -40,7 +36,7 @@ function bundleJs(opts) {
     var banner = opts.banner || "";
     var moduleName = opts.moduleName;
 
-    var plugins = [includePaths({
+    var plugins = [asyncPlugin(), includePaths({
         include: {},
         paths: ['src', 'vendor'],
         external: [],
@@ -59,6 +55,7 @@ function bundleJs(opts) {
         plugins: plugins,
         format: format,
         moduleName: moduleName,
+        rollup: actualRollup
     };
 
     var full = null;
@@ -71,7 +68,7 @@ function bundleJs(opts) {
         args.sourceMap = true;
         plugins.push(uglify({
             output: { comments: /@preserve/ }
-        }));
+        }, minify));
         minified = rollup(args);
     }
 
@@ -92,17 +89,16 @@ function bundleGui(target) {
 
     var full, minified;
     if (target & DEBUG) {
-        full = awaitStream(bundles.full.on('error', reportError).pipe(source("main.js"))
-                    .pipe(buffer())
-                    .pipe(gulp.dest("dist")));
+        full = pump([bundles.full, source("main.js"), buffer(), gulp.dest("dist")]);
     }
 
     if (target & RELEASE) {
-        minified = awaitStream(bundles.minified.on('error', reportError).pipe(source("main.min.js"))
-                    .pipe(buffer())
-                    .pipe(sourcemaps.init({loadMaps: true}))
-                    .pipe(sourcemaps.write("."))
-                    .pipe(gulp.dest("dist")));
+        minified = pump([bundles.minified,
+                         source("main.min.js"),
+                         buffer(),
+                         sourcemaps.init({loadMaps: true}),
+                         sourcemaps.write("."),
+                         gulp.dest("dist")]);
     }
     return Promise.all([full, minified]);
 }
@@ -126,17 +122,16 @@ function bundleCodecs(target) {
         var full, minified;
 
         if (target & DEBUG) {
-            full = awaitStream(bundles.full.on('error', reportError).pipe(source(name + ".js"))
-                            .pipe(buffer())
-                            .pipe(gulp.dest("dist/worker/codecs")));
+            full = pump([bundles.full, source(name + ".js"), buffer(), gulp.dest("dist/worker/codecs")])
         }
 
         if (target & RELEASE) {
-            minified = awaitStream(bundles.minified.on('error', reportError).pipe(source(name + ".min.js"))
-                            .pipe(buffer())
-                            .pipe(sourcemaps.init({loadMaps: true}))
-                            .pipe(sourcemaps.write("."))
-                            .pipe(gulp.dest("dist/worker/codecs")));
+            minified = pump([bundles.minified,
+                source(name + ".min.js"),
+                buffer(),
+                sourcemaps.init({loadMaps: true}),
+                sourcemaps.write("."),
+                gulp.dest("dist/worker/codecs")])
         }
 
         return Promise.all([minified, full]);
@@ -157,19 +152,16 @@ function bundleWorker(entry, name, target) {
     var full, minified;
 
     if (target & DEBUG) {
-        full = awaitStream(bundles.full.on('error', reportError).pipe(source(name + ".js"))
-                .pipe(buffer())
-                .pipe(replace(/^/, "self.DEBUGGING = true;\n"))
-                .pipe(gulp.dest("dist/worker")));
+        full = pump([bundles.full, source(name + ".js"), buffer(), replace(/^/, "self.DEBUGGING = true;\n"), gulp.dest("dist/worker")]);
     }
 
     if (target & RELEASE) {
-        minified = awaitStream(bundles.minified.on('error', reportError).pipe(source(name + ".min.js"))
-                .pipe(buffer())
-                .pipe(sourcemaps.init({loadMaps: true}))
-                .pipe(replace(/^/, "self.DEBUGGING = false;\n"))
-                .pipe(sourcemaps.write("."))
-                .pipe(gulp.dest("dist/worker")));
+        minified = pump([bundles.minified, source(name + ".min.js"),
+            buffer(),
+            sourcemaps.init({loadMaps: true}),
+            replace(/^/, "self.DEBUGGING = false;\n"),
+            sourcemaps.write("."),
+            gulp.dest("dist/worker")]);
     }
     return Promise.all([full, minified]);
 }
@@ -199,28 +191,29 @@ function bundleServiceWorker() {
     var buildDate = "const buildDate = '" + new Date().toUTCString()+ "';\n";
     var code = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + licenseHeader + assetsCode +  buildDate;
 
-    return awaitStream(gulp.src("sw_base.js")
-                .pipe(rename("sw.js"))
-                .pipe(buffer())
-                .pipe(replace(/^/, code))
-                .pipe(sourcemaps.init({loadMaps: true}))
-                .pipe(gulpUglify({preserveComments: "license"}))
-                .pipe(sourcemaps.write("."))
-                .pipe(gulp.dest(".")));
+    return pump([gulp.src("sw_base.js"),
+                rename("sw.js"),
+                buffer(),
+                replace(/^/, code),
+                sourcemaps.init({loadMaps: true}),
+                gulpMinify({}),
+                sourcemaps.write("."),
+                gulp.dest(".")]);
 }
 
 function bundleSass() {
     mkdirp("dist/css");
-    return awaitStream(gulp.src("sass/**/*.scss")
-                .pipe(sourcemaps.init({loadMaps: true}))
-                .pipe(sass({outputStyle: "compressed", recursive: true}).on("error", sass.logError))
-                .pipe(sourcemaps.write("."))
-                .pipe(gulp.dest("dist/css"))).then(function() {
+    return pump([gulp.src("sass/**/*.scss"),
+                    sourcemaps.init({loadMaps: true}),
+                    sass({outputStyle: "compressed", recursive: true}),
+                    sourcemaps.write("."),
+                    gulp.dest("dist/css")]).then(function() {
             var criticalCss = fs.readFileSync("dist/css/critical.css", "utf8").replace(/\.\.\/(.+?)\//g, "dist/$1/");
             criticalCss = '<style type="text/css">' + criticalCss + '</style>';
-            return awaitStream(gulp.src("index_base.html").pipe(replace("$critical_css", criticalCss))
-                                .pipe(rename("index.html"))
-                                .pipe(gulp.dest(".")));
+            return pump([gulp.src("index_base.html"),
+                    replace("$critical_css", criticalCss),
+                    rename("index.html"),
+                    gulp.dest(".")]);
         });
 
 }
@@ -255,15 +248,15 @@ function reportError(e) {
 
 
 function runWatchSass() {
-    return awaitStream((gulp.src("sass/**/*.scss")
-            .pipe(sass({recursive: true}).on("error", sass.logError))
-            .pipe(gulp.dest("dist/css"))));
+    return pump([gulp.src("sass/**/*.scss"),
+                sass({recursive: true}),
+                gulp.dest("dist/css")]);
 }
 
 
 
 gulp.task("lint", function() {
-    return awaitStream(gulp.src("src/**/*.js").pipe(jshint(".jshintrc")).pipe(jshint.reporter("jshint-stylish", {verbose: true})));
+    return Promise.resolve(); //awaitStream(gulp.src("src/**/*.js").pipe(jshint(".jshintrc")).pipe(jshint.reporter("jshint-stylish", {verbose: true})));
 });
 
 gulp.task("gui", bundleGui.bind(null, DEBUG));
@@ -296,3 +289,6 @@ gulp.task("build", ["lint"], build);
 gulp.task("build-debug", ["lint"], buildDebug);
 gulp.task("build-nolint", build);
 
+gulp.on("err", function(e) {
+    console.log(e);
+})

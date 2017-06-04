@@ -34,6 +34,7 @@ export default function Env(page) {
     this._supportedMimes = "audio/mp3,audio/mpeg".split(",");
     this._rSupportedMimes = new RegExp("^(?:"+this._supportedMimes.join("|")+")$", "i");
     this._rSupportedExtensions = /^(?:mp3|mpg|mpeg)$/i;
+    this._mediaSession = "mediaSession" in navigator;
 
     var browserName, browserVersion;
     var isIe = false;
@@ -61,6 +62,10 @@ export default function Env(page) {
         this._maxNotificationActions = window.Notification.maxActions;
     }
 }
+
+Env.prototype.mediaSessionSupport = function() {
+    return this._mediaSession;
+};
 
 Env.prototype.maxNotificationActions = function() {
     return this._maxNotificationActions;

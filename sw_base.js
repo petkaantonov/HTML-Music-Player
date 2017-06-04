@@ -4,7 +4,7 @@ const ASSET_CACHE = ASSET_PREFIX + buildDate.replace(/[^a-z0-9]+/ig, "-");
 const COVER_ART_CACHE = "cover-art-cache";
 const COVER_ART_HOSTNAME = "coverartarchive.org";
 const THIRD_PARTY_ASSET_CACHE = "asset-cache-3rd-party";
-const IS_DEVELOPMENT = location.hostname === "v" || location.hostname === "localhost";
+const IS_DEVELOPMENT = location.hostname === "v" || location.hostname === "localhost" || location.hostname === "vm";
 
 const delay = function(ms) {
     return new Promise(function(resolve) {

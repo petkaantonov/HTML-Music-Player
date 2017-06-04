@@ -56,12 +56,11 @@ PermissionPrompt.prototype._undimBackground = function() {
     }
 };
 
-PermissionPrompt.prototype.prompt = function(prompter) {
-    var self = this;
-    return Promise.resolve().then(function() {
-        self._promptStarted();
-        return prompter();
-    }).finally(function() {
-        self._promptEnded();
-    });
+PermissionPrompt.prototype.prompt = async function(prompter) {
+    try {
+        this._promptStarted();
+        return await prompter();
+    } finally {
+        this._promptEnded();
+    }
 };

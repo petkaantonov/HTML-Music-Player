@@ -60,6 +60,17 @@ SourceDescriptor.prototype.getRemainingDuration = function() {
     return this.duration - this.playedSoFar;
 };
 
+function NativeGetOutputTimestamp() {
+    return this._audioContext.getOutputTimestamp();
+}
+
+function PolyfillGetOutputTimestamp() {
+    return {
+        contextTime: this._audioContext.currentTime,
+        performanceTime: performance.now()
+    };
+}
+
 function webAudioBlockSize(value) {
     const BLOCK_SIZE = 128;
     if (value % BLOCK_SIZE === 0) return value;
@@ -143,6 +154,9 @@ export default function AudioPlayer(opts, deps) {
     }.bind(this));
 
     this.page.addDocumentListener("touchend", this._touchended.bind(this), true);
+
+    this.getOutputTimestamp = typeof this._audioContext.getOutputTimestamp === "function" ? NativeGetOutputTimestamp
+                                                                                          : PolyfillGetOutputTimestamp;
     deps.ensure();
 }
 inherits(AudioPlayer, EventEmitter);
@@ -719,11 +733,12 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
     var inputBuffer = input.buffer;
 
     if (!this._sourceStopped) {
-        var now = this._player.getCurrentTime();
-        var hr = performance.now();
+        var timestamp = this._player.getOutputTimestamp();
+        var now = timestamp.contextTime;
+        var hr = timestamp.performanceTime;
         var prevHr = this._previousHighResTime;
 
-        // This happens even on desktops....
+        // Workaround for bad values from polyfill
         if (now === this._previousAudioContextTime) {
             var reallyElapsed = Math.round(((hr - prevHr) * 1000)) / 1e6;
             now += reallyElapsed;

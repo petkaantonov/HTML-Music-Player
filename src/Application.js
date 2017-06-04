@@ -100,7 +100,7 @@ export default function Application(deps) {
         dimmerClass: "body-dimmer"
     }, new ApplicationDependencies({
         page: this.page
-    }))
+    }));
 
     this.rippler = new Rippler({
         zIndex: POPUP_ZINDEX - 60,

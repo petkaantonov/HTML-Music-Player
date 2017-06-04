@@ -1159,11 +1159,11 @@ export function ensuredStringField(obj, fieldName) {
 
 export function ensuredIntegerField(obj, fieldName) {
     return ensuredField(obj, fieldName, "integer");
-};
+}
 
 export function ensuredBooleanField(obj, fieldName) {
     return ensuredField(obj, fieldName, "boolean");
-};
+}
 
 export function ensureType(value, type) {
     if (!checkType(value, type)) {

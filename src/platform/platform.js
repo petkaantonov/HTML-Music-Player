@@ -34,4 +34,6 @@ export const clearInterval = self.clearInterval;
 export const performance = self.performance;
 export const console = self.console || {log: function() {}, warn: function() {}};
 export const MediaError = self.MediaError;
+export const MediaMetadata = self.MediaMetadata;
+export const AudioParam = self.AudioParam;
 export const matchMedia = self.matchMedia;

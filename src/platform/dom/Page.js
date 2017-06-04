@@ -1,6 +1,6 @@
 "use strict";
 
-import { MouseEvent } from "platform/platform";
+import { MouseEvent, MediaMetadata } from "platform/platform";
 
 const rTextarea = /^textarea$/i;
 const rInput = /^input$/i;
@@ -672,7 +672,30 @@ Object.defineProperty(DomWrapper.prototype, "length", {
     }
 });
 
+function Platform(window) {
+    this._window = window;
+}
+
+Platform.prototype.requestNotificationPermission = async function() {
+    return await new Promise(resolve => this._window.Notification.requestPermission(resolve));
+};
+
+Platform.prototype.notificationPermissionGranted = function() {
+    return this._window.Notification.permission === "granted";
+};
+
+Platform.prototype.setMediaState = function(opts) {
+    if (opts.isPlaying || opts.isPaused) {
+        this._window.navigator.mediaSession.metadata = new MediaMetadata(opts);
+        this._window.navigator.mediaSession.playbackState = opts.isPlaying ? "playing" : "paused";
+    } else {
+        this._window.navigator.mediaSession.metadata = null;
+        this._window.navigator.mediaSession.playbackState = "none";
+    }
+};
+
 export default function Page(document, window) {
+    this._platform = new Platform(window);
     this._document = document;
     this._window = window;
     this._navigator = window.navigator;
@@ -730,6 +753,10 @@ export default function Page(document, window) {
     this._modifierKeyPropertyName = this._modifierKey + "Key";
     this._null = new DomWrapper(null, null, this);
 }
+
+Page.prototype.platform = function() {
+    return this._platform;
+};
 
 Page.prototype.modifierKey = function() {
     return this._modifierKey;
@@ -927,6 +954,10 @@ Page.prototype.removeWindowListener = function(name, handler, useCapture) {
     if (typeof name !== "string") throw new TypeError("name must be string");
     if (typeof handler !== "function") throw new TypeError("handler must be a function");
     this._window.removeEventListener(name, handler, !!useCapture);
+};
+
+Page.prototype.addMediaActionListener = function(name, handler) {
+    this._navigator.setActionHandler(name, handler);
 };
 
 Page.prototype.setTitle = function(val) {

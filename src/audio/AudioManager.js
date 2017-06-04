@@ -1,6 +1,6 @@
 "use strict";
 
-import { Float32Array } from "platform/platform";
+import { AudioParam, Float32Array } from "platform/platform";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 
@@ -14,6 +14,23 @@ const SEEK_END_FADE_TIME = 0.5;
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
+function cancelAndHoldStandardImpl(audioParam, value) {
+    return audioParam.cancelAndHoldAtTime(value);
+}
+
+function cancelAndHoldNonStandardImpl(audioParam, value) {
+    return audioParam.cancelValuesAndHoldAtTime(value);
+}
+
+function cancelAndHoldPolyfillImpl(audioParam, value) {
+    var currentValue = audioParam.value;
+    audioParam.cancelScheduledValues(value);
+    audioParam.setValueAtTime(currentValue, value);
+}
+
+const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime === "function" ? cancelAndHoldStandardImpl :
+                      typeof AudioParam.prototype.cancelValuesAndHoldAtTime === "function" ? cancelAndHoldNonStandardImpl :
+                      cancelAndHoldPolyfillImpl;
 
 export default function AudioManager(player, track, implicitlyLoaded) {
     this.gaplessPreloadTrack = null;
@@ -344,41 +361,41 @@ AudioManager.prototype.timeUpdated = function() {
     this.player.audioManagerProgressed(this);
 };
 
-AudioManager.prototype.pause = function() {
+AudioManager.prototype.now = function() {
+    return this.player.getAudioContext().currentTime;
+};
+
+AudioManager.prototype.pause = async function() {
     if (this.destroyed || !this.started || this.paused) return;
     this.paused = true;
-    var now = this.player.getAudioContext().currentTime;
     this.tickCounter.pause();
     this.cancelPauseResumeFade();
-    this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
+    cancelAndHold(this.pauseResumeFadeGain.gain, this.now());
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
-        PAUSE_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
-    var self = this;
+        PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
     var id = ++this.pauseResumeFadeRequestId;
-    Promise.delay(PAUSE_RESUME_FADE_TIME * 1000).then(function() {
-        if (id !== self.pauseResumeFadeRequestId) return;
-        if (self.destroyed) return;
-        self.sourceNode.pause();
-        if (self.visualizer) {
-            self.visualizer.pause();
-        }
-    });
+    await Promise.delay(PAUSE_RESUME_FADE_TIME * 1000);
+    if (id !== this.pauseResumeFadeRequestId) return;
+    if (this.destroyed) return;
+    this.sourceNode.pause();
+    if (this.visualizer) {
+        this.visualizer.pause();
+    }
 };
 
 AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started || !this.paused) return;
-    this.seekGain.gain.cancelScheduledValues(0);
-    this.seekGain.gain.value = 1;
+    this.seekGain.gain.cancelScheduledValues(this.now());
+    this.seekGain.gain.setValueAtTime(1, this.now());
     this.paused = false;
-    var now = this.player.getAudioContext().currentTime;
     this.cancelPauseResumeFade();
     this.sourceNode.play();
     if (this.visualizer) {
         this.visualizer.resume();
     }
-    this.pauseResumeFadeGain.gain.cancelScheduledValues(0);
+    cancelAndHold(this.pauseResumeFadeGain.gain, this.now());
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
-        RESUME_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
+        RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.start = function() {
@@ -404,17 +421,13 @@ AudioManager.prototype.initialPlaythrough = function() {
 };
 
 AudioManager.prototype.fadeOutSeekGain = function() {
-    var now = this.player.getAudioContext().currentTime;
-    this.seekGain.gain.cancelScheduledValues(0);
-    this.seekGain.gain.value = 1;
-    this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, now, SEEK_START_FADE_TIME);
+    cancelAndHold(this.seekGain.gain, this.now());
+    this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, this.now(), SEEK_START_FADE_TIME);
 };
 
 AudioManager.prototype.fadeInSeekGain = function() {
-    var now = this.player.getAudioContext().currentTime;
-    this.seekGain.gain.cancelScheduledValues(0);
-    this.seekGain.gain.value = 0.001;
-    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, now, SEEK_END_FADE_TIME);
+    cancelAndHold(this.seekGain.gain, this.now());
+    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, this.now(), SEEK_END_FADE_TIME);
 };
 
 AudioManager.prototype.willSeek = function() {
@@ -432,16 +445,14 @@ AudioManager.prototype.didSeek = function() {
 
 AudioManager.prototype.mute = function() {
     if (this.destroyed) return;
-    var now = this.player.getAudioContext().currentTime;
-    this.muteGain.gain.cancelScheduledValues(0);
-    this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
+    cancelAndHold(this.muteGain.gain, this.now());
+    this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.unmute = function() {
     if (this.destroyed) return;
-    var now = this.player.getAudioContext().currentTime;
-    this.muteGain.gain.cancelScheduledValues(0);
-    this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, now, PAUSE_RESUME_FADE_TIME);
+    cancelAndHold(this.muteGain.gain, this.now());
+    this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.seek = function(time) {
@@ -493,13 +504,10 @@ AudioManager.prototype.getFadeOutTime = function() {
 
 AudioManager.prototype.updateSchedules = function(forceReset) {
     if (this.destroyed) return;
-    var now = this.player.getAudioContext().currentTime;
     var trackCurrentTime = this.getCurrentTime();
     var trackDuration = this.getDuration();
-    this.fadeInGain.gain.cancelScheduledValues(0);
-    this.fadeOutGain.gain.cancelScheduledValues(0);
-    this.fadeInGain.gain.value = 1;
-    this.fadeOutGain.gain.value = 1;
+    cancelAndHold(this.fadeInGain.gain, this.now());
+    cancelAndHold(this.fadeOutGain.gain, this.now());
 
     var preferences = this.player.crossfadingPreferences.preferences();
     var fadeInTime = this.getFadeInTime();
@@ -507,9 +515,8 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     var fadeInSamples = preferences.getInCurveSamples();
     var fadeOutSamples = preferences.getOutCurveSamples();
 
-
     if (fadeInTime > 0 && this.implicitlyLoaded && !forceReset) {
-        var audioCtxTime = now - trackCurrentTime;
+        var audioCtxTime = this.now() - trackCurrentTime;
         if (audioCtxTime > 0) {
             this.fadeInGain.gain.setValueCurveAtTime(fadeInSamples, audioCtxTime, fadeInTime);
         }
@@ -518,7 +525,7 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     if (fadeOutTime > 0) {
         var trackCurrentTimeForFadeOut = trackDuration - fadeOutTime;
         var secondsUntilFadeOut = trackCurrentTimeForFadeOut - trackCurrentTime;
-        var audioCtxTime = Math.max(0, now + secondsUntilFadeOut);
+        var audioCtxTime = Math.max(0, this.now() + secondsUntilFadeOut);
         this.fadeOutGain.gain.setValueCurveAtTime(fadeOutSamples, audioCtxTime, fadeOutTime);
     }
 

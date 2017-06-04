@@ -147,7 +147,7 @@ Track.prototype.destroy = function() {
     this.removeAllListeners();
 };
 
-Track.prototype.getImage = Promise.method(function(pictureManager) {
+Track.prototype.getImage = async function(pictureManager) {
     var image;
     if (this.tagData) {
         image = this.tagData.getImage();
@@ -159,31 +159,29 @@ Track.prototype.getImage = Promise.method(function(pictureManager) {
         if (!this.tagData) {
             return pictureManager.defaultImage();
         }
-        return pictureManager.generateImageForTrack(this).tap(function(result) {
-            this._generatedImage = result;
-            result.tag = this.uid();
-        }.bind(this));
+        var result = await pictureManager.generateImageForTrack(this);
+        this._generatedImage = result;
+        result.tag = this.uid();
     }
 
     if (image.promise) {
-        var self = this;
-        return image.promise.then(function() {
+        try {
+            await image.promise;
             return image;
-        }).catch(function() {
+        } catch(e) {
             image.src = "";
             if (image.blob) {
                 image.blob.close();
                 image.blob = null;
             }
-            return pictureManager.generateImageForTrack(self).tap(function(result) {
-                self._generatedImage = result;
-                result.tag = self.uid();
-                return self._generatedImage;
-            });
-        });
+            var result = await pictureManager.generateImageForTrack(this);
+            this._generatedImage = result;
+            result.tag = this.uid();
+            return this._generatedImage;
+        }
     }
     return image;
-});
+};
 
 Track.prototype.isDetachedFromPlaylist = function() {
     return this.index === -1;
