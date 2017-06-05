@@ -111,6 +111,12 @@ Env.prototype.supportedMimes = function() {
     return this._supportedMimes.slice();
 };
 
+Env.prototype.logError = function(e) {
+    if (this.isDevelopment()) {
+        this.window.console.error(e && (e.stack || e.message) ? `${(e.stack || e.message)}` : e);
+    }
+};
+
 Env.prototype.getRequiredPlatformFeatures = function() {
     if (this._retChecked) return Promise.reject(new Error("already called"));
     this._retChecked = true;

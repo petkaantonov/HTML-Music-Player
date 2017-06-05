@@ -517,7 +517,11 @@ Player.prototype.checkButtonState = function() {
 Player.prototype.startedPlay = function() {
     this.checkButtonState();
     if (this.mediaFocusAudioElement) {
-        this.mediaFocusAudioElement.play();
+        try {
+            this.mediaFocusAudioElement.play();
+        } catch (e) {
+            this.env.logError(e);
+        }
     }
     this.emit("play");
 };
@@ -525,7 +529,11 @@ Player.prototype.startedPlay = function() {
 Player.prototype.stoppedPlay = function() {
     this.checkButtonState();
     if (this.mediaFocusAudioElement) {
-        this.mediaFocusAudioElement.pause();
+        try {
+            this.mediaFocusAudioElement.pause();
+        } catch (e) {
+            this.env.logError(e);
+        }
     }
     this.emit("stop");
 };

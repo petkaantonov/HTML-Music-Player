@@ -12,6 +12,7 @@ export function canvasToImage(canvas) {
         var image = new Image();
         image.src = url;
         image.blob = blob;
+        image.isGenerated = true;
         return new Promise(function (resolve, reject) {
             if (image.complete) return resolve(image);
 

@@ -957,7 +957,7 @@ Page.prototype.removeWindowListener = function(name, handler, useCapture) {
 };
 
 Page.prototype.addMediaActionListener = function(name, handler) {
-    this._navigator.setActionHandler(name, handler);
+    this._navigator.mediaSession.setActionHandler(name, handler);
 };
 
 Page.prototype.setTitle = function(val) {

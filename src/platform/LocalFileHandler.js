@@ -110,7 +110,7 @@ LocalFileHandler.prototype._dropped = function(e) {
 
 LocalFileHandler.prototype.generateSilentWavFile = function() {
     const seconds = 10;
-    const sampleRate = 1024;
+    const sampleRate = 8000;
     const samples = sampleRate * seconds;
     const format = 1;
     const bytesPerSample = 2;

@@ -436,7 +436,8 @@ export default function Application(deps) {
         rippler: this.rippler,
         db: this.db,
         dbValues: this.dbValues,
-        tooltipContext: this.tooltipContext
+        tooltipContext: this.tooltipContext,
+        playerPictureManager: this.playerPictureManager
     }));
 
     this.visualizerCanvas = new VisualizerCanvas({

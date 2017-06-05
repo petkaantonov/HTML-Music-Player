@@ -24,6 +24,7 @@ export default function PlaylistNotifications(opts, deps) {
     this.tooltipContext = deps.tooltipContext;
     this.playlist = deps.playlist;
     this.player = deps.player;
+    this.pictureManager = deps.playerPictureManager;
 
     var self = this;
     this._domNode = this.page.$(opts.target);
@@ -50,6 +51,7 @@ export default function PlaylistNotifications(opts, deps) {
 
     if (this.env.mediaSessionSupport()) {
         this.$().addClass("no-display");
+        this.enabled = true;
     } else {
         if (this.env.maxNotificationActions() > 0) {
             this.$().addEventListener("click", this.settingClicked)
@@ -199,7 +201,6 @@ PlaylistNotifications.prototype.stateChanged = async function() {
     var isPausedOrStopped = (this.player.isPaused || this.player.isStopped);
     var isPlaying = this.player.isPlaying;
     var track = this.playlist.getCurrentTrack() || this.playlist.getNextTrack();
-
     if (!track) {
         return this.disableMediaSession();
     }
@@ -234,20 +235,13 @@ PlaylistNotifications.prototype.stateChanged = async function() {
     }
 
     var id = ++this.nextNotificationId;
-    var imageUrl;
+    var image, imageUrl;
     // For notifications chrome flickers and reloads the image every time, unusable
-    // this._currentAction = track.getImage().then(function(image) {
-    this._currentAction = this.env.mediaSessionSupport() ? track.getImage() : Promise.delay(100);
+    this._currentAction = this.env.mediaSessionSupport() ? track.getImage(this.pictureManager) : Promise.delay(100);
     try {
-        imageUrl = await this._currentAction;
+        image = await this._currentAction;
         if (id !== this.nextNotificationId) return;
-        if (this.env.mediaSessionSupport()) {
-            if (image.blob) {
-                imageUrl = URL.createObjectURL(image.blob);
-            } else {
-                imageUrl = image.src;
-            }
-        }
+        var imageUrl = image.isGenerated ? URL.createObjectURL(image.blob) : image.src;
         var info = track.getTrackInfo();
 
         var body = info.artist;
@@ -270,7 +264,6 @@ PlaylistNotifications.prototype.stateChanged = async function() {
             tag: NOTIFICATION_TAG,
             body: body,
             //icon: imageUrl,
-            //icon: PlayerPictureManager.getDefaultImage().src,
             requireInteraction: true,
             renotify: false,
             noscreen: true,
@@ -279,7 +272,8 @@ PlaylistNotifications.prototype.stateChanged = async function() {
             actions: actions
         });
     } finally {
-        if (imageUrl) {
+        if (imageUrl && image && image.isGenerated) {
+            await Promise.delay(2500);
             try {
                 URL.revokeObjectURL(imageUrl);
             } catch (e) {}
@@ -307,7 +301,7 @@ PlaylistNotifications.prototype.settingClicked = function(e) {
 };
 
 PlaylistNotifications.prototype.isEnabled = function() {
-    return this.enabled && this.notificationsEnabled();
+    return this.enabled && (this.notificationsEnabled() || this.env.mediaSessionSupport());
 };
 
 PlaylistNotifications.prototype.notificationsEnabled = function() {
