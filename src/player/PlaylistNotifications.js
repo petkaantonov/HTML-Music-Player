@@ -250,7 +250,7 @@ PlaylistNotifications.prototype.stateChanged = async function() {
             await this.page.platform().setMediaState({
                 title: title,
                 artist: body,
-                album: null,
+                album: "",
                 artwork: [{src: imageUrl}],
                 isPlaying: this.player.isPlaying,
                 isPaused: this.player.isPaused
