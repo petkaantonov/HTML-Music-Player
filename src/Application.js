@@ -380,7 +380,8 @@ export default function Application(deps) {
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences,
-        tooltipContext: this.tooltipContext
+        tooltipContext: this.tooltipContext,
+        localFileHandler: this.localFileHandler
     }));
 
     this.playerPictureManager = new PlayerPictureManager({

@@ -162,6 +162,7 @@ Track.prototype.getImage = async function(pictureManager) {
         var result = await pictureManager.generateImageForTrack(this);
         this._generatedImage = result;
         result.tag = this.uid();
+        return result;
     }
 
     if (image.promise) {

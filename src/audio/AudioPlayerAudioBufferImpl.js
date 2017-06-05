@@ -24,7 +24,7 @@ const EXPENSIVE_CALL_THROTTLE_TIME = 200;
 
 const makeAudioContext = function() {
     var Constructor = AudioContext || webkitAudioContext;
-    var ret = new Constructor();
+    var ret = new Constructor({latencyHint: "playback"});
     patchAudioContext(ret);
     return ret;
 };

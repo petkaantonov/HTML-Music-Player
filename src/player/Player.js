@@ -5,6 +5,7 @@ import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
 import { inherits } from "util";
+import { URL } from "platform/platform";
 import Track from "tracks/Track";
 
 const MINIMUM_DURATION = 3;
@@ -17,6 +18,7 @@ export default function Player(opts, deps) {
     var self = this;
     EventEmitter.call(this);
     opts = Object(opts);
+    this.localFileHandler = deps.localFileHandler;
     this.env = deps.env;
     this.page = deps.page;
     this.globalEvents = deps.globalEvents;
@@ -48,6 +50,7 @@ export default function Player(opts, deps) {
     this.implicitLoading = false;
     this.queuedNextTrackImplicitly = false;
     this.pictureManager = null;
+    this.mediaFocusAudioElement = null;
     this.audioPlayer = new AudioPlayer({
         src: opts.src
     }, new ApplicationDependencies({
@@ -95,10 +98,18 @@ export default function Player(opts, deps) {
         this.setAudioHardwareLatency(+this.dbValues[LATENCY_KEY]);
     }
 
-    var self = this;
-    this.ready = this.audioPlayer.ready.then(function() {
-        self.ready = null;
+    this.ready = this.audioPlayer.ready.then(() => {
+        this.ready = null;
     });
+
+    if (this.env.mediaSessionSupport()) {
+        this.mediaFocusAudioElement = this.page.createElement("audio", {
+            loop: true,
+            controls: false,
+            src: URL.createObjectURL(this.localFileHandler.generateSilentWavFile())
+        })[0];
+
+    }
 
     this.audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
     this.effectPreferences.on("change", this.effectPreferencesChanged.bind(this));
@@ -505,16 +516,25 @@ Player.prototype.checkButtonState = function() {
 
 Player.prototype.startedPlay = function() {
     this.checkButtonState();
+    if (this.mediaFocusAudioElement) {
+        this.mediaFocusAudioElement.play();
+    }
     this.emit("play");
 };
 
 Player.prototype.stoppedPlay = function() {
     this.checkButtonState();
+    if (this.mediaFocusAudioElement) {
+        this.mediaFocusAudioElement.pause();
+    }
     this.emit("stop");
 };
 
 Player.prototype.pausedPlay = function() {
     this.checkButtonState();
+    if (this.mediaFocusAudioElement) {
+        this.mediaFocusAudioElement.pause();
+    }
     this.emit("pause");
 };
 
@@ -631,4 +651,8 @@ Player.prototype.destroyAudioManagers = function(exceptThisOne) {
 
 Player.prototype.getAudioContext = function() {
     return this.audioPlayer.getAudioContext();
+};
+
+Player.prototype.getSilentWavFile = function() {
+
 };

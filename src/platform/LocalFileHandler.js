@@ -1,6 +1,6 @@
 "use strict";
 
-import { File, Uint8Array } from "platform/platform";
+import { File, Uint8Array, DataView, ArrayBuffer } from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
 import Track from "tracks/Track";
 
@@ -108,6 +108,31 @@ LocalFileHandler.prototype._dropped = function(e) {
     files.then(this.gotFiles);
 };
 
+LocalFileHandler.prototype.generateSilentWavFile = function() {
+    const seconds = 10;
+    const sampleRate = 1024;
+    const samples = sampleRate * seconds;
+    const format = 1;
+    const bytesPerSample = 2;
+    const channels = 1;
+    const buffer = new ArrayBuffer(44 + samples * bytesPerSample);
+    const view = new DataView(buffer);
+    view.setUint32(0, 0x52494646, false);
+    view.setUint32(4, 36 + samples * bytesPerSample, true);
+    view.setUint32(8, 0x57415645, false);
+    view.setUint32(12, 0x666d7420, false);
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+    view.setUint16(32, channels * bytesPerSample, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    view.setUint32(36, 0x64617461, false);
+    view.setUint32(40, samples * channels * bytesPerSample, true);
+    return new File([buffer], "thefile.wav", {type: "audio/wav"});
+};
+
 LocalFileHandler.prototype.generateFakeFiles = function(count) {
     const id3v1String = function(value) {
         var ret = new Uint8Array(30);
@@ -148,6 +173,7 @@ LocalFileHandler.prototype.generateFakeFiles = function(count) {
         files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
     }
     var self = this;
+    files.unshift(this.generateSilentWavFile());
     this.page.setTimeout(function() {
         self.addFilesToPlaylist(files);
     }, 100);
