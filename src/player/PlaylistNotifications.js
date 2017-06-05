@@ -9,7 +9,6 @@ const PREFERENCE_KEY = "overlay-enabled";
 const NOTIFICATION_TAG = "player-status-notification";
 const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "Disable overlay";
 const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "Enable overlay";
-const UNKNOWN = "<Unknown>";
 
 export default function PlaylistNotifications(opts, deps) {
     opts = Object(opts);
@@ -241,39 +240,36 @@ PlaylistNotifications.prototype.stateChanged = async function() {
     try {
         image = await this._currentAction;
         if (id !== this.nextNotificationId) return;
-        var imageUrl = image.isGenerated ? URL.createObjectURL(image.blob) : image.src;
-        var info = track.getTrackInfo();
+        var imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
 
+        var info = track.getTrackInfo();
         var body = info.artist;
         var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
 
         if (this.env.mediaSessionSupport()) {
-            var tagData = track.getTagData();
-            var album = tagData ? tagData.getAlbum() || UNKNOWN : UNKNOWN;
-            this.page.platform().setMediaState({
-                title: (track.getIndex() + 1) + ". " + info.title,
-                artist: info.artist,
-                album: album,
+            await this.page.platform().setMediaState({
+                title: title,
+                artist: body,
+                album: null,
                 artwork: [{src: imageUrl}],
                 isPlaying: this.player.isPlaying,
                 isPaused: this.player.isPaused
             });
-            return;
+        } else {
+            await this.serviceWorkerManager.showNotification(title, {
+                tag: NOTIFICATION_TAG,
+                body: body,
+                //icon: imageUrl,
+                requireInteraction: true,
+                renotify: false,
+                noscreen: true,
+                silent: true,
+                sticky: true,
+                actions: actions
+            });
         }
-        await this.serviceWorkerManager.showNotification(title, {
-            tag: NOTIFICATION_TAG,
-            body: body,
-            //icon: imageUrl,
-            requireInteraction: true,
-            renotify: false,
-            noscreen: true,
-            silent: true,
-            sticky: true,
-            actions: actions
-        });
     } finally {
         if (imageUrl && image && image.isGenerated) {
-            await Promise.delay(2500);
             try {
                 URL.revokeObjectURL(imageUrl);
             } catch (e) {}

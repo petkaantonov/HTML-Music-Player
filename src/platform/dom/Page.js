@@ -684,7 +684,7 @@ Platform.prototype.notificationPermissionGranted = function() {
     return this._window.Notification.permission === "granted";
 };
 
-Platform.prototype.setMediaState = function(opts) {
+Platform.prototype.setMediaState = async function(opts) {
     if (opts.isPlaying || opts.isPaused) {
         this._window.navigator.mediaSession.metadata = new MediaMetadata(opts);
         this._window.navigator.mediaSession.playbackState = opts.isPlaying ? "playing" : "paused";
@@ -692,6 +692,7 @@ Platform.prototype.setMediaState = function(opts) {
         this._window.navigator.mediaSession.metadata = null;
         this._window.navigator.mediaSession.playbackState = "none";
     }
+    await Promise.delay(1000);
 };
 
 export default function Page(document, window) {
