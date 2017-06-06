@@ -197,23 +197,24 @@ AudioManager.prototype.replaceTrack = function(track) {
 
     this.intendingToSeek = 0;
     this.player.audioManagerSeekIntent(this, 0);
-    var self = this;
     this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
     this.track = track;
     this.track.on("tagDataUpdate", this.trackTagDataUpdated);
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
-    this.sourceNode.once("replacementLoaded", function(playbackStartTime) {
-        self.tickCounter.reset();
-        self.intendingToSeek = -1;
-        if (self.destroyed || self.player.currentAudioManager !== self) return;
+    this.sourceNode.once("replacementLoaded", playbackStartTime => {
+        this.tickCounter.reset();
+        this.intendingToSeek = -1;
+        if (this.destroyed || this.player.currentAudioManager !== this) return;
         if (playbackStartTime >= 0) {
-            self.normalizeLoudness(playbackStartTime);
+            this.normalizeLoudness(playbackStartTime);
         }
-        self.resume();
+        this.resume();
+        this.fadeInSeekGain();
     });
     this.currentTime = track.convertFromSilenceAdjustedTime(0);
     this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
+    this.fadeOutSeekGain();
 };
 
 AudioManager.prototype.nextTrackChanged = function() {
