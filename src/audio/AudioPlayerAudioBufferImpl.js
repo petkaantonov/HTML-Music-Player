@@ -838,7 +838,10 @@ AudioPlayerSourceNode.prototype._fillBuffers = function() {
 };
 
 AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
-    if (this._destroyed) return this._freeTransferList(transferList);
+    if (this._destroyed) {
+        this._freeTransferList(transferList);
+        return -1;
+    }
     this._player.playbackStarted();
 
     var channelCount = args.channelCount;
@@ -868,7 +871,7 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
     }
 
     this._freeTransferList(transferList);
-
+    var bufferPlayStartTime = this._player.getCurrentTime();
     if (count > 0) {
         if (this._sourceStopped) {
             this._bufferQueue.push.apply(this._bufferQueue, sources);
@@ -877,18 +880,21 @@ AudioPlayerSourceNode.prototype._applyBuffers = function(args, transferList) {
             }
         } else {
             var startTime = this._lastSourceEnds();
+            bufferPlayStartTime = startTime;
             for (var i = 0; i < sources.length; ++i) {
                 startTime = this._startSource(sources[i], startTime);
             }
             this._bufferQueue.push.apply(this._bufferQueue, sources);
         }
     } else if (this._sourceStopped) {
+        bufferPlayStartTime = -1;
         this._ended();
     }
 
     if (args.count > 0 && args.trackEndingBufferIndex !== -1) {
         this._fillBuffers();
     }
+    return bufferPlayStartTime;
 };
 
 AudioPlayerSourceNode.prototype._checkIfLastBufferIsQueued = function() {
@@ -1136,6 +1142,7 @@ AudioPlayerSourceNode.prototype.replaceUsingGaplessPreload = function() {
     this._lastBufferLoadedEmitted = false;
     this._applyReplacementLoadedArgs(args);
     this._fillBuffers();
+    return args.replacementFirstBufferStartTime;
 };
 
 AudioPlayerSourceNode.prototype._applyReplacementLoadedArgs = function(args) {
@@ -1155,21 +1162,23 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
     this._loadingNext = false;
 
     if (args.gaplessPreload) {
-        this._gaplessPreloadArgs = args;
-        this._applyBuffers(args, transferList);
+        var replacementFirstBufferStartTime = this._applyBuffers(args, transferList);
+        this._gaplessPreloadArgs = Object.assign({
+            replacementFirstBufferStartTime: replacementFirstBufferStartTime
+        }, args);
         return;
     }
     this._applyReplacementLoadedArgs(args);
-    // Sync so that proper gains nodes are set up already when applying the buffers
-    // for this track.
-    this.emit("replacementLoaded");
     this._stopSources();
     var sourceDescriptor;
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
-    this._applyBuffers(args, transferList);
+    var replacementFirstBufferStartTime = this._applyBuffers(args, transferList);
     this._fillBuffers();
+    // Sync so that proper gains nodes are set up already when applying the buffers
+    // for this track.
+    this.emit("replacementLoaded", replacementFirstBufferStartTime);
 };
 
 AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaplessPreload, metadata) {

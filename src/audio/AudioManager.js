@@ -187,8 +187,8 @@ AudioManager.prototype.replaceTrack = function(track) {
             this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
             this.track = track;
             this.track.on("tagDataUpdate", this.trackTagDataUpdated);
-            this.normalizeLoudness();
-            this.sourceNode.replaceUsingGaplessPreload();
+            var playbackStartTime = this.sourceNode.replaceUsingGaplessPreload();
+            this.normalizeLoudness(playbackStartTime);
             this.updateSchedules();
             this.resume();
             return;
@@ -203,11 +203,13 @@ AudioManager.prototype.replaceTrack = function(track) {
     this.track.on("tagDataUpdate", this.trackTagDataUpdated);
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners("replacementLoaded");
-    this.sourceNode.once("replacementLoaded", function() {
+    this.sourceNode.once("replacementLoaded", function(playbackStartTime) {
         self.tickCounter.reset();
         self.intendingToSeek = -1;
         if (self.destroyed || self.player.currentAudioManager !== self) return;
-        self.normalizeLoudness();
+        if (playbackStartTime >= 0) {
+            self.normalizeLoudness(playbackStartTime);
+        }
         self.resume();
     });
     this.currentTime = track.convertFromSilenceAdjustedTime(0);
@@ -230,7 +232,7 @@ AudioManager.prototype.trackPictureUpdated = function() {
     this.player.getPictureManager().updateImageFromTrack(this.track);
 };
 
-AudioManager.prototype.normalizeLoudness = function() {
+AudioManager.prototype.normalizeLoudness = function(startTime) {
     if (this.destroyed) return;
     var track = this.track;
     var replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
@@ -240,7 +242,12 @@ AudioManager.prototype.normalizeLoudness = function() {
         replayGain = (1 / track.getTrackPeak()) * replayGain;
     }
 
-    this.replayGain.gain.value = replayGain;
+    if (typeof startTime === "number" && startTime >= 0) {
+        this.replayGain.gain.cancelScheduledValues(this.now());
+        this.replayGain.gain.setValueAtTime(replayGain, startTime);
+    } else {
+        this.replayGain.gain.value = replayGain;
+    }
     if (this.visualizer) {
         this.visualizer.setMultiplier(replayGain);
     }

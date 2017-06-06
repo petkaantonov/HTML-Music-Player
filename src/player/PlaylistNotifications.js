@@ -243,19 +243,22 @@ PlaylistNotifications.prototype.stateChanged = async function() {
         var imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
 
         var info = track.getTrackInfo();
-        var body = info.artist;
-        var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
 
         if (this.env.mediaSessionSupport()) {
+            var title = (track.getIndex() + 1) + ". " + info.title;
+            var artist = info.artist;
+            var album = track.formatTime();
             await this.page.platform().setMediaState({
                 title: title,
-                artist: body,
-                album: "",
+                artist: artist,
+                album: album,
                 artwork: [{src: imageUrl}],
                 isPlaying: this.player.isPlaying,
                 isPaused: this.player.isPaused
             });
         } else {
+            var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
+            var body = info.artist;
             await this.serviceWorkerManager.showNotification(title, {
                 tag: NOTIFICATION_TAG,
                 body: body,
