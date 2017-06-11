@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function Line(x1, y1, x2, y2, progress) {
     if (progress === undefined) progress = 1;

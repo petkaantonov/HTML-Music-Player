@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function GestureObject(e, touch, isFirst) {
     this.clientX = touch.clientX;
@@ -21,6 +21,6 @@ GestureObject.prototype.preventDefault = function() {
 GestureObject.prototype.stopPropagation = function() {
     return this.originalEvent.stopPropagation();
 };
-GestureObject.prototype.stopImmediatePropagation = function(){
+GestureObject.prototype.stopImmediatePropagation = function() {
     return this.originalEvent.stopImmediatePropagation();
 };

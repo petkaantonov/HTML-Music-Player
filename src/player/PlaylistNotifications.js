@@ -1,17 +1,17 @@
-"use strict";
+import {URL} from "platform/platform";
+import {delay} from "platform/PromiseExtensions";
+import {noUndefinedGet} from "util";
 
-import { URL } from "platform/platform";
-
-const PAUSE = "\u275a\u275a";
-const PLAY = "\u23f5";
-const NEXT = "\u23f5\u275a";
-const PREFERENCE_KEY = "overlay-enabled";
-const NOTIFICATION_TAG = "player-status-notification";
-const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = "Disable overlay";
-const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = "Enable overlay";
+const PAUSE = `\u275a\u275a`;
+const PLAY = `\u23f5`;
+const NEXT = `\u23f5\u275a`;
+const PREFERENCE_KEY = `overlay-enabled`;
+const NOTIFICATION_TAG = `player-status-notification`;
+const NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE = `Disable overlay`;
+const NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE = `Enable overlay`;
 
 export default function PlaylistNotifications(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this.permissionPrompt = deps.permissionPrompt;
     this.env = deps.env;
     this.page = deps.page;
@@ -25,17 +25,14 @@ export default function PlaylistNotifications(opts, deps) {
     this.player = deps.player;
     this.pictureManager = deps.playerPictureManager;
 
-    var self = this;
     this._domNode = this.page.$(opts.target);
     this.enabled = this.env.mediaSessionSupport();
     this.permissionsPromise = null;
     this.currentNotification = null;
     this.currentNotificationCloseTimeout = -1;
     this.nextNotificationId = -1;
-    this.tooltip = this.tooltipContext.createTooltip(this.$(), function() {
-        return self.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
-                            : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE;
-    });
+    this.tooltip = this.tooltipContext.createTooltip(this.$(), () => (this.enabled ? NOTIFICATIONS_TOOLTIP_ENABLED_MESSAGE
+                                                                                   : NOTIFICATIONS_TOOLTIP_DISABLED_MESSAGE));
 
     this.settingClicked = this.settingClicked.bind(this);
     this.stateChanged = this.stateChanged.bind(this);
@@ -49,38 +46,38 @@ export default function PlaylistNotifications(opts, deps) {
     this.justDeactivatedMouseleft = this.justDeactivatedMouseleft.bind(this);
 
     if (this.env.mediaSessionSupport()) {
-        this.$().addClass("no-display");
+        this.$().addClass(`no-display`);
         this.enabled = true;
     } else {
         if (this.env.maxNotificationActions() > 0) {
-            this.$().addEventListener("click", this.settingClicked)
-                    .addEventListener("mousedown", this.page.preventDefaultHandler);
+            this.$().addEventListener(`click`, this.settingClicked).
+                    addEventListener(`mousedown`, this.page.preventDefaultHandler);
             this.recognizerContext.createTapRecognizer(this.settingClicked).recognizeBubbledOn(this.$());
         } else {
-            this.$().addClass("no-display");
+            this.$().addClass(`no-display`);
         }
     }
 
-    this.playlist.on("highlyRelevantTrackMetadataUpdate", this.stateChanged);
-    this.playlist.on("nextTrackChange", this.stateChanged);
-    this.player.on("newTrackLoad", this.stateChanged);
-    this.player.on("pause", this.stateChanged);
-    this.player.on("play", this.stateChanged);
-    this.player.on("stop", this.stateChanged);
-    this.player.on("currentTrackMetadataChange", this.stateChanged);
+    this.playlist.on(`highlyRelevantTrackMetadataUpdate`, this.stateChanged);
+    this.playlist.on(`nextTrackChange`, this.stateChanged);
+    this.player.on(`newTrackLoad`, this.stateChanged);
+    this.player.on(`pause`, this.stateChanged);
+    this.player.on(`play`, this.stateChanged);
+    this.player.on(`stop`, this.stateChanged);
+    this.player.on(`currentTrackMetadataChange`, this.stateChanged);
 
     if (this.env.mediaSessionSupport()) {
-        this.page.addMediaActionListener("play", this.actionPlay);
-        this.page.addMediaActionListener("pause", this.actionPause);
-        this.page.addMediaActionListener("seekbackward", this.actionBackward);
-        this.page.addMediaActionListener("seekforward", this.actionForward);
-        this.page.addMediaActionListener("previoustrack", this.actionPrev);
-        this.page.addMediaActionListener("nexttrack", this.actionNext);
+        this.page.addMediaActionListener(`play`, this.actionPlay);
+        this.page.addMediaActionListener(`pause`, this.actionPause);
+        this.page.addMediaActionListener(`seekbackward`, this.actionBackward);
+        this.page.addMediaActionListener(`seekforward`, this.actionForward);
+        this.page.addMediaActionListener(`previoustrack`, this.actionPrev);
+        this.page.addMediaActionListener(`nexttrack`, this.actionNext);
     } else {
-        this.serviceWorkerManager.on("actionNext-" + NOTIFICATION_TAG, this.actionNext);
-        this.serviceWorkerManager.on("actionPause-" + NOTIFICATION_TAG, this.actionPause);
-        this.serviceWorkerManager.on("actionPlay-" + NOTIFICATION_TAG, this.actionPlay);
-        this.serviceWorkerManager.on("notificationClose-" + NOTIFICATION_TAG, this.notificationClosed);
+        this.serviceWorkerManager.on(`actionNext-${NOTIFICATION_TAG}`, this.actionNext);
+        this.serviceWorkerManager.on(`actionPause-${NOTIFICATION_TAG}`, this.actionPause);
+        this.serviceWorkerManager.on(`actionPlay-${NOTIFICATION_TAG}`, this.actionPlay);
+        this.serviceWorkerManager.on(`notificationClose-${NOTIFICATION_TAG}`, this.notificationClosed);
     }
 
     this._currentAction = Promise.resolve();
@@ -90,7 +87,7 @@ export default function PlaylistNotifications(opts, deps) {
         this.enabled = !!(deps.dbValues[PREFERENCE_KEY] && this.notificationsEnabled());
         this.update();
     }
-    deps.ensure();
+
 }
 
 PlaylistNotifications.prototype._shouldRenderNewState = function(newState) {
@@ -98,11 +95,11 @@ PlaylistNotifications.prototype._shouldRenderNewState = function(newState) {
         return newState.enabled;
     }
 
-    var keys = Object.keys(newState);
-    var currentState = this._currentState;
+    const keys = Object.keys(newState);
+    const currentState = this._currentState;
 
-    for (var i = 0; i < keys.length; ++i) {
-        var key = keys[i];
+    for (let i = 0; i < keys.length; ++i) {
+        const key = keys[i];
 
         if (currentState[key] !== newState[key]) {
             return true;
@@ -116,8 +113,8 @@ PlaylistNotifications.prototype.$ = function() {
 };
 
 PlaylistNotifications.prototype.justDeactivatedMouseleft = function(e) {
-    e.currentTarget.classList.remove("just-deactivated");
-    e.currentTarget.removeEventListener("mouseleave", this.justDeactivatedMouseleft);
+    e.currentTarget.classList.remove(`just-deactivated`);
+    e.currentTarget.removeEventListener(`mouseleave`, this.justDeactivatedMouseleft);
 };
 
 PlaylistNotifications.prototype.update = function() {
@@ -125,28 +122,28 @@ PlaylistNotifications.prototype.update = function() {
         return;
     }
     if (this.enabled) {
-        this.$().removeEventListener("mouseleave", this.justDeactivatedMouseleft)
-                .removeClass("just-deactivated")
-                .addClass("active");
+        this.$().removeEventListener(`mouseleave`, this.justDeactivatedMouseleft).
+                removeClass(`just-deactivated`).
+                addClass(`active`);
     } else {
-        this.$()
-            .removeClass("active")
-            .addClass("just-deactivated")
-            .addEventListener("mouseleave", this.justDeactivatedMouseleft);
+        this.$().
+            removeClass(`active`).
+            addClass(`just-deactivated`).
+            addEventListener(`mouseleave`, this.justDeactivatedMouseleft);
     }
     this.tooltip.refresh();
     this.stateChanged();
 };
 
 PlaylistNotifications.prototype.actionForward = function() {
-    var p = this.player.getProgress();
+    const p = this.player.getProgress();
     if (p !== -1) {
         this.player.setProgress(Math.max(Math.min(1, p + 0.01), 0));
     }
 };
 
 PlaylistNotifications.prototype.actionBackward = function() {
-    var p = this.player.getProgress();
+    const p = this.player.getProgress();
     if (p !== -1) {
         this.player.setProgress(Math.max(Math.min(1, p - 0.01), 0));
     }
@@ -187,7 +184,7 @@ PlaylistNotifications.prototype.disableMediaSession = function() {
 
 PlaylistNotifications.prototype.stateChanged = async function() {
     if (!this.isEnabled()) {
-        var state = {enabled: false};
+        const state = {enabled: false};
         if (this._shouldRenderNewState(state)) {
             this._currentState = state;
             ++this.nextNotificationId;
@@ -197,18 +194,19 @@ PlaylistNotifications.prototype.stateChanged = async function() {
         }
         return;
     }
-    var isPausedOrStopped = (this.player.isPaused || this.player.isStopped);
-    var isPlaying = this.player.isPlaying;
-    var track = this.playlist.getCurrentTrack() || this.playlist.getNextTrack();
+    const isPausedOrStopped = (this.player.isPaused || this.player.isStopped);
+    const {isPlaying} = this.player;
+    const track = this.playlist.getCurrentTrack() || this.playlist.getNextTrack();
     if (!track) {
-        return this.disableMediaSession();
+        this.disableMediaSession();
+        return;
     }
 
-    var state = {
+    const state = {
         enabled: true,
-        isPlaying: isPlaying,
-        isPausedOrStopped: isPausedOrStopped,
-        track: track,
+        isPlaying,
+        isPausedOrStopped,
+        track,
         tagDataState: track.getTagStateId()
     };
 
@@ -218,64 +216,66 @@ PlaylistNotifications.prototype.stateChanged = async function() {
 
     this._currentState = state;
 
-    var maxActions = this.env.maxNotificationActions();
-    var actions = [];
+    const maxActions = this.env.maxNotificationActions();
+    const actions = [];
 
     if (!this.env.mediaSessionSupport()) {
         if (this.playlist.getNextTrack() && actions.length < maxActions) {
-            actions.push({action: "Next", title: NEXT + " Next track"});
+            actions.push({action: `Next`, title: `${NEXT} Next track`});
         }
 
         if ((this.player.isPaused || this.player.isStopped) && actions.length < maxActions) {
-            actions.push({action: "Play", title: PLAY + " Play"});
+            actions.push({action: `Play`, title: `${PLAY} Play`});
         } else if (this.player.isPlaying && actions.length < maxActions) {
-            actions.push({action: "Pause", title: PAUSE + " Pause"});
+            actions.push({action: `Pause`, title: `${PAUSE} Pause`});
         }
     }
 
-    var id = ++this.nextNotificationId;
-    var image, imageUrl;
+    const id = ++this.nextNotificationId;
+    let image, imageUrl;
     // For notifications chrome flickers and reloads the image every time, unusable
-    this._currentAction = this.env.mediaSessionSupport() ? track.getImage(this.pictureManager) : Promise.delay(100);
+    this._currentAction = this.env.mediaSessionSupport() ? track.getImage(this.pictureManager) : delay(100);
     try {
         image = await this._currentAction;
         if (id !== this.nextNotificationId) return;
-        var imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
+        imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
 
-        var info = track.getTrackInfo();
+        const info = track.getTrackInfo();
 
         if (this.env.mediaSessionSupport()) {
-            var title = (track.getIndex() + 1) + ". " + info.title;
-            var artist = info.artist;
-            var album = track.formatTime();
+            const title = `${track.getIndex() + 1}. ${info.title}`;
+            const {artist} = info;
+            const album = track.formatTime();
             await this.page.platform().setMediaState({
-                title: title,
-                artist: artist,
-                album: album,
+                title,
+                artist,
+                album,
                 artwork: [{src: imageUrl}],
                 isPlaying: this.player.isPlaying,
                 isPaused: this.player.isPaused
             });
         } else {
-            var title = (track.getIndex() + 1) + ". " + info.title + " (" + track.formatTime() + ")";
-            var body = info.artist;
+            const title = `${track.getIndex() + 1}. ${info.title} (${track.formatTime()})`;
+            const body = info.artist;
             await this.serviceWorkerManager.showNotification(title, {
                 tag: NOTIFICATION_TAG,
-                body: body,
-                //icon: imageUrl,
+                body,
+                // Icon: imageUrl,
                 requireInteraction: true,
                 renotify: false,
                 noscreen: true,
                 silent: true,
                 sticky: true,
-                actions: actions
+                actions
             });
         }
     } finally {
         if (imageUrl && image && image.isGenerated) {
             try {
                 URL.revokeObjectURL(imageUrl);
-            } catch (e) {}
+            } catch (e) {
+                // NOOP
+            }
         }
     }
 };
@@ -287,7 +287,7 @@ PlaylistNotifications.prototype.toggleSetting = async function() {
         this.db.set(PREFERENCE_KEY, false);
     } else {
         if (this.permissionsPromise) return;
-        var permission = await this.requestPermission();
+        const permission = await this.requestPermission();
         this.db.set(PREFERENCE_KEY, permission);
         this.enabled = permission;
         this.update();
@@ -309,16 +309,16 @@ PlaylistNotifications.prototype.notificationsEnabled = function() {
 };
 
 PlaylistNotifications.prototype._doRequestPermission = async function() {
-    await this.permissionPrompt.prompt(async function() {
+    await this.permissionPrompt.prompt(async () => {
         await this.page.platform().requestNotificationPermission();
     });
-    await Promise.delay(1);
+    await delay(1);
     return this.notificationsEnabled();
 };
 
 PlaylistNotifications.prototype.requestPermission = async function() {
-    if (this.permissionsPromise) throw new Error("already requested");
-    var ret;
+    if (this.permissionsPromise) throw new Error(`already requested`);
+    let ret;
     try {
         if (this.env.maxNotificationActions() <= 0) {
             ret = false;

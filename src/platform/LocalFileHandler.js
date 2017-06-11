@@ -1,13 +1,12 @@
-"use strict";
-
-import { File, Uint8Array, DataView, ArrayBuffer } from "platform/platform";
+import {noUndefinedGet} from "util";
+import {File, Uint8Array, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
 import Track from "tracks/Track";
 
 const MAX_FILE_COUNT = 75000;
 
 export default function LocalFileHandler(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this.page = deps.page;
     this.env = deps.env;
     this.fileInputContext = deps.fileInputContext;
@@ -33,19 +32,19 @@ export default function LocalFileHandler(opts, deps) {
     this.filesFileInput = this.fileInputContext.createFileInput(this.page.$(opts.fileButton), {
         onchange: this.fileInputChanged.bind(this),
         multiple: true,
-        accept: this.env.supportedMimes().join(",")
+        accept: this.env.supportedMimes().join(`,`)
     });
 
-    this.page.addDocumentListener("dragenter", this._dragEntered.bind(this));
-    this.page.addDocumentListener("dragleave", this._dragLeft.bind(this));
-    this.page.addDocumentListener("dragover", this._dragOvered.bind(this));
-    this.page.addDocumentListener("drop", this._dropped.bind(this));
-    deps.ensure();
+    this.page.addDocumentListener(`dragenter`, this._dragEntered.bind(this));
+    this.page.addDocumentListener(`dragleave`, this._dragLeft.bind(this));
+    this.page.addDocumentListener(`dragover`, this._dragOvered.bind(this));
+    this.page.addDocumentListener(`drop`, this._dropped.bind(this));
+
 }
 
 LocalFileHandler.prototype.receiveFiles = function(fileEmitter) {
-    fileEmitter.on("files", this.addFilesToPlaylist);
-    fileEmitter.on("end", function() {
+    fileEmitter.on(`files`, this.addFilesToPlaylist);
+    fileEmitter.on(`end`, () => {
         fileEmitter.removeAllListeners();
     });
 };
@@ -77,35 +76,29 @@ LocalFileHandler.prototype._dragOvered = function(e) {
     return false;
 };
 
-LocalFileHandler.prototype._dropped = function(e) {
+LocalFileHandler.prototype._dropped = async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    var dt = e.dataTransfer;
+    const dt = e.dataTransfer;
     if (!dt) return;
     if (!dt.items && !dt.files) return;
 
-    var files;
-    if (typeof dt.getFilesAndDirectories === "function") {
-        dt.getFilesAndDirectories().then(this.gotFilesAndDirectories);
+    if (typeof dt.getFilesAndDirectories === `function`) {
+        const filesAndDirs = await dt.getFilesAndDirectories();
+        this.gotFilesAndDirectories(filesAndDirs);
     } else if (dt.items && dt.items.length > 0) {
-        var item = dt.items[0];
-        var entry = item.getAsEntry || item.webkitGetAsEntry;
+        const item = dt.items[0];
+        const entry = item.getAsEntry || item.webkitGetAsEntry;
         if (!entry) {
-            files = Promise.resolve(dt.files);
+            const files = await Promise.resolve(dt.files);
+            this.gotFiles(files);
         } else {
-            var entries = [].map.call(dt.items, function(v) {
-                return entry.call(v);
-            });
+            const entries = [].map.call(dt.items, v => entry.call(v));
             this.gotEntries(entries);
         }
     } else if (dt.files && dt.files.length > 0) {
-        files = Promise.resolve(dt.files);
+        this.gotFiles(dt.files);
     }
-
-    if (!files) {
-        return;
-    }
-    files.then(this.gotFiles);
 };
 
 LocalFileHandler.prototype.generateSilentWavFile = function() {
@@ -130,52 +123,52 @@ LocalFileHandler.prototype.generateSilentWavFile = function() {
     view.setUint16(34, bytesPerSample * 8, true);
     view.setUint32(36, 0x64617461, false);
     view.setUint32(40, samples * channels * bytesPerSample, true);
-    return new File([buffer], "thefile.wav", {type: "audio/wav"});
+    return new File([buffer], `thefile.wav`, {type: `audio/wav`});
 };
 
 LocalFileHandler.prototype.generateFakeFiles = function(count) {
     const id3v1String = function(value) {
-        var ret = new Uint8Array(30);
-        for (var i = 0; i < value.length; ++i) {
+        const ret = new Uint8Array(30);
+        for (let i = 0; i < value.length; ++i) {
             ret[i] = value.charCodeAt(i);
         }
         return ret;
     };
 
-    var files = new Array(+count);
-    var dummy = new Uint8Array(256 * 1024);
-    var sync = new Uint8Array(4);
+    const files = new Array(+count);
+    const dummy = new Uint8Array(256 * 1024);
+    const sync = new Uint8Array(4);
     sync[0] = 0xFF;
     sync[1] = 0xFB;
     sync[2] = 0xB4;
     sync[3] = 0x00;
-    for (var i = 0; i < dummy.length; i += 4) {
+    for (let i = 0; i < dummy.length; i += 4) {
         dummy[i] = sync[0];
         dummy[i + 1] = sync[1];
         dummy[i + 2] = sync[2];
         dummy[i + 3] = sync[3];
     }
-    for (var i = 0; i < files.length; ++i) {
-        var tag = new Uint8Array(3);
+    for (let i = 0; i < files.length; ++i) {
+        const tag = new Uint8Array(3);
         tag[0] = 84;
         tag[1] = 65;
         tag[2] = 71;
-        var title = id3v1String("Track " + i);
-        var artist = id3v1String("Artist");
-        var album = id3v1String("Album");
-        var year = new Uint8Array(4);
-        var comment = id3v1String("Comment");
-        var genre = new Uint8Array(1);
+        const title = id3v1String(`Track ${i}`);
+        const artist = id3v1String(`Artist`);
+        const album = id3v1String(`Album`);
+        const year = new Uint8Array(4);
+        const comment = id3v1String(`Comment`);
+        const genre = new Uint8Array(1);
 
-        var parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
+        const parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
 
 
-        files[i] = new File(parts, "file " + i + ".mp3", {type: "audio/mp3"});
+        files[i] = new File(parts, `file ${i}.mp3`, {type: `audio/mp3`});
     }
-    var self = this;
+
     files.unshift(this.generateSilentWavFile());
-    this.page.setTimeout(function() {
-        self.addFilesToPlaylist(files);
+    this.page.setTimeout(() => {
+        this.addFilesToPlaylist(files);
     }, 100);
 };
 
@@ -185,24 +178,26 @@ LocalFileHandler.prototype.fileInputChanged = function(e) {
 };
 
 LocalFileHandler.prototype.directoryInputChanged = function(e) {
-    var input = e.target;
-    if (typeof input.getFilesAndDirectories === "function") {
-        input.getFilesAndDirectories().then(this.gotFilesAndDirectories);
+    const input = e.target;
+    if (typeof input.getFilesAndDirectories === `function`) {
+        (async () => {
+            const filesAndDirs = await input.getFilesAndDirectories();
+            this.gotFilesAndDirectories(filesAndDirs);
+        })();
     } else {
         this.gotFiles(input.files);
     }
     this.directoryFileInput.resetFiles();
 };
 
-const toTrack = function(v) { return new Track(v); };
 LocalFileHandler.prototype.addFilesToPlaylist = function(files) {
-    this.playlist.add(files.map(toTrack));
+    this.playlist.add(files.map(file => new Track(file)));
 };
 
 LocalFileHandler.prototype.filterFiles = function(files) {
-    var ret = new Array(files.length);
+    const ret = new Array(files.length);
     ret.length = 0;
-    for (var i = 0; i < files.length; ++i) {
+    for (let i = 0; i < files.length; ++i) {
         if (this.localFiles.defaultFilter(files[i])) {
             ret.push(files[i]);
         }

@@ -1,7 +1,7 @@
-"use strict";
+
 
 import AbstractDimensionCommittedDragRecognizer from "ui/gestures/AbstractDimensionCommittedDragRecognizer";
-import { inherits } from "util";
+import {inherits} from "util";
 
 export default function HorizontalDragRecognizer(recognizerContext, fnStart, fnMove, fnEnd) {
     AbstractDimensionCommittedDragRecognizer.call(this, recognizerContext, fnStart, fnMove, fnEnd);

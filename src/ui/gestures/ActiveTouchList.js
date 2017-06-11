@@ -1,8 +1,8 @@
-"use strict";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_CANCEL = "touchcancel";
+
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function ActiveTouchList() {
     this.activeTouches = [];
@@ -26,7 +26,7 @@ ActiveTouchList.prototype.clear = function() {
 
 ActiveTouchList.prototype.contains = function(touch) {
     if (!touch) return false;
-    for (var i = 0; i < this.activeTouches.length; ++i) {
+    for (let i = 0; i < this.activeTouches.length; ++i) {
         if (this.activeTouches[i].identifier === touch.identifier) {
             return true;
         }
@@ -35,14 +35,14 @@ ActiveTouchList.prototype.contains = function(touch) {
 };
 
 ActiveTouchList.prototype.update = function(e, changedTouches) {
-    var activeTouches = this.activeTouches;
-    var addedTouches = [];
+    const {activeTouches} = this;
+    const addedTouches = [];
 
     if (e.type === TOUCH_START) {
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
-            var unique = true;
-            for (var j = 0; j < activeTouches.length; ++j) {
+        for (let i = 0; i < changedTouches.length; ++i) {
+            const touch = changedTouches[i];
+            let unique = true;
+            for (let j = 0; j < activeTouches.length; ++j) {
                 if (activeTouches[j].identifier === touch.identifier) {
                     unique = false;
                 }
@@ -54,10 +54,10 @@ ActiveTouchList.prototype.update = function(e, changedTouches) {
             }
         }
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
-            var id = touch.identifier;
-            for (var j = 0; j < activeTouches.length; ++j) {
+        for (let i = 0; i < changedTouches.length; ++i) {
+            const touch = changedTouches[i];
+            const id = touch.identifier;
+            for (let j = 0; j < activeTouches.length; ++j) {
                 if (activeTouches[j].identifier === id) {
                     activeTouches.splice(j, 1);
                     break;

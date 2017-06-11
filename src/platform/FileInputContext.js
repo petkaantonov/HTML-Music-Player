@@ -1,4 +1,4 @@
-"use strict";
+
 
 function FileInput(context, dom, properties) {
     this._nodes = dom;
@@ -9,11 +9,10 @@ function FileInput(context, dom, properties) {
     this._input = this._createInput();
     this._tapRecognizer = context.recognizerContext.createTapRecognizer(this._clicked);
 
-    var self = this;
-    this.$().forEach(function(elem) {
-        elem.addEventListener("click", self._clicked);
-        elem.addEventListener("mousedown", self._mousedowned);
-        self._tapRecognizer.recognizeBubbledOn(elem);
+    this.$().forEach((elem) => {
+        elem.addEventListener(`click`, this._clicked);
+        elem.addEventListener(`mousedown`, this._mousedowned);
+        this._tapRecognizer.recognizeBubbledOn(elem);
     });
 }
 
@@ -34,19 +33,19 @@ FileInput.prototype._clicked = function() {
 };
 
 FileInput.prototype._createInput = function() {
-    return this.page().createElement("input")
-        .setProperties(this._properties)
-        .setProperties({
-            type: "file",
+    return this.page().createElement(`input`).
+        setProperties(this._properties).
+        setProperties({
+            type: `file`,
             tabIndex: -1
-        })
-        .setStyles({
-            position: "absolute",
-            top: "-9999px",
-            left: "-9999px"
-        })
-        .appendTo("body")
-        .get(0);
+        }).
+        setStyles({
+            position: `absolute`,
+            top: `-9999px`,
+            left: `-9999px`
+        }).
+        appendTo(`body`).
+        get(0);
 };
 
 FileInput.prototype.resetFiles = function() {
@@ -62,7 +61,7 @@ export default function FileInputContext(deps) {
     this.page = deps.page;
     this.recognizerContext = deps.recognizerContext;
     this.rippler = deps.rippler;
-    deps.ensure();
+
 }
 
 FileInputContext.prototype.createFileInput = function(dom, properties) {

@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function SingleTapTimeout(recognizer, successHandler, clearHandler, timeout) {
     this.recognizer = recognizer;

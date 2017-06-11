@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function Range(item, start, end) {
     this.start = start;

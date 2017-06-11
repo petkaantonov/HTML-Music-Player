@@ -12,9 +12,9 @@ function sanitizeHostname(hn) {
     return (hn + "").replace(/[^a-zA-Z0-9\.\-]+/g, "");
 }
 
-var port = +argv.port || process.env.SOITA_PORT || 4443;
-var commonName = sanitizeHostname(argv.commonName || process.env.SOITA_COMMON_NAME || "localhost");
-var host = sanitizeHostname(argv.host || process.env.SOITA_HOSTNAME || "0.0.0.0");
+var port = +process.env.npm_package_config_devServerPort || +argv.port || process.env.SOITA_PORT || 4443;
+var commonName = sanitizeHostname(process.env.npm_package_config_devServerName || argv.commonName || process.env.SOITA_COMMON_NAME || "localhost");
+var host = sanitizeHostname(process.env.npm_package_config_devServerHost || argv.host || process.env.SOITA_HOSTNAME || "0.0.0.0");
 var cwd = process.cwd();
 process.chdir("scripts");
 

@@ -1,6 +1,4 @@
-"use strict";
-
-import { inherits, toFunction, ensuredStringField, ensuredIntegerField } from "util";
+import {inherits, toFunction} from "util";
 import EventEmitter from "events";
 
 const TRANSITION_IN_DURATION = 300;
@@ -16,8 +14,8 @@ function ActionMenuItem(root, spec, children, level) {
     this.handler = toFunction(spec.onClick);
     this.enabledPredicate = spec.enabledPredicate;
 
-    this._preferredHorizontalDirection = "end";
-    this._preferredVerticalDirection = "end";
+    this._preferredHorizontalDirection = `end`;
+    this._preferredVerticalDirection = `end`;
     this._delayTimerId = -1;
     this._content = toFunction(spec.content);
     this._containerDom = this.page().NULL();
@@ -43,16 +41,16 @@ function ActionMenuItem(root, spec, children, level) {
             child.setParent(this);
         }, this);
 
-        this.$().addEventListener("mouseenter", this.itemMouseEntered);
-        this.$().addEventListener("mouseleave", this.itemMouseLeft);
-        this.$container().addEventListener("mouseenter", this.containerMouseEntered);
-        this.$container().addEventListener("mouseleave", this.containerMouseLeft);
+        this.$().addEventListener(`mouseenter`, this.itemMouseEntered);
+        this.$().addEventListener(`mouseleave`, this.itemMouseLeft);
+        this.$container().addEventListener(`mouseenter`, this.containerMouseEntered);
+        this.$container().addEventListener(`mouseleave`, this.containerMouseLeft);
 
         this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
     }
 
     if (!this.divider) {
-        this.$().addEventListener("click", this.itemClicked);
+        this.$().addEventListener(`click`, this.itemClicked);
         this.tapRecognizer.recognizeBubbledOn(this.$());
         this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
     }
@@ -75,16 +73,15 @@ ActionMenuItem.prototype._clearDelayTimer = function() {
 
 ActionMenuItem.prototype.startHideTimer = function() {
     this._clearDelayTimer();
-    var self = this;
-    this._delayTimerId = this.page().setTimeout(function() {
-        self._delayTimerId = -1;
-        self.hideContainer();
+    this._delayTimerId = this.page().setTimeout(() => {
+        this._delayTimerId = -1;
+        this.hideContainer();
     }, this.root.hideDelay);
 };
 
 ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
-    for (var i = 0; i < this.children.length; ++i) {
-        var child = this.children[i];
+    for (let i = 0; i < this.children.length; ++i) {
+        const child = this.children[i];
         if (child.children) {
             if (targetMenuItem && this.page().$(targetMenuItem).closest(child.$()).length) {
                 continue;
@@ -96,8 +93,8 @@ ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
 };
 
 ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
-    for (var i = 0; i < this.children.length; ++i) {
-        var otherChild = this.children[i];
+    for (let i = 0; i < this.children.length; ++i) {
+        const otherChild = this.children[i];
         if (child !== otherChild) {
             otherChild.removeActiveClass();
             otherChild.hideContainer();
@@ -107,7 +104,7 @@ ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
 
 ActionMenuItem.prototype.itemTouchStarted = function(e) {
     this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
-    var parent = this.parent ? this.parent : this.root;
+    const parent = this.parent ? this.parent : this.root;
     parent.menuItemTouchStarted(this);
     if (this.children) {
         this.initSubMenuShowing(0);
@@ -123,10 +120,10 @@ ActionMenuItem.prototype.initSubMenuShowing = function(delay) {
         this.hideChildren();
         return;
     }
-    var self = this;
-    this._delayTimerId = this.page().setTimeout(function() {
-        self._delayTimerId = -1;
-        self.showContainer();
+
+    this._delayTimerId = this.page().setTimeout(() => {
+        this._delayTimerId = -1;
+        this.showContainer();
     }, delay);
 };
 
@@ -144,19 +141,19 @@ ActionMenuItem.prototype.itemMouseLeft = function(e) {
 };
 
 ActionMenuItem.prototype.zIndex = function() {
-    var container = this.parent ? this.parent.$container() : this.root.$();
+    const container = this.parent ? this.parent.$container() : this.root.$();
     return +container.style().zIndex;
 };
 
 ActionMenuItem.prototype.containerMouseLeft = function(e) {
     if (this.disabled) return;
     this._clearDelayTimer();
-    var $related = this.page().$(e.relatedTarget);
+    const $related = this.page().$(e.relatedTarget);
     if ($related.closest(this.$()).length) {
         return;
     }
 
-    var container = this.parent ? this.parent.$container() : this.root.$();
+    const container = this.parent ? this.parent.$container() : this.root.$();
 
     if ($related.closest(container).length) {
         this.startHideTimer();
@@ -186,13 +183,15 @@ ActionMenuItem.prototype.itemClicked = function(e) {
             this.showContainer();
         }
     } else {
-        var prevented = false;
+        let prevented = false;
         try {
-            this.handler({preventDefault: function() {prevented = true;}});
+            this.handler({preventDefault() {
+prevented = true;
+}});
         } finally {
             if (!prevented) {
                 this.root.hideContainer();
-                this.root.emit("itemClick", this.id);
+                this.root.emit(`itemClick`, this.id);
             } else {
                 this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
             }
@@ -209,30 +208,30 @@ ActionMenuItem.prototype.$container = function() {
 };
 
 ActionMenuItem.prototype._createContainerDom = function(level) {
-    var levelClass = level <= 5 ? "action-menu-level-" + level
-                                : "action-menu-level-too-deep";
+    const levelClass = level <= 5 ? `action-menu-level-${level}`
+                                : `action-menu-level-too-deep`;
 
-    return this.page().createElement("div", {
-        class: this.root.containerClass + " " + levelClass
+    return this.page().createElement(`div`, {
+        class: `${this.root.containerClass} ${levelClass}`
     }).setStyles({
-        position: "absolute",
+        position: `absolute`,
         zIndex: Math.max(50, level * 100000)
     });
 };
 
 ActionMenuItem.prototype._createDom = function() {
     if (this.divider) {
-        var node = this.page().createElement("div", {class: this.root.dividerClass});
-        if (typeof this.divider === "function" && !this.divider()) {
+        const node = this.page().createElement(`div`, {class: this.root.dividerClass});
+        if (typeof this.divider === `function` && !this.divider()) {
             node.hide();
         }
         return node;
     } else {
-        var content = this._content(this);
-        var node = this.page().createElement("div", {class: this.root.itemClass});
-        if (typeof content === "string") {
+        const content = this._content(this);
+        const node = this.page().createElement(`div`, {class: this.root.itemClass});
+        if (typeof content === `string`) {
             node.setHtml(content);
-        } else if (content == null) {
+        } else if (content === null || typeof content === `undefined`) {
             node.hide();
         } else {
             node.empty().append(content);
@@ -245,7 +244,7 @@ ActionMenuItem.prototype.refresh = function() {
     if (!this.isShown()) return;
 
     if (this.divider) {
-        if (typeof this.divider === "function") {
+        if (typeof this.divider === `function`) {
             if (this.divider()) {
                 this.$().show();
             } else {
@@ -255,11 +254,11 @@ ActionMenuItem.prototype.refresh = function() {
         return;
     }
 
-    var content = this._content(this);
+    const content = this._content(this);
 
-    if (typeof content === "string") {
+    if (typeof content === `string`) {
         this.$().setHtml(content).show();
-    } else if (content == null) {
+    } else if (content === null || typeof content === `undefined`) {
         this.$().empty().hide();
     } else {
         this.$().show().empty().append(content);
@@ -270,12 +269,12 @@ ActionMenuItem.prototype.refresh = function() {
 ActionMenuItem.prototype.setParent = function(parent) {
     this.parent = parent;
     this.$().appendTo(this.parent.$container());
-    this.parent.$().addClass("action-menu-sub-menu-item");
+    this.parent.$().addClass(`action-menu-sub-menu-item`);
 };
 
 ActionMenuItem.prototype.setEnabledStateFromPredicate = function(args) {
-    if (typeof this.enabledPredicate === "function") {
-        var enabled = this.enabledPredicate.apply(null, args);
+    if (typeof this.enabledPredicate === `function`) {
+        const enabled = this.enabledPredicate.apply(null, args);
         if (enabled) {
             this.enable();
         } else {
@@ -319,31 +318,31 @@ ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
                                                         coordEnd,
                                                         dimensionValue,
                                                         maxValue) {
-    var roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
-    var roomOnStart = coordStart + 3 - dimensionValue;
-    var ret = -1;
+    const roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
+    const roomOnStart = coordStart + 3 - dimensionValue;
+    let ret = -1;
 
     // Doesn't fit anywhere.
     if (roomOnStart < 0 && roomOnEnd < 0) {
         if (roomOnStart > roomOnEnd) {
-            preferredDirection = "end";
+            preferredDirection = `end`;
             ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
             ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
         } else {
-            preferredDirection = "start";
+            preferredDirection = `start`;
             ret = Math.max(0, coordEnd - 3);
             ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
         }
     } else {
         while (ret < 0 || ret + dimensionValue > maxValue) {
-            if (preferredDirection === "end") {
+            if (preferredDirection === `end`) {
                 ret = Math.max(0, coordEnd - 3);
 
                 if (ret + dimensionValue > maxValue) {
                     ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
                     ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
 
-                    preferredDirection = "start";
+                    preferredDirection = `start`;
                 }
             } else {
                 ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
@@ -352,7 +351,7 @@ ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
                 if (ret < 0) {
                     ret = Math.max(0, coordEnd - 3);
                     ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-                    preferredDirection = "end";
+                    preferredDirection = `end`;
                 }
             }
         }
@@ -360,23 +359,24 @@ ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
 
     return {
         coordStart: ret,
-        preferredDirection: preferredDirection
+        preferredDirection
     };
 };
 
 ActionMenuItem.prototype.positionSubMenu = function() {
-    if (!this.isShown()) return;
-    var itemBox = this.$()[0].getBoundingClientRect();
-    var containerBox = this.$container()[0].getBoundingClientRect();
-    var xMax = this.page().width();
-    var yMax = this.page().height();
+    const origin = {x: 0, y: 0};
+    if (!this.isShown()) return origin;
+    const itemBox = this.$()[0].getBoundingClientRect();
+    const containerBox = this.$container()[0].getBoundingClientRect();
+    const xMax = this.page().width();
+    const yMax = this.page().height();
 
-    var origin = {x: 0, y: 0};
-    var left = -1;
-    var top = -1;
 
-    var preferredDirection = this.getHorizontalDirection();
-    var positionResult =
+    let left = -1;
+    let top = -1;
+
+    let preferredDirection = this.getHorizontalDirection();
+    let positionResult =
         this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
     left = positionResult.coordStart;
     this._preferredHorizontalDirection = positionResult.preferredDirection;
@@ -388,8 +388,8 @@ ActionMenuItem.prototype.positionSubMenu = function() {
     this._preferredVerticalDirection = positionResult.preferredDirection;
 
     this.$container().setStyles({
-        top: top + "px",
-        left: left + "px"
+        top: `${top}px`,
+        left: `${left}px`
     });
 
     origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
@@ -409,56 +409,54 @@ ActionMenuItem.prototype.removeActiveClass = function() {
 
 ActionMenuItem.prototype.showContainer = function() {
     this.addActiveClass();
-    this.$container().setStyle("willChange", "transform")
-                    .removeClass(["transition-out", "transition-in", "initial"])
-                    .appendTo("body");
-    var origin = this.positionSubMenu();
-    this.$container().setTransformOrigin(origin.x + "px " + origin.y + "px 0px")
-                    .detach()
-                    .removeClass("transition-out")
-                    .addClass(["initial", "transition-in"])
-                    .appendTo("body")
-                    .forceReflow();
-    var self = this;
-    this.page().changeDom(function() {
-        self.$container().removeClass("initial");
-        self.page().setTimeout(function() {
-            self.$container().setStyle("willChange", "");
+    this.$container().setStyle(`willChange`, `transform`).
+                    removeClass([`transition-out`, `transition-in`, `initial`]).
+                    appendTo(`body`);
+    const origin = this.positionSubMenu();
+    this.$container().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`).
+                    detach().
+                    removeClass(`transition-out`).
+                    addClass([`initial`, `transition-in`]).
+                    appendTo(`body`).
+                    forceReflow();
+
+    this.page().changeDom(() => {
+        this.$container().removeClass(`initial`);
+        this.page().setTimeout(() => {
+            this.$container().setStyle(`willChange`, ``);
         }, TRANSITION_IN_DURATION);
     });
 };
 
 ActionMenuItem.prototype.hideContainer = function() {
-    this._preferredVerticalDirection = "end";
-    this._preferredHorizontalDirection = "end";
+    this._preferredVerticalDirection = `end`;
+    this._preferredHorizontalDirection = `end`;
     this._clearDelayTimer();
-    this.$container().setStyle("willChange", "transform")
-                    .removeClass("transition-in")
-                    .addClass(["initial", "transition-out"])
-                    .forceReflow();
-    var self = this;
-    this.page().changeDom(function() {
-        self.$container().removeClass("initial");
-        self._delayTimerId = self.page().setTimeout(function() {
-            self._delayTimerId = -1;
-            self.$container().detach().setStyle("willChange", "");
+    this.$container().setStyle(`willChange`, `transform`).
+                    removeClass(`transition-in`).
+                    addClass([`initial`, `transition-out`]).
+                    forceReflow();
+
+    this.page().changeDom(() => {
+        this.$container().removeClass(`initial`);
+        this._delayTimerId = this.page().setTimeout(() => {
+            this._delayTimerId = -1;
+            this.$container().detach().setStyle(`willChange`, ``);
         }, TRANSITION_OUT_DURATION);
     });
     this.removeActiveClass();
     if (this.children) {
-        this.children.forEach(function(child) {
+        this.children.forEach((child) => {
             child.hideContainer();
         });
     }
 };
 
 function createMenuItem(root, spec, level) {
-    var children = null;
+    let children = null;
     if (spec.children) {
-        if (spec.divider) throw new Error("divider cannot have children");
-        var children = spec.children.map(function(childSpec) {
-            return createMenuItem(root, childSpec, level + 1);
-        });
+        if (spec.divider) throw new Error(`divider cannot have children`);
+        children = spec.children.map(childSpec => createMenuItem(root, childSpec, level + 1));
     }
     return new ActionMenuItem(root, spec, children, level);
 }
@@ -471,17 +469,17 @@ export default function ActionMenu(opts, deps) {
     this.rippler = deps.rippler;
     this.recognizerContext = deps.recognizerContext;
 
-    this.rootClass = ensuredStringField(opts, "rootClass");
-    this.containerClass = ensuredStringField(opts, "containerClass");
-    this.itemClass = ensuredStringField(opts, "itemClass");
-    this.disabledClass = ensuredStringField(opts, "disabledClass");
-    this.dividerClass = ensuredStringField(opts, "dividerClass");
-    this.activeSubMenuClass = ensuredStringField(opts, "activeSubMenuClass");
-    this.showDelay = Math.min(1000, Math.max(0, ensuredIntegerField(opts, "subMenuShowDelay")));
-    this.hideDelay = Math.min(3000, Math.max(0, ensuredIntegerField(opts, "subMenuHideDelay")));
+    this.rootClass = opts.rootClass;
+    this.containerClass = opts.containerClass;
+    this.itemClass = opts.itemClass;
+    this.disabledClass = opts.disabledClass;
+    this.dividerClass = opts.dividerClass;
+    this.activeSubMenuClass = opts.activeSubMenuClass;
+    this.showDelay = Math.min(1000, Math.max(0, opts.subMenuShowDelay));
+    this.hideDelay = Math.min(3000, Math.max(0, opts.subMenuHideDelay));
 
     this._delayTimerId = -1;
-    this._domNode = this.page.createElement("div", {
+    this._domNode = this.page.createElement(`div`, {
         class: this.rootClass
     });
 
@@ -497,27 +495,22 @@ export default function ActionMenu(opts, deps) {
     this.forEach(function(item) {
         if (item.divider) return;
         if (!item.id) {
-            throw new Error("unique id is required for menu item");
+            throw new Error(`unique id is required for menu item`);
         }
-        var id = item.id + "";
+        const id = `${item.id}`;
 
         if (this._idToItem[id]) {
-            throw new Error("unique id is required for menu item. " + id + " is duplicate.");
+            throw new Error(`unique id is required for menu item. ${id} is duplicate.`);
         }
 
         this._idToItem[id] = item;
     }, this);
-    deps.ensure();
+
 }
 inherits(ActionMenu, EventEmitter);
 
-ActionMenu.prototype.setEnabledStateFromPredicate = function() {
-    var args = new Array(arguments.length);
-    for (var i = 0; i < args.length; ++i) {
-        args[i] = arguments[i];
-    }
-
-    this.forEach(function(item) {
+ActionMenu.prototype.setEnabledStateFromPredicate = function(...args) {
+    this.forEach((item) => {
         if (item.divider) return;
         item.setEnabledStateFromPredicate(args);
     });
@@ -525,15 +518,17 @@ ActionMenu.prototype.setEnabledStateFromPredicate = function() {
 
 ActionMenu.prototype.destroy = function() {
     this.clearDelayTimer();
-    this.forEach(function(child) { child.destroy(); });
+    this.forEach((child) => {
+ child.destroy();
+});
     this.hideContainer();
     this.$().remove();
     this.removeAllListeners();
 };
 
 ActionMenu.prototype.menuItemTouchStarted = function(child) {
-    for (var i = 0; i < this._menuItems.length; ++i) {
-        var otherChild = this._menuItems[i];
+    for (let i = 0; i < this._menuItems.length; ++i) {
+        const otherChild = this._menuItems[i];
         if (child !== otherChild) {
             otherChild.removeActiveClass();
             otherChild.hideContainer();
@@ -542,9 +537,9 @@ ActionMenu.prototype.menuItemTouchStarted = function(child) {
 };
 
 ActionMenu.prototype.$containers = function() {
-    var ret = this.$();
-    this.forEach(function(item) {
-        if (item.children && item.isShown())  {
+    let ret = this.$();
+    this.forEach((item) => {
+        if (item.children && item.isShown()) {
             ret = ret.add(item.$container()[0]);
         }
     });
@@ -562,28 +557,27 @@ ActionMenu.prototype.clearDelayTimer = function() {
 
 ActionMenu.prototype.startHideTimer = function() {
     this.clearDelayTimer();
-    var self = this;
-    this._delayTimerId = this.page.setTimeout(function() {
-        self._delayTimerId = -1;
-        self.hideContainer();
+    this._delayTimerId = this.page.setTimeout(() => {
+        this._delayTimerId = -1;
+        this.hideContainer();
     }, this.hideDelay);
 };
 
 ActionMenu.prototype.hideContainer = function() {
-    this._menuItems.forEach(function(item) {
+    this._menuItems.forEach((item) => {
         item.hideContainer();
     });
 };
 
 ActionMenu.prototype.forEach = function(fn, ctx) {
-    var items = this._menuItems.slice();
-    var index = 0;
+    const items = this._menuItems.slice();
+    let index = 0;
 
     while (items.length > 0) {
-        var item = items.shift();
+        const item = items.shift();
 
         if (item.children) {
-            items.push.apply(items, item.children);
+            items.push(...item.children);
         }
 
         if (fn.call(ctx || item, item, index) === false) return;
@@ -597,12 +591,12 @@ ActionMenu.prototype.refreshAll = function() {
 
 ActionMenu.prototype.disableAll = function() {
     this.forEach(ActionMenuItem.prototype.disable);
-    this.emit("activationChange", this);
+    this.emit(`activationChange`, this);
 };
 
 ActionMenu.prototype.enableAll = function() {
     this.forEach(ActionMenuItem.prototype.enable);
-    this.emit("activationChange", this);
+    this.emit(`activationChange`, this);
 };
 
 ActionMenu.prototype.disable = function(actions) {
@@ -613,7 +607,7 @@ ActionMenu.prototype.disable = function(actions) {
     actions.forEach(function(action) {
         this._idToItem[action].disable();
     }, this);
-    this.emit("activationChange", this);
+    this.emit(`activationChange`, this);
 };
 
 ActionMenu.prototype.enable = function(actions) {
@@ -623,17 +617,17 @@ ActionMenu.prototype.enable = function(actions) {
     actions.forEach(function(action) {
         this._idToItem[action].enable();
     }, this);
-    this.emit("activationChange", this);
+    this.emit(`activationChange`, this);
 };
 
 export function ContextMenu(opts, deps) {
     EventEmitter.call(this);
     opts = Object(opts);
     opts._initialLevel = 2;
-    opts.rootClass = ensuredStringField(opts, "rootClass") + " action-menu-context-root";
+    opts.rootClass = `${opts.rootClass} action-menu-context-root`;
     this._menu = new ActionMenu(opts, deps);
     this._domNode = this._menu.$().setStyles({
-        position: "absolute",
+        position: `absolute`,
         zIndex: 50
     });
     this._shown = false;
@@ -654,15 +648,15 @@ export function ContextMenu(opts, deps) {
     this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
     this.preventDefault = this.page().preventDefaultHandler;
 
-    this.$target().addEventListener("contextmenu", this.rightClicked);
-    this.page().addDocumentListener("mousedown", this.documentClicked, true);
-    this.page().addDocumentListener("keydown", this.keypressed, true);
+    this.$target().addEventListener(`contextmenu`, this.rightClicked);
+    this.page().addDocumentListener(`mousedown`, this.documentClicked, true);
+    this.page().addDocumentListener(`keydown`, this.keypressed, true);
     this.longTapRecognizer.recognizeBubbledOn(this.$target());
     this.documentTouchedRecognizer.recognizeCapturedOn(this.page().document());
 
-    this._menu.on("itemClick", this.hide);
-    this._menu.globalEvents.on("resize", this.position);
-    this._menu.globalEvents.on("visibilityChange", this.hide);
+    this._menu.on(`itemClick`, this.hide);
+    this._menu.globalEvents.on(`resize`, this.position);
+    this._menu.globalEvents.on(`visibilityChange`, this.hide);
 }
 inherits(ContextMenu, EventEmitter);
 
@@ -672,12 +666,12 @@ ContextMenu.prototype.page = function() {
 
 ContextMenu.prototype.destroy = function() {
     this.hide();
-    this._menu.removeListener("itemClick", this.hide);
-    this._menu.globalEvents.removeListener("resize", this.position);
-    this._menu.globalEvents.removeListener("visibilityChange", this.hide);
-    this.page().removeDocumentListener("mousedown", this.documentClicked, true);
-    this.page().removeDocumentListener("keydown", this.keypressed, true);
-    this.$target().removeEventListener("contextmenu", this.rightClicked);
+    this._menu.removeListener(`itemClick`, this.hide);
+    this._menu.globalEvents.removeListener(`resize`, this.position);
+    this._menu.globalEvents.removeListener(`visibilityChange`, this.hide);
+    this.page().removeDocumentListener(`mousedown`, this.documentClicked, true);
+    this.page().removeDocumentListener(`keydown`, this.keypressed, true);
+    this.$target().removeEventListener(`contextmenu`, this.rightClicked);
     this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
     this.documentTouchedRecognizer.unrecognizeCapturedOn(this.page().document());
     this.removeAllListeners();
@@ -693,25 +687,24 @@ ContextMenu.prototype.$ = function() {
 };
 
 ContextMenu.prototype.position = function() {
-    if (!this._shown) return;
-    var x = this._x;
-    var y = this._y;
-    var box = this.$()[0].getBoundingClientRect();
-    var xMax = this.page().width();
-    var yMax = this.page().height();
+    const origin = {x: 0, y: 0};
+    if (!this._shown) return origin;
+    let x = this._x;
+    let y = this._y;
+    const box = this.$()[0].getBoundingClientRect();
+    const xMax = this.page().width();
+    const yMax = this.page().height();
 
-    var positionChanged = false;
+    let positionChanged = false;
     if (xMax !== this._xMax || yMax !== this._yMax) {
-        x = x * (xMax / this._xMax);
-        y = y * (yMax / this._yMax);
+        x *= (xMax / this._xMax);
+        y *= (yMax / this._yMax);
         this._x = x;
         this._y = y;
         this._xMax = xMax;
         this._yMax = yMax;
         positionChanged = true;
     }
-
-    var origin = {x: 0, y: 0};
 
     if (x + box.width > xMax) {
         positionChanged = true;
@@ -725,10 +718,10 @@ ContextMenu.prototype.position = function() {
         origin.y = Math.max(0, this._y - y);
     }
 
-    this.$().setStyles({left: x + "px", top: y + "px"});
+    this.$().setStyles({left: `${x}px`, top: `${y}px`});
 
     if (positionChanged) {
-        this._menu.forEach(function(child) {
+        this._menu.forEach((child) => {
             if (child.children) {
                 child.positionSubMenu();
             }
@@ -739,12 +732,14 @@ ContextMenu.prototype.position = function() {
 
 ContextMenu.prototype.rightClicked = function(e) {
     this.hide();
-    var defaultPrevented = false;
-    var ev = {
-        preventDefault: function() {defaultPrevented = true;},
+    let defaultPrevented = false;
+    const ev = {
+        preventDefault() {
+            defaultPrevented = true;
+        },
         originalEvent: e
     };
-    this.emit("beforeOpen", ev);
+    this.emit(`beforeOpen`, ev);
     if (defaultPrevented) return;
     this.show(e);
     if (this._shown) {
@@ -757,72 +752,73 @@ ContextMenu.prototype.show = function(e) {
     this.page().clearTimeout(this._delayTimerId);
     this._delayTimerId = -1;
 
-    var prevented = false;
-    this.preventDefault = function() {prevented = true;};
-    this.emit("willShowMenu", e, this);
+    let prevented = false;
+    this.preventDefault = function() {
+prevented = true;
+};
+    this.emit(`willShowMenu`, e, this);
     if (prevented) return;
     this._shown = true;
-    this.$().removeClass(["transition-out", "transition-in", "initial"]).appendTo("body");
+    this.$().removeClass([`transition-out`, `transition-in`, `initial`]).appendTo(`body`);
     this._x = e.clientX;
     this._y = e.clientY;
     this._xMax = this.page().width();
     this._yMax = this.page().height();
-    var origin = this.position();
-    this.$().setTransformOrigin(origin.x + "px " + origin.y + "px 0px");
+    const origin = this.position();
+    this.$().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`);
 
     // Transition from desktop right click feels weird so only do it on touch.
     if (this.page().isTouchEvent(e)) {
-        this.$().detach()
-                .addClass(["initial", "transition-in"])
-                .appendTo("body")
-                .forceReflow();
-        var self = this;
-        this.page().changeDom(function() {
-            self.$().removeClass("initial");
+        this.$().detach().
+                addClass([`initial`, `transition-in`]).
+                appendTo(`body`).
+                forceReflow();
+        this.page().changeDom(() => {
+            this.$().removeClass(`initial`);
         });
     }
 
-    this.emit("didShowMenu", e, this);
+    this.emit(`didShowMenu`, e, this);
 };
 
 ContextMenu.prototype.hide = function() {
     if (!this._shown) return;
-    this.emit("willHideMenu", this);
+    this.emit(`willHideMenu`, this);
     this._shown = false;
-    this.$().removeClass("transition-in")
-            .addClass(["initial", "transition-out"])
-            .forceReflow();
+    this.$().removeClass(`transition-in`).
+            addClass([`initial`, `transition-out`]).
+            forceReflow();
 
-    var self = this;
-    this.page().changeDom(function() {
-        self.$().removeClass("initial");
-        self._delayTimerId = self.page().setTimeout(function() {
-            self._delayTimerId = -1;
-            self.$().detach();
+    this.page().changeDom(() => {
+        this.$().removeClass(`initial`);
+        this._delayTimerId = this.page().setTimeout(() => {
+            this._delayTimerId = -1;
+            this.$().detach();
         }, TRANSITION_OUT_DURATION);
     });
     this._menu.hideContainer();
-    this.emit("didHideMenu", this);
+    this.emit(`didHideMenu`, this);
 };
 
-["disable", "enable", "disableAll", "enableAll", "refreshAll", "setEnabledStateFromPredicate",
-"forEach"].forEach(function(methodName) {
-    var menuMethod = ActionMenu.prototype[methodName];
-    ContextMenu.prototype[methodName] = function()  {
-        return menuMethod.apply(this._menu, arguments);
+[`disable`, `enable`, `disableAll`, `enableAll`, `refreshAll`, `setEnabledStateFromPredicate`,
+`forEach`].forEach((methodName) => {
+    const menuMethod = ActionMenu.prototype[methodName];
+    ContextMenu.prototype[methodName] = function(...args) {
+        return menuMethod.call(this._menu, ...args);
     };
 });
 
 ContextMenu.prototype.documentClicked = function(e) {
     if (!this._shown) return;
 
-    var $target = this.page().$(e.target);
-    var containerClicked = false;
-    this._menu.$containers().forEach(function(elem) {
+    const $target = this.page().$(e.target);
+    let containerClicked = false;
+    this._menu.$containers().forEach((elem) => {
         if ($target.closest(elem).length > 0) {
             containerClicked = true;
             return false;
         }
+        return true;
     });
 
     if (!containerClicked) {

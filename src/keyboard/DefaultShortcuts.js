@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function DefaultShortcuts(deps) {
     this.page = deps.page;
@@ -45,38 +45,38 @@ export default function DefaultShortcuts(deps) {
     this.rippleRecognizer =
         this.recognizerContext.createTapRecognizer(this.screenTapped);
 
-    this.player.on("newTrackLoad", this.playerLoadedNewTrack.bind(this));
-    this.keyboardShortcuts.defaultContext.addShortcut("z", this.shortcutPlay);
-    this.keyboardShortcuts.defaultContext.addShortcut(["x", "MediaStop"], this.shortcutPause);
-    this.keyboardShortcuts.defaultContext.addShortcut(["mod+ArrowRight", "MediaTrackNext"], this.shortcutNext);
-    this.keyboardShortcuts.defaultContext.addShortcut(["mod+ArrowLeft", "MediaTrackPrevious"], this.shortcutPrev);
-    this.keyboardShortcuts.defaultContext.addShortcut(["-", "VolumeDown"], this.shortcutVolumeDown);
-    this.keyboardShortcuts.defaultContext.addShortcut(["+", "VolumeUp"], this.shortcutVolumeUp);
-    this.keyboardShortcuts.defaultContext.addShortcut([" ", "MediaPlayPause"], this.shortcutTogglePlayback);
-    this.keyboardShortcuts.defaultContext.addShortcut(["VolumeMute", "alt+mod+m"], this.shortcutToggleMute);
-    this.keyboardShortcuts.defaultContext.addShortcut("alt+t", this.shortcutToggleDisplayMode);
-    this.keyboardShortcuts.defaultContext.addShortcut("alt+n", this.shortcutPlaylistNormal);
-    this.keyboardShortcuts.defaultContext.addShortcut("alt+s", this.shortcutPlaylistShuffle);
-    this.keyboardShortcuts.defaultContext.addShortcut("alt+r", this.shortcutPlaylistRepeat);
-    this.keyboardShortcuts.defaultContext.addShortcut("ArrowLeft", this.shortcutSeekBack);
-    this.keyboardShortcuts.defaultContext.addShortcut("ArrowRight", this.shortcutSeekForward);
+    this.player.on(`newTrackLoad`, this.playerLoadedNewTrack.bind(this));
+    this.keyboardShortcuts.defaultContext.addShortcut(`z`, this.shortcutPlay);
+    this.keyboardShortcuts.defaultContext.addShortcut([`x`, `MediaStop`], this.shortcutPause);
+    this.keyboardShortcuts.defaultContext.addShortcut([`mod+ArrowRight`, `MediaTrackNext`], this.shortcutNext);
+    this.keyboardShortcuts.defaultContext.addShortcut([`mod+ArrowLeft`, `MediaTrackPrevious`], this.shortcutPrev);
+    this.keyboardShortcuts.defaultContext.addShortcut([`-`, `VolumeDown`], this.shortcutVolumeDown);
+    this.keyboardShortcuts.defaultContext.addShortcut([`+`, `VolumeUp`], this.shortcutVolumeUp);
+    this.keyboardShortcuts.defaultContext.addShortcut([` `, `MediaPlayPause`], this.shortcutTogglePlayback);
+    this.keyboardShortcuts.defaultContext.addShortcut([`VolumeMute`, `alt+mod+m`], this.shortcutToggleMute);
+    this.keyboardShortcuts.defaultContext.addShortcut(`alt+t`, this.shortcutToggleDisplayMode);
+    this.keyboardShortcuts.defaultContext.addShortcut(`alt+n`, this.shortcutPlaylistNormal);
+    this.keyboardShortcuts.defaultContext.addShortcut(`alt+s`, this.shortcutPlaylistShuffle);
+    this.keyboardShortcuts.defaultContext.addShortcut(`alt+r`, this.shortcutPlaylistRepeat);
+    this.keyboardShortcuts.defaultContext.addShortcut(`ArrowLeft`, this.shortcutSeekBack);
+    this.keyboardShortcuts.defaultContext.addShortcut(`ArrowRight`, this.shortcutSeekForward);
 
 
     this.enableGestures();
-    this.keyboardShortcuts.on("disable", this.disableGestures);
-    this.keyboardShortcuts.on("enable", this.enableGestures);
+    this.keyboardShortcuts.on(`disable`, this.disableGestures);
+    this.keyboardShortcuts.on(`enable`, this.enableGestures);
 
     this.rippleRecognizer.recognizeCapturedOn(this.page.document());
-    deps.ensure();
+
 }
 
 DefaultShortcuts.prototype.playerLoadedNewTrack = function() {
-    this.page.removeDocumentListener("keyup", this.commitSeek, true);
+    this.page.removeDocumentListener(`keyup`, this.commitSeek, true);
 };
 
 DefaultShortcuts.prototype.commitSeek = function(e) {
     if (e.key !== this.seekShortcut) return;
-    this.page.removeDocumentListener("keyup", this.commitSeek, true);
+    this.page.removeDocumentListener(`keyup`, this.commitSeek, true);
     this.player.setProgress(this.seekValueToCommit);
     this.seekValueToCommit = -1;
 };
@@ -122,21 +122,21 @@ DefaultShortcuts.prototype.shortcutToggleDisplayMode = function() {
 };
 
 DefaultShortcuts.prototype.shortcutPlaylistNormal = function() {
-    this.playlist.tryChangeMode("normal");
+    this.playlist.tryChangeMode(`normal`);
 };
 
 DefaultShortcuts.prototype.shortcutPlaylistShuffle = function() {
-    this.playlist.tryChangeMode("shuffle");
+    this.playlist.tryChangeMode(`shuffle`);
 };
 
 DefaultShortcuts.prototype.shortcutPlaylistRepeat = function() {
-    this.playlist.tryChangeMode("repeat");
+    this.playlist.tryChangeMode(`repeat`);
 };
 
 DefaultShortcuts.prototype.shortcutSeekBack = function(e) {
-    this.page.removeDocumentListener("keyup", this.commitSeek, true);
+    this.page.removeDocumentListener(`keyup`, this.commitSeek, true);
 
-    var p;
+    let p;
     if (this.seekValueToCommit !== -1) {
         p = this.seekValueToCommit;
     } else {
@@ -146,15 +146,15 @@ DefaultShortcuts.prototype.shortcutSeekBack = function(e) {
     if (p !== -1) {
         this.seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
         this.seekShortcut = e.key;
-        this.page.addDocumentListener("keyup", this.commitSeek, true);
+        this.page.addDocumentListener(`keyup`, this.commitSeek, true);
         this.player.seekIntent(this.seekValueToCommit);
     }
 };
 
 DefaultShortcuts.prototype.shortcutSeekForward = function(e) {
-    this.page.removeDocumentListener("keyup", this.commitSeek, true);
+    this.page.removeDocumentListener(`keyup`, this.commitSeek, true);
 
-    var p;
+    let p;
     if (this.seekValueToCommit !== -1) {
         p = this.seekValueToCommit;
     } else {
@@ -164,28 +164,28 @@ DefaultShortcuts.prototype.shortcutSeekForward = function(e) {
     if (p !== -1) {
         this.seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
         this.seekShortcut = e.key;
-        this.page.addDocumentListener("keyup", this.commitSeek, true);
+        this.page.addDocumentListener(`keyup`, this.commitSeek, true);
         this.player.seekIntent(this.seekValueToCommit);
     }
 };
 
 DefaultShortcuts.prototype.screenTapped = function(e) {
-    this.rippler.rippleAt(e.clientX, e.clientY, 35, "#aaaaaa");
+    this.rippler.rippleAt(e.clientX, e.clientY, 35, `#aaaaaa`);
 };
 
 DefaultShortcuts.prototype.shortcutGestureTogglePlayback = function() {
-    var gesture = this.player.isPlaying ? "pause" : "play";
+    const gesture = this.player.isPlaying ? `pause` : `play`;
     this.gestureScreenFlasher.flashGesture(gesture);
     this.player.togglePlayback();
 };
 
 DefaultShortcuts.prototype.shortcutGestureNext = function() {
-    this.gestureScreenFlasher.flashGesture("next");
+    this.gestureScreenFlasher.flashGesture(`next`);
     this.playlist.next(true);
 };
 
 DefaultShortcuts.prototype.shortcutGesturePrev = function() {
-    this.gestureScreenFlasher.flashGesture("previous");
+    this.gestureScreenFlasher.flashGesture(`previous`);
     this.playlist.prev();
 };
 

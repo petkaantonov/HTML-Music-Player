@@ -1,14 +1,14 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function DragRecognizer(recognizerContext, moveHandler, endHandler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -22,7 +22,7 @@ export default function DragRecognizer(recognizerContext, moveHandler, endHandle
 inherits(DragRecognizer, AbstractGestureRecognizer);
 
 DragRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 1) {
@@ -46,13 +46,13 @@ DragRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
 
-        var touch = changedTouches[0];
-        var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
-        var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
+        const touch = changedTouches[0];
+        const yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
+        const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
 
         if (yDelta > 2 || xDelta > 2) {
             this.currentTouch = touch;
-            var g = new GestureObject(e, this.currentTouch);
+            const g = new GestureObject(e, this.currentTouch);
             this.moveHandler.call(e.currentTarget, g);
         }
     }
@@ -60,7 +60,7 @@ DragRecognizer.prototype._recognizerHandler = function(e) {
 
 DragRecognizer.prototype.end = function(e, touch) {
     if (this.currentTouch !== null) {
-        var g = new GestureObject(e, touch || this.currentTouch);
+        const g = new GestureObject(e, touch || this.currentTouch);
         this.currentTouch = null;
         this.endHandler.call(e.currentTarget, g);
     }

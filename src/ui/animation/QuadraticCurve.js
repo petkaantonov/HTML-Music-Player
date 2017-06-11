@@ -1,6 +1,6 @@
-"use strict";
 
-import { inherits } from "util";
+
+import {inherits} from "util";
 import Line from "ui/animation/Line";
 
 export default function QuadraticCurve(x1, y1, x2, y2, cpx, cpy, progress) {
@@ -15,11 +15,11 @@ export default function QuadraticCurve(x1, y1, x2, y2, cpx, cpy, progress) {
 inherits(QuadraticCurve, Line);
 
 QuadraticCurve.prototype.xAt = function(progress) {
-    var p2 = progress * progress;
+    const p2 = progress * progress;
     return p2 * this.aX + progress * this.bX + this.x1;
 };
 
 QuadraticCurve.prototype.yAt = function(progress) {
-    var p2 = progress * progress;
+    const p2 = progress * progress;
     return p2 * this.aY + progress * this.bY + this.y1;
 };

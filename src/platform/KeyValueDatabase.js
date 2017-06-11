@@ -1,103 +1,106 @@
-"use strict";
 
-import { iDbPromisify, throttle } from "util";
-import { indexedDB } from "platform/platform";
+
+import {iDbPromisify, throttle} from "util";
+import {indexedDB} from "platform/platform";
+import {delay} from "platform/PromiseExtensions";
 
 const VERSION = 2;
-const NAME = "KeyValueDatabase2";
-const KEY_NAME = "key";
-const TABLE_NAME = "keyValueDatabase2";
-const READ_WRITE = "readwrite";
-const READ_ONLY = "readonly";
+const NAME = `KeyValueDatabase2`;
+const KEY_NAME = `key`;
+const TABLE_NAME = `keyValueDatabase2`;
+const READ_WRITE = `readwrite`;
+const READ_ONLY = `readonly`;
 
-export default function KeyValueDatabase() {
-    var request = indexedDB.open(NAME, VERSION);
-    this.db = iDbPromisify(request);
-    this._onUpgradeNeeded = this._onUpgradeNeeded.bind(this);
-    request.onupgradeneeded = this._onUpgradeNeeded;
-    this.initialValues = this.getAll();
-    this.keySetters = Object.create(null);
-}
-
-KeyValueDatabase.prototype.getKeySetter = function(key) {
-    if (!this.keySetters[key]) {
-        this.keySetters[key] = throttle(function(value) {
-            var db;
-            return this.db.then(function(_db) {
-                db = _db;
-                var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-                return iDbPromisify(store.get(key));
-            }).then(function(existingData) {
-                var store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
-                if (existingData) {
-                    existingData.value = value;
-                    return iDbPromisify(store.put(existingData));
-                } else {
-                    var data = {
-                        key: key,
-                        value: value
-                    };
-                    return iDbPromisify(store.add(data));
-                }
-            });
-        }, 1000);
+export default class KeyValueDatabase {
+    constructor() {
+        const request = indexedDB.open(NAME, VERSION);
+        this.db = iDbPromisify(request);
+        request.onupgradeneeded = event => this._onUpgradeNeeded(event);
+        this.initialValues = this.getAll();
+        this.keySetters = Object.create(null);
     }
-    return this.keySetters[key];
-};
 
-KeyValueDatabase.prototype.getInitialValues = function() {
-    return this.initialValues;
-};
-
-KeyValueDatabase.prototype._onUpgradeNeeded = function(event) {
-    var db = event.target.result;
-    var objectStore = db.createObjectStore(TABLE_NAME, { keyPath: KEY_NAME });
-    objectStore.createIndex("key", "key", {unique: true});
-    this.db = iDbPromisify(objectStore.transaction).thenReturn(db);
-};
-
-KeyValueDatabase.prototype.set = function(key, value) {
-    key = key + "";
-    return this.getKeySetter(key).call(this, value);
-};
-
-KeyValueDatabase.prototype.get = function(key) {
-    key = "" + key;
-    return this.db.then(function(db) {
-        var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-        return iDbPromisify(store.get(key));
-    });
-};
-
-KeyValueDatabase.prototype.getAll = function(_tries) {
-    if (_tries === undefined) _tries = 0;
-    var self = this;
-    return this.db.then(function(db) {
-        var store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-        var index = store.index(KEY_NAME);
-        var ret = [];
-        return new Promise(function(resolve, reject) {
-            var cursor = index.openCursor();
-
-            cursor.onsuccess = function(event) {
-                var cursor = event.target.result;
-                if (!cursor) return resolve(ret);
-                ret.push(cursor.value);
-                cursor.continue();
+    getKeySetter(key) {
+        if (!this.keySetters[key]) {
+            const keySetter = {
+                async method(value) {
+                    const db = await this.db;
+                    const tx1 = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+                    const existingData = await iDbPromisify(tx1.get(key));
+                    const tx2 = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+                    if (existingData) {
+                        existingData.value = value;
+                        return iDbPromisify(tx2.put(existingData));
+                    } else {
+                        const data = {key, value};
+                        return iDbPromisify(tx2.add(data));
+                    }
+                }
             };
+            this.keySetters[key] = throttle(keySetter.method, 1000);
+        }
+        return this.keySetters[key];
+    }
 
-            cursor.onerror = reject;
-        });
-    }).then(function(keyValuePairs) {
-        var ret = Object.create(null);
-        keyValuePairs.forEach(function(pair) {
+    getInitialValues() {
+        return this.initialValues;
+    }
+
+    _onUpgradeNeeded(event) {
+        const db = event.target.result;
+        const objectStore = db.createObjectStore(TABLE_NAME, {keyPath: KEY_NAME});
+        objectStore.createIndex(`key`, `key`, {unique: true});
+        this.db = (async () => {
+            await iDbPromisify(objectStore.transaction);
+            return db;
+        })();
+    }
+
+    set(key, value) {
+        return this.getKeySetter(`${key}`).call(this, value);
+    }
+
+    async get(key) {
+        key = `${key}`;
+        const db = await this.db;
+        const store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+        return iDbPromisify(store.get(key));
+    }
+
+    async getAll() {
+        const db = await this.db;
+        const store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+        const index = store.index(KEY_NAME);
+        let tries = 0;
+        let keyValuePairs;
+        while (tries < 5) {
+            try {
+                keyValuePairs = await new Promise((resolve, reject) => {
+                    const items = [];
+                    const cursor = index.openCursor();
+                    cursor.onsuccess = function(event) {
+                        const {result} = event.target;
+                        if (!result) {
+                            resolve(items);
+                            return;
+                        }
+                        items.push(result.value);
+                        result.continue();
+                    };
+                    cursor.onerror = reject;
+                });
+                break;
+            } catch (e) {
+                tries++;
+                await delay(500);
+            }
+        }
+
+        const ret = Object.create(null);
+        keyValuePairs.forEach((pair) => {
             ret[pair.key] = pair.value;
         });
         return ret;
-    }).catch(function(e) {
-        if (_tries > 5) throw e;
-        return Promise.delay(500).then(function() {
-            return self.getAll(_tries + 1);
-        });
-    });
-};
+    }
+
+}

@@ -1,4 +1,4 @@
-"use strict";
+
 
 const TRANSFORM = 1;
 const FILTER = 2;
@@ -8,31 +8,31 @@ const CYCLE = 2;
 const REPEAT = 3;
 
 const validProperties = [
-    "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
-    "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
-    "translateX", "translateY", "translateZ", "translate", "translate3d",
-    "skew", "skewX", "skewY", "matrix", "matrix3d",
-    "opacity", "blur", "brightness", "contrast", "drop-shadow",
-    "greyscale", "hue-rotate", "invert", "saturate", "sepia"];
+    `scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`,
+    `rotate`, `rotateX`, `rotateY`, `rotateZ`, `rotate3d`,
+    `translateX`, `translateY`, `translateZ`, `translate`, `translate3d`,
+    `skew`, `skewX`, `skewY`, `matrix`, `matrix3d`,
+    `opacity`, `blur`, `brightness`, `contrast`, `drop-shadow`,
+    `greyscale`, `hue-rotate`, `invert`, `saturate`, `sepia`];
 
-const multiProperties = ["matrix", "matrix3d", "scale", "skew",
-                         "translate", "scale3d", "translate3d",
-                         "rotate3d", "drop-shadow"];
+const multiProperties = [`matrix`, `matrix3d`, `scale`, `skew`,
+                         `translate`, `scale3d`, `translate3d`,
+                         `rotate3d`, `drop-shadow`];
 const transformProperties = [
-    "scale", "scaleX", "scaleY", "scaleZ", "scale3d",
-    "rotate", "rotateX", "rotateY", "rotateZ", "rotate3d",
-    "translateX", "translateY", "translateZ", "translate", "translate3d",
-    "skew", "skewX", "skewY", "matrix", "matrix3d"];
+    `scale`, `scaleX`, `scaleY`, `scaleZ`, `scale3d`,
+    `rotate`, `rotateX`, `rotateY`, `rotateZ`, `rotate3d`,
+    `translateX`, `translateY`, `translateZ`, `translate`, `translate3d`,
+    `skew`, `skewX`, `skewY`, `matrix`, `matrix3d`];
 
 const filterProperties = [
-    "blur", "brightness", "contrast",
-    "drop-shadow", "greyscale", "hue-rotate",
-    "invert", "saturate", "sepia", "opacity"];
+    `blur`, `brightness`, `contrast`,
+    `drop-shadow`, `greyscale`, `hue-rotate`,
+    `invert`, `saturate`, `sepia`, `opacity`];
 
 
 const makePropertyClassifier = function(names) {
     const map = Object.create(null);
-    for (var i = 0; i < names.length; ++i) map[names[i]] = true;
+    for (let i = 0; i < names.length; ++i) map[names[i]] = true;
     Object.freeze(map);
     return function(v) {
         return map[v] === true;
@@ -46,7 +46,7 @@ const isValidProperty = makePropertyClassifier(validProperties);
 
 export default function AnimationProperty(animator, name, spec) {
     if (!isValidProperty(name)) {
-        throw new Error(name + " is not animatable");
+        throw new Error(`${name} is not animatable`);
     }
     this._animator = animator;
     this._name = name;
@@ -55,19 +55,19 @@ export default function AnimationProperty(animator, name, spec) {
                  CSS;
     this._isMulti = isMultiProperty(name);
     this._interp = spec.interpolate || animator.constructor.SWIFT_OUT;
-    if (typeof this._interp !== "function") {
-        throw new Error("interpolate must be a function");
+    if (typeof this._interp !== `function`) {
+        throw new Error(`interpolate must be a function`);
     }
-    this._unit = (spec.unit || "") + "";
-    this._repeat = spec.repeat === "cycle" ? CYCLE :
-                   spec.repeat === "repeat" ? REPEAT :
+    this._unit = `${spec.unit || ``}`;
+    this._repeat = spec.repeat === `cycle` ? CYCLE :
+                   spec.repeat === `repeat` ? REPEAT :
                    NONE;
     this._duration = +spec.duration || 300;
-    this._baseValue = spec.baseValue === undefined ? "" : (spec.baseValue + "");
+    this._baseValue = spec.baseValue === undefined ? `` : (`${spec.baseValue}`);
 
-    if (this._baseValue === "none") this._baseValue = "";
+    if (this._baseValue === `none`) this._baseValue = ``;
 
-    var range = spec.range;
+    const {range} = spec;
 
     if (this._isMulti) {
         this._start = range[0];
@@ -75,7 +75,7 @@ export default function AnimationProperty(animator, name, spec) {
         if (!Array.isArray(this._start) ||
             !Array.isArray(this._end) ||
             this._start.length !== this._end.length) {
-            throw new Error("multi property range must be an array");
+            throw new Error(`multi property range must be an array`);
         }
     } else {
         this._start = +range[0];
@@ -94,8 +94,8 @@ AnimationProperty.prototype.start = function($dom) {
 };
 
 AnimationProperty.prototype.tween = function($dom, timeElapsed) {
-    var total = this._duration;
-    var finished = false;
+    const total = this._duration;
+    let finished = false;
 
     if (timeElapsed >= total) {
         if (this._repeat === NONE) {
@@ -105,40 +105,40 @@ AnimationProperty.prototype.tween = function($dom, timeElapsed) {
             if (Math.floor(timeElapsed / total) % 2 === 1) {
                 timeElapsed = total - (timeElapsed % total);
             } else {
-                timeElapsed = timeElapsed % total;
+                timeElapsed %= total;
             }
         } else {
-            timeElapsed = timeElapsed % total;
+            timeElapsed %= total;
         }
     }
 
-    var progress = this._interp(timeElapsed, total);
-    var result = "";
+    const progress = this._interp(timeElapsed, total);
+    let result = ``;
 
     if (this._isMulti) {
-        for (var i = 0; i < this._start.length; ++i) {
-            var start = +this._start[i];
-            var end = +this._end[i];
-            var value = Math.round(((progress * (end - start)) + start) * 1e6) / 1e6;
+        for (let i = 0; i < this._start.length; ++i) {
+            const start = +this._start[i];
+            const end = +this._end[i];
+            const value = Math.round(((progress * (end - start)) + start) * 1e6) / 1e6;
 
             if (i < this._start.length - 1) {
-                result += (" " + value + this._unit + ",");
+                result += (` ${value}${this._unit},`);
             } else {
-                result += (" " + value + this._unit);
+                result += (` ${value}${this._unit}`);
             }
         }
     } else {
-        var start = this._start;
-        var end = this._end;
-        var value = Math.round(((progress * (end - start)) + start) * 1e6) / 1e6;
-        result += (" " + value + this._unit);
+        const start = this._start;
+        const end = this._end;
+        const value = Math.round(((progress * (end - start)) + start) * 1e6) / 1e6;
+        result += (` ${value}${this._unit}`);
     }
 
     if (this._type === FILTER) {
-        result = this._baseValue + " " + this._name + "(" + result + ")";
+        result = `${this._baseValue} ${this._name}(${result})`;
         $dom.setFilter(result);
     } else if (this._type === TRANSFORM) {
-        result = this._baseValue + " " + this._name + "(" + result + ")";
+        result = `${this._baseValue} ${this._name}(${result})`;
         $dom.setTransform(result);
     } else {
         $dom.setStyle(this._name, result);

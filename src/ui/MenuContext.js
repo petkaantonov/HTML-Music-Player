@@ -1,8 +1,8 @@
-"use strict";
 
-import { slugTitle } from "util";
-import ActionMenu, { ContextMenu } from "ui/ActionMenu";
-import ApplicationDependencies from "ApplicationDependencies";
+
+import {slugTitle} from "util";
+import ActionMenu, {ContextMenu} from "ui/ActionMenu";
+import withDeps from "ApplicationDependencies";
 
 export default function MenuContext(opts, deps) {
     this.rootClass = opts.rootClass;
@@ -22,7 +22,7 @@ export default function MenuContext(opts, deps) {
     this.rippler = deps.rippler;
     this.recognizerContext = deps.recognizerContext;
     this.globalEvents = deps.globalEvents;
-    deps.ensure();
+
 }
 
 MenuContext.prototype.createActionMenu = function(opts) {
@@ -34,12 +34,12 @@ MenuContext.prototype.createActionMenu = function(opts) {
     opts.activeSubMenuClass = this.activeSubMenuClass;
     opts.subMenuShowDelay = this.subMenuShowDelay;
     opts.subMenuHideDelay = this.subMenuHideDelay;
-    return new ActionMenu(opts, new ApplicationDependencies({
+    return withDeps({
         page: this.page,
         recognizerContext: this.recognizerContext,
         rippler: this.rippler,
         globalEvents: this.globalEvents
-    }));
+    }, deps => new ActionMenu(opts, deps));
 };
 
 MenuContext.prototype.createContextMenu = function(opts) {
@@ -51,34 +51,34 @@ MenuContext.prototype.createContextMenu = function(opts) {
     opts.activeSubMenuClass = this.activeSubMenuClass;
     opts.subMenuShowDelay = this.subMenuShowDelay;
     opts.subMenuHideDelay = this.subMenuHideDelay;
-    return new ContextMenu(opts, new ApplicationDependencies({
+    return withDeps({
         page: this.page,
         recognizerContext: this.recognizerContext,
         rippler: this.rippler,
         globalEvents: this.globalEvents
-    }));
+    }, deps => new ContextMenu(opts, deps));
 };
 
 MenuContext.prototype.createMenuItem = function(text, icon) {
-    var content = this.page.createElement("div", {
-        class: this.menuItemContentClass + " " + slugTitle(text)
+    const content = this.page.createElement(`div`, {
+        class: `${this.menuItemContentClass} ${slugTitle(text)}`
     });
 
-    var iconContainer = this.page.createElement("div", {
+    const iconContainer = this.page.createElement(`div`, {
         class: this.menuItemIconContainerClass
     });
     if (icon) {
-        iconContainer.append(this.page.createElement("span", {
-            class: this.menuItemIconClass + " " + icon
+        iconContainer.append(this.page.createElement(`span`, {
+            class: `${this.menuItemIconClass} ${icon}`
         }));
     }
 
-    var textContainer = this.page.createElement("div", {
+    const textContainer = this.page.createElement(`div`, {
         class: this.menuItemTextClass
     }).setText(text);
 
-    content.append(iconContainer)
-        .append(textContainer);
+    content.append(iconContainer).
+        append(textContainer);
 
     return content;
 };

@@ -1,14 +1,14 @@
-"use strict";
+
 
 import EventEmitter from "events";
-import { inherits, throttle } from "util";
+import {inherits, throttle, noUndefinedGet} from "util";
 
-const RESTORE_DEFAULTS_BUTTON = "restore-defaults";
-const UNDO_CHANGES_BUTTON = "undo-changes";
+const RESTORE_DEFAULTS_BUTTON = `restore-defaults`;
+const UNDO_CHANGES_BUTTON = `undo-changes`;
 
 export default function AbstractPreferences(preferences, opts, deps) {
     EventEmitter.call(this);
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this._page = deps.page;
     this._preferences = preferences;
     this._env = deps.env;
@@ -18,11 +18,11 @@ export default function AbstractPreferences(preferences, opts, deps) {
     this._sliderContext = deps.sliderContext;
     this._popup = deps.popupContext.makePopup(this.TITLE, this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
-        text: "Restore defaults",
+        text: `Restore defaults`,
         action: this.restoreDefaultsClicked.bind(this)
     }, {
         id: UNDO_CHANGES_BUTTON,
-        text: "Undo changes",
+        text: `Undo changes`,
         action: this.undoChangesClicked.bind(this)
     }]);
 
@@ -31,22 +31,22 @@ export default function AbstractPreferences(preferences, opts, deps) {
     this._manager = null;
 
 
-    var popupOpen = this._popup.open.bind(this._popup);
-    this.page().$(opts.preferencesButton).addEventListener("click", popupOpen);
+    const popupOpen = this._popup.open.bind(this._popup);
+    this.page().$(opts.preferencesButton).addEventListener(`click`, popupOpen);
     this._recognizerContext.createTapRecognizer(popupOpen).recognizeBubbledOn(this.page().$(opts.preferencesButton));
-    this._popup.on("open", this.popupOpened.bind(this));
+    this._popup.on(`open`, this.popupOpened.bind(this));
     if (deps.dbValues && this.STORAGE_KEY in deps.dbValues) {
         this.preferences().copyFrom(deps.dbValues[this.STORAGE_KEY]);
-        this.emit("change", this.preferences());
+        this.emit(`change`, this.preferences());
     }
-    deps.ensure();
+
 }
 inherits(AbstractPreferences, EventEmitter);
 
 AbstractPreferences.prototype.popupOpened = function() {
     if (!this._manager) {
         this._manager = this._createManager();
-        this._manager.on("update", this.savePreferences.bind(this));
+        this._manager.on(`update`, this.savePreferences.bind(this));
     }
     this._manager.setUnchangedPreferences();
 };
@@ -92,7 +92,7 @@ AbstractPreferences.prototype.undoChangesClicked = function() {
 };
 
 AbstractPreferences.prototype.savePreferences = function() {
-    this.emit("change", this.preferences());
+    this.emit(`change`, this.preferences());
     this._db.set(this.STORAGE_KEY, this.preferences().toJSON());
 };
 

@@ -1,12 +1,11 @@
-"use strict";
 
-import { normalizeQuery } from "util";
-import sha1 from "sha1";
+
+import {normalizeQuery, sha1HexString} from "util";
 const EMPTY_ARRAY = [];
-const rext = /\.[a-zA-Z0-9_\-]+$/;
+const rext = /\.[a-zA-Z0-9_-]+$/;
 
 export const calculateUid = function(file, metadata, useTagged) {
-    var title, album, artist;
+    let title, album, artist;
     if (useTagged) {
         title = metadata.taggedTitle || undefined;
         album = metadata.taggedAlbum || undefined;
@@ -16,28 +15,27 @@ export const calculateUid = function(file, metadata, useTagged) {
         album = metadata.album || undefined;
         artist = metadata.artist || undefined;
     }
-    var name = file.name;
-    var size = file.size;
-    return sha1("" + album + title + artist + name + size);
+    const {name, size} = file;
+    return sha1HexString(`${album}${title}${artist}${name}${size}`);
 };
 
 export const getSearchTerm = function(metadata, file) {
-    var title = normalizeQuery(metadata.taggedTitle || metadata.title || "");
-    var artist = normalizeQuery(metadata.taggedArtist || metadata.artist || "");
-    var album = normalizeQuery(metadata.taggedAlbum || metadata.album || "");
-    var genres = normalizeQuery((metadata.genres || EMPTY_ARRAY).join(" "));
-    var albumArtist = normalizeQuery(metadata.albumArtist || "");
+    const title = normalizeQuery(metadata.taggedTitle || metadata.title || ``);
+    let artist = normalizeQuery(metadata.taggedArtist || metadata.artist || ``);
+    const album = normalizeQuery(metadata.taggedAlbum || metadata.album || ``);
+    const genres = normalizeQuery((metadata.genres || EMPTY_ARRAY).join(` `));
+    const albumArtist = normalizeQuery(metadata.albumArtist || ``);
 
     if (albumArtist.length > 0 &&
         artist.length > 0 &&
         albumArtist !== artist) {
-        artist += " " + albumArtist;
+        artist += ` ${albumArtist}`;
     }
 
-    var ret = ((title.split(" ").concat(artist.split(" "), album.split(" "), genres.split(" "))).join(" ")).trim();
+    const ret = ((title.split(` `).concat(artist.split(` `), album.split(` `), genres.split(` `))).join(` `)).trim();
 
-    if (!ret.length && file && typeof file.name === "string") {
-        return normalizeQuery(file.name.replace(rext, ""));
+    if (!ret.length && file && typeof file.name === `string`) {
+        return normalizeQuery(file.name.replace(rext, ``));
     } else {
         return ret;
     }

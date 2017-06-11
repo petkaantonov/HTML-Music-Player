@@ -1,18 +1,17 @@
-"use strict";
-
-import { buildConsecutiveRanges, indexMapper, inherits } from "util";
+import {buildConsecutiveRanges, indexMapper} from "util";
 import Selectable from "ui/Selectable";
 import DraggableSelection from "ui/DraggableSelection";
 import Track from "tracks/Track";
-import Snackbar from "ui/Snackbar";
+import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
-import AbstractTrackContainer from "tracks/AbstractTrackContainer";
-import ApplicationDependencies from "ApplicationDependencies";
+import TrackContainerTrait from "tracks/TrackContainerTrait";
+import withDeps from "ApplicationDependencies";
+import EventEmitter from "events";
 
-const PLAYLIST_TRACKS_REMOVED_TAG = "playlist-tracks-removed";
-const PLAYLIST_MODE_KEY = "playlist-mode";
-const SHUFFLE_MODE = "shuffle";
+const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
+const PLAYLIST_MODE_KEY = `playlist-mode`;
+const SHUFFLE_MODE = `shuffle`;
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -21,188 +20,178 @@ const MAX_HISTORY = 500;
 const EMPTY_ARRAY = Object.freeze([]);
 
 const DUMMY_TRACK = {
-    getIndex: function() {
+    getIndex() {
         return -1;
     },
 
-    isDetachedFromPlaylist: function() {
+    isDetachedFromPlaylist() {
         return true;
     },
 
-    hasError: function() {
+    hasError() {
         return false;
     }
 };
 
 function TrackListDeletionUndo(playlist) {
     this.playlist = playlist;
-    this.tracksAndViews = playlist.getTrackViews().map(function(v) {
-        return {
+    this.tracksAndViews = playlist.getTrackViews().map(v => ({
             track: v.track(),
             view: v
-        };
-    });
-    this.selectionIndices = playlist.getSelection().map(function(v) {
-        return v.getIndex();
-    });
-    var priorityTrackView = playlist._selectable.getPriorityTrackView();
+        }));
+    this.selectionIndices = playlist.getSelection().map(v => v.getIndex());
+    const priorityTrackView = playlist._selectable.getPriorityTrackView();
     this.priorityTrackViewIndex = priorityTrackView ? priorityTrackView.getIndex() : -1;
 }
 
 TrackListDeletionUndo.prototype.destroy = function() {
     this.playlist.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
-    for (var i = 0; i < this.tracksAndViews.length; ++i) {
-        var track = this.tracksAndViews[i].track;
+    for (let i = 0; i < this.tracksAndViews.length; ++i) {
+        const {track} = this.tracksAndViews[i];
         if (track.isDetachedFromPlaylist()) {
             track.destroy();
         }
     }
 };
 
-export default function Playlist(opts, deps) {
-    AbstractTrackContainer.call(this);
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.recognizerContext = deps.recognizerContext;
-    this.keyboardShortcuts = deps.keyboardShortcuts;
-    this.env = deps.env;
-    this.db = deps.db;
-    this.dbValues = deps.dbValues;
-    this.rippler = deps.rippler;
-    this.snackbar = deps.snackbar;
-    this.applicationPreferences = deps.applicationPreferences;
-    this.tooltipContext = deps.tooltipContext;
+export default class Playlist extends EventEmitter {
+    constructor(opts, deps) {
+        super();
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.recognizerContext = deps.recognizerContext;
+        this.keyboardShortcuts = deps.keyboardShortcuts;
+        this.env = deps.env;
+        this.db = deps.db;
+        this.dbValues = deps.dbValues;
+        this.rippler = deps.rippler;
+        this.snackbar = deps.snackbar;
+        this.applicationPreferences = deps.applicationPreferences;
+        this.tooltipContext = deps.tooltipContext;
 
-    this._trackViews = [];
-    this._unparsedTrackList = [];
+        this._trackViews = [];
+        this._unparsedTrackList = [];
 
-    this._mode = Playlist.Modes.hasOwnProperty(opts.mode) ? opts.mode : "normal";
-    this._currentTrack = null;
-    this._trackListDeletionUndo = null;
-    this._currentPlayId = -1;
-    this._trackHistory = [];
-    this._selectable = new Selectable({
-        listView: this
-    }, new ApplicationDependencies({
-        page: this.page
-    }));
+        this._mode = Playlist.Modes.hasOwnProperty(opts.mode) ? opts.mode : `normal`;
+        this._currentTrack = null;
+        this._trackListDeletionUndo = null;
+        this._currentPlayId = -1;
+        this._trackHistory = [];
+        this._selectable = withDeps({page: this.page}, d => new Selectable({listView: this}, d));
 
-    this._trackViewOptions = new TrackViewOptions(true,
-                                                  opts.itemHeight,
-                                                  this,
-                                                  this.page,
-                                                  deps.tooltipContext,
-                                                  this._selectable,
-                                                  null);
-    this._errorCount = 0;
-    this._$domNode = this.page.$(opts.target);
-    this._$trackContainer = this.$().find(".tracklist-transform-container");
-    this._nextTrack = null;
+        this._trackViewOptions = new TrackViewOptions(true,
+                                                      opts.itemHeight,
+                                                      this,
+                                                      this.page,
+                                                      deps.tooltipContext,
+                                                      this._selectable,
+                                                      null);
+        this._errorCount = 0;
+        this._$domNode = this.page.$(opts.target);
+        this._$trackContainer = this.$().find(`.tracklist-transform-container`);
+        this._nextTrack = null;
 
-    this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
-        target: this.$(),
-        itemList: this._trackViews,
-        contentContainer: this.$trackContainer(),
+        this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
+            target: this.$(),
+            itemList: this._trackViews,
+            contentContainer: this.$trackContainer(),
 
-        minPrerenderedItems: 15,
-        maxPrerenderedItems: 50,
+            minPrerenderedItems: 15,
+            maxPrerenderedItems: 50,
 
-        shouldScroll: function() {
-            return !this._draggable.isDragging();
-        }.bind(this),
+            shouldScroll: () => !this._draggable.isDragging(),
 
-        scrollerOpts: {
-            scrollingX: false,
-            snapping: true,
-            zooming: false,
-            paging: false,
-        },
-        scrollbarOpts: {
-            target: this.$().find(".scrollbar-container"),
-            railSelector: ".scrollbar-rail",
-            knobSelector: ".scrollbar-knob"
-        }
-    });
-
-    this._draggable = new DraggableSelection({
-        target: this.$(),
-        listView: this,
-        scroller: this._fixedItemListScroller,
-        mustNotMatchSelector: ".track-rating",
-        mustMatchSelector: ".track-container"
-    }, new ApplicationDependencies({
-        recognizerContext: this.recognizerContext,
-        page: this.page,
-        globalEvents: this.globalEvents
-    }));
-
-    this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
-
-    this.globalEvents.on("resize", this._windowLayoutChanged.bind(this));
-    this.globalEvents.on("clear", this.clearSelection.bind(this));
-
-    if (PLAYLIST_MODE_KEY in this.dbValues) {
-        this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
-    }
-
-    var self = this;
-    this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
-    this._keyboardShortcutContext.addShortcut("mod+a", this.selectAll.bind(this));
-    this._keyboardShortcutContext.addShortcut("Enter", this.playPrioritySelection.bind(this));
-    this._keyboardShortcutContext.addShortcut("Delete", this.removeSelected.bind(this));
-    this._keyboardShortcutContext.addShortcut("ArrowUp", this.selectPrev.bind(this));
-    this._keyboardShortcutContext.addShortcut("ArrowDown", this.selectNext.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+ArrowUp", this.selectPrevAppend.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+ArrowDown", this.selectNextAppend.bind(this));
-    this._keyboardShortcutContext.addShortcut("alt+ArrowDown", this.removeTopmostSelection.bind(this));
-    this._keyboardShortcutContext.addShortcut("alt+ArrowUp", this.removeBottommostSelection.bind(this));
-    this._keyboardShortcutContext.addShortcut("mod+ArrowUp", this.moveSelectionUp.bind(this));
-    this._keyboardShortcutContext.addShortcut("mod+ArrowDown", this.moveSelectionDown.bind(this));
-    this._keyboardShortcutContext.addShortcut("PageUp", this.selectPagePrev.bind(this));
-    this._keyboardShortcutContext.addShortcut("PageDown", this.selectPageNext.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+PageUp", this.selectPagePrevAppend.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+PageDown", this.selectPageNextAppend.bind(this));
-    this._keyboardShortcutContext.addShortcut("alt+PageDown", this.removeTopmostPageSelection.bind(this));
-    this._keyboardShortcutContext.addShortcut("alt+PageUp", this.removeBottommostPageSelection.bind(this));
-    this._keyboardShortcutContext.addShortcut("mod+PageUp", this.moveSelectionPageUp.bind(this));
-    this._keyboardShortcutContext.addShortcut("mod+PageDown", this.moveSelectionPageDown.bind(this));
-    this._keyboardShortcutContext.addShortcut("Home", this.selectFirst.bind(this));
-    this._keyboardShortcutContext.addShortcut("End", this.selectLast.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+Home", this.selectAllUp.bind(this));
-    this._keyboardShortcutContext.addShortcut("shift+End", this.selectAllDown.bind(this));
-
-    [1, 2, 3, 4, 5].forEach(function(ratingValue) {
-        this._keyboardShortcutContext.addShortcut("alt+" + ratingValue, function() {
-            if (self._selectable.getSelectedItemViewCount() !== 1) return;
-            var trackView = self._selectable.first();
-            if (trackView) {
-                trackView.track().rate(ratingValue);
+            scrollerOpts: {
+                scrollingX: false,
+                snapping: true,
+                zooming: false,
+                paging: false
+            },
+            scrollbarOpts: {
+                target: this.$().find(`.scrollbar-container`),
+                railSelector: `.scrollbar-rail`,
+                knobSelector: `.scrollbar-knob`
             }
         });
-    }, this);
 
-    this._keyboardShortcutContext.addShortcut("alt+0", function() {
-        if (self._selectable.getSelectedItemViewCount() !== 1) return;
-        var trackView = self._selectable.first();
-        if (trackView) trackView.track().rate(-1);
-    });
+        this._draggable = withDeps({
+            recognizerContext: this.recognizerContext,
+            page: this.page,
+            globalEvents: this.globalEvents
+        }, d => new DraggableSelection({
+            target: this.$(),
+            listView: this,
+            scroller: this._fixedItemListScroller,
+            mustNotMatchSelector: `.track-rating`,
+            mustMatchSelector: `.track-container`
+        }, d));
+        this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
-    if (!this.length) {
-        this.showPlaylistEmptyIndicator();
+        this.globalEvents.on(`resize`, this._windowLayoutChanged.bind(this));
+        this.globalEvents.on(`clear`, this.clearSelection.bind(this));
+
+        if (PLAYLIST_MODE_KEY in this.dbValues) {
+            this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
+        }
+
+
+        this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
+        this._keyboardShortcutContext.addShortcut(`mod+a`, this.selectAll.bind(this));
+        this._keyboardShortcutContext.addShortcut(`Enter`, this.playPrioritySelection.bind(this));
+        this._keyboardShortcutContext.addShortcut(`Delete`, this.removeSelected.bind(this));
+        this._keyboardShortcutContext.addShortcut(`ArrowUp`, this.selectPrev.bind(this));
+        this._keyboardShortcutContext.addShortcut(`ArrowDown`, this.selectNext.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+ArrowUp`, this.selectPrevAppend.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+ArrowDown`, this.selectNextAppend.bind(this));
+        this._keyboardShortcutContext.addShortcut(`alt+ArrowDown`, this.removeTopmostSelection.bind(this));
+        this._keyboardShortcutContext.addShortcut(`alt+ArrowUp`, this.removeBottommostSelection.bind(this));
+        this._keyboardShortcutContext.addShortcut(`mod+ArrowUp`, this.moveSelectionUp.bind(this));
+        this._keyboardShortcutContext.addShortcut(`mod+ArrowDown`, this.moveSelectionDown.bind(this));
+        this._keyboardShortcutContext.addShortcut(`PageUp`, this.selectPagePrev.bind(this));
+        this._keyboardShortcutContext.addShortcut(`PageDown`, this.selectPageNext.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+PageUp`, this.selectPagePrevAppend.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+PageDown`, this.selectPageNextAppend.bind(this));
+        this._keyboardShortcutContext.addShortcut(`alt+PageDown`, this.removeTopmostPageSelection.bind(this));
+        this._keyboardShortcutContext.addShortcut(`alt+PageUp`, this.removeBottommostPageSelection.bind(this));
+        this._keyboardShortcutContext.addShortcut(`mod+PageUp`, this.moveSelectionPageUp.bind(this));
+        this._keyboardShortcutContext.addShortcut(`mod+PageDown`, this.moveSelectionPageDown.bind(this));
+        this._keyboardShortcutContext.addShortcut(`Home`, this.selectFirst.bind(this));
+        this._keyboardShortcutContext.addShortcut(`End`, this.selectLast.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+Home`, this.selectAllUp.bind(this));
+        this._keyboardShortcutContext.addShortcut(`shift+End`, this.selectAllDown.bind(this));
+
+        [1, 2, 3, 4, 5].forEach((ratingValue) => {
+            this._keyboardShortcutContext.addShortcut(`alt+${ratingValue}`, () => {
+                if (this._selectable.getSelectedItemViewCount() !== 1) return;
+                const trackView = this._selectable.first();
+                if (trackView) {
+                    trackView.track().rate(ratingValue);
+                }
+            });
+        });
+
+        this._keyboardShortcutContext.addShortcut(`alt+0`, () => {
+            if (this._selectable.getSelectedItemViewCount() !== 1) return;
+            const trackView = this._selectable.first();
+            if (trackView) trackView.track().rate(-1);
+        });
+
+        if (!this.length) {
+            this.showPlaylistEmptyIndicator();
+        }
+
+        this._bindListEvents();
+        this._draggable.bindEvents();
+
     }
-
-    this._bindListEvents();
-    this._draggable.bindEvents();
-    deps.ensure();
 }
-inherits(Playlist, AbstractTrackContainer);
 
 Playlist.Modes = {
-    normal: function(track) {
-        var index = track.getIndex() + 1;
+    normal(currentTrack) {
+        let index = currentTrack.getIndex() + 1;
 
-        var ret;
-        var trials = 0;
+        let ret;
+        let trials = 0;
 
         do {
             index = Math.max(0, index);
@@ -217,11 +206,11 @@ Playlist.Modes = {
         return ret;
     },
 
-    shuffle: function(track) {
-        var lastHour = Date.now() - 60 * 60 * 1000;
+    shuffle(currentTrack) {
+        const lastHour = Date.now() - 60 * 60 * 1000;
 
         function getWeight(track) {
-            for (var j = 0; j < zeroWeights.length; ++j) {
+            for (let j = 0; j < zeroWeights.length; ++j) {
                 if (zeroWeights[j] === track) {
                     return 0;
                 }
@@ -231,66 +220,62 @@ Playlist.Modes = {
                 return 0;
             }
 
-            var rating = track.isRated() ? track.getRating() : 3;
-            var weight = Math.pow(1.5, rating - 1);
+            const rating = track.isRated() ? track.getRating() : 3;
+            let weight = Math.pow(1.5, rating - 1);
 
             if (track.hasBeenPlayedWithin(lastHour)) {
-                weight = weight / Math.pow(3, 2);
+                weight /= Math.pow(3, 2);
             }
 
             return Math.ceil(weight);
         }
 
-        var zeroWeights = [track, this.getNextTrack()].filter(function(track) {
-            return track && !track.isDetachedFromPlaylist() && !track.hasError();
-        });
+        const zeroWeights = [currentTrack, this.getNextTrack()].filter(track => track && !track.isDetachedFromPlaylist() && !track.hasError());
 
-        var maxWeight = 0;
-        var trackViews = this.getTrackViews();
+        let maxWeight = 0;
+        const trackViews = this.getTrackViews();
 
-        for (var i = 0; i < trackViews.length; ++i) {
-            var trackView = trackViews[i];
+        for (let i = 0; i < trackViews.length; ++i) {
+            const trackView = trackViews[i];
             maxWeight += getWeight(trackView.track());
         }
 
-        var target = ((Math.random() * maxWeight + 1) | 0) - 1;
-        var currentWeight = -1;
-        for (var i = 0; i < trackViews.length; ++i) {
-            var trackView = trackViews[i];
-            var weight = getWeight(trackView.track());
+        const target = ((Math.random() * maxWeight + 1) | 0) - 1;
+        let currentWeight = -1;
+        let randomlyChosenTrackView = null;
+        for (let i = 0; i < trackViews.length; ++i) {
+            randomlyChosenTrackView = trackViews[i];
+            const weight = getWeight(randomlyChosenTrackView.track());
 
             if (currentWeight + weight >= target) {
-                return trackView.track();
+                return randomlyChosenTrackView.track();
             }
             currentWeight += weight;
         }
 
-        trackView = trackView && trackView.track().hasError() ? trackViews.last() : trackView;
-        trackView = trackView && trackView.track().hasError() ? null : trackView;
-        return trackView ? trackView.track() : null;
+        randomlyChosenTrackView = randomlyChosenTrackView && randomlyChosenTrackView.track().hasError() ? trackViews.last() : randomlyChosenTrackView;
+        randomlyChosenTrackView = randomlyChosenTrackView && randomlyChosenTrackView.track().hasError() ? null : randomlyChosenTrackView;
+        return randomlyChosenTrackView ? randomlyChosenTrackView.track() : null;
     },
 
-    repeat: function(track) {
-        if (track.isDetachedFromPlaylist() || track.hasError()) {
-            return Playlist.Modes.normal.call(this, track);
+    repeat(currentTrack) {
+        if (currentTrack.isDetachedFromPlaylist() || currentTrack.hasError()) {
+            return Playlist.Modes.normal.call(this, currentTrack);
         }
-        return track;
+        return currentTrack;
     }
 };
 
 Playlist.prototype._windowLayoutChanged = function() {
-    var self = this;
-    this.page.requestAnimationFrame(function() {
-        self._fixedItemListScroller.resize();
-    });
+    this.page.requestAnimationFrame(() => this._fixedItemListScroller.resize());
 };
 
 Playlist.prototype._listContentsChanged = function() {
     this._fixedItemListScroller.resize();
     if (this._fixedItemListScroller.needScrollbar()) {
-        this.$().addClass("has-scrollbar");
+        this.$().addClass(`has-scrollbar`);
     } else {
-        this.$().removeClass("has-scrollbar");
+        this.$().removeClass(`has-scrollbar`);
     }
 };
 
@@ -299,11 +284,11 @@ Playlist.prototype.tabWillHide = function() {
 };
 
 Playlist.prototype.tabDidHide = function() {
-
+    // NOOP
 };
 
 Playlist.prototype.tabWillShow = function() {
-
+    // NOOP
 };
 
 Playlist.prototype.tabDidShow = function() {
@@ -316,8 +301,8 @@ Playlist.prototype.$trackContainer = function() {
 };
 
 Playlist.prototype._updateNextTrack = function(forced) {
-    var currentTrack = this.getCurrentTrack() || DUMMY_TRACK;
-    var nextTrack = this._nextTrack;
+    const currentTrack = this.getCurrentTrack() || DUMMY_TRACK;
+    const nextTrack = this._nextTrack;
 
     if (!forced && nextTrack && !nextTrack.isDetachedFromPlaylist() &&
         this.isUsingShuffleMode()) {
@@ -325,7 +310,7 @@ Playlist.prototype._updateNextTrack = function(forced) {
     }
 
     if (nextTrack && nextTrack !== DUMMY_TRACK) {
-        nextTrack.removeListener("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
+        nextTrack.removeListener(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
     }
 
     this._nextTrack = Playlist.Modes[this._mode].call(this, currentTrack) || DUMMY_TRACK;
@@ -335,30 +320,30 @@ Playlist.prototype._updateNextTrack = function(forced) {
         this._nextTrack.hasError()) {
         this._nextTrack = DUMMY_TRACK;
     } else {
-        this._nextTrack.on("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
+        this._nextTrack.on(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
     }
 
-    this.emit("nextTrackChange", this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
+    this.emit(`nextTrackChange`, this._nextTrack === DUMMY_TRACK ? null : this._nextTrack);
 };
 
 Playlist.prototype._highlyRelevantTrackMetadataUpdated = function() {
-    this.emit("highlyRelevantTrackMetadataUpdate");
+    this.emit(`highlyRelevantTrackMetadataUpdate`);
 };
 
-var nextPlayId = 10;
+let nextPlayId = 10;
 Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
     if (track === undefined || track === null || this._errorCount >= MAX_ERRORS) {
         this._errorCount = 0;
         this.setCurrentTrack(null, trackChangeKind);
-        this.emit("playlistEmpty");
+        this.emit(`playlistEmpty`);
         return false;
     }
 
     if (!(track instanceof Track)) {
-        throw new Error("invalid track");
+        throw new Error(`invalid track`);
     }
 
-    var currentTrack = this.getCurrentTrack();
+    const currentTrack = this.getCurrentTrack();
 
     if (currentTrack && currentTrack !== DUMMY_TRACK) {
         currentTrack.willBeReplaced();
@@ -366,15 +351,15 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
             if (this._trackHistory.push(currentTrack) > MAX_HISTORY) {
                 this._trackHistory.shift();
             }
-            this.emit("historyChange");
+            this.emit(`historyChange`);
         }
     }
 
     this.setCurrentTrack(track, trackChangeKind);
-    var trackHasError = track.hasError();
+    const trackHasError = track.hasError();
     if (trackHasError && trackChangeKind === KIND_IMPLICIT) {
         this._errorCount++;
-        if (this._mode === "repeat" && this.length > 1) {
+        if (this._mode === `repeat` && this.length > 1) {
             track = Playlist.Modes.normal.call(this, track);
             this.setCurrentTrack(track, KIND_IMPLICIT);
         } else {
@@ -383,19 +368,19 @@ Playlist.prototype._changeTrack = function(track, doNotRecordHistory, trackChang
     }
 
     this._currentPlayId = nextPlayId++;
-    this.emit("trackPlayingStatusChange", track);
-    this.emit("currentTrackChange", track, !!isUserInitiatedSkip);
+    this.emit(`trackPlayingStatusChange`, track);
+    this.emit(`currentTrackChange`, track, !!isUserInitiatedSkip);
     return true;
 };
 
 Playlist.prototype.selectionContainsAnyItemViewsBetween = function(startY, endY) {
-    var indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
+    const indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
     if (!indices) return false;
     return this._selectable.containsAnyInRange(indices.startIndex, indices.endIndex);
 };
 
 Playlist.prototype.selectTracksBetween = function(startY, endY) {
-    var indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
+    const indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
     if (!indices) return;
     this._selectable.selectRange(indices.startIndex, indices.endIndex);
 };
@@ -409,40 +394,41 @@ Playlist.prototype.$ = function() {
 };
 
 Playlist.prototype.hidePlaylistEmptyIndicator = function() {
-    this.$().find(".playlist-empty").hide();
-    this.$().find(".playlist-spacer").show();
-    this.$().find(".tracklist-transform-container").show();
+    this.$().find(`.playlist-empty`).hide();
+    this.$().find(`.playlist-spacer`).show();
+    this.$().find(`.tracklist-transform-container`).show();
 };
 
 Playlist.prototype.showPlaylistEmptyIndicator = function() {
-    this.$().find(".playlist-spacer").hide();
-    this.$().find(".playlist-empty").show();
-    this.$().find(".tracklist-transform-container").hide();
+    this.$().find(`.playlist-spacer`).hide();
+    this.$().find(`.playlist-empty`).show();
+    this.$().find(`.tracklist-transform-container`).hide();
 };
 
 Playlist.prototype.playFirst = function() {
     if (!this.length) return;
-    var firstSelectedTrack = this._selectable.first();
+    const firstSelectedTrack = this._selectable.first();
     if (firstSelectedTrack) {
-        return this.changeTrackExplicitly(firstSelectedTrack.track());
+        this.changeTrackExplicitly(firstSelectedTrack.track());
+        return;
     }
-    var nextTrack = this.getNextTrack();
+    const nextTrack = this.getNextTrack();
     if (nextTrack) {
         this.changeTrackExplicitly(nextTrack);
     } else {
-        var first = this._trackViews.first();
+        let first = this._trackViews.first();
         if (first) first = first.track();
         this.changeTrackExplicitly(first);
     }
 };
 
 Playlist.prototype.getUnparsedTracks = function() {
-    var tracks = this._unparsedTrackList;
+    const tracks = this._unparsedTrackList;
     if (!tracks.length) return EMPTY_ARRAY;
-    var ret = new Array(tracks.length);
+    const ret = new Array(tracks.length);
     ret.length = 0;
     while (tracks.length > 0) {
-        var track = tracks.shift();
+        const track = tracks.shift();
         if (!track.isDetachedFromPlaylist() && track.needsParsing()) {
             ret.push(track);
         }
@@ -462,34 +448,33 @@ Playlist.prototype._edited = function() {
 };
 
 Playlist.prototype._saveStateForUndo = function() {
-    if (this._trackListDeletionUndo) throw new Error("already saved");
+    if (this._trackListDeletionUndo) throw new Error(`already saved`);
     this._trackListDeletionUndo = new TrackListDeletionUndo(this);
 };
 
 Playlist.prototype._restoreStateForUndo = function() {
     if (!this._trackListDeletionUndo) return;
-    var oldLength = this.length;
+    const oldLength = this.length;
 
     if (oldLength === 0) {
         this.hidePlaylistEmptyIndicator();
     }
 
-    var previousTracksAndViews = this._trackListDeletionUndo.tracksAndViews;
-    var selectionIndices = this._trackListDeletionUndo.selectionIndices;
-    var priorityTrackViewIndex = this._trackListDeletionUndo.priorityTrackViewIndex;
+    const previousTracksAndViews = this._trackListDeletionUndo.tracksAndViews;
+    const {selectionIndices, priorityTrackViewIndex} = this._trackListDeletionUndo;
 
-    for (var i = 0; i < previousTracksAndViews.length; ++i) {
-        var trackAndView = previousTracksAndViews[i];
+    for (let i = 0; i < previousTracksAndViews.length; ++i) {
+        const trackAndView = previousTracksAndViews[i];
 
         if (trackAndView.track.isDetachedFromPlaylist()) {
             if (!trackAndView.view._isDestroyed) {
-                throw new Error("should be destroyed");
+                throw new Error(`should be destroyed`);
             }
             trackAndView.track.unstageRemoval();
             this._trackViews[i] = new TrackView(trackAndView.track, this._trackViewOptions);
         } else {
             if (trackAndView.view._isDestroyed) {
-                throw new Error("should not be destroyed");
+                throw new Error(`should not be destroyed`);
             }
             this._trackViews[i] = trackAndView.view;
         }
@@ -497,16 +482,16 @@ Playlist.prototype._restoreStateForUndo = function() {
     this._trackViews.length = previousTracksAndViews.length;
     this._trackListDeletionUndo = null;
 
-    for (var i = 0; i < this._trackViews.length; ++i) {
-        var trackView = this._trackViews[i];
+    for (let i = 0; i < this._trackViews.length; ++i) {
+        const trackView = this._trackViews[i];
         if (trackView.isDetachedFromPlaylist()) {
             this._unparsedTrackList.push(trackView.track());
         }
         trackView.setIndex(i);
     }
 
-    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
-    this.emit("lengthChange", this.length, oldLength);
+    this.emit(`trackPlayingStatusChange`, this.getCurrentTrack());
+    this.emit(`lengthChange`, this.length, oldLength);
     this._updateNextTrack();
     this._fixedItemListScroller.refresh();
     this._listContentsChanged();
@@ -516,31 +501,29 @@ Playlist.prototype._restoreStateForUndo = function() {
         this._selectable.setPriorityTrackView(this._trackViews[priorityTrackViewIndex]);
         this.centerOnTrackView(this._trackViews[priorityTrackViewIndex]);
     } else {
-        var mid = selectionIndices[selectionIndices.length / 2 | 0];
+        const mid = selectionIndices[selectionIndices.length / 2 | 0];
         this.centerOnTrackView(this._trackViews[mid]);
     }
-    this.emit("unparsedTracksAvailable");
+    this.emit(`unparsedTracksAvailable`);
 };
 
-Playlist.prototype.removeTrackViews = function(trackViews) {
-    trackViews = trackViews.filter(function(v) {
-        return !v.isDetachedFromPlaylist();
-    });
+Playlist.prototype.removeTrackViews = async function(trackViews) {
+    trackViews = trackViews.filter(v => !v.isDetachedFromPlaylist());
     if (trackViews.length === 0) return;
-    var oldLength = this.length;
-    var tracksIndexRanges = buildConsecutiveRanges(trackViews.map(indexMapper));
+    const oldLength = this.length;
+    const tracksIndexRanges = buildConsecutiveRanges(trackViews.map(indexMapper));
 
     this._edited();
     this._saveStateForUndo();
 
     this._selectable.removeIndices(trackViews.map(indexMapper));
 
-    for (var i = 0; i < trackViews.length; ++i) {
+    for (let i = 0; i < trackViews.length; ++i) {
         trackViews[i].track().stageRemoval();
     }
 
     this.removeTracksBySelectionRanges(tracksIndexRanges);
-    this.emit("lengthChange", this.length, oldLength);
+    this.emit(`lengthChange`, this.length, oldLength);
 
     if (!this.length) {
         this.showPlaylistEmptyIndicator();
@@ -549,31 +532,30 @@ Playlist.prototype.removeTrackViews = function(trackViews) {
         }
     }
 
-    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
+    this.emit(`trackPlayingStatusChange`, this.getCurrentTrack());
     this._updateNextTrack();
     this._fixedItemListScroller.refresh();
     this._listContentsChanged();
-    var tracksRemoved = oldLength - this.length;
+    const tracksRemoved = oldLength - this.length;
 
-    var tracksWord = tracksRemoved === 1 ? "track" : "tracks";
-    var self = this;
-    this.snackbar.show("Removed " + tracksRemoved + " " + tracksWord + " from the playlist", {
-        action: "undo",
+    const tracksWord = tracksRemoved === 1 ? `track` : `tracks`;
+
+    this.emit(`tracksRemoved`);
+    const outcome = await this.snackbar.show(`Removed ${tracksRemoved} ${tracksWord} from the playlist`, {
+        action: `undo`,
         visibilityTime: 10000,
         tag: PLAYLIST_TRACKS_REMOVED_TAG
-    }).then(function(outcome) {
-        if (outcome === Snackbar.ACTION_CLICKED) {
-            self._restoreStateForUndo();
-        } else if (self._trackListDeletionUndo) {
-            self._trackListDeletionUndo.destroy();
-        }
     });
 
-    this.emit("tracksRemoved");
+    if (outcome === ACTION_CLICKED) {
+        this._restoreStateForUndo();
+    } else if (this._trackListDeletionUndo) {
+        this._trackListDeletionUndo.destroy();
+    }
 };
 
 Playlist.prototype.removeSelected = function() {
-    var selection = this.getSelection();
+    const selection = this.getSelection();
     if (!selection.length) return;
     this.removeTrackViews(selection);
 };
@@ -596,46 +578,46 @@ Playlist.prototype.add = function(tracks) {
         this.hidePlaylistEmptyIndicator();
     }
 
-    var oldLength = this.length;
+    const oldLength = this.length;
 
     tracks.forEach(function(track) {
-        var view = new TrackView(track, this._trackViewOptions);
-        var len = this._trackViews.push(view);
+        const view = new TrackView(track, this._trackViewOptions);
+        const len = this._trackViews.push(view);
         this._unparsedTrackList.push(track);
         view.setIndex(len - 1);
     }, this);
 
-    this.emit("lengthChange", this.length, oldLength);
+    this.emit(`lengthChange`, this.length, oldLength);
     this._updateNextTrack();
     this._listContentsChanged();
-    this.emit("unparsedTracksAvailable");
+    this.emit(`unparsedTracksAvailable`);
 };
 
 Playlist.prototype.stop = function() {
     this.setCurrentTrack(null, KIND_EXPLICIT);
     this._errorCount = 0;
     this._updateNextTrack();
-    this.emit("playlistEmpty");
+    this.emit(`playlistEmpty`);
 };
 
 Playlist.prototype.trackIndexChanged = function() {
     this._edited();
-    this.emit("trackPlayingStatusChange", this.getCurrentTrack());
+    this.emit(`trackPlayingStatusChange`, this.getCurrentTrack());
     this._updateNextTrack();
 };
 
 Playlist.prototype.setCurrentTrack = function(track, trackChangeKind) {
-    var current = this.getCurrentTrack();
+    const current = this.getCurrentTrack();
 
     if (current) {
         current.stopPlaying();
-        current.removeListener("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
+        current.removeListener(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
     }
 
     this._currentTrack = track;
 
     if (track) {
-        track.on("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
+        track.on(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
         track.startPlaying();
     }
 
@@ -685,11 +667,11 @@ Playlist.prototype.getCurrentPlayId = function() {
 };
 
 Playlist.prototype.trackPlayedSuccessfully = function() {
-    var currentTrack = this.getCurrentTrack();
+    const currentTrack = this.getCurrentTrack();
     if (currentTrack && currentTrack.hasError()) {
         currentTrack.unsetError();
         this._unparsedTrackList.push(currentTrack);
-        this.emit("unparsedTracksAvailable");
+        this.emit(`unparsedTracksAvailable`);
     }
     this._errorCount = 0;
 };
@@ -699,10 +681,10 @@ Playlist.prototype.hasHistory = function() {
 };
 
 Playlist.prototype.prev = function() {
-    var history = this._trackHistory;
-    var length = history.length;
+    const history = this._trackHistory;
+    const {length} = history;
     if (length > 0) {
-        var track;
+        let track;
         while (history.length > 0) {
             track = this._trackHistory.pop();
             if (track.hasError() || track.isDetachedFromPlaylist()) {
@@ -713,16 +695,16 @@ Playlist.prototype.prev = function() {
         }
 
         if (length !== history.length) {
-            this.emit("historyChange");
+            this.emit(`historyChange`);
         }
 
         if (!track) {
-            return this.prev();
+            this.prev();
         } else {
-            return this.changeTrackExplicitly(track, true);
+            this.changeTrackExplicitly(track, true);
         }
     } else {
-        this.emit("historyChange");
+        this.emit(`historyChange`);
     }
 };
 
@@ -735,9 +717,9 @@ Playlist.prototype.tryChangeMode = function(mode) {
     if (this._mode === mode) {
         return false;
     } else if (Playlist.Modes.hasOwnProperty(mode)) {
-        var oldMode = this._mode;
+        const oldMode = this._mode;
         this._mode = mode;
-        this.emit("modeChange", mode, oldMode);
+        this.emit(`modeChange`, mode, oldMode);
         this._updateNextTrack(true);
         this.db.set(PLAYLIST_MODE_KEY, mode);
         return true;
@@ -774,8 +756,8 @@ const compareArtist = function(a, b) {
 };
 
 const compareDuration = function(a, b) {
-    var aDuration = a.basicInfo.duration;
-    var bDuration = b.basicInfo.duration;
+    const aDuration = a.basicInfo.duration;
+    const bDuration = b.basicInfo.duration;
 
     if (!aDuration) return bDuration ? -1 : 0;
     else if (!bDuration) return 1;
@@ -784,8 +766,8 @@ const compareDuration = function(a, b) {
 };
 
 const compareRating = function(a, b) {
-    var aRating = a.getRating();
-    var bRating = b.getRating();
+    const aRating = a.getRating();
+    const bRating = b.getRating();
 
     if (aRating === -1) return bRating !== -1 ? 1 : 0;
     else if (bRating === -1) return -1;
@@ -807,14 +789,14 @@ const compareOrder = [
 const makeComparer = function(mainComparer) {
     const comparers = compareOrder.slice(0);
     comparers.splice(comparers.indexOf(mainComparer), 1);
-    const length = comparers.length;
+    const {length} = comparers;
 
     const comparer = function(aTrackView, bTrackView) {
-        var aTrack = aTrackView.track();
-        var bTrack = bTrackView.track();
-        var aTagData = aTrack.getTagData();
-        var bTagData = bTrack.getTagData();
-        var comparison = 0;
+        const aTrack = aTrackView.track();
+        const bTrack = bTrackView.track();
+        const aTagData = aTrack.getTagData();
+        const bTagData = bTrack.getTagData();
+        let comparison = 0;
 
         if (!aTagData) {
             return bTagData ? -1 : aTrack.formatName().localeCompare(bTrack.formatName());
@@ -826,8 +808,8 @@ const makeComparer = function(mainComparer) {
             return comparison;
         }
 
-        for (var i = 0; i < length; ++i) {
-            var theComparer = comparers[i];
+        for (let i = 0; i < length; ++i) {
+            const theComparer = comparers[i];
             if ((comparison = theComparer(aTagData, bTagData)) !== 0) {
                 return comparison;
             }
@@ -840,29 +822,31 @@ const makeComparer = function(mainComparer) {
         tracks.sort(comparer);
     };
 
-    return function() {
-        return this.changeTrackOrderWithinSelection(sorter);
+    return {
+        comparer() {
+            return this.changeTrackOrderWithinSelection(sorter);
+        }
     };
 };
 
-Playlist.prototype.sortByAlbum = makeComparer(compareAlbum);
-Playlist.prototype.sortByAlbumArtist = makeComparer(compareAlbumArtist);
-Playlist.prototype.sortByArtist = makeComparer(compareArtist);
-Playlist.prototype.sortByTitle = makeComparer(compareTitle);
-Playlist.prototype.sortByRating = makeComparer(compareRating);
-Playlist.prototype.sortByDuration = makeComparer(compareDuration);
+Playlist.prototype.sortByAlbum = makeComparer(compareAlbum).comparer;
+Playlist.prototype.sortByAlbumArtist = makeComparer(compareAlbumArtist).comparer;
+Playlist.prototype.sortByArtist = makeComparer(compareArtist).comparer;
+Playlist.prototype.sortByTitle = makeComparer(compareTitle).comparer;
+Playlist.prototype.sortByRating = makeComparer(compareRating).comparer;
+Playlist.prototype.sortByDuration = makeComparer(compareDuration).comparer;
 
 Playlist.prototype.sortByReverseOrder = function() {
-    return this.changeTrackOrderWithinSelection(function(tracks) {
+    return this.changeTrackOrderWithinSelection((tracks) => {
         tracks.reverse();
     });
 };
 
 Playlist.prototype.sortByShuffling = function() {
-    return this.changeTrackOrderWithinSelection(function(tracks) {
-        for (var i = tracks.length; i > 0; --i) {
-            var index = (Math.random() * i)|0;
-            var tmp = tracks[i - 1];
+    return this.changeTrackOrderWithinSelection((tracks) => {
+        for (let i = tracks.length; i > 0; --i) {
+            const index = (Math.random() * i) | 0;
+            const tmp = tracks[i - 1];
             tracks[i - 1] = tracks[index];
             tracks[index] = tmp;
         }
@@ -870,17 +854,15 @@ Playlist.prototype.sortByShuffling = function() {
 };
 
 Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
-    var selectedTrackViews = this.getSelection();
+    const selectedTrackViews = this.getSelection();
     if (selectedTrackViews.length <= 1) return;
 
-    var indices = selectedTrackViews.map(function(v) {
-        return v.track().getIndex();
-    });
+    const indices = selectedTrackViews.map(v => v.track().getIndex());
     callback(selectedTrackViews);
 
-    for (var i = 0; i < selectedTrackViews.length; ++i) {
-        var trackView = selectedTrackViews[i];
-        var index = indices[i];
+    for (let i = 0; i < selectedTrackViews.length; ++i) {
+        const trackView = selectedTrackViews[i];
+        const index = indices[i];
         this._trackViews[index] = trackView;
         trackView.setIndex(index);
     }
@@ -888,12 +870,14 @@ Playlist.prototype.changeTrackOrderWithinSelection = function(callback) {
     this._fixedItemListScroller.refresh();
     this._edited();
     this.trackIndexChanged();
-    this.emit("trackOrderChange");
+    this.emit(`trackOrderChange`);
 };
 
-Object.defineProperty(Playlist.prototype, "length", {
-    get: function() {
+Object.defineProperty(Playlist.prototype, `length`, {
+    get() {
         return this._trackViews.length;
     },
     configurable: false
 });
+
+Object.assign(Playlist.prototype, TrackContainerTrait);

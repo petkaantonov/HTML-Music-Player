@@ -1,64 +1,130 @@
-"use strict";
-
-import { throttle, inherits } from "util";
+import {throttle} from "util";
+import {delay} from "platform/PromiseExtensions";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
 import Track from "tracks/Track";
-import TagData from "tracks/TagData";
-import { Worker } from "platform/platform";
-import EventEmitter from "events";
+import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";
+import {console} from "platform/platform";
+import WorkerFrontend from "WorkerFrontend";
 
-var instances = false;
-export default function TrackAnalyzer(opts, deps) {
-    EventEmitter.call(this);
-    if (instances) throw new Error("only 1 TrackAnalyzer instance can be made");
-    opts = Object(opts);
-    this._page = deps.page;
-    this._playlist = deps.playlist;
-    this._globalEvents = deps.globalEvents;
-    instances = true;
-    this._worker = new Worker(opts.src);
-    this._analyzerJobs = [];
-    this._acoustIdJobs = [];
-    this._nextJobId = 0;
-    this._analysisQueue = [];
-    this._acoustIdQueue = [];
-    this._currentlyAnalysing = false;
-    this._currentlyFetchingAcoustId = false;
-    this._metadataParsingTracks = {};
-    this._analysisFetchingTracks = {};
-    this._acoustIdImageFetchingTracks = {};
+export default class TrackAnalyzer extends WorkerFrontend {
+    constructor(deps) {
+        super(ANALYZER_READY_EVENT_NAME, deps.workerWrapper);
+        this._env = deps.env;
+        this._page = deps.page;
+        this._playlist = deps.playlist;
+        this._tagDataContext = deps.tagDataContext;
+        this._globalEvents = deps.globalEvents;
+        this._analyzerJobs = [];
+        this._acoustIdJobs = [];
+        this._nextJobId = 0;
+        this._analysisQueue = [];
+        this._acoustIdQueue = [];
+        this._currentlyAnalysing = false;
+        this._currentlyFetchingAcoustId = false;
+        this._metadataParsingTracks = {};
+        this._analysisFetchingTracks = {};
+        this._acoustIdImageFetchingTracks = {};
 
-    this._worker.addEventListener("message", this._messaged.bind(this), false);
-    this._playlist.on("nextTrackChange", this.nextTrackChanged.bind(this));
-    this._playlist.on("trackPlayingStatusChange", this.currentTrackChanged.bind(this));
-    this._playlist.on("unparsedTracksAvailable", this.unparsedTracksAvailable.bind(this));
-    this.trackRemovedWhileInQueue = this.trackRemovedWhileInQueue.bind(this);
-    this.abortJobForTrack = this.abortJobForTrack.bind(this);
+        this._playlist.on(`nextTrackChange`, this.nextTrackChanged.bind(this));
+        this._playlist.on(`trackPlayingStatusChange`, this.currentTrackChanged.bind(this));
+        this._playlist.on(`unparsedTracksAvailable`, this.unparsedTracksAvailable.bind(this));
+        this.trackRemovedWhileInQueue = this.trackRemovedWhileInQueue.bind(this);
+        this.abortJobForTrack = this.abortJobForTrack.bind(this);
 
-    var self = this;
-    this.ready = new Promise(function(resolve) {
-        var ready = function() {
-            self._worker.removeEventListener("message", ready, false);
-            resolve();
-        };
-        self._worker.addEventListener("message", ready, false);
-    }).then(function() {
-        self.ready = null;
-    });
-
-    this._globalEvents.on("foreground", this._foregrounded.bind(this));
-    deps.ensure();
+    }
 }
-inherits(TrackAnalyzer, EventEmitter);
 
-TrackAnalyzer.prototype._foregrounded = function() {
-    this._worker.postMessage({action: "tick"});
+TrackAnalyzer.prototype.receiveMessage = function(event) {
+    if (!event.data) return;
+    if (!event.data.jobType) return;
+    const {id, jobType, result, error, type, value} = event.data;
+
+    if (error && this._env.isDevelopment()) {
+        console.error(error.stack);
+    }
+
+    if (jobType === `metadata`) {
+        const info = this._metadataParsingTracks[id];
+        if (info) {
+            const {track} = info;
+            track.removeListener(`destroy`, info.destroyHandler);
+            delete this._metadataParsingTracks[id];
+            this.trackMetadataParsed(track, result, error);
+        }
+    } else if (jobType === `analysisData`) {
+        const info = this._analysisFetchingTracks[id];
+        if (info) {
+            const {track} = info;
+            track.removeListener(`destroy`, info.destroyHandler);
+            delete this._analysisFetchingTracks[id];
+            this.trackAnalysisDataFetched(track, result, error);
+        }
+    } else if (jobType === `acoustIdImage`) {
+        const info = this._acoustIdImageFetchingTracks[id];
+        if (info) {
+            const {track} = info;
+            track.removeListener(`destroy`, info.destroyHandler);
+            delete this._acoustIdImageFetchingTracks[id];
+            this.acoustIdImageFetched(track, result, error);
+        }
+    } else if (jobType === `analyze`) {
+        for (let i = 0; i < this._analyzerJobs.length; ++i) {
+            if (this._analyzerJobs[i].id === id) {
+                const job = this._analyzerJobs[i];
+                switch (type) {
+                    case `estimate`:
+                        job.track.analysisEstimate(value);
+                    break;
+
+                    case `error`: {
+                        this._analyzerJobs.splice(i, 1);
+                        const e = new Error(error.message);
+                        e.stack = error.stack;
+                        job.reject(e);
+                        break;
+                    }
+
+                    case `abort`:
+                        this._analyzerJobs.splice(i, 1);
+                        job.reject(new TrackWasRemovedError());
+                    break;
+
+                    case `success`:
+                        job.resolve(result);
+                        this._analyzerJobs.splice(i, 1);
+                    break;
+                }
+                return;
+            }
+        }
+    } else if (jobType === `acoustId`) {
+        for (let i = 0; i < this._acoustIdJobs.length; ++i) {
+            if (this._acoustIdJobs[i].id === id) {
+                const job = this._acoustIdJobs[i];
+
+                switch (type) {
+                    case `error`: {
+                        this._acoustIdJobs.splice(i, 1);
+                        const e = new Error(error.message);
+                        e.stack = error.stack;
+                        job.reject(e);
+                        break;
+                    }
+                    case `success`:
+                        job.resolve(result);
+                        this._acoustIdJobs.splice(i, 1);
+                    break;
+                }
+                return;
+            }
+        }
+    }
 };
 
 TrackAnalyzer.prototype.unparsedTracksAvailable = function() {
-    var tracks = this._playlist.getUnparsedTracks();
-    for (var i = 0; i < tracks.length; ++i) {
-        var track = tracks[i];
+    const tracks = this._playlist.getUnparsedTracks();
+    for (let i = 0; i < tracks.length; ++i) {
+        const track = tracks[i];
 
         if (!track.isDetachedFromPlaylist() && !track.hasError()) {
             if (track.tagData) {
@@ -74,130 +140,131 @@ TrackAnalyzer.prototype.acoustIdImageFetched = function(track, image, error) {
     track.tagData.fetchAcoustIdImageEnded(image, error);
 };
 
-TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(function(track) {
+TrackAnalyzer.prototype.fetchAcoustIdImage = async function(track) {
     if (track && !track.isDetachedFromPlaylist() &&
         track.tagData && track.shouldRetrieveAcoustIdImage()) {
         track.tagData.fetchAcoustIdImageStarted();
-        var albumKey = track.tagData.albumNameKey();
-        var acoustId = track.tagData.acoustId;
-        var self = this;
-        var id = ++self._nextJobId;
-        self._acoustIdImageFetchingTracks[id] = {
-            track: track,
-            destroyHandler: function() {
-                delete self._acoustIdImageFetchingTracks[id];
+        const albumKey = track.tagData.albumNameKey();
+        const {acoustId} = track.tagData;
+
+        const id = ++this._nextJobId;
+        this._acoustIdImageFetchingTracks[id] = {
+            track,
+            destroyHandler: () => {
+                delete this._acoustIdImageFetchingTracks[id];
             }
         };
 
-        track.once("destroy", self._acoustIdImageFetchingTracks[id].destroyHandler);
-        self._worker.postMessage({
-            action: "fetchAcoustIdImage",
+        track.once(`destroy`, this._acoustIdImageFetchingTracks[id].destroyHandler);
+        const uid = await track.uid();
+        this.postMessage({
+            action: `fetchAcoustIdImage`,
             args: {
-                id: id,
-                uid: track.uid(),
+                id,
+                uid,
                 transientId: track.transientId(),
-                albumKey: albumKey,
-                acoustId: acoustId
+                albumKey,
+                acoustId
             }
         });
     }
-}, 100);
+};
+TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(TrackAnalyzer.prototype.fetchAcoustIdImage, 100);
 
-TrackAnalyzer.prototype.fillInAcoustId = function(track, duration, fingerprint, _retries) {
-    if (!_retries) _retries = 0;
-    var self = this;
-
+TrackAnalyzer.prototype.fillInAcoustId = async function(track, duration, fingerprint) {
     if (this._playlist.isTrackHighlyRelevant(track)) {
         this.prioritize(track);
     }
 
-    return self.fetchTrackAcoustId(track, {
-        duration: duration,
-        fingerprint: fingerprint
-    }).then(function(acoustId) {
-        if (track.isDetachedFromPlaylist()) return;
-        track.tagData.setAcoustId(acoustId);
-        if (self._playlist.isTrackHighlyRelevant(track)) {
-            self.fetchAcoustIdImage(track);
-        }
-    }).catch(function() {
-        if (_retries <= 5) {
-            Promise.delay(5000).then(function() {
-                if (track.isDetachedFromPlaylist()) return;
-                self.fillInAcoustId(track, duration, fingerprint, _retries + 1);
-            });
-        }
-    });
+    const acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
+    if (track.isDetachedFromPlaylist()) {
+        return;
+    }
+    track.tagData.setAcoustId(acoustId);
+    if (this._playlist.isTrackHighlyRelevant(track)) {
+        this.fetchAcoustIdImage(track);
+    }
+
 };
 
-TrackAnalyzer.prototype.trackAnalysisDataFetched = function(track, result, error) {
+TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResult, error) {
+    if (error && this._env.isDevelopment()) {
+        console.error(error);
+    }
+
+    const result = dbResult && dbResult.duration ? dbResult : null;
     if (!track.isDetachedFromPlaylist() && !error) {
-        this.emit("metadataUpdate");
-        var needFingerprint = true;
-        var needLoudness = true;
+        this.emit(`metadataUpdate`);
+        let needFingerprint = true;
+        let needLoudness = true;
 
         if (result) {
-            needFingerprint = result.fingerprint === undefined;
-            needLoudness = result.trackGain === undefined;
+            needFingerprint = !result.fingerprint;
+            needLoudness = !result.loudness;
+
+
             track.tagData.setDataFromTagDatabase(result);
 
-            if (!needFingerprint && this._playlist.isTrackHighlyRelevant(track)) {
+            if (result.fingerprint && this._playlist.isTrackHighlyRelevant(track)) {
                 this.fetchAcoustIdImage(track);
             }
         }
 
-        var acoustIdFilled = null;
-        if (result && result.acoustId === undefined && result.fingerprint) {
+        let acoustIdFilled = null;
+        if (result && !result.acoustId && result.fingerprint && result.duration) {
             acoustIdFilled = this.fillInAcoustId(track, result.duration, result.fingerprint);
         }
 
         if (needFingerprint || needLoudness) {
-            var opts = {
+            const opts = {
                 fingerprint: needFingerprint,
                 loudness: needLoudness
             };
-            track.setAnalysisStatus(opts);
-            var self = this;
-            this.analyzeTrack(track, opts).then(function(analysis) {
-                if (!result) {
-                    track.tagData.setDataFromTagDatabase(analysis);
-                    if (!acoustIdFilled) {
-                        self.fillInAcoustId(track, analysis.duration, analysis.fingerprint);
-                    }
-                } else {
-                    if (needFingerprint && !acoustIdFilled) {
-                        self.fillInAcoustId(track, result.duration, analysis.fingerprint);
-                    }
+            try {
+                track.setAnalysisStatus(opts);
+                const analysis = await this.analyzeTrack(track, opts);
+                const {duration} = analysis;
+                let {fingerprint, loudness} = analysis;
 
-                    if (needLoudness) {
-                        track.tagData.setLoudness(result.loudness);
-                    }
+                if (result) {
+                    fingerprint = needFingerprint ? fingerprint : result.fingerprint;
+                    loudness = needLoudness ? loudness : result.loudness;
+                } else {
+                    track.tagData.setDataFromTagDatabase(analysis);
                 }
-                self.emit("metadataUpdate");
-            }).finally(function() {
+
+                if (needLoudness) {
+                    track.tagData.setLoudness(loudness);
+                }
+
+                if (needFingerprint && !acoustIdFilled) {
+                    this.fillInAcoustId(track, duration, fingerprint);
+                }
+                this.emit(`metadataUpdate`);
+            } finally {
                 track.unsetAnalysisStatus();
-            }).catch(function() {});
+            }
         }
     }
 };
 
-TrackAnalyzer.prototype.fetchAnalysisData = function(track) {
+TrackAnalyzer.prototype.fetchAnalysisData = async function(track) {
     if (track.tagData.hasBeenAnalyzed()) return;
-    var self = this;
-    var id = ++self._nextJobId;
-    self._analysisFetchingTracks[id] = {
-        track: track,
-        destroyHandler: function() {
-            delete self._analysisFetchingTracks[id];
+    const id = ++this._nextJobId;
+    this._analysisFetchingTracks[id] = {
+        track,
+        destroyHandler: () => {
+            delete this._analysisFetchingTracks[id];
         }
     };
 
-    track.once("destroy", self._analysisFetchingTracks[id].destroyHandler);
-    self._worker.postMessage({
-        action: "fetchAnalysisData",
+    track.once(`destroy`, this._analysisFetchingTracks[id].destroyHandler);
+    const uid = await track.uid();
+    this.postMessage({
+        action: `fetchAnalysisData`,
         args: {
-            id: id,
-            uid: track.uid(),
+            id,
+            uid,
             transientId: track.transientId(),
             albumKey: track.tagData.albumNameKey()
         }
@@ -205,16 +272,21 @@ TrackAnalyzer.prototype.fetchAnalysisData = function(track) {
 };
 
 TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
+    if (error && this._env.isDevelopment()) {
+        console.error(error);
+    }
+
     if (!track.isDetachedFromPlaylist() && !error) {
-        track.setTagData(new TagData(track, data, this));
+        const tagData = this._tagDataContext.create(track, data);
+        track.setTagData(tagData);
+        this.emit(`metadataUpdate`);
         this.fetchAnalysisData(track);
-        this.emit("metadataUpdate");
     }
 };
 
 const removeFromQueue = function(queue, track) {
-    for (var i = 0; i < queue.length; ++i) {
-        var spec = queue[i];
+    for (let i = 0; i < queue.length; ++i) {
+        const spec = queue[i];
         if (spec.track === track) {
             queue.splice(i, 1);
             break;
@@ -229,13 +301,14 @@ TrackAnalyzer.prototype.trackRemovedWhileInQueue = function(track) {
 
 TrackAnalyzer.prototype._next = function(queue, statusProp, method) {
     while (queue.length > 0) {
-        var spec = queue.shift();
-        spec.track.removeListener("destroy", this.trackRemovedWhileInQueue);
+        const spec = queue.shift();
+        spec.track.removeListener(`destroy`, this.trackRemovedWhileInQueue);
         if (spec.track.isDetachedFromPlaylist()) {
             spec.reject(new TrackWasRemovedError());
         } else {
             this[statusProp] = false;
-            return spec.resolve(method.call(this, spec.track, spec.opts));
+            spec.resolve(method.call(this, spec.track, spec.opts));
+            return;
         }
     }
     this[statusProp] = false;
@@ -252,11 +325,11 @@ TrackAnalyzer.prototype.nextTrackChanged = function(track) {
 };
 
 const prioritizeQueue = function(track, queue) {
-    for (var i = 0; i < queue.length; ++i) {
-        var spec = queue[i];
+    for (let i = 0; i < queue.length; ++i) {
+        const spec = queue[i];
 
         if (spec.track === track) {
-            for (var j = i; j >= 1; --j) {
+            for (let j = i; j >= 1; --j) {
                 queue[j] = queue[j - 1];
             }
             queue[0] = spec;
@@ -272,96 +345,11 @@ TrackAnalyzer.prototype.prioritize = function(track) {
     }
 };
 
-TrackAnalyzer.prototype._messaged = function(event) {
-    if (!event.data) return;
-    if (!event.data.jobType) return;
-    var id = event.data.id;
-    if (event.data.jobType === "metadata") {
-        var info = this._metadataParsingTracks[id];
-        if (info) {
-            var track = info.track;
-            track.removeListener("destroy", info.destroyHandler);
-            delete this._metadataParsingTracks[id];
-            var result = event.data.type === "error" ? null : event.data.result;
-            this.trackMetadataParsed(track, result, event.data.error);
-        }
-    } else if (event.data.jobType === "analysisData") {
-        var info = this._analysisFetchingTracks[id];
-        if (info) {
-            var track = info.track;
-            track.removeListener("destroy", info.destroyHandler);
-            delete this._analysisFetchingTracks[id];
-            var result = event.data.type === "error" ? null : event.data.result;
-            this.trackAnalysisDataFetched(track, result, event.data.error);
-        }
-    } else if (event.data.jobType === "acoustIdImage") {
-        var info = this._acoustIdImageFetchingTracks[id];
-        if (info) {
-            var track = info.track;
-            track.removeListener("destroy", info.destroyHandler);
-            delete this._acoustIdImageFetchingTracks[id];
-            var result = event.data.type === "error" ? null : event.data.result;
-            this.acoustIdImageFetched(track, result, event.data.error);
-        }
-    } else if (event.data.jobType === "analyze") {
-        for (var i = 0; i < this._analyzerJobs.length; ++i) {
-            if (this._analyzerJobs[i].id === id) {
-                var job = this._analyzerJobs[i];
-
-                switch (event.data.type) {
-                    case "estimate":
-                        job.track.analysisEstimate(event.data.value);
-                    break;
-
-                    case "error":
-                        this._analyzerJobs.splice(i, 1);
-                        var e = new Error(event.data.error.message);
-                        e.stack = event.data.error.stack;
-                        job.reject(e);
-                    break;
-
-                    case "abort":
-                        this._analyzerJobs.splice(i, 1);
-                        job.reject(new TrackWasRemovedError());
-                    break;
-
-                    case "success":
-                        job.resolve(event.data.result);
-                        this._analyzerJobs.splice(i, 1);
-                    break;
-                }
-                return;
-            }
-        }
-    } else if (event.data.jobType === "acoustId") {
-        for (var i = 0; i < this._acoustIdJobs.length; ++i) {
-            if (this._acoustIdJobs[i].id === id) {
-                var job = this._acoustIdJobs[i];
-
-                switch (event.data.type) {
-                    case "error":
-                        this._acoustIdJobs.splice(i, 1);
-                        var e = new Error(event.data.error.message);
-                        e.stack = event.data.error.stack;
-                        job.reject(e);
-                    break;
-
-                    case "success":
-                        job.resolve(event.data.result);
-                        this._acoustIdJobs.splice(i, 1);
-                    break;
-                }
-                return;
-            }
-        }
-    }
-};
-
 TrackAnalyzer.prototype.abortJobForTrack = function(track) {
-    for (var i = 0; i < this._analyzerJobs.length; ++i) {
+    for (let i = 0; i < this._analyzerJobs.length; ++i) {
         if (this._analyzerJobs[i].track === track) {
-            this._worker.postMessage({
-                action: "abort",
+            this.postMessage({
+                action: `abort`,
                 args: {
                     id: this._analyzerJobs[i].id
                 }
@@ -371,205 +359,122 @@ TrackAnalyzer.prototype.abortJobForTrack = function(track) {
 };
 
 TrackAnalyzer.prototype.parseMetadata = function(track) {
-    var self = this;
-
-    if (this.ready) {
-        this.ready = this.ready.then(function() {
-            if (!track.isDetachedFromPlaylist()) {
-                self.parseMetadata(track);
-            }
-        });
-        return;
-    }
-
-    var id = ++self._nextJobId;
-    self._metadataParsingTracks[id] = {
-        track: track,
-        destroyHandler: function() {
-            delete self._metadataParsingTracks[id];
+    const id = ++this._nextJobId;
+    this._metadataParsingTracks[id] = {
+        track,
+        destroyHandler: () => {
+            delete this._metadataParsingTracks[id];
         }
     };
-    track.once("destroy", self._metadataParsingTracks[id].destroyHandler);
-    self._worker.postMessage({
-        action: "parseMetadata",
+    track.once(`destroy`, this._metadataParsingTracks[id].destroyHandler);
+    this.postMessage({
+        action: `parseMetadata`,
         args: {
-            id: id,
+            id,
             file: track.getFile(),
             transientId: track.transientId()
         }
     });
 };
 
-TrackAnalyzer.prototype.fetchTrackAcoustId = function(track, opts) {
-    var self = this;
-
+TrackAnalyzer.prototype.fetchTrackAcoustId = async function(track, opts) {
     if (this._currentlyFetchingAcoustId) {
-        track.once("destroy", this.trackRemovedWhileInQueue);
-        return new Promise(function(resolve, reject) {
-            self._acoustIdQueue.push({
-                track: track,
-                resolve: resolve,
-                reject: reject,
-                opts: opts
+        track.once(`destroy`, this.trackRemovedWhileInQueue);
+        return new Promise((resolve, reject) => {
+            this._acoustIdQueue.push({
+                track,
+                resolve,
+                reject,
+                opts
             });
 
-            if (self._playlist.isTrackHighlyRelevant(track)) {
-                self.prioritize(track);
+            if (this._playlist.isTrackHighlyRelevant(track)) {
+                this.prioritize(track);
             }
         });
     }
 
+    const uid = await track.uid();
     this._currentlyFetchingAcoustId = true;
-    var id = ++this._nextJobId;
-    return new Promise(function(resolve, reject) {
-        if (track.isDetachedFromPlaylist()) {
-            throw new TrackWasRemovedError();
-        }
-
-        self._acoustIdJobs.push({
-            id: id,
-            track: track,
-            resolve: resolve,
-            reject: reject
-        });
-
-        self._worker.postMessage({
-            action: "fetchAcoustId",
-            args: {
-                id: id,
-                duration: opts.duration,
-                fingerprint: opts.fingerprint,
-                uid: track.uid(),
-                transientId: track.transientId()
+    const id = ++this._nextJobId;
+    try {
+        return await new Promise((resolve, reject) => {
+            if (track.isDetachedFromPlaylist()) {
+                throw new TrackWasRemovedError();
             }
-        });
-    }).finally(function() {
-        Promise.delay(1000).then(function() {
-            self._next(self._acoustIdQueue, "_currentlyFetchingAcoustId", self.fetchTrackAcoustId);
-        });
-        return null;
-    });
-};
 
-TrackAnalyzer.prototype.setSkipCounter = function(track, counter) {
-    if (!track.tagData) return;
-
-    this._worker.postMessage({
-        action: "setSkipCounter",
-        args: {
-            uid: track.uid(),
-            transientId: track.transientId(),
-            counter: counter,
-            id: ++this._nextJobId
-        }
-    });
-};
-
-TrackAnalyzer.prototype.setPlaythroughCounter = function(track, counter) {
-    if (!track.tagData) return;
-
-    this._worker.postMessage({
-        action: "setPlaythroughCounter",
-        args: {
-            uid: track.uid(),
-            transientId: track.transientId(),
-            counter: counter,
-            id: ++this._nextJobId
-        }
-    });
-};
-
-TrackAnalyzer.prototype.rateTrack = function(track, rating) {
-    if (!track.tagData) return;
-
-    this._worker.postMessage({
-        action: "rateTrack",
-        args: {
-            uid: track.uid(),
-            transientId: track.transientId(),
-            rating: rating,
-            id: ++this._nextJobId
-        }
-    });
-};
-
-TrackAnalyzer.prototype.updateSearchIndex = function(track, metadata) {
-    this._worker.postMessage({
-        action: "updateSearchIndex",
-        args: {
-            uid: track.uid(),
-            transientId: track.transientId(),
-            metadata: metadata
-        }
-    });
-};
-
-TrackAnalyzer.prototype.removeFromSearchIndex = function(track, metadata) {
-    this._worker.postMessage({
-        action: "removeFromSearchIndex",
-        args: {
-            uid: track.uid(),
-            transientId: track.transientId(),
-            metadata: metadata
-        }
-    });
-};
-
-
-TrackAnalyzer.prototype.analyzeTrack = function(track, opts) {
-    var self = this;
-    if (this.ready) {
-        this.ready = this.ready.then(function() {
-            return self.analyzeTrack(track, opts);
-        });
-        return this.ready;
-    }
-
-    if (this._currentlyAnalysing) {
-        track.once("destroy", this.trackRemovedWhileInQueue);
-        return new Promise(function(resolve, reject) {
-            self._analysisQueue.push({
-                track: track,
-                opts: opts,
-                resolve: resolve,
-                reject: reject
+            this._acoustIdJobs.push({
+                id,
+                track,
+                resolve,
+                reject
             });
 
-            if (self._playlist.isTrackHighlyRelevant(track)) {
-                self.prioritize(track);
+            this.postMessage({
+                action: `fetchAcoustId`,
+                args: {
+                    id,
+                    duration: opts.duration,
+                    fingerprint: opts.fingerprint,
+                    uid,
+                    transientId: track.transientId()
+                }
+            });
+        });
+    } finally {
+        await delay(1000);
+        this._next(this._acoustIdQueue, `_currentlyFetchingAcoustId`, this.fetchTrackAcoustId);
+    }
+};
+
+TrackAnalyzer.prototype.analyzeTrack = async function(track, opts) {
+    if (this._currentlyAnalysing) {
+        track.once(`destroy`, this.trackRemovedWhileInQueue);
+        return new Promise((resolve, reject) => {
+            this._analysisQueue.push({
+                track,
+                opts,
+                resolve,
+                reject
+            });
+
+            if (this._playlist.isTrackHighlyRelevant(track)) {
+                this.prioritize(track);
             }
         });
     }
 
+    const uid = await track.uid();
     this._currentlyAnalysing = true;
-    var id = ++this._nextJobId;
-    track.once("destroy", this.abortJobForTrack);
-    return new Promise(function(resolve, reject) {
-        if (track.isDetachedFromPlaylist()) {
-            throw new TrackWasRemovedError();
-        }
-
-        this._analyzerJobs.push({
-            id: id,
-            track: track,
-            resolve: resolve,
-            reject: reject
-        });
-
-        this._worker.postMessage({
-            action: "analyze",
-            args: {
-                id: id,
-                fingerprint: !!opts.fingerprint,
-                loudness: !!opts.loudness,
-                file: track.getFile(),
-                uid: track.uid(),
-                transientId: track.transientId()
+    const id = ++this._nextJobId;
+    track.once(`destroy`, this.abortJobForTrack);
+    try {
+        return await new Promise((resolve, reject) => {
+            if (track.isDetachedFromPlaylist()) {
+                throw new TrackWasRemovedError();
             }
+
+            this._analyzerJobs.push({
+                id,
+                track,
+                resolve,
+                reject
+            });
+
+            this.postMessage({
+                action: `analyze`,
+                args: {
+                    id,
+                    fingerprint: !!opts.fingerprint,
+                    loudness: !!opts.loudness,
+                    file: track.getFile(),
+                    uid,
+                    transientId: track.transientId()
+                }
+            });
         });
-    }.bind(this)).finally(function() {
-        track.removeListener("destroy", self.abortJobForTrack);
-        self._next(self._analysisQueue, "_currentlyAnalysing", self.analyzeTrack);
-        return null;
-    });
+    } finally {
+        track.removeListener(`destroy`, this.abortJobForTrack);
+        this._next(this._analysisQueue, `_currentlyAnalysing`, this.analyzeTrack);
+    }
 };

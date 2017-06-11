@@ -1,8 +1,7 @@
-"use strict";
-
-import { inherits } from "util";
-import Snackbar from "ui/Snackbar";
+import {inherits} from "util";
+import {DISMISSED, TIMED_OUT, ACTION_CLICKED} from "ui/Snackbar";
 import EventEmitter from "events";
+import {delay} from "platform/PromiseExtensions";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
@@ -29,10 +28,10 @@ export default function ServiceWorkerManager(deps) {
     this._appClosed = this._appClosed.bind(this);
 
     this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
-    this._globalEvents.on("foreground", this._foregrounded);
-    this._globalEvents.on("background", this._backgrounded);
-    this._globalEvents.on("shutdown", this._appClosed);
-    deps.ensure();
+    this._globalEvents.on(`foreground`, this._foregrounded);
+    this._globalEvents.on(`background`, this._backgrounded);
+    this._globalEvents.on(`shutdown`, this._appClosed);
+
 }
 inherits(ServiceWorkerManager, EventEmitter);
 
@@ -41,10 +40,12 @@ ServiceWorkerManager.prototype._appClosed = function() {
         this._page.navigator().serviceWorker.controller) {
         try {
             this._page.navigator().serviceWorker.controller.postMessage({
-                action: "closeNotifications",
-                tabId: tabId
+                action: `closeNotifications`,
+                tabId
             });
-        } catch (e) {}
+        } catch (e) {
+            // NOOP
+        }
     }
 };
 
@@ -69,57 +70,59 @@ ServiceWorkerManager.prototype._foregrounded = function() {
 
 ServiceWorkerManager.prototype._checkForUpdates = function() {
     this._lastUpdateChecked = Date.now();
-    var self = this;
-    this._currentUpdateCheck = this._registration.then(function(reg) {
-        return reg.update();
-    }).finally(function() {
-        self._currentUpdateCheck = null;
-    }).catch(function() {});
+    this._currentUpdateCheck = (async () => {
+        try {
+            const reg = await this._registration;
+            await reg.update();
+        } catch (e) {
+            // Noop
+        } finally {
+            this._currentUpdateCheck = null;
+        }
+    })();
 };
 
 ServiceWorkerManager.prototype.checkForUpdates = function() {
     if (this._registration &&
         !this._updateAvailableNotified &&
         this._currentUpdateCheck) {
-        return this._checkForUpdates();
+        this._checkForUpdates();
     }
-    return Promise.resolve();
 };
 
-ServiceWorkerManager.prototype._updateAvailable = function(worker, nextAskTimeout) {
+ServiceWorkerManager.prototype._updateAvailable = async function(worker) {
     this._updateAvailableNotified = true;
-    var self = this;
-    if (!nextAskTimeout) nextAskTimeout = 60 * 1000;
+    try {
+        let outcome;
+        let nextAskTimeout = 60 * 1000;
 
-    this._snackbar.show("New version available", {
-        action: "refresh",
-        visibilityTime: 15000
-    }).then(function(outcome) {
-        switch (outcome) {
-            case Snackbar.ACTION_CLICKED:
-                worker.postMessage({action: 'skipWaiting'}).catch(function() {});
+        do {
+            outcome = await this._snackbar.show(`New version available`, {
+                action: `refresh`,
+                visibilityTime: 15000,
+                tag: null
+            });
+
+            if (outcome === ACTION_CLICKED || outcome === DISMISSED) {
+                worker.postMessage({action: `skipWaiting`});
                 return;
-            case Snackbar.DISMISSED:
-                worker.postMessage({action: 'skipWaiting'}).catch(function() {});
-                return;
-            case Snackbar.TIMED_OUT:
-                self._page.setTimeout(function() {
-                    self._updateAvailable(worker, nextAskTimeout * 3);
-                }, nextAskTimeout);
-                break;
-            default:
-                return;
-        }
-    }).catch(function(e) {
-        return self._snackbar.show(e.message);
-    });
+            }
+
+            await delay(nextAskTimeout);
+            nextAskTimeout *= 3;
+        } while (outcome === TIMED_OUT);
+    } catch (e) {
+        await this._snackbar.show(e.message, {
+            visibilityTime: 15000,
+            tag: null
+        });
+    }
 };
 
 ServiceWorkerManager.prototype._updateFound = function(worker) {
-    var self = this;
-    worker.addEventListener("statechange", function() {
-        if (worker.state === "installed") {
-            self._updateAvailable(worker);
+    worker.addEventListener(`statechange`, () => {
+        if (worker.state === `installed`) {
+            this._updateAvailable(worker);
         }
     });
 };
@@ -127,55 +130,55 @@ ServiceWorkerManager.prototype._updateFound = function(worker) {
 ServiceWorkerManager.prototype.start = function() {
     if (this._started || !this._page.navigator().serviceWorker) return;
     this._started = true;
-    var self = this;
-    this._registration = Promise.resolve(this._page.navigator().serviceWorker.register("/sw.js").then(function(reg) {
-        if (!self._page.navigator().serviceWorker.controller) return;
+    this._registration = (async () => {
+        const reg = await this._page.navigator().serviceWorker.register(`/sw.js`);
+        if (!this._page.navigator().serviceWorker.controller) return reg;
 
         if (reg.waiting) {
-            self._updateAvailable(reg.waiting);
+            this._updateAvailable(reg.waiting);
         } else if (reg.installing) {
-            self._updateFound(reg.installing);
+            this._updateFound(reg.installing);
         } else {
-            reg.addEventListener("updatefound", function() {
-                self._updateFound(reg.installing);
+            reg.addEventListener(`updatefound`, () => {
+                this._updateFound(reg.installing);
             });
         }
 
-        self._page.navigator().serviceWorker.addEventListener("message", self._messaged);
-        self._page.navigator().serviceWorker.addEventListener("ServiceWorkerMessageEvent", self._messaged);
-        self._page.addWindowListener("message", self._messaged);
-        self._page.addWindowListener("ServiceWorkerMessageEvent", self._messaged);
+        this._page.navigator().serviceWorker.addEventListener(`message`, this._messaged);
+        this._page.navigator().serviceWorker.addEventListener(`ServiceWorkerMessageEvent`, this._messaged);
+        this._page.addWindowListener(`message`, this._messaged);
+        this._page.addWindowListener(`ServiceWorkerMessageEvent`, this._messaged);
         return reg;
-    }));
+    })();
 
-    var reloading = false;
-    self._page.navigator().serviceWorker.addEventListener("controllerchange", function() {
+    let reloading = false;
+    this._page.navigator().serviceWorker.addEventListener(`controllerchange`, () => {
         if (reloading) return;
         reloading = true;
-        self._globalEvents.disableBeforeUnloadHandler();
-        self._page.location().reload();
+        this._globalEvents.disableBeforeUnloadHandler();
+        this._page.location().reload();
     });
 };
 
-const rTagStrip = new RegExp("\\-"+tabId+"$");
+const rTagStrip = new RegExp(`\\-${tabId}$`);
 ServiceWorkerManager.prototype._messaged = function(e) {
-    if (e.data.data.tabId !== tabId || e.data.eventType !== "swEvent") return;
-    var data = e.data;
-    var tag = data.tag || null;
+    if (e.data.data.tabId !== tabId || e.data.eventType !== `swEvent`) return;
+    const {data} = e;
+    let {tag} = data;
 
     if (tag) {
-        tag = (tag + "").replace(rTagStrip, "");
+        tag = (`${tag}`).replace(rTagStrip, ``);
     } else {
-        tag = "";
+        tag = ``;
     }
 
-    var eventArg = data.data;
-    var eventName = null;
+    const eventArg = data.data;
+    let eventName = null;
 
-    if (data.type === "notificationClick") {
-        eventName = "action" + data.action + "-" + tag;
-    } else if (data.type === "notificationClose") {
-        eventName = "notificationClose-" + tag;
+    if (data.type === `notificationClick`) {
+        eventName = `action${data.action}-${tag}`;
+    } else if (data.type === `notificationClose`) {
+        eventName = `notificationClose-${tag}`;
     }
 
     if (eventName) {
@@ -183,73 +186,55 @@ ServiceWorkerManager.prototype._messaged = function(e) {
     }
 };
 
-ServiceWorkerManager.prototype.hideNotifications = function(tag) {
+ServiceWorkerManager.prototype.hideNotifications = async function(tag) {
     if (tag) {
-        tag = tag + "-" + tabId;
+        tag = `${tag}-${tabId}`;
     } else {
         tag = tabId;
     }
-    return this._registration.then(function(reg) {
-        return Promise.resolve(reg.getNotifications({tag: tag})).then(function(notifications) {
-            notifications.forEach(function(notification) {
-                try {
-                    notification.close();
-                } catch (e) {}
-            });
-        });
+    const reg = await this._registration;
+    const notifications = await Promise.resolve(reg.getNotifications({tag}));
+    notifications.forEach((notification) => {
+        try {
+            notification.close();
+        } catch (e) {
+            // Noop
+        }
     });
 };
 
-var notificationId = (Date.now() * Math.random())|0;
-ServiceWorkerManager.prototype.showNotification = function(title, options) {
-    if (!this._started) return Promise.resolve();
-    if (!options) options = Object(options);
-    var id = ++notificationId;
-    options.data = {
-        notificationId: id,
-        tabId: tabId
-    };
+let notificationId = (Date.now() * Math.random()) | 0;
+ServiceWorkerManager.prototype.showNotification = async function(title, {tag}) {
+    if (!this._started) return null;
+    const id = ++notificationId;
+    const data = {notificationId: id, tabId};
+    const reg = await this._registration;
+    const tagOption = (tag ? `${tag}-${tabId}` : `${tabId}`);
 
-    var tag;
-    if (!options.tag) {
-        tag = options.tag = tabId;
-    } else {
-        tag = options.tag = options.tag + "-" + tabId;
+    if (this._env.isMobile()) {
+        const notifications = await Promise.resolve(reg.getNotifications());
+        for (const notification of notifications) {
+            try {
+                notification.close();
+            } catch (e) {
+                // Noop
+            }
+        }
     }
 
-    var self = this;
-    return this._registration.then(function(reg) {
-        var preReq = Promise.resolve();
-        if (self._env.isMobile()) {
-            preReq = Promise.resolve(reg.getNotifications()).then(function(notifications) {
-                notifications.forEach(function(notification) {
-                    try { notification.close(); } catch (e) {}
-                });
-            });
-        }
-
-        return preReq.then(function() {
-            return reg.showNotification(title, options);
-        }).then(function() {
-            var opts = {tag: tag};
-            return Promise.resolve(reg.getNotifications(opts)).then(function(notifications) {
-                var theNotification = notifications.filter(function(n) {
-                    return n.data.notificationId === id && n.data.tabId === tabId;
-                })[0];
-
-                // GC possible hanging around notifications explicitly.
-                notifications.filter(function(n) {
-                    return n.data.notificationId !== id && n.data.tabId === tabId;
-                }).forEach(function(n) {
-                    try { n.close(); } catch (e) {}
-                });
-
-                if (theNotification) {
-                    return theNotification;
-                } else {
-                    return null;
-                }
-            });
-        });
+    await reg.showNotification(title, {
+        data,
+        tag: tagOption
     });
+
+    const notifications = await Promise.resolve(reg.getNotifications({tag: tagOption}));
+    const otherNotifications = notifications.filter(n => n.data.notificationId !== id && n.data.tabId === tabId);
+    for (const notification of otherNotifications) {
+        try {
+            notification.close();
+        } catch (e) {
+            // Noop
+        }
+    }
+    return notifications.find(n => n.data.notificationId === id && n.data.tabId === tabId) || null;
 };

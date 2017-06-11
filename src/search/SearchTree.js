@@ -1,8 +1,8 @@
-"use strict";
 
-import { merge as mergeSorted,
+
+import {merge as mergeSorted,
          insert as insertSorted,
-         remove as removeSorted } from "search/sortedArrays";
+         remove as removeSorted} from "search/sortedArrays";
 
 const RED = -1;
 const BLACK = 1;
@@ -12,9 +12,9 @@ const compareStrings = function(a, b) {
     const bLen = b.length;
     const length = Math.min(aLen, bLen);
 
-    for (var i = 0; i < length; ++i) {
-        var aChar = a.charCodeAt(i);
-        var bChar = b.charCodeAt(i);
+    for (let i = 0; i < length; ++i) {
+        const aChar = a.charCodeAt(i);
+        const bChar = b.charCodeAt(i);
 
         if (aChar === bChar) {
             continue;
@@ -38,11 +38,11 @@ const compareStringsLcp = function(ref, a, b) {
     const aLen = a.length;
     const bLen = b.length;
     const length = Math.min(aLen, bLen);
-    var lcp = 0;
+    let lcp = 0;
 
-    for (var i = 0; i < length; ++i) {
-        var aChar = a.charCodeAt(i);
-        var bChar = b.charCodeAt(i);
+    for (let i = 0; i < length; ++i) {
+        const aChar = a.charCodeAt(i);
+        const bChar = b.charCodeAt(i);
 
         if (aChar === bChar) {
             lcp++;
@@ -70,7 +70,7 @@ function Node(word) {
     this.color = RED;
     this.values = [];
 }
-const NULL = new Node("");
+const NULL = new Node(``);
 NULL.color = BLACK;
 
 Node.prototype.add = function(value, comparer) {
@@ -86,7 +86,7 @@ Node.prototype.length = function() {
 };
 
 Node.prototype.uncle = function() {
-    var gp = this.grandParent();
+    const gp = this.grandParent();
     if (gp === null) {
         return NULL;
     }
@@ -101,18 +101,18 @@ Node.prototype.uncle = function() {
 };
 
 Node.prototype.grandParent = function() {
-    var parent = this.parent;
+    const {parent} = this;
     if (parent === null) return null;
     return parent.parent;
 };
 
 Node.prototype.isRightChild = function() {
-    var parent = this.parent;
+    const {parent} = this;
     return parent !== null && parent.right === this;
 };
 
 Node.prototype.isLeftChild = function() {
-    var parent = this.parent;
+    const {parent} = this;
     return parent !== null && parent.left === this;
 };
 
@@ -129,19 +129,23 @@ Node.prototype.setRightChild = function(node) {
 };
 
 Node.prototype.successor = function() {
-    var node = this.right;
+    let node = this.right;
     if (node !== NULL) {
         while (node.left !== NULL) {
             node = node.left;
         }
         return node;
     } else {
-        var parent = this.parent;
-        var firstLeft = this;
+        let {parent} = this;
+        /* eslint-disable consistent-this */
+        let firstLeft = this;
+        /* eslint-enable consistent-this */
 
         while (firstLeft.isRightChild()) {
             firstLeft = parent;
+            /* eslint-disable prefer-destructuring */
             parent = parent.parent;
+            /* eslint-enable prefer-destructuring */
         }
 
         return parent;
@@ -149,19 +153,23 @@ Node.prototype.successor = function() {
 };
 
 Node.prototype.precedessor = function() {
-    var node = this.left;
+    let node = this.left;
     if (node !== NULL) {
         while (node.right !== NULL) {
             node = node.right;
         }
         return node;
     } else {
-        var parent = this.parent;
-        var firstRight = this;
+        let {parent} = this;
+        /* eslint-disable consistent-this */
+        let firstRight = this;
+        /* eslint-enable consistent-this */
 
         while (firstRight.isLeftChild()) {
             firstRight = parent;
+            /* eslint-disable prefer-destructuring */
             parent = parent.parent;
+            /* eslint-enable prefer-destructuring */
         }
 
         return parent;
@@ -169,9 +177,7 @@ Node.prototype.precedessor = function() {
 };
 
 Node.prototype.rotateLeft = function() {
-    var right = this.right;
-    var parent = this.parent;
-
+    const {right, parent} = this;
     this.setRightChild(right.left);
 
     if (this.isRightChild()) {
@@ -186,8 +192,7 @@ Node.prototype.rotateLeft = function() {
 };
 
 Node.prototype.rotateRight = function() {
-    var left = this.left;
-    var parent = this.parent;
+    const {left, parent} = this;
 
     this.setLeftChild(left.right);
 
@@ -207,7 +212,7 @@ Node.prototype.putValues = function(sortedArray, comparer) {
 };
 
 const mkNode = function(word, value, comparer) {
-    var ret = new Node(word);
+    const ret = new Node(word);
     ret.add(value, comparer);
     ret.left = ret.right = NULL;
     return ret;
@@ -227,7 +232,7 @@ SearchTree.prototype.insert = function(word, value) {
 SearchTree.prototype._searchPrecedessors = function(node, word, results) {
     while (node !== null) {
         compareStringsLcp(this, node.word, word);
-        var lcp = this.lcp;
+        const {lcp} = this;
         if (lcp > 0) {
             if (word.length === lcp) {
                 node.putValues(results, this._valueComparer);
@@ -242,7 +247,7 @@ SearchTree.prototype._searchPrecedessors = function(node, word, results) {
 SearchTree.prototype._searchSuccessors = function(node, word, results) {
     while (node !== null) {
         compareStringsLcp(this, node.word, word);
-        var lcp = this.lcp;
+        const {lcp} = this;
         if (lcp > 0) {
             if (word.length === lcp) {
                 node.putValues(results, this._valueComparer);
@@ -255,12 +260,12 @@ SearchTree.prototype._searchSuccessors = function(node, word, results) {
 };
 
 SearchTree.prototype.search = function(word) {
-    var node = this._root;
+    let node = this._root;
     if (node === null) return [];
-    var results = [];
+    const results = [];
     while (node !== NULL) {
-        var result = compareStringsLcp(this, node.word, word);
-        var lcp = this.lcp;
+        const result = compareStringsLcp(this, node.word, word);
+        const {lcp} = this;
         if (lcp > 0) {
             if (word.length === lcp) {
                 node.putValues(results, this._valueComparer);
@@ -279,9 +284,9 @@ SearchTree.prototype.search = function(word) {
 };
 
 SearchTree.prototype._refreshRoot = function() {
-    var prev = this._root;
+    let prev = this._root;
     if (prev !== null) {
-        var next = prev.parent;
+        let next = prev.parent;
         while (true) {
             if (next === null) {
                 this._root = prev;
@@ -294,7 +299,7 @@ SearchTree.prototype._refreshRoot = function() {
 };
 
 SearchTree.prototype.remove = function(word, value) {
-    var node = this._nodeByExactWord(word);
+    const node = this._nodeByExactWord(word);
 
     if (node) {
         node.remove(value, this._valueComparer);
@@ -305,11 +310,11 @@ SearchTree.prototype.remove = function(word, value) {
 };
 
 SearchTree.prototype._nodeByExactWord = function(word) {
-    var node = this._root;
+    let node = this._root;
     if (node === null) return null;
 
     while (node !== NULL) {
-        var result = compareStrings(node.word, word);
+        const result = compareStrings(node.word, word);
 
         if (result === 0) {
             return node;
@@ -324,8 +329,8 @@ SearchTree.prototype._nodeByExactWord = function(word) {
 };
 
 SearchTree.prototype._insertNode = function(word, value) {
-    var node = null;
-    var root = this._root;
+    let node = null;
+    let root = this._root;
     this._length++;
     if (root === null) {
         this._root = mkNode(word, value, this._valueComparer);
@@ -334,10 +339,10 @@ SearchTree.prototype._insertNode = function(word, value) {
     }
 
     while (true) {
-        var result = compareStrings(root.word, word);
+        const result = compareStrings(root.word, word);
 
         if (result > 0) {
-            var left = root.left;
+            const {left} = root;
             if (left === NULL) {
                 node = mkNode(word, value, this._valueComparer);
                 root.setLeftChild(node);
@@ -346,7 +351,7 @@ SearchTree.prototype._insertNode = function(word, value) {
                 root = left;
             }
         } else if (result < 0) {
-            var right = root.right;
+            const {right} = root;
             if (right === NULL) {
                 node = mkNode(word, value, this._valueComparer);
                 root.setRightChild(node);
@@ -361,9 +366,9 @@ SearchTree.prototype._insertNode = function(word, value) {
     }
 
     while (node.parent !== null && node.parent.color === RED) {
-        var uncle = node.uncle();
-        var grandParent = node.grandParent();
-        var parent = node.parent;
+        const uncle = node.uncle();
+        let grandParent = node.grandParent();
+        const {parent} = node;
 
         if (uncle.color === RED) {
             parent.color = BLACK;
@@ -402,8 +407,8 @@ SearchTree.prototype._insertNode = function(word, value) {
 };
 
 SearchTree.prototype._rebalanceLeft = function(root, node) {
-    var parent = node.parent;
-    var sibling = parent.right;
+    const {parent} = node;
+    let sibling = parent.right;
 
     if (sibling.color === RED) {
         sibling.color = BLACK;
@@ -432,8 +437,8 @@ SearchTree.prototype._rebalanceLeft = function(root, node) {
 };
 
 SearchTree.prototype._rebalanceRight = function(root, node) {
-    var parent = node.parent;
-    var sibling = parent.left;
+    const {parent} = node;
+    let sibling = parent.left;
 
     if (sibling.color === RED) {
         sibling.color = BLACK;
@@ -474,7 +479,7 @@ SearchTree.prototype._rebalanceTree = function(root, node) {
 
 SearchTree.prototype._removeNode = function(node) {
     this._length--;
-    var newRoot = this._doRemoveNode(node);
+    const newRoot = this._doRemoveNode(node);
     if (newRoot !== null) {
         this._root = newRoot;
     } else {
@@ -483,8 +488,8 @@ SearchTree.prototype._removeNode = function(node) {
 };
 
 SearchTree.prototype._doRemoveNode = function(node) {
-    var root = this._root;
-    var current, successor;
+    const root = this._root;
+    let current, successor;
 
     if (node.left !== NULL &&
         node.right !== NULL) {
@@ -501,7 +506,7 @@ SearchTree.prototype._doRemoveNode = function(node) {
     }
 
     if (current !== NULL) {
-        var parent = node.parent;
+        const {parent} = node;
 
         if (node.isLeftChild()) {
             parent.setLeftChild(current);

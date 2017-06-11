@@ -12,6 +12,7 @@ dist/main.js.map
 dist/main.min.js.map
 dist/worker/*
 dist/worker/codecs/*
+build/*
 *.log
 rewrite.js
 sw.js
@@ -21,3 +22,4 @@ dist/css/*
 worker/AudioPlayerWorker.js
 worker/TrackAnalyzerWorker.js
 *.pem
+wasm/*.debug.wasm

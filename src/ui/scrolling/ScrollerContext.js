@@ -1,28 +1,23 @@
-"use strict";
+
 
 import ContentScroller from "ui/scrolling/ContentScroller";
 import FixedItemListScroller from "ui/scrolling/FixedItemListScroller";
-import ApplicationDependencies from "ApplicationDependencies";
+import withDeps from "ApplicationDependencies";
 
-export default function ScrollerContext(opts, deps) {
-    opts = Object(opts);
-    this.itemHeight = opts.itemHeight;
-    this.page = deps.page;
-    this.scrollEvents = deps.scrollEvents;
-    deps.ensure();
+export default function ScrollerContext({itemHeight}, deps) {
+    const {page, scrollEvents} = deps;
+    this.itemHeight = itemHeight;
+    this.page = page;
+    this.scrollEvents = scrollEvents;
 }
 
 ScrollerContext.prototype.createContentScroller = function(opts) {
-    return new ContentScroller(opts, new ApplicationDependencies({
-        page: this.page,
-        scrollEvents: this.scrollEvents
-    }));
+    const {page, scrollEvents} = this;
+    return withDeps({page, scrollEvents}, deps => new ContentScroller(opts, deps));
 };
 
 ScrollerContext.prototype.createFixedItemListScroller = function(opts) {
-    opts.itemHeight = this.itemHeight;
-    return new FixedItemListScroller(opts, new ApplicationDependencies({
-        page: this.page,
-        scrollEvents: this.scrollEvents
-    }));
+    const {itemHeight, page, scrollEvents} = this;
+    opts.itemHeight = itemHeight;
+    return withDeps({page, scrollEvents}, deps => new FixedItemListScroller(opts, deps));
 };

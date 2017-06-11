@@ -1,6 +1,7 @@
-"use strict";
 
-import { AudioParam, Float32Array } from "platform/platform";
+
+import {AudioParam, Float32Array} from "platform/platform";
+import {delay} from "platform/PromiseExtensions";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 
@@ -23,13 +24,13 @@ function cancelAndHoldNonStandardImpl(audioParam, value) {
 }
 
 function cancelAndHoldPolyfillImpl(audioParam, value) {
-    var currentValue = audioParam.value;
+    const currentValue = audioParam.value;
     audioParam.cancelScheduledValues(value);
     audioParam.setValueAtTime(currentValue, value);
 }
 
-const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime === "function" ? cancelAndHoldStandardImpl :
-                      typeof AudioParam.prototype.cancelValuesAndHoldAtTime === "function" ? cancelAndHoldNonStandardImpl :
+const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime === `function` ? cancelAndHoldStandardImpl :
+                      typeof AudioParam.prototype.cancelValuesAndHoldAtTime === `function` ? cancelAndHoldNonStandardImpl :
                       cancelAndHoldPolyfillImpl;
 
 export default function AudioManager(player, track, implicitlyLoaded) {
@@ -65,18 +66,18 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.lastBufferQueued = this.lastBufferQueued.bind(this);
     this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
-    this.track.on("tagDataUpdate", this.trackTagDataUpdated);
-    this.player.playlist.on("nextTrackChange", this.nextTrackChanged);
+    this.track.on(`tagDataUpdate`, this.trackTagDataUpdated);
+    this.player.playlist.on(`nextTrackChange`, this.nextTrackChanged);
 
     this.sourceNode = this.player.audioPlayer.createSourceNode();
-    this.sourceNode.on("lastBufferQueued", this.lastBufferQueued);
+    this.sourceNode.on(`lastBufferQueued`, this.lastBufferQueued);
     this.sourceNode.setVolume(1);
     this.sourceNode.pause();
     this.setupNodes();
 }
 
 AudioManager.prototype.setupNodes = function() {
-    var audioCtx = this.player.getAudioContext();
+    const audioCtx = this.player.getAudioContext();
     this.pauseResumeFadeGain = audioCtx.createGain();
     this.replayGain = audioCtx.createGain();
     this.seekGain = audioCtx.createGain();
@@ -117,7 +118,7 @@ AudioManager.prototype.destroyVisualizer = function() {
 };
 
 // The track is only used for fade out and this audiomanager is otherwise
-// obsolete.
+// Obsolete.
 AudioManager.prototype.background = function() {
     this.destroyVisualizer();
 };
@@ -143,7 +144,7 @@ AudioManager.prototype.hasGaplessPreload = function() {
 AudioManager.prototype._updateNextGaplessTrack = function() {
     this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
     if (this.gaplessPreloadTrack) {
-        var time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
+        const time = this.gaplessPreloadTrack.convertFromSilenceAdjustedTime(0);
         this.sourceNode.replace(this.gaplessPreloadTrack.getFile(),
                                 time,
                                 true,
@@ -160,7 +161,7 @@ AudioManager.prototype.isSeekable = function() {
 };
 
 AudioManager.prototype.lastBufferQueued = function() {
-    var shouldPreload = this.player.currentAudioManager === this &&
+    const shouldPreload = this.player.currentAudioManager === this &&
                         this.player.playlist.getNextTrack() &&
                         this.player.getFadeInTimeForNextTrack() === 0 &&
                         // When track has silence at end, preloading will be done during it.
@@ -169,25 +170,25 @@ AudioManager.prototype.lastBufferQueued = function() {
 
 
     if (shouldPreload) {
-        this.player.playlist.on("nextTrackChange", this.nextTrackChangedWhilePreloading);
+        this.player.playlist.on(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
         this._updateNextGaplessTrack();
     }
 };
 
 AudioManager.prototype.replaceTrack = function(track) {
     if (this.destroyed || this.player.currentAudioManager !== this) return;
-    this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
-    var gaplessPreloadTrack = this.gaplessPreloadTrack;
+    this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+    const {gaplessPreloadTrack} = this;
     this.gaplessPreloadTrack = null;
 
     if (this.sourceNode.hasGaplessPreload()) {
         if (track === gaplessPreloadTrack) {
             this.tickCounter.reset();
             this.intendingToSeek = -1;
-            this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
+            this.track.removeListener(`tagDataUpdate`, this.trackTagDataUpdated);
             this.track = track;
-            this.track.on("tagDataUpdate", this.trackTagDataUpdated);
-            var playbackStartTime = this.sourceNode.replaceUsingGaplessPreload();
+            this.track.on(`tagDataUpdate`, this.trackTagDataUpdated);
+            const playbackStartTime = this.sourceNode.replaceUsingGaplessPreload();
             this.normalizeLoudness(playbackStartTime);
             this.updateSchedules();
             this.resume();
@@ -197,12 +198,12 @@ AudioManager.prototype.replaceTrack = function(track) {
 
     this.intendingToSeek = 0;
     this.player.audioManagerSeekIntent(this, 0);
-    this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
+    this.track.removeListener(`tagDataUpdate`, this.trackTagDataUpdated);
     this.track = track;
-    this.track.on("tagDataUpdate", this.trackTagDataUpdated);
+    this.track.on(`tagDataUpdate`, this.trackTagDataUpdated);
     this.implicitlyLoaded = false;
-    this.sourceNode.removeAllListeners("replacementLoaded");
-    this.sourceNode.once("replacementLoaded", playbackStartTime => {
+    this.sourceNode.removeAllListeners(`replacementLoaded`);
+    this.sourceNode.once(`replacementLoaded`, (playbackStartTime) => {
         this.tickCounter.reset();
         this.intendingToSeek = -1;
         if (this.destroyed || this.player.currentAudioManager !== this) return;
@@ -235,16 +236,16 @@ AudioManager.prototype.trackPictureUpdated = function() {
 
 AudioManager.prototype.normalizeLoudness = function(startTime) {
     if (this.destroyed) return;
-    var track = this.track;
-    var replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
+    const {track} = this;
+    let replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
         track.getTrackGain() || track.getAlbumGain() || -6);
 
     if (track.getTrackPeak() > 1) {
-        replayGain = (1 / track.getTrackPeak()) * replayGain;
+        replayGain *= (1 / track.getTrackPeak());
     }
 
-    if (typeof startTime === "number" && startTime >= 0) {
-        this.replayGain.gain.cancelScheduledValues(this.now());
+    if (typeof startTime === `number` && startTime >= 0) {
+        this.replayGain.gain.cancelScheduledValues(0);
         this.replayGain.gain.setValueAtTime(replayGain, startTime);
     } else {
         this.replayGain.gain.value = replayGain;
@@ -270,26 +271,29 @@ AudioManager.prototype.crossfadingChanged = function() {
 
 AudioManager.prototype.connectEqualizer = function(setup) {
     if (this.destroyed) return;
-    var audioCtx = this.player.getAudioContext();
+    const audioCtx = this.player.getAudioContext();
     try {
         this.replayGain.disconnect();
-    } catch (e) {}
+    } catch (e) {
+        // NOOP
+    }
 
-    this.filterNodes.forEach(function(node) {
+    this.filterNodes.forEach((node) => {
         try {
             node.disconnect();
-        } catch (e) {}
+        } catch (e) {
+            // NOOP
+        }
     });
 
-    var nodes = [];
-    var specs = setup.specs;
-    var gains = setup.gains;
+    const nodes = [];
+    const {specs, gains} = setup;
 
-    for (var i = 0; i < gains.length; ++i) {
-        var gain = gains[i];
+    for (let i = 0; i < gains.length; ++i) {
+        const gain = gains[i];
         if (gain !== 0) {
-            var spec = specs[i];
-            var node = audioCtx.createBiquadFilter();
+            const spec = specs[i];
+            const node = audioCtx.createBiquadFilter();
             node.type = spec[1];
             node.Q.value = 1;
             node.frequency.value = spec[0];
@@ -302,7 +306,7 @@ AudioManager.prototype.connectEqualizer = function(setup) {
     if (!nodes.length) {
         this.replayGain.connect(this.volumeGain);
     } else {
-        var lastFilter = nodes.reduce(function(prev, curr) {
+        const lastFilter = nodes.reduce((prev, curr) => {
             prev.connect(curr);
             return curr;
         }, this.replayGain);
@@ -314,7 +318,7 @@ AudioManager.prototype.connectEqualizer = function(setup) {
 AudioManager.prototype.setCurrentTime = function(currentTime) {
     if (this.destroyed) return;
     this.currentTime = currentTime;
-    var rawTime = this.track.convertFromSilenceAdjustedTime(currentTime);
+    const rawTime = this.track.convertFromSilenceAdjustedTime(currentTime);
     this.sourceNode.setCurrentTime(rawTime);
 };
 
@@ -336,7 +340,7 @@ AudioManager.prototype.errored = function(e) {
 
 AudioManager.prototype.ended = function(haveGaplessPreloadPending) {
     if (this.destroyed) return;
-    this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
+    this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
     this.player.audioManagerEnded(this, haveGaplessPreloadPending);
 };
 
@@ -352,10 +356,10 @@ AudioManager.prototype.hasPlaythroughBeenTriggered = function() {
 
 AudioManager.prototype.timeUpdated = function() {
     if (this.destroyed || this.intendingToSeek !== -1) return;
-    var currentTime = this.getCurrentTime();
-    var duration = this.getDuration();
+    const currentTime = this.getCurrentTime();
+    const duration = this.getDuration();
     if (currentTime >= duration) {
-        this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
+        this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
     }
     if (!this.tickCounter.hasTriggered() &&
         this.track &&
@@ -378,11 +382,11 @@ AudioManager.prototype.pause = async function() {
     this.paused = true;
     this.tickCounter.pause();
     this.cancelPauseResumeFade();
-    cancelAndHold(this.pauseResumeFadeGain.gain, this.now());
+    cancelAndHold(this.pauseResumeFadeGain.gain, 0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
         PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
-    var id = ++this.pauseResumeFadeRequestId;
-    await Promise.delay(PAUSE_RESUME_FADE_TIME * 1000);
+    const id = ++this.pauseResumeFadeRequestId;
+    await delay(PAUSE_RESUME_FADE_TIME * 1000);
     if (id !== this.pauseResumeFadeRequestId) return;
     if (this.destroyed) return;
     this.sourceNode.pause();
@@ -393,7 +397,7 @@ AudioManager.prototype.pause = async function() {
 
 AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started || !this.paused) return;
-    this.seekGain.gain.cancelScheduledValues(this.now());
+    this.seekGain.gain.cancelScheduledValues(0);
     this.seekGain.gain.setValueAtTime(1, this.now());
     this.paused = false;
     this.cancelPauseResumeFade();
@@ -401,7 +405,7 @@ AudioManager.prototype.resume = function() {
     if (this.visualizer) {
         this.visualizer.resume();
     }
-    cancelAndHold(this.pauseResumeFadeGain.gain, this.now());
+    cancelAndHold(this.pauseResumeFadeGain.gain, 0);
     this.pauseResumeFadeGain.gain.setValueCurveAtTime(
         RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
@@ -412,10 +416,10 @@ AudioManager.prototype.start = function() {
     this.intendingToSeek = -1;
     this.started = true;
     this.normalizeLoudness();
-    this.sourceNode.on("timeUpdate", this.timeUpdated);
-    this.sourceNode.on("ended", this.ended);
-    this.sourceNode.on("error", this.errored);
-    this.sourceNode.on("initialPlaythrough", this.initialPlaythrough);
+    this.sourceNode.on(`timeUpdate`, this.timeUpdated);
+    this.sourceNode.on(`ended`, this.ended);
+    this.sourceNode.on(`error`, this.errored);
+    this.sourceNode.on(`initialPlaythrough`, this.initialPlaythrough);
     this.sourceNode.load(this.track.getFile(),
                          this.track.convertFromSilenceAdjustedTime(0),
                          this.track.playerMetadata());
@@ -424,17 +428,17 @@ AudioManager.prototype.start = function() {
 
 AudioManager.prototype.initialPlaythrough = function() {
     this.updateSchedules(!this.implicitlyLoaded);
-    this.sourceNode.on("seeking", this.willSeek);
-    this.sourceNode.on("seekComplete", this.didSeek);
+    this.sourceNode.on(`seeking`, this.willSeek);
+    this.sourceNode.on(`seekComplete`, this.didSeek);
 };
 
 AudioManager.prototype.fadeOutSeekGain = function() {
-    cancelAndHold(this.seekGain.gain, this.now());
+    cancelAndHold(this.seekGain.gain, 0);
     this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, this.now(), SEEK_START_FADE_TIME);
 };
 
 AudioManager.prototype.fadeInSeekGain = function() {
-    cancelAndHold(this.seekGain.gain, this.now());
+    cancelAndHold(this.seekGain.gain, 0);
     this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, this.now(), SEEK_END_FADE_TIME);
 };
 
@@ -453,13 +457,13 @@ AudioManager.prototype.didSeek = function() {
 
 AudioManager.prototype.mute = function() {
     if (this.destroyed) return;
-    cancelAndHold(this.muteGain.gain, this.now());
+    cancelAndHold(this.muteGain.gain, 0);
     this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.unmute = function() {
     if (this.destroyed) return;
-    cancelAndHold(this.muteGain.gain, this.now());
+    cancelAndHold(this.muteGain.gain, 0);
     this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
@@ -475,8 +479,8 @@ AudioManager.prototype.updateVolume = function(volume) {
 };
 
 AudioManager.prototype.getFadeInTime = function() {
-    var preferences = this.player.crossfadingPreferences.preferences();
-    var fadeInEnabled = preferences.getInEnabled();
+    const preferences = this.player.crossfadingPreferences.preferences();
+    const fadeInEnabled = preferences.getInEnabled();
 
     if (!fadeInEnabled) return 0;
 
@@ -487,14 +491,14 @@ AudioManager.prototype.getFadeInTime = function() {
         }
     }
 
-    var duration = this.getDuration();
+    const duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getInTime(),
             duration - this.player.MINIMUM_DURATION - preferences.getOutTime()));
 };
 
 AudioManager.prototype.getFadeOutTime = function() {
-    var preferences = this.player.crossfadingPreferences.preferences();
-    var fadeOutEnabled = preferences.getOutEnabled();
+    const preferences = this.player.crossfadingPreferences.preferences();
+    const fadeOutEnabled = preferences.getOutEnabled();
 
     if (!fadeOutEnabled) return 0;
 
@@ -505,35 +509,35 @@ AudioManager.prototype.getFadeOutTime = function() {
         }
     }
 
-    var duration = this.getDuration();
+    const duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getOutTime(),
             duration - this.player.MINIMUM_DURATION - preferences.getInTime()));
 };
 
 AudioManager.prototype.updateSchedules = function(forceReset) {
     if (this.destroyed) return;
-    var trackCurrentTime = this.getCurrentTime();
-    var trackDuration = this.getDuration();
-    cancelAndHold(this.fadeInGain.gain, this.now());
-    cancelAndHold(this.fadeOutGain.gain, this.now());
+    const trackCurrentTime = this.getCurrentTime();
+    const trackDuration = this.getDuration();
+    cancelAndHold(this.fadeInGain.gain, 0);
+    cancelAndHold(this.fadeOutGain.gain, 0);
 
-    var preferences = this.player.crossfadingPreferences.preferences();
-    var fadeInTime = this.getFadeInTime();
-    var fadeOutTime = this.getFadeOutTime();
-    var fadeInSamples = preferences.getInCurveSamples();
-    var fadeOutSamples = preferences.getOutCurveSamples();
+    const preferences = this.player.crossfadingPreferences.preferences();
+    const fadeInTime = this.getFadeInTime();
+    const fadeOutTime = this.getFadeOutTime();
+    const fadeInSamples = preferences.getInCurveSamples();
+    const fadeOutSamples = preferences.getOutCurveSamples();
 
     if (fadeInTime > 0 && this.implicitlyLoaded && !forceReset) {
-        var audioCtxTime = this.now() - trackCurrentTime;
+        const audioCtxTime = this.now() - trackCurrentTime;
         if (audioCtxTime > 0) {
             this.fadeInGain.gain.setValueCurveAtTime(fadeInSamples, audioCtxTime, fadeInTime);
         }
     }
 
     if (fadeOutTime > 0) {
-        var trackCurrentTimeForFadeOut = trackDuration - fadeOutTime;
-        var secondsUntilFadeOut = trackCurrentTimeForFadeOut - trackCurrentTime;
-        var audioCtxTime = Math.max(0, this.now() + secondsUntilFadeOut);
+        const trackCurrentTimeForFadeOut = trackDuration - fadeOutTime;
+        const secondsUntilFadeOut = trackCurrentTimeForFadeOut - trackCurrentTime;
+        const audioCtxTime = Math.max(0, this.now() + secondsUntilFadeOut);
         this.fadeOutGain.gain.setValueCurveAtTime(fadeOutSamples, audioCtxTime, fadeOutTime);
     }
 
@@ -550,10 +554,10 @@ AudioManager.prototype.getVisualizer = function() {
 
 AudioManager.prototype.destroy = function() {
     if (this.destroyed) return;
-    this.player.playlist.removeListener("nextTrackChange", this.nextTrackChanged);
-    this.player.playlist.removeListener("nextTrackChange", this.nextTrackChangedWhilePreloading);
-    this.sourceNode.removeListener("lastBufferQueued", this.lastBufferQueued);
-    this.filterNodes.forEach(function(node) {
+    this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChanged);
+    this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+    this.sourceNode.removeListener(`lastBufferQueued`, this.lastBufferQueued);
+    this.filterNodes.forEach((node) => {
         node.disconnect();
     });
     this.pauseResumeFadeGain.disconnect();
@@ -564,7 +568,7 @@ AudioManager.prototype.destroy = function() {
     this.fadeOutGain.disconnect();
     this.sourceNode.destroy();
     this.destroyVisualizer();
-    this.track.removeListener("tagDataUpdate", this.trackTagDataUpdated);
+    this.track.removeListener(`tagDataUpdate`, this.trackTagDataUpdated);
     this.seekGain = null;
     this.sourceNode = null;
     this.fadeInGain = null;

@@ -1,9 +1,9 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import DragRecognizer from "ui/gestures/DragRecognizer";
-import { inherits } from "util";
+import {inherits} from "util";
 
 export default function HorizontalSwipeRecognizer(recognizerContext, handler, direction) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -26,7 +26,7 @@ HorizontalSwipeRecognizer.prototype._dragMoveHandler = function(e) {
     if (this.startX === -1) {
         this.startX = e.clientX;
     } else {
-        var now = (e.timeStamp || e.originalEvent.timeStamp);
+        const now = (e.timeStamp || e.originalEvent.timeStamp);
         this.elapsedTotal += (now - this.previousTime);
         if ((this.direction < 0 && e.clientX - this.lastX > 0) ||
             (this.direction > 0 && e.clientX - this.lastX < 0)) {
@@ -39,10 +39,10 @@ HorizontalSwipeRecognizer.prototype._dragMoveHandler = function(e) {
 
 HorizontalSwipeRecognizer.prototype._dragEndHandler = function(e) {
     if (this.startX !== -1 && this.elapsedTotal > 10) {
-        var diff = e.clientX - this.startX;
-        var absDiff = Math.abs(diff);
-        var minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
-        var velocity = (absDiff / this.elapsedTotal * 1000)|0;
+        const diff = e.clientX - this.startX;
+        const absDiff = Math.abs(diff);
+        const minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
+        const velocity = (absDiff / this.elapsedTotal * 1000) | 0;
 
         if (absDiff > minSwipeLength &&
             velocity > this.recognizerContext.SWIPE_VELOCITY &&

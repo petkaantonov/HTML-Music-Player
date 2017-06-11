@@ -1,3 +1,3 @@
-import { subClassError } from "util";
-export default TrackWasRemovedError;
-var TrackWasRemovedError = subClassError("TrackWasRemovedError");
+import {ExtendableError} from "util";
+export default class TrackWasRemovedError extends ExtendableError {}
+

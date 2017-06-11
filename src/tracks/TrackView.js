@@ -1,12 +1,12 @@
-"use strict";
+import {performance} from "platform/platform";
 
 const ANALYSIS_TOOLTIP_MESSAGE = [
-    "This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.",
-    "Playing this track before the analysis has been completed may require manually adjusting volume."
+    `This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.`,
+    `Playing this track before the analysis has been completed may require manually adjusting volume.`
 ];
 
 const ERROR_HEADER = [
-    "There was an error with this track:"
+    `There was an error with this track:`
 ];
 
 export default function TrackView(track, opts) {
@@ -26,7 +26,7 @@ export default function TrackView(track, opts) {
     this._renderedPlayingStatus = false;
     this._viewUpdated = this._viewUpdated.bind(this);
 
-    this._track.on("viewUpdate", this._viewUpdated);
+    this._track.on(`viewUpdate`, this._viewUpdated);
 }
 
 TrackView.prototype.selectable = function() {
@@ -58,19 +58,19 @@ TrackView.prototype.$ = function() {
 };
 
 TrackView.prototype.$container = function() {
-    return this.$().find(".track");
+    return this.$().find(`.track`);
 };
 
 TrackView.prototype.$trackStatus = function() {
-    return this.$().find(".track-status");
+    return this.$().find(`.track-status`);
 };
 
 TrackView.prototype.$trackNumber = function() {
-    return this.$().find(".track-number");
+    return this.$().find(`.track-number`);
 };
 
 TrackView.prototype.$trackDuration = function() {
-    return this.$().find(".track-duration");
+    return this.$().find(`.track-duration`);
 };
 
 TrackView.prototype.track = function() {
@@ -83,9 +83,9 @@ TrackView.prototype._shouldUpdateDom = function() {
 
 TrackView.prototype._ensureDomNode = function() {
     if (this._shouldUpdateDom()) return;
-    this._domNode = this.page().createElement("div", {
-        class: "track-container"
-    }).setHtml("<div class='track'>                                                                   \
+    this._domNode = this.page().createElement(`div`, {
+        class: `track-container`
+    }).setHtml(`<div class='track'>                                                                   \
         <div class='track-status'>                                                                    \
             <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                     \
         </div>                                                                                        \
@@ -105,14 +105,14 @@ TrackView.prototype._ensureDomNode = function() {
                 <div class='text'>Sync</div>                                                          \
             </div>                                                                                    \
         </div>                                                                                        \
-    </div>");
+    </div>`);
 
     if (this.selectable().contains(this)) {
         this.selected();
     }
 
     if (this._dragged) {
-        this.$().addClass("track-dragging");
+        this.$().addClass(`track-dragging`);
     }
 
     this.viewUpdateTagDataChange();
@@ -138,7 +138,7 @@ TrackView.prototype.isDestroyed = function() {
 TrackView.prototype.destroy = function() {
     if (this._isDestroyed) return false;
     this.destroyTooltips();
-    this._track.removeListener("viewUpdate", this._viewUpdated);
+    this._track.removeListener(`viewUpdate`, this._viewUpdated);
 
     if (this._shouldUpdateDom()) {
         this.$().remove();
@@ -174,28 +174,23 @@ TrackView.prototype.getIndex = function() {
     return this._index;
 };
 
-TrackView.prototype._viewUpdated = function(methodName) {
-    var args = [];
-    for (var i = 1; i < arguments.length; ++i) {
-        args[i - 1] = arguments[i];
-    }
-
+TrackView.prototype._viewUpdated = function(methodName, ...args) {
     if (args.length > 0) {
-        this[methodName].apply(this, args);
+        this[methodName](...args);
     } else {
         this[methodName]();
     }
 };
 
 TrackView.prototype.renderTrackInfo = function() {
-    var artistAndTitle = this._track.getTrackInfo();
+    const artistAndTitle = this._track.getTrackInfo();
 
-    this.$().find(".track-title").setText(artistAndTitle.title);
-    this.$().find(".track-artist").setText(artistAndTitle.artist);
+    this.$().find(`.track-title`).setText(artistAndTitle.title);
+    this.$().find(`.track-artist`).setText(artistAndTitle.artist);
 };
 
 TrackView.prototype.renderTrackNumber = function() {
-    this.$trackNumber().setText((this._track.getIndex() + 1) + ".");
+    this.$trackNumber().setText(`${this._track.getIndex() + 1}.`);
 };
 
 TrackView.prototype.renderTrackDuration = function() {
@@ -251,31 +246,31 @@ TrackView.prototype.detach = function() {
 
 TrackView.prototype.selected = function() {
     if (!this._shouldUpdateDom()) return;
-    this.$().addClass("track-active");
+    this.$().addClass(`track-active`);
 };
 
 TrackView.prototype.unselected = function() {
     if (!this._shouldUpdateDom()) return;
-    this.$().removeClass("track-active");
+    this.$().removeClass(`track-active`);
 };
 
 TrackView.prototype._updateAnalysisEstimate = function() {
     if (this._analysisCompletionEstimate === -1) return;
-    var transitionDuration = this._analysisCompletionEstimate - Date.now();
+    const transitionDuration = this._analysisCompletionEstimate - performance.now();
     if (transitionDuration < 0) return;
-    this.$().addClass("track-container-progress");
-    var bar = this.page().createElement("div", {class: "track-progress-bar"})
-                .appendTo(this.$())
-                .setStyle("transitionDuration", (transitionDuration / 1000) + "s")
-                .forceReflow();
+    this.$().addClass(`track-container-progress`);
+    const bar = this.page().createElement(`div`, {class: `track-progress-bar`}).
+                appendTo(this.$()).
+                setStyle(`transitionDuration`, `${transitionDuration / 1000}s`).
+                forceReflow();
 
-    this.page().requestAnimationFrame(function() {
-        bar.setTransform("translateX(0)");
+    this.page().requestAnimationFrame(() => {
+        bar.setTransform(`translateX(0)`);
     });
 };
 
 TrackView.prototype.viewUpdateAnalysisEstimate = function(analysisEstimate) {
-    this._analysisCompletionEstimate = analysisEstimate + Date.now();
+    this._analysisCompletionEstimate = analysisEstimate + performance.now();
     if (!this._shouldUpdateDom()) return;
     this._updateAnalysisEstimate();
 };
@@ -287,18 +282,18 @@ TrackView.prototype.viewUpdateDestroyed = function() {
 TrackView.prototype.viewUpdateOfflineStatusChange = function() {
     if (!this._shouldUpdateDom()) return;
     if (this._track.isAvailableOffline()) {
-        this.$().find(".offline").addClass("active");
+        this.$().find(`.offline`).addClass(`active`);
     } else {
-        this.$().find(".offline").removeClass("active");
+        this.$().find(`.offline`).removeClass(`active`);
     }
 };
 
 TrackView.prototype.viewUpdateSyncStatusChange = function() {
     if (!this._shouldUpdateDom()) return;
     if (this._track.isSyncedToCloud()) {
-        this.$().find(".cloud").addClass("active");
+        this.$().find(`.cloud`).addClass(`active`);
     } else {
-        this.$().find(".cloud").removeClass("active");
+        this.$().find(`.cloud`).removeClass(`active`);
     }
 };
 
@@ -308,9 +303,9 @@ TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
     this._renderedPlayingStatus = playingStatus;
 
     if (playingStatus) {
-        this.$().addClass("track-playing");
+        this.$().addClass(`track-playing`);
     } else {
-        this.$().removeClass("track-playing");
+        this.$().removeClass(`track-playing`);
     }
 };
 
@@ -322,11 +317,11 @@ TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
         this._analysisTooltip = null;
 
         if (!this._shouldUpdateDom()) return;
-        this.$().removeClass("track-container-progress")
-                .find(".track-progress-bar")
-                .remove();
-        this.$trackStatus().find(".track-analysis-status").remove();
-        this.$trackStatus().removeClass("unclickable");
+        this.$().removeClass(`track-container-progress`).
+                find(`.track-progress-bar`).
+                remove();
+        this.$trackStatus().find(`.track-analysis-status`).remove();
+        this.$trackStatus().removeClass(`unclickable`);
 
     }
 };
@@ -334,27 +329,27 @@ TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
 TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
     if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append(this.page().parse("<span " +
-        "class='glyphicon glyphicon-info-sign track-analysis-status icon'" +
-        "></span>"));
+    this.$trackStatus().append(this.page().parse(`<span ` +
+        `class='glyphicon glyphicon-info-sign track-analysis-status icon'` +
+        `></span>`));
 
 
     this._analysisTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
-    this.$trackStatus().addClass("unclickable");
+    this.$trackStatus().addClass(`unclickable`);
     this._updateAnalysisEstimate();
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {
     if (!this._shouldUpdateDom()) return;
 
-    this.$trackStatus().append(this.page().parse("<span " +
-        "class='glyphicon glyphicon-exclamation-sign track-error-status icon'" +
-        "></span>"));
+    this.$trackStatus().append(this.page().parse(`<span ` +
+        `class='glyphicon glyphicon-exclamation-sign track-error-status icon'` +
+        `></span>`));
 
     this._errorTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                  ERROR_HEADER.concat(this._track._error));
-    this.$trackStatus().addClass("unclickable");
+    this.$trackStatus().addClass(`unclickable`);
 };
 
 TrackView.prototype.viewUpdateHideErrorStatus = function() {
@@ -363,8 +358,8 @@ TrackView.prototype.viewUpdateHideErrorStatus = function() {
         this._errorTooltip.destroy();
         this._errorTooltip = null;
     }
-    this.$trackStatus().find(".track-error-status").remove();
-    this.$trackStatus().removeClass("unclickable");
+    this.$trackStatus().find(`.track-error-status`).remove();
+    this.$trackStatus().removeClass(`unclickable`);
 };
 
 TrackView.prototype.viewUpdatePositionChange = function() {
@@ -384,15 +379,15 @@ TrackView.prototype._updateTranslate = function() {
 };
 
 TrackView.prototype._getTranslate = function() {
-    var index = this._index;
-    var y = index * this.itemHeight();
-    var x = 0;
+    const index = this._index;
+    let y = index * this.itemHeight();
+    let x = 0;
     if (this._dragged) {
         x -= 25;
         y -= 10;
     }
     y += this._offset;
-    return "translate("+x+"px, "+y+"px)";
+    return `translate(${x}px, ${y}px)`;
 };
 
 TrackView.prototype.setOffset = function(value) {
@@ -405,7 +400,7 @@ TrackView.prototype.startDragging = function() {
     if (this._dragged) return;
     this._dragged = true;
     if (!this._shouldUpdateDom()) return;
-    this.$().addClass("track-dragging").removeClass("transition");
+    this.$().addClass(`track-dragging`).removeClass(`transition`);
     this._updateTranslate();
 };
 
@@ -414,12 +409,12 @@ TrackView.prototype.stopDragging = function() {
     this._dragged = false;
     this._offset = 0;
     if (!this._shouldUpdateDom()) return;
-    this.$().removeClass("track-dragging").addClass("transition");
+    this.$().removeClass(`track-dragging`).addClass(`transition`);
     this._updateTranslate();
-    var self = this;
-    this.page().setTimeout(function() {
-        if (!self._shouldUpdateDom()) return;
-        self.$().removeClass("transition");
+
+    this.page().setTimeout(() => {
+        if (!this._shouldUpdateDom()) return;
+        this.$().removeClass(`transition`);
     }, 220);
 
 };

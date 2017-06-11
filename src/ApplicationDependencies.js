@@ -1,105 +1,40 @@
-"use strict";
+import {Proxy} from "platform/platform";
+import {getterProxyHandlers} from "util";
 
-import { ensureType } from "util";
+const doCheckDeps = true;
 
-const rStackClass = /at new ([^ ]+)/;
+export default function withDeps(deps, callback) {
+    if (typeof callback !== `function`) {
+        throw new Error(`${typeof callback} is not a function`);
+    }
+    if (typeof deps !== `object` || deps === null) {
+        throw new Error(`${typeof deps} is not an object`);
+    }
+    if (!doCheckDeps) return callback(deps);
+    const usedDeps = {};
+    const unmetDeps = [];
+    const proxy = new Proxy(deps, getterProxyHandlers((target, key) => {
+        const ret = target[key];
+        if (ret === undefined) {
+            unmetDeps.push(key);
+        }
+        usedDeps[key] = true;
+        return ret;
+    }));
+    const ret = callback(proxy);
+    const unusedDeps = Object.keys(deps).filter(depKey => usedDeps[depKey] !== true);
+    const err = [];
 
-export default function ApplicationDependencies(opts) {
-    this._checkedOpts = Object.create(null);
-    Object.keys(opts).forEach(function(v) {
-        this._checkedOpts[v] = false;
-    }, this);
-    this._opts = Object.freeze(opts);
+    if (unmetDeps.length > 0) {
+        err.push(`Dependencies ${unmetDeps.join(`, `)} were not passed in`);
+    }
+
+    if (unusedDeps.length > 0) {
+        err.push(`Dependencies ${unusedDeps.join(`, `)} were passed in but are not needed`);
+    }
+
+    if (err.length > 0) {
+        throw new Error(err.join(`,`));
+    }
+    return ret;
 }
-
-ApplicationDependencies.prototype.ensure = function() {
-    Object.keys(this._checkedOpts).forEach(function(v) {
-        if (this._checkedOpts[v] !== true) {
-            var stack = new Error().stack;
-            var message = "unneeded dependency passed: " + v;
-
-            if (stack) {
-                var m = stack.match(rStackClass);
-                if (m) {
-                    var klass = m[1];
-                    message = klass + " doesn't depend on " + v + " but it was passed in";
-                }
-            }
-            throw new Error(message);
-        }
-    }, this);
-};
-
-[
-    ["page", "object"],
-    ["env", "object"],
-    ["db", "object"],
-    ["dbValues", "object"],
-    ["defaultTitle", "string"],
-    ["globalEvents", "object"],
-    ["animationContext", "object"],
-    ["recognizerContext", "object"],
-    ["sliderContext", "object"],
-    ["gestureScreenFlasher", "object"],
-    ["rippler", "object"],
-    ["keyboardShortcuts", "object"],
-    ["menuContext", "object"],
-    ["fileInputContext", "object"],
-    ["scrollEvents", "object"],
-    ["scrollerContext", "object"],
-    ["tooltipContext", "object"],
-    ["snackbar", "object"],
-    ["toolbarSubmenu", "object"],
-    ["popupContext", "object"],
-    ["spinner", "object"],
-    ["gestureEducator", "object"],
-    ["serviceWorkerManager", "object"],
-    ["applicationPreferences", "object"],
-    ["effectPreferences", "object"],
-    ["crossfadingPreferences", "object"],
-    ["playlist", "object"],
-    ["trackAnalyzer", "object"],
-    ["search", "object"],
-    ["queue", "null"],
-    ["mainTabs", "object"],
-    ["localFileHandler", "object"],
-    ["player", "object"],
-    ["playerPictureManager", "object"],
-    ["playerTimeManager", "object"],
-    ["playerVolumeManager", "object"],
-    ["playlistNotifications", "object"],
-    ["visualizerCanvas", "object"],
-    ["trackDisplay", "object"],
-    ["defaultShortcuts", "object"],
-    ["playlistModeManager", "object"],
-    ["permissionPrompt", "object"]
-].forEach(function(spec) {
-    var v = spec[0];
-    var type = spec[1];
-    Object.defineProperty(ApplicationDependencies.prototype, v, {
-        configurable: false,
-        enumerable: true,
-        set: function() {
-            throw new Error("read-only");
-        },
-
-        get: function() {
-            if (this._opts[v] !== undefined) {
-                this._checkedOpts[v] = true;
-                return ensureType(this._opts[v], type);
-            } else {
-                var stack = (new Error()).stack;
-                var message = "needed dependency unpassed: " + v;
-                if (stack) {
-                    var m = stack.match(rStackClass);
-                    if (m) {
-                        var klass = m[1];
-                        message = klass + " depends on " + v + " but it was not passed in";
-                    }
-                }
-                throw new Error(message);
-            }
-        }
-    });
-
-});

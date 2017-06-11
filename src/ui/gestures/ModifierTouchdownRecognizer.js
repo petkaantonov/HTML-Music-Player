@@ -1,10 +1,10 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
+const TOUCH_START = `touchstart`;
 
 export default function ModifierTouchdownRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -19,12 +19,12 @@ ModifierTouchdownRecognizer.prototype._recognizerHandler = function(e) {
         return;
     }
 
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     if (e.type === TOUCH_START) {
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
+        for (let i = 0; i < changedTouches.length; ++i) {
+            const touch = changedTouches[i];
             if (touch.identifier !== this.getModifierTouch().identifier) {
-                var g = new GestureObject(e, touch, true);
+                const g = new GestureObject(e, touch, true);
                 this.handler.call(e.currentTarget, g);
                 break;
             }

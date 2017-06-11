@@ -1,22 +1,20 @@
-"use strict";
+import {titleCase, noUndefinedGet} from "util";
 
-import { titleCase } from "util";
-
-var isObject = function(val) {
-    return typeof val === "object" && val !== null;
+const isObject = function(val) {
+    return typeof val === `object` && val !== null;
 };
 
-var valueFunction = function(value) {
+const valueFunction = function(value) {
     if (Array.isArray(value)) {
-        var ret = new Array(value.length);
-        for (var i = 0; i < value.length; ++i) {
+        const ret = new Array(value.length);
+        for (let i = 0; i < value.length; ++i) {
             ret[i] = valueFunction(value[i]);
         }
         return ret;
     } else if (isObject(value)) {
-        var ret = {};
-        var keys = Object.keys(value);
-        for (var i = 0; i < keys.length; ++i) {
+        const ret = {};
+        const keys = Object.keys(value);
+        for (let i = 0; i < keys.length; ++i) {
             ret[keys[i]] = valueFunction(value[keys[i]]);
         }
         return ret;
@@ -25,14 +23,28 @@ var valueFunction = function(value) {
     }
 };
 
-var arrayEquals = function(a, b) {
+/* eslint-disable no-use-before-define */
+const equals = function(a, b) {
+    if (Array.isArray(a) || Array.isArray(b)) {
+        return arrayEquals(a, b);
+    }
+
+    if (isObject(a) || isObject(b)) {
+        return objectEquals(a, b);
+    }
+
+    return a === b;
+};
+/* eslint-enable no-use-before-define */
+
+const arrayEquals = function(a, b) {
     if (!Array.isArray(a) || !Array.isArray(b)) {
         return false;
     }
     if (a.length !== b.length) {
         return false;
     }
-    for (var i = 0; i < a.length; ++i) {
+    for (let i = 0; i < a.length; ++i) {
         if (!equals(a[i], b[i])) {
             return false;
         }
@@ -40,13 +52,13 @@ var arrayEquals = function(a, b) {
     return true;
 };
 
-var objectEquals = function(a, b) {
+const objectEquals = function(a, b) {
     if (!isObject(a) || !isObject(b)) {
         return false;
     }
 
-    var aKeys = Object.keys(a);
-    var bKeys = Object.keys(b);
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
 
     if (aKeys.length !== bKeys.length) {
         return false;
@@ -55,9 +67,9 @@ var objectEquals = function(a, b) {
     aKeys.sort();
     bKeys.sort();
 
-    for (var i = 0; i < aKeys.length; ++i) {
-        var aKey = aKeys[i];
-        var bKey = bKeys[i];
+    for (let i = 0; i < aKeys.length; ++i) {
+        const aKey = aKeys[i];
+        const bKey = bKeys[i];
 
         if (aKey !== bKey) {
             return false;
@@ -71,62 +83,41 @@ var objectEquals = function(a, b) {
     return true;
 };
 
-var equals = function(a, b) {
-    if (Array.isArray(a) || Array.isArray(b)) {
-        return arrayEquals(a, b);
-    }
-
-    if (isObject(a) || isObject(b)) {
-        return objectEquals(a, b);
-    }
-
-    return a === b;
-};
-
-export default createPreferences;
-var createPreferences = function(spec) {
-    spec = Object(spec);
-    spec.preferences = Object(spec.preferences);
-    spec.methods = Object(spec.methods);
+const createPreferences = function(spec) {
+    spec = noUndefinedGet(spec);
     const preferenceNames = Object.keys(spec.preferences);
 
-    const fieldsCode = preferenceNames.map(function(name) {
-        var defaultName = "this.default" + titleCase(name);
-        return "this.set" + titleCase(name) +"(('" + name + "' in fields) ? fields." + name + " : "+defaultName + ")";
-    }).join(";\n");
+    const fieldsCode = preferenceNames.map((name) => {
+        const defaultName = `this.default${titleCase(name)}`;
+        return `this.set${titleCase(name)}(('${name}' in fields) ? fields.${name} : ${defaultName})`;
+    }).join(`;\n`);
 
-    const constructorCode = "fields = Object(fields);\n" +
-        fieldsCode + ";\n" +
-        "Object.seal(this);\n";
+    const constructorCode = `fields = Object(fields);\n${
+        fieldsCode};\n` +
+        `Object.seal(this);\n`;
 
-    const Constructor = new Function("fields", constructorCode);
+    const Constructor = new Function(`fields`, constructorCode);
 
-    preferenceNames.forEach(function(name) {
-        var asValidMethodName = "asValid" + titleCase(name);
-        var defaultName = "default" + titleCase(name);
+    preferenceNames.forEach((name) => {
+        const asValidMethodName = `asValid${titleCase(name)}`;
+        const defaultName = `default${titleCase(name)}`;
         Constructor.prototype[asValidMethodName] = spec.preferences[name].asValidValue;
         Constructor.prototype[defaultName] = valueFunction(spec.preferences[name].defaultValue);
     });
 
-    const equalsCode = "if (!other || !(other instanceof this.constructor)) return false;\n" +
-        "return " + preferenceNames.map(function(name) {
-        return "this._equals(this." + name + ", other." + name + ")";
-    }).join(" &&\n") + ";\n";
+    const equalsCode = `${`if (!other || !(other instanceof this.constructor)) return false;\n` +
+        `return `}${preferenceNames.map(name => `this._equals(this.${name}, other.${name})`).join(` &&\n`)};\n`;
 
 
-    Constructor.prototype.equals = new Function("other", equalsCode);
+    Constructor.prototype.equals = new Function(`other`, equalsCode);
 
-    const copyFromCode = preferenceNames.map(function(name) {
-        return "this.set" + titleCase(name) + "(other." + name + ")";
-    }).join(";\n");
+    const copyFromCode = preferenceNames.map(name => `this.set${titleCase(name)}(other.${name})`).join(`;\n`);
 
-    Constructor.prototype.copyFrom = new Function("other", copyFromCode);
+    Constructor.prototype.copyFrom = new Function(`other`, copyFromCode);
 
-    const toJSONCode = "return {\n" +
-        preferenceNames.map(function(name) {
-            return "    " + name + ": this." + name;
-        }).join(",\n") +
-        "};\n";
+    const toJSONCode = `return {\n${
+        preferenceNames.map(name => `    ${name}: this.${name}`).join(`,\n`)
+        }};\n`;
 
     Constructor.prototype.toJSON = new Function(toJSONCode);
 
@@ -134,28 +125,30 @@ var createPreferences = function(spec) {
         return new Constructor(this.toJSON());
     };
 
-    preferenceNames.forEach(function(name) {
-        var setterName = "set" + titleCase(name);
-        var inplaceSetterName = "setInPlace" + titleCase(name);
-        var getterName = "get" + titleCase(name);
-        var inPlaceGetterName = "getInPlace" + titleCase(name);
-        var setterCode = "this." + name + " = this.asValid" + titleCase(name) + "(this._value(value));\n";
-        var inplaceSetterCode = "this." + name + " = value;\n";
-        var getterCode = "return this._value(this." + name + ");\n";
-        var inPlaceGetterCode = "return this." + name + ";\n";
+    preferenceNames.forEach((name) => {
+        const setterName = `set${titleCase(name)}`;
+        const inplaceSetterName = `setInPlace${titleCase(name)}`;
+        const getterName = `get${titleCase(name)}`;
+        const inPlaceGetterName = `getInPlace${titleCase(name)}`;
+        const setterCode = `this.${name} = this.asValid${titleCase(name)}(this._value(value));\n`;
+        const inplaceSetterCode = `this.${name} = value;\n`;
+        const getterCode = `return this._value(this.${name});\n`;
+        const inPlaceGetterCode = `return this.${name};\n`;
         Constructor.prototype[getterName] = new Function(getterCode);
         Constructor.prototype[inPlaceGetterName] = new Function(inPlaceGetterCode);
-        Constructor.prototype[setterName] = new Function("value", setterCode);
-        Constructor.prototype[inplaceSetterName] = new Function("value", inplaceSetterCode);
+        Constructor.prototype[setterName] = new Function(`value`, setterCode);
+        Constructor.prototype[inplaceSetterName] = new Function(`value`, inplaceSetterCode);
 
     });
 
     Constructor.prototype._equals = equals;
     Constructor.prototype._value = valueFunction;
 
-    Object.keys(spec.methods).forEach(function(methodName) {
+    Object.keys(spec.methods).forEach((methodName) => {
         Constructor.prototype[methodName] = spec.methods[methodName];
     });
 
     return Constructor;
 };
+
+export default createPreferences;

@@ -1,84 +1,64 @@
-"use strict";
-
-import { Float32Array } from "platform/platform";
 import Resampler from "audio/Resampler";
 
 const decoderPool = Object.create(null);
 const resamplers = Object.create(null);
-const bufferPool = Object.create(null);
 
-export function allocBuffer(size, channels) {
-    var key = size + " " + channels;
-
-    var buffers = bufferPool[key];
-    if (!buffers || !buffers.length) {
-        buffers = new Array(channels);
-        for (var i = 0; i < channels; ++i) {
-            buffers[i] = new Float32Array(size);
-        }
-
-        bufferPool[key] = [buffers];
-    }
-
-    return bufferPool[key].shift();
-}
-
-export function freeBuffer(size, channels, buffer) {
-    var key = size + " " + channels;
-    bufferPool[key].push(buffer);
-}
-
-export function allocResampler(channels, from, to, quality) {
+export function allocResampler(wasm, channels, from, to, quality) {
+    const opts = {
+        nb_channels: channels,
+        in_rate: from,
+        out_rate: to,
+        quality
+    };
     quality = quality || 0;
-    var key = channels + " " + from + " " + to;
-    var entry = resamplers[key];
+    const key = `${channels} ${from} ${to} ${quality}`;
+    let entry = resamplers[key];
     if (!entry) {
         entry = resamplers[key] = {
-            allocationCount: 2,
-            instances: [new Resampler(channels, from, to, quality), new Resampler(channels, from, to, quality)]
+            allocationCount: 1,
+            instances: [new Resampler(wasm, opts)]
         };
     }
     if (entry.instances.length === 0) {
-        entry.instances.push(new Resampler(channels, from, to, quality));
+        entry.instances.push(new Resampler(wasm, opts));
         entry.allocationCount++;
-        if (entry.allocationCount > 6) {
-            throw new Error("memory leak");
+        if (entry.allocationCount > 4) {
+            throw new Error(`memory leak`);
         }
     }
-    var ret = entry.instances.shift();
-    ret.start();
+    const ret = entry.instances.shift();
+    ret.reset();
     return ret;
 }
 
 export function freeResampler(resampler) {
-    var key = resampler.nb_channels + " " + resampler.in_rate + " " + resampler.out_rate;
+    const {nb_channels, in_rate, out_rate, quality} = resampler._passedArgs;
+    const key = `${nb_channels} ${in_rate} ${out_rate} ${quality}`;
     resamplers[key].instances.push(resampler);
-    resampler.end();
 }
 
-export function allocDecoderContext(name, Context, contextOpts) {
-    var entry = decoderPool[name];
+export function allocDecoderContext(wasm, name, ContextConstructor, contextOpts) {
+    let entry = decoderPool[name];
 
     if (!entry) {
         entry = decoderPool[name] = {
-            allocationCount: 2,
-            instances: [new Context(contextOpts), new Context(contextOpts)]
+            allocationCount: 1,
+            instances: [new ContextConstructor(wasm, contextOpts)]
         };
     }
 
     if (entry.instances.length === 0) {
-        entry.instances.push(new Context(contextOpts));
+        entry.instances.push(new ContextConstructor(wasm, contextOpts));
         entry.allocationCount++;
-        if (entry.allocationCount > 6) {
-            throw new Error("memory leak");
+        if (entry.allocationCount > 4) {
+            throw new Error(`memory leak`);
         }
     }
 
-    return entry.instances.shift();
+    return entry.instances.shift().reinitialized(contextOpts);
 }
 
 export function freeDecoderContext(name, context) {
-    context.removeAllListeners();
     decoderPool[name].instances.push(context);
     context.end();
 }

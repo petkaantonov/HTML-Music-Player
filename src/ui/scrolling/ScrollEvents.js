@@ -1,6 +1,6 @@
-"use strict";
 
-function ScrollEventsBinding(scrollEvents, target, scroller, shouldScroll, scrollbar) {
+
+function ScrollEventsBinding(scrollEvents, {target, scroller, shouldScroll, scrollbar}) {
     this.scrollEvents = scrollEvents;
     this.shouldScroll = shouldScroll || this.defaultShouldScroll;
     this.target = target;
@@ -20,16 +20,16 @@ function ScrollEventsBinding(scrollEvents, target, scroller, shouldScroll, scrol
 
     this.verticalDragRecognizer.recognizeBubbledOn(this.target);
 
-    target.addEventListener("wheel", this._mouseWheeled)
-        .addEventListener("mousewheel", this._mouseWheeled)
-        .addEventListener("DOMMouseScroll", this._mouseWheeled);
+    target.addEventListener(`wheel`, this._mouseWheeled).
+        addEventListener(`mousewheel`, this._mouseWheeled).
+        addEventListener(`DOMMouseScroll`, this._mouseWheeled);
 }
 
 ScrollEventsBinding.prototype._mouseWheeled = function(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    var delta;
+    let delta;
     if (e.deltaY !== undefined) {
         delta = -e.deltaY * (e.deltaMode === 1 ? 20 : 1);
     } else if (e.wheelDeltaY !== undefined) {
@@ -80,17 +80,18 @@ ScrollEventsBinding.prototype.defaultShouldScroll = function() {
 
 ScrollEventsBinding.prototype.unbind = function() {
     this.verticalDragRecognizer.unrecognizeBubbledOn(this.target);
-    this.target.removeEventListener("wheel", this._mouseWheeled)
-        .removeEventListener("mousewheel", this._mouseWheeled)
-        .removeEventListener("DOMMouseScroll", this._mouseWheeled);
+    this.target.removeEventListener(`wheel`, this._mouseWheeled).
+        removeEventListener(`mousewheel`, this._mouseWheeled).
+        removeEventListener(`DOMMouseScroll`, this._mouseWheeled);
 };
 
 export default function ScrollEvents(deps) {
-    this.page = deps.page;
-    this.recognizerContext = deps.recognizerContext;
-    deps.ensure();
+    const {page, recognizerContext} = deps;
+    this.page = page;
+    this.recognizerContext = recognizerContext;
+
 }
 
-ScrollEvents.prototype.createBinding = function(opts) {
-    return new ScrollEventsBinding(this, opts.target, opts.scroller, opts.shouldScroll, opts.scrollbar);
+ScrollEvents.prototype.createBinding = function({target, scroller, shouldScroll, scrollbar}) {
+    return new ScrollEventsBinding(this, {target, scroller, shouldScroll, scrollbar});
 };

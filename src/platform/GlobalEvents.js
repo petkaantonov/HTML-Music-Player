@@ -1,7 +1,7 @@
-"use strict";
+
 
 import EventEmitter from "events";
-import { inherits, throttle } from "util";
+import {inherits, throttle} from "util";
 
 export default function GlobalEvents(page) {
     EventEmitter.call(this);
@@ -20,45 +20,45 @@ export default function GlobalEvents(page) {
 
     this._page.onDocumentVisibilityChange(this._windowVisibilityChanged.bind(this));
 
-    this._page.addDocumentListener("focus", this._elementFocused, true);
-    this._page.addDocumentListener("blur", this._elementBlurred, true);
-    this._page.addWindowListener("blur", this._windowBlurred.bind(this));
-    this._page.addWindowListener("focus", this._windowFocused.bind(this));
-    this._page.addWindowListener("resize", this._triggerSizeChange, true);
-    this._page.addWindowListener("unload", this.emit.bind(this, "shutdown"));
-    this._page.addWindowListener("beforeunload", this._beforeUnload.bind(this));
+    this._page.addDocumentListener(`focus`, this._elementFocused, true);
+    this._page.addDocumentListener(`blur`, this._elementBlurred, true);
+    this._page.addWindowListener(`blur`, this._windowBlurred.bind(this));
+    this._page.addWindowListener(`focus`, this._windowFocused.bind(this));
+    this._page.addWindowListener(`resize`, this._triggerSizeChange, true);
+    this._page.addWindowListener(`unload`, this.emit.bind(this, `shutdown`));
+    this._page.addWindowListener(`beforeunload`, this._beforeUnload.bind(this));
 }
 inherits(GlobalEvents, EventEmitter);
 
 GlobalEvents.prototype._windowBlurred = function() {
     this._blurred = true;
-    this.emit("visibilityChange");
+    this.emit(`visibilityChange`);
 };
 
 GlobalEvents.prototype._windowFocused = function() {
     this._blurred = false;
-    this.emit("visibilityChange");
+    this.emit(`visibilityChange`);
 };
 
 GlobalEvents.prototype._windowVisibilityChanged = function() {
     if (this.isWindowBackgrounded()) {
-        this.emit("background");
+        this.emit(`background`);
     } else {
-        this.emit("foreground");
+        this.emit(`foreground`);
     }
-    this.emit("visibilityChange");
+    this.emit(`visibilityChange`);
 };
 
 GlobalEvents.prototype._fireLongPressStart = function(t) {
-    this.emit("longPressStart", t);
+    this.emit(`longPressStart`, t);
 };
 
 GlobalEvents.prototype._fireLongPressEnd = function(t) {
-    this.emit("longPressEnd", t);
+    this.emit(`longPressEnd`, t);
 };
 
 GlobalEvents.prototype._fireClear = function() {
-    this.emit("clear");
+    this.emit(`clear`);
 };
 
 GlobalEvents.prototype._triggerSizeChange = function() {
@@ -66,20 +66,17 @@ GlobalEvents.prototype._triggerSizeChange = function() {
         return;
     }
 
-    var activeElement = this._page.activeElement();
+    const activeElement = this._page.activeElement();
     if (activeElement && this._page.isTextInputElement(activeElement)) {
         this._pendingSizeChange = true;
         return;
     }
-    this.emit("resize");
+    this.emit(`resize`);
 };
 
-GlobalEvents.prototype._firePendingSizeChangeEvent =
-    throttle(GlobalEvents.prototype._triggerSizeChange, 100);
-
-GlobalEvents.prototype._resetFireSizeChangeEvents = throttle(function() {
+GlobalEvents.prototype._resetFireSizeChangeEvents = function() {
     this._fireSizeChangeEvents = true;
-}, 500);
+};
 
 GlobalEvents.prototype._elementFocused = function(e) {
     if (this._page.isTextInputElement(e.target)) {
@@ -108,12 +105,13 @@ GlobalEvents.prototype.addBeforeUnloadListener = function(fn) {
 
 GlobalEvents.prototype._beforeUnload = function(e) {
     if (this._beforeUnloadListener) {
-        var ret = this._beforeUnloadListener(e);
+        const ret = this._beforeUnloadListener(e);
         if (ret) {
             e.returnValue = ret;
             return ret;
         }
     }
+    return null;
 };
 
 GlobalEvents.prototype.isWindowBlurred = function() {
@@ -125,4 +123,13 @@ GlobalEvents.prototype.isWindowBlurred = function() {
 GlobalEvents.prototype.isWindowBackgrounded = function() {
     return this._page.isDocumentHidden();
 };
+
+GlobalEvents.prototype.windowWasForegrounded = function() {
+    return new Promise((resolve) => {
+        this.once(`foreground`, resolve);
+    });
+};
+
+GlobalEvents.prototype._firePendingSizeChangeEvent = throttle(GlobalEvents.prototype._triggerSizeChange, 100);
+GlobalEvents.prototype._resetFireSizeChangeEvents = throttle(GlobalEvents.prototype._resetFireSizeChangeEvents, 500);
 

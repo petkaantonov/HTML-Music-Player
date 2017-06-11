@@ -1,23 +1,17 @@
-"use strict";
-
-import { ensuredObjectField, ensuredStringField } from "util";
-
-export default function OpenableSubmenu(opts, deps) {
-    opts = Object(opts);
+export default function OpenableSubmenu({target, openerTarget, activeClass, transitionClass, openerActiveClass},
+                                        deps) {
     this._globalEvents = deps.globalEvents;
     this._page = deps.page;
     this._recognizerContext = deps.recognizerContext;
     this._rippler = deps.rippler;
 
-    this._domNode = this._page.$(ensuredStringField(opts, "target")).eq(0);
-    this._opener = this._page.$(ensuredStringField(opts, "openerTarget")).eq(0);
-    this.activeClass = ensuredStringField(opts, "activeClass");
-    this.transitionClass = ensuredStringField(opts, "transitionClass");
-    this.openerActiveClass = ensuredStringField(opts, "openerActiveClass");
+    this._domNode = this._page.$(target).eq(0);
+    this._opener = this._page.$(openerTarget).eq(0);
+    this.activeClass = activeClass;
+    this.transitionClass = transitionClass;
+    this.openerActiveClass = openerActiveClass;
 
-    this._keyboardElements = this.$().find("*").filter(function(elem) {
-        return elem.tabIndex >= 0;
-    });
+    this._keyboardElements = this.$().find(`*`).filter(elem => elem.tabIndex >= 0);
 
     this._opened = false;
 
@@ -33,13 +27,13 @@ export default function OpenableSubmenu(opts, deps) {
     this._keydowned = this._keydowned.bind(this);
     this._elementBlurred = this._elementBlurred.bind(this);
 
-    this.$opener().addEventListener("click", this._openerClicked)
-                  .addEventListener("mousedown", this._openerMousedowned)
-                  .addEventListener("focus", this._openerFocused);
+    this.$opener().addEventListener(`click`, this._openerClicked).
+                  addEventListener(`mousedown`, this._openerMousedowned).
+                  addEventListener(`focus`, this._openerFocused);
     this._recognizerContext.createTapRecognizer(this._openerClicked).recognizeBubbledOn(this.$opener());
-    this._globalEvents.on("visibilityChange", this._close);
-    this._page.addDocumentListener("blur", this._elementBlurred, true);
-    deps.ensure();
+    this._globalEvents.on(`visibilityChange`, this._close);
+    this._page.addDocumentListener(`blur`, this._elementBlurred, true);
+
 }
 
 OpenableSubmenu.prototype.$ = function() {
@@ -55,11 +49,10 @@ OpenableSubmenu.prototype._open = function() {
     this._opened = true;
     this.$opener().addClass(this.openerActiveClass);
     this.$().addClass(this.activeClass).forceReflow();
-    var self = this;
-    this._page.addDocumentListener("keydown", this._keydowned, true);
-    this._page.addDocumentListener("click", this._documentClicked, true);
-    this._page.changeDom(function() {
-        self.$().addClass(self.transitionClass);
+    this._page.addDocumentListener(`keydown`, this._keydowned, true);
+    this._page.addDocumentListener(`click`, this._documentClicked, true);
+    this._page.changeDom(() => {
+        this.$().addClass(this.transitionClass);
     });
     this._documentTapRecognizer.recognizeCapturedOn(this._page.document());
 };
@@ -70,12 +63,12 @@ OpenableSubmenu.prototype._close = function() {
     if (this._page.$(this._page.activeElement()).closest(this.$().add(this.$opener())).length > 0) {
         this._page.activeElement().blur();
     }
-    this._page.removeDocumentListener("keydown", this._keydowned, true);
-    this._page.removeDocumentListener("click", this._documentClicked, true);
+    this._page.removeDocumentListener(`keydown`, this._keydowned, true);
+    this._page.removeDocumentListener(`click`, this._documentClicked, true);
 
     this.$opener().removeClass(this.openerActiveClass);
-    this.$().removeClass(this.activeClass)
-            .removeClass(this.transitionClass);
+    this.$().removeClass(this.activeClass).
+            removeClass(this.transitionClass);
 
     this._documentTapRecognizer.unrecognizeCapturedOn(this._page.document());
 };
@@ -92,19 +85,19 @@ OpenableSubmenu.prototype.close = function() {
 
 OpenableSubmenu.prototype._documentClicked = function(e) {
     if (!this._opened) return;
-    var $target = this._page.$(e.target);
+    const $target = this._page.$(e.target);
     if ($target.closest(this.$().add(this.$opener())).length === 0) {
         this.close();
     }
 };
 
-OpenableSubmenu.prototype._openerFocused = function(e) {
+OpenableSubmenu.prototype._openerFocused = function() {
     this.open();
 };
 
 OpenableSubmenu.prototype._elementBlurred = function(e) {
     if (!this._opened) return;
-    var $newFocus = this._page.$(e.relatedTarget);
+    const $newFocus = this._page.$(e.relatedTarget);
     if ($newFocus.closest(this.$().add(this.$opener())).length === 0) {
         this.close();
     }
@@ -113,7 +106,7 @@ OpenableSubmenu.prototype._elementBlurred = function(e) {
 OpenableSubmenu.prototype.toggle = function() {
     if (this._opened) {
         this.close();
-    } else {
+    } else {
         this.open();
     }
 };
@@ -132,29 +125,29 @@ OpenableSubmenu.prototype._openerMousedowned = function(e) {
 };
 
 OpenableSubmenu.prototype._keydowned = function(e) {
-    var activeElement = this._page.activeElement();
+    const activeElement = this._page.activeElement();
     if (!activeElement) return;
-    var key = e.key;
+    const {key} = e;
 
-    var activeIndex = -1;
+    let activeIndex = -1;
 
-    this._keyboardElements.forEach(function(elem, index) {
+    this._keyboardElements.forEach((elem, index) => {
         if (elem === activeElement) {
             activeIndex = index;
             return false;
         }
+        return true;
     });
 
-    if (key === "ArrowUp" || key === "ArrowDown") {
-
+    if (key === `ArrowUp` || key === `ArrowDown`) {
         if (activeIndex === -1) {
             this._keyboardElements[0].focus();
         } else {
-            activeIndex += (key === "ArrowUp" ? -1 : 1);
+            activeIndex += (key === `ArrowUp` ? -1 : 1);
             activeIndex = Math.min(this._keyboardElements.length - 1, Math.max(0, activeIndex));
             this._keyboardElements[activeIndex].focus();
         }
-    } else if (key === " ") {
+    } else if (key === ` `) {
         if (activeIndex >= 0) {
             this._keyboardElements[activeIndex].click();
         }

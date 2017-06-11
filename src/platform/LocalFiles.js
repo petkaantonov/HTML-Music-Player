@@ -1,7 +1,7 @@
-"use strict";
+
 
 import EventEmitter from "events";
-import { Directory } from "platform/platform";
+import {Directory} from "platform/platform";
 
 const MIN_FILES_BEFORE_TRIGGER = 10;
 const MAX_FILE_COUNT = Math.pow(2, 31);
@@ -21,12 +21,12 @@ LocalFiles.prototype.defaultFilter = function(file) {
         return false;
     }
 
-    var ext = getExtension(file.name);
+    let ext = getExtension(file.name);
 
     if (ext) {
         ext = ext[1];
     } else {
-        ext = "";
+        ext = ``;
     }
 
     if (this.env.supportsExtension(ext) ||
@@ -39,117 +39,102 @@ LocalFiles.prototype.defaultFilter = function(file) {
 };
 
 LocalFiles.prototype.readEntries = function(reader) {
-    return new Promise(function(resolve, reject) {
-        reader.readEntries(resolve, reject);
-    }).catch(function() {
-        return [];
-    });
+    return new Promise(resolve => reader.readEntries(resolve, () => resolve(null)));
 };
-
 
 LocalFiles.prototype.entryToFile = function(entry) {
-    return new Promise(function(resolve, reject) {
-        entry.file(resolve, reject);
-    }).catch(function() {
-        return null;
-    });
+    return new Promise(resolve => entry.file(resolve, () => resolve(null)));
 };
 
-LocalFiles.prototype.traverseEntries = function(entries, ee, context) {
-    var self = this;
-    return Promise.resolve(0).then(function loop(i) {
-        if (i < entries.length && context.currentFileCount < context.maxFileCount) {
-            var entry = entries[i];
-            if (entry.isFile) {
-                return self.entryToFile(entry).then(function(file) {
-                    if (file && context.filter(file)) {
-                        context.currentFileCount++;
-                        if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
-                            ee.emit("files", context.stack.slice());
-                            context.stack.length = 0;
-                        }
-                    }
-                    return loop(i + 1);
-                });
-            } else if (entry.isDirectory) {
-                var reader = entry.createReader();
-                return self.readEntries(reader).then(function directoryLoop(results) {
-                    if (results.length) {
-                        return self.traverseEntries(results, ee, context).then(function() {
-                            return self.readEntries(reader).then(directoryLoop);
-                        });
-                    } else {
-                        return loop(i + 1);
-                    }
-                });
-            } else {
-                return loop(i + 1);
-            }
-        }
-    });
-};
-
-LocalFiles.prototype.traverseFilesAndDirs = function(filesAndDirs, ee, context) {
-    var self = this;
-    return Promise.resolve(0).then(function loop(i) {
-        if (i < filesAndDirs.length && context.currentFileCount < context.maxFileCount) {
-            var file = filesAndDirs[i];
-            if (!(file instanceof Directory) && file.name && file.size) {
-                if (file && context.filter(file)) {
-                    context.currentFileCount++;
-                    if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
-                        ee.emit("files", context.stack.slice());
-                        context.stack.length = 0;
-                    }
+LocalFiles.prototype.traverseEntries = async function(entries, ee, context) {
+    for (let i = 0; i < entries.length && context.currentFileCount < context.maxFileCount; ++i) {
+        const entry = entries[i];
+        if (entry.isFile) {
+            const file = await this.entryToFile(entry);
+            if (file && context.filter(file)) {
+                context.currentFileCount++;
+                if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
+                    ee.emit(`files`, context.stack.slice());
+                    context.stack.length = 0;
                 }
-                return loop(i + 1);
-            } else if (file instanceof Directory) {
-                return Promise.resolve(file.getFilesAndDirectories()).then(function(filesAndDirs) {
-                    return self.traverseFilesAndDirs(filesAndDirs, ee, context);
-                })
-                .catch(function() {})
-                .finally(function() {
-                    return loop(i + 1);
-                });
+            }
+        } else if (entry.isDirectory) {
+            const reader = entry.createReader();
+            let results;
+            do {
+                results = await this.readEntries(reader);
+                await this.traverseEntries(results, ee, context);
+            } while (results.length > 0 && context.currentFileCount < context.maxFileCount);
+        }
+    }
+};
+
+LocalFiles.prototype.traverseFilesAndDirs = async function(entries, ee, context) {
+    for (let i = 0; i < entries.length && context.currentFileCount < context.maxFileCount; ++i) {
+        const entry = entries[i];
+        if (!(entry instanceof Directory) && entry.name && entry.size) {
+            const file = entry;
+            if (file && context.filter(file)) {
+                context.currentFileCount++;
+                if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
+                    ee.emit(`files`, context.stack.slice());
+                    context.stack.length = 0;
+                }
+            }
+        } else if (entry instanceof Directory) {
+            try {
+                const dir = entry;
+                const results = await Promise.resolve(dir.getFilesAndDirectories());
+                await this.traverseFilesAndDirs(results, ee, context);
+            } catch (e) {
+                // NOOP
             }
         }
-    });
+    }
 };
 
 LocalFiles.prototype.fileEmitterFromFilesAndDirs = function(filesAndDirs, maxFileCount, filter) {
-    var ret = new EventEmitter();
-    var context = {
+    const ret = new EventEmitter();
+    const context = {
         stack: [],
         maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
         filter: filter || this.defaultFilter
     };
 
-    this.traverseFilesAndDirs(filesAndDirs, ret, context).finally(function() {
-        if (context.stack.length) {
-            ret.emit("files", context.stack.slice());
-            context.stack.length = 0;
+    (async () => {
+        try {
+            await this.traverseFilesAndDirs(filesAndDirs, ret, context);
+        } finally {
+            if (context.stack.length) {
+                ret.emit(`files`, context.stack.slice());
+                context.stack.length = 0;
+            }
+            ret.emit(`end`);
         }
-        ret.emit("end");
-    });
+    })();
     return ret;
 };
 
 LocalFiles.prototype.fileEmitterFromEntries = function(entries, maxFileCount, filter) {
-    var ret = new EventEmitter();
-    var context = {
+    const ret = new EventEmitter();
+    const context = {
         stack: [],
         maxFileCount: MAX_FILE_COUNT,
         currentFileCount: 0,
         filter: filter || this.defaultFilter
     };
 
-    this.traverseEntries(entries, ret, context).finally(function() {
-        if (context.stack.length) {
-            ret.emit("files", context.stack.slice());
-            context.stack.length = 0;
+    (async () => {
+        try {
+            await this.traverseEntries(entries, ret, context);
+        } finally {
+            if (context.stack.length) {
+                ret.emit(`files`, context.stack.slice());
+                context.stack.length = 0;
+            }
+            ret.emit(`end`);
         }
-        ret.emit("end");
-    });
+    })();
     return ret;
 };

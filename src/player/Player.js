@@ -1,23 +1,20 @@
-"use strict";
-
-import ApplicationDependencies from "ApplicationDependencies";
+import withDeps from "ApplicationDependencies";
 import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
-import { inherits } from "util";
-import { URL } from "platform/platform";
-import Track from "tracks/Track";
+import {inherits, noUndefinedGet} from "util";
+import {URL} from "platform/platform";
+import {FILESYSTEM_ACCESS_ERROR, DECODE_ERROR} from "tracks/Track";
 
 const MINIMUM_DURATION = 3;
 
-const VOLUME_KEY = "volume";
-const MUTED_KEY = "muted";
-const LATENCY_KEY = "audio-hardware-latency";
+const VOLUME_KEY = `volume`;
+const MUTED_KEY = `muted`;
+const LATENCY_KEY = `audio-hardware-latency`;
 
 export default function Player(opts, deps) {
-    var self = this;
     EventEmitter.call(this);
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this.localFileHandler = deps.localFileHandler;
     this.env = deps.env;
     this.page = deps.page;
@@ -51,38 +48,35 @@ export default function Player(opts, deps) {
     this.queuedNextTrackImplicitly = false;
     this.pictureManager = null;
     this.mediaFocusAudioElement = null;
-    this.audioPlayer = new AudioPlayer({
-        src: opts.src
-    }, new ApplicationDependencies({
+    this.audioPlayer = withDeps({
         page: this.page,
         env: this.env,
         db: this.db,
         dbValues: this.dbValues,
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences
-    }));
+        applicationPreferences: this.applicationPreferences,
+        workerWrapper: deps.workerWrapper
+    }, d => new AudioPlayer(d));
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);
-    this.$play().addEventListener("click", this.playButtonClicked.bind(this));
-    this.$next().addEventListener("click", this.nextButtonClicked.bind(this));
-    this.$previous().addEventListener("click", this.prevButtonClicked.bind(this));
+    this.$play().addEventListener(`click`, this.playButtonClicked.bind(this));
+    this.$next().addEventListener(`click`, this.nextButtonClicked.bind(this));
+    this.$previous().addEventListener(`click`, this.prevButtonClicked.bind(this));
     this.recognizerContext.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
     this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
     this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
 
-    this._playTooltip = this.tooltipContext.createTooltip(this.$play(), function() {
-        return self.isPlaying ? "Pause playback"
-                            : self.isPaused ? "Resume playback" : "Start playback";
-    });
+    this._playTooltip = this.tooltipContext.createTooltip(this.$play(), () => (this.isPlaying ? `Pause playback`
+                            : (this.isPaused ? `Resume playback` : `Start playback`)));
 
-    this._nextTooltip = this.tooltipContext.createTooltip(this.$next(), "Next track");
-    this._previousTooltip = this.tooltipContext.createTooltip(this.$previous(), "Previous track");
+    this._nextTooltip = this.tooltipContext.createTooltip(this.$next(), `Next track`);
+    this._previousTooltip = this.tooltipContext.createTooltip(this.$previous(), `Previous track`);
 
-    this.playlist.on("currentTrackChange", this.loadTrack.bind(this));
-    this.playlist.on("playlistEmpty", this.stop.bind(this));
-    this.playlist.on("nextTrackChange", this.nextTrackChanged);
-    this.playlist.on("historyChange", this.historyChanged.bind(this));
+    this.playlist.on(`currentTrackChange`, this.loadTrack.bind(this));
+    this.playlist.on(`playlistEmpty`, this.stop.bind(this));
+    this.playlist.on(`nextTrackChange`, this.nextTrackChanged);
+    this.playlist.on(`historyChange`, this.historyChanged.bind(this));
 
     if (VOLUME_KEY in this.dbValues) {
         this.setVolume(this.dbValues[VOLUME_KEY]);
@@ -98,12 +92,13 @@ export default function Player(opts, deps) {
         this.setAudioHardwareLatency(+this.dbValues[LATENCY_KEY]);
     }
 
-    this.ready = this.audioPlayer.ready.then(() => {
+    this.ready = (async () => {
+        await this.audioPlayer.ready;
         this.ready = null;
-    });
+    })();
 
     if (this.env.mediaSessionSupport()) {
-        this.mediaFocusAudioElement = this.page.createElement("audio", {
+        this.mediaFocusAudioElement = this.page.createElement(`audio`, {
             loop: true,
             controls: false,
             src: URL.createObjectURL(this.localFileHandler.generateSilentWavFile())
@@ -111,11 +106,11 @@ export default function Player(opts, deps) {
 
     }
 
-    this.audioPlayer.on("audioContextReset", this.audioContextReset.bind(this));
-    this.effectPreferences.on("change", this.effectPreferencesChanged.bind(this));
-    this.crossfadingPreferences.on("change", this.crossfadingPreferencesChanged.bind(this));
-    this.applicationPreferences.on("change", this.applicationPreferencesChanged.bind(this));
-    deps.ensure();
+    this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
+    this.effectPreferences.on(`change`, this.effectPreferencesChanged.bind(this));
+    this.crossfadingPreferences.on(`change`, this.crossfadingPreferencesChanged.bind(this));
+    this.applicationPreferences.on(`change`, this.applicationPreferencesChanged.bind(this));
+
 }
 inherits(Player, EventEmitter);
 
@@ -128,19 +123,19 @@ Player.prototype.audioContextReset = function() {
 };
 
 Player.prototype.effectPreferencesChanged = function() {
-    this.forEachAudioManager(function(am) {
+    this.forEachAudioManager((am) => {
         am.effectsChanged(this.effectPreferences);
-    }, this);
+    });
 };
 
 Player.prototype.crossfadingPreferencesChanged = function() {
-    this.forEachAudioManager(function(am) {
+    this.forEachAudioManager((am) => {
         am.crossfadingChanged(this.crossfadingPreferences);
     });
 };
 
 Player.prototype.applicationPreferencesChanged = function() {
-
+    // EMPTYFORNOW
 };
 
 Player.prototype.setVisualizerCanvas = function(value) {
@@ -184,7 +179,7 @@ Player.prototype.nextTrackChanged = function() {
 };
 
 Player.prototype.audioManagerDestroyed = function(audioManager) {
-    var index = this.audioManagers.indexOf(audioManager);
+    const index = this.audioManagers.indexOf(audioManager);
     if (index >= 0) {
         this.audioManagers.splice(index, 1);
     }
@@ -198,20 +193,22 @@ Player.prototype.audioManagerDestroyed = function(audioManager) {
     }
 };
 
-Player.prototype.nextTrackImplicitly = function() {
+Player.prototype.nextTrackStartedPlaying = function() {
+    return new Promise(resolve => this.once(`trackPlaying`, resolve));
+};
+
+Player.prototype.nextTrackImplicitly = async function() {
     if (this.isPaused) {
         if (this.queuedNextTrackImplicitly) return;
         this.queuedNextTrackImplicitly = true;
-        var playId = this.playlist.getCurrentPlayId();
-        var self = this;
+        const playId = this.playlist.getCurrentPlayId();
         // Queue the next track load when the player resumes.
-        this.once("trackPlaying", function() {
-            this.queuedNextTrackImplicitly = false;
-            // If it was exactly the same track playthrough that was resumed.
-            if (!self.isPaused && self.playlist.getCurrentPlayId() === playId) {
-                self.nextTrackImplicitly();
-            }
-        });
+        await this.nextTrackStartedPlaying();
+        this.queuedNextTrackImplicitly = false;
+        // If it was exactly the same track playthrough that was resumed.
+        if (!this.isPaused && this.playlist.getCurrentPlayId() === playId) {
+            this.nextTrackImplicitly();
+        }
         return;
     }
 
@@ -223,11 +220,11 @@ Player.prototype.nextTrackImplicitly = function() {
 
 Player.prototype.audioManagerErrored = function(audioManager, e) {
     if (audioManager.track) {
-        var trackError;
-        if (e.name === "NotFoundError" || e.name === "NotReadableError") {
-            trackError = Track.FILESYSTEM_ACCESS_ERROR;
+        let trackError;
+        if (e.name === `NotFoundError` || e.name === `NotReadableError`) {
+            trackError = FILESYSTEM_ACCESS_ERROR;
         } else {
-            trackError = Track.DECODE_ERROR;
+            trackError = DECODE_ERROR;
         }
         audioManager.track.setError(trackError);
     }
@@ -238,45 +235,45 @@ Player.prototype.audioManagerErrored = function(audioManager, e) {
 
 Player.prototype.getProgress = function() {
     if (!this.currentAudioManager) return -1;
-    var duration = this.currentAudioManager.getDuration();
+    const duration = this.currentAudioManager.getDuration();
     if (!duration) return -1;
-    var currentTime = this.currentAudioManager.getCurrentTime();
+    const currentTime = this.currentAudioManager.getCurrentTime();
     return Math.round((currentTime / duration) * 100) / 100;
 };
 
 Player.prototype.setProgress = function(p) {
     if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
     p = Math.min(Math.max(p, 0), 1);
-    var duration = this.currentAudioManager.getDuration();
+    const duration = this.currentAudioManager.getDuration();
     if (!duration) return;
-    return this.seek(p * duration);
+    this.seek(p * duration);
 };
 
 Player.prototype.seekIntent = function(p) {
     if (!this.currentAudioManager) return;
     p = Math.min(Math.max(p, 0), 1);
-    var duration = this.currentAudioManager.getDuration();
+    const duration = this.currentAudioManager.getDuration();
     if (!duration) return;
-    return this.seek(p * duration, true);
+    this.seek(p * duration, true);
 };
 
 Player.prototype.getFadeInTimeForNextTrack = function() {
-    var preferences = this.crossfadingPreferences.preferences();
-    var fadeInTime = preferences.getInTime();
+    const preferences = this.crossfadingPreferences.preferences();
+    const fadeInTime = preferences.getInTime();
     if (fadeInTime <= 0 || !preferences.getInEnabled()) return 0;
 
-    var audioManager = this.currentAudioManager;
+    const audioManager = this.currentAudioManager;
 
     if (!audioManager) return 0;
 
-    var nextTrack = this.playlist.getNextTrack();
+    const nextTrack = this.playlist.getNextTrack();
     if (!nextTrack) return 0;
     if (!preferences.getShouldAlbumCrossFade() &&
         audioManager.track.comesBeforeInSameAlbum(nextTrack)) {
         return 0;
     }
 
-    var duration = nextTrack.getBasicInfo().duration;
+    const {duration} = nextTrack.getBasicInfo();
 
     return isNaN(duration) ? fadeInTime
                            : Math.max(Math.min(duration - MINIMUM_DURATION - preferences.getOutTime(), fadeInTime), 0);
@@ -284,7 +281,7 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
 
 Player.prototype.audioManagerSeekIntent = function(audioManager, time) {
     if (audioManager === this.currentAudioManager) {
-        this.emit("progress", time, audioManager.getDuration());
+        this.emit(`progress`, time, audioManager.getDuration());
     }
 };
 
@@ -295,7 +292,7 @@ Player.prototype.trackFinished = function() {
 
 Player.prototype.audioManagerEnded = function(audioManager, haveGaplessPreloadPending) {
     if (audioManager === this.currentAudioManager) {
-        var alreadyFinished = haveGaplessPreloadPending && !audioManager.sourceNode.hasGaplessPreload();
+        const alreadyFinished = haveGaplessPreloadPending && !audioManager.sourceNode.hasGaplessPreload();
         if (!haveGaplessPreloadPending) {
             audioManager.destroy();
         }
@@ -310,24 +307,24 @@ Player.prototype.audioManagerEnded = function(audioManager, haveGaplessPreloadPe
 
 Player.prototype.audioManagerProgressed = function(audioManager) {
     if (audioManager === this.currentAudioManager) {
-        var currentTime = audioManager.getCurrentTime();
-        var totalTime = audioManager.getDuration();
-        var fadeInTime = this.getFadeInTimeForNextTrack();
+        const currentTime = audioManager.getCurrentTime();
+        const totalTime = audioManager.getDuration();
+        const fadeInTime = this.getFadeInTimeForNextTrack();
 
         if ((currentTime >= totalTime && totalTime > 0 && currentTime > 0) ||
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
         } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
-            this.emit("progress", currentTime, totalTime);
+            this.emit(`progress`, currentTime, totalTime);
         }
     }
 };
 
 Player.prototype.getSampleRate = function() {
-    var track = this.playlist.getCurrentTrack();
+    const track = this.playlist.getCurrentTrack();
     if (!track) return 44100;
-    var tagData = track.getTagData();
+    const tagData = track.getTagData();
     if (!tagData) return 44100;
     return tagData.basicInfo.sampleRate;
 };
@@ -340,11 +337,11 @@ Player.prototype.getImage = function(pictureManager) {
 };
 
 Player.prototype.pause = function() {
-    if (!this.isPlaying) return this;
+    if (!this.isPlaying) return;
     this.isPaused = true;
     this.isStopped = false;
     this.isPlaying = false;
-    this.forEachAudioManager(function(am) {
+    this.forEachAudioManager((am) => {
         am.pause();
     });
     this.pausedPlay();
@@ -352,24 +349,24 @@ Player.prototype.pause = function() {
 
 Player.prototype.resume = function() {
     if (this.isPaused) {
-        this.emit("trackPlaying");
+        this.emit(`trackPlaying`);
         this.play();
     }
 };
 
 Player.prototype.play = function() {
-    if (this.isPlaying) return this;
+    if (this.isPlaying) return;
 
     if (!this.playlist.getCurrentTrack()) {
         this.playlist.playFirst();
-        return this;
+        return;
     }
 
-    this.emit("trackPlaying");
+    this.emit(`trackPlaying`);
     this.isPaused = false;
     this.isStopped = false;
     this.isPlaying = true;
-    this.forEachAudioManager(function(am) {
+    this.forEachAudioManager((am) => {
         am.updateSchedules();
         am.resume();
     });
@@ -377,28 +374,25 @@ Player.prototype.play = function() {
 };
 
 Player.prototype.stop = function() {
-    if (this.isStopped) return this;
+    if (this.isStopped) return;
     this.isStopped = true;
     this.isPaused = false;
     this.isPlaying = false;
     this.currentAudioManager = null;
     this.destroyAudioManagers();
     this.playlist.stop();
-    this.emit("progress", 0, 0);
+    this.emit(`progress`, 0, 0);
     this.stoppedPlay();
 };
 
-var loadId = 0;
-Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
+let loadId = 0;
+Player.prototype.loadTrack = async function(track, isUserInitiatedSkip) {
     if (this.ready) {
-        var self = this;
-        var id = ++loadId;
-        this.ready = this.ready.then(function() {
-            if (id === loadId) {
-                self.loadTrack(track, isUserInitiatedSkip);
-            }
-        });
-        return;
+        const id = ++loadId;
+        await this.ready;
+        if (id !== loadId) {
+            return;
+        }
     }
     ++loadId;
 
@@ -415,7 +409,7 @@ Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
     this.isPlaying = true;
     this.isPaused = false;
 
-    var implicit = this.implicitLoading;
+    const implicit = this.implicitLoading;
     if (implicit) {
         this.implicitLoading = false;
     } else {
@@ -431,8 +425,8 @@ Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
         (!implicit || this.currentAudioManager.hasGaplessPreload())) {
         this.currentAudioManager.replaceTrack(track);
         this.startedPlay();
-        this.emit("trackPlaying");
-        this.emit("newTrackLoad");
+        this.emit(`trackPlaying`);
+        this.emit(`newTrackLoad`);
         return;
     }
 
@@ -443,8 +437,8 @@ Player.prototype.loadTrack = function(track, isUserInitiatedSkip) {
     this.audioManagers.push(this.currentAudioManager);
     this.currentAudioManager.trackPictureUpdated();
     this.startedPlay();
-    this.emit("trackPlaying");
-    this.emit("newTrackLoad");
+    this.emit(`trackPlaying`);
+    this.emit(`newTrackLoad`);
     this.currentAudioManager.start();
 };
 
@@ -452,7 +446,7 @@ Player.prototype.nextButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.next(true);
     if (this.page.isTouchEvent(e)) {
-        this.gestureEducator.educate("next");
+        this.gestureEducator.educate(`next`);
     }
 };
 
@@ -460,7 +454,7 @@ Player.prototype.prevButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.prev();
     if (this.page.isTouchEvent(e)) {
-        this.gestureEducator.educate("previous");
+        this.gestureEducator.educate(`previous`);
     }
 };
 
@@ -472,42 +466,42 @@ Player.prototype.playButtonClicked = function(e) {
         this.play();
     }
     if (this.page.isTouchEvent(e)) {
-        this.gestureEducator.educate("playpause");
+        this.gestureEducator.educate(`playpause`);
     }
 };
 
 Player.prototype.checkButtonState = function() {
-    this.$allButtons().addClass("disabled");
+    this.$allButtons().addClass(`disabled`);
 
     if (this.playlist.getNextTrack()) {
-        this.$next().removeClass("disabled");
+        this.$next().removeClass(`disabled`);
 
         if (this.playlist.hasHistory()) {
-            this.$previous().removeClass("disabled");
+            this.$previous().removeClass(`disabled`);
         }
     }
 
     if (!this.isStopped) {
-        this.$play().removeClass("disabled");
+        this.$play().removeClass(`disabled`);
         if (this.isPlaying) {
-            this.$play()
-                .find(".play-pause-morph-icon")
-                .removeClass("play")
-                .addClass("pause");
+            this.$play().
+                find(`.play-pause-morph-icon`).
+                removeClass(`play`).
+                addClass(`pause`);
         } else if (this.isPaused) {
-            this.$play()
-                .find(".play-pause-morph-icon")
-                .removeClass("pause")
-                .addClass("play");
+            this.$play().
+                find(`.play-pause-morph-icon`).
+                removeClass(`pause`).
+                addClass(`play`);
         }
     } else {
-        this.$play().removeClass("active")
-                .find(".play-pause-morph-icon")
-                .removeClass("pause")
-                .addClass("play");
+        this.$play().removeClass(`active`).
+                find(`.play-pause-morph-icon`).
+                removeClass(`pause`).
+                addClass(`play`);
 
         if (this.playlist.getNextTrack()) {
-            this.$play().removeClass("disabled");
+            this.$play().removeClass(`disabled`);
         }
     }
 
@@ -523,7 +517,7 @@ Player.prototype.startedPlay = function() {
             this.env.logError(e);
         }
     }
-    this.emit("play");
+    this.emit(`play`);
 };
 
 Player.prototype.stoppedPlay = function() {
@@ -535,7 +529,7 @@ Player.prototype.stoppedPlay = function() {
             this.env.logError(e);
         }
     }
-    this.emit("stop");
+    this.emit(`stop`);
 };
 
 Player.prototype.pausedPlay = function() {
@@ -543,13 +537,13 @@ Player.prototype.pausedPlay = function() {
     if (this.mediaFocusAudioElement) {
         this.mediaFocusAudioElement.pause();
     }
-    this.emit("pause");
+    this.emit(`pause`);
 };
 
 Player.prototype.seek = function(seconds, intent) {
-    if (!this.isPlaying && !this.isPaused) return this;
+    if (!this.isPlaying && !this.isPaused) return;
     if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
-    var maxSeek = this.currentAudioManager.getDuration();
+    const maxSeek = this.currentAudioManager.getDuration();
     if (!isFinite(maxSeek)) return;
     seconds = Math.max(0, Math.min(seconds, maxSeek));
 
@@ -577,14 +571,14 @@ Player.prototype.togglePlayback = function() {
 Player.prototype.toggleMute = function() {
     this.isMutedValue = !this.isMutedValue;
     if (this.isMutedValue) {
-        this.emit("muted", true);
-        this.forEachAudioManager(function(am) {
+        this.emit(`muted`, true);
+        this.forEachAudioManager((am) => {
             am.mute();
         });
         this.db.set(MUTED_KEY, true);
     } else {
-        this.emit("muted", false);
-        this.forEachAudioManager(function(am) {
+        this.emit(`muted`, false);
+        this.forEachAudioManager((am) => {
             am.unmute();
         });
         this.db.set(MUTED_KEY, false);
@@ -592,20 +586,19 @@ Player.prototype.toggleMute = function() {
 };
 
 Player.prototype.getDuration = function() {
-    if (!this.currentAudioManager)
-            throw new Error("cannot get duration no audioManager");
+    if (!this.currentAudioManager) throw new Error(`cannot get duration no audioManager`);
     return this.currentAudioManager.getDuration();
 };
 
 Player.prototype.getProbableDuration = function() {
-    if (!this.currentAudioManager)
-            throw new Error("cannot get duration no audioManager");
-    var ret = this.currentAudioManager.getDuration();
+    if (!this.currentAudioManager) throw new Error(`cannot get duration no audioManager`);
+    const ret = this.currentAudioManager.getDuration();
     if (ret) return ret;
-    var track = this.playlist.getCurrentTrack();
+    const track = this.playlist.getCurrentTrack();
     if (track.tagData && track.tagData.basicInfo) {
         return track.getSilenceAdjustedDuration(track.tagData.basicInfo.duration || 0);
     }
+    return 0;
 };
 
 Player.prototype.getVolume = function() {
@@ -614,11 +607,11 @@ Player.prototype.getVolume = function() {
 
 Player.prototype.setVolume = function(val) {
     val = Math.min(Math.max(0, val), 1);
-    var volume = this.volume = val;
-    this.forEachAudioManager(function(am) {
+    const volume = this.volume = val;
+    this.forEachAudioManager((am) => {
         am.updateVolume(volume);
     });
-    this.emit("volumeChange");
+    this.emit(`volumeChange`);
     this.db.set(VOLUME_KEY, volume);
     return this;
 };
@@ -638,8 +631,8 @@ Player.prototype.getMaximumAudioHardwareLatency = function() {
 
 // Supports deletion mid-iteration.
 Player.prototype.forEachAudioManager = function(fn) {
-    var currentLength = this.audioManagers.length;
-    for (var i = 0; i < this.audioManagers.length; ++i) {
+    let currentLength = this.audioManagers.length;
+    for (let i = 0; i < this.audioManagers.length; ++i) {
         fn.call(this, this.audioManagers[i], i, this.audioManagers);
         // Deleted from the array.
         if (currentLength > this.audioManagers.length) {
@@ -650,7 +643,7 @@ Player.prototype.forEachAudioManager = function(fn) {
 };
 
 Player.prototype.destroyAudioManagers = function(exceptThisOne) {
-    this.forEachAudioManager(function(am) {
+    this.forEachAudioManager((am) => {
         if (am !== exceptThisOne) {
             am.destroy();
         }
@@ -659,8 +652,4 @@ Player.prototype.destroyAudioManagers = function(exceptThisOne) {
 
 Player.prototype.getAudioContext = function() {
     return this.audioPlayer.getAudioContext();
-};
-
-Player.prototype.getSilentWavFile = function() {
-
 };

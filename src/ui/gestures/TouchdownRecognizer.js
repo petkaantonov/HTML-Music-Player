@@ -1,11 +1,11 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
+const TOUCH_START = `touchstart`;
 
 export default function TouchdownRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -17,13 +17,13 @@ export default function TouchdownRecognizer(recognizerContext, handler) {
 inherits(TouchdownRecognizer, AbstractGestureRecognizer);
 
 TouchdownRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
-    var newTouches = this.actives.update(e, changedTouches);
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const newTouches = this.actives.update(e, changedTouches);
 
     if (e.type === TOUCH_START && this.getDocumentActives().length() <= 1) {
-        for (var i = 0; i < newTouches.length; ++i) {
-            var touch = newTouches[i];
-            var g = new GestureObject(e, touch, touch.identifier === this.actives.first().identifier);
+        for (let i = 0; i < newTouches.length; ++i) {
+            const touch = newTouches[i];
+            const g = new GestureObject(e, touch, touch.identifier === this.actives.first().identifier);
             this.handler.call(e.currentTarget, g);
         }
     }

@@ -1,20 +1,34 @@
-"use strict";
+import {ExtendableError} from "util";
+import {MediaError} from "platform/platform";
 
-import { subClassError } from "util";
-import { MediaError } from "platform/platform";
+export const {
+    MEDIA_ERR_ABORTED,
+    MEDIA_ERR_NETWORK,
+    MEDIA_ERR_DECODE,
+    MEDIA_ERR_SRC_NOT_SUPPORTED
+} = MediaError;
 
-export default AudioError;
 
-var AudioError = subClassError("AudioError", function(code) {
-    this.code = code;
-    var audioCodeString;
-    switch (code) {
-        case MediaError.MEDIA_ERR_ABORTED: audioCodeString = "MEDIA_ERR_ABORTED"; break;
-        case MediaError.MEDIA_ERR_NETWORK: audioCodeString = "MEDIA_ERR_NETWORK"; break;
-        case MediaError.MEDIA_ERR_DECODE: audioCodeString = "MEDIA_ERR_DECODE"; break;
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: audioCodeString = "MEDIA_ERR_SRC_NOT_SUPPORTED"; break;
-        default: audioCodeString = "UNKNOWN_ERROR"; break;
+export default class AudioError extends ExtendableError {
+    constructor(message, code) {
+        super(`Cannot load audio: ${code}`);
+        this.code = code;
     }
 
-    this.message = "Cannot load audio: " + audioCodeString;
-});
+    isAbortionError() {
+        return this.code === MEDIA_ERR_ABORTED;
+    }
+
+    isNetworkError() {
+        return this.code === MEDIA_ERR_NETWORK;
+    }
+
+    isDecodingError() {
+        return this.code === MEDIA_ERR_DECODE ||
+               this.code === MEDIA_ERR_SRC_NOT_SUPPORTED;
+    }
+
+    isRetryable() {
+        return this.isNetworkError();
+    }
+}

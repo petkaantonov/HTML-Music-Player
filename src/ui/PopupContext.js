@@ -1,12 +1,9 @@
-"use strict";
-
-import { slugTitle } from "util";
+import {slugTitle, noUndefinedGet} from "util";
 import Popup from "ui/Popup";
-import ApplicationDependencies from "ApplicationDependencies";
-
+import withDeps from "ApplicationDependencies";
 
 export default function PopupContext(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
 
     this.animationContext = deps.animationContext;
     this.page = deps.page;
@@ -41,12 +38,10 @@ export default function PopupContext(opts, deps) {
     this.closePopups = this.closePopups.bind(this);
 
     this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
-
-    deps.ensure();
 }
 
 PopupContext.prototype.closePopups = function() {
-    this.shownPopups.forEach(function(v) {
+    this.shownPopups.forEach((v) => {
         v.close();
     });
 };
@@ -58,14 +53,14 @@ PopupContext.prototype.showBlocker = function() {
         this.blocker.remove();
     }
 
-    this.blocker = this.page.createElement("div", {class: "popup-blocker"}).appendTo("body");
-    this.blocker.addEventListener("click", this.closePopups);
+    this.blocker = this.page.createElement(`div`, {class: `popup-blocker`}).appendTo(`body`);
+    this.blocker.addEventListener(`click`, this.closePopups);
     this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
 
-    var animator = this.animationContext.createAnimator(this.blocker, {
+    const animator = this.animationContext.createAnimator(this.blocker, {
         opacity: {
             range: [0, 55],
-            unit: "%",
+            unit: `%`,
             duration: 300,
             interpolate: this.animationContext.DECELERATE_CUBIC
         }
@@ -74,13 +69,13 @@ PopupContext.prototype.showBlocker = function() {
     animator.start();
 };
 
-PopupContext.prototype.hideBlocker = function() {
+PopupContext.prototype.hideBlocker = async function() {
     if (!this.blocker.length) return;
 
-    var animator = this.animationContext.createAnimator(this.blocker, {
+    const animator = this.animationContext.createAnimator(this.blocker, {
         opacity: {
             range: [55, 0],
-            unit: "%",
+            unit: `%`,
             duration: 300,
             interpolate: this.animationContext.DECELERATE_CUBIC
         }
@@ -88,14 +83,13 @@ PopupContext.prototype.hideBlocker = function() {
 
     this.animator = animator;
 
-    animator.start().then(function(wasCancelled) {
-        if (!wasCancelled) {
-            this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
-            this.blocker.remove();
-            this.blocker = this.page.NULL();
-            this.animator = null;
-        }
-    }.bind(this));
+    const wasCancelled = await animator.start();
+    if (!wasCancelled) {
+        this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
+        this.blocker.remove();
+        this.blocker = this.page.NULL();
+        this.animator = null;
+    }
 };
 
 PopupContext.prototype.popupOpened = function(popup) {
@@ -113,7 +107,7 @@ PopupContext.prototype.popupClosed = function(popup) {
         scrollPosition: popup.getScrollPosition()
     });
 
-    var index = this.shownPopups.indexOf(popup);
+    const index = this.shownPopups.indexOf(popup);
     if (index >= 0) {
         this.shownPopups.splice(index, 1);
         if (this.shownPopups.length === 0) {
@@ -123,39 +117,42 @@ PopupContext.prototype.popupClosed = function(popup) {
 };
 
 PopupContext.prototype.toPreferenceKey = function(popupTitle) {
-    return slugTitle(popupTitle) + "-popup-preferences";
+    return `${slugTitle(popupTitle)}-popup-preferences`;
 };
 
 PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) {
-    var self = this;
-    var popup = new Popup({
-        containerClass: this.containerClass,
-        headerClass: this.headerClass,
-        footerClass: this.footerClass,
-        bodyClass: this.bodyClass,
-        scrollAreaContainerClass: this.scrollAreaContainerClass,
-        bodyContentClass: this.bodyContentClass,
-        closerContainerClass: this.closerContainerClass,
-        scrollbarContainerClass: this.scrollbarContainerClass,
-        scrollbarRailClass: this.scrollbarRailClass,
-        scrollbarKnobClass: this.scrollbarKnobClass,
-        popupButtonClass: this.popupButtonClass,
-        buttonDisabledClass: this.buttonDisabledClass,
+    const {containerClass, headerClass, footerClass, bodyClass, scrollAreaContainerClass,
+            bodyContentClass, closerContainerClass, scrollbarContainerClass, scrollbarRailClass,
+            scrollbarKnobClass, popupButtonClass, buttonDisabledClass,
+            page, globalEvents, recognizerContext, scrollerContext, rippler} = this;
+    const popup = withDeps({page, globalEvents, recognizerContext, scrollerContext, rippler}, deps => new Popup({
+        containerClass,
+        headerClass,
+        footerClass,
+        bodyClass,
+        scrollAreaContainerClass,
+        bodyContentClass,
+        closerContainerClass,
+        scrollbarContainerClass,
+        scrollbarRailClass,
+        scrollbarKnobClass,
+        popupButtonClass,
+        buttonDisabledClass,
+        transitionClass: ``,
         zIndex: this.popupZIndex,
-        footerButtons: footerButtons,
-        title: title,
-        body: body,
-        closer: '<span class="icon glyphicon glyphicon-remove"></span>',
-        beforeTransitionIn: function($node) {
-            return self.animationContext.createAnimator($node, {
+        footerButtons,
+        title,
+        body,
+        closer: `<span class="icon glyphicon glyphicon-remove"></span>`,
+        beforeTransitionIn: $node => this.animationContext.createAnimator($node, {
                 opacity: {
-                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    interpolate: this.animationContext.DECELERATE_CUBIC,
                     duration: 300,
                     range: [0, 100],
-                    unit: "%"
+                    unit: `%`
                 },
                 scale: {
-                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    interpolate: this.animationContext.DECELERATE_CUBIC,
                     duration: 300,
                     range: [
                         [0.95, 0.95],
@@ -163,37 +160,28 @@ PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) 
                     ],
                     baseValue: $node.getTransform()
                 }
-            }).start();
-        },
+            }).start(),
 
-        beforeTransitionOut: function($node) {
-            return self.animationContext.createAnimator($node, {
+        beforeTransitionOut: $node => this.animationContext.createAnimator($node, {
                 opacity: {
-                    interpolate: self.animationContext.DECELERATE_CUBIC,
+                    interpolate: this.animationContext.DECELERATE_CUBIC,
                     duration: 300,
                     range: [100, 0],
-                    unit: "%"
+                    unit: `%`
                 }
-            }).start();
-        }
-    }, new ApplicationDependencies({
-        page: this.page,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        scrollerContext: this.scrollerContext,
-        rippler: this.rippler
-    }));
+            }).start()
+    }, deps));
 
-    popup.on("open", this.popupOpened);
-    popup.on("close", this.popupClosed);
+    popup.on(`open`, this.popupOpened);
+    popup.on(`close`, this.popupClosed);
 
-    if (this.toPreferenceKey(popup.title) in self.dbValues) {
-        var data = Object(self.dbValues[this.toPreferenceKey(popup.title)]);
+    if (this.toPreferenceKey(popup.title) in this.dbValues) {
+        const data = Object(this.dbValues[this.toPreferenceKey(popup.title)]);
         popup.setScreenPosition(data.screenPosition);
         popup.setScrollPosition(data.scrollPosition);
     }
 
-    this.globalEvents.on("clear", popup.close.bind(popup));
+    this.globalEvents.on(`clear`, popup.close.bind(popup));
 
     return popup;
 };

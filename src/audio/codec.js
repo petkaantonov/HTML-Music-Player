@@ -1,57 +1,30 @@
-/* globals self: false */
-"use strict";
+import {importScripts} from "platform/platform";
+import Mp3Context from "audio/mp3";
 
-import { XMLHttpRequest } from "platform/platform";
+const codecs = new Map([
+    [`mp3`, Mp3Context]
+]);
 
-const codecs = Object.create(null);
-
-var expectedCodec = null;
-const loadCodec = function(name, retries) {
-    if (codecs[name]) return codecs[name];
-    if (retries === undefined) retries = 0;
-    codecs[name] = new Promise(function(resolve, reject) {
-        var url = self.DEBUGGING === false ? "codecs/" + name + ".min.js" : "codecs/" + name + ".js";
-        var xhr = new XMLHttpRequest();
-        xhr.addEventListener("load", function() {
-            if (xhr.status >= 300) {
-                if (xhr.status >= 500 && retries < 5) {
-                    return resolve(Promise.delay(1000).then(function() {
-                        return loadCodec(name, retries + 1);
-                    }));
-                }
-                return reject(new Error("http error when loading codec: " + xhr.status + " " + xhr.statusText));
-            } else {
-                var code = xhr.responseText;
-                expectedCodec = null;
-                try {
-                    new Function(code)();
-                    if (!expectedCodec || expectedCodec.name !== name) {
-                        reject(new Error("codec " + name + " did not register properly"));
-                    }
-                    resolve(expectedCodec);
-                } finally {
-                    expectedCodec = null;
-                }
-            }
-        }, false);
-
-        xhr.addEventListener("error", function() {
-            reject(new Error("error when loading codec"));
-        }, false);
-
-        xhr.open("GET", url);
-        xhr.send(null);
-    });
-    return codecs[name];
+let expectedCodec = null;
+const loadCodec = function(name) {
+    expectedCodec = null;
+    const url = self.DEBUGGING === false ? `codecs/${name}.min.js` : `codecs/${name}.js`;
+    importScripts(url);
+    if (!expectedCodec || expectedCodec.name !== name) {
+        throw new Error(`unable to load codec ${name} ${JSON.stringify(expectedCodec)}`);
+    }
+    return expectedCodec;
 };
 
 self.codecLoaded = function(name, Context) {
     expectedCodec = {
-        name: name,
-        Context: Context
+        name,
+        Context
     };
 };
 
 export default function getCodec(name) {
-    return loadCodec(name);
+    if (codecs.get(name)) return codecs.get(name);
+    codecs.set(name, loadCodec(name));
+    return codecs.get(name);
 }

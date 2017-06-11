@@ -1,14 +1,14 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function TapRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -22,7 +22,7 @@ export default function TapRecognizer(recognizerContext, handler) {
 inherits(TapRecognizer, AbstractGestureRecognizer);
 
 TapRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
     if (e.type === TOUCH_START) {
         if (this.actives.length() <= 1) {
@@ -40,12 +40,12 @@ TapRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
 
-        var touch = changedTouches[0];
-        var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
-        var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
-        var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
+        const touch = changedTouches[0];
+        const yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
+        const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
+        const elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
         if (elapsed > 20 && elapsed < this.recognizerContext.TAP_TIME && xDelta <= 25 && yDelta <= 25) {
-            var g = new GestureObject(e, touch);
+            const g = new GestureObject(e, touch);
             this.handler.call(e.currentTarget, g);
         }
         this.clear();

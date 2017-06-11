@@ -1,13 +1,13 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function TwoFingerTapRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -22,7 +22,7 @@ export default function TwoFingerTapRecognizer(recognizerContext, handler) {
 inherits(TwoFingerTapRecognizer, AbstractGestureRecognizer);
 
 TwoFingerTapRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 2) {
@@ -62,7 +62,7 @@ TwoFingerTapRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
 
-        var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
+        const elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
         if (elapsed > 20 && elapsed < this.recognizerContext.TAP_TIME) {
             this.handler.call(e.currentTarget, this.currentATouch, this.currentBTouch);
         }
@@ -80,8 +80,8 @@ TwoFingerTapRecognizer.prototype.clear = function() {
 };
 
 TwoFingerTapRecognizer.prototype.maybeStart = function(e) {
-    var deltaX = Math.abs(this.currentATouch.clientX - this.currentBTouch.clientX);
-    var deltaY = Math.abs(this.currentATouch.clientY - this.currentBTouch.clientY);
+    const deltaX = Math.abs(this.currentATouch.clientX - this.currentBTouch.clientX);
+    const deltaY = Math.abs(this.currentATouch.clientY - this.currentBTouch.clientY);
     // Fingers are too close together.
     if (deltaX > this.recognizerContext.TWO_FINGER_TAP_MINIMUM_DISTANCE ||
         deltaY > this.recognizerContext.TWO_FINGER_TAP_MINIMUM_DISTANCE) {
@@ -94,9 +94,9 @@ TwoFingerTapRecognizer.prototype.maybeStart = function(e) {
 };
 
 TwoFingerTapRecognizer.prototype.checkDelta = function(changedTouches) {
-    for (var i = 0; i < changedTouches.length; ++i) {
-        var touch = changedTouches[i];
-        var xDelta, yDelta;
+    for (let i = 0; i < changedTouches.length; ++i) {
+        const touch = changedTouches[i];
+        let xDelta, yDelta;
         if (touch.identifier === this.currentATouch.identifier) {
             yDelta = Math.abs(touch.clientY - this.currentATouch.clientY);
             xDelta = Math.abs(touch.clientX - this.currentATouch.clientX);

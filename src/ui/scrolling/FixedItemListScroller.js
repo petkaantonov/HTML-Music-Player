@@ -1,23 +1,28 @@
-"use strict";
 
-import { throttle, ensuredObjectField, ensuredNumberField } from "util";
+
+import {throttle} from "util";
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
-import ApplicationDependencies from "ApplicationDependencies";
+import withDeps from "ApplicationDependencies";
+import {performance} from "platform/platform";
 
-export default function FixedItemListScroller(opts, deps) {
-    opts = Object(opts);
+export default function FixedItemListScroller({
+    target, contentContainer, itemHeight, itemList,
+    minPrerenderedItems, maxPrerenderedItems, scrollbarOpts, scrollerOpts,
+    shouldScroll
+}, deps) {
+    const {page, scrollEvents} = deps;
 
-    this._page = deps.page;
-    this._domNode = this._page.$(ensuredObjectField(opts, "target")).eq(0);
-    this._contentContainer = this._page.$(ensuredObjectField(opts, "contentContainer")).eq(0);
-    this._itemHeight =  ensuredNumberField(opts, "itemHeight");
-    this._itemList = ensuredObjectField(opts, "itemList");
+    this._page = page;
+    this._domNode = this._page.$(target).eq(0);
+    this._contentContainer = this._page.$(contentContainer).eq(0);
+    this._itemHeight = itemHeight;
+    this._itemList = itemList;
     this._displayedItems = new Array(300);
     this._displayedItems.length = 0;
-    var nodeRect = this.$()[0].getBoundingClientRect();
-    this._left = nodeRect.left;
-    this._top = nodeRect.top;
+    const {left, top} = this.$()[0].getBoundingClientRect();
+    this._left = left;
+    this._top = top;
     this._rect = this.$contentContainer()[0].getBoundingClientRect();
     this._scrollTop = 0;
     this._virtualRenderFrameId = -1;
@@ -25,8 +30,8 @@ export default function FixedItemListScroller(opts, deps) {
     this._willChangeSet = false;
     this._changingDimensions = false;
 
-    this._minPrerenderedItems = opts.minPrerenderedItems || 15;
-    this._maxPrerenderedItems = opts.maxPrerenderedItems || 100;
+    this._minPrerenderedItems = minPrerenderedItems || 15;
+    this._maxPrerenderedItems = maxPrerenderedItems || 100;
 
     this._previousPhysicalHeight = 0;
 
@@ -35,20 +40,17 @@ export default function FixedItemListScroller(opts, deps) {
     this._clearWillChange = this._clearWillChange.bind(this);
     this._resetChangingDimensions = throttle(this._resetChangingDimensions, 50);
 
-    this._scroller = new Scroller(this._renderScroller, ensuredObjectField(opts, "scrollerOpts"));
-    var scrollbarOpts = ensuredObjectField(opts, "scrollbarOpts");
+    this._scroller = new Scroller(this._renderScroller, scrollerOpts);
     scrollbarOpts.scrollerInfo = this;
-    this._scrollbar = new Scrollbar(scrollbarOpts, new ApplicationDependencies({
-        page: this._page
-    }));
+    this._scrollbar = withDeps({page}, d => new Scrollbar(scrollbarOpts, d));
 
-    this._scrollBinding = deps.scrollEvents.createBinding({
+    this._scrollBinding = scrollEvents.createBinding({
         target: this.$contentContainer(),
         scroller: this._scroller,
         scrollbar: this._scrollbar,
-        shouldScroll: opts.shouldScroll || null,
+        shouldScroll: shouldScroll || null
     });
-    deps.ensure();
+
 }
 
 FixedItemListScroller.prototype._clearWillChangeTimer = function() {
@@ -59,12 +61,12 @@ FixedItemListScroller.prototype._clearWillChangeTimer = function() {
 };
 
 FixedItemListScroller.prototype._forceRenderItems = function() {
-    return this._renderItems(Date.now(), true);
+    return this._renderItems(performance.now(), true);
 };
 
 FixedItemListScroller.prototype._renderScrollTop = function() {
-    var y = -this._scrollTop;
-    this.$contentContainer().setTransform("translate3d(0px, "+y+"px, 0px)");
+    const y = -this._scrollTop;
+    this.$contentContainer().setTransform(`translate3d(0px, ${y}px, 0px)`);
     this._scrollbar.render(this._scrollTop, this._changingDimensions);
 };
 
@@ -79,57 +81,57 @@ FixedItemListScroller.prototype.$contentContainer = function() {
 FixedItemListScroller.prototype._clearWillChange = function() {
     if (!this._willChangeSet) return;
     this._willChangeSet = false;
-    this.$contentContainer().setStyle("willChange", "");
+    this.$contentContainer().setStyle(`willChange`, ``);
 };
 
 FixedItemListScroller.prototype._setWillChange = function() {
     if (this._willChangeSet) return;
     this._willChangeSet = true;
-    this.$contentContainer().setStyle("willChange", "transform");
+    this.$contentContainer().setStyle(`willChange`, `transform`);
 };
 
 FixedItemListScroller.prototype._renderItems = function(now, forced) {
+    const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
+
     this._clearWillChangeTimerId = this._page.setTimeout(this._clearWillChange, 500);
     this._renderScrollTop();
     this._virtualRenderFrameId = -1;
-    var itemHeight = this._itemHeight;
-    var scrollTop = this.settledScrollTop();
-    var displayedItems = this._displayedItems;
-    var contentHeight = this.contentHeight();
+
+    const scrollTop = this.settledScrollTop();
+    const contentHeight = this.contentHeight();
 
     if (displayedItems.length > 2 && forced !== true) {
-        var virtualStart = displayedItems[0].getIndex();
-        var virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
+        const virtualStart = displayedItems[0].getIndex();
+        const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
 
-        var screenStart = scrollTop / itemHeight;
-        var screenEnd = (scrollTop + contentHeight) / itemHeight;
+        const screenStart = scrollTop / itemHeight;
+        const screenEnd = (scrollTop + contentHeight) / itemHeight;
 
-        var minPrerenderedItems = this._minPrerenderedItems;
+        const {_minPrerenderedItems: minPrerenderedItems} = this;
         if (screenStart > (virtualStart + minPrerenderedItems) &&
             screenEnd < (virtualEnd - minPrerenderedItems)) {
             return;
         }
     }
 
-    var container = this.$contentContainer();
-    var items = this._itemList;
-    var maxPrerenderedItems = this._maxPrerenderedItems;
+    const container = this.$contentContainer();
+    const {_itemList: items, _maxPrerenderedItems: maxPrerenderedItems} = this;
 
-    var itemsBefore = Math.min(items.length, scrollTop / itemHeight|0);
-    var itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
+    const itemsBefore = Math.min(items.length, scrollTop / itemHeight | 0);
+    const itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
 
-    var start = Math.max(itemsBefore - maxPrerenderedItems, 0);
-    var end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
+    const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
+    const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
 
-    for (var i = 0; i < displayedItems.length; ++i) {
-        var index = displayedItems[i].getIndex();
+    for (let i = 0; i < displayedItems.length; ++i) {
+        const index = displayedItems[i].getIndex();
         if (!(start <= index && index <= end) && displayedItems[i].isVisible()) {
             displayedItems[i].detach();
         }
     }
 
-    for (var i = start; i <= end; ++i) {
-        var item = items[i];
+    for (let i = start; i <= end; ++i) {
+        const item = items[i];
         if (!item.isVisible()) {
             item.attach(container);
         }
@@ -156,7 +158,7 @@ FixedItemListScroller.prototype._renderScroller = function(left, top) {
 };
 
 FixedItemListScroller.prototype._checkBuggedScrollTop = function() {
-    if (isNaN(this._scrollTop))  {
+    if (isNaN(this._scrollTop)) {
         this._scrollTop = 0;
         this._scroller.__decelerationVelocityX = 0;
         this._scroller.__decelerationVelocityY = 0;
@@ -198,11 +200,11 @@ FixedItemListScroller.prototype.scrollToUnsnapped = function(top, animate) {
 
 FixedItemListScroller.prototype.scrollBy = function(amount) {
     if (amount === 0) return;
-    var itemHeight = this.itemHeight();
-    var maxTop = this.length() * itemHeight - this.contentHeight();
-    var top = this.settledScrollTop() + amount;
+    const itemHeight = this.itemHeight();
+    const maxTop = this.length() * itemHeight - this.contentHeight();
+    let top = this.settledScrollTop() + amount;
     top = Math.max(0, Math.min(Math.round(top), maxTop));
-    top = top - (top % this.itemHeight());
+    top -= (top % this.itemHeight());
     this._scrollTop = top;
     this._scroller.scrollTo(null, top, false);
     this._scheduleRender();
@@ -214,15 +216,15 @@ FixedItemListScroller.prototype._resetChangingDimensions = function() {
 
 FixedItemListScroller.prototype.resize = function() {
     this._previousPhysicalHeight = this.physicalHeight();
-    var nodeRect = this.$()[0].getBoundingClientRect();
+    const nodeRect = this.$()[0].getBoundingClientRect();
     this._rect = this.$contentContainer()[0].getBoundingClientRect();
     this._top = nodeRect.top + (this.$()[0].clientHeight - this.$contentContainer()[0].clientHeight);
     this._left = nodeRect.left + (this.$()[0].clientWidth - this.$contentContainer()[0].clientWidth);
     this._scroller.setPosition(this._left, this._top);
     this._scroller.setDimensions(this._rect.width, this._rect.height, this._rect.width, this.physicalHeight());
     this._scroller.setSnapSize(this._rect.width, this.itemHeight());
-    var maxTop = this.length() * this.itemHeight() - this.contentHeight();
-    var top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
+    const maxTop = this.length() * this.itemHeight() - this.contentHeight();
+    const top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
     this._scrollTop = top;
     this._scrollbar.resize();
     this._changingDimensions = true;
@@ -240,7 +242,7 @@ FixedItemListScroller.prototype.itemsVisibleInContainer = function() {
 };
 
 FixedItemListScroller.prototype.contentHeight = function() {
-    var rect = this._rect;
+    let rect = this._rect;
     if (rect.height === 0) {
         this._rect = rect = this.$contentContainer()[0].getBoundingClientRect();
     }
@@ -249,43 +251,43 @@ FixedItemListScroller.prototype.contentHeight = function() {
 
 FixedItemListScroller.prototype.settledScrollTop = function() {
     if (!this.needScrollbar()) return 0;
-    var ret = this._scrollTop|0;
-    var itemHeight = this.itemHeight();
-    var maxTop = this.length() * itemHeight - this.contentHeight();
+    let ret = this._scrollTop | 0;
+    const itemHeight = this.itemHeight();
+    const maxTop = this.length() * itemHeight - this.contentHeight();
     ret = Math.min(maxTop, Math.max(0, ret));
     return ret - (ret % itemHeight);
 };
 
 FixedItemListScroller.prototype.coordsToIndexRange = function(startY, endY) {
-    var top = this._top;
-    var scrollTop = this.settledScrollTop();
-    var itemHeight = this.itemHeight();
+    const top = this._top;
+    const scrollTop = this.settledScrollTop();
+    const itemHeight = this.itemHeight();
 
     startY = startY - top + scrollTop;
     endY = endY - top + scrollTop;
 
-    var startIndex = Math.min(this.length() - 1, Math.max(0, (startY / itemHeight)|0));
-    var endIndex = Math.min(this.length() - 1, Math.max(0, (endY / itemHeight)|0));
+    let startIndex = Math.min(this.length() - 1, Math.max(0, (startY / itemHeight) | 0));
+    let endIndex = Math.min(this.length() - 1, Math.max(0, (endY / itemHeight) | 0));
 
     if (startIndex < 0 || endIndex < 0) {
         return null;
     }
 
     if (startIndex > endIndex) {
-        var tmp = startIndex;
+        const tmp = startIndex;
         startIndex = endIndex;
         endIndex = tmp;
     }
 
     return {
-        startIndex: startIndex,
-        endIndex: endIndex
+        startIndex,
+        endIndex
     };
 };
 
 FixedItemListScroller.prototype.getEdgeByCoordinateWithinMargin = function(y, margin) {
-    var top = this._top;
-    var bottom = this._top + this._rect.height;
+    const top = this._top;
+    const bottom = this._top + this._rect.height;
     if (y <= top + margin) {
         return -1;
     } else if (y >= bottom - margin) {
@@ -296,18 +298,18 @@ FixedItemListScroller.prototype.getEdgeByCoordinateWithinMargin = function(y, ma
 };
 
 FixedItemListScroller.prototype.mapYCoordinate = function(y) {
-    var top = this._top;
+    const top = this._top;
     return Math.min(this.contentHeight(), Math.max(0, y - top)) + this.settledScrollTop();
 };
 
 FixedItemListScroller.prototype.indexByYCoordinate = function(y) {
-    var index = (this.mapYCoordinate(y) / this.itemHeight())|0;
+    let index = (this.mapYCoordinate(y) / this.itemHeight()) | 0;
     index = Math.min(this.length() - 1, Math.max(0, index));
     return index;
 };
 
 FixedItemListScroller.prototype.itemByYCoordinate = function(y) {
-    var index = this.indexByYCoordinate(y);
+    const index = this.indexByYCoordinate(y);
     if (index < 0) return null;
     return this._itemList[index];
 };

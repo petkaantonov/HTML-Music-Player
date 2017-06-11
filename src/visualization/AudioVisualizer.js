@@ -1,7 +1,6 @@
-"use strict";
-
+import {noUndefinedGet} from "util";
 import realFft from "audio/realfft";
-import { Float32Array, Float64Array } from "platform/platform";
+import {Float32Array, Float64Array} from "platform/platform";
 
 const weights = new Float32Array([
     0, 0,
@@ -53,10 +52,10 @@ function makeBuffer(bufferSize) {
 const buffers = {};
 
 export default function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this.visualizerCanvas = visualizerCanvas;
     this.multiplier = 1;
-    this.setMultiplier("multiplier" in opts ? +opts.multiplier : 1);
+    this.setMultiplier(`multiplier` in opts ? +opts.multiplier : 1);
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
@@ -71,10 +70,10 @@ export default function AudioVisualizer(audioContext, sourceNode, visualizerCanv
     }
 
     if (this.bufferSize > 16384) {
-        throw new Error("too low fps " +this.fps()+ " for sample rate" + this.sampleRate);
+        throw new Error(`too low fps ${this.fps()} for sample rate${this.sampleRate}`);
     }
 
-    var buffer = buffers[this.bufferSize];
+    let buffer = buffers[this.bufferSize];
     if (!buffer) {
         buffer = buffers[this.bufferSize] = makeBuffer(this.bufferSize);
     }
@@ -106,7 +105,7 @@ AudioVisualizer.prototype.fps = function() {
 };
 
 AudioVisualizer.prototype.setMultiplier = function(value) {
-    if (!isFinite(value)) throw new Error("infinite");
+    if (!isFinite(value)) throw new Error(`infinite`);
     value = Math.max(0.40, Math.min(256, value));
     this.multiplier = value;
 };
@@ -134,14 +133,14 @@ AudioVisualizer.prototype.gotFrame = function(now) {
 
     if (!this.visualizerCanvas.needsToDraw()) return;
 
-    var elapsed = now - this.lastFrameTimeStamp;
-    var targetFps = this.fps();
+    const elapsed = now - this.lastFrameTimeStamp;
+    const targetFps = this.fps();
 
     if ((elapsed + 1) < (1000 / targetFps)) {
-        var screenFps = Math.ceil(1000 / elapsed);
-        var div = screenFps / targetFps;
-        if (div !== (div|0)) div = 2;
-        var frameSkip = this.frameSkip;
+        let screenFps = Math.ceil(1000 / elapsed);
+        let div = screenFps / targetFps;
+        if (div !== (div | 0)) div = 2;
+        let {frameSkip} = this;
         while (screenFps / div >= targetFps) {
             frameSkip *= div;
             screenFps /= div;
@@ -159,7 +158,8 @@ AudioVisualizer.prototype.gotFrame = function(now) {
     this.lastFrameTimeStamp = now;
 
     if (this.paused) {
-        return this.visualizerCanvas.drawIdleBins(now);
+        this.visualizerCanvas.drawIdleBins(now);
+        return;
     }
 
     if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
@@ -179,18 +179,18 @@ AudioVisualizer.prototype.gotFrame = function(now) {
 AudioVisualizer.prototype.calculateBins = function() {
     const X = this.buffer[0];
     const imOffset = this.bufferSize >> 1;
-    const bins = this.bins;
+    const {bins} = this;
     const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / this.sampleRate);
     const inverseSmoothingConstant = 1 - smoothingConstant;
 
     const fftFreqs = Math.ceil(this.maxFrequency / (this.sampleRate / this.bufferSize));
     const binSize = bins.length;
 
-    var binFrequencyStart = 1;
-    var aWeightIndex = 2;
-    var previousEnd = 0;
-    for (var i = 0; i < binSize; ++i) {
-        var binFrequencyEnd = ((Math.pow((i + 1) / binSize, 2) * fftFreqs) | 0);
+    let binFrequencyStart = 1;
+    let aWeightIndex = 2;
+    let previousEnd = 0;
+    for (let i = 0; i < binSize; ++i) {
+        let binFrequencyEnd = ((Math.pow((i + 1) / binSize, 2) * fftFreqs) | 0);
 
         if (binFrequencyEnd <= previousEnd) {
             binFrequencyEnd = previousEnd + 1;
@@ -198,14 +198,14 @@ AudioVisualizer.prototype.calculateBins = function() {
         previousEnd = binFrequencyEnd;
         binFrequencyEnd = Math.min(fftFreqs, binFrequencyEnd) + 1;
 
-        var binWidth = Math.max(1, binFrequencyEnd - binFrequencyStart);
-        var maxPower = 0;
-        var binFrequency = 0;
+        const binWidth = Math.max(1, binFrequencyEnd - binFrequencyStart);
+        let maxPower = 0;
+        let binFrequency = 0;
 
-        for (var j = 0; j < binWidth; ++j) {
-            var re = X[binFrequencyStart + j];
-            var im = X[imOffset + binFrequencyStart + j];
-            var power = re * re + im * im;
+        for (let j = 0; j < binWidth; ++j) {
+            const re = X[binFrequencyStart + j];
+            const im = X[imOffset + binFrequencyStart + j];
+            const power = re * re + im * im;
             if (power > maxPower) {
                 binFrequency = ((binFrequencyStart + j) * this.sampleRate / this.bufferSize) | 0;
                 maxPower = power;
@@ -214,8 +214,8 @@ AudioVisualizer.prototype.calculateBins = function() {
 
         maxPower = Math.max(0, Math.log(maxPower));
 
-        for (var j = aWeightIndex; j < weights.length; j += 2) {
-            var weightFrequency = weights[j];
+        for (let j = aWeightIndex; j < weights.length; j += 2) {
+            const weightFrequency = weights[j];
 
             if (binFrequency < weightFrequency) {
                 maxPower *= weights[j - 1];
@@ -232,19 +232,18 @@ AudioVisualizer.prototype.calculateBins = function() {
 };
 
 AudioVisualizer.prototype.fillWindow = function() {
-    var window = this.buffer[1];
-    var N = window.length;
-    for (var n = 0; n < N; ++n) {
+    const window = this.buffer[1];
+    const N = window.length;
+    for (let n = 0; n < N; ++n) {
         // Hamming window.
         window[n] = (0.53836 - 0.46164 * Math.cos((2 * Math.PI * n) / (N - 1)));
     }
 };
 
 AudioVisualizer.prototype.forwardFft = function() {
-    var samples = this.buffer[0];
-    var window = this.buffer[1];
-    var multiplier = this.multiplier;
-    for (var i = 0; i < samples.length; ++i) {
+    const [samples, window] = this.buffer;
+    const {multiplier} = this;
+    for (let i = 0; i < samples.length; ++i) {
         samples[i] = Math.fround(samples[i] * window[i] * multiplier);
     }
     realFft(this.buffer[0]);

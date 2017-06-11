@@ -1,19 +1,19 @@
-"use strict";
 
-var tmp = new Array(512);
+
+const tmp = new Array(512);
 export function merge(comparer, a, b) {
-    var k = 0;
-    var i = 0;
-    var j = 0;
-    var aLen = a.length;
-    var bLen = b.length;
-    var innerTmp = tmp;
+    let k = 0;
+    let i = 0;
+    let j = 0;
+    const aLen = a.length;
+    const bLen = b.length;
+    const innerTmp = tmp;
 
     while (i < aLen && j < bLen) {
-        var aVal = a[i];
-        var bVal = b[j];
+        const aVal = a[i];
+        const bVal = b[j];
 
-        var result = comparer(aVal, bVal);
+        const result = comparer(aVal, bVal);
 
         if (result < 0) {
             innerTmp[k++] = aVal;
@@ -28,7 +28,7 @@ export function merge(comparer, a, b) {
         }
     }
 
-    var m = 0;
+    let m = 0;
     for (; i < aLen; ++i) innerTmp[k++] = a[i];
     for (; j < bLen; ++j) innerTmp[k++] = b[j];
     for (; m < k; ++m) a[m] = innerTmp[m];
@@ -36,9 +36,9 @@ export function merge(comparer, a, b) {
 }
 
 function removeSortedLinear(comparer, array, value, length) {
-    for (var i = 0; i < length; ++i) {
+    for (let i = 0; i < length; ++i) {
         if (comparer(array[i], value) === 0) {
-            for (var j = i; j < length - 1; ++j) {
+            for (let j = i; j < length - 1; ++j) {
                 array[j] = array[j + 1];
             }
             array.length = length - 1;
@@ -48,21 +48,19 @@ function removeSortedLinear(comparer, array, value, length) {
 }
 
 export function remove(comparer, array, value) {
-    const length = array.length;
-    if (length === 0) {
-        return;
-    } else if (length <= 32) {
-        return removeSortedLinear(comparer, array, value, length);
-    } else {
-        var left = 0;
-        var right = length - 1;
+    const {length} = array;
+    if (length > 0 && length <= 32) {
+        removeSortedLinear(comparer, array, value, length);
+    } else if (length > 32) {
+        let left = 0;
+        let right = length - 1;
 
         while (left <= right) {
-            var mid = (left + right) >> 1;
-            var result = comparer(array[mid], value);
+            const mid = (left + right) >> 1;
+            const result = comparer(array[mid], value);
 
             if (result === 0) {
-                for (var i = mid; i < length - 1; ++i) {
+                for (let i = mid; i < length - 1; ++i) {
                     array[i] = array[i + 1];
                 }
                 array.length = length - 1;
@@ -77,13 +75,13 @@ export function remove(comparer, array, value) {
 }
 
 function insertSortedLinear(comparer, array, value, length) {
-    for (var i = 0; i < length; ++i) {
-        var result = comparer(array[i], value);
+    for (let i = 0; i < length; ++i) {
+        const result = comparer(array[i], value);
 
         if (result === 0) {
             return false;
         } else if (result > 0) {
-            for (var j = length; j > i; --j) {
+            for (let j = length; j > i; --j) {
                 array[j] = array[j - 1];
             }
             array[i] = value;
@@ -95,22 +93,22 @@ function insertSortedLinear(comparer, array, value, length) {
 }
 
 export function insert(comparer, array, value) {
-    const length = array.length;
+    const {length} = array;
     if (length === 0) {
         array.push(value);
-        return;
+        return true;
     }
 
     if (length <= 32) {
         return insertSortedLinear(comparer, array, value, length);
     }
 
-    var left = 0;
-    var right = length - 1;
+    let left = 0;
+    let right = length - 1;
 
     while (left <= right) {
-        var mid = (left + right) >> 1;
-        var result = comparer(array[mid], value);
+        const mid = (left + right) >> 1;
+        const result = comparer(array[mid], value);
 
         if (result === 0) {
             return false;
@@ -124,7 +122,7 @@ export function insert(comparer, array, value) {
     if (left === length) {
         array.push(value);
     } else {
-        for (var i = length; i > left; --i) {
+        for (let i = length; i > left; --i) {
             array[i] = array[i - 1];
         }
         array[left] = value;

@@ -1,105 +1,166 @@
 
-const ASSET_PREFIX = "asset-cache-v";
-const ASSET_CACHE = ASSET_PREFIX + buildDate.replace(/[^a-z0-9]+/ig, "-");
-const COVER_ART_CACHE = "cover-art-cache";
-const COVER_ART_HOSTNAME = "coverartarchive.org";
-const THIRD_PARTY_ASSET_CACHE = "asset-cache-3rd-party";
-const IS_DEVELOPMENT = location.hostname === "v" || location.hostname === "localhost" || location.hostname === "vm";
+const {location, setTimeout, URL, fetch, caches, clients} = self;
+const ASSET_PREFIX = `asset-cache-v`;
+const ASSET_CACHE = ASSET_PREFIX + buildDate.replace(/[^a-z0-9]+/ig, `-`);
+const COVER_ART_CACHE = `cover-art-cache`;
+const COVER_ART_HOSTNAME = `coverartarchive.org`;
+const IS_DEVELOPMENT = location.hostname === `v` || location.hostname === `localhost` || location.hostname === `vm`;
+
+const ricon = /(?:android-chrome|icon|safari-pinned|mstile)/;
+const rfonts = /\.(woff2?)$/;
+const rswjs = /sw\.js$/;
 
 const delay = function(ms) {
-    return new Promise(function(resolve) {
+    return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
 };
 
-const isCors = function(url) {
+const isCorsUrl = function(url) {
     return new URL(url).origin !== location.origin;
 };
 
-const ricon = /(?:android-chrome|icon|safari-pinned|mstile)/;
 const isUnnecessary = function(url) {
-    return url.indexOf("dist/images") >= 0 &&
+    return url.indexOf(`dist/images`) >= 0 &&
            ricon.test(url) &&
-           url.indexOf("apple-touch-icon-180x180") === -1;
+           url.indexOf(`apple-touch-icon-180x180`) === -1;
 };
 
-self.addEventListener("install", function(e) {
+
+async function fetchAssetToCache(url, cache) {
+    let retries = 0;
+    while (retries < 5) {
+        try {
+            const response = await fetch(url, {
+                credentials: `include`,
+                mode: `no-cors`,
+                cache: `reload`
+            });
+            if (response.status !== 200) {
+                throw new Error(`http`);
+            }
+            cache.put(url, response);
+            return;
+        } catch (e) {
+            if (retries >= 5) {
+                throw e;
+            }
+            await delay(1000);
+            retries++;
+        }
+    }
+}
+
+async function cacheAssets() {
+    const cache = await caches.open(ASSET_CACHE);
+    const requests = [];
+
+    for (const asset of assets) {
+        const url = new URL(asset, location.origin + (location.pathname || ``)).toString();
+
+        if (isCorsUrl(url)) {
+            cache.add(url);
+            continue;
+        }
+
+        if (isUnnecessary(url)) {
+            continue;
+        }
+
+        requests.push(fetchAssetToCache(url, cache));
+    }
+    return Promise.all(requests);
+}
+
+async function cacheResponse(request, response, cacheName) {
+    const cache = await caches.open(cacheName);
+    return cache.put(request, response);
+}
+
+async function getMatchedAsset(request) {
+    const requestURL = new URL(request.url);
+    let response = await caches.match(request);
+    if (response) {
+        return response;
+    }
+
+    const fetchRequest = request.clone();
+    response = await fetch(fetchRequest, {mode: `no-cors`});
+    let cacheName = null;
+
+    if (!IS_DEVELOPMENT && response.type === `basic` && response.status < 300) {
+        cacheName = ASSET_CACHE;
+    } else if (COVER_ART_HOSTNAME === requestURL.hostname) {
+        cacheName = COVER_ART_CACHE;
+    }
+
+    if (cacheName) {
+        cacheResponse(fetchRequest, response.clone(), cacheName);
+    }
+    return response;
+}
+
+async function removeOldAssets() {
+    const keys = await caches.keys();
+    const requests = keys.filter((key) => {
+        // Never delete cover art.
+        if (key === COVER_ART_CACHE) {
+            return false;
+        // Delete everything in development
+        } else if (IS_DEVELOPMENT) {
+            return true;
+        // In production, only delete old assets.
+        } else if (key !== ASSET_CACHE && key.indexOf(ASSET_PREFIX) >= 0) {
+            return true;
+        } else {
+            return false;
+        }
+    }).map(keyToBeRemoved => caches.delete(keyToBeRemoved));
+    return Promise.all(requests);
+}
+
+async function handleNotificationClosed(notification) {
+    const {data, tag} = notification;
+    const clientList = await clients.matchAll({type: `window`});
+    for (const client of clientList) {
+        client.postMessage({
+            data, tag, eventType: `swEvent`, type: `notificationClose`
+        });
+    }
+}
+
+async function handleNotificationClicked(action, notification) {
+    const {data, tag} = notification;
+    const clientList = await clients.matchAll({type: `window`});
+    for (const client of clientList) {
+        client.postMessage({
+            data, tag, action, eventType: `swEvent`, type: `notificationClick`
+        });
+    }
+}
+
+self.addEventListener(`install`, (e) => {
     if (IS_DEVELOPMENT) return;
-
-    var assetsCached = caches.open(ASSET_CACHE).then(function (cache) {
-        return Promise.all(assets.map(function loop(url) {
-            url = new URL(url, location.origin + (location.pathname || "")).toString();
-
-            if (isCors(url)) {
-                return cache.add(url);
-            }
-
-            if (isUnnecessary(url)) {
-                return Promise.resolve();
-            }
-
-            return (function loop(retries) {
-                return fetch(url, {
-                    credentials: "include",
-                    mode: "no-cors",
-                    cache: "reload"
-                }).then(function(response) {
-                    if (response.status != 200) {
-                        throw new Error("http");
-                    }
-                    return cache.put(url, response);
-                }).catch(function(e) {
-                    if (retries <= 5) {
-                        return delay(1000).then(function() {
-                            return loop(url, retries + 1);
-                        });
-                    } else {
-                        throw e;
-                    }
-                });
-            })(0);
-        }));
-    });
-    e.waitUntil(assetsCached);
+    e.waitUntil(cacheAssets());
 }, false);
 
-self.addEventListener("activate", function(e) {
-    var oldAssetsRemoved = caches.keys().then(function(keys) {
-        return Promise.all(keys.filter(function(key) {
-            // Never delete cover art.
-            if (key === COVER_ART_CACHE) {
-                return false;
-            // Delete everything in development
-            } else if (IS_DEVELOPMENT) {
-                return true;
-            // In production, only delete old assets.
-            } else if (key !== ASSET_CACHE && key.indexOf(ASSET_PREFIX) >= 0) {
-                return true;
-            } else {
-                return false;
-            }
-        }).map(function(key) {
-            return caches.delete(key);
-        }));
-    });
-    e.waitUntil(oldAssetsRemoved);
+self.addEventListener(`activate`, (e) => {
+    e.waitUntil(removeOldAssets());
 }, false);
 
-var rfonts = /\.(woff2?)$/;
-var rswjs = /sw\.js$/;
-self.addEventListener("fetch", function(e) {
-    var request = e.request;
+self.addEventListener(`fetch`, (e) => {
+    const {request} = e;
 
-    if (request.method !== "GET" || request.mode === "navigate") {
+    if (request.method !== `GET` || request.mode === `navigate`) {
         return;
     }
 
-    var requestURL = new URL(e.request.url);
-    var isCors = location.origin !== requestURL.origin;
-    var isHttp = requestURL.protocol.toLowerCase().indexOf("http") >= 0;
-    var isCoverArt = COVER_ART_HOSTNAME === requestURL.hostname;
-    var isQuery = requestURL.search && requestURL.search.length > 1 && isCors;
-    var isCorsFont = isCors && rfonts.test(request.url);
+    const requestURL = new URL(request.url);
+    const isCors = location.origin !== requestURL.origin;
+    const isHttp = requestURL.protocol.toLowerCase().indexOf(`http`) >= 0;
+    const isCoverArt = COVER_ART_HOSTNAME === requestURL.hostname;
+    const isQuery = requestURL.search && requestURL.search.length > 1 && isCors;
+    const isCorsFont = isCors && rfonts.test(request.url);
 
     if ((!isHttp || (!isCoverArt && (isCorsFont || isQuery))) ||
         (IS_DEVELOPMENT && !isCoverArt) ||
@@ -107,87 +168,35 @@ self.addEventListener("fetch", function(e) {
         return;
     }
 
-    var result = caches.match(e.request).then(function(response) {
-        if (response) return response;
-
-        var fetchRequest = e.request.clone();
-        return fetch(fetchRequest, {mode: "no-cors"}).then(function(response) {
-            var cacheName = null;
-            if (!IS_DEVELOPMENT && response.type === "basic" && response.status < 300) {
-                cacheName = ASSET_CACHE;
-            } else if (COVER_ART_HOSTNAME === requestURL.hostname) {
-                cacheName = COVER_ART_CACHE;
-            }
-
-            if (cacheName) {
-                var responseToCache = response.clone();
-                caches.open(cacheName).then(function(cache) {
-                    cache.put(fetchRequest, responseToCache)
-                });
-            }
-            return response;
-        }).catch(function(e) {
-            console.log(e.message);
-        });
-    });
-
-    e.respondWith(result);
+    e.respondWith(getMatchedAsset(request));
 }, false);
 
-self.addEventListener('message', function(e) {
-    if (e.data.action === 'skipWaiting') {
+self.addEventListener(`message`, async (e) => {
+    const {action, tabId} = e.data;
+    if (action === `skipWaiting`) {
         self.skipWaiting();
-    } else if (e.data.action === "closeNotifications") {
-        var tabId = e.data.tabId;
+    } else if (action === `closeNotifications`) {
         if (self.registration && self.registration.getNotifications) {
-            self.registration.getNotifications().then(function(notifications) {
-                notifications.filter(function(notification) {
-                    return notification.data.tabId === tabId;
-                }).forEach(function(notification) {
-                    try {
-                        notification.data.forceClose = true;
-                        notification.close();
-                    } catch (e) {}
-                });
+            const notifications = await self.registration.getNotifications();
+            notifications.filter(notification => notification.data.tabId === tabId).forEach((notification) => {
+                notification.data.forceClose = true;
+                notification.close();
             });
         }
     }
 });
 
-self.addEventListener("notificationclose", function(event) {
-    if (event.notification &&
-        event.notification.data &&
-        event.notification.data.forceClose) {
+self.addEventListener(`notificationclose`, (event) => {
+    const {notification} = event;
+    if (notification &&
+        notification.data &&
+        notification.data.forceClose) {
         return;
     }
-    event.waitUntil(clients.matchAll({type: "window"}).then(function(clientList) {
-        for (var i = 0; i < clientList.length; i++) {
-            var client = clientList[i];
-            try {
-                return client.postMessage({
-                    eventType: "swEvent",
-                    type: "notificationClose",
-                    data: event.notification.data,
-                    tag: event.notification.tag
-                });
-            } catch (e) {}
-        }
-    }));
+    event.waitUntil(handleNotificationClosed(notification));
 });
 
-self.addEventListener("notificationclick", function(event) {
-    event.waitUntil(clients.matchAll({type: "window"}).then(function(clientList) {
-        for (var i = 0; i < clientList.length; i++) {
-            var client = clientList[i];
-            try {
-                return client.postMessage({
-                    eventType: "swEvent",
-                    type: "notificationClick",
-                    action: event.action,
-                    data: event.notification.data,
-                    tag: event.notification.tag
-                });
-            } catch (e) {}
-        }
-    }));
+self.addEventListener(`notificationclick`, (event) => {
+    const {action, notification} = event;
+    event.waitUntil(handleNotificationClicked(action, notification));
 });

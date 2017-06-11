@@ -1,13 +1,11 @@
-"use strict";
 
-import { Uint8Array, DataView, ArrayBuffer } from "platform/platform";
-import Promise from "platform/PromiseExtensions";
-import blobPatch from "platform/blobpatch";
-import { readAsArrayBuffer } from "util";
 
-blobPatch();
+import {Uint8Array, DataView} from "platform/platform";
+import {delay} from "platform/PromiseExtensions";
+import {readAsArrayBuffer} from "util";
+
 function isRetryable(e) {
-    return e && e.name === "NotReadableError";
+    return e && e.name === `NotReadableError`;
 }
 
 export default function FileView(file) {
@@ -25,7 +23,7 @@ FileView.prototype.toBufferOffset = function(fileOffset) {
 
 FileView.prototype.ensure = function(offset, length) {
     if (!(this.start <= offset && offset + length <= this.end)) {
-        throw new Error("read out of bounds");
+        throw new Error(`read out of bounds`);
     }
 };
 
@@ -62,17 +60,21 @@ FileView.prototype.getInt8 = function(offset) {
 };
 
 FileView.prototype.block = function() {
-    if (!this.buffer) throw new Error("no block available");
+    if (!this.buffer) throw new Error(`no block available`);
     return this.buffer;
 };
 
+FileView.prototype.blockAtOffset = function(offset) {
+    if (!this.buffer) throw new Error(`no block available`);
+    return new Uint8Array(this.buffer.buffer, offset);
+};
+
 FileView.prototype.modifyBlock = function(callback) {
-    if (!this.buffer) throw new Error("no block available");
-    var length = this.buffer.length;
-    var result = callback(this.buffer);
-    var change = result.length - length;
-    var start = this.start;
-    var end = this.end;
+    if (!this.buffer) throw new Error(`no block available`);
+    const {length} = this.buffer;
+    const result = callback(this.buffer);
+    const change = result.length - length;
+    let {start, end} = this;
 
     start += change;
     end += change;
@@ -89,55 +91,59 @@ FileView.prototype.modifyBlock = function(callback) {
 
 FileView.prototype._freeBuffer = function() {
     if (this.buffer) {
-        ArrayBuffer.transfer(this.buffer.buffer, 0);
         this.buffer = this.dataview = null;
     }
 };
 
-FileView.prototype.readBlockOfSizeAt = function(size, startOffset, paddingFactor) {
+FileView.prototype.readBlockOfSizeAt = async function(size, startOffset, paddingFactor) {
     if (this._readInProgress) {
-        return Promise.reject(new Error("invalid parallel read"));
+        throw new Error(`invalid parallel read`);
     }
-    this._readInProgress = true;
-    var self = this;
-    size = Math.ceil(size);
-    startOffset = Math.ceil(startOffset);
-    return new Promise(function(resolve) {
-        if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) paddingFactor = 1;
-        var maxSize = self.file.size;
-        var start = Math.min(maxSize - 1, Math.max(0, startOffset));
-        var end = Math.min(maxSize, start + size);
+    try {
+        this._readInProgress = true;
+        size = Math.ceil(size);
+        startOffset = Math.ceil(startOffset);
+        if (!paddingFactor || paddingFactor <= 1 || paddingFactor === undefined) {
+            paddingFactor = 1;
+        }
+        const maxSize = this.file.size;
+        const start = Math.min(maxSize - 1, Math.max(0, startOffset));
+        let end = Math.min(maxSize, start + size);
 
-        if (self.buffer &&
-            (self.start <= start && end <= self.end)) {
-            return resolve();
+        if (this.buffer && this.start <= start && end <= this.end) {
+            return;
         }
 
         end = Math.min(maxSize, start + size * paddingFactor);
-        self.start = start;
-        self.end = end;
-        self._freeBuffer();
+        this.start = start;
+        this.end = end;
+        this._freeBuffer();
 
-        resolve((function loop(retries) {
-            var blob = self.file.slice(self.start, self.end);
-            return readAsArrayBuffer(blob).finally(function() {
-                blob.close();
-            }).then(function(result) {
-                self._freeBuffer();
-                self.buffer = new Uint8Array(result);
-                self.dataview = new DataView(result);
-            }).catch(function(e) {
-                if (isRetryable(e) && retries < 5) {
-                    return Promise.delay(500).then(function() {
-                        return loop(retries + 1);
-                    });
+        let retries = 0;
+        while (retries < 5) {
+            try {
+                const blob = this.file.slice(this.start, this.end);
+                let result;
+                try {
+                    result = await readAsArrayBuffer(blob);
+                } finally {
+                    blob.close();
                 }
-                self.start = self.end = -1;
-                self._freeBuffer();
-                throw e;
-            });
-        })(0));
-    }).finally(function() {
-        self._readInProgress = false;
-    });
+                this._freeBuffer();
+                this.buffer = new Uint8Array(result);
+                this.dataview = new DataView(result);
+                break;
+            } catch (e) {
+                if (!isRetryable(e)) {
+                    this.start = this.end = -1;
+                    this._freeBuffer();
+                    throw e;
+                }
+                await delay(500);
+                retries++;
+            }
+        }
+    } finally {
+        this._readInProgress = false;
+    }
 };

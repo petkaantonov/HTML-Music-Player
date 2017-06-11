@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function PlaythroughTickCounter(threshold) {
     this._threshold = threshold;
@@ -24,14 +24,14 @@ PlaythroughTickCounter.prototype.pause = function() {
 
 PlaythroughTickCounter.prototype.tick = function() {
     if (this._triggered) {
-        throw new Error("already triggered");
+        throw new Error(`already triggered`);
     }
-    var now = Date.now();
+    const now = Date.now();
     if (this._lastTick === -1) {
         this._ticks++;
         this._lastTick = now;
     } else {
-        var elapsed = now - this._lastTick;
+        const elapsed = now - this._lastTick;
         if (elapsed >= 1000) {
             this._ticks++;
             this._lastTick = now;

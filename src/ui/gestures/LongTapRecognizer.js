@@ -1,14 +1,14 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function LongTapRecognizer(recognizerContext, handler, noTrigger) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -27,24 +27,24 @@ export default function LongTapRecognizer(recognizerContext, handler, noTrigger)
 inherits(LongTapRecognizer, AbstractGestureRecognizer);
 
 LongTapRecognizer.prototype._longTapTimedOut = function() {
-    var ev = this.event;
-    var touch = this.currentTouch;
+    const ev = this.event;
+    const touch = this.currentTouch;
     this.clear();
     if (this.getDocumentActives().length() <= 1) {
-        var g = new GestureObject(ev, touch);
+        const g = new GestureObject(ev, touch);
         this.handler.call(ev.currentTarget, g);
     }
 };
 
 LongTapRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
 
     if (e.type === TOUCH_START) {
         if (this.getDocumentActives().length() === 1 && this.currentTouch === null) {
             this.currentTouch = this.actives.first();
             this.event = e;
-            var timeout = this.recognizerContext.createSingleTapTimeout(this._longTapTimedOut,
+            const timeout = this.recognizerContext.createSingleTapTimeout(this._longTapTimedOut,
                                                                       this.clear,
                                                                       this.recognizerContext.LONG_TAP_TIME);
             this.timeoutId = timeout.id;
@@ -55,13 +55,13 @@ LongTapRecognizer.prototype._recognizerHandler = function(e) {
             this.clear();
         }
     } else if (e.type === TOUCH_MOVE) {
-        var touch = changedTouches[0];
+        const touch = changedTouches[0];
         if (this.actives.length() !== 1 || !this.actives.contains(this.currentTouch) || !this.actives.contains(touch)) {
             this.clear();
             return;
         }
-        var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
-        var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
+        const yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
+        const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
         this.currentTouch = touch;
 
         if (xDelta > 2 || yDelta > 2) {

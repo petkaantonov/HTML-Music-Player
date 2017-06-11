@@ -1,13 +1,13 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function HorizontalTwoFingerSwipeRecognizer(recognizerContext, handler, direction) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -29,8 +29,8 @@ export default function HorizontalTwoFingerSwipeRecognizer(recognizerContext, ha
 inherits(HorizontalTwoFingerSwipeRecognizer, AbstractGestureRecognizer);
 
 HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches;
-    var now = e.timeStamp;
+    const {changedTouches} = e;
+    const now = e.timeStamp;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 2) {
@@ -61,8 +61,8 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
         }
     } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
         if (this.currentATouch === null || this.currentBTouch === null) return;
-        for (var i = 0; i < changedTouches.length; ++i) {
-            var touch = changedTouches[i];
+        for (let i = 0; i < changedTouches.length; ++i) {
+            const touch = changedTouches[i];
             if (touch.identifier === this.currentATouch.identifier) {
                 this.lastAX = touch.clientX;
             } else if (touch.identifier === this.currentBTouch.identifier) {
@@ -79,8 +79,8 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
         }
         if (this.currentATouch !== null || this.currentBTouch !== null) {
 
-            for (var i = 0; i < changedTouches.length; ++i) {
-                var touch = changedTouches[i];
+            for (let i = 0; i < changedTouches.length; ++i) {
+                const touch = changedTouches[i];
 
                 if (this.currentATouch !== null && touch.identifier === this.currentATouch.identifier) {
                     this.lastAX = touch.clientX;
@@ -102,15 +102,15 @@ HorizontalTwoFingerSwipeRecognizer.prototype._recognizerHandler = function(e) {
 
 HorizontalTwoFingerSwipeRecognizer.prototype.checkCompletion = function(elapsedTotal) {
     if (this.startAX !== -1 && this.startBX !== -1 && this.getDocumentActives().length() === 0) {
-        var aDiff = this.lastAX - this.startAX;
-        var bDiff = this.lastBX - this.startBX;
-        var aAbsDiff = Math.abs(aDiff);
-        var bAbsDiff = Math.abs(bDiff);
-        var aVelocity = (aAbsDiff / elapsedTotal * 1000)|0;
-        var bVelocity = (bAbsDiff / elapsedTotal * 1000)|0;
-        var direction = this.direction;
-        var minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
-        var minSwipeVelocity = this.recognizerContext.SWIPE_VELOCITY;
+        const aDiff = this.lastAX - this.startAX;
+        const bDiff = this.lastBX - this.startBX;
+        const aAbsDiff = Math.abs(aDiff);
+        const bAbsDiff = Math.abs(bDiff);
+        const aVelocity = (aAbsDiff / elapsedTotal * 1000) | 0;
+        const bVelocity = (bAbsDiff / elapsedTotal * 1000) | 0;
+        const {direction} = this;
+        const minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
+        const minSwipeVelocity = this.recognizerContext.SWIPE_VELOCITY;
 
         if (aAbsDiff > minSwipeLength &&
             bAbsDiff > minSwipeLength &&

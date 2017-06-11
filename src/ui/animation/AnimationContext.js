@@ -1,10 +1,10 @@
-"use strict";
+
 
 import Animator from "ui/animation/Animator";
 
 export default function AnimationContext(deps) {
     this.page = deps.page;
-    deps.ensure();
+
 }
 
 AnimationContext.prototype.LINEAR = Animator.LINEAR;

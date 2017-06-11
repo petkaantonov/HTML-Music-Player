@@ -1,13 +1,13 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function ModifierTapRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -20,20 +20,22 @@ export default function ModifierTapRecognizer(recognizerContext, handler) {
 inherits(ModifierTapRecognizer, AbstractGestureRecognizer);
 
 ModifierTapRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
 
     if (!this.hasModifierTouch()) {
-        return this.clear();
+        this.clear();
+        return;
     }
 
-    var modifierTouch = this.getModifierTouch();
+    const modifierTouch = this.getModifierTouch();
 
     if (e.type === TOUCH_START) {
         if (this.getDocumentActives().length() !== 2) {
-            return this.clear();
+            this.clear();
+            return;
         }
 
-        for (var i = 0; i < changedTouches.length; ++i) {
+        for (let i = 0; i < changedTouches.length; ++i) {
             if (changedTouches[i].identifier !== modifierTouch.identifier) {
                 this.started = e.timeStamp || e.originalEvent.timeStamp;
                 this.currentTouch = changedTouches[i];
@@ -46,10 +48,11 @@ ModifierTapRecognizer.prototype._recognizerHandler = function(e) {
             return;
         }
         if (this.getDocumentActives().length() !== 1) {
-            return this.clear();
+            this.clear();
+            return;
         }
-        var touch = null;
-        for (var i = 0; i < changedTouches.length; ++i) {
+        let touch = null;
+        for (let i = 0; i < changedTouches.length; ++i) {
             if (changedTouches[i].identifier === this.currentTouch.identifier) {
                 touch = changedTouches[i];
                 break;
@@ -57,24 +60,24 @@ ModifierTapRecognizer.prototype._recognizerHandler = function(e) {
         }
 
         if (!touch) {
-            return this.clear();
+            this.clear();
+            return;
         }
 
-        var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
-        var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
-        var elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
+        const yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
+        const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
+        const elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
 
         if (elapsed > 20 && elapsed < this.recognizerContext.TAP_TIME && xDelta <= 25 && yDelta <= 25) {
             if (this.hasSettledModifierTouch(e.timeStamp)) {
-                var g = new GestureObject(e, touch);
+                const g = new GestureObject(e, touch);
                 this.handler.call(e.currentTarget, g);
             }
         }
         this.clear();
-    } else if (e.type === TOUCH_MOVE) {
-        if (this.getDocumentActives().length() !== 2) {
-            return this.clear();
-        }
+    } else if (e.type === TOUCH_MOVE &&
+               this.getDocumentActives().length() !== 2) {
+        this.clear();
     }
 };
 

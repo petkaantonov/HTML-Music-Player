@@ -1,12 +1,12 @@
-"use strict";
+
 
 import SearchTree from "search/SearchTree";
 import SearchTreeEntry from "search/SearchTreeEntry";
 import SearchResultRater from "search/SearchResultRater";
-import { getSearchTerm } from "search/searchUtil";
-import { merge, insert } from "search/sortedArrays";
-import SearchResult, { cmp } from "search/SearchResult";
-import { getFirstWord, getLastWord, reverseString } from "util";
+import {getSearchTerm} from "search/searchUtil";
+import {merge, insert} from "search/sortedArrays";
+import SearchResult, {cmp} from "search/SearchResult";
+import {getFirstWord, getLastWord, reverseString} from "util";
 
 export default function TrackSearchIndex() {
     this._transientIdToEntry = {};
@@ -15,28 +15,28 @@ export default function TrackSearchIndex() {
 }
 
 TrackSearchIndex.prototype.search = function(normalizedQuery) {
-    var suffixQuery = reverseString(normalizedQuery);
+    const suffixQuery = reverseString(normalizedQuery);
 
-    var firstPrefixKeyword = getFirstWord(normalizedQuery);
-    var firstSuffixKeyword = getLastWord(suffixQuery);
+    const firstPrefixKeyword = getFirstWord(normalizedQuery);
+    const firstSuffixKeyword = getLastWord(suffixQuery);
 
-    var prefixMatches = this._prefixSearchTree.search(firstPrefixKeyword);
-    var suffixMatches = this._suffixSearchTree.search(firstSuffixKeyword);
+    const prefixMatches = this._prefixSearchTree.search(firstPrefixKeyword);
+    const suffixMatches = this._suffixSearchTree.search(firstSuffixKeyword);
 
     merge(SearchTreeEntry.comparer, prefixMatches, suffixMatches);
-    var results = prefixMatches;
-    var ret;
+    const results = prefixMatches;
+    let ret;
 
     if (results.length > 0) {
-        var rater = new SearchResultRater(normalizedQuery);
+        const rater = new SearchResultRater(normalizedQuery);
         ret = new Array(results.length >> 1);
         ret.length = 0;
 
-        var length = Math.min(results.length, 2500);
+        const length = Math.min(results.length, 2500);
 
-        for (var i = 0; i < length; ++i) {
-            var result = results[i];
-            var distance = rater.getDistanceForSearchTerm(result.searchTerm());
+        for (let i = 0; i < length; ++i) {
+            const result = results[i];
+            const distance = rater.getDistanceForSearchTerm(result.searchTerm());
             if (!isFinite(distance)) {
                 continue;
             }
@@ -56,17 +56,17 @@ TrackSearchIndex.prototype.add = function(file, metadata, transientId) {
 };
 
 TrackSearchIndex.prototype.update = function(transientId, metadata) {
-    var entry = this._transientIdToEntry[transientId];
+    const entry = this._transientIdToEntry[transientId];
     if (!entry) return;
     this._removeFromSearchTree(entry);
     this._transientIdToEntry[transientId] = this._addToSearchTree(transientId, metadata, null);
 };
 
 TrackSearchIndex.prototype._addToSearchTree = function(transientId, metadata, file) {
-    var entry = new SearchTreeEntry(transientId, getSearchTerm(metadata, file));
-    var keywords = entry.keywords();
-    for (var i = 0; i < keywords.length; ++i) {
-        var keyword = keywords[i];
+    const entry = new SearchTreeEntry(transientId, getSearchTerm(metadata, file));
+    const keywords = entry.keywords();
+    for (let i = 0; i < keywords.length; ++i) {
+        const keyword = keywords[i];
         this._prefixSearchTree.insert(keyword, entry);
         this._suffixSearchTree.insert(reverseString(keyword), entry);
     }
@@ -74,16 +74,16 @@ TrackSearchIndex.prototype._addToSearchTree = function(transientId, metadata, fi
 };
 
 TrackSearchIndex.prototype._removeFromSearchTree = function(entry) {
-    var keywords = entry.keywords();
-    for (var i = 0; i < keywords.length; ++i) {
-        var keyword = keywords[i];
+    const keywords = entry.keywords();
+    for (let i = 0; i < keywords.length; ++i) {
+        const keyword = keywords[i];
         this._prefixSearchTree.remove(keyword, entry);
         this._suffixSearchTree.remove(reverseString(keyword), entry);
     }
 };
 
 TrackSearchIndex.prototype.remove = function(transientId) {
-    var entry = this._transientIdToEntry[transientId];
+    const entry = this._transientIdToEntry[transientId];
     if (!entry) return;
     this._removeFromSearchTree(entry);
     delete this._transientIdToEntry[transientId];

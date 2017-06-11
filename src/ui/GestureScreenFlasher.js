@@ -1,14 +1,14 @@
-"use strict";
+
 
 const gestureIcon = function(icon) {
-    return '<div class="gesture-flash"><span class="gesture-flash-icon ' + icon + '"></span></div>';
+    return `<div class="gesture-flash"><span class="gesture-flash-icon ${icon}"></span></div>`;
 };
 
 const gestureNameMap = {
-    play: gestureIcon("glyphicon glyphicon-play"),
-    pause: gestureIcon("glyphicon glyphicon-pause"),
-    next: gestureIcon("glyphicon glyphicon-step-forward"),
-    previous: gestureIcon("glyphicon glyphicon-step-backward")
+    play: gestureIcon(`glyphicon glyphicon-play`),
+    pause: gestureIcon(`glyphicon glyphicon-pause`),
+    next: gestureIcon(`glyphicon glyphicon-step-forward`),
+    previous: gestureIcon(`glyphicon glyphicon-step-backward`)
 };
 
 export default function GestureScreenFlasher(deps) {
@@ -20,42 +20,43 @@ export default function GestureScreenFlasher(deps) {
     Object.keys(gestureNameMap).forEach(function(key) {
         this._gestureMap[key] = this._page.parse(gestureNameMap[key]);
     }, this);
-    deps.ensure();
+
 }
 
 GestureScreenFlasher.prototype._next = function() {
     this._current = null;
     if (this._queue.length === 0) return;
-    var name = this._queue.shift();
-    var $dom = this._gestureMap[name].remove().removeAttribute("style");
-    $dom.appendTo("body");
+    const name = this._queue.shift();
+    const $dom = this._gestureMap[name].remove().removeAttribute(`style`);
+    $dom.appendTo(`body`);
 
-    var fadeIn = this._animationContext.createAnimator($dom, {
+    const fadeIn = this._animationContext.createAnimator($dom, {
         opacity: {
             range: [0, 80],
-            unit: "%",
+            unit: `%`,
             duration: 100,
             interpolate: this._animationContext.DECELERATE_CUBIC
         }
     });
 
-    var fadeOut = this._animationContext.createAnimator($dom, {
+    const fadeOut = this._animationContext.createAnimator($dom, {
         opacity: {
             range: [80, 0],
-            unit: "%",
+            unit: `%`,
             duration: 250,
             interpolate: this._animationContext.DECELERATE_CUBIC
         }
     });
 
-    var self = this;
-    this._current = fadeIn.start().then(function() {
-        return fadeOut.start();
-    }).then(function() {
-        $dom.remove().removeAttribute("style");
-    }).finally(function() {
-        self._next();
-    });
+    this._current = (async () => {
+        try {
+            await fadeIn.start();
+            await fadeOut.start();
+            $dom.remove().removeAttribute(`style`);
+        } finally {
+            this._next();
+        }
+    })();
 };
 
 GestureScreenFlasher.prototype.flashGesture = function(name) {
@@ -63,7 +64,7 @@ GestureScreenFlasher.prototype.flashGesture = function(name) {
         this._queue[0] = name;
         return;
     }
-    if (!gestureNameMap[name]) throw new Error("unknown name " + name);
+    if (!gestureNameMap[name]) throw new Error(`unknown name ${name}`);
     this._queue.push(name);
     if (!this._current) {
         this._next();

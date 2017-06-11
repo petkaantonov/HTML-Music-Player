@@ -1,32 +1,30 @@
-"use strict";
 
-import Promise from "platform/PromiseExtensions";
+
 import getCodecName from "audio/sniffer";
 import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
-import TrackSearchIndex from "search/TrackSearchIndex";
 
 const maxActive = 8;
 const queue = [];
-var active = 0;
+let active = 0;
 
 const codecNotSupportedError = function() {
-    var e = new Error("codec not supported");
-    e.name = "CodecNotSupportedError";
+    const e = new Error(`codec not supported`);
+    e.name = `CodecNotSupportedError`;
     return e;
 };
 
 const next = function() {
     active--;
     if (queue.length > 0) {
-        var item = queue.shift();
-        var parser = new MetadataParser(item.file, item.resolve, item.transientId);
+        const item = queue.shift();
+        const parser = new MetadataParser(item.file, item.resolve, item.transientId);
         active++;
         parser.parse();
     }
 };
 
-export default function MetadataParser(file, resolve, transientId) {
+function MetadataParser(file, resolve, transientId) {
     this.file = file;
     this.resolve = resolve;
     this.transientId = transientId;
@@ -34,65 +32,70 @@ export default function MetadataParser(file, resolve, transientId) {
 }
 
 MetadataParser.prototype.parse = function() {
-    var self = this;
-    var file = self.file;
-    var data = {
+    const data = {
         basicInfo: {
             duration: NaN,
             sampleRate: 44100,
             channels: 2
         }
     };
-    var done = getCodecName(this.fileView).then(function(codecName) {
+    const done = (async () => {
+        const codecName = await getCodecName(this.fileView);
         if (!codecName) {
             throw codecNotSupportedError();
         }
 
-        switch(codecName) {
-            case "wav":
-            case "webm":
-            case "aac":
-            case "ogg":
+        switch (codecName) {
+            case `wav`:
+            case `webm`:
+            case `aac`:
+            case `ogg`:
                 throw codecNotSupportedError();
-            case "mp3":
-                return parseMp3Metadata(data, self.fileView);
+            case `mp3`:
+                await parseMp3Metadata(data, this.fileView);
+                break;
+            default: break;
         }
-    }).catch(function() {
-        throw codecNotSupportedError();
-    }).then(function() {
-        MetadataParser.searchIndex.add(file, data, self.transientId);
+
         return data;
-    });
+    })();
 
     this.resolve(done);
 };
 
-MetadataParser.searchIndex = new TrackSearchIndex();
-
-MetadataParser.parse = function(args) {
-    return new Promise(function(resolve) {
-        if (active >= maxActive) {
-            queue.push({
-                file: args.file,
-                transientId: args.transientId,
-                resolve: resolve
-            });
-        } else {
-            var parser = new MetadataParser(args.file, resolve, args.transientId);
-            active++;
-            parser.parse();
-        }
-    }).finally(next);
+export const parse = async function(file, transientId) {
+    try {
+        const ret = await new Promise((resolve) => {
+            if (active >= maxActive) {
+                queue.push({
+                    file,
+                    transientId,
+                    resolve
+                });
+            } else {
+                const parser = new MetadataParser(file, resolve, transientId);
+                active++;
+                parser.parse();
+            }
+        });
+        return ret;
+    } finally {
+        next();
+    }
 };
 
-MetadataParser.fetchAnalysisData = function(db, args) {
-    var data = db.query(args.uid);
-    var albumImage = db.getAlbumImage(args.albumKey);
+export const fetchAnalysisData = async function(db, uid, albumKey) {
+    const [data, albumImage] = await Promise.all([db.query(uid), db.getAlbumImage(albumKey)]);
 
-    return Promise.join(data, albumImage, function(data, albumImage) {
-        if (data && albumImage) {
+    if (data) {
+        const {trackGain, trackPeak, silence} = data;
+        if (!data.loudness && (trackGain || trackPeak || silence)) {
+            data.loudness = {trackPeak, trackGain, silence};
+        }
+
+        if (albumImage) {
             data.albumImage = albumImage;
         }
-        return data;
-    });
+    }
+    return data;
 };

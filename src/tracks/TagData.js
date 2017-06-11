@@ -1,21 +1,35 @@
-"use strict";
+import {capitalize, formatTagString, toTimeString} from "util";
+import {URL, Image} from "platform/platform";
 
-import { capitalize, formatTagString, toTimeString } from "util";
-import blobPatch from "platform/blobpatch";
-import { URL, Image } from "platform/platform";
-
-blobPatch();
-
-const UNKNOWN = "Unknown";
-
+const separatorPattern = /(.+)\s*-\s*(.+)/;
+const UNKNOWN = `Unknown`;
 const INITIAL = 1;
 const NO_IMAGE_FOUND = 2;
 const PENDING_IMAGE = 3;
 const HAS_IMAGE = 4;
-
 const albumNameToCoverArtUrlMap = Object.create(null);
 
-export default function TagData(track, data, trackAnalyzer) {
+export const stripExtensionPattern = new RegExp(`\\.(?:[a-z0-9_\\-]{1,8})$`, `i`);
+export const trackInfoFromFileName = function(inputFileName) {
+    const fileName = inputFileName.replace(stripExtensionPattern, ``);
+    const matches = fileName.match(separatorPattern);
+    let artist, title;
+
+    if (!matches) {
+        title = capitalize(fileName);
+        artist = UNKNOWN;
+    } else {
+        artist = capitalize(matches[1]) || UNKNOWN;
+        title = capitalize(matches[2]) || UNKNOWN;
+    }
+
+    return {
+        artist,
+        title
+    };
+};
+
+function TagData(track, data, context) {
     this.track = track;
 
     this.title = data.title || null;
@@ -24,7 +38,7 @@ export default function TagData(track, data, trackAnalyzer) {
     this.taggedArtist = this.artist;
     this.taggedTitle = this.title;
     this.taggedAlbum = this.album;
-    this.albumArtist = data.albumArtist || (data.compilationFlag ? "Various Artists" : null);
+    this.albumArtist = data.albumArtist || (data.compilationFlag ? `Various Artists` : null);
 
     this.basicInfo = data.basicInfo;
     this.basicInfo.channels = this.basicInfo.channels || 2;
@@ -65,57 +79,36 @@ export default function TagData(track, data, trackAnalyzer) {
     this.beginSilenceLength = 0;
     this.endSilenceLength = 0;
 
-    this._trackAnalyzer = trackAnalyzer;
+    this._context = context;
     this._stateId = 1;
 }
 
-TagData.prototype._stateUpdate = function() {};
+TagData.prototype._stateUpdate = function() {
+    // NOOP
+};
 
 TagData.prototype.getStateId = function() {
     return this._stateId;
 };
 
 TagData.prototype.playerMetadata = function() {
-    return {
-        encoderDelay: this.encoderDelay,
-        encoderPadding: this.encoderPadding
-    };
+    const {encoderDelay, encoderPadding} = this;
+    return {encoderDelay, encoderPadding};
 };
 
 TagData.prototype.formatTime = function() {
     if (this._formattedTime !== null) return this._formattedTime;
     if (!this.basicInfo.duration) {
-        return this._formattedTime = "";
+        this._formattedTime = ``;
+        return ``;
     }
-    var duration = Math.max(0, this.basicInfo.duration - this.getTotalSilenceLength());
+    const duration = Math.max(0, this.basicInfo.duration - this.getTotalSilenceLength());
     return (this._formattedTime = toTimeString(duration));
-};
-
-var stripExtensionPattern = new RegExp("\\.(?:[a-z0-9_\\-]{1,8})$", "i");
-var separatorPattern = /(.+)\s*-\s*(.+)/;
-TagData.stripExtensionPattern = stripExtensionPattern;
-TagData.trackInfoFromFileName = function(fileName) {
-    var fileName = fileName.replace(stripExtensionPattern, "");
-    var matches = fileName.match(separatorPattern);
-    var artist, title;
-
-    if (!matches) {
-        title = capitalize(fileName);
-        artist = UNKNOWN;
-    } else {
-        artist = capitalize(matches[1]) || UNKNOWN;
-        title = capitalize(matches[2]) || UNKNOWN;
-    }
-
-    return {
-        artist: artist,
-        title: title
-    };
 };
 
 TagData.prototype.ensureArtistAndTitle = function() {
     if (!this.title || !this.artist) {
-        var artistAndTitle = TagData.trackInfoFromFileName(this.track.getFileName());
+        const artistAndTitle = trackInfoFromFileName(this.track.getFileName());
         this.artist = this.artist || artistAndTitle.artist || UNKNOWN;
         this.title = this.title || artistAndTitle.title || UNKNOWN;
     }
@@ -124,7 +117,7 @@ TagData.prototype.ensureArtistAndTitle = function() {
 TagData.prototype.formatName = function() {
     if (this._formattedName !== null) return this._formattedName;
     this.ensureArtistAndTitle();
-    return (this._formattedName = this.artist + " - " + this.title);
+    return (this._formattedName = `${this.artist} - ${this.title}`);
 };
 
 TagData.prototype.getTrackGain = function() {
@@ -167,30 +160,30 @@ TagData.prototype.getRating = function() {
 
 TagData.prototype.setRating = function(val) {
     this.rating = Math.min(5, Math.max(1, +val));
-    this._trackAnalyzer.rateTrack(this.track, this.rating);
+    this._context.usageData.rateTrack(this.track, this.rating);
 };
 
 TagData.prototype.unsetRating = function() {
     this.rating = -1;
-    this._trackAnalyzer.rateTrack(this.track, this.rating);
+    this._context.usageData.rateTrack(this.track, this.rating);
 };
 
 TagData.prototype.albumNameKey = function() {
-    return (this.album + " " + this.albumArtist).toLowerCase();
+    return (`${this.album} ${this.albumArtist}`).toLowerCase();
 };
 
 TagData.prototype.maybeCoverArtImage = function() {
     if (!this.album) return null;
-    var mapped = albumNameToCoverArtUrlMap[this.albumNameKey()];
+    const mapped = albumNameToCoverArtUrlMap[this.albumNameKey()];
     if (mapped) {
-        var ret = new Image();
+        const ret = new Image();
         ret.src = mapped;
         ret.tag = this.albumNameKey();
-        ret.promise = new Promise(function(resolve, reject) {
-            ret.addEventListener("load", resolve, false);
-            ret.addEventListener("error", function() {
+        ret.promise = new Promise((resolve, reject) => {
+            ret.addEventListener(`load`, resolve, false);
+            ret.addEventListener(`error`, () => {
                 albumNameToCoverArtUrlMap[ret.tag] = null;
-                reject(new Error("invalid image"));
+                reject(new Error(`invalid image`));
             }, false);
         });
         return ret;
@@ -198,7 +191,7 @@ TagData.prototype.maybeCoverArtImage = function() {
     return null;
 };
 
-var NULL_STRING = "\x00";
+const NULL_STRING = `\x00`;
 
 const clearPicture = function(picture) {
     if (picture.blobUrl) {
@@ -210,7 +203,7 @@ const clearPicture = function(picture) {
     }
 
     if (picture.image) {
-        picture.image.src = "";
+        picture.image.src = ``;
     }
     picture.blobUrl = picture.blob = picture.image = null;
 };
@@ -222,22 +215,21 @@ const addPictureHoldingTagData = function(tagData) {
 
     if (tagDatasHoldingPictures.length > 50) {
         while (tagDatasHoldingPictures.length > 25) {
-            var tagData = tagDatasHoldingPictures.shift();
-            tagData.reclaimPictures();
+            tagDatasHoldingPictures.shift().reclaimPictures();
         }
     }
 };
 
 const removePictureHoldingTagData = function(tagData) {
-    var i = tagDatasHoldingPictures.indexOf(tagData);
+    const i = tagDatasHoldingPictures.indexOf(tagData);
     if (i >= 0) {
         tagDatasHoldingPictures.splice(i, 1);
     }
 };
 
 TagData.prototype.reclaimPictures = function() {
-    for (var i = 0; i < this.pictures.length; ++i) {
-        var picture = this.pictures[i];
+    for (let i = 0; i < this.pictures.length; ++i) {
+        const picture = this.pictures[i];
         if (picture.blobUrl) {
             URL.revokeObjectURL(picture.blobUrl);
         }
@@ -246,50 +238,48 @@ TagData.prototype.reclaimPictures = function() {
 };
 
 TagData.prototype._getEmbeddedImage = function() {
-    var picture = this.pictures[0];
+    let clear, error;
+    const picture = this.pictures[0];
     if (picture.image) {
         return picture.image;
     }
 
     addPictureHoldingTagData(this);
-    var img = new Image();
+    const img = new Image();
     picture.image = img;
     img.tag = picture.tag;
-    var blobUrl;
+    let blobUrl;
 
-    var clear = function() {
-        picture.blobUrl = null;
+    clear = () => {
+        clear = error = picture.blobUrl = null;
         URL.revokeObjectURL(blobUrl);
-        img.removeEventListener("load", success, false);
-        img.removeEventListener("error", error, false);
+        img.removeEventListener(`load`, clear, false);
+        img.removeEventListener(`error`, error, false);
     };
 
-    var self = this;
-
-    var success = clear;
-    var error = function() {
+    error = () => {
         clear();
-        var i = self.pictures.indexOf(picture);
+        const i = this.pictures.indexOf(picture);
         if (i >= 0) {
-            self.pictures.splice(i, 1);
+            this.pictures.splice(i, 1);
         }
         clearPicture(picture);
     };
 
-    img.addEventListener("load", success, false);
-    img.addEventListener("error", error, false);
+    img.addEventListener(`load`, clear, false);
+    img.addEventListener(`error`, error, false);
 
     if (picture.blobUrl) {
         img.src = picture.blobUrl;
         img.blob = picture.blob;
-        blobUrl = picture.blobUrl;
+        blobUrl = img.src;
         if (img.complete) {
             clear();
         }
         return img;
     }
 
-    var url = URL.createObjectURL(picture.blob);
+    const url = URL.createObjectURL(picture.blob);
     picture.blobUrl = url;
     img.src = url;
     img.blob = picture.blob;
@@ -307,7 +297,7 @@ TagData.prototype.getImage = function() {
 };
 
 TagData.prototype.destroy = function() {
-    this._trackAnalyzer.removeFromSearchIndex(this.track);
+    this._context.search.removeFromSearchIndex(this.track);
     while (this.pictures.length) {
         clearPicture(this.pictures.shift());
     }
@@ -351,7 +341,7 @@ TagData.prototype.getBeginSilenceLength = function() {
 
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId) {
-        var searchTermsUpdated = false;
+        let searchTermsUpdated = false;
         if (acoustId.artist && !this.taggedArtist) {
             this.artist = formatTagString(acoustId.artist.name);
             searchTermsUpdated = true;
@@ -366,7 +356,7 @@ TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
         }
 
         if (searchTermsUpdated) {
-            this._trackAnalyzer.updateSearchIndex(this.track, {
+            this._context.search.updateSearchIndex(this.track, {
                 artist: this.artist,
                 title: this.title,
                 album: this.album,
@@ -416,16 +406,16 @@ TagData.prototype.hasBeenAnalyzed = function() {
 TagData.prototype.recordSkip = function() {
     this.skipCounter++;
     this.lastPlayed = Date.now();
-    this._trackAnalyzer.setSkipCounter(this.track, this.skipCounter);
+    this._context.usageData.setSkipCounter(this.track, this.skipCounter);
 };
 
 TagData.prototype.triggerPlaythrough = function() {
     this.playthroughCounter++;
     this.lastPlayed = Date.now();
-    this._trackAnalyzer.setPlaythroughCounter(this.track, this.playthroughCounter);
+    this._context.usageData.setPlaythroughCounter(this.track, this.playthroughCounter);
 };
 
-TagData.prototype.setLoudness = function(data) {
+TagData.prototype.setLoudness = function(data, noUpdate = false) {
     this.trackGain = data.trackGain;
     this.trackPeak = data.trackPeak || 1;
     this.albumGain = data.albumGain;
@@ -437,7 +427,10 @@ TagData.prototype.setLoudness = function(data) {
                             this.endSilenceLength ||
                             0;
     if (this.endSilenceLength < 1) this.endSilenceLength = 0;
-    this.track.tagDataUpdated();
+
+    if (!noUpdate) {
+        this.track.tagDataUpdated();
+    }
 };
 
 TagData.prototype.setDataFromTagDatabase = function(data) {
@@ -453,5 +446,24 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;
-    this.setLoudness(data);
+    if (data.loudness) {
+        this.setLoudness(data.loudness, true);
+    }
+    this.track.tagDataUpdated();
 };
+
+export default class TagDataContext {
+    constructor() {
+        this.usageData = null;
+        this.search = null;
+    }
+
+    setDeps(deps) {
+        this.usageData = deps.usageData;
+        this.search = deps.search;
+
+    }
+    create(track, data) {
+        return new TagData(track, data, this);
+    }
+}

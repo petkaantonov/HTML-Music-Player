@@ -1,9 +1,9 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import TapRecognizer from "ui/gestures/TapRecognizer";
-import { inherits } from "util";
+import {inherits} from "util";
 
 export default function DoubleTapRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -17,22 +17,22 @@ export default function DoubleTapRecognizer(recognizerContext, handler) {
 }
 inherits(DoubleTapRecognizer, AbstractGestureRecognizer);
 
-DoubleTapRecognizer.prototype._tapHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+DoubleTapRecognizer.prototype._tapHandler = function(e, ...args) {
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const now = (e.timeStamp || e.originalEvent.timeStamp);
 
-    var now = (e.timeStamp || e.originalEvent.timeStamp);
     if (this.lastTap === -1) {
         this.lastTap = now;
         this.lastTouch = changedTouches[0];
     } else if (now - this.lastTap < this.recognizerContext.TAP_TIME * 1.62) {
-        var touch = this.lastTouch;
+        const touch = this.lastTouch;
         this.lastTouch = null;
-        var yDelta = Math.abs(touch.clientY - changedTouches[0].clientY);
-        var xDelta = Math.abs(touch.clientX - changedTouches[0].clientX);
+        const yDelta = Math.abs(touch.clientY - changedTouches[0].clientY);
+        const xDelta = Math.abs(touch.clientX - changedTouches[0].clientX);
         this.lastTap = -1;
         if (yDelta < this.recognizerContext.DOUBLE_TAP_MINIMUM_MOVEMENT &&
             xDelta < this.recognizerContext.DOUBLE_TAP_MINIMUM_MOVEMENT) {
-            return this.handler.apply(e.currentTarget, arguments);
+            this.handler.call(e.currentTarget, ...args);
         }
     } else {
         this.lastTouch = changedTouches[0];

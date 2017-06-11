@@ -1,29 +1,29 @@
-"use strict";
+
 import EventEmitter from "events";
-import { TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits, ensuredObjectField } from "util";
-import { SortedSet } from "DataStructures";
+import {noUndefinedGet, TRACK_SORTER, buildConsecutiveRanges, indexMapper, inherits} from "util";
+import {SortedSet} from "DataStructures";
 
 export default function Selectable(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     EventEmitter.call(this);
     this._page = deps.page;
-    this._listView = ensuredObjectField(opts, "listView");
+    this._listView = opts.listView;
     this._selectionPointer = null;
     this._lastIdx = null;
     this._lastStart = null;
     this._lastEnd = null;
     this._prioritySelection = null;
     this._selection = new SortedSet(TRACK_SORTER);
-    deps.ensure();
+
 }
 inherits(Selectable, EventEmitter);
 
 Selectable.prototype.trackViewMouseDown = function(e, trackView) {
     if (e.which !== 1 && e.which !== 3) {
-        return true;
+        return;
     }
 
-    var modifierKeyPropertyName = this._page.modifierKeyPropertyName();
+    const modifierKeyPropertyName = this._page.modifierKeyPropertyName();
 
     if (e.which === 3) {
         if (!this.contains(trackView)) {
@@ -33,7 +33,7 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
         return;
     }
 
-    var idx = trackView.getIndex();
+    const idx = trackView.getIndex();
 
     if (e.shiftKey && e[modifierKeyPropertyName]) {
         if (this._selectionPointer === null) {
@@ -55,13 +55,13 @@ Selectable.prototype.trackViewMouseDown = function(e, trackView) {
     } else if (!e[modifierKeyPropertyName] && !e.shiftKey) {
         if (this._selection.contains(trackView)) {
             this._selectionPointer = idx;
-            return true;
+            return;
         }
         this._resetPointers();
         this._clearSelection();
         this._add(idx);
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.trackViewClick = function(e, trackView) {
@@ -69,20 +69,20 @@ Selectable.prototype.trackViewClick = function(e, trackView) {
         this._resetPointers();
         this._clearSelection();
         this._add(trackView.getIndex());
-        this._listView.emit("tracksSelected", this);
+        this._listView.emit(`tracksSelected`, this);
     }
 };
 
 Selectable.prototype._clearSelection = function() {
     this._prioritySelection = null;
-    this._selection.forEach(function(trackView) {
+    this._selection.forEach((trackView) => {
         trackView.unselected();
     });
     this._selection.clear();
 };
 
 Selectable.prototype._add = function(index) {
-    var trackView = this._listView.getTrackViewByIndex(index);
+    const trackView = this._listView.getTrackViewByIndex(index);
     trackView.selected();
     this._selection.add(trackView);
 };
@@ -93,7 +93,7 @@ Selectable.prototype._shiftSelection = function(idx) {
         this._add(idx);
         this._selectionPointer = idx;
     }
-    var j;
+    let j;
     this._selectionPointer = null;
 
     if (!this._lastStart) {
@@ -102,8 +102,8 @@ Selectable.prototype._shiftSelection = function(idx) {
     }
 
     if (idx < this._lastStart) {
-        if (this._lastIdx === this._lastEnd || this._lastIdx ===
-            null) { // user changed this._selection directions to UP
+        // User changed this._selection directions to UP
+        if (this._lastIdx === this._lastEnd || this._lastIdx === null) {
             this._clearSelection();
             for (j = idx; j <= this._lastStart; ++j) {
                 this._add(j);
@@ -112,15 +112,16 @@ Selectable.prototype._shiftSelection = function(idx) {
             this._selectionPointer = idx;
             this._lastEnd = this._selection.last().getIndex();
             this._lastStart = this._selection.first().getIndex();
-        } else if (this._lastIdx === this._lastStart) { // user preserved this._selection direction UP
+        // User preserved this._selection direction UP
+        } else if (this._lastIdx === this._lastStart) {
             for (j = idx; j <= this._lastStart; ++j) {
                 this._add(j);
             }
             this._selectionPointer = idx;
         }
     } else if (idx > this._lastEnd) {
-        if (this._lastIdx === this._lastStart || this._lastIdx ===
-            null) { // user changed this._selection directions to DOWN
+        // User changed this._selection directions to DOWN
+        if (this._lastIdx === this._lastStart || this._lastIdx === null) {
             this._clearSelection();
             if (this._lastIdx === null) {
                 for (j = this._lastStart; j <= idx; ++j) {
@@ -136,7 +137,8 @@ Selectable.prototype._shiftSelection = function(idx) {
             this._selectionPointer = idx;
             this._lastEnd = this._selection.last().getIndex();
             this._lastStart = this._selection.first().getIndex();
-        } else if (this._lastIdx === this._lastEnd) { // user preserved this._selection direction DOWN
+        // User preserved this._selection direction DOWN
+        } else if (this._lastIdx === this._lastEnd) {
             for (j = this._lastEnd; j <= idx; ++j) {
                 this._add(j);
             }
@@ -158,7 +160,7 @@ Selectable.prototype._shiftSelection = function(idx) {
 };
 
 Selectable.prototype._appendingShiftSelection = function(idx) {
-    var j;
+    let j;
     if (idx < this._selectionPointer) {
         for (j = idx; j <= this._selectionPointer; ++j) {
             this._add(j);
@@ -172,7 +174,7 @@ Selectable.prototype._appendingShiftSelection = function(idx) {
 };
 
 Selectable.prototype._remove = function(idx) {
-    var trackView = this._listView.getTrackViewByIndex(idx);
+    const trackView = this._listView.getTrackViewByIndex(idx);
     if (trackView === this._prioritySelection) {
         this._prioritySelection = null;
     }
@@ -181,8 +183,8 @@ Selectable.prototype._remove = function(idx) {
 };
 
 Selectable.prototype._getMiddleOfSelection = function() {
-    var length = this._selection.size();
-    var mid = Math.floor(length / 2);
+    const length = this._selection.size();
+    const mid = Math.floor(length / 2);
     return this._selection.get(mid);
 };
 
@@ -195,21 +197,21 @@ Selectable.prototype.contains = function(trackView) {
 };
 
 Selectable.prototype.removeTrackView = function(trackView) {
-    var index = trackView.getIndex();
+    const index = trackView.getIndex();
     if (index >= 0) {
         this._remove(index);
-        this._listView.emit("tracksSelected", this);
+        this._listView.emit(`tracksSelected`, this);
     }
 };
 
 Selectable.prototype.addTrackView = function(trackView) {
-    var index = trackView.getIndex();
+    const index = trackView.getIndex();
     if (index >= 0) {
         if (this._selection.contains(trackView)) {
             return false;
         }
         this._add(index);
-        this._listView.emit("tracksSelected", this);
+        this._listView.emit(`tracksSelected`, this);
         return true;
     }
     return false;
@@ -249,15 +251,15 @@ Selectable.prototype.removeTopmostSelection = function(distance) {
 
     if (distance > 0) {
         this._resetPointers();
-        var start = this._selection.first().getIndex();
-        var end = start + distance;
+        const start = this._selection.first().getIndex();
+        const end = start + distance;
 
-        for (var i = start; i < end; ++i) {
+        for (let i = start; i < end; ++i) {
             this._remove(i);
         }
 
         this._selectionPointer = this._selection.first().getIndex();
-        this._listView.emit("tracksSelected", this);
+        this._listView.emit(`tracksSelected`, this);
         this._moveToMiddleOfSelection();
     }
 };
@@ -268,14 +270,14 @@ Selectable.prototype.removeBottommostSelection = function(distance) {
 
     if (distance > 0) {
         this._resetPointers();
-        var start = this._selection.last().getIndex() - distance + 1;
-        var end = start + distance;
-        for (var i = start; i < end; ++i) {
+        const start = this._selection.last().getIndex() - distance + 1;
+        const end = start + distance;
+        for (let i = start; i < end; ++i) {
             this._remove(i);
         }
 
         this._selectionPointer = this._selection.last().getIndex();
-        this._listView.emit("tracksSelected", this);
+        this._listView.emit(`tracksSelected`, this);
         this._moveToMiddleOfSelection();
     }
 };
@@ -283,14 +285,14 @@ Selectable.prototype.removeBottommostSelection = function(distance) {
 Selectable.prototype.appendPrev = function(distance) {
     if (distance === undefined) distance = 1;
     this._resetPointers();
-    var cur;
+    let cur;
     if (!this._selection.isEmpty()) {
         cur = this._selection.first().getIndex();
         if (cur > 0) {
-            var end = cur;
-            var start = Math.max(0, cur - distance);
+            const end = cur;
+            const start = Math.max(0, cur - distance);
 
-            for (var i = start; i < end; ++i) {
+            for (let i = start; i < end; ++i) {
                 this._add(i);
             }
             this._selectionPointer = start;
@@ -299,21 +301,21 @@ Selectable.prototype.appendPrev = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
 Selectable.prototype.appendNext = function(distance) {
     if (distance === undefined) distance = 1;
     this._resetPointers();
-    var cur;
+    let cur;
     if (!this._selection.isEmpty()) {
         cur = this._selection.last().getIndex();
         if (cur < this._listView.length - 1) {
-            var end = Math.min(this._listView.length, cur + distance + 1);
-            var start = cur + 1;
+            const end = Math.min(this._listView.length, cur + distance + 1);
+            const start = cur + 1;
 
-            for (var i = start; i < end; ++i) {
+            for (let i = start; i < end; ++i) {
                 this._add(i);
             }
             this._selectionPointer = end - 1;
@@ -322,7 +324,7 @@ Selectable.prototype.appendNext = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
@@ -330,7 +332,7 @@ Selectable.prototype.prev = function(distance) {
     if (distance === undefined) distance = 1;
 
     this._resetPointers();
-    var cur;
+    let cur;
     if (!this._selection.isEmpty()) {
         cur = this._selection.first().getIndex();
         this._clearSelection();
@@ -341,14 +343,14 @@ Selectable.prototype.prev = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
 Selectable.prototype.next = function(distance) {
     if (distance === undefined) distance = 1;
     this._resetPointers();
-    var cur;
+    let cur;
     if (!this._selection.isEmpty()) {
         cur = this._selection.last().getIndex();
         this._clearSelection();
@@ -359,7 +361,7 @@ Selectable.prototype.next = function(distance) {
         this._add(0);
         this._selectionPointer = 0;
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
@@ -368,7 +370,7 @@ Selectable.prototype.selectLast = function() {
     this._clearSelection();
     this._add(this._listView.length - 1);
     this._selectionPointer = this._listView.length - 1;
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
@@ -377,7 +379,7 @@ Selectable.prototype.selectFirst = function() {
     this._clearSelection();
     this._add(0);
     this._selectionPointer = 0;
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
     this._moveToMiddleOfSelection();
 };
 
@@ -386,17 +388,17 @@ Selectable.prototype.getSelectedItemViewCount = function() {
 };
 
 Selectable.prototype.removeIndices = function(indices) {
-    for (var i = 0; i < indices.length; ++i) {
+    for (let i = 0; i < indices.length; ++i) {
         this._remove(indices[i]);
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.addIndices = function(indices) {
-    for (var i = 0; i < indices.length; ++i) {
+    for (let i = 0; i < indices.length; ++i) {
         this._add(indices[i]);
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.selectIndices = function(indices) {
@@ -414,7 +416,7 @@ Selectable.prototype._resetPointers = function() {
 
 Selectable.prototype.updateOrder = function(selection) {
     this._selection.clear();
-    for (var i = 0; i < selection.length; ++i) {
+    for (let i = 0; i < selection.length; ++i) {
         this._selection.add(selection[i]);
     }
 };
@@ -422,7 +424,7 @@ Selectable.prototype.updateOrder = function(selection) {
 Selectable.prototype.clearSelection = function() {
     this._resetPointers();
     this._clearSelection();
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.getSelection = function() {
@@ -430,18 +432,18 @@ Selectable.prototype.getSelection = function() {
 };
 
 Selectable.prototype.selectTrackView = function(trackView) {
-    var index = trackView.getIndex();
+    const index = trackView.getIndex();
     if (index >= 0) {
         this.selectRange(index, index);
     }
 };
 
 Selectable.prototype.setPriorityTrackView = function(trackView) {
-    var index = trackView.getIndex();
+    const index = trackView.getIndex();
     if (index >= 0) {
         if (!this._selection.contains(trackView)) {
             this._add(index);
-            this._listView.emit("tracksSelected", this);
+            this._listView.emit(`tracksSelected`, this);
         }
         this._prioritySelection = trackView;
     }
@@ -456,7 +458,7 @@ Selectable.prototype.getPriorityTrackView = function() {
 };
 
 Selectable.prototype.containsAnyInRange = function(start, end) {
-    for (var i = start; i <= end; ++i) {
+    for (let i = start; i <= end; ++i) {
         if (this._selection.contains(this._listView.getTrackViewByIndex(i))) {
             return true;
         }
@@ -465,8 +467,8 @@ Selectable.prototype.containsAnyInRange = function(start, end) {
 };
 
 Selectable.prototype.selectRange = function(start, end) {
-    var first = this.first();
-    var last = this.last();
+    const first = this.first();
+    const last = this.last();
 
     if (first !== null && first.getIndex() === start &&
         last !== null && last.getIndex() === end) {
@@ -475,14 +477,14 @@ Selectable.prototype.selectRange = function(start, end) {
 
     this._resetPointers();
     this._clearSelection();
-    for (var i = start; i <= end; ++i) {
+    for (let i = start; i <= end; ++i) {
         this._add(i);
     }
     this._lastStart = start;
     this._lastEnd = end;
     this._lastStart = start;
     this._selectionPointer = end;
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.first = function() {
@@ -496,11 +498,11 @@ Selectable.prototype.last = function() {
 };
 
 Selectable.prototype.all = function() {
-    var trackViews = this._listView.getTrackViews();
-    for (var i = 0; i < trackViews.length; ++i) {
+    const trackViews = this._listView.getTrackViews();
+    for (let i = 0; i < trackViews.length; ++i) {
         this._add(i);
     }
-    this._listView.emit("tracksSelected", this);
+    this._listView.emit(`tracksSelected`, this);
 };
 
 Selectable.prototype.remove = function(trackView) {
@@ -510,16 +512,16 @@ Selectable.prototype.remove = function(trackView) {
 };
 
 Selectable.moveSelectedItemViewsDownBy = function(trackViews, selection, distance) {
-    var selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
+    const selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
 
-    while(distance-- > 0 && selectedTrackRanges.last().last().getIndex() < trackViews.length - 1) {
-        for (var i = 0; i < selectedTrackRanges.length; ++i) {
-            var selectedTracks = selectedTrackRanges[i];
-            var bumpedTrackView = trackViews[selectedTracks.last().getIndex() + 1];
-            var bumpedTrackNewIndex = selectedTracks.first().getIndex();
-            for (var j = 0; j < selectedTracks.length; ++j) {
-                var trackView = selectedTracks[j];
-                var newIndex = trackView.getIndex() + 1;
+    while (distance-- > 0 && selectedTrackRanges.last().last().getIndex() < trackViews.length - 1) {
+        for (let i = 0; i < selectedTrackRanges.length; ++i) {
+            const selectedTracks = selectedTrackRanges[i];
+            const bumpedTrackView = trackViews[selectedTracks.last().getIndex() + 1];
+            const bumpedTrackNewIndex = selectedTracks.first().getIndex();
+            for (let j = 0; j < selectedTracks.length; ++j) {
+                const trackView = selectedTracks[j];
+                const newIndex = trackView.getIndex() + 1;
                 trackViews[newIndex] = trackView;
                 trackView.setIndex(newIndex);
             }
@@ -530,16 +532,16 @@ Selectable.moveSelectedItemViewsDownBy = function(trackViews, selection, distanc
 };
 
 Selectable.moveSelectedItemViewsUpBy = function(trackViews, selection, distance) {
-    var selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
+    const selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
 
-    while(distance-- > 0 && selectedTrackRanges.first().first().getIndex() > 0) {
-        for (var i = selectedTrackRanges.length - 1; i >= 0; --i) {
-            var selectedTracks = selectedTrackRanges[i];
-            var bumpedTrackView = trackViews[selectedTracks.first().getIndex() - 1];
-            var bumpedTrackNewIndex = selectedTracks.last().getIndex();
-            for (var j = 0; j < selectedTracks.length; ++j) {
-                var trackView = selectedTracks[j];
-                var newIndex = trackView.getIndex() - 1;
+    while (distance-- > 0 && selectedTrackRanges.first().first().getIndex() > 0) {
+        for (let i = selectedTrackRanges.length - 1; i >= 0; --i) {
+            const selectedTracks = selectedTrackRanges[i];
+            const bumpedTrackView = trackViews[selectedTracks.first().getIndex() - 1];
+            const bumpedTrackNewIndex = selectedTracks.last().getIndex();
+            for (let j = 0; j < selectedTracks.length; ++j) {
+                const trackView = selectedTracks[j];
+                const newIndex = trackView.getIndex() - 1;
                 trackViews[newIndex] = trackView;
                 trackView.setIndex(newIndex);
             }

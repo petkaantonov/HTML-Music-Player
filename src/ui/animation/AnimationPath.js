@@ -1,4 +1,4 @@
-"use strict";
+
 
 import Line from "ui/animation/Line";
 import Move from "ui/animation/Move";
@@ -16,10 +16,10 @@ export default function AnimationPath(addX, addY) {
 }
 
 AnimationPath.prototype._getRangeAt = function(progress) {
-    var ranges = this._ranges;
-    var range;
+    const ranges = this._ranges;
+    let range;
 
-    for (var i = 0; i < ranges.length; ++i) {
+    for (let i = 0; i < ranges.length; ++i) {
         range = ranges[i];
         if (range.progressStart <= progress && progress <= range.progressEnd) {
             return range;
@@ -29,41 +29,41 @@ AnimationPath.prototype._getRangeAt = function(progress) {
 };
 
 AnimationPath.prototype._previous = function() {
-    if (!this._path.length) throw new Error("no reference point");
+    if (!this._path.length) throw new Error(`no reference point`);
     return this._path[this._path.length - 1];
 };
 
 AnimationPath.prototype.moveTo = function(x, y) {
-    if (this._closed) throw new Error("path already closed");
+    if (this._closed) throw new Error(`path already closed`);
     x = +x;
     y = +y;
     this._path.push(new Move(x, y));
 };
 
 AnimationPath.prototype.lineTo = function(x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
     this._path.push(new Line(prev.endX(), prev.endY(), x, y, progress));
 };
 
 AnimationPath.prototype.quadraticCurveTo = function(cpx, cpy, x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
     this._path.push(new QuadraticCurve(prev.endX(), prev.endY(), x, y, cpx, cpy, progress));
 };
 
 AnimationPath.prototype.curveTo = function(endX, endY, gap, positionMultiplier, side, progress) {
-    if (side == null) side = 1;
-    if (positionMultiplier == null) positionMultiplier = 0.5;
-    if (gap == null) gap = 5;
-    var prev = this._previous();
-    var startX = prev.endX();
-    var startY = prev.endY();
-    var angle = Math.atan2(endY - startY, endX - startX);
-    var midX = (endX - startX) * positionMultiplier;
-    var midY = (endY - startY) * positionMultiplier;
+    if (side === null || typeof side === `undefined`) side = 1;
+    if (positionMultiplier === null || typeof positionMultiplier === `undefined`) positionMultiplier = 0.5;
+    if (gap === null || typeof positionMultiplier === `undefined`) gap = 5;
+    const prev = this._previous();
+    const startX = prev.endX();
+    const startY = prev.endY();
+    const angle = Math.atan2(endY - startY, endX - startX);
+    const midX = (endX - startX) * positionMultiplier;
+    const midY = (endY - startY) * positionMultiplier;
 
-    var x, y;
+    let x, y;
     if (side < 0) {
         x = Math.sin(angle) * gap + midX;
         y = -Math.cos(angle) * gap + midY;
@@ -76,8 +76,8 @@ AnimationPath.prototype.curveTo = function(endX, endY, gap, positionMultiplier, 
 };
 
 AnimationPath.prototype.cubicCurveTo = function(cpx1, cpy1, cpx2, cpy2, x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
@@ -98,76 +98,76 @@ AnimationPath.prototype.cubicCurveTo = function(cpx1, cpy1, cpx2, cpy2, x, y, pr
 ~ limitations under the License
 */
 AnimationPath.prototype.fastOutLinearInCurveTo = function(x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
-    var startX = prev.endX();
-    var startY = prev.endY();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
+    const startX = prev.endX();
+    const startY = prev.endY();
 
     // CP1(0.4, 0)
     // CP2(1, 1)
-    var cpx1 = 0.4 * (x - startX) + startX;
-    var cpy1 = startY;
-    var cpx2 = x;
-    var cpy2 = y;
+    const cpx1 = 0.4 * (x - startX) + startX;
+    const cpy1 = startY;
+    const cpx2 = x;
+    const cpy2 = y;
 
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
 AnimationPath.prototype.fastOutSlowInCurveTo = function(x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
-    var startX = prev.endX();
-    var startY = prev.endY();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
+    const startX = prev.endX();
+    const startY = prev.endY();
 
     // CP1(0.4, 0)
     // CP2(0.2, 1)
-    var cpx1 = 0.4 * (x - startX) + startX;
-    var cpy1 = startY;
-    var cpx2 = 0.2 * (x - startX) + startX;
-    var cpy2 = y;
+    const cpx1 = 0.4 * (x - startX) + startX;
+    const cpy1 = startY;
+    const cpx2 = 0.2 * (x - startX) + startX;
+    const cpy2 = y;
 
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
 AnimationPath.prototype.linearOutSlowInCurveTo = function(x, y, progress) {
-    if (this._closed) throw new Error("path already closed");
-    var prev = this._previous();
-    var startX = prev.endX();
-    var startY = prev.endY();
+    if (this._closed) throw new Error(`path already closed`);
+    const prev = this._previous();
+    const startX = prev.endX();
+    const startY = prev.endY();
 
     // CP1(0, 0)
     // CP2(0.2, 1)
-    var cpx1 = startX;
-    var cpy1 = startY;
-    var cpx2 = 0.2 * (x - startX) + startX;
-    var cpy2 = y;
+    const cpx1 = startX;
+    const cpy1 = startY;
+    const cpx2 = 0.2 * (x - startX) + startX;
+    const cpy2 = y;
 
     this._path.push(new CubicCurve(prev.endX(), prev.endY(), x, y, cpx1, cpy1, cpx2, cpy2, progress));
 };
 
 AnimationPath.prototype.close = function() {
-    if (this._closed) throw new Error("path already closed");
+    if (this._closed) throw new Error(`path already closed`);
     this._closed = true;
-    var now = 0;
+    let now = 0;
 
-    for (var i = 0; i < this._path.length; ++i) {
-        var item = this._path[i];
+    for (let i = 0; i < this._path.length; ++i) {
+        const item = this._path[i];
 
         if (!(item instanceof Move)) {
-            var progress = item.progress;
-            var start = now;
-            var end = start + progress;
+            const {progress} = item;
+            const start = now;
+            const end = start + progress;
 
             this._ranges.push(new Range(item, start, end));
             now = end;
         }
     }
-    var max = now;
+    const max = now;
     this._max = max;
     now = 0;
-    for (var i = 0; i < this._ranges.length; ++i) {
-        var range = this._ranges[i];
-        var dist = range.end - range.start;
+    for (let i = 0; i < this._ranges.length; ++i) {
+        const range = this._ranges[i];
+        const dist = range.end - range.start;
         range.progressStart = now;
         range.progressEnd = now + dist / max;
         now = range.progressEnd;

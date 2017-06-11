@@ -1,16 +1,14 @@
-"use strict";
-
+import {noUndefinedGet} from "util";
 import Scroller from "scroller";
 import Scrollbar from "ui/scrolling/Scrollbar";
-import ApplicationDependencies from "ApplicationDependencies";
-import { ensuredObjectField } from "util";
+import withDeps from "ApplicationDependencies";
 
 export default function ContentScroller(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this._page = deps.page;
 
-    this._domNode = this._page.$(ensuredObjectField(opts, "target")).eq(0);
-    this._contentContainer = this._page.$(ensuredObjectField(opts, "contentContainer")).eq(0);
+    this._domNode = this._page.$(opts.target).eq(0);
+    this._contentContainer = this._page.$(opts.contentContainer).eq(0);
 
     this._scrollTop = 0;
     this._frameId = -1;
@@ -25,12 +23,10 @@ export default function ContentScroller(opts, deps) {
     this._renderScrollTop = this._renderScrollTop.bind(this);
     this._clearWillChange = this._clearWillChange.bind(this);
 
-    this._scroller = new Scroller(this._renderScroller, ensuredObjectField(opts, "scrollerOpts"));
-    var scrollbarOpts = ensuredObjectField(opts, "scrollbarOpts");
+    this._scroller = new Scroller(this._renderScroller, opts.scrollerOpts);
+    const {scrollbarOpts} = opts;
     scrollbarOpts.scrollerInfo = this;
-    this._scrollbar = new Scrollbar(scrollbarOpts, new ApplicationDependencies({
-        page: this._page
-    }));
+    this._scrollbar = withDeps({page: this._page}, d => new Scrollbar(scrollbarOpts, d));
     this._scrollerEventBinding = deps.scrollEvents.createBinding({
         target: this.$contentContainer(),
         scroller: this._scroller,
@@ -38,7 +34,7 @@ export default function ContentScroller(opts, deps) {
         shouldScroll: opts.shouldScroll
     });
     this.refresh();
-    deps.ensure();
+
 }
 
 ContentScroller.prototype.$ = function() {
@@ -77,8 +73,8 @@ ContentScroller.prototype._scheduleRender = function() {
 ContentScroller.prototype._renderScrollTop = function() {
     this._clearWillChangeTimerId = this._page.setTimeout(this._clearWillChange, 500);
     this._frameId = -1;
-    var y = -this._scrollTop;
-    this.$contentContainer().setTransform("translate3d(0px, "+y+"px, 0px)");
+    const y = -this._scrollTop;
+    this.$contentContainer().setTransform(`translate3d(0px, ${y}px, 0px)`);
     this._scrollbar.render(this._scrollTop);
 };
 
@@ -91,13 +87,13 @@ ContentScroller.prototype._clearWillChangeTimer = function() {
 ContentScroller.prototype._clearWillChange = function() {
     if (!this._willChangeSet) return;
     this._willChangeSet = false;
-    this.$contentContainer().setStyle("willChange", "");
+    this.$contentContainer().setStyle(`willChange`, ``);
 };
 
 ContentScroller.prototype._setWillChange = function() {
     if (this._willChangeSet) return;
     this._willChangeSet = true;
-    this.$contentContainer().setStyle("willChange", "transform");
+    this.$contentContainer().setStyle(`willChange`, `transform`);
 };
 
 ContentScroller.prototype._renderScroller = function(left, top) {
@@ -123,20 +119,20 @@ ContentScroller.prototype.maxTop = function() {
 
 ContentScroller.prototype.scrollBy = function(amount) {
     if (amount === 0) return;
-    var maxTop = this.maxTop();
-    var top = this.settledScrollTop() + amount;
+    const maxTop = this.maxTop();
+    let top = this.settledScrollTop() + amount;
     top = Math.max(0, Math.min(Math.round(top), maxTop));
     this._scrollTop = top;
     this._scroller.scrollTo(null, top, false);
 };
 
 ContentScroller.prototype.resize = function() {
-    var topLeft = this.getTopLeft();
+    const topLeft = this.getTopLeft();
     this._left = topLeft.left;
     this._top = topLeft.top;
-    var width = this.$().innerWidth();
-    var maxTop = this.maxTop();
-    var top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
+    const width = this.$().innerWidth();
+    const maxTop = this.maxTop();
+    const top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
     this._scrollTop = top;
     this._scrollbar.resize();
     this._scroller.setPosition(this._left, this._top);
@@ -151,24 +147,24 @@ ContentScroller.prototype.loadScrollTop = function(top) {
 
 ContentScroller.prototype.settledScrollTop = function() {
     if (!this.needScrollbar()) return 0;
-    return this._scrollTop|0;
+    return this._scrollTop | 0;
 };
 
 ContentScroller.prototype.scrollIntoView = function(elem, animate) {
-    var scrollTop = this.settledScrollTop();
-    var height = this.contentHeight();
-    var rect = elem.getBoundingClientRect();
-    var elemStart = rect.top - this._top + scrollTop;
-    var elemEnd = rect.bottom - this._top + scrollTop;
+    const scrollTop = this.settledScrollTop();
+    const height = this.contentHeight();
+    const rect = elem.getBoundingClientRect();
+    const elemStart = rect.top - this._top + scrollTop;
+    const elemEnd = rect.bottom - this._top + scrollTop;
 
-    var visibleStart = scrollTop;
-    var visibleEnd = scrollTop + height;
+    const visibleStart = scrollTop;
+    const visibleEnd = scrollTop + height;
 
     if (elemStart >= visibleStart && elemEnd <= visibleEnd) {
         return;
     }
 
-    var pos = elemEnd < visibleStart ? elemStart : elemEnd;
+    const pos = elemEnd < visibleStart ? elemStart : elemEnd;
 
     this.scrollToUnsnapped(pos / this.physicalHeight() * this.maxTop(), !!animate);
 };

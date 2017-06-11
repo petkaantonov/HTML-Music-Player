@@ -1,6 +1,6 @@
-"use strict";
 
-import { DomWrapper } from "platform/dom/Page";
+
+import {DomWrapper} from "platform/dom/Page";
 
 export default function AbstractGestureRecognizer(recognizerContext) {
     this.recognizerContext = recognizerContext;
@@ -19,7 +19,7 @@ AbstractGestureRecognizer.prototype.fireLongPressEnd = function(t) {
 };
 
 AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {
-    var modifierTouch = this.recognizerContext.modifierTouch;
+    const {modifierTouch} = this.recognizerContext;
     return !!(modifierTouch && (now - modifierTouch.started > this.recognizerContext.TAP_TIME * 0.5));
 };
 
@@ -36,21 +36,21 @@ AbstractGestureRecognizer.prototype.getModifierTouch = function() {
 };
 
 AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
-    if (!elem || (typeof elem.nodeType !== "number" && !(elem instanceof DomWrapper))) {
-        throw new TypeError("elem is not a dom node");
+    if (!elem || (typeof elem.nodeType !== `number` && !(elem instanceof DomWrapper))) {
+        throw new TypeError(`elem is not a dom node`);
     }
-    var eventTypes = this._eventType;
-    for (var i = 0; i < eventTypes.length; ++i) {
+    const eventTypes = this._eventType;
+    for (let i = 0; i < eventTypes.length; ++i) {
         elem.addEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
     }
 };
 
 AbstractGestureRecognizer.prototype._unrecognizeOn = function(elem, useCapture) {
-    if (!elem || (typeof elem.nodeType !== "number" && !(elem instanceof DomWrapper))) {
-        throw new TypeError("elem is not a dom node");
+    if (!elem || (typeof elem.nodeType !== `number` && !(elem instanceof DomWrapper))) {
+        throw new TypeError(`elem is not a dom node`);
     }
-    var eventTypes = this._eventType;
-    for (var i = 0; i < eventTypes.length; ++i) {
+    const eventTypes = this._eventType;
+    for (let i = 0; i < eventTypes.length; ++i) {
         elem.removeEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
     }
 };

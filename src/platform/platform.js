@@ -1,39 +1,106 @@
-/* globals self: false */
-"use strict";
+export const {ArrayBuffer,
+    Blob,
+    File,
+    Int8Array,
+    Uint8Array,
+    Uint8ClampedArray,
+    Int16Array,
+    Uint16Array,
+    Int32Array,
+    Uint32Array,
+    Float32Array,
+    Float64Array,
+    AudioContext,
+    URL,
+    FileReader,
+    DataView,
+    MouseEvent,
+    EventEmitter,
+    Worker,
+    indexedDB,
+    Directory,
+    Image,
+    codecLoaded,
+    XMLHttpRequest,
+    setTimeout,
+    setInterval,
+    clearTimeout,
+    clearInterval,
+    performance,
+    console,
+    MediaError,
+    MediaMetadata,
+    AudioParam,
+    matchMedia,
+    Symbol,
+    TextDecoder,
+    TextEncoder,
+    crypto,
+    Map,
+    FileReaderSync,
+    importScripts,
+    MessageChannel,
+    fetch,
+    Request,
+    Response,
+    Proxy,
+    WebAssembly
+} = self;
 
-export const ArrayBuffer = self.ArrayBuffer;
-export const Blob = self.Blob;
-export const File = self.File;
-export const Int8Array = self.Int8Array;
-export const Uint8Array = self.Uint8Array;
-export const Uint8ClampedArray = self.Uint8ClampedArray;
-export const Int16Array = self.Int16Array;
-export const Uint16Array = self.Uint16Array;
-export const Int32Array = self.Int32Array;
-export const Uint32Array = self.Uint32Array;
-export const Float32Array = self.Float32Array;
-export const Float64Array = self.Float64Array;
-export const AudioContext = self.AudioContext;
-export const webkitAudioContext = self.webkitAudioContext;
-export const URL = self.URL;
-export const FileReader = self.FileReader;
-export const FileReaderSync = self.FileReaderSync;
-export const DataView = self.DataView;
-export const MouseEvent = self.MouseEvent;
-export const EventEmitter = self.EventEmitter;
-export const Worker = self.Worker;
-export const indexedDB = self.indexedDB || self.mozIndexedDB || self.msIndexedDB;
-export const Directory = self.Directory || function() {};
-export const Image = self.Image;
-export const codecLoaded = self.codecLoaded;
-export const XMLHttpRequest = self.XMLHttpRequest;
-export const setTimeout = self.setTimeout;
-export const setInterval = self.setInterval;
-export const clearTimeout = self.clearTimeout;
-export const clearInterval = self.clearInterval;
-export const performance = self.performance;
-export const console = self.console || {log: function() {}, warn: function() {}};
-export const MediaError = self.MediaError;
-export const MediaMetadata = self.MediaMetadata;
-export const AudioParam = self.AudioParam;
-export const matchMedia = self.matchMedia;
+const global = self;
+
+export {global as self};
+
+function titleCase(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function prefix(Class, methodName) {
+    const MethodName = titleCase(methodName);
+    return Class.prototype[methodName] ||
+           Class.prototype[`ms${MethodName}`] ||
+           Class.prototype[`moz${MethodName}`] ||
+           Class.prototype[`webkit${MethodName}`];
+}
+
+if (typeof Blob !== `undefined`) {
+    const BlobClose = prefix(Blob, `close`);
+    if (typeof BlobClose === `undefined`) {
+        Blob.prototype.close = function() {
+            // NOOP
+        };
+    } else {
+        Blob.prototype.close = function(...args) {
+            try {
+                return BlobClose.call(this, ...args);
+            } catch (e) {
+                return null;
+            }
+        };
+    }
+
+    if (typeof Blob.prototype.slice !== `function`) {
+        Blob.prototype.slice = prefix(Blob, `slice`);
+    }
+}
+
+if (typeof File !== `undefined`) {
+    const FileClose = prefix(File, `close`);
+    if (typeof FileClose === `undefined`) {
+        File.prototype.close = function() {
+            // NOOP
+        };
+    } else if (FileClose !== Blob.prototype.close) {
+        FileClose.prototype.close = function(...args) {
+            try {
+                return FileClose.call(this, ...args);
+            } catch (e) {
+                return null;
+            }
+        };
+    }
+
+    if (typeof File.prototype.slice !== `function`) {
+        File.prototype.slice = prefix(File, `slice`);
+    }
+}

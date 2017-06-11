@@ -1,14 +1,14 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 const VERTICAL = 1;
 const HORIZONTAL = -1;
@@ -32,12 +32,12 @@ AbstractDimensionCommittedDragRecognizer.HORIZONTAL = HORIZONTAL;
 
 AbstractDimensionCommittedDragRecognizer.prototype.end = function(e, touch) {
     if (this.currentTouch !== null) {
-        var committedDimension = this.committed === this.dimension;
+        const committedDimension = this.committed === this.dimension;
         this.committed = UNCOMMITTED;
-        var theTouch = touch || this.currentTouch;
+        const theTouch = touch || this.currentTouch;
         this.currentTouch = null;
         if (committedDimension) {
-            var g = new GestureObject(e, theTouch);
+            const g = new GestureObject(e, theTouch);
             this.endHandler.call(e.currentTouch, g);
         }
     }
@@ -50,7 +50,7 @@ AbstractDimensionCommittedDragRecognizer.prototype.clear = function() {
 };
 
 AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 1) {
@@ -74,9 +74,9 @@ AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function
             return;
         }
 
-        var touch = changedTouches[0];
-        var yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
-        var xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
+        const touch = changedTouches[0];
+        const yDelta = Math.abs(touch.clientY - this.currentTouch.clientY);
+        const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
 
         if (this.committed === UNCOMMITTED) {
             if (yDelta > 10 && yDelta > xDelta) {
@@ -91,7 +91,7 @@ AbstractDimensionCommittedDragRecognizer.prototype._recognizerHandler = function
             }
         } else if (this.committed === this.dimension) {
             this.currentTouch = touch;
-            var g = new GestureObject(e, touch);
+            const g = new GestureObject(e, touch);
             this.moveHandler.call(e.currentTarget, g);
         }
     }

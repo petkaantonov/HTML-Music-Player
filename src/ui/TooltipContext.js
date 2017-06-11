@@ -1,12 +1,12 @@
-"use strict";
-
-import ApplicationDependencies from "ApplicationDependencies";
+import withDeps from "ApplicationDependencies";
 import Tooltip from "ui/Tooltip";
+import {noUndefinedGet} from "util";
 
 export default function TooltipContext(opts, deps) {
     this.page = deps.page;
     this.recognizerContext = deps.recognizerContext;
     this.globalEvents = deps.globalEvents;
+    opts = noUndefinedGet(opts);
 
     this.gap = opts.gap;
     this.activation = opts.activation;
@@ -17,11 +17,15 @@ export default function TooltipContext(opts, deps) {
     this.delay = opts.delay;
     this.classPrefix = opts.classPrefix;
     this.container = opts.container;
-    deps.ensure();
+
 }
 
 TooltipContext.prototype.createTooltip = function(target, content) {
-    return new Tooltip({
+    return withDeps({
+        recognizerContext: this.recognizerContext,
+        globalEvents: this.globalEvents,
+        page: this.page
+    }, deps => new Tooltip({
         gap: this.gap,
         activation: this.activation,
         transitionClass: this.transitionClass,
@@ -30,12 +34,8 @@ TooltipContext.prototype.createTooltip = function(target, content) {
         arrow: this.arrow,
         delay: this.delay,
         classPrefix: this.classPrefix,
-        target: target,
-        content: content,
+        target,
+        content,
         container: this.container
-    }, new ApplicationDependencies({
-        recognizerContext: this.recognizerContext,
-        globalEvents: this.globalEvents,
-        page: this.page
-    }));
+    }, deps));
 };

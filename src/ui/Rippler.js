@@ -1,7 +1,7 @@
-"use strict";
+import {noUndefinedGet} from "util";
 
 const interp = function(currentTime, endTime) {
-    var value = currentTime / endTime;
+    const value = currentTime / endTime;
     return (1 - Math.pow(400, -value * 0.7142857142857143)) * 1.0140424162340527;
 };
 
@@ -29,7 +29,7 @@ function Ripple(rippler) {
     this.bounderNode = this.page().NULL();
     this.rippleNode = this.page().NULL();
     this.animator = null;
-    this.type = "unbounded";
+    this.type = `unbounded`;
     this.id = null;
     this.end = this.end.bind(this);
 }
@@ -43,20 +43,20 @@ Ripple.prototype.$ripple = function() {
 };
 
 Ripple.prototype.initBoundedDom = function() {
-    this.bounderNode = this.page().createElement("div", {class: "bounder-node"}).setStyles({
-        transform: "translate3d("+this.boundsRect.left+"px, "+this.boundsRect.top+"px, 0)",
-        width: this.boundsRect.width + "px",
-        height: this.boundsRect.height + "px"
+    this.bounderNode = this.page().createElement(`div`, {class: `bounder-node`}).setStyles({
+        transform: `translate3d(${this.boundsRect.left}px, ${this.boundsRect.top}px, 0)`,
+        width: `${this.boundsRect.width}px`,
+        height: `${this.boundsRect.height}px`
     });
 
-    var x = this.x - this.boundsRect.left - BASE_RADIUS;
-    var y = this.y - this.boundsRect.top - BASE_RADIUS;
+    const x = this.x - this.boundsRect.left - BASE_RADIUS;
+    const y = this.y - this.boundsRect.top - BASE_RADIUS;
 
-    this.rippleNode = this.page().createElement("div", {class: "ripple-node"}).setStyles({
+    this.rippleNode = this.page().createElement(`div`, {class: `ripple-node`}).setStyles({
         backgroundColor: this.color,
-        transform: "translate3d("+x+"px, "+y+"px, 0)",
-        width: (BASE_RADIUS * 2) + "px",
-        height: (BASE_RADIUS * 2) + "px"
+        transform: `translate3d(${x}px, ${y}px, 0)`,
+        width: `${BASE_RADIUS * 2}px`,
+        height: `${BASE_RADIUS * 2}px`
     });
 
     this.rippleNode.appendTo(this.bounderNode);
@@ -64,49 +64,49 @@ Ripple.prototype.initBoundedDom = function() {
 };
 
 Ripple.prototype.initUnboundedDom = function() {
-    var x = this.x - BASE_RADIUS;
-    var y = this.y - BASE_RADIUS;
-    this.rippleNode = this.page().createElement("div", {class: "ripple-node"}).setStyles({
+    const x = this.x - BASE_RADIUS;
+    const y = this.y - BASE_RADIUS;
+    this.rippleNode = this.page().createElement(`div`, {class: `ripple-node`}).setStyles({
         backgroundColor: this.color,
-        transform: "translate3d("+x+"px, "+y+"px, 0)",
-        width: (BASE_RADIUS * 2) + "px",
-        height: (BASE_RADIUS * 2) + "px"
+        transform: `translate3d(${x}px, ${y}px, 0)`,
+        width: `${BASE_RADIUS * 2}px`,
+        height: `${BASE_RADIUS * 2}px`
     });
 
     this.rippleNode.appendTo(this.rippler.$());
 };
 
-Ripple.prototype.initBounded = function(x, y, boundsRect, color, zIndex) {
+Ripple.prototype.initBounded = async function(x, y, boundsRect, color, zIndex) {
     this.id = null;
-    this.type = "bounded";
+    this.type = `bounded`;
     this.x = x;
     this.y = y;
     this.boundsRect = boundsRect;
     this.color = color;
     this.initBoundedDom();
 
-    this.$ripple().setStyle("zIndex", zIndex);
-    this.$bounder().setStyle("zIndex", zIndex);
+    this.$ripple().setStyle(`zIndex`, zIndex);
+    this.$bounder().setStyle(`zIndex`, zIndex);
 
-    var centerX = boundsRect.left + boundsRect.width / 2;
-    var centerY = boundsRect.top + boundsRect.height / 2;
+    const centerX = boundsRect.left + boundsRect.width / 2;
+    const centerY = boundsRect.top + boundsRect.height / 2;
 
-    var cornerX = x > centerX ? boundsRect.left : boundsRect.right;
-    var cornerY = y > centerY ? boundsRect.top : boundsRect.bottom;
+    const cornerX = x > centerX ? boundsRect.left : boundsRect.right;
+    const cornerY = y > centerY ? boundsRect.top : boundsRect.bottom;
 
 
-    var endRadius = Math.sqrt(Math.pow(Math.abs(cornerX - x), 2) +
+    const endRadius = Math.sqrt(Math.pow(Math.abs(cornerX - x), 2) +
                                 Math.pow(Math.abs(cornerY - y), 2)) * 1.1;
 
-    var startScale = radiusToScale(1);
-    var endScale = radiusToScale(endRadius);
+    const startScale = radiusToScale(1);
+    const endScale = radiusToScale(endRadius);
 
-    var animator = this.animationContext().createAnimator(this.$ripple(), {
+    const animator = this.animationContext().createAnimator(this.$ripple(), {
         opacity: {
             range: [BOUNDED_START_OPACITY, BOUNDED_END_OPACITY],
             interpolate: this.animationContext().LINEAR,
             duration: BOUNDED_OPACITY_DURATION,
-            unit: "%"
+            unit: `%`
         },
         scale: {
             range: [
@@ -120,29 +120,33 @@ Ripple.prototype.initBounded = function(x, y, boundsRect, color, zIndex) {
     });
 
     this.animator = animator;
-    animator.start(Math.max(BOUNDED_RADIUS_DURATION, BOUNDED_OPACITY_DURATION)).finally(this.end);
+    try {
+        await animator.start(Math.max(BOUNDED_RADIUS_DURATION, BOUNDED_OPACITY_DURATION));
+    } finally {
+        this.end();
+    }
 };
 
-Ripple.prototype.initUnbounded = function(x, y, size, color) {
+Ripple.prototype.initUnbounded = async function(x, y, size, color) {
     this.id = null;
-    this.type = "unbounded";
+    this.type = `unbounded`;
     this.x = x;
     this.y = y;
     this.color = color;
     this.initUnboundedDom();
 
-    this.$ripple().setStyle("zIndex", "");
+    this.$ripple().setStyle(`zIndex`, ``);
 
-    var endRadius = size;
-    var startScale = radiusToScale(1);
-    var endScale = radiusToScale(endRadius);
+    const endRadius = size;
+    const startScale = radiusToScale(1);
+    const endScale = radiusToScale(endRadius);
 
-    var animator = this.animationContext().createAnimator(this.$ripple(), {
+    const animator = this.animationContext().createAnimator(this.$ripple(), {
         opacity: {
             range: [UNBOUNDED_START_OPACITY, UNBOUNDED_END_OPACITY],
             interpolate: this.animationContext().LINEAR,
             duration: UNBOUNDED_OPACITY_DURATION,
-            unit: "%"
+            unit: `%`
         },
         scale: {
             range: [
@@ -156,7 +160,11 @@ Ripple.prototype.initUnbounded = function(x, y, size, color) {
     });
 
     this.animator = animator;
-    animator.start(Math.max(UNBOUNDED_RADIUS_DURATION, UNBOUNDED_OPACITY_DURATION)).finally(this.end);
+    try {
+        await animator.start(Math.max(UNBOUNDED_RADIUS_DURATION, UNBOUNDED_OPACITY_DURATION));
+    } finally {
+        this.end();
+    }
 };
 
 Ripple.prototype.end = function() {
@@ -177,7 +185,7 @@ Ripple.prototype.animationContext = function() {
 };
 
 export default function Rippler(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this._animationContext = deps.animationContext;
     this._page = deps.page;
     this._domNode = this._page.$(opts.target);
@@ -185,7 +193,7 @@ export default function Rippler(opts, deps) {
     this._ongoingRipples = [];
     this._shown = false;
     this._baseZIndex = opts.zIndex;
-    deps.ensure();
+
 }
 
 Rippler.prototype.$ = function() {
@@ -199,7 +207,7 @@ Rippler.prototype.rippleStarted = function(ripple) {
 };
 
 Rippler.prototype.rippleEnded = function(ripple) {
-    var i = this._ongoingRipples.indexOf(ripple);
+    const i = this._ongoingRipples.indexOf(ripple);
     if (i >= 0) {
         this._ongoingRipples.splice(i, 1);
     }
@@ -210,51 +218,50 @@ Rippler.prototype.rippleEnded = function(ripple) {
 };
 
 Rippler.prototype.rippleElement = function(elem, x, y, color, zIndex) {
-    var $elem = this._page.$(elem).eq(0);
-    var rect = $elem[0].getBoundingClientRect();
-    var id = $elem[0];
+    const $elem = this._page.$(elem).eq(0);
+    const rect = $elem[0].getBoundingClientRect();
+    const id = $elem[0];
 
-    for (var i = 0; i < this._ongoingRipples.length; ++i) {
-        var ongoingRipple = this._ongoingRipples[i];
-        if (ongoingRipple.id === id) {
+    for (let i = 0; i < this._ongoingRipples.length; ++i) {
+        if (this._ongoingRipples[i].id === id) {
             return;
         }
     }
 
-    if (!color) color = "#000";
-    if (zIndex == null) zIndex = "";
-    if (zIndex !== "") zIndex = (+zIndex) + "";
-    if (zIndex === "") zIndex = this._baseZIndex;
-    var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+    if (!color) color = `#000`;
+    if (zIndex === null || typeof zIndex === `undefined`) zIndex = ``;
+    if (zIndex !== ``) zIndex = `${+zIndex}`;
+    if (zIndex === ``) zIndex = this._baseZIndex;
+    const ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
     this.rippleStarted(ripple);
     ripple.initBounded(x, y, rect, color, zIndex);
     ripple.id = id;
 
-    for (var i = 0; i < this._ongoingRipples.length; ++i) {
-        var ongoingRipple = this._ongoingRipples[i];
-        if (ongoingRipple.type === "unbounded") {
+    for (let i = 0; i < this._ongoingRipples.length; ++i) {
+        const ongoingRipple = this._ongoingRipples[i];
+        if (ongoingRipple.type === `unbounded`) {
             ongoingRipple.animator.stop();
         }
     }
 };
 
 Rippler.prototype.rippleAt = function(x, y, size, color) {
-    if (!color) color = "#777";
+    if (!color) color = `#777`;
 
-    for (var i = 0; i < this._ongoingRipples.length; ++i) {
-        var ongoingRipple = this._ongoingRipples[i];
-        if (ongoingRipple.type === "bounded") {
+    for (let i = 0; i < this._ongoingRipples.length; ++i) {
+        const ongoingRipple = this._ongoingRipples[i];
+        if (ongoingRipple.type === `bounded`) {
             return;
         } else {
-            var deltaX = Math.abs(x - ongoingRipple.x);
-            var deltaY = Math.abs(y - ongoingRipple.y);
+            const deltaX = Math.abs(x - ongoingRipple.x);
+            const deltaY = Math.abs(y - ongoingRipple.y);
             if (deltaX < 24 && deltaY < 24) {
                 return;
             }
         }
     }
 
-    var ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+    const ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
     this.rippleStarted(ripple);
     ripple.initUnbounded(x, y, size, color);
 };

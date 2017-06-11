@@ -1,47 +1,47 @@
-"use strict";
+
 
 
 export default function Default2dImageRenderer(image, visualizerCanvas) {
     this.image = image;
     this.visualizerCanvas = visualizerCanvas;
-    this.context = visualizerCanvas.canvas.getContext("2d", {alpha: false});
+    this.context = visualizerCanvas.canvas.getContext(`2d`, {alpha: false});
     this.width = this.height = 0;
 }
 
-Default2dImageRenderer.prototype.destroy = function() {};
+Default2dImageRenderer.prototype.destroy = function() {
+    // NOOP
+};
 
 Default2dImageRenderer.prototype.init = function(width, height) {
     this.setDimensions(width, height);
 };
 
 Default2dImageRenderer.prototype.initScene = function() {
-    this.context.fillStyle = "rgba(255, 255, 255, 255)";
+    this.context.fillStyle = `rgba(255, 255, 255, 255)`;
     this.context.fillRect(0, 0, this.width, this.height);
 };
 
 Default2dImageRenderer.prototype.drawScene = function() {
-    // drawImage calls already drew it.
+    // DrawImage calls already drew it.
 };
 
 Default2dImageRenderer.prototype.drawCaps = function(bins) {
-    var highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-    var currentCapPositions = this.visualizerCanvas.currentCapPositions;
-    var gapWidth = this.visualizerCanvas.gapWidth;
-    var binSpace = this.visualizerCanvas.binWidth + gapWidth;
-    var capSeparator = this.visualizerCanvas.capSeparator;
-    var capSourceX = this.visualizerCanvas.source.capX - this.visualizerCanvas.gapWidth;
-    var capSourceY = this.visualizerCanvas.source.capY - this.visualizerCanvas.gapWidth;
-    var capWidth = this.visualizerCanvas.binWidth + this.visualizerCanvas.gapWidth * 2;
-    var capHeight = this.visualizerCanvas.capHeight + this.visualizerCanvas.gapWidth * 2;
+    const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
+    const {gapWidth, capSeparator, currentCapPositions} = this.visualizerCanvas;
+    const binSpace = this.visualizerCanvas.binWidth + gapWidth;
+    const capSourceX = this.visualizerCanvas.source.capX - gapWidth;
+    const capSourceY = this.visualizerCanvas.source.capY - gapWidth;
+    const capWidth = this.visualizerCanvas.binWidth + gapWidth * 2;
+    const capHeight = this.visualizerCanvas.capHeight + gapWidth * 2;
 
-    for (var i = 0; i < bins.length; ++i) {
-        var binValue = bins[i];
-        var currentCapBasePosition = currentCapPositions[i];
-        var x1 = i * binSpace - gapWidth;
-        var y1 = (binValue < currentCapBasePosition ? (currentCapBasePosition * highestBinHeight)
-                                                  : (binValue * highestBinHeight))|0;
+    for (let i = 0; i < bins.length; ++i) {
+        const binValue = bins[i];
+        const currentCapBasePosition = currentCapPositions[i];
+        const x1 = i * binSpace - gapWidth;
+        let y1 = (binValue < currentCapBasePosition ? (currentCapBasePosition * highestBinHeight)
+                                                  : (binValue * highestBinHeight)) | 0;
         y1 += capSeparator;
-        /*var x2 = x1 + capWidth;
+        /* Var x2 = x1 + capWidth;
         var y2 = y2 + capHeight;*/
 
         this.context.drawImage(this.image, capSourceX, capSourceY, capWidth, capHeight,
@@ -50,25 +50,24 @@ Default2dImageRenderer.prototype.drawCaps = function(bins) {
 };
 
 Default2dImageRenderer.prototype.drawBins = function(bins) {
-    var highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-    var binWidth = this.visualizerCanvas.binWidth;
-    var gapWidth = this.visualizerCanvas.gapWidth;
-    var fullWidth = binWidth + gapWidth * 2;
-    var width = binWidth + gapWidth;
+    const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
+    const {binWidth, gapWidth} = this.visualizerCanvas;
+    const fullWidth = binWidth + gapWidth * 2;
+    const width = binWidth + gapWidth;
     // TODO this is actually sourceRowHeight.
-    //var canvasHeight = this.height;
-    var sourceBinPositions = this.visualizerCanvas.source.binPositions;
+    // Var canvasHeight = this.height;
+    const sourceBinPositions = this.visualizerCanvas.source.binPositions;
 
-    for (var i = 0; i < bins.length; ++i) {
-        var binValue = bins[i];
-        var x1 = i * width - gapWidth;
-        var y1 = 0;
-        //var x2 = x1 + fullWidth;
-        var y2 = (binValue * highestBinHeight)|0;
+    for (let i = 0; i < bins.length; ++i) {
+        const binValue = bins[i];
+        const x1 = i * width - gapWidth;
+        const y1 = 0;
+        // Var x2 = x1 + fullWidth;
+        const y2 = (binValue * highestBinHeight) | 0;
 
-        var srcX1 = sourceBinPositions[y2 * 2];
-        var srcY1 = sourceBinPositions[y2 * 2 + 1];
-        /*var srcX2 = srcX1 + fullWidth;
+        const srcX1 = sourceBinPositions[y2 * 2];
+        const srcY1 = sourceBinPositions[y2 * 2 + 1];
+        /* Var srcX2 = srcX1 + fullWidth;
         var srcY2 = srcY1 + (highestBinHeight - (srcY1 % canvasHeight));*/
 
         this.context.drawImage(this.image, srcX1, srcY1,

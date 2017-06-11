@@ -1,7 +1,5 @@
-"use strict";
-
-import ApplicationDependencies from "ApplicationDependencies";
-import { console, matchMedia } from "platform/platform";
+import withDeps from "ApplicationDependencies";
+import {console, matchMedia, performance} from "platform/platform";
 import AnimationContext from "ui/animation/AnimationContext";
 import Snackbar from "ui/Snackbar";
 import Rippler from "ui/Rippler";
@@ -37,25 +35,28 @@ import ApplicationPreferences from "preferences/ApplicationPreferences";
 import EffectPreferences from "preferences/EffectPreferences";
 import CrossfadingPreferences from "preferences/CrossfadingPreferences";
 import ServiceWorkerManager from "platform/ServiceWorkerManager";
+import WorkerWrapper from "WorkerWrapper";
+import UsageData from "usageData/UsageData";
+import TagDataContext from "tracks/TagData";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;
-const DEFAULT_IMAGE_SRC = "/dist/images/apple-touch-icon-180x180.png";
+const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 
 export default function Application(deps) {
-    var bootstrapStart = Date.now();
+    const bootstrapStart = performance.now();
 
-    var page = deps.page;
-    var env = deps.env;
-    var db = deps.db;
-    var dbValues = Object(deps.dbValues);
-    var defaultTitle = deps.defaultTitle;
-    var globalEvents = deps.globalEvents;
+    const {page,
+            env,
+            db,
+            defaultTitle,
+            globalEvents,
+            dbValues} = deps;
 
     if (!env.hasTouch()) {
-        page.$("body").addClass("no-touch");
+        page.$(`body`).addClass(`no-touch`);
     }
 
     this.page = page;
@@ -65,453 +66,474 @@ export default function Application(deps) {
     this.defaultTitle = defaultTitle;
     this.globalEvents = globalEvents;
 
-    this.animationContext = new AnimationContext(new ApplicationDependencies({
-        page: this.page
-    }));
+    /* eslint-disable no-unused-vars */
+    const workerWrapper = this.workerWrapper = new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`);
 
-    this.recognizerContext = new GestureRecognizerContext(new ApplicationDependencies({
-        page: this.page,
-        env: this.env,
-        globalEvents: this.globalEvents
-    }));
+    const animationContext = this.animationContext = withDeps({page}, d => new AnimationContext(d));
 
-    this.sliderContext = new SliderContext({
-        knobSelector: ".slider-knob",
-        fillSelector: ".slider-fill"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        globalEvents: this.globalEvents
-    }));
+    const recognizerContext = this.recognizerContext = withDeps({
+        page,
+        env,
+        globalEvents
+    }, d => new GestureRecognizerContext(d));
 
-    this.scrollEvents = new ScrollEvents(new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext
-    }));
+    const sliderContext = this.sliderContext = withDeps({
+        page,
+        recognizerContext,
+        globalEvents
+    }, d => new SliderContext({
+        knobSelector: `.slider-knob`,
+        fillSelector: `.slider-fill`
+    }, d));
 
-    this.gestureScreenFlasher = new GestureScreenFlasher(new ApplicationDependencies({
-        page: this.page,
-        animationContext: this.animationContext
-    }));
+    const scrollEvents = this.scrollEvents = withDeps({
+        page,
+        recognizerContext
+    }, d => new ScrollEvents(d));
 
-    this.permissionPrompt = new PermissionPrompt({
+    const gestureScreenFlasher = this.gestureScreenFlasher = withDeps({
+        page,
+        animationContext
+    }, d => new GestureScreenFlasher(d));
+
+    const permissionPrompt = this.permissionPrompt = withDeps({
+        page
+    }, d => new PermissionPrompt({
         zIndex: POPUP_ZINDEX + 80,
-        target: "body",
-        dimmerClass: "body-dimmer"
-    }, new ApplicationDependencies({
-        page: this.page
-    }));
+        target: `body`,
+        dimmerClass: `body-dimmer`
+    }, d));
 
-    this.rippler = new Rippler({
+    const rippler = this.rippler = withDeps({
+        page,
+        animationContext
+    }, d => new Rippler({
         zIndex: POPUP_ZINDEX - 60,
-        target: "body"
-    }, new ApplicationDependencies({
-        page: this.page,
-        animationContext: this.animationContext
-    }));
+        target: `body`
+    }, d));
 
-    this.keyboardShortcuts = new KeyboardShortcuts(new ApplicationDependencies({
-        page: this.page
-    }));
+    const keyboardShortcuts = this.keyboardShortcuts = withDeps({
+        page
+    }, d => new KeyboardShortcuts(d));
 
-    this.menuContext = new MenuContext({
-        rootClass: "action-menu-root",
-        containerClass: "action-menu-submenu",
-        itemClass: "action-menu-item",
-        disabledClass: "action-menu-disabled",
-        dividerClass: "action-menu-divider",
-        activeSubMenuClass: "action-menu-active",
+    const menuContext = this.menuContext = withDeps({
+        page,
+        recognizerContext,
+        rippler,
+        globalEvents
+    }, d => new MenuContext({
+        rootClass: `action-menu-root`,
+        containerClass: `action-menu-submenu`,
+        itemClass: `action-menu-item`,
+        disabledClass: `action-menu-disabled`,
+        dividerClass: `action-menu-divider`,
+        activeSubMenuClass: `action-menu-active`,
         subMenuShowDelay: 300,
         subMenuHideDelay: 800,
-        menuItemIconContainerClass: "icon-container",
-        menuItemIconClass: "icon",
-        menuItemContentClass: "action-menu-item-content",
-        menuItemTextClass: "text-container"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler,
-        globalEvents: this.globalEvents
-    }));
+        menuItemIconContainerClass: `icon-container`,
+        menuItemIconClass: `icon`,
+        menuItemContentClass: `action-menu-item-content`,
+        menuItemTextClass: `text-container`
+    }, d));
 
-    this.fileInputContext = new FileInputContext(new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler
-    }));
+    const fileInputContext = this.fileInputContext = withDeps({
+        page,
+        recognizerContext,
+        rippler
+    }, d => new FileInputContext(d));
 
-    this.scrollerContext = new ScrollerContext({
+    const scrollerContext = this.scrollerContext = withDeps({
+        page,
+        scrollEvents
+    }, d => new ScrollerContext({
         itemHeight: ITEM_HEIGHT
-    }, new ApplicationDependencies({
-        page: this.page,
-        scrollEvents: this.scrollEvents
-    }));
+    }, d));
 
-    this.tooltipContext = new TooltipContext({
-        activation: "hover",
-        transitionClass: "fade-in",
-        preferredDirection: "up",
-        preferredAlign: "middle",
+    const tooltipContext = this.tooltipContext = withDeps({
+        page,
+        recognizerContext,
+        globalEvents
+    }, d => new TooltipContext({
+        activation: `hover`,
+        transitionClass: `fade-in`,
+        preferredDirection: `up`,
+        preferredAlign: `middle`,
         arrow: false,
         delay: 600,
-        classPrefix: "app-tooltip autosized-tooltip minimal-size-tooltip",
-        container: this.page.$("body"),
+        classPrefix: `app-tooltip autosized-tooltip minimal-size-tooltip`,
+        container: this.page.$(`body`),
         gap: 0
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        globalEvents: this.globalEvents
-    }));
+    }, d));
 
-    this.snackbar = new Snackbar({
-        transitionInClass: "transition-in",
-        transitionOutClass: "transition-out",
-        containerClass: "snackbar-container",
-        actionClass: "snackbar-action",
-        titleClass: "snackbar-title",
-        textContainerClass: "text-container",
-        textClass: "text",
+    const snackbar = this.snackbar = withDeps({
+        page,
+        recognizerContext,
+        globalEvents
+    }, d => new Snackbar({
+        transitionInClass: `transition-in`,
+        transitionOutClass: `transition-out`,
+        containerClass: `snackbar-container`,
+        actionClass: `snackbar-action`,
+        titleClass: `snackbar-title`,
+        textContainerClass: `text-container`,
+        textClass: `text`,
         nextDelay: 400,
         visibilityTime: 4400,
-        initialUndismissableWindow: 500
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        globalEvents: this.globalEvents
-    }));
+        initialUndismissableWindow: 500,
+        beforeTransitionIn: null,
+        beforeTransitionOut: null,
+        maxLength: 3
+    }, d));
 
-    this.toolbarSubmenu = new OpenableSubmenu({
-        target: ".toolbar-submenu",
-        openerTarget: ".menul-submenu-open",
-        openerActiveClass: "toolbar-item-active",
-        activeClass: "shown",
-        transitionClass: "transition-in"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler,
-        globalEvents: this.globalEvents
-    }));
+    const toolbarSubmenu = this.toolbarSubmenu = withDeps({
+        page,
+        recognizerContext,
+        rippler,
+        globalEvents
+    }, d => new OpenableSubmenu({
+        target: `.toolbar-submenu`,
+        openerTarget: `.menul-submenu-open`,
+        openerActiveClass: `toolbar-item-active`,
+        activeClass: `shown`,
+        transitionClass: `transition-in`
+    }, d));
 
-    this.popupContext = new PopupContext({
+    const popupContext = this.popupContext = withDeps({
+        animationContext,
+        page,
+        globalEvents,
+        recognizerContext,
+        scrollerContext,
+        dbValues,
+        db,
+        rippler,
+        keyboardShortcuts
+    }, d => new PopupContext({
         zIndex: POPUP_ZINDEX,
-        containerClass: "popup-container",
-        headerClass: "popup-header",
-        footerClass: "popup-footer",
-        bodyClass: "popup-body",
-        scrollAreaContainerClass: "scrollbar-scrollarea",
-        bodyContentClass: "popup-body-content",
-        closerContainerClass: "popup-closer-container",
-        scrollbarContainerClass: "scrollbar-container",
-        scrollbarRailClass: "scrollbar-rail",
-        scrollbarKnobClass: "scrollbar-knob",
-        popupButtonClass: "popup-button",
-        buttonDisabledClass: "popup-button-disabled"
-    }, new ApplicationDependencies({
-        animationContext: this.animationContext,
-        page: this.page,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        scrollerContext: this.scrollerContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        rippler: this.rippler,
-        keyboardShortcuts: this.keyboardShortcuts
-    }));
+        containerClass: `popup-container`,
+        headerClass: `popup-header`,
+        footerClass: `popup-footer`,
+        bodyClass: `popup-body`,
+        scrollAreaContainerClass: `scrollbar-scrollarea`,
+        bodyContentClass: `popup-body-content`,
+        closerContainerClass: `popup-closer-container`,
+        scrollbarContainerClass: `scrollbar-container`,
+        scrollbarRailClass: `scrollbar-rail`,
+        scrollbarKnobClass: `scrollbar-knob`,
+        popupButtonClass: `popup-button`,
+        buttonDisabledClass: `popup-button-disabled`
+    }, d));
 
-    this.spinner = new Spinner({
-        clockwise: "#clockwise-spinner",
-        counterclockwise: "#counterclockwise-spinner"
-    }, new ApplicationDependencies({
-        page: this.page
-    }));
+    const spinner = this.spinner = withDeps({
+        page
+    }, d => new Spinner({
+        clockwise: `#clockwise-spinner`,
+        counterclockwise: `#counterclockwise-spinner`
+    }, d));
 
-    this.gestureEducator = new GestureEducator(new ApplicationDependencies({
-        page: this.page,
-        snackbar: this.snackbar,
-        db: this.db,
-        dbValues: this.dbValues
-    }));
+    const gestureEducator = this.gestureEducator = withDeps({
+        page,
+        snackbar,
+        db,
+        dbValues
+    }, d => new GestureEducator(d));
 
-    this.serviceWorkerManager = new ServiceWorkerManager(new ApplicationDependencies({
-        env: this.env,
-        page: this.page,
-        snackbar: this.snackbar,
-        globalEvents: this.globalEvents
-    }));
+    const serviceWorkerManager = this.serviceWorkerManager = withDeps({
+        env,
+        page,
+        snackbar,
+        globalEvents
+    }, d => new ServiceWorkerManager(d));
     this.serviceWorkerManager.start();
 
-    this.applicationPreferences = new ApplicationPreferences({
-        preferencesButton: ".menul-preferences"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        sliderContext: this.sliderContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        rippler: this.rippler,
-        popupContext: this.popupContext,
-        env: this.env
-    }));
+    const applicationPreferences = this.applicationPreferences = withDeps({
+        page,
+        recognizerContext,
+        sliderContext,
+        dbValues,
+        db,
+        rippler,
+        popupContext,
+        env
+    }, d => new ApplicationPreferences({
+        preferencesButton: `.menul-preferences`
+    }, d));
 
-    this.effectPreferences = new EffectPreferences({
-        preferencesButton: ".menul-effects"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        sliderContext: this.sliderContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        rippler: this.rippler,
-        popupContext: this.popupContext,
-        env: this.env
-    }));
+    const effectPreferences = this.effectPreferences = withDeps({
+        page,
+        recognizerContext,
+        sliderContext,
+        dbValues,
+        db,
+        rippler,
+        popupContext,
+        env
+    }, d => new EffectPreferences({
+        preferencesButton: `.menul-effects`
+    }, d));
 
-    this.crossfadingPreferences = new CrossfadingPreferences({
-        preferencesButton: ".menul-crossfade"
-    }, new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        sliderContext: this.sliderContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        rippler: this.rippler,
-        popupContext: this.popupContext,
-        env: this.env
-    }));
+    const crossfadingPreferences = this.crossfadingPreferences = withDeps({
+        page,
+        recognizerContext,
+        sliderContext,
+        dbValues,
+        db,
+        rippler,
+        popupContext,
+        env
+    }, d => new CrossfadingPreferences({
+        preferencesButton: `.menul-crossfade`
+    }, d));
 
-    this.playlist = new Playlist({
-        target: "#app-playlist-container",
+    const playlist = this.playlist = withDeps({
+        env,
+        page,
+        db,
+        dbValues,
+        recognizerContext,
+        scrollerContext,
+        rippler,
+        snackbar,
+        globalEvents,
+        tooltipContext,
+        keyboardShortcuts,
+        applicationPreferences
+    }, d => new Playlist({
+        target: `#app-playlist-container`,
         itemHeight: ITEM_HEIGHT
-    }, new ApplicationDependencies({
-        env: this.env,
-        page: this.page,
-        db: this.db,
-        dbValues: this.dbValues,
-        recognizerContext: this.recognizerContext,
-        scrollerContext: this.scrollerContext,
-        rippler: this.rippler,
-        snackbar: this.snackbar,
-        globalEvents: this.globalEvents,
-        tooltipContext: this.tooltipContext,
-        keyboardShortcuts: this.keyboardShortcuts,
-        applicationPreferences: this.applicationPreferences
-    }));
+    }, d));
 
-    this.trackAnalyzer = new TrackAnalyzer({
-        src: env.isDevelopment() ? "dist/worker/TrackAnalyzerBackend.js" : "dist/worker/TrackAnalyzerBackend.min.js"
-    }, new ApplicationDependencies({
-        page: this.page,
-        playlist: this.playlist,
-        globalEvents: this.globalEvents,
-    }));
+    const usageData = this.usageData = withDeps({
+        workerWrapper
+    }, d => new UsageData(d));
 
-    this.search = new Search({
-        target: ".search-list-container",
+    const tagDataContext = this.tagDataContext = new TagDataContext();
+
+    const trackAnalyzer = this.trackAnalyzer = withDeps({
+        page,
+        env,
+        playlist,
+        globalEvents,
+        workerWrapper,
+        tagDataContext
+    }, d => new TrackAnalyzer(d));
+
+    const search = this.search = withDeps({
+        env,
+        page,
+        playlist,
+        db,
+        dbValues,
+        globalEvents,
+        recognizerContext,
+        scrollerContext,
+        keyboardShortcuts,
+        tooltipContext,
+        trackAnalyzer,
+        workerWrapper
+    }, d => new Search({
+        target: `.search-list-container`,
         itemHeight: ITEM_HEIGHT
-    }, new ApplicationDependencies({
-        env: this.env,
-        page: this.page,
-        playlist: this.playlist,
-        db: this.db,
-        dbValues: this.dbValues,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        scrollerContext: this.scrollerContext,
-        keyboardShortcuts: this.keyboardShortcuts,
-        tooltipContext: this.tooltipContext,
-        trackAnalyzer: this.trackAnalyzer
-    }));
+    }, d));
 
-    this.queue = null;
+    withDeps({
+        usageData, search
+    }, d => tagDataContext.setDeps(d));
 
-    this.mainTabs = new MainTabs({
+    const queue = this.queue = null;
+
+    const mainTabs = this.mainTabs = withDeps({
+        page,
+        keyboardShortcuts,
+        globalEvents,
+        menuContext,
+        playlist,
+        search,
+        queue,
+        recognizerContext,
+        rippler
+    }, d => new MainTabs({
         itemHeight: ITEM_HEIGHT,
         tabHeight: TAB_HEIGHT,
-        tabHolder: "#app-content-holder",
-        playlistTab: ".playlist-tab",
-        searchTab: ".search-tab",
-        queueTab: ".queue-tab",
-        activeTabIndicator: ".active-tab-indicator"
-    }, new ApplicationDependencies({
-        page: this.page,
-        keyboardShortcuts: this.keyboardShortcuts,
-        globalEvents: this.globalEvents,
-        menuContext: this.menuContext,
-        playlist: this.playlist,
-        search: this.search,
-        queue: this.queue,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler
-    }));
+        tabHolder: `#app-content-holder`,
+        playlistTab: `.playlist-tab`,
+        searchTab: `.search-tab`,
+        queueTab: `.queue-tab`,
+        activeTabIndicator: `.active-tab-indicator`
+    }, d));
 
-    this.localFileHandler = new LocalFileHandler({
-        directoryButton: ".menul-folder, .add-folder-link",
-        fileButton: ".menul-files, .add-files-link"
-    }, new ApplicationDependencies({
-        page: this.page,
-        fileInputContext: this.fileInputContext,
-        env: this.env,
-        playlist: this.playlist
-    }));
+    const localFileHandler = this.localFileHandler = withDeps({
+        page,
+        fileInputContext,
+        env,
+        playlist
+    }, d => new LocalFileHandler({
+        directoryButton: `.menul-folder, .add-folder-link`,
+        fileButton: `.menul-files, .add-files-link`
+    }, d));
 
+    /* eslint-disable no-constant-condition */
     if (false && env.isDevelopment()) {
         this.localFileHandler.generateFakeFiles(30);
     }
+    /* eslint-enable no-constant-condition */
 
-    this.player = new Player({
-        target: ".app-player-controls",
-        playButtonDom: ".play-button",
-        pauseButtonDom: ".pause-button",
-        previousButtonDom: ".previous-button",
-        stopButtonDom: ".stop-button",
-        nextButtonDom: ".next-button",
-        src: env.isDevelopment() ? "dist/worker/AudioPlayerBackend.js" : "dist/worker/AudioPlayerBackend.min.js"
-    }, new ApplicationDependencies({
-        page: this.page,
-        playlist: this.playlist,
-        env: this.env,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        gestureEducator: this.gestureEducator,
-        rippler: this.rippler,
-        crossfadingPreferences: this.crossfadingPreferences,
-        effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences,
-        tooltipContext: this.tooltipContext,
-        localFileHandler: this.localFileHandler
-    }));
+    const player = this.player = withDeps({
+        page,
+        playlist,
+        env,
+        globalEvents,
+        recognizerContext,
+        dbValues,
+        db,
+        gestureEducator,
+        rippler,
+        crossfadingPreferences,
+        effectPreferences,
+        applicationPreferences,
+        tooltipContext,
+        localFileHandler,
+        workerWrapper
+    }, d => new Player({
+        target: `.app-player-controls`,
+        playButtonDom: `.play-button`,
+        pauseButtonDom: `.pause-button`,
+        previousButtonDom: `.previous-button`,
+        stopButtonDom: `.stop-button`,
+        nextButtonDom: `.next-button`
+    }, d));
 
-    this.playerPictureManager = new PlayerPictureManager({
-        target: ".picture-container",
+    const playerPictureManager = this.playerPictureManager = withDeps({
+        page,
+        player
+    }, d => new PlayerPictureManager({
+        target: `.picture-container`,
         imageDimensions: IMAGE_DIMENSIONS,
-        defaultImageSrc: DEFAULT_IMAGE_SRC
-    }, new ApplicationDependencies({
-        page: this.page,
-        player: this.player
-    }));
+        defaultImageSrc: DEFAULT_IMAGE_SRC,
+        enabledMediaMatcher: null
+    }, d));
 
-    this.playerTimeManager = new PlayerTimeManager({
-        target: ".player-upper-container",
-        seekSlider: ".time-progress-container",
-        currentTimeDom: ".current-time",
-        totalTimeDom: ".total-time",
-        timeContainerDom: ".playback-status-wrapper",
-        timeProgressDom: ".time-progress"
-    }, new ApplicationDependencies({
-        page: this.page,
-        player: this.player,
-        recognizerContext: this.recognizerContext,
-        sliderContext: this.sliderContext,
-        dbValues: this.dbValues,
-        db: this.db,
-        rippler: this.rippler
-    }));
+    const playerTimeManager = this.playerTimeManager = withDeps({
+        page,
+        player,
+        recognizerContext,
+        sliderContext,
+        dbValues,
+        db,
+        rippler
+    }, d => new PlayerTimeManager({
+        target: `.player-upper-container`,
+        seekSlider: `.time-progress-container`,
+        currentTimeDom: `.current-time`,
+        totalTimeDom: `.total-time`,
+        timeContainerDom: `.playback-status-wrapper`,
+        timeProgressDom: `.time-progress`
+    }, d));
 
-    this.playerVolumeManager = new PlayerVolumeManager({
-        target: ".volume-controls-container",
-        volumeSlider: ".volume-slider",
-        muteDom: ".volume-mute",
-    }, new ApplicationDependencies({
-        page: this.page,
-        player: this.player,
-        recognizerContext: this.recognizerContext,
-        sliderContext: this.sliderContext,
-        rippler: this.rippler,
-        tooltipContext: this.tooltipContext
-    }));
+    const playerVolumeManager = this.playerVolumeManager = withDeps({
+        page,
+        player,
+        recognizerContext,
+        sliderContext,
+        rippler,
+        tooltipContext
+    }, d => new PlayerVolumeManager({
+        target: `.volume-controls-container`,
+        volumeSlider: `.volume-slider`,
+        muteDom: `.volume-mute`
+    }, d));
 
-    this.playlistNotifications = new PlaylistNotifications({
-        target: ".notification-setting"
-    }, new ApplicationDependencies({
-        permissionPrompt: this.permissionPrompt,
-        player: this.player,
-        playlist: this.playlist,
-        page: this.page,
-        env: this.env,
-        serviceWorkerManager: this.serviceWorkerManager,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler,
-        db: this.db,
-        dbValues: this.dbValues,
-        tooltipContext: this.tooltipContext,
-        playerPictureManager: this.playerPictureManager
-    }));
+    const playlistNotifications = this.playlistNotifications = withDeps({
+        permissionPrompt,
+        player,
+        playlist,
+        page,
+        env,
+        serviceWorkerManager,
+        recognizerContext,
+        rippler,
+        db,
+        dbValues,
+        tooltipContext,
+        playerPictureManager
+    }, d => new PlaylistNotifications({
+        target: `.notification-setting`
+    }, d));
 
-    this.visualizerCanvas = new VisualizerCanvas({
-        target: "#visualizer",
+    const visualizerCanvas = this.visualizerCanvas = withDeps({
+        player,
+        page,
+        animationContext,
+        globalEvents,
+        recognizerContext,
+        applicationPreferences,
+        snackbar,
+        rippler,
+        popupContext,
+        menuContext,
+        sliderContext
+    }, d => new VisualizerCanvas({
+        target: `#visualizer`,
         binWidth: 3,
         gapWidth: 1,
         capHeight: 1,
         capSeparator: 2,
-        capStyle: "rgb(37,117,197)",
+        capStyle: `rgb(37,117,197)`,
         targetFps: 60,
         capDropTime: 750,
         ghostOpacity: 0.14,
-        capInterpolator: "ACCELERATE_CUBIC",
-        enabledMediaMatcher: matchMedia("(min-height: 500px)")
-    }, new ApplicationDependencies({
-        player: this.player,
-        page: this.page,
-        animationContext: this.animationContext,
-        globalEvents: this.globalEvents,
-        recognizerContext: this.recognizerContext,
-        applicationPreferences: this.applicationPreferences,
-        snackbar: this.snackbar,
-        rippler: this.rippler,
-        popupContext: this.popupContext,
-        menuContext: this.menuContext,
-        sliderContext: this.sliderContext
-    }));
+        capInterpolator: `ACCELERATE_CUBIC`,
+        enabledMediaMatcher: matchMedia(`(min-height: 500px)`)
+    }, d));
 
-    this.trackDisplay = new TrackDisplay({
-        target: ".track-display-container",
-        displayTarget: ".track-display",
-        delay: 3500
-    }, new ApplicationDependencies({
-        playlist: this.playlist,
-        page: this.page,
-        defaultTitle: this.defaultTitle,
-        globalEvents: this.globalEvents
-    }));
+    const trackDisplay = this.trackDisplay = withDeps({
+        playlist,
+        page,
+        defaultTitle,
+        globalEvents
+    }, d => new TrackDisplay({
+        target: `.track-display-container`,
+        displayTarget: `.track-display`,
+        delay: 3500,
+        pixelsPerSecond: 22
+    }, d));
 
-    this.defaultShortcuts = new DefaultShortcuts(new ApplicationDependencies({
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        player: this.player,
-        playlist: this.playlist,
-        keyboardShortcuts: this.keyboardShortcuts,
-        playerTimeManager: this.playerTimeManager,
-        rippler: this.rippler,
-        gestureScreenFlasher: this.gestureScreenFlasher
-    }));
+    const defaultShortcuts = this.defaultShortcuts = withDeps({
+        page,
+        recognizerContext,
+        player,
+        playlist,
+        keyboardShortcuts,
+        playerTimeManager,
+        rippler,
+        gestureScreenFlasher
+    }, d => new DefaultShortcuts(d));
 
-    this.playlistModeManager = new PlaylistModeManager({
-        target: ".playlist-controls-container"
-    }, new ApplicationDependencies({
-        playlist: this.playlist,
-        page: this.page,
-        recognizerContext: this.recognizerContext,
-        rippler: this.rippler,
-        tooltipContext: this.tooltipContext
-    }));
+    const playlistModeManager = this.playlistModeManager = withDeps({
+        playlist,
+        page,
+        recognizerContext,
+        rippler,
+        tooltipContext
+    }, d => new PlaylistModeManager({
+        target: `.playlist-controls-container`
+    }, d));
+    /* eslint-enable no-unused-vars */
 
-    this.globalEvents.on("longPressStart", this.longTapStarted.bind(this));
-    this.globalEvents.on("longPressEnd", this.longTapEnded.bind(this));
+    this.globalEvents.on(`longPressStart`, this.longTapStarted.bind(this));
+    this.globalEvents.on(`longPressEnd`, this.longTapEnded.bind(this));
     this.globalEvents.addBeforeUnloadListener(this.beforeUnload.bind(this));
-    this.page.addDocumentListener("keydown", this.documentKeydowned.bind(this), true);
-    this.page.addDocumentListener("selectstart", this.selectStarted.bind(this));
-    this.player.on("stop", this.playerStopped.bind(this));
+    this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
+    this.page.addDocumentListener(`selectstart`, this.selectStarted.bind(this));
+    this.player.on(`stop`, this.playerStopped.bind(this));
 
-    var self = this;
-    this.page.changeDom(function() {
-        self.globalEvents._triggerSizeChange();
-        self.visualizerCanvas.initialize();
-        console.log("bootstrap time:", Date.now() - bootstrapStart, "ms");
+
+    this.page.changeDom(() => {
+        this.globalEvents._triggerSizeChange();
+        this.visualizerCanvas.initialize();
+        console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
     });
-    deps.ensure();
+
 }
 
 Application.prototype.selectStarted = function(e) {
@@ -521,7 +543,7 @@ Application.prototype.selectStarted = function(e) {
 };
 
 Application.prototype.longTapStarted = function(touch) {
-    this.spinner.spinAt(touch.clientX|0, touch.clientY|0);
+    this.spinner.spinAt(touch.clientX | 0, touch.clientY | 0);
 };
 
 Application.prototype.longTapEnded = function() {
@@ -530,9 +552,10 @@ Application.prototype.longTapEnded = function() {
 
 Application.prototype.beforeUnload = function() {
     if (!this.env.isDevelopment() && (this.playlist.length > 0 ||
-        ((this.player.isPlaying  || this.player.isPaused) && !this.player.isStopped))) {
-        return "Are you sure you want to exit?";
+        ((this.player.isPlaying || this.player.isPaused) && !this.player.isStopped))) {
+        return `Are you sure you want to exit?`;
     }
+    return null;
 };
 
 Application.prototype.playerStopped = function() {
@@ -540,17 +563,17 @@ Application.prototype.playerStopped = function() {
 };
 
 Application.prototype.documentKeydowned = function(e) {
-    var key = e.key;
-    if (key === "Escape") {
+    const {key} = e;
+    if (key === `Escape`) {
         this.globalEvents._fireClear();
     }
 
     if (e.target === this.page.activeElement() &&
         e.target.tabIndex >= 0 &&
         !this.page.isAnyInputElement(e.target)) {
-        if (key === "Spacebar" || key === "Enter") {
+        if (key === `Spacebar` || key === `Enter`) {
             this.page.emulateClickEventFrom(e);
-        } else if (key === "Escape") {
+        } else if (key === `Escape`) {
             e.target.blur();
         }
     }

@@ -1,4 +1,4 @@
-"use strict";
+
 
 export default function SearchTreeEntry(transientId, searchTerm) {
     this._transientId = transientId;
@@ -7,7 +7,7 @@ export default function SearchTreeEntry(transientId, searchTerm) {
 
 SearchTreeEntry.prototype.keywords = function() {
     if (!this._searchTerm.length) return [];
-    return this._searchTerm.split(" ");
+    return this._searchTerm.split(` `);
 };
 
 

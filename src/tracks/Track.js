@@ -1,17 +1,33 @@
-"use strict";
+
 
 import EventEmitter from "events";
-import { inherits } from "util";
-import TagData from "tracks/TagData";
-import { calculateUid, getSearchTerm } from "search/searchUtil";
-import { URL }  from "platform/platform";
+import {inherits} from "util";
+import {trackInfoFromFileName} from "tracks/TagData";
+import {calculateUid, getSearchTerm} from "search/searchUtil";
+import {URL} from "platform/platform";
 
-Track.DECODE_ERROR = "The file could not be decoded. Check that the codec is supported and the file is not corrupted.";
-Track.FILESYSTEM_ACCESS_ERROR = "Access to the file was denied. It has probably been moved or altered after being added to the playlist.";
-Track.UNKNOWN_ERROR = "Unknown error";
+export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
+export const FILESYSTEM_ACCESS_ERROR = `Access to the file was denied. It has probably been moved or altered after being added to the playlist.`;
+export const UNKNOWN_ERROR = `Unknown error`;
+export const WAV = 0;
+export const MP3 = 1;
+export const AAC = 2;
+export const WEBM = 3;
+export const OGG = 4;
+export const UNKNOWN_FORMAT = 9999;
+const rType =
+    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
+
+const FORMATS = [
+    [/^(audio\/vnd.wave|audio\/wav|audio\/wave|audio\/x-wav)$/, WAV],
+    [/^(audio\/mpeg|audio\/mp3)$/, MP3],
+    [/^(audio\/aac|audio\/aacp|audio\/3gpp|audio\/3gpp2|audio\/mp4|audio\/MP4A-LATM|audio\/mpeg4-generic)$/, AAC],
+    [/^(audio\/webm)$/, WEBM],
+    [/^(audio\/ogg|application\/ogg|audio\/x-ogg|application\/x-ogg)$/, OGG]
+];
 
 const transientIdToTrack = Object.create(null);
-var nextTransientId = 10000;
+let nextTransientId = 10000;
 
 export default function Track(audioFile) {
     EventEmitter.call(this);
@@ -33,20 +49,12 @@ Track.prototype.transientId = function() {
 };
 
 Track.prototype.getTrackInfo = function() {
-    var artist, title;
     if (!this.tagData) {
-        var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
-        artist = artistAndTitle.artist;
-        title = artistAndTitle.title;
+        const {artist, title} = trackInfoFromFileName(this.getFileName());
+        return {artist, title};
     } else {
-        artist = this.tagData.getArtist();
-        title = this.tagData.getTitle();
+        return {artist: this.tagData.getArtist(), title: this.tagData.getTitle()};
     }
-
-    return {
-        artist: artist,
-        title: title
-    };
 };
 
 Track.prototype.shouldDisplayAsSearchResult = function() {
@@ -59,7 +67,7 @@ Track.prototype.matches = function(matchers) {
     if (!this._searchTerm) {
         this._searchTerm = getSearchTerm(this.tagData, this.file);
     }
-    for (var i = 0; i < matchers.length; ++i) {
+    for (let i = 0; i < matchers.length; ++i) {
         if (!matchers[i].test(this._searchTerm)) {
             return false;
         }
@@ -99,7 +107,9 @@ Track.prototype.willBeReplaced = function() {
     if (this._generatedImage) {
         try {
             URL.revokeObjectURL(this._generatedImage.src);
-        } catch (e) {}
+        } catch (e) {
+            // NOOP
+        }
         this._generatedImage = null;
     }
 };
@@ -108,8 +118,8 @@ Track.prototype.stageRemoval = function() {
     this.unsetAnalysisStatus();
     this.unsetError();
     this.setIndex(-1);
-    this.emit("viewUpdate", "viewUpdateDestroyed");
-    this.emit("destroy", this);
+    this.emit(`viewUpdate`, `viewUpdateDestroyed`);
+    this.emit(`destroy`, this);
     if (this.tagData) {
         delete transientIdToTrack[this.transientId()];
     }
@@ -125,8 +135,8 @@ Track.prototype.destroy = function() {
     this.unsetAnalysisStatus();
     this.unsetError();
     this.setIndex(-1);
-    this.emit("viewUpdate", "viewUpdateDestroyed");
-    this.emit("destroy", this);
+    this.emit(`viewUpdate`, `viewUpdateDestroyed`);
+    this.emit(`destroy`, this);
 
     if (this._generatedImage) {
         URL.revokeObjectURL(this._generatedImage.src);
@@ -148,7 +158,7 @@ Track.prototype.destroy = function() {
 };
 
 Track.prototype.getImage = async function(pictureManager) {
-    var image;
+    let image;
     if (this.tagData) {
         image = this.tagData.getImage();
     }
@@ -159,9 +169,9 @@ Track.prototype.getImage = async function(pictureManager) {
         if (!this.tagData) {
             return pictureManager.defaultImage();
         }
-        var result = await pictureManager.generateImageForTrack(this);
+        const result = await pictureManager.generateImageForTrack(this);
         this._generatedImage = result;
-        result.tag = this.uid();
+        result.tag = await this.uid();
         return result;
     }
 
@@ -169,15 +179,15 @@ Track.prototype.getImage = async function(pictureManager) {
         try {
             await image.promise;
             return image;
-        } catch(e) {
-            image.src = "";
+        } catch (e) {
+            image.src = ``;
             if (image.blob) {
                 image.blob.close();
                 image.blob = null;
             }
-            var result = await pictureManager.generateImageForTrack(this);
+            const result = await pictureManager.generateImageForTrack(this);
             this._generatedImage = result;
-            result.tag = this.uid();
+            result.tag = await this.uid();
             return this._generatedImage;
         }
     }
@@ -195,25 +205,25 @@ Track.prototype.getIndex = function() {
 Track.prototype.setIndex = function(index) {
     if (this.index === index) return;
     this.index = index;
-    this.emit("viewUpdate", "viewUpdatePositionChange");
-    this.emit("indexChange");
+    this.emit(`viewUpdate`, `viewUpdatePositionChange`);
+    this.emit(`indexChange`);
 };
 
 Track.prototype.stopPlaying = function() {
-    this.emit("viewUpdate", "viewUpdatePlayingStatusChange", false);
+    this.emit(`viewUpdate`, `viewUpdatePlayingStatusChange`, false);
 };
 
 Track.prototype.startPlaying = function() {
-    this.emit("viewUpdate", "viewUpdatePlayingStatusChange", true);
+    this.emit(`viewUpdate`, `viewUpdatePlayingStatusChange`, true);
 };
 
 Track.prototype.analysisEstimate = function(analysisEstimate) {
-    this.emit("viewUpdate", "viewUpdateAnalysisEstimate", analysisEstimate);
+    this.emit(`viewUpdate`, `viewUpdateAnalysisEstimate`, analysisEstimate);
 };
 
 Track.prototype.unsetAnalysisStatus = function() {
     this._isBeingAnalyzed = false;
-    this.emit("viewUpdate", "viewUpdateHideAnalysisStatus");
+    this.emit(`viewUpdate`, `viewUpdateHideAnalysisStatus`);
 };
 
 Track.prototype.isBeingAnalyzed = function() {
@@ -222,21 +232,21 @@ Track.prototype.isBeingAnalyzed = function() {
 
 Track.prototype.setAnalysisStatus = function() {
     this._isBeingAnalyzed = true;
-    this.emit("viewUpdate", "viewUpdateShowAnalysisStatus");
+    this.emit(`viewUpdate`, `viewUpdateShowAnalysisStatus`);
 };
 
 Track.prototype.unsetError = function() {
     this._error = null;
-    this.emit("viewUpdate", "viewUpdateHideErrorStatus");
+    this.emit(`viewUpdate`, `viewUpdateHideErrorStatus`);
 };
 
 Track.prototype.setError = function(message) {
     if (this._error) {
         this._error = null;
-        this.emit("viewUpdate", "viewUpdateHideErrorStatus");
+        this.emit(`viewUpdate`, `viewUpdateHideErrorStatus`);
     }
     this._error = message;
-    this.emit("viewUpdate", "viewUpdateShowErrorStatus");
+    this.emit(`viewUpdate`, `viewUpdateShowErrorStatus`);
 };
 
 Track.prototype.hasError = function() {
@@ -260,25 +270,24 @@ Track.prototype.getTagData = function() {
 };
 
 Track.prototype.setTagData = function(tagData) {
-    if (this.tagData !== null) throw new Error("cannot set tagData again");
+    if (this.tagData !== null) throw new Error(`cannot set tagData again`);
     this.tagData = tagData;
     transientIdToTrack[this.transientId()] = this;
     this.tagDataUpdated();
 };
 
 Track.prototype.formatFullName = function() {
-    var name = this.formatName();
+    let name = this.formatName();
     if (this.tagData && this.tagData.getAlbum()) {
-        var albumIndex = this.tagData.albumIndex;
-        var trackCount = this.tagData.trackCount;
-        var position = "";
+        const {albumIndex, trackCount} = this.tagData;
+        let position = ``;
         if (albumIndex !== -1 && trackCount === -1) {
-            position = " #" + albumIndex;
+            position = ` #${albumIndex}`;
         } else if (albumIndex !== -1 && trackCount !== -1) {
-            position = " #" + albumIndex + "/" + trackCount;
+            position = ` #${albumIndex}/${trackCount}`;
         }
 
-        name = name + " [" + this.tagData.getAlbum() + position + "]";
+        name = `${name} [${this.tagData.getAlbum()}${position}]`;
     }
     return name;
 };
@@ -287,15 +296,15 @@ Track.prototype.formatName = function() {
     if (this.tagData !== null) {
         return this.tagData.formatName();
     }
-    var artistAndTitle = TagData.trackInfoFromFileName(this.getFileName());
-    return artistAndTitle.artist + " - " + artistAndTitle.title;
+    const artistAndTitle = trackInfoFromFileName(this.getFileName());
+    return `${artistAndTitle.artist} - ${artistAndTitle.title}`;
 };
 
 Track.prototype.formatTime = function() {
     if (this.tagData !== null) {
         return this.tagData.formatTime();
     }
-    return "";
+    return ``;
 };
 
 Track.prototype.needsParsing = function() {
@@ -336,17 +345,17 @@ Track.prototype.isRated = function() {
 };
 
 Track.prototype.tagDataUpdated = function() {
-    this.emit("tagDataUpdate", this);
-    this.emit("viewUpdate", "viewUpdateTagDataChange");
+    this.emit(`tagDataUpdate`, this);
+    this.emit(`viewUpdate`, `viewUpdateTagDataChange`);
 };
 
-Track.prototype.uid = function() {
+Track.prototype.uid = async function() {
     if (this.tagData) {
         if (this._uid) return this._uid;
-        this._uid = calculateUid(this.file, this.tagData, true);
+        this._uid = await calculateUid(this.file, this.tagData, true);
         return this._uid;
     } else {
-        throw new Error("cannot get uid before having tagData");
+        throw new Error(`cannot get uid before having tagData`);
     }
 };
 
@@ -355,18 +364,18 @@ Track.prototype.getSilenceAdjustedDuration = function(duration) {
 };
 
 Track.prototype.convertToSilenceAdjustedTime = function(rawCurrentTime) {
-    var total = this.getTotalSilenceLength();
+    const total = this.getTotalSilenceLength();
     if (!total || !this.tagData || !this.tagData.basicInfo.duration) return rawCurrentTime;
     return Math.max(0, rawCurrentTime - this.getBeginSilenceLength());
 };
 
 Track.prototype.convertFromSilenceAdjustedTime = function(currentTime) {
-    var total = this.getTotalSilenceLength();
+    const total = this.getTotalSilenceLength();
     if (!total || !this.tagData || !this.tagData.basicInfo.duration) return currentTime;
-    var physicalDuration = this.tagData.basicInfo.duration;
-    var logicalDuration = physicalDuration - total;
+    const physicalDuration = this.tagData.basicInfo.duration;
+    const logicalDuration = physicalDuration - total;
     currentTime = Math.min(logicalDuration, Math.max(0, currentTime));
-    var startSilence = this.getBeginSilenceLength();
+    const startSilence = this.getBeginSilenceLength();
     currentTime += startSilence;
 
     if (currentTime >= logicalDuration + startSilence) {
@@ -398,15 +407,15 @@ Track.prototype.comesAfterInSameAlbum = function(otherTrack) {
 Track.prototype.isFromSameAlbumAs = function(otherTrack) {
     if (!otherTrack) return false;
     if (otherTrack === this) return true;
-    var thisTagData = this.getTagData();
-    var otherTagData = otherTrack.getTagData();
+    const thisTagData = this.getTagData();
+    const otherTagData = otherTrack.getTagData();
 
     if (!thisTagData || !otherTagData) {
         return false;
     }
 
-    var thisAlbum = thisTagData.getAlbum();
-    var otherAlbum = otherTagData.getAlbum();
+    const thisAlbum = thisTagData.getAlbum();
+    const otherAlbum = otherTagData.getAlbum();
 
     if (!thisAlbum || !otherAlbum) {
         return false;
@@ -463,48 +472,29 @@ Track.prototype.shouldRetrieveAcoustIdImage = function() {
     return !!(this.tagData && this.tagData.shouldRetrieveAcoustIdImage());
 };
 
-const rType =
-    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
-Track.WAV = 0;
-Track.MP3 = 1;
-Track.AAC = 2;
-Track.WEBM = 3;
-Track.OGG = 4;
-Track.UNKNOWN_FORMAT = 9999;
-
-const formats = [
-    [/^(audio\/vnd.wave|audio\/wav|audio\/wave|audio\/x-wav)$/, Track.WAV],
-    [/^(audio\/mpeg|audio\/mp3)$/, Track.MP3],
-    [/^(audio\/aac|audio\/aacp|audio\/3gpp|audio\/3gpp2|audio\/mp4|audio\/MP4A-LATM|audio\/mpeg4-generic)$/, Track.AAC],
-    [/^(audio\/webm)$/, Track.WEBM],
-    [/^(audio\/ogg|application\/ogg|audio\/x-ogg|application\/x-ogg)$/, Track.OGG],
-];
-
 Track.prototype.getFormat = function(initialBytes) {
-    var type = this.file.type.toLowerCase();
-    var matches;
+    const type = this.file.type.toLowerCase();
+    let matches;
     if (type) {
-        var matches = formats.filter(function(v) {
-            return v[0].test(type);
-        });
+        matches = FORMATS.filter(v => v[0].test(type));
     }
 
     if (type && matches.length) {
         return matches[0][1];
     } else if (!type) {
-        var match = rType.exec(initialBytes);
+        const match = rType.exec(initialBytes);
 
         if (match) {
-            for (var i = 0; i < formats.length; ++i) {
-                if (match[formats[i][1] + 1] !== undefined) {
-                    return formats[i][1];
+            for (let i = 0; i < FORMATS.length; ++i) {
+                if (match[FORMATS[i][1] + 1] !== undefined) {
+                    return FORMATS[i][1];
                 }
             }
         }
 
-        return Track.UNKNOWN_FORMAT;
+        return UNKNOWN_FORMAT;
     } else {
-        return Track.UNKNOWN_FORMAT;
+        return UNKNOWN_FORMAT;
     }
 };
 
@@ -519,6 +509,6 @@ Track.prototype.getTagStateId = function() {
     return this.tagData ? this.tagData.getStateId() : -1;
 };
 
-Track.byTransientId = function(transientId) {
+export const byTransientId = function(transientId) {
     return transientIdToTrack[transientId];
 };

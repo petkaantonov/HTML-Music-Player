@@ -1,6 +1,6 @@
-"use strict";
 
-import { inherits } from "util";
+
+import {inherits} from "util";
 import Line from "ui/animation/Line";
 
 export default function CubicCurve(x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2, progress) {
@@ -17,13 +17,13 @@ export default function CubicCurve(x1, y1, x2, y2, cpx1, cpy1, cpx2, cpy2, progr
 inherits(CubicCurve, Line);
 
 CubicCurve.prototype.xAt = function(progress) {
-    var p3 = progress * progress * progress;
-    var p2 = progress * progress;
+    const p3 = progress * progress * progress;
+    const p2 = progress * progress;
     return this.aX * p3 + this.bX * p2 + this.cX * progress + this.x1;
 };
 
 CubicCurve.prototype.yAt = function(progress) {
-    var p3 = progress * progress * progress;
-    var p2 = progress * progress;
+    const p3 = progress * progress * progress;
+    const p2 = progress * progress;
     return this.aY * p3 + this.bY * p2 + this.cY * progress + this.y1;
 };

@@ -1,8 +1,7 @@
-"use strict";
+import {noUndefinedGet} from "util";
 
 export default function PlayerVolumeManager(opts, deps) {
-    var self = this;
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this.page = deps.page;
     this.sliderContext = deps.sliderContext;
     this.recognizerContext = deps.recognizerContext;
@@ -15,25 +14,23 @@ export default function PlayerVolumeManager(opts, deps) {
 
     this._domNode = this.page.$(opts.target);
     this._muteDom = this.$().find(opts.muteDom);
-    this._muteTooltip = this.tooltipContext.createTooltip(this.$mute(),function() {
-        return self.player.isMuted() ? "Unmute volume." : "Mute volume.";
-    });
+    this._muteTooltip = this.tooltipContext.createTooltip(this.$mute(), () => (this.player.isMuted() ? `Unmute volume.` : `Mute volume.`));
 
     this.slided = this.slided.bind(this);
     this.volumeChanged = this.volumeChanged.bind(this);
     this.muteClicked = this.muteClicked.bind(this);
     this.muteChanged = this.muteChanged.bind(this);
 
-    this.volumeSlider.on("slide", this.slided);
-    this.player.on("volumeChange", this.volumeChanged);
-    this.player.on("muted", this.muteChanged);
+    this.volumeSlider.on(`slide`, this.slided);
+    this.player.on(`volumeChange`, this.volumeChanged);
+    this.player.on(`muted`, this.muteChanged);
 
-    this.$mute().addEventListener("click", this.muteClicked);
+    this.$mute().addEventListener(`click`, this.muteClicked);
     this.recognizerContext.createTapRecognizer(this.muteClicked).recognizeBubbledOn(this.$mute());
 
     this.volumeChanged();
     this.muteChanged(this.player.isMuted());
-    deps.ensure();
+
 }
 
 
@@ -62,19 +59,19 @@ PlayerVolumeManager.prototype.muteClicked = function(e) {
 };
 
 PlayerVolumeManager.prototype.muteChanged = function(muted) {
-    var elems = this.volumeSlider.$().add(
+    const elems = this.volumeSlider.$().add(
                     this.volumeSlider.$fill(),
                     this.volumeSlider.$knob());
     if (muted) {
-        this.$mute().find(".glyphicon")
-                .removeClass("glyphicon-volume-up")
-                .addClass("glyphicon-volume-off");
-        elems.addClass("slider-inactive");
+        this.$mute().find(`.glyphicon`).
+                removeClass(`glyphicon-volume-up`).
+                addClass(`glyphicon-volume-off`);
+        elems.addClass(`slider-inactive`);
     } else {
-        this.$mute().find(".glyphicon")
-                .addClass("glyphicon-volume-up")
-                .removeClass("glyphicon-volume-off");
-        elems.removeClass("slider-inactive");
+        this.$mute().find(`.glyphicon`).
+                addClass(`glyphicon-volume-up`).
+                removeClass(`glyphicon-volume-off`);
+        elems.removeClass(`slider-inactive`);
     }
     this._muteTooltip.refresh();
 };

@@ -1,7 +1,7 @@
-"use strict";
+import {noUndefinedGet} from "util";
 
 export default function TrackDisplay(opts, deps) {
-    opts = Object(opts);
+    opts = noUndefinedGet(opts);
     this._page = deps.page;
     this._globalEvents = deps.globalEvents;
     this._playlist = deps.playlist;
@@ -27,13 +27,13 @@ export default function TrackDisplay(opts, deps) {
     this._windowResized = this._windowResized.bind(this);
     this._delayElapsed = this._delayElapsed.bind(this);
 
-    this._globalEvents.on("foreground", this._windowResized);
-    this._globalEvents.on("resize", this._windowResized);
-    this._playlist.on("trackPlayingStatusChange", this._trackChanged.bind(this));
+    this._globalEvents.on(`foreground`, this._windowResized);
+    this._globalEvents.on(`resize`, this._windowResized);
+    this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
 
     this._updateText();
     this._reset();
-    deps.ensure();
+
 }
 
 TrackDisplay.prototype.$ = function() {
@@ -55,16 +55,16 @@ TrackDisplay.prototype._clearDelayTimeout = function() {
 };
 
 TrackDisplay.prototype._updateText = function() {
-    var track = this._currentTrack;
+    const track = this._currentTrack;
 
     if (track) {
-        var index = track.getIndex();
-        var trackNumber = index >= 0 ? (index + 1) + ". " : "";
-        var title = trackNumber + track.formatFullName();
+        const index = track.getIndex();
+        const trackNumber = index >= 0 ? `${index + 1}. ` : ``;
+        const title = trackNumber + track.formatFullName();
         this.$().setText(title);
         this._page.setTitle(title);
     } else {
-        this.$().setText("");
+        this.$().setText(``);
         this._page.setTitle(this._defaultTitle);
     }
 };
@@ -89,24 +89,24 @@ TrackDisplay.prototype._windowResized = function() {
 };
 
 TrackDisplay.prototype._getScrollWidth = function() {
-    var ret = Math.max(-5, this._contentWidth - this._containerWidth) + 5;
+    const ret = Math.max(-5, this._contentWidth - this._containerWidth) + 5;
     return Math.max(0, ret);
 };
 
 TrackDisplay.prototype._frame = function(now) {
     this._frameId = -1;
-    var scrollWidth = this._getScrollWidth();
+    const scrollWidth = this._getScrollWidth();
     if (scrollWidth <= 0) return;
 
-    var elapsed = this._previousTime === -1 ? 0 : now - this._previousTime;
+    const elapsed = this._previousTime === -1 ? 0 : now - this._previousTime;
     this._previousTime = now;
-    var progressPerMs = this._pixelsPerSecond / scrollWidth / 2 / 1000;
-    var previousProgress = this._progress;
+    const progressPerMs = this._pixelsPerSecond / scrollWidth / 2 / 1000;
+    const previousProgress = this._progress;
     if (elapsed > 0) {
         this._progress += (elapsed * progressPerMs);
     }
 
-    var progress = Math.min(1, Math.max(0, this._progress));
+    const progress = Math.min(1, Math.max(0, this._progress));
     if (progress >= 1) {
         this._progress = 0;
         this._startTimer();
@@ -116,7 +116,7 @@ TrackDisplay.prototype._frame = function(now) {
         this._frameId = this._page.requestAnimationFrame(this._frame);
     }
 
-    var x;
+    let x;
     if (progress < 0.5) {
         x = (progress / 0.5) * scrollWidth;
     } else {
@@ -126,7 +126,7 @@ TrackDisplay.prototype._frame = function(now) {
 
     if (this._renderedX !== x) {
         this._renderedX = x;
-        this.$().setTransform("translate3d(-"+x+"px, 0, 0)");
+        this.$().setTransform(`translate3d(-${x}px, 0, 0)`);
     }
 };
 
@@ -147,7 +147,7 @@ TrackDisplay.prototype._reset = function() {
     this._clearFrame();
     this._progress = 0;
     this._previousTime = -1;
-    this.$().setTransform("translate3d(0, 0, 0)");
+    this.$().setTransform(`translate3d(0, 0, 0)`);
     this._renderedX = 0;
 
     if (!this._globalEvents.isWindowBackgrounded()) {
@@ -155,26 +155,26 @@ TrackDisplay.prototype._reset = function() {
         this._contentWidth = this.$()[0].getBoundingClientRect().width;
     }
 
-    var scrollWidth = this._getScrollWidth();
+    const scrollWidth = this._getScrollWidth();
     if (scrollWidth > 0) {
         this._startTimer();
-        this.$().setStyle("willChange", "transform");
+        this.$().setStyle(`willChange`, `transform`);
     } else {
-        this.$().setStyle("willChange", "");
+        this.$().setStyle(`willChange`, ``);
     }
 };
 
 TrackDisplay.prototype.setTrack = function(track) {
     if (this._currentTrack === track) return;
     if (this._currentTrack) {
-        this._currentTrack.removeListener("indexChange", this._trackIndexChanged);
-        this._currentTrack.removeListener("tagDataUpdate", this._trackDataUpdated);
+        this._currentTrack.removeListener(`indexChange`, this._trackIndexChanged);
+        this._currentTrack.removeListener(`tagDataUpdate`, this._trackDataUpdated);
     }
     this._currentTrack = track;
 
     if (track) {
-        this._currentTrack.on("indexChange", this._trackIndexChanged);
-        this._currentTrack.on("tagDataUpdate", this._trackDataUpdated);
+        this._currentTrack.on(`indexChange`, this._trackIndexChanged);
+        this._currentTrack.on(`tagDataUpdate`, this._trackDataUpdated);
     }
     this._updateText();
     this._reset();

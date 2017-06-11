@@ -1,13 +1,13 @@
-"use strict";
+
 
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
-import { inherits } from "util";
+import {inherits} from "util";
 
-const TOUCH_START = "touchstart";
-const TOUCH_END = "touchend";
-const TOUCH_MOVE = "touchmove";
-const TOUCH_CANCEL = "touchcancel";
+const TOUCH_START = `touchstart`;
+const TOUCH_END = `touchend`;
+const TOUCH_MOVE = `touchmove`;
+const TOUCH_CANCEL = `touchcancel`;
 
 export default function VerticalPinchRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -24,7 +24,7 @@ export default function VerticalPinchRecognizer(recognizerContext, handler) {
 inherits(VerticalPinchRecognizer, AbstractGestureRecognizer);
 
 VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
-    var changedTouches = e.changedTouches || e.originalEvent.changedTouches;
+    const changedTouches = e.changedTouches || e.originalEvent.changedTouches;
     this.actives.update(e, changedTouches);
 
     if (this.getDocumentActives().length() > 2) {
@@ -54,9 +54,9 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
         }
 
         if (!this.aChanged || !this.bChanged) {
-            for (var i = 0; i < changedTouches.length; ++i) {
-                var touch = changedTouches[i];
-                var delta;
+            for (let i = 0; i < changedTouches.length; ++i) {
+                const touch = changedTouches[i];
+                let delta;
                 if (touch.identifier === this.currentATouch.identifier) {
                     delta = Math.abs(touch.clientY - this.currentATouch.clientY);
                     if (delta > 25) {
@@ -81,7 +81,7 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
             this.started !== -1 &&
             ((e.timeStamp || e.originalEvent.timeStamp) - this.started) > (this.recognizerContext.TAP_TIME * 2)) {
             this.aChanged = this.bChanged = false;
-            var start, end;
+            let start, end;
 
             if (this.currentATouch.clientY > this.currentBTouch.clientY) {
                 start = this.currentBTouch;
