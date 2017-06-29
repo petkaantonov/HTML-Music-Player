@@ -19,7 +19,6 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         this.currentJob = null;
         this.actions = {
             analyze(args) {
-                console.log(`analysis`, args);
                 this.analysisQueue.push(args);
                 if (!this.processing) this.nextJob();
             },
@@ -126,8 +125,6 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         const jobArgs = this.analysisQueue.shift();
         const job = new TrackAnalysisJob(this, jobArgs);
         this.currentJob = job;
-
-        console.log(`nrex job`);
 
         try {
             const result = await job.analyze();

@@ -173,6 +173,19 @@ const createFunctionWrapper = function(name, thisObj, types, {
         return code;
 };
 
+export function dumpMemory(view, functionName = `unknown`, fileName = `unknown`, line = -1) {
+    const formattedData = view.reduce((data, cur) => {
+        const curArr = data[data.length - 1];
+        if (curArr.length < 16) {
+            curArr.push(cur);
+        } else {
+            data.push([cur]);
+        }
+        return data;
+    }, [[]]).map(arr => `    ${arr.join(`, `)}`).join(`,\n`);
+    console.log(`Memory dump from ${functionName} at ${fileName}:${line} (${view.length} values):\n${formattedData}`);
+}
+
 export const moduleEvents = new EventEmitter();
 const PAGE_SIZE = 65536;
 export default class WebAssemblyWrapper {
@@ -251,13 +264,9 @@ export default class WebAssemblyWrapper {
                 const constructorName = this.convertCharPToAsciiString(constructorNamePtr);
                 const Constructor = self[constructorName];
                 const view = new Constructor(this._mem.buffer, memPtr, length);
-                this.dumpMemory(view, functionName, fileName, line);
+                dumpMemory(view, functionName, fileName, line);
             },
-            __debugger: (stackPtr, fileNamePtr, functionNamePtr, line) => {
-                const fileName = this.convertCharPToAsciiString(fileNamePtr);
-                const functionName = this.convertCharPToAsciiString(functionNamePtr);
-                const location = `${functionName} at ${fileName}:${line}`;
-                const stack = this.u32view(stackPtr, 64);
+            __debugger() {
                 debugger;
             },
             __print_stack_trace: (messagePtr, fileNamePtr, functionNamePtr, line) => {
@@ -333,19 +342,6 @@ export default class WebAssemblyWrapper {
 
         this._ready = this._init(this._module, this._opts, importsObj);
         return this._ready;
-    }
-
-    dumpMemory(view, functionName = "unknown", fileName = "unknown", line = -1) {
-        const data = view.reduce((data, cur) => {
-            const curArr = data[data.length - 1];
-            if (curArr.length < 16) {
-                curArr.push(cur);
-            } else {
-                data.push([cur]);
-            }
-            return data;
-        }, [[]]).map(arr => `    ${arr.join(`, `)}`).join(`,\n`);
-        console.log(`Memory dump from ${functionName} at ${fileName}:${line} (${view.length} values):\n${data}`);
     }
 
     ready() {
@@ -523,7 +519,7 @@ export default class WebAssemblyWrapper {
         this._realloc = this._exportsProxy.realloc;
         this._calloc = this._exportsProxy.calloc;
         this.cmath = {
-            modf: this.createFunctionWrapper({name: "modf"}, "double", "double-retval")
+            modf: this.createFunctionWrapper({name: `modf`}, `double`, `double-retval`)
         };
 
         this._mem = this._getMemory();
@@ -538,6 +534,7 @@ export default class WebAssemblyWrapper {
         this._jsStackMemoryPtr = this._jsStackMemoryStart;
         this._jsStackMemoryStack = 0;
         this._heap = this.u8view(0);
+
         moduleEvents.emit(`${this._name}_afterInitialized`, this, this.exports);
 
         const unusedExports = Object.keys(declaredExports).
@@ -612,11 +609,7 @@ export default class WebAssemblyWrapper {
     }
 
     u8view(ptr, length = undefined) {
-        try {
-            return new Uint8Array(this._mem.buffer, ptr, length);
-        } catch(e) {
-            debugger;
-        }
+        return new Uint8Array(this._mem.buffer, ptr, length);
     }
 
     u32view(ptr, length = undefined) {

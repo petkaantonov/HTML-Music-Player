@@ -1,7 +1,11 @@
 import {Proxy} from "platform/platform";
 import {getterProxyHandlers} from "util";
 
-const doCheckDeps = true;
+let doCheckDeps = true;
+
+export function setDepChecking(value) {
+    doCheckDeps = value;
+}
 
 export default function withDeps(deps, callback) {
     if (typeof callback !== `function`) {

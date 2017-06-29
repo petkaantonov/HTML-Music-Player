@@ -73,7 +73,7 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src,
         memmove((void*)(&TMP2[this->tmp_length]), (void*)src, 2 * OVERLAP * sizeof(int16_t));
 
         while (this->tmp_length > 0) {
-            if (this->frames_processed + OVERLAP >= FRAMES_NEEDED_TOTAL) {
+            if (this->frames_processed + FRAMES - 1 >= FRAMES_NEEDED_TOTAL) {
                 return CHROMAPRINT_SUCCESS;
             }
             chromaprint_process_frames(this, &TMP2[tmp_offset]);
@@ -91,7 +91,7 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src,
 
     while (len > 0) {
         if (len >= FRAMES) {
-            if (this->frames_processed + OVERLAP >= FRAMES_NEEDED_TOTAL) {
+            if (this->frames_processed + FRAMES - 1 >= FRAMES_NEEDED_TOTAL) {
                 break;
             }
             chromaprint_process_frames(this, &src[src_offset]);
@@ -120,7 +120,7 @@ EXPORT ChromaprintError chromaprint_calculate_fingerprint(Chromaprint* this, cha
     if (err) return err;
     err = chromaprint_compressed(this);
     if (err) return err;
-    *base64_string_result = (char*) BUFFER;
+    *base64_string_result = (char*) BITS;
     return CHROMAPRINT_SUCCESS;
 }
 
@@ -176,11 +176,6 @@ static ChromaprintError chromaprint_get_fingerprint(Chromaprint* this) {
         value = (value << 2) | classify4(i, 4, 6, 15, -1.03809, -0.651211, -0.282167);
         value = (value << 2) | classify1(i, 0, 4, 16, -0.298702, 0.119262, 0.558497);
         value = (value << 2) | classify3(i, 8, 2, 12, -0.105439, 0.0153946, 0.135898);
-        if (i == 28) {
-            critical= true;
-            printf("classify3@28 %d", classify3(i, 8, 2, 12, -0.105439, 0.0153946, 0.135898));
-            critical = false;
-        }
         value = (value << 2) | classify3(i, 4, 4, 8, -0.142891, 0.0258736, 0.200632);
         value = (value << 2) | classify4(i, 0, 3, 5, -0.826319, -0.590612, -0.368214);
         value = (value << 2) | classify1(i, 2, 2, 9, -0.557409, -0.233035, 0.0534525);
@@ -193,9 +188,6 @@ static ChromaprintError chromaprint_get_fingerprint(Chromaprint* this) {
         value = (value << 2) | classify3(i, 5, 6, 4, -0.0799915, -0.00729616, 0.063262);
         value = (value << 2) | classify1(i, 9, 2, 12, -0.272556, 0.019424, 0.302559);
         value = (value << 2) | classify3(i, 4, 2, 14, -0.164292, -0.0321188, 0.08463);
-        if (value == 1565783387) {
-            printf("index %d value %d", i, value);
-        }
         fingerprint[i] = value;
     }
     return CHROMAPRINT_SUCCESS;
@@ -273,7 +265,7 @@ static void chromaprint_compress_sub_fingerprint(Chromaprint* this, uint32_t x) 
 static ChromaprintError chromaprint_compressed(Chromaprint* this) {
     this->bits_index = 0;
     uint32_t* fingerprint = (uint32_t*)BUFFER;
-    int32_t length = 948;//chromaprint_get_fingerprint_length(this);
+    int32_t length = chromaprint_get_fingerprint_length(this);
     if (length < 2) {
         return CHROMAPRINT_ERROR_INSUFFICIENT_LENGTH;
     }
@@ -286,7 +278,6 @@ static ChromaprintError chromaprint_compressed(Chromaprint* this) {
 
     uint8_t* ret = (uint8_t*) fingerprint;
     uint32_t len = (uint32_t)length;
-    printf("%d len", len);
     ret[0] = ALGORITHM & 0xFF;
     ret[1] = (len >> 16) & 0xFF;
     ret[2] = (len >> 8) & 0xFF;
@@ -299,37 +290,36 @@ static ChromaprintError chromaprint_compressed(Chromaprint* this) {
     return CHROMAPRINT_SUCCESS;
 }
 
-static void chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t length) {
+static char* chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t length) {
     uint32_t new_length = ((length * 4 + 2) / 3);
-    char* ret = (char*)BUFFER;
+    char* ret = (char*)BITS;
+    assert_not_equals((uintptr_t)ret, (uintptr_t)bytes);
+    assert_lt(new_length, BITS_SIZE);
 
     uint32_t input_index = 0;
     uint32_t output_index = 0;
-    uint32_t base64_char_index;
-    while (length > 0) {
-        base64_char_index = (bytes[input_index] >> 2);
-        ret[output_index++] = BASE64[base64_char_index];
-        base64_char_index = ((bytes[input_index] << 4) |
-                                   (((--length) > 0) ? (bytes[input_index + 1] >> 4) : 0)) & 63;
-        ret[output_index++] = BASE64[base64_char_index];
 
+    while (length > 0) {
+        ret[output_index++] = BASE64[(bytes[input_index] >> 2)];
+        ret[output_index++] = BASE64[((bytes[input_index] << 4) |
+                                   (((--length) > 0) ? (bytes[input_index + 1] >> 4) : 0)) & 63];
         if (length > 0) {
-            base64_char_index = ((bytes[input_index + 1] << 2) |
-                                       (((--length) > 0) ? (bytes[input_index + 2] >> 6) : 0)) & 63;
-            ret[output_index++] = BASE64[base64_char_index];
+            ret[output_index++] = BASE64[((bytes[input_index + 1] << 2) |
+                                       (((--length) > 0) ? (bytes[input_index + 2] >> 6) : 0)) & 63];
             if (length > 0) {
-                base64_char_index = bytes[input_index + 2] & 63;
-                ret[output_index++] = BASE64[base64_char_index];
+                ret[output_index++] = BASE64[bytes[input_index + 2] & 63];
                 length--;
             }
         }
 
+        ret[output_index] = '\0';
         input_index += 3;
 
     }
 
     assert_equals(output_index, new_length);
     ret[output_index++] = '\0';
+    return ret;
 }
 
 
@@ -397,27 +387,15 @@ static double area(int32_t x1, int32_t y1, int32_t x2, int32_t y2) {
 
     double area = IMAGE[x2 * 12 + y2];
 
-    if (critical) {
-        printf("%d %f", x2 * 12 + y2, IMAGE[x2 * 12 + y2]);
-    }
     if (x1 > 0) {
         area -= IMAGE[(x1 - 1) * 12 + y2];
-    if (critical) {
-        printf("%d %f", (x1 - 1) * 12 + y2,  IMAGE[(x1 - 1) * 12 + y2]);
-    }
         if (y1 > 0) {
             area += IMAGE[(x1 - 1) * 12 + (y1 - 1)];
-                if (critical) {
-                    printf("%d %f", (x1 - 1) * 12 + (y1 - 1),  IMAGE[(x1 - 1) * 12 + (y1 - 1)]);
-                }
         }
     }
 
     if (y1 > 0) {
         area -= IMAGE[x2 * 12 + (y1 - 1)];
-                        if (critical) {
-                    printf("%d %f", x2 * 12 + (y1 - 1),  IMAGE[x2 * 12 + (y1 - 1)]);
-                }
     }
 
     return area;
@@ -465,10 +443,6 @@ static uint32_t classify3(int32_t x, int32_t y, int32_t h, int32_t w, double t0,
 
     double b = area(x, y, x + w_2 - 1, y + h_2 - 1) +
             area(x + w_2, y + h_2, x + w - 1, y + h - 1);
-
-    if (critical) {
-        printf("a %f b %f", a, b);
-    }
 
     return quantize(cmp(a, b), t0, t1, t2);
 }

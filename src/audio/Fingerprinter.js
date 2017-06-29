@@ -27,7 +27,6 @@ export default class Fingerprinter {
 
     destroy() {
         if (this._ptr) {
-            console.log(`freeing`, this._ptr);
             this.chromaprint_destroy(this._ptr);
             this._ptr = 0;
         }
@@ -39,7 +38,7 @@ export default class Fingerprinter {
         }
 
         const [err, fingerprint] = this.chromaprint_calculate_fingerprint(this._ptr);
-        debugger;
+
         if (err) {
             throw new Error(`chromaprint err: ${err}`);
         }

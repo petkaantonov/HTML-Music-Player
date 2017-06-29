@@ -1,4 +1,4 @@
-import {console, Uint8Array} from "platform/platform";
+import {Uint8Array} from "platform/platform";
 import DecoderContext from "audio/DecoderContext";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
@@ -73,7 +73,6 @@ export default class Mp3Context extends DecoderContext {
             if (flushCallback && this._currentUnflushedAudioFrameCount > 0) {
                 this._flush(this._samplesPtr,
                             this._audioFrameCountToByteLength(this._currentUnflushedAudioFrameCount),
-                            this._currentUnflushedAudioFrameCount,
                             flushCallback);
                 flushed = true;
 
@@ -221,7 +220,6 @@ export default class Mp3Context extends DecoderContext {
                 flushed = true;
                 this._flush(this._samplesPtrOffsetByAudioFrames(skipped),
                             this._audioFrameCountToByteLength(targetAudioFrameCount),
-                            targetAudioFrameCount,
                             flushCallback);
 
                 if (overflow > 0) {
@@ -262,9 +260,9 @@ export default class Mp3Context extends DecoderContext {
                           this._audioFrameCountToByteLength(count));
     }
 
-    _flush(ptr, byteLength, audioFrameCount, callback) {
+    _flush(ptr, byteLength, callback) {
         this._currentUnflushedAudioFrameCount = 0;
-        callback(ptr, byteLength, audioFrameCount);
+        callback(ptr, byteLength);
     }
 
     _resetState() {
@@ -284,7 +282,7 @@ export default class Mp3Context extends DecoderContext {
     }
 
     _establishMetadata() {
-        const [retVal, sampleRate, channelCount, bitRate, mode, modeExt, lsf] = this.mp3_get_info(this._ptr);
+        const [retVal, sampleRate, channelCount] = this.mp3_get_info(this._ptr);
 
         if (retVal !== 0) {
             throw new Error(`mp3_get_info retval != 0: ${retVal}`);

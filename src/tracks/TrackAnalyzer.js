@@ -195,11 +195,11 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
     const result = dbResult && dbResult.duration ? dbResult : null;
     if (!track.isDetachedFromPlaylist() && !error) {
         this.emit(`metadataUpdate`);
-        let needFingerprint = true;
+        let needFingerprint = !track.tagData.hasSufficientMetadata();
         let needLoudness = true;
 
         if (result) {
-            needFingerprint = !result.fingerprint;
+            needFingerprint = needFingerprint ? !result.fingerprint : false;
             needLoudness = !result.loudness;
 
 
@@ -227,7 +227,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
                 let {fingerprint, loudness} = analysis;
 
                 if (result) {
-                    fingerprint = needFingerprint ? fingerprint : result.fingerprint;
+                    fingerprint = needFingerprint ? fingerprint : result.fingerprint || null;
                     loudness = needLoudness ? loudness : result.loudness;
                 } else {
                     track.tagData.setDataFromTagDatabase(analysis);

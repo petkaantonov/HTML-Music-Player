@@ -141,7 +141,7 @@ function format(wasm, formatStringPtr, argvPtr) {
                     const isShort = m3.charCodeAt(0) === 104;
                     if (isShort) {
                         ret += String(signed ? wasm.i16(offset) : wasm.u16(offset));
-                    } else {
+                    } else {
                         ret += String(signed ? wasm.i32(offset) : wasm.u32(offset));
                     }
                     offset += 4;
@@ -160,7 +160,7 @@ function format(wasm, formatStringPtr, argvPtr) {
             } else if (printFSizeMap[specifier] === f64) {
                 const alignedOffset = (offset + 7) & ~7;
                 const value = wasm.f64(alignedOffset);
-                const [frac, int] = wasm.cmath.modf(value);
+                const [frac] = wasm.cmath.modf(value);
                 if (frac === 0) {
                     ret += value.toFixed(1);
                 } else {

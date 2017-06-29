@@ -1,7 +1,6 @@
 import {Float32Array} from "platform/platform";
 
 const I16_BYTE_LENGTH = 2;
-const MAX_BYTES_PER_SAMPLE = 5 * I16_BYTE_LENGTH;
 
 class FilledBufferDescriptor {
     constructor(length, startTime, endTime, channelData) {
@@ -108,7 +107,7 @@ export default class AudioProcessingPipeline {
         const {bufferTime, sourceSampleRate} = this;
         const bytesToRead = bufferTime * sourceSampleRate * Math.ceil(metadata.maxByteSizePerAudioFrame);
         const currentAudioFrame = this.decoder.getCurrentAudioFrame();
-        const onFlush = (samplePtr, byteLength, framesWritten) => {
+        const onFlush = (samplePtr, byteLength) => {
             this._processSamples(samplePtr, byteLength, outputSpec, currentAudioFrame);
         };
 

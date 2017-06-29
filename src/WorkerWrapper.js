@@ -21,14 +21,13 @@ export default class WorkerWrapper {
         if (!port) {
             let resolve;
             const promise = new Promise((r) => {
-resolve = r;
-});
+                resolve = r;
+            });
             this._postedMessagePorts.set(eventName, {promise, resolve});
             return promise;
         } else if (port.promise) {
             return port.promise;
         } else {
-            console.log(`resolving with port`, port);
             return Promise.resolve(port);
         }
     }

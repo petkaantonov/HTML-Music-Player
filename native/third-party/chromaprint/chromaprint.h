@@ -32,6 +32,7 @@ static const uint32_t WIDTH = 16;
 static const double BASE = (double) REFERENCE_FREQUENCY / (double) WIDTH;
 static const uint32_t ALGORITHM = 1;
 static const uint32_t TMP_SIZE = FRAMES * 2;
+static const uint32_t BITS_SIZE = ROWS * 33;
 
 static const char* BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static bool critical = false;
@@ -39,7 +40,7 @@ static int16_t TMP2[TMP_SIZE];
 static double BUFFER[FRAMES];
 static double IMAGE[ROWS * NOTES];
 static double NOTE_BUFFER[8 * NOTES];
-static uint8_t BITS[ROWS * 33];
+static uint8_t BITS[BITS_SIZE];
 static uint32_t BINS_TO_NOTES[NOTE_FREQUENCY_END];
 
 typedef struct {
@@ -65,7 +66,7 @@ static int32_t chromaprint_get_fingerprint_length(Chromaprint* this);
 static ChromaprintError chromaprint_get_fingerprint(Chromaprint* this);
 static void chromaprint_compress_sub_fingerprint(Chromaprint* this, uint32_t x);
 static ChromaprintError chromaprint_compressed(Chromaprint* this);
-static void chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t length);
+static char* chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t length);
 static uint32_t chromaprint_bits_1(Chromaprint* this, uint8_t* ret, uint32_t offset);
 static uint32_t chromaprint_bits_2(Chromaprint* this, uint8_t* ret, uint32_t offset);
 static void chromaprint_initialize();

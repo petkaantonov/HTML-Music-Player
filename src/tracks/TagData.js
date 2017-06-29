@@ -87,6 +87,12 @@ TagData.prototype._stateUpdate = function() {
     // NOOP
 };
 
+TagData.prototype.hasSufficientMetadata = function() {
+    return this.taggedArtist !== null &&
+            this.taggedTitle !== null &&
+            this.pictures.length > 0;
+};
+
 TagData.prototype.getStateId = function() {
     return this._stateId;
 };

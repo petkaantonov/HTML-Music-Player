@@ -1,4 +1,3 @@
-import {delay} from "platform/PromiseExtensions";
 import FileView from "platform/FileView";
 import demuxer from "audio/demuxer";
 import getCodec from "audio/codec";
@@ -145,7 +144,6 @@ export default class TrackAnalysisJob {
         let estimateReported = false;
 
         while (filePosition < fileEndPosition) {
-            const chunkProcessingStarted = performance.now();
             const bytesRead = await this.audioPipeline.decodeFromFileViewAtOffset(fileView,
                                                                                   filePosition,
                                                                                   metadata);

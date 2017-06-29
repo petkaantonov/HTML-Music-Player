@@ -66,6 +66,8 @@ export default function Application(deps) {
     this.defaultTitle = defaultTitle;
     this.globalEvents = globalEvents;
 
+
+
     /* eslint-disable no-unused-vars */
     const workerWrapper = this.workerWrapper = new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`);
 

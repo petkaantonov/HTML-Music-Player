@@ -1,10 +1,16 @@
 /* eslint-disable no-invalid-this */
 
+let isDevelopment = true;
+
+export const setIsDevelopment = function(isIt) {
+    isDevelopment = isIt;
+};
+
 import {console, Uint8Array, Uint16Array, Uint32Array,
          Int32Array, Float32Array, Float64Array,
          FileReader, FileReaderSync, DataView,
          clearTimeout, setTimeout, TextDecoder, TextEncoder, crypto,
-         performance, Proxy, Symbol, self} from "platform/platform";
+         performance, Proxy, Symbol} from "platform/platform";
 
 if (typeof Math.denormz !== `function`) {
     Object.defineProperty(Math, `denormz`, {
@@ -1061,7 +1067,7 @@ const thrower = function() {
     throw new Error(`unsupported operation`);
 };
 
-export function getterProxyHandlers(getter) {
+export function getterProxyHandlers(getter, has = thrower) {
     return {
         get: getter,
         set: thrower,
@@ -1071,7 +1077,7 @@ export function getterProxyHandlers(getter) {
         preventExtensions: thrower,
         getOwnPropertyDescriptor: thrower,
         defineProperty: thrower,
-        has: thrower,
+        has,
         deleteProperty: thrower,
         ownKeys: thrower,
         apply: thrower,
@@ -1102,15 +1108,18 @@ const throwsOnUndefinedHandlers = getterProxyHandlers((target, name) => {
     if (name === isNoUndefinedProxySymbol) return true;
     if (typeof target[name] === `undefined` &&
         !target.hasOwnProperty(name)) {
-        if (self.env.isDevelopment()) {
+        if (isDevelopment) {
             console.warn(`property .${name} doesn't exist on object`);
         }
         return undefined;
     }
     return target[name];
-});
+}, (target, name) => name in target);
 
 export const noUndefinedGet = function(target) {
+    if (!isDevelopment) {
+        return Object(target);
+    }
     if (target && target[isNoUndefinedProxySymbol]) return target;
     return new Proxy(Object(target), throwsOnUndefinedHandlers);
 };

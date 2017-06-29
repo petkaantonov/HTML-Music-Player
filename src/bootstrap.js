@@ -1,12 +1,12 @@
 /* globals self: false, window: false, document: false, cssLoaded: false, CSS_LOAD_START: false */
 import {console, performance} from "platform/platform";
 import Application from "Application";
-import withDeps from "ApplicationDependencies";
+import {setDepChecking, default as withDeps} from "ApplicationDependencies";
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import Env from "platform/Env";
 import GlobalEvents from "platform/GlobalEvents";
 import Page from "platform/dom/Page";
-import {noop} from "util";
+import {noop, setIsDevelopment} from "util";
 
 const defaultTitle = `Soita`;
 
@@ -46,7 +46,8 @@ const env = new Env(page);
 const globalEvents = new GlobalEvents(page);
 const featureCheckResultsPromise = env.getRequiredPlatformFeatures();
 
-self.env = env;
+setDepChecking(env.isDevelopment());
+setIsDevelopment(env.isDevelopment());
 
 page.setTitle(defaultTitle);
 page.window().onerror = function(a, b, c, d, e) {
