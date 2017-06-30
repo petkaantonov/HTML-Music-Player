@@ -13,17 +13,13 @@ export default class ChannelMixer {
         this._alloc();
     }
 
-    mix(inputChannelCount, inputPtr, inputI16Length) {
-        this.channel_mixer_mix(this._ptr, inputChannelCount, inputPtr, inputI16Length);
+    mix(inputChannelCount, inputPtr, byteLength) {
+        this.channel_mixer_mix(this._ptr, inputChannelCount, inputPtr, byteLength);
         const samplePtr = this._wasm.u32field(this._ptr, OUTPUT_PTR_OFFSET);
         return {
             samplePtr,
-            byteLength: this.getLength(inputI16Length, inputChannelCount) * 2
+            byteLength: Math.ceil(this.destinationChannelCount / inputChannelCount * byteLength)
         };
-    }
-
-    getLength(inputI16Length, inputChannelCount) {
-        return this.channel_mixer_get_length(this._ptr, inputI16Length, inputChannelCount);
     }
 
     getChannels() {
@@ -56,11 +52,11 @@ export default class ChannelMixer {
 
 moduleEvents.on(`main_beforeModuleImport`, (wasm, imports) => {
     const bufferCache = new Map();
-    imports.env.channelMixerGetBuffer = function(i16length) {
-        let ptr = bufferCache.get(i16length);
+    imports.env.channelMixerGetBuffer = function(byteLength) {
+        let ptr = bufferCache.get(byteLength);
         if (!ptr) {
-            ptr = wasm.u16calloc(i16length);
-            bufferCache.set(i16length, ptr);
+            ptr = wasm.malloc(byteLength);
+            bufferCache.set(byteLength, ptr);
         }
         return ptr;
     };

@@ -109,9 +109,6 @@ export default class AudioProcessingPipeline {
         const {bufferTime, sourceSampleRate} = this;
         const bytesToRead = bufferTime * sourceSampleRate * Math.ceil(metadata.maxByteSizePerAudioFrame);
         const currentAudioFrame = this.decoder.getCurrentAudioFrame();
-        if (isNaN(currentAudioFrame)) {
-            debugger;
-        }
         const onFlush = (samplePtr, byteLength) => {
             this._processSamples(samplePtr, byteLength, outputSpec, currentAudioFrame);
         };
@@ -148,7 +145,6 @@ export default class AudioProcessingPipeline {
         return totalBytesRead;
     }
 
-
     _processSamples(samplePtr, byteLength, outputSpec, startAudioFrame) {
         const {sourceSampleRate,
                 sourceChannelCount,
@@ -167,15 +163,11 @@ export default class AudioProcessingPipeline {
         }
 
         if (sourceChannelCount !== destinationChannelCount) {
-            ({samplePtr, byteLength} = channelMixer.mix(sourceChannelCount, samplePtr, byteLength / I16_BYTE_LENGTH));
+            ({samplePtr, byteLength} = channelMixer.mix(sourceChannelCount, samplePtr, byteLength));
         }
 
         if (sourceSampleRate !== destinationSampleRate) {
-            ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength / I16_BYTE_LENGTH));
-        }
-
-        if (byteLength === 38400) {
-            applyWav(samplePtr, byteLength, this._wasm);
+            ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength));
         }
 
         if (effects) {
@@ -188,8 +180,12 @@ export default class AudioProcessingPipeline {
             fingerprinter.newFrames(samplePtr, byteLength);
         }
 
+        if (byteLength === 38400) {
+            applyWav(samplePtr, byteLength, this._wasm);
+        }
+
         const audioFrameLength = byteLength / I16_BYTE_LENGTH / destinationChannelCount;
-        const src = this._wasm.i16view(samplePtr, audioFrameLength * destinationChannelCount);
+        const src = this._wasm.i16view(samplePtr, byteLength / I16_BYTE_LENGTH);
 
         let channelData = null;
         if (outputSpec) {

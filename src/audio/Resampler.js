@@ -13,30 +13,29 @@ export default class Resampler {
         this._ptr = 0;
     }
 
-    getLength(i16length) {
-        if (this._ptr === 0) {
-            throw new Error(`start() not called`);
-        }
-        return this.resampler_get_length(this._ptr, i16length);
+    _byteLengthToAudioFrameCount(byteLength) {
+        return byteLength / this.channelCount / I16_BYTE_LENGTH;
     }
 
-    resample(samplesPtr, i16length) {
+    _audioFrameCountToByteLength(audioFrameCount) {
+        return audioFrameCount * this.channelCount * I16_BYTE_LENGTH;
+    }
+
+    resample(samplesPtr, byteLength) {
         if (this._ptr === 0) {
             throw new Error(`start() not called`);
         }
-        const [, outputSamplesPtr, inputSamplesRead, outputSamplesWritten] =
-                this.resampler_resample(this._ptr, samplesPtr, i16length);
+        const [, outputSamplesPtr, inputAudioFramesRead, outputAudioFramesWritten] =
+                this.resampler_resample(this._ptr, samplesPtr, this._byteLengthToAudioFrameCount(byteLength));
         const err = this.get_error();
 
         if (err) {
             throw err;
         }
 
-        console.log("the resampler wrote", outputSamplesWritten * 2, " bytes to the buffer");
-
         return {
             samplePtr: outputSamplesPtr,
-            byteLength: (outputSamplesWritten - (outputSamplesWritten % 2)) * I16_BYTE_LENGTH
+            byteLength: this._audioFrameCountToByteLength(outputAudioFramesWritten)
         };
     }
 
@@ -67,11 +66,11 @@ export default class Resampler {
 
 moduleEvents.on(`main_beforeModuleImport`, (wasm, imports) => {
     const bufferCache = new Map();
-    imports.env.resamplerGetBuffer = function(i16length) {
-        let ptr = bufferCache.get(i16length);
+    imports.env.resamplerGetBuffer = function(byteLength) {
+        let ptr = bufferCache.get(byteLength);
         if (!ptr) {
-            ptr = wasm.malloc(Math.ceil(i16length * I16_BYTE_LENGTH));
-            bufferCache.set(i16length, ptr);
+            ptr = wasm.malloc(byteLength);
+            bufferCache.set(byteLength, ptr);
         }
         return ptr;
     };

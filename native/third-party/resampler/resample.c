@@ -1092,7 +1092,6 @@ int speex_resampler_process_interleaved_int(SpeexResamplerState *st, const spx_i
          speex_resampler_process_int(st, i, NULL, in_len, out+i, out_len);
       w += *out_len;
    }
-   printf("actullay wrote %u samples", w);
    st->in_stride = istride_save;
    st->out_stride = ostride_save;
    return st->resampler_ptr == resampler_basic_zero ? RESAMPLER_ERR_ALLOC_FAILED : RESAMPLER_ERR_SUCCESS;
