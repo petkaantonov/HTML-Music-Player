@@ -531,9 +531,11 @@ export default function Application(deps) {
 
 
     this.page.changeDom(() => {
-        this.globalEvents._triggerSizeChange();
-        this.visualizerCanvas.initialize();
-        console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
+        setTimeout(() => {
+            this.globalEvents._triggerSizeChange();
+            this.visualizerCanvas.initialize();
+            console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
+        }, 10);
     });
 
 }
