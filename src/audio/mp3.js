@@ -4,12 +4,10 @@ import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 const DECODER_DELAY = 529;
 const MAX_SAMPLE_RATE = 48000;
-const MIN_SAMPLE_RATE = 8000;
 const MAX_CHANNELS = 2;
 const MAX_SAMPLES_PER_FRAME = 1152;
-const MAX_BITRATE_KBPS = 320;
-const MAX_BUFFER_LENGTH_SECONDS = 5;
-const MIN_BUFFER_LENGTH_SECONDS = MAX_SAMPLES_PER_FRAME / MIN_SAMPLE_RATE;
+const MAX_BUFFER_LENGTH_AUDIO_FRAMES = 5 * MAX_SAMPLE_RATE;
+const MIN_BUFFER_LENGTH_AUDIO_FRAMES = MAX_SAMPLES_PER_FRAME;
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
 const INT_16_BYTE_LENGTH = 2;
@@ -19,9 +17,9 @@ const {max, min} = Math;
 export default class Mp3Context extends DecoderContext {
     constructor(wasm, opts) {
         super(opts);
-        let {targetBufferLengthSeconds} = this;
-        targetBufferLengthSeconds = max(min(targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS), MIN_BUFFER_LENGTH_SECONDS);
-        this.targetBufferLengthSeconds = targetBufferLengthSeconds;
+        let {targetBufferLengthAudioFrames} = this;
+        targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
 
         this._invalidMp3FrameCount = 0;
         this._audioFramesToSkip = 0;
@@ -36,18 +34,18 @@ export default class Mp3Context extends DecoderContext {
         if (this._ptr === 0) {
             throw new Error(`allocation failed`);
         }
-        this._srcBufferMaxLength = MAX_BITRATE_KBPS * 1000 / 8 * this.targetBufferLengthSeconds + 4096;
+        this._srcBufferMaxLength = Math.ceil(MAX_MP3_FRAME_BYTE_LENGTH / MAX_SAMPLES_PER_FRAME * this.targetBufferLengthAudioFrames);
         this._srcBufferPtr = wasm.malloc(this._srcBufferMaxLength);
-        this._samplesPtr = wasm.u16calloc(MAX_CHANNELS * (this.targetBufferLengthSeconds * MAX_SAMPLE_RATE + MAX_SAMPLES_PER_FRAME));
+        this._samplesPtr = wasm.u16calloc(MAX_CHANNELS * this.targetBufferLengthAudioFrames);
         this._currentUnflushedAudioFrameCount = 0;
         this._bytesWrittenToSampleBufferResultPtr = wasm.u32calloc(1);
     }
 
     reinitialized(opts) {
         super.reinitialized(opts);
-        let {targetBufferLengthSeconds} = this;
-        targetBufferLengthSeconds = max(min(targetBufferLengthSeconds, MAX_BUFFER_LENGTH_SECONDS), MIN_BUFFER_LENGTH_SECONDS);
-        this.targetBufferLengthSeconds = targetBufferLengthSeconds;
+        let {targetBufferLengthAudioFrames} = this;
+        targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
         return this;
     }
 
@@ -189,7 +187,7 @@ export default class Mp3Context extends DecoderContext {
     _mp3FrameDecoded(audioFramesDecoded, flushCallback) {
         let flushed = false;
         const currentFrameCount = this._currentUnflushedAudioFrameCount;
-        const {targetAudioFrameCount} = this;
+        const {targetBufferLengthAudioFrames} = this;
         const metadata = this._metadata;
 
         if (metadata !== null) {
@@ -213,18 +211,18 @@ export default class Mp3Context extends DecoderContext {
 
         if (audioFramesDecoded > 0) {
             const samplesPtr = this._samplesPtr;
-            if (currentFrameCount + audioFramesDecoded >= targetAudioFrameCount) {
-                const remaining = targetAudioFrameCount - currentFrameCount;
+            if (currentFrameCount + audioFramesDecoded >= targetBufferLengthAudioFrames) {
+                const remaining = targetBufferLengthAudioFrames - currentFrameCount;
                 const overflow = audioFramesDecoded - remaining;
 
                 flushed = true;
                 this._flush(this._samplesPtrOffsetByAudioFrames(skipped),
-                            this._audioFrameCountToByteLength(targetAudioFrameCount),
+                            this._audioFrameCountToByteLength(targetBufferLengthAudioFrames),
                             flushCallback);
 
                 if (overflow > 0) {
                     this._copySamples(samplesPtr, 0,
-                                      samplesPtr, skipped + targetAudioFrameCount,
+                                      samplesPtr, skipped + targetBufferLengthAudioFrames,
                                       overflow);
 
                     this._currentUnflushedAudioFrameCount = overflow;

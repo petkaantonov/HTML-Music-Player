@@ -23,8 +23,8 @@ export default class Resampler {
         if (this._ptr === 0) {
             throw new Error(`start() not called`);
         }
-        const [, outputSamplesPtr, , outputSamplesWritten] =
-                                                    this.resampler_resample(this._ptr, samplesPtr, i16length);
+        const [, outputSamplesPtr, inputSamplesRead, outputSamplesWritten] =
+                this.resampler_resample(this._ptr, samplesPtr, i16length);
         const err = this.get_error();
 
         if (err) {
@@ -33,7 +33,7 @@ export default class Resampler {
 
         return {
             samplePtr: outputSamplesPtr,
-            byteLength: outputSamplesWritten * 2
+            byteLength: outputSamplesWritten - (outputSamplesWritten % 2)
         };
     }
 

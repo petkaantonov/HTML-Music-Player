@@ -303,6 +303,7 @@ export default class AudioSource extends EventEmitter {
                 destinationSampleRate,
                 resamplerQuality,
                 bufferTime,
+                bufferAudioFrameCount,
                 wasm,
                 channelMixer,
                 effects} = this.backend;
@@ -343,8 +344,7 @@ export default class AudioSource extends EventEmitter {
             }
 
             this._decoder = allocDecoderContext(wasm, codecName, codec, {
-                targetBufferLengthSeconds: bufferTime,
-                targetSampleRate: destinationSampleRate
+                targetBufferLengthAudioFrames: bufferTime * sourceSampleRate
             });
 
             this._decoder.start(metadata);
@@ -356,7 +356,7 @@ export default class AudioSource extends EventEmitter {
                 sourceSampleRate, sourceChannelCount,
                 destinationSampleRate, destinationChannelCount,
                 decoder, resampler,
-                channelMixer, effects, bufferTime
+                channelMixer, effects, bufferTime, bufferAudioFrameCount
             });
             this.sendMessage(`_blobLoaded`, {requestId, metadata});
         } catch (e) {

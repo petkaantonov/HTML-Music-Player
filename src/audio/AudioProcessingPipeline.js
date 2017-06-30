@@ -11,17 +11,18 @@ class FilledBufferDescriptor {
     }
 }
 
-/*
-//TODO: Remove this comment after testing framework is in place and it will become unnecessary.
 
-const WAV_CHANNELS = 1;
-const WAV_SR = 11025;
-const WAV_DURATION = 30;
-const wavData = new Int16Array(WAV_CHANNELS * WAV_SR * WAV_DURATION + 44 / 2);
+// TODO: Remove this comment after testing framework is in place and it will become unnecessary.
+
+const WAV_CHANNELS = 2;
+const WAV_SR = 44100;
+const WAV_DURATION = 0.2 * WAV_SR * 1/0.2 * 15;
+const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
+
 let wavLength = 0;
 
 function applyWav(samplePtr, byteLength, wasm) {
-    if (wavLength < WAV_DURATION * WAV_SR) {
+    if (wavLength < WAV_DURATION) {
         const o = wavLength * WAV_CHANNELS * 2 + 44;
         new Uint8Array(wavData.buffer).set(wasm.u8view(samplePtr, byteLength), o);
         wavLength += byteLength / WAV_CHANNELS / I16_BYTE_LENGTH;
@@ -43,12 +44,12 @@ function applyWav(samplePtr, byteLength, wasm) {
         dataV.setUint32(40, wavData.byteLength - 44, true);
 
 
-        const a = new Blob([wavData], {type: "audio/wav"});
+        const a = new Blob([wavData], {type: `audio/wav`});
         // Just listen to the wav file to see if decoding/channelmixing/resampling was done correctly...
         const b = URL.createObjectURL(a);
         debugger;
     }
-}*/
+}
 
 
 export default class AudioProcessingPipeline {
@@ -63,7 +64,8 @@ export default class AudioProcessingPipeline {
         resampler,
         fingerprinter,
         loudnessAnalyzer,
-        bufferTime
+        bufferTime,
+        bufferAudioFrameCount
     }) {
         this._wasm = wasm;
         this._filledBufferDescriptor = null;
@@ -79,6 +81,7 @@ export default class AudioProcessingPipeline {
         this.loudnessAnalyzer = loudnessAnalyzer;
         this.fingerprinter = fingerprinter;
         this.bufferTime = bufferTime;
+        this.bufferAudioFrameCount = bufferAudioFrameCount;
     }
 
     get hasFilledBuffer() {
@@ -155,6 +158,9 @@ export default class AudioProcessingPipeline {
                 loudnessAnalyzer,
                 fingerprinter} = this;
 
+        console.log(sourceSampleRate, sourceChannelCount, destinationSampleRate, destinationChannelCount);
+        applyWav(samplePtr, byteLength, this._wasm);
+
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
             loudnessAnalyzer.newFrames(samplePtr, audioFrameLength);
@@ -184,14 +190,14 @@ export default class AudioProcessingPipeline {
         let channelData = null;
         if (outputSpec) {
             if (outputSpec.transferList) {
-                const {transferList} = this.outputSpec;
-                let {transferListIndex} = this.outputSpec;
+                const {transferList} = outputSpec;
+                let {transferListIndex} = outputSpec;
                 channelData = new Array(destinationChannelCount);
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     channelData[ch] = new Float32Array(transferList[transferListIndex++]);
                 }
             } else if (outputSpec.channelData) {
-                ({channelData} = this.outputSpec);
+                ({channelData} = outputSpec);
             } else {
                 throw new Error(`unknown output spec`);
             }

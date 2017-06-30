@@ -1,24 +1,19 @@
-const DEFAULT_BUFFER_LENGTH_SECONDS = 2;
+const DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES = 2 * 48000;
 
 let autoIncrementId = 0;
 export default class DecoderContext {
-    constructor({targetBufferLengthSeconds}) {
+    constructor({targetBufferLengthAudioFrames}) {
         this._id = autoIncrementId++;
-        this._targetBufferLengthSeconds = targetBufferLengthSeconds ||
-                                          DEFAULT_BUFFER_LENGTH_SECONDS;
         this._started = false;
         this._channelCount = -1;
         this._sampleRate = -1;
+        this._targetBufferLengthAudioFrames = 0;
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames || DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES;
     }
 
-    reinitialized({targetBufferLengthSeconds}) {
-        this._targetBufferLengthSeconds = targetBufferLengthSeconds ||
-                                          DEFAULT_BUFFER_LENGTH_SECONDS;
+    reinitialized({targetBufferLengthAudioFrames}) {
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames || DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES;
         return this;
-    }
-
-    get targetAudioFrameCount() {
-        return this.targetBufferLengthSeconds * this.sampleRate;
     }
 
     get channelCount() {
@@ -39,12 +34,12 @@ export default class DecoderContext {
         return this._id;
     }
 
-    get targetBufferLengthSeconds() {
-        return this._targetBufferLengthSeconds;
+    get targetBufferLengthAudioFrames() {
+        return this._targetBufferLengthAudioFrames;
     }
 
-    set targetBufferLengthSeconds(val) {
-        this._targetBufferLengthSeconds = val;
+    set targetBufferLengthAudioFrames(val) {
+        this._targetBufferLengthAudioFrames = Math.ceil(val) >>> 0;
     }
 
     hasEstablishedMetadata() {

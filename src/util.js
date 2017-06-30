@@ -12,53 +12,6 @@ import {console, Uint8Array, Uint16Array, Uint32Array,
          clearTimeout, setTimeout, TextDecoder, TextEncoder, crypto,
          performance, Proxy, Symbol} from "platform/platform";
 
-if (typeof Math.denormz !== `function`) {
-    Object.defineProperty(Math, `denormz`, {
-        value: (function() {
-            const i16 = new Uint16Array(1);
-            const i8 = new Uint8Array(i16.buffer);
-            i8[0] = 0xFF;
-            const HIGH_INDEX = i16[0] === 0xFF ? 1 : 0;
-
-            const f64 = new Float64Array(1);
-            const i32 = new Int32Array(f64.buffer);
-
-            return function MathDenormz(x) {
-                f64[0] = x;
-                return (i32[HIGH_INDEX] & 0x7ff00000) === 0 ? 0 : x;
-            };
-        }())
-    });
-}
-
-
-if (typeof Math.fdzround !== `function`) {
-    Object.defineProperty(Math, `fdzround`, {
-        value: (function() {
-            const f32 = new Float32Array(1);
-            const i32 = new Int32Array(f32.buffer);
-
-            return function MathFdzround(x) {
-                x = Math.fround(x);
-                f32[0] = x;
-                return (i32[0] & 0x7f800000) === 0 ? 0 : x;
-            };
-        }())
-    });
-}
-
-if (typeof Math.gcd !== `function`) {
-    Object.defineProperty(Math, `gcd`, {
-        value: function gcd(a, b) {
-            if (b === 0) {
-                return a;
-            }
-
-            return gcd(b, a % b);
-        }
-    });
-}
-
 export const queryString = function(obj) {
     return Object.keys(obj).map(key => `${key}=${obj[key]}`).join(`&`);
 };
@@ -1123,3 +1076,11 @@ export const noUndefinedGet = function(target) {
     if (target && target[isNoUndefinedProxySymbol]) return target;
     return new Proxy(Object(target), throwsOnUndefinedHandlers);
 };
+
+export function gcd(a, b) {
+    if ( ! b) {
+        return a;
+    }
+
+    return gcd(b, a % b);
+}

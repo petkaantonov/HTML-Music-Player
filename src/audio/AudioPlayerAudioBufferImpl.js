@@ -10,7 +10,7 @@
 // In the catastrophic case where ui is blocked, the output will be silence
 // Instead of ear destroying noise.
 
-import {inherits, throttle} from "util";
+import {inherits, throttle, gcd} from "util";
 import {AudioContext, ArrayBuffer, Float32Array,
         Blob, File, console, performance} from "platform/platform";
 import EventEmitter from "events";
@@ -18,12 +18,11 @@ import {PLAYER_READY_EVENT_NAME} from "audio/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
 
 const NO_THROTTLE = {};
-const EXPENSIVE_CALL_THROTTLE_TIME = 200;
-
-const makeAudioContext = function() {
-    const ret = new AudioContext({latencyHint: `playback`});
-    return ret;
-};
+const EXPENSIVE_CALL_THROTTLE_TIME = 100;
+const TARGET_BUFFER_LENGTH_SECONDS = 0.2;
+const SUSTAINED_BUFFER_TIME_SECONDS = 1.6;
+const FLOAT32_BYTES = 4;
+const WEB_AUDIO_BLOCK_SIZE = 128;
 
 if (!AudioContext.prototype.suspend) {
     AudioContext.prototype.suspend = function() {
@@ -49,20 +48,6 @@ function SourceDescriptor(buffer, info, channelData, isLastForTrack) {
     this.isLastForTrack = isLastForTrack;
 }
 
-SourceDescriptor.prototype.hash = function() {
-    const channels = this.channelData.length;
-    const ret = [];
-    for (let ch = 0; ch < channels; ++ch) {
-        let sum = 0;
-        const data = this.channelData[ch];
-        for (let i = 0; i < this.length; ++i) {
-            sum += data[i];
-        }
-        ret.push(sum);
-    }
-    return ret;
-};
-
 SourceDescriptor.prototype.getRemainingDuration = function() {
     return this.duration - this.playedSoFar;
 };
@@ -78,28 +63,6 @@ function PolyfillGetOutputTimestamp() {
     };
 }
 
-function webAudioBlockSize(value) {
-    const BLOCK_SIZE = 128;
-    if (value % BLOCK_SIZE === 0) return value;
-    return value + (BLOCK_SIZE - (value % BLOCK_SIZE));
-}
-
-const FLOAT32_BYTES = 4;
-const SUSTAINED_BUFFER_COUNT = 6;
-const BUFFER_SAMPLES = webAudioBlockSize(12000 * 1);
-const BUFFER_ALLOCATION_SIZE = BUFFER_SAMPLES * FLOAT32_BYTES * SUSTAINED_BUFFER_COUNT;
-const PRELOAD_BUFFER_COUNT = 3;
-const MAX_AUDIO_BUFFERS = SUSTAINED_BUFFER_COUNT * 3 * 2;
-const MAX_ARRAY_BUFFERS = SUSTAINED_BUFFER_COUNT * 3 * 2 * 6;
-
-let codeIsCold = true;
-const getPreloadBufferCount = function() {
-    if (codeIsCold) {
-        return (PRELOAD_BUFFER_COUNT * 1.5) | 0;
-    }
-    return PRELOAD_BUFFER_COUNT;
-};
-
 let autoIncrementNodeId = 0;
 export default class AudioPlayer extends WorkerFrontend {
     constructor(deps) {
@@ -112,21 +75,28 @@ export default class AudioPlayer extends WorkerFrontend {
         this.effectPreferences = deps.effectPreferences;
         this.applicationPreferences = deps.applicationPreferences;
 
-        this._audioContext = makeAudioContext();
-        this._unprimedAudioContext = this._audioContext;
-        this._silentBuffer = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
-                                                             8192,
-                                                             this._audioContext.sampleRate);
-        this._previousAudioContextTime = this._audioContext.currentTime;
+        this._audioContext = null;
+        this._unprimedAudioContext = null;
+        this._silentBuffer = null;
+        this._previousAudioContextTime = -1;
+        this._outputSampleRate = -1;
+        this._outputChannelCount = -1;
         this._arrayBufferPool = [];
         this._audioBufferPool = [];
         this._sourceNodes = [];
-        this._audioBufferTime = BUFFER_SAMPLES / this._audioContext.sampleRate;
+        this._sustainedBufferCount = 0;
+        this._bufferFrameCount = 0;
+        this._playedAudioBuffersNeededForVisualization = 0;
+        this._arrayBufferByteLength = 0;
+        this._maxAudioBuffers = 0;
+        this._maxArrayBuffers = 0;
+        this._audioBufferTime = -1;
         this._audioBuffersAllocated = 0;
         this._arrayBuffersAllocated = 0;
         this._suspensionTimeoutMs = 20 * 1000;
         this._currentStateModificationAction = null;
         this._lastAudioContextRefresh = 0;
+
         this._playbackStoppedTime = performance.now();
 
         this._suspend = this._suspend.bind(this);
@@ -139,24 +109,14 @@ export default class AudioPlayer extends WorkerFrontend {
             this.setEffects(this.effectPreferences.getAudioPlayerEffects());
         });
 
-        this.ready().then(() => {
-            this.setEffects(this.effectPreferences.getAudioPlayerEffects());
-            this._message(-1, `audioConfiguration`, {
-                channels: this._audioContext.destination.channelCount,
-                sampleRate: this._audioContext.sampleRate,
-                bufferTime: this._audioBufferTime,
-                resamplerQuality: this._determineResamplerQuality()
-            });
-        });
-
+        this._updateBackendConfig({resamplerQuality: this._determineResamplerQuality()});
         this.page.addDocumentListener(`touchend`, this._touchended.bind(this), true);
 
-        this.getOutputTimestamp = typeof this._audioContext.getOutputTimestamp === `function` ? NativeGetOutputTimestamp
-                                                                                              : PolyfillGetOutputTimestamp;
-
+        this.getOutputTimestamp = typeof AudioContext.prototype.getOutputTimestamp === `function` ? NativeGetOutputTimestamp
+                                                                                                  : PolyfillGetOutputTimestamp;
+        this._resetAudioContext();
     }
 }
-AudioPlayer.webAudioBlockSize = webAudioBlockSize;
 
 AudioPlayer.prototype.receiveMessage = function(event) {
     const {nodeId} = event.data;
@@ -173,6 +133,58 @@ AudioPlayer.prototype.receiveMessage = function(event) {
             this[methodName](args, transferList);
         }
     }
+};
+
+AudioPlayer.prototype._bufferFrameCountForSampleRate = function(sampleRate) {
+    return TARGET_BUFFER_LENGTH_SECONDS * sampleRate;
+};
+
+AudioPlayer.prototype._updateBackendConfig = async function(config) {
+    await this.ready();
+    this._message(-1, `audioConfiguration`, config);
+};
+
+AudioPlayer.prototype._audioContextChanged = async function() {
+    const {_audioContext} = this;
+    const {channelCount} = _audioContext.destination;
+    const {sampleRate} = _audioContext;
+
+    this._previousAudioContextTime = _audioContext.currentTime;
+
+    // TODO: Check -1 return vfalue from bufferFrameCountForSampleRate
+    if (this._setAudioOutputParameters({channelCount, sampleRate})) {
+
+        this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
+        this._sustainedBufferCount = Math.ceil(SUSTAINED_BUFFER_TIME_SECONDS / (this._bufferFrameCount / sampleRate));
+        this._maxAudioBuffers = this._sustainedBufferCount * channelCount * 2;
+        this._maxArrayBuffers = this._maxAudioBuffers * 2;
+        this._audioBufferTime = this._bufferFrameCount / sampleRate;
+        this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
+        this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
+        this._silentBuffer = _audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
+        await this._updateBackendConfig({channelCount, sampleRate, bufferTime: this._audioBufferTime});
+        this._resetPools();
+        for (const sourceNode of this._sourceNodes.slice()) {
+            sourceNode._resetAudioBuffers();
+        }
+    } else {
+        for (const sourceNode of this._sourceNodes.slice()) {
+            sourceNode.adoptNewAudioContext(_audioContext);
+        }
+    }
+};
+
+AudioPlayer.prototype._setAudioOutputParameters = function({sampleRate, channelCount}) {
+    let changed = false;
+    if (this._outputSampleRate !== sampleRate) {
+        this._outputSampleRate = sampleRate;
+        changed = true;
+    }
+    if (this._outputChannelCount !== channelCount) {
+        this._outputChannelCount = channelCount;
+        changed = true;
+    }
+    return changed;
 };
 
 AudioPlayer.prototype._touchended = async function() {
@@ -225,16 +237,18 @@ AudioPlayer.prototype._suspend = function() {
 
 AudioPlayer.prototype._resetAudioContext = function() {
     try {
-        this._audioContext.close();
+        if (this._audioContext) {
+            this._audioContext.close();
+        }
     } catch (e) {
         // NOOP
+    } finally {
+        this._audioContext = null;
     }
-    this._audioContext = makeAudioContext();
+    this._audioContext = new AudioContext({latencyHint: `playback`});
     this._unprimedAudioContext = this._audioContext;
-    for (let i = 0; i < this._sourceNodes.length; ++i) {
-        this._sourceNodes[i].adoptNewAudioContext(this._audioContext);
-    }
     this.emit(`audioContextReset`, this);
+    this._audioContextChanged();
 };
 
 AudioPlayer.prototype._clearSuspensionTimer = function() {
@@ -272,18 +286,28 @@ AudioPlayer.prototype._freeTransferList = function(args, transferList) {
     }
 };
 
+AudioPlayer.prototype._resetPools = function() {
+    this._audioBuffersAllocated = 0;
+    this._arrayBuffersAllocated = 0;
+    this._audioBufferPool = [];
+    this._arrayBufferPool = [];
+};
+
 AudioPlayer.prototype._freeAudioBuffer = function(audioBuffer) {
-    this._audioBufferPool.push(audioBuffer);
+    if (audioBuffer.sampleRate === this._outputSampleRate &&
+        audioBuffer.numberOfChannels === this._outputChannelCount &&
+        audioBuffer.length === this._bufferFrameCount) {
+        this._audioBufferPool.push(audioBuffer);
+    }
 };
 
 AudioPlayer.prototype._allocAudioBuffer = function() {
     if (this._audioBufferPool.length > 0) return this._audioBufferPool.shift();
-    const ret = this._audioContext.createBuffer(this._audioContext.destination.channelCount,
-                                              BUFFER_SAMPLES,
-                                              this._audioContext.sampleRate);
+    const {_outputChannelCount, _outputSampleRate, _bufferFrameCount, _audioContext} = this;
+    const ret = _audioContext.createBuffer(_outputChannelCount, _bufferFrameCount, _outputSampleRate);
     this._audioBuffersAllocated++;
-    if (this._audioBuffersAllocated > MAX_AUDIO_BUFFERS) {
-        console.warn(`Possible memory leak: over ${MAX_AUDIO_BUFFERS} audio buffers allocated`);
+    if (this._audioBuffersAllocated > this._maxAudioBuffers) {
+        console.warn(`Possible memory leak: over ${this._maxAudioBuffers} audio buffers allocated`);
     }
     return ret;
 };
@@ -292,16 +316,19 @@ AudioPlayer.prototype._freeArrayBuffer = function(arrayBuffer) {
     if (!(arrayBuffer instanceof ArrayBuffer)) {
         arrayBuffer = arrayBuffer.buffer;
     }
-    this._arrayBufferPool.push(arrayBuffer);
+
+    if (arrayBuffer.byteLength === this._arrayBufferByteLength) {
+        this._arrayBufferPool.push(arrayBuffer);
+    }
 };
 
 AudioPlayer.prototype._allocArrayBuffer = function(size) {
     if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
     this._arrayBuffersAllocated++;
-    if (this._arrayBuffersAllocated > MAX_ARRAY_BUFFERS) {
-        console.warn(`Possible memory leak: over ${MAX_ARRAY_BUFFERS} array buffers allocated`);
+    if (this._arrayBuffersAllocated > this._maxArrayBuffers) {
+        console.warn(`Possible memory leak: over ${this._maxArrayBuffers} array buffers allocated`);
     }
-    const buffer = new ArrayBuffer(BUFFER_ALLOCATION_SIZE);
+    const buffer = new ArrayBuffer(this._arrayBufferByteLength);
     return new Float32Array(buffer, 0, size);
 };
 
@@ -317,7 +344,7 @@ AudioPlayer.prototype._sourceNodeDestroyed = function(node) {
 };
 
 AudioPlayer.prototype.getMaxLatency = function() {
-    return BUFFER_SAMPLES / this._audioContext.sampleRate / 2;
+    return this._bufferFrameCount / this._outputSampleRate / 2;
 };
 
 AudioPlayer.prototype.getHardwareLatency = function() {
@@ -372,11 +399,6 @@ AudioPlayer.prototype.playbackStarted = function() {
 
 AudioPlayer.prototype.getMaximumSeekTime = function(duration) {
     return Math.max(0, duration - (this._audioBufferTime + (2048 / this._audioContext.sampleRate)));
-};
-
-AudioPlayer.prototype.blockSizedTime = function(time) {
-    return webAudioBlockSize(this._audioContext.sampleRate * time) /
-            this._audioContext.sampleRate;
 };
 
 AudioPlayer.prototype.getBufferDuration = function() {
@@ -649,7 +671,7 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
     source.onended = null;
     sourceDescriptor.source = null;
     this._playedBufferQueue.push(sourceDescriptor);
-    if (this._playedBufferQueue.length > PRELOAD_BUFFER_COUNT) {
+    if (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
         this._destroySourceDescriptor(this._playedBufferQueue.shift());
     }
 
@@ -852,13 +874,12 @@ AudioPlayerSourceNode.prototype._getBuffersForTransferList = function(count) {
         buffers[i] = this._player._allocArrayBuffer(size);
     }
     return buffers;
-};
-
+}
+;
 AudioPlayerSourceNode.prototype._fillBuffers = function() {
     if (!this._haveBlob || this._destroyed) return;
-
-    if (this._bufferQueue.length < SUSTAINED_BUFFER_COUNT) {
-        const count = SUSTAINED_BUFFER_COUNT - this._bufferQueue.length;
+    if (this._bufferQueue.length < this._player._sustainedBufferCount) {
+        const count = this._player._sustainedBufferCount - this._bufferQueue.length;
 
         this._player._message(this._id, `fillBuffers`, {
             count
@@ -1060,13 +1081,21 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
     const requestId = ++this._seekRequestId;
     this._player._message(this._id, `seek`, {
         requestId,
-        count: getPreloadBufferCount(),
+        count: 1,
         time,
         isUserSeek
-    }, this._getBuffersForTransferList(getPreloadBufferCount()));
+    }, this._getBuffersForTransferList(1));
     if (!this._currentSeekEmitted && isUserSeek) {
         this._currentSeekEmitted = true;
         this.emit(`seeking`, this._currentTime);
+    }
+};
+
+AudioPlayerSourceNode.prototype._resetAudioBuffers = function() {
+    if (this.isSeekable() && this._haveBlob) {
+        this.setCurrentTime(this._currentTime, true);
+    } else {
+        this.destroy();
     }
 };
 
@@ -1157,7 +1186,6 @@ AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     this._duration = args.metadata.duration;
     this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
     this._seek(this._currentTime, false);
-    codeIsCold = false;
     this.emit(`timeUpdate`, this._currentTime, this._duration);
     this.emit(`canPlay`);
 };
@@ -1250,10 +1278,10 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
         blob,
         requestId,
         seekTime,
-        count: getPreloadBufferCount(),
+        count: 1,
         gaplessPreload: !!gaplessPreload,
         metadata
-    }, this._getBuffersForTransferList(getPreloadBufferCount()));
+    }, this._getBuffersForTransferList(1));
 };
 
 

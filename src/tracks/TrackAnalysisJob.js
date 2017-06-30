@@ -102,8 +102,7 @@ export default class TrackAnalysisJob {
         }
 
         const decoder = this.decoder = allocDecoderContext(wasm, codecName, codec, {
-            targetBufferLengthSeconds: BUFFER_DURATION,
-            targetSampleRate: sourceSampleRate
+            targetBufferLengthAudioFrames: BUFFER_DURATION * sourceSampleRate
         });
 
         decoder.start(metadata);
@@ -133,6 +132,7 @@ export default class TrackAnalysisJob {
             resampler: this.resampler,
             channelMixer: this.channelMixer,
             bufferTime: BUFFER_DURATION,
+            bufferAudioFrameCount: destinationSampleRate * BUFFER_DURATION,
             fingerprinter: this.fingerprinter,
             loudnessAnalyzer: this.loudnessAnalyzer
         });

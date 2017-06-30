@@ -27,6 +27,10 @@ export default class AudioPlayerBackend extends AbstractBackend {
         return ret;
     }
 
+    get bufferAudioFrameCount() {
+        return Math.ceil(this.bufferTime * this.destinationSampleRate);
+    }
+
     get destinationChannelCount() {
         return this.channelMixer.getChannels();
     }
@@ -96,19 +100,24 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
         if (nodeId === -1) {
             if (methodName === `audioConfiguration`) {
-                this._resamplerQuality = args.resamplerQuality;
-                if (!this._channelMixer) {
-                     this._channelMixer = new ChannelMixer(this._wasm, {destinationChannelCount: args.channels});
-                } else {
-                    this.channelMixer.setChannels(args.channels);
+                if (`resamplerQuality` in args) {
+                    this._resamplerQuality = args.resamplerQuality;
                 }
-                this._hardwareSampleRate = args.sampleRate;
-                if (args.bufferTime) {
-                    if (this._bufferTime) {
-                        throw new Error(`cannot change buffertime`);
+
+                if (`channelCount` in args) {
+                    if (!this._channelMixer) {
+                         this._channelMixer = new ChannelMixer(this._wasm, {destinationChannelCount: args.channelCount});
                     } else {
-                        this._bufferTime = args.bufferTime;
+                        this.channelMixer.setChannels(args.channelCount);
                     }
+                }
+
+                if (`sampleRate` in args) {
+                    this._hardwareSampleRate = args.sampleRate;
+                }
+
+                if (`bufferTime` in args) {
+                    this._bufferTime = args.bufferTime;
                 }
             } else if (methodName === `register`) {
                 const audioSource = new AudioSource(this, args.id);

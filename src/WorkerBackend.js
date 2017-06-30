@@ -14,7 +14,7 @@ self.env = {
 (async () => {
     // TODO: Compile from database in Production
     // TODO: minified
-    const wasmBuild = `release`;
+    const wasmBuild = `debug`;
     const request = new Request(`wasm/main.${wasmBuild}.wasm`, {
         cache: `no-store`
     });
