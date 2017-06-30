@@ -105,9 +105,9 @@ struct ebur128_state_internal;
  *  You should not need to modify this struct directly.
  */
 typedef struct {
-  int mode;                           /**< The current mode. */
   unsigned int channels;              /**< The number of channels. */
   unsigned long samplerate;           /**< The sample rate. */
+  int mode;                           /**< The current mode. */
   struct ebur128_state_internal* d;   /**< Internal state. */
 } ebur128_state;
 

@@ -2590,7 +2590,6 @@ EXPORT int mp3_decode_frame(mp3_context_t* this,
       return bytes_read;
     }
   }
-
   return bytes_read + mp3_decode_frame_slow(this, src, src_length, samples_ptr, samples_written_ptr);
 }
 

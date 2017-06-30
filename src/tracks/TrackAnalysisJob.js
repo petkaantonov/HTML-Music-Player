@@ -8,8 +8,9 @@ import LoudnessAnalyzer from "audio/LoudnessAnalyzer";
 import ChannelMixer from "audio/ChannelMixer";
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
 import Fingerprinter from "audio/Fingerprinter";
+import {MAXIMUM_BUFFER_TIME_SECONDS} from "audio/DecoderContext";
 
-const BUFFER_DURATION = 5;
+const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
 
 export class TrackAnalysisError extends Error {}
 
@@ -173,7 +174,7 @@ export default class TrackAnalysisJob {
         if (this.loudnessAnalyzer) {
             result.loudness = this.loudnessAnalyzer.getLoudnessAnalysis();
         }
-
+        debugger;
         return {
             duration: result.duration,
             loudness: result.loudness,

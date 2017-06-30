@@ -1,5 +1,7 @@
 const DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES = 2 * 48000;
 
+export const MAXIMUM_BUFFER_TIME_SECONDS = 5;
+
 let autoIncrementId = 0;
 export default class DecoderContext {
     constructor({targetBufferLengthAudioFrames}) {

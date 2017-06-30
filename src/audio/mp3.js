@@ -1,15 +1,17 @@
 import {Uint8Array} from "platform/platform";
-import DecoderContext from "audio/DecoderContext";
+import {default as DecoderContext, MAXIMUM_BUFFER_TIME_SECONDS} from "audio/DecoderContext";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 const DECODER_DELAY = 529;
 const MAX_SAMPLE_RATE = 48000;
 const MAX_CHANNELS = 2;
-const MAX_SAMPLES_PER_FRAME = 1152;
-const MAX_BUFFER_LENGTH_AUDIO_FRAMES = 5 * MAX_SAMPLE_RATE;
-const MIN_BUFFER_LENGTH_AUDIO_FRAMES = MAX_SAMPLES_PER_FRAME;
+const MAX_AUDIO_FRAMES_PER_MP3_FRAME = 1152;
+const MAX_BUFFER_LENGTH_AUDIO_FRAMES = Math.ceil(MAXIMUM_BUFFER_TIME_SECONDS * MAX_SAMPLE_RATE / MAX_AUDIO_FRAMES_PER_MP3_FRAME) *
+                                                MAX_AUDIO_FRAMES_PER_MP3_FRAME;
+const MIN_BUFFER_LENGTH_AUDIO_FRAMES = MAX_AUDIO_FRAMES_PER_MP3_FRAME;
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
+const MAX_BYTES_PER_AUDIO_FRAME = MAX_MP3_FRAME_BYTE_LENGTH / (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
 const INT_16_BYTE_LENGTH = 2;
 
 const {max, min} = Math;
@@ -17,15 +19,12 @@ const {max, min} = Math;
 export default class Mp3Context extends DecoderContext {
     constructor(wasm, opts) {
         super(opts);
-        let {targetBufferLengthAudioFrames} = this;
-        targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);
-        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
-
         this._invalidMp3FrameCount = 0;
         this._audioFramesToSkip = 0;
         this._audioFramesSkipped = 0;
         this._metadata = null;
         this._currentMp3Frame = 0;
+        this._currentUnflushedAudioFrameCount = 0;
 
         this._totalMp3Frames = (-1 >>> 1) | 0;
 
@@ -34,18 +33,39 @@ export default class Mp3Context extends DecoderContext {
         if (this._ptr === 0) {
             throw new Error(`allocation failed`);
         }
-        this._srcBufferMaxLength = Math.ceil(MAX_MP3_FRAME_BYTE_LENGTH / MAX_SAMPLES_PER_FRAME * this.targetBufferLengthAudioFrames);
-        this._srcBufferPtr = wasm.malloc(this._srcBufferMaxLength);
-        this._samplesPtr = wasm.u16calloc(MAX_CHANNELS * this.targetBufferLengthAudioFrames);
-        this._currentUnflushedAudioFrameCount = 0;
+        this._srcBufferMaxLength = 0;
+        this._srcBufferPtr = 0;
+        this._samplesPtr = 0;
         this._bytesWrittenToSampleBufferResultPtr = wasm.u32calloc(1);
+        this.reinitialized(opts);
     }
 
     reinitialized(opts) {
+        var prev = this.targetBufferLengthAudioFrames;
         super.reinitialized(opts);
         let {targetBufferLengthAudioFrames} = this;
         targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);
         this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
+
+        if (!this._samplesPtr || prev !== this.targetBufferLengthAudioFrames) {
+            if (this._samplesPtr) {
+                this._wasm.free(this._samplesPtr);
+                this._samplesPtr = 0;
+            }
+
+            if (this._srcBufferPtr) {
+                this._wasm.free(this._srcBufferPtr);
+                this._srcBufferPtr = 0;
+            }
+
+            const maxAudioSamplesPerMp3Frame = MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS;
+            const maxAudioSamplesUntilFlush = Math.ceil(this.targetBufferLengthAudioFrames * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
+                                                                                            maxAudioSamplesPerMp3Frame;
+            const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
+            this._srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
+            this._samplesPtr = this._wasm.malloc(byteLengthSamples);
+            this._srcBufferPtr = this._wasm.malloc(this._srcBufferMaxLength);
+        }
         return this;
     }
 

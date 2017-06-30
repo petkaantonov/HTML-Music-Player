@@ -247,8 +247,8 @@ AudioPlayer.prototype._resetAudioContext = function() {
     }
     this._audioContext = new AudioContext({latencyHint: `playback`});
     this._unprimedAudioContext = this._audioContext;
-    this.emit(`audioContextReset`, this);
     this._audioContextChanged();
+    this.emit(`audioContextReset`, this);
 };
 
 AudioPlayer.prototype._clearSuspensionTimer = function() {
