@@ -50,23 +50,18 @@ export default function PlayerTimeManager(opts, deps) {
     this.$totalTime().addEventListener(`click`, this.containerClicked);
     this.recognizerContext.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());
 
+    this.fontSize = (13 * this.page.devicePixelRatio()) | 0;
+    this.timeDisplayWidth = 0;
+    this.timeDisplayHeight = 0;
+    this.currentTimeDisplayTextWidth = 0;
+    this.totalTimeDisplayTextWidth = 0;
+    this.timeDisplayTextHeight = this.fontSize - 2 * this.page.devicePixelRatio();
+
     const currentTimeDom = this.$currentTime()[0];
     const totalTimeDom = this.$totalTime()[0];
-    const width = this.$currentTime()[0].clientWidth * this.page.devicePixelRatio() | 0;
-    const height = this.$currentTime()[0].clientHeight * this.page.devicePixelRatio() | 0;
-
-    this.timeDisplayWidth = width;
-    this.timeDisplayHeight = height;
-    totalTimeDom.width = currentTimeDom.width = width;
-    totalTimeDom.height = currentTimeDom.height = height;
-
 
     this.currentTimeCtx = currentTimeDom.getContext(`2d`);
     this.totalTimeCtx = totalTimeDom.getContext(`2d`);
-    this.totalTimeCtx.font = this.currentTimeCtx.font = `${(14 * this.page.devicePixelRatio()) | 0}px Droid Sans`;
-    this.totalTimeCtx.fillStyle = this.currentTimeCtx.fillStyle = `#7a7a7a`;
-    this.totalTimeCtx.textAlign = this.currentTimeCtx.textAlign = `center`;
-    this.totalTimeCtx.textBaseline = this.currentTimeCtx.textBaseline = `bottom`;
 
     if (TIME_DISPLAY_PREFERENCE_KEY in deps.dbValues) {
         const val = +deps.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
@@ -75,6 +70,7 @@ export default function PlayerTimeManager(opts, deps) {
         }
     }
 
+    this._updateDimensions();
     this._scheduleUpdate();
 
 }
@@ -134,15 +130,43 @@ PlayerTimeManager.prototype.playerTimeProgressed = function(playedTime, totalTim
     this.setTimes(playedTime, totalTime);
 };
 
+PlayerTimeManager.prototype._updateDimensions = function() {
+    const currentTimeDom = this.$currentTime()[0];
+    const totalTimeDom = this.$totalTime()[0];
+    const width = currentTimeDom.clientWidth * this.page.devicePixelRatio() | 0;
+    const height = totalTimeDom.clientHeight * this.page.devicePixelRatio() | 0;
+
+    this.timeDisplayWidth = width;
+    this.timeDisplayHeight = height;
+    totalTimeDom.width = currentTimeDom.width = width;
+    totalTimeDom.height = currentTimeDom.height = height;
+
+    this.totalTimeCtx.font = this.currentTimeCtx.font = `${this.fontSize}px Droid Sans`;
+    this.totalTimeCtx.fillStyle = this.currentTimeCtx.fillStyle = `#7a7a7a`;
+    this.currentTimeDisplayTextWidth = this.currentTimeCtx.measureText(`00:00`).width;
+    this.totalTimeDisplayTextWidth = this.totalTimeCtx.measureText(
+            `${this.displayMode === DISPLAY_REMAINING ? `-` : ``}00:00`).width;
+};
+
 PlayerTimeManager.prototype._updateTimeText = function() {
-    this.currentTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
-    this.totalTimeCtx.clearRect(0, 0, this.timeDisplayWidth, this.timeDisplayHeight);
-    this.currentTimeCtx.fillText(toTimeString(this._displayedTimeLeft),
-                                ((this.timeDisplayWidth - 1 * this.page.devicePixelRatio()) / 2) | 0,
-                                (this.timeDisplayHeight + 2 * this.page.devicePixelRatio()) | 0);
-    this.totalTimeCtx.fillText(toTimeString(this._displayedTimeRight),
-                                ((this.timeDisplayWidth - 1 * this.page.devicePixelRatio()) / 2) | 0,
-                                (this.timeDisplayHeight + 2 * this.page.devicePixelRatio()) | 0);
+    const {timeDisplayTextHeight,
+           currentTimeDisplayTextWidth,
+           totalTimeDisplayTextWidth,
+           timeDisplayWidth,
+           timeDisplayHeight,
+           currentTimeCtx,
+           totalTimeCtx,
+           _displayedTimeRight,
+           _displayedTimeLeft} = this;
+
+    currentTimeCtx.clearRect(0, 0, timeDisplayWidth, timeDisplayHeight);
+    totalTimeCtx.clearRect(0, 0, timeDisplayWidth, timeDisplayHeight);
+
+    const textY = timeDisplayHeight - ((timeDisplayHeight - timeDisplayTextHeight) / 2);
+    const currentTimeTextX = (timeDisplayWidth - currentTimeDisplayTextWidth) / 2;
+    const totalTimeTextX = (timeDisplayWidth - totalTimeDisplayTextWidth) / 2;
+    currentTimeCtx.fillText(toTimeString(_displayedTimeLeft), currentTimeTextX | 0, textY | 0);
+    totalTimeCtx.fillText(toTimeString(_displayedTimeRight), totalTimeTextX | 0, textY | 0);
 };
 
 PlayerTimeManager.prototype.setTimes = function(currentTime, totalTime) {
@@ -208,6 +232,7 @@ PlayerTimeManager.prototype.toggleDisplayMode = function() {
         this.displayMode = DISPLAY_ELAPSED;
     }
     this.db.set(TIME_DISPLAY_PREFERENCE_KEY, this.displayMode);
+    this._updateDimensions();
     this.forceUpdate();
 };
 
@@ -228,6 +253,8 @@ PlayerTimeManager.prototype.show = function() {
     this.hidden = false;
     this.$currentTime().parent().removeClass(`hidden`);
     this.$totalTime().parent().removeClass(`hidden`);
+    this._updateDimensions();
+    this._updateTimeText();
 };
 
 PlayerTimeManager.prototype.checkVisibility = function(duration) {
@@ -246,4 +273,5 @@ PlayerTimeManager.prototype.newTrackLoaded = function() {
     this.currentTime = -1;
     this.setTimes(0, duration);
     this._scheduleUpdate();
+    this._updateTimeText();
 };

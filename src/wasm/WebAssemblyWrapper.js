@@ -239,9 +239,6 @@ export default class WebAssemblyWrapper {
             requiredImportObj[requiredModule][name] = kind;
         }
 
-        const {sin, tan, pow, log, cos} = Math;
-        const exp2 = x => Math.exp(x * Math.LN2);
-
         const stdio = createStdio(this);
         const cstring = createCString(this);
         const stdlib = createStdlib(this);
@@ -283,7 +280,7 @@ export default class WebAssemblyWrapper {
                 stack.shift();
                 console.log(`%c${message}\n    at ${functionName} ${fileName}:${line}\n${stack.join(`\n`)}`, `color: red;`);
             }
-        }, stdio, cstring, stdlib, {sin, tan, pow, log, cos, exp2});
+        }, stdio, cstring, stdlib);
 
         const importsObj = {
             env: stdenv

@@ -15,8 +15,8 @@ class FilledBufferDescriptor {
 // TODO: Remove this comment after testing framework is in place and it will become unnecessary.
 
 const WAV_CHANNELS = 2;
-const WAV_SR = 44100;
-const WAV_DURATION = 0.2 * WAV_SR * 1/0.2 * 15;
+const WAV_SR = 48000;
+const WAV_DURATION = 0.2 * WAV_SR * 1 / 0.2 * 15;
 const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
 
 let wavLength = 0;
@@ -158,8 +158,6 @@ export default class AudioProcessingPipeline {
                 loudnessAnalyzer,
                 fingerprinter} = this;
 
-        console.log(sourceSampleRate, sourceChannelCount, destinationSampleRate, destinationChannelCount);
-        applyWav(samplePtr, byteLength, this._wasm);
 
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
@@ -173,6 +171,8 @@ export default class AudioProcessingPipeline {
         if (sourceSampleRate !== destinationSampleRate) {
             ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength / I16_BYTE_LENGTH));
         }
+
+        applyWav(samplePtr, byteLength, this._wasm);
 
         if (effects) {
             for (const effect of effects) {

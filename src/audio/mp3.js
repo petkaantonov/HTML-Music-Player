@@ -41,7 +41,7 @@ export default class Mp3Context extends DecoderContext {
     }
 
     reinitialized(opts) {
-        var prev = this.targetBufferLengthAudioFrames;
+        const prev = this.targetBufferLengthAudioFrames;
         super.reinitialized(opts);
         let {targetBufferLengthAudioFrames} = this;
         targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);

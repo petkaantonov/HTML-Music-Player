@@ -93,7 +93,7 @@ export default class AudioPlayer extends WorkerFrontend {
         this._audioBufferTime = -1;
         this._audioBuffersAllocated = 0;
         this._arrayBuffersAllocated = 0;
-        this._suspensionTimeoutMs = 20 * 1000;
+        this._suspensionTimeoutMs = 5 * 1000;
         this._currentStateModificationAction = null;
         this._lastAudioContextRefresh = 0;
 

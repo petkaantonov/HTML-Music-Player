@@ -1,7 +1,7 @@
 #include "wasm.h"
 #include "malloc.c"
 #include <musl/math/libm.h>
-/*#include <musl/math/__rem_pio2_large.c>
+#include <musl/math/__rem_pio2_large.c>
 #include <musl/math/__rem_pio2.c>
 #include <musl/math/__sin.c>
 #include <musl/math/__cos.c>
@@ -16,7 +16,7 @@
 #include <musl/math/exp.c>
 #include <musl/math/exp2.c>
 #include <musl/math/scalbn.c>
-#include <musl/math/log.c>*/
+#include <musl/math/log.c>
 #include <musl/math/frexp.c>
 #include <musl/math/modf.c>
 

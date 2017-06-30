@@ -1,5 +1,6 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
+const I16_BYTE_LENGTH = 2;
 
 let id = 0;
 export default class Resampler {
@@ -33,7 +34,7 @@ export default class Resampler {
 
         return {
             samplePtr: outputSamplesPtr,
-            byteLength: outputSamplesWritten - (outputSamplesWritten % 2)
+            byteLength: (outputSamplesWritten - (outputSamplesWritten % 2)) * I16_BYTE_LENGTH
         };
     }
 
