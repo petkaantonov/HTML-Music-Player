@@ -182,7 +182,6 @@ export default class Playlist extends EventEmitter {
 
         this._bindListEvents();
         this._draggable.bindEvents();
-
     }
 }
 

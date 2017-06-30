@@ -32,6 +32,8 @@ export default class Resampler {
             throw err;
         }
 
+        console.log("the resampler wrote", outputSamplesWritten * 2, " bytes to the buffer");
+
         return {
             samplePtr: outputSamplesPtr,
             byteLength: (outputSamplesWritten - (outputSamplesWritten % 2)) * I16_BYTE_LENGTH
@@ -68,7 +70,7 @@ moduleEvents.on(`main_beforeModuleImport`, (wasm, imports) => {
     imports.env.resamplerGetBuffer = function(i16length) {
         let ptr = bufferCache.get(i16length);
         if (!ptr) {
-            ptr = wasm.u16calloc(i16length);
+            ptr = wasm.malloc(Math.ceil(i16length * I16_BYTE_LENGTH));
             bufferCache.set(i16length, ptr);
         }
         return ptr;

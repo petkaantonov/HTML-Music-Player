@@ -35,7 +35,9 @@ export default class Mp3Context extends DecoderContext {
         }
         this._srcBufferMaxLength = 0;
         this._srcBufferPtr = 0;
+        this._samplesPtrMaxLength = 0;
         this._samplesPtr = 0;
+
         this._bytesWrittenToSampleBufferResultPtr = wasm.u32calloc(1);
         this.reinitialized(opts);
     }
@@ -59,12 +61,16 @@ export default class Mp3Context extends DecoderContext {
             }
 
             const maxAudioSamplesPerMp3Frame = MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS;
-            const maxAudioSamplesUntilFlush = Math.ceil(this.targetBufferLengthAudioFrames * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
-                                                                                            maxAudioSamplesPerMp3Frame;
+            const maxAudioSamplesUntilFlush = (Math.ceil(this.targetBufferLengthAudioFrames * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
+                                                                                            maxAudioSamplesPerMp3Frame) +
+                                                                    (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
             const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
             this._srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
-            this._samplesPtr = this._wasm.malloc(byteLengthSamples);
             this._srcBufferPtr = this._wasm.malloc(this._srcBufferMaxLength);
+            this._samplesPtrMaxLength = byteLengthSamples;
+            console.log("src ptr starting from", this._srcBufferPtr, "to", this._srcBufferPtr + this._srcBufferMaxLength, this._srcBufferMaxLength);
+            this._samplesPtr = this._wasm.malloc(byteLengthSamples);
+            console.log("samples ptr starting from", this._samplesPtr, "to", this._samplesPtr + byteLengthSamples, byteLengthSamples);
         }
         return this;
     }
@@ -118,7 +124,7 @@ export default class Mp3Context extends DecoderContext {
     applySeek(mp3SeekResult) {
         super.applySeek();
         this._resetDecodingState();
-        this._currentMp3Frame = mp3SeekResult.currentFrame;
+        this._currentMp3Frame = mp3SeekResult.frame;
         this._audioFramesToSkip = mp3SeekResult.samplesToSkip;
         if (this._currentMp3Frame === 0) this._audioFramesToSkip += DECODER_DELAY;
     }
@@ -129,7 +135,7 @@ export default class Mp3Context extends DecoderContext {
 
         if (metadata) {
             this._audioFramesToSkip = metadata.encoderDelay + DECODER_DELAY;
-            this._totalMp3Frames = metadata.totalFrames;
+            this._totalMp3Frames = metadata.frames;
         } else {
             this._audioFramesToSkip = DECODER_DELAY;
             this._totalMp3Frames = ((-1 >>> 1) | 0);
@@ -180,8 +186,8 @@ export default class Mp3Context extends DecoderContext {
                 }
 
                 const audioFramesDecoded = this._byteLengthToAudioFrameCount(bytesWrittenToOutputBuffer);
-                const didFlush = this._mp3FrameDecoded(audioFramesDecoded, flushCallback);
                 this._currentMp3Frame++;
+                const didFlush = this._mp3FrameDecoded(audioFramesDecoded, flushCallback);
 
                 if (didFlush) {
                     this._invalidMp3FrameCount = 0;
@@ -246,6 +252,8 @@ export default class Mp3Context extends DecoderContext {
                                       overflow);
 
                     this._currentUnflushedAudioFrameCount = overflow;
+                } else {
+                    this._currentUnflushedAudioFrameCount = 0;
                 }
             } else {
                 if (skipped > 0) {

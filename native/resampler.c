@@ -33,14 +33,16 @@ EXPORT void resampler_reset(SpeexResamplerState* resampler) {
 
 EXPORT int resampler_resample(SpeexResamplerState* resampler, int16_t* samples, uint32_t input_length_i16,
                                     int16_t** output_samples, uint32_t* input_samples_read, uint32_t* output_samples_written) {
+    uint32_t channel_count = resampler->nb_channels;
+    input_length_i16 /= channel_count;
     *input_samples_read = 0;
     *output_samples_written = 0;
     resampler_error = 0;
     spx_uint32_t output_length_i16 = resampler_get_length(resampler, input_length_i16);
-    int16_t* output = resamplerGetBuffer(output_length_i16);
+    int16_t* output = resamplerGetBuffer(output_length_i16 * channel_count);
     resampler_error = speex_resampler_process_interleaved_int(resampler, samples, &input_length_i16, output, &output_length_i16);
-    *input_samples_read = input_length_i16;
-    *output_samples_written = output_length_i16;
+    *input_samples_read = input_length_i16 * channel_count;
+    *output_samples_written = output_length_i16 * channel_count;
     *output_samples = output;
     return resampler_error;
 }

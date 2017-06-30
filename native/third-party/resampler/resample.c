@@ -969,6 +969,7 @@ int speex_resampler_process_float(SpeexResamplerState *st, spx_uint32_t channel_
            in += ichunk * istride;
       }
    }
+
    *in_len -= ilen;
    *out_len -= olen;
    return st->resampler_ptr == resampler_basic_zero ? RESAMPLER_ERR_ALLOC_FAILED : RESAMPLER_ERR_SUCCESS;
@@ -1080,6 +1081,7 @@ int speex_resampler_process_interleaved_int(SpeexResamplerState *st, const spx_i
    istride_save = st->in_stride;
    ostride_save = st->out_stride;
    st->in_stride = st->out_stride = st->nb_channels;
+   int  w = 0;
    for (i=0;i<st->nb_channels;i++)
    {
       *out_len = bak_out_len;
@@ -1088,7 +1090,9 @@ int speex_resampler_process_interleaved_int(SpeexResamplerState *st, const spx_i
          speex_resampler_process_int(st, i, in+i, in_len, out+i, out_len);
       else
          speex_resampler_process_int(st, i, NULL, in_len, out+i, out_len);
+      w += *out_len;
    }
+   printf("actullay wrote %u samples", w);
    st->in_stride = istride_save;
    st->out_stride = ostride_save;
    return st->resampler_ptr == resampler_basic_zero ? RESAMPLER_ERR_ALLOC_FAILED : RESAMPLER_ERR_SUCCESS;

@@ -16,7 +16,7 @@ class FilledBufferDescriptor {
 
 const WAV_CHANNELS = 2;
 const WAV_SR = 48000;
-const WAV_DURATION = 0.2 * WAV_SR * 1 / 0.2 * 15;
+const WAV_DURATION = 0.2 * WAV_SR * 1 / 0.2 * 30;
 const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
 
 let wavLength = 0;
@@ -50,7 +50,6 @@ function applyWav(samplePtr, byteLength, wasm) {
         debugger;
     }
 }
-
 
 export default class AudioProcessingPipeline {
     constructor(wasm, {
@@ -110,6 +109,9 @@ export default class AudioProcessingPipeline {
         const {bufferTime, sourceSampleRate} = this;
         const bytesToRead = bufferTime * sourceSampleRate * Math.ceil(metadata.maxByteSizePerAudioFrame);
         const currentAudioFrame = this.decoder.getCurrentAudioFrame();
+        if (isNaN(currentAudioFrame)) {
+            debugger;
+        }
         const onFlush = (samplePtr, byteLength) => {
             this._processSamples(samplePtr, byteLength, outputSpec, currentAudioFrame);
         };
@@ -172,7 +174,9 @@ export default class AudioProcessingPipeline {
             ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength / I16_BYTE_LENGTH));
         }
 
-        applyWav(samplePtr, byteLength, this._wasm);
+        if (byteLength === 38400) {
+            applyWav(samplePtr, byteLength, this._wasm);
+        }
 
         if (effects) {
             for (const effect of effects) {
@@ -221,8 +225,8 @@ export default class AudioProcessingPipeline {
         }
 
         const length = audioFrameLength;
-        const startTime = startAudioFrame / sourceSampleRate;
-        const endTime = startTime + (length / destinationSampleRate);
+        const startTime = Math.round(startAudioFrame / sourceSampleRate * 1e9) / 1e9;
+        const endTime = Math.round((startTime + (length / destinationSampleRate)) * 1e9) / 1e9;
         this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData);
     }
 }

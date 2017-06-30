@@ -132,7 +132,7 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
             if (result.cancelled) {
                 this.reportAbort(job.id);
             } else {
-                await this.db.insert(job.uid, result);
+                //await this.db.insert(job.uid, result);
                 this.reportSuccess(job.id, result);
             }
         } catch (e) {

@@ -299,7 +299,7 @@ export default class AudioSource extends EventEmitter {
     }
 
     async gotCodec(codec, requestId, playerMetadata) {
-        const {destinationChannelCount,
+        let {destinationChannelCount,
                 destinationSampleRate,
                 resamplerQuality,
                 bufferTime,

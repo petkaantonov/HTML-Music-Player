@@ -2278,12 +2278,13 @@ static int mp3_decode_main(
             samples_ptr += 32 * s->nb_channels;
         }
     }
+
     return nb_frames * 32 * sizeof(uint16_t) * s->nb_channels;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int mp3_decode_init(mp3_context_t *s) {
+static int mp3_decode_init() {
     static int init=0;
     int i, j, k;
 
@@ -2595,9 +2596,13 @@ EXPORT int mp3_decode_frame(mp3_context_t* this,
 
 EXPORT mp3_context_t* mp3_create_ctx() {
   mp3_context_t* ret = libc_calloc(sizeof(mp3_context_t), 1);
-  if (ret) mp3_decode_init(ret);
-  ret->frames_decoded = -1;
-  ret->total_frames = -1;
+  if (ret) {
+    if (mp3_decode_init() < 0) {
+      return NULL;
+    }
+    ret->frames_decoded = -1;
+    ret->total_frames = -1;
+  }
   return ret;
 }
 

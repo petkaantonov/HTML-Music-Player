@@ -174,7 +174,8 @@ export default class TrackAnalysisJob {
         if (this.loudnessAnalyzer) {
             result.loudness = this.loudnessAnalyzer.getLoudnessAnalysis();
         }
-        debugger;
+        console.log(result.loudness.trackGain, result.loudness.silence.beginSilenceLength,
+            result.loudness.silence.endSilenceLength);
         return {
             duration: result.duration,
             loudness: result.loudness,

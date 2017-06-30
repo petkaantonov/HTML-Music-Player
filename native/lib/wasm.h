@@ -91,6 +91,9 @@ FILE* stderr = (FILE*)2;
 #define HAVE_MREMAP 0
 #define MMAP_CLEARS 0
 #define malloc_getpagesize PAGE_SIZE
+#ifdef DEBUG
+#define FOOTERS 1
+#endif
 
 #define OUTSIDE_SPEEX 1
 #define RANDOM_PREFIX speex
