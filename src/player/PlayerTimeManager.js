@@ -56,6 +56,7 @@ export default function PlayerTimeManager(opts, deps) {
     this.currentTimeDisplayTextWidth = 0;
     this.totalTimeDisplayTextWidth = 0;
     this.timeDisplayTextHeight = this.fontSize - 2 * this.page.devicePixelRatio();
+    this._hideTimerId = -1;
 
     const currentTimeDom = this.$currentTime()[0];
     const totalTimeDom = this.$totalTime()[0];
@@ -241,14 +242,33 @@ PlayerTimeManager.prototype.containerClicked = function(e) {
     this.toggleDisplayMode();
 };
 
-PlayerTimeManager.prototype.hide = function() {
+PlayerTimeManager.prototype._hide = function() {
     if (this.hidden) return;
     this.hidden = true;
     this.$currentTime().parent().addClass(`hidden`);
     this.$totalTime().parent().addClass(`hidden`);
 };
 
+PlayerTimeManager.prototype._clearHideTimer = function() {
+    if (this._hideTimerId !== -1) {
+        this.page.clearTimeout(this._hideTimerId);
+        this._hideTimerId = -1;
+    }
+};
+
+PlayerTimeManager.prototype._startHideTimer = function() {
+    this._hideTimerId = this.page.setTimeout(() => {
+this._hide();
+}, 5000);
+};
+
+PlayerTimeManager.prototype.hide = function() {
+    this._clearHideTimer();
+    this._startHideTimer();
+};
+
 PlayerTimeManager.prototype.show = function() {
+    this._clearHideTimer();
     if (!this.hidden) return;
     this.hidden = false;
     this.$currentTime().parent().removeClass(`hidden`);

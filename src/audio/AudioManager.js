@@ -225,13 +225,7 @@ AudioManager.prototype.nextTrackChanged = function() {
 
 AudioManager.prototype.trackTagDataUpdated = function() {
     if (this.destroyed || this.player.currentAudioManager !== this) return;
-    this.trackPictureUpdated();
     this.normalizeLoudness();
-};
-
-AudioManager.prototype.trackPictureUpdated = function() {
-    if (this.destroyed || this.player.currentAudioManager !== this) return;
-    this.player.getPictureManager().updateImageFromTrack(this.track);
 };
 
 AudioManager.prototype.normalizeLoudness = function(startTime) {
@@ -253,10 +247,6 @@ AudioManager.prototype.normalizeLoudness = function(startTime) {
     if (this.visualizer) {
         this.visualizer.setMultiplier(replayGain);
     }
-};
-
-AudioManager.prototype.getImage = function(pictureManager) {
-    return this.track.getImage(pictureManager);
 };
 
 AudioManager.prototype.effectsChanged = function() {

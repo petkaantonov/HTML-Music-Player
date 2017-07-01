@@ -329,13 +329,6 @@ Player.prototype.getSampleRate = function() {
     return tagData.basicInfo.sampleRate;
 };
 
-Player.prototype.getImage = function(pictureManager) {
-    if (this.currentAudioManager) {
-        return this.currentAudioManager.getImage(pictureManager);
-    }
-    return Promise.resolve(pictureManager.defaultImage());
-};
-
 Player.prototype.pause = function() {
     if (!this.isPlaying) return;
     this.isPaused = true;
@@ -426,7 +419,7 @@ Player.prototype.loadTrack = async function(track, isUserInitiatedSkip) {
         this.currentAudioManager.replaceTrack(track);
         this.startedPlay();
         this.emit(`trackPlaying`);
-        this.emit(`newTrackLoad`);
+        this.emit(`newTrackLoad`, track);
         return;
     }
 
@@ -435,10 +428,9 @@ Player.prototype.loadTrack = async function(track, isUserInitiatedSkip) {
     }
     this.currentAudioManager = new AudioManager(this, track, implicit);
     this.audioManagers.push(this.currentAudioManager);
-    this.currentAudioManager.trackPictureUpdated();
     this.startedPlay();
     this.emit(`trackPlaying`);
-    this.emit(`newTrackLoad`);
+    this.emit(`newTrackLoad`, track);
     this.currentAudioManager.start();
 };
 

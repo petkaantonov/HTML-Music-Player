@@ -12,8 +12,8 @@ export default class WorkerFrontend extends EventEmitter {
     async _bindBackend(readyEventName, workerWrapper) {
         let resolveReady;
         this._readyPromise = new Promise((resolve) => {
- resolveReady = resolve;
-});
+         resolveReady = resolve;
+        });
         const port = workerWrapper.getPort(readyEventName);
         this._messagePort = await port;
         this._messagePort.addEventListener(`message`, event => this.receiveMessage(event), false);

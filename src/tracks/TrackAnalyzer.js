@@ -176,8 +176,9 @@ TrackAnalyzer.prototype.fillInAcoustId = async function(track, duration, fingerp
         this.prioritize(track);
     }
 
+    let acoustId;
     try {
-        const acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
+        acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
         if (track.isDetachedFromPlaylist()) {
             return;
         }
@@ -247,7 +248,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
                     this.fillInAcoustId(track, duration, fingerprint);
                 }
                 this.emit(`metadataUpdate`);
-            } catch(e) {
+            } catch (e) {
                 if (!(e instanceof TrackWasRemovedError)) {
                     throw e;
                 }

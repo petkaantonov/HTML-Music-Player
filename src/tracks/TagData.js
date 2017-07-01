@@ -208,9 +208,6 @@ const clearPicture = function(picture) {
         picture.blob.close();
     }
 
-    if (picture.image) {
-        picture.image.src = ``;
-    }
     picture.blobUrl = picture.blob = picture.image = null;
 };
 
@@ -257,10 +254,14 @@ TagData.prototype._getEmbeddedImage = function() {
     let blobUrl;
 
     clear = () => {
-        clear = error = picture.blobUrl = null;
-        URL.revokeObjectURL(blobUrl);
         img.removeEventListener(`load`, clear, false);
         img.removeEventListener(`error`, error, false);
+        if (!clear) {
+            return;
+        }
+        clear = error = picture.blobUrl = null;
+        URL.revokeObjectURL(blobUrl);
+
     };
 
     error = () => {
