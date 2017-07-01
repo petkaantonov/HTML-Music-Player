@@ -9,21 +9,23 @@ import ChannelMixer from "audio/ChannelMixer";
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
 import Fingerprinter from "audio/Fingerprinter";
 import {MAXIMUM_BUFFER_TIME_SECONDS} from "audio/DecoderContext";
+import CancellableOperations from "utils/CancellationToken";
 
 const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
 
 export class TrackAnalysisError extends Error {}
 
-export default class TrackAnalysisJob {
+export default class TrackAnalysisJob extends CancellableOperations(null, `analysisOperation`) {
     constructor(backend, {id, file, loudness, fingerprint, uid}) {
+        super();
         this.backend = backend;
         this.id = id;
         this.file = file;
         this.loudness = loudness;
         this.fingerprint = fingerprint;
         this.uid = uid;
-        this.shouldAbort = false;
 
+        this.cancellationToken = null;
         this.decoder = null;
         this.codecName = null;
         this.resampler = null;
@@ -62,22 +64,26 @@ export default class TrackAnalysisJob {
     }
 
     async analyze() {
+        this.cancellationToken = this.cancellationTokenForAnalysisOperation();
         const {file} = this;
         const fileView = new FileView(file);
         this.fileView = fileView;
         const codecName = await getCodecName(fileView);
+        this.cancellationToken.check();
         if (!codecName) {
             throw new TrackAnalysisError(`file type not supported`);
         }
         this.codecName = codecName;
 
         const codec = await getCodec(codecName);
+        this.cancellationToken.check();
         if (!codec) {
             throw new TrackAnalysisError(`no codec for ${codecName}`);
         }
         this.codec = codec;
 
         const metadata = await demuxer(codecName, fileView);
+        this.cancellationToken.check();
         if (!metadata) {
             throw new TrackAnalysisError(`file type not supported`);
         }
@@ -93,8 +99,7 @@ export default class TrackAnalysisJob {
         const result = {
             loudness: null,
             fingerprint: null,
-            duration: metadata.duration,
-            cancelled: false
+            duration: metadata.duration
         };
 
         const tooLongToScan = metadata.duration ? metadata.duration > 30 * 60 : file.size > 100 * 1024 * 1024;
@@ -147,7 +152,9 @@ export default class TrackAnalysisJob {
         while (filePosition < fileEndPosition) {
             const bytesRead = await this.audioPipeline.decodeFromFileViewAtOffset(fileView,
                                                                                   filePosition,
-                                                                                  metadata);
+                                                                                  metadata,
+                                                                                  this.cancellationToken);
+            this.cancellationToken.check();
             const chunkProcessingEnded = performance.now();
             this.audioPipeline.consumeFilledBuffer();
 
@@ -159,11 +166,6 @@ export default class TrackAnalysisJob {
                 const elapsed = chunkProcessingEnded - analysisStarted;
                 const estimate = Math.round(elapsed / progress - elapsed);
                 this.backend.reportEstimate(id, estimate);
-            }
-
-            if (this.shouldAbort) {
-                result.cancelled = true;
-                return result;
             }
         }
 
@@ -184,12 +186,13 @@ export default class TrackAnalysisJob {
     }
 
     abort() {
-        this.shouldAbort = true;
+        this.cancelAllAnalysisOperations();
     }
 
     destroy() {
         this.backend = null;
         this.file = null;
+        this.cancellationToken = null;
         if (this.decoder) {
             freeDecoderContext(this.codecName, this.decoder);
             this.decoder = null;

@@ -1,6 +1,4 @@
-const DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES = 2 * 48000;
-
-export const MAXIMUM_BUFFER_TIME_SECONDS = 5;
+export const MAXIMUM_BUFFER_TIME_SECONDS = 1;
 
 let autoIncrementId = 0;
 export default class DecoderContext {
@@ -10,11 +8,11 @@ export default class DecoderContext {
         this._channelCount = -1;
         this._sampleRate = -1;
         this._targetBufferLengthAudioFrames = 0;
-        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames || DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES;
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
     }
 
     reinitialized({targetBufferLengthAudioFrames}) {
-        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames || DEFAULT_BUFFER_LENGTH_AUDIO_FRAMES;
+        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
         return this;
     }
 
@@ -55,6 +53,10 @@ export default class DecoderContext {
     start() {
         if (this._started) throw new Error(`previous decoding in session, call .end()`);
         this._started = true;
+    }
+
+    isStarted() {
+        return this._started;
     }
 
     end() {

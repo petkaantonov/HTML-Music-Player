@@ -13,8 +13,8 @@ class FilledBufferDescriptor {
 
 
 // TODO: Remove this comment after testing framework is in place and it will become unnecessary.
-
-const WAV_CHANNELS = 2;
+/*
+Const WAV_CHANNELS = 2;
 const WAV_SR = 48000;
 const WAV_DURATION = 0.2 * WAV_SR * 1 / 0.2 * 30;
 const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
@@ -49,7 +49,7 @@ function applyWav(samplePtr, byteLength, wasm) {
         const b = URL.createObjectURL(a);
         debugger;
     }
-}
+}*/
 
 export default class AudioProcessingPipeline {
     constructor(wasm, {
@@ -87,6 +87,10 @@ export default class AudioProcessingPipeline {
         return !!this._filledBufferDescriptor;
     }
 
+    dropFilledBuffer() {
+        this._filledBufferDescriptor = null;
+    }
+
     consumeFilledBuffer() {
         const ret = this._filledBufferDescriptor;
         if (!ret) {
@@ -99,10 +103,12 @@ export default class AudioProcessingPipeline {
     async decodeFromFileViewAtOffset(fileView,
                                      filePosition,
                                      metadata,
+                                     cancellationToken,
                                      outputSpec = null) {
         if (this.hasFilledBuffer) {
             throw new Error(`previous buffer has not been consumed`);
         }
+
         const dataEndFilePosition = metadata.dataEnd;
         let totalBytesRead = 0;
         let dataRemaining = dataEndFilePosition - (filePosition + totalBytesRead);
@@ -116,6 +122,9 @@ export default class AudioProcessingPipeline {
         let currentFilePosition = filePosition + totalBytesRead;
         while (dataRemaining > 0) {
             await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, 1);
+            if (cancellationToken.isCancelled()) {
+                return 0;
+            }
             const srcStart = currentFilePosition - fileView.start;
             const src = fileView.blockAtOffset(srcStart);
             const bytesRead = this.decoder.decodeUntilFlush(src, onFlush);
@@ -130,10 +139,12 @@ export default class AudioProcessingPipeline {
                     } else {
                         this.decoder.end(onFlush);
                         totalBytesRead = dataEndFilePosition - filePosition;
+                        return totalBytesRead;
                     }
                 } else {
                     this.decoder.end(onFlush);
                     totalBytesRead = dataEndFilePosition - filePosition;
+                    return totalBytesRead;
                 }
             }
 
@@ -178,10 +189,6 @@ export default class AudioProcessingPipeline {
 
         if (fingerprinter && fingerprinter.needFrames()) {
             fingerprinter.newFrames(samplePtr, byteLength);
-        }
-
-        if (byteLength === 38400) {
-            applyWav(samplePtr, byteLength, this._wasm);
         }
 
         const audioFrameLength = byteLength / I16_BYTE_LENGTH / destinationChannelCount;

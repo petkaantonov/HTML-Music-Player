@@ -176,9 +176,15 @@ TrackAnalyzer.prototype.fillInAcoustId = async function(track, duration, fingerp
         this.prioritize(track);
     }
 
-    const acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
-    if (track.isDetachedFromPlaylist()) {
-        return;
+    try {
+        const acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
+        if (track.isDetachedFromPlaylist()) {
+            return;
+        }
+    } catch (e) {
+        if (!(e instanceof TrackWasRemovedError)) {
+            throw e;
+        }
     }
     track.tagData.setAcoustId(acoustId);
     if (this._playlist.isTrackHighlyRelevant(track)) {
@@ -241,6 +247,10 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
                     this.fillInAcoustId(track, duration, fingerprint);
                 }
                 this.emit(`metadataUpdate`);
+            } catch(e) {
+                if (!(e instanceof TrackWasRemovedError)) {
+                    throw e;
+                }
             } finally {
                 track.unsetAnalysisStatus();
             }

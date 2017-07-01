@@ -3,6 +3,7 @@ import {parse as parseMetadata, fetchAnalysisData} from "audio/MetadataParser";
 import TrackAnalysisJob from "tracks/TrackAnalysisJob";
 import {fetchAcoustId, fetchAcoustIdImage} from "audio/AcoustId";
 import TagDatabase from "tracks/TagDatabase";
+import {CancellationError} from "utils/CancellationToken";
 
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
@@ -30,8 +31,10 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 } else {
                     const index = this.analysisQueue.findIndex(v => v.id === jobId);
                     if (index >= 0) {
-                        this.analysisQueue[index].destroy();
+                        const job = this.analysisQueue[index];
+                        job.destroy();
                         this.analysisQueue.splice(index, 1);
+                        this.reportAbort(job.id);
                     }
                 }
             },
@@ -128,15 +131,14 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
 
         try {
             const result = await job.analyze();
-
-            if (result.cancelled) {
+            // Await this.db.insert(job.uid, result);
+            this.reportSuccess(job.id, result);
+        } catch (e) {
+            if (e && e instanceof CancellationError) {
                 this.reportAbort(job.id);
             } else {
-                //await this.db.insert(job.uid, result);
-                this.reportSuccess(job.id, result);
+                this.reportError(job.id, e);
             }
-        } catch (e) {
-            this.reportError(job.id, e);
         } finally {
             job.destroy();
             this.nextJob();

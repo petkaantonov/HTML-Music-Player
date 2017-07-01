@@ -531,7 +531,7 @@ export default function Application(deps) {
 
 
     this.page.changeDom(() => {
-        setTimeout(() => {
+        this.page.setTimeout(() => {
             this.globalEvents._triggerSizeChange();
             this.visualizerCanvas.initialize();
             console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);

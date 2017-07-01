@@ -1,12 +1,13 @@
-import EventEmitter from "events";
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
 import {Blob, File} from "platform/platform";
 import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/pool";
+import EventEmitter from "events";
 import FileView from "platform/FileView";
 import seeker from "audio/seeker";
 import getCodecName from "audio/sniffer";
 import getCodec from "audio/codec";
 import demuxer from "audio/demuxer";
+import CancellableOperations from "utils/CancellationToken";
 
 const noDelayMessageMap = {
     sourceEndedPing: true
@@ -21,7 +22,7 @@ const priorityMessageMap = {
     loadReplacement: true
 };
 
-export default class AudioSource extends EventEmitter {
+export default class AudioSource extends CancellableOperations(EventEmitter, `bufferFillOperation`) {
     constructor(backend, id, parent) {
         super();
         this.backend = backend;
@@ -40,7 +41,6 @@ export default class AudioSource extends EventEmitter {
         this.replacementSpec = null;
         this.parent = parent || null;
         this.messageQueue = [];
-        this.bufferFillId = 0;
 
         this._errored = this._errored.bind(this);
         this._next = this._next.bind(this);
@@ -73,10 +73,6 @@ export default class AudioSource extends EventEmitter {
         other.metadata = null;
         other._audioPipeline = null;
         other.destroy();
-    }
-
-    _abortPendingBufferFills() {
-        this.bufferFillId++;
     }
 
     _clearAllRequestsExceptFirst() {
@@ -143,7 +139,7 @@ export default class AudioSource extends EventEmitter {
         }
 
         if (obsoletesOtherMessagesMap[methodName] === true) {
-            this._abortPendingBufferFills();
+            this.cancelAllBufferFillOperations();
             this._clearAllRequestsExceptFirst();
             this.messageQueue.push(spec);
         } else if (priorityMessageMap[methodName] === true) {
@@ -204,7 +200,7 @@ export default class AudioSource extends EventEmitter {
             const {metadata, requestId, gaplessPreload} = spec;
             const {isUserSeek, baseTime, count, channelCount, info} = args;
             this.replacementSpec = null;
-            this._abortPendingBufferFills();
+            this.cancelAllBufferFillOperations();
             this._clearAllRequestsExceptFirst();
             this.transfer(this.replacementSource);
             this.replacementSource.parent = null;
@@ -263,7 +259,7 @@ export default class AudioSource extends EventEmitter {
 
     destroy() {
         if (this.destroyed) return;
-        this._abortPendingBufferFills();
+        this.cancelAllBufferFillOperations();
         this._clearAllRequestsExceptFirst();
         this.parent = null;
         this.destroyReplacement();
@@ -280,6 +276,7 @@ export default class AudioSource extends EventEmitter {
         this.codecName = ``;
         this._decoder = this.blob = null;
         this._filePosition = 0;
+        this._audioPipeline = null;
         this.metadata = null;
         this.ended = false;
         this.emit(`destroy`);
@@ -299,7 +296,7 @@ export default class AudioSource extends EventEmitter {
     }
 
     async gotCodec(codec, requestId, playerMetadata) {
-        let {destinationChannelCount,
+        const {destinationChannelCount,
                 destinationSampleRate,
                 resamplerQuality,
                 bufferTime,
@@ -406,23 +403,27 @@ export default class AudioSource extends EventEmitter {
         }
     }
 
-    async _decodeNextBuffer(transferList, transferListIndex) {
-        const id = this.bufferFillId;
+    async _decodeNextBuffer(transferList, transferListIndex, cancellationToken) {
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.metadata,
+                                                                               cancellationToken,
                                                                                {transferList, transferListIndex});
-        // Request for decoding has been abandoned while waiting
-        if (id !== this.bufferFillId) {
+        if (cancellationToken.isCancelled()) {
+            this._audioPipeline.dropFilledBuffer();
             return null;
         }
         this._filePosition += bytesRead;
         this.ended = this._filePosition >= this.metadata.dataEnd;
+        if (!this._audioPipeline.hasFilledBuffer) {
+            this.ended = true;
+            this._filePosition = this.metadata.dataEnd;
+            return null;
+        }
         return this._audioPipeline.consumeFilledBuffer();
     }
 
     async _fillBuffers(count, requestId, transferList) {
-        const id = this.bufferFillId;
         const {channelMixer} = this.backend;
         if (this.ended) {
             return {
@@ -433,6 +434,7 @@ export default class AudioSource extends EventEmitter {
                 trackEndingBufferIndex: -1
             };
         }
+        const token = this.cancellationTokenForBufferFillOperation();
 
         const result = {
             requestId,
@@ -446,13 +448,17 @@ export default class AudioSource extends EventEmitter {
         let i = 0;
 
         while (i < count) {
-            const bufferDescriptor = await this._decodeNextBuffer(transferList, transferListIndex);
+            const bufferDescriptor = await this._decodeNextBuffer(transferList, transferListIndex, token);
             if (!bufferDescriptor) {
+                if (this.ended && i > 0) {
+                    result.trackEndingBufferIndex = i - 1;
+                    break;
+                }
                 this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
                 return null;
             }
 
-            transferListIndex += bufferDescriptor.destinationChannelCount;
+            transferListIndex += bufferDescriptor.channelData.length;
             result.info.push({
                 length: bufferDescriptor.length,
                 startTime: bufferDescriptor.startTime,
@@ -465,7 +471,7 @@ export default class AudioSource extends EventEmitter {
                 break;
             }
 
-            if (this.bufferFillId !== id) {
+            if (token.isCancelled()) {
                 this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
                 return null;
             }

@@ -68,9 +68,7 @@ export default class Mp3Context extends DecoderContext {
             this._srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
             this._srcBufferPtr = this._wasm.malloc(this._srcBufferMaxLength);
             this._samplesPtrMaxLength = byteLengthSamples;
-            console.log("src ptr starting from", this._srcBufferPtr, "to", this._srcBufferPtr + this._srcBufferMaxLength, this._srcBufferMaxLength);
             this._samplesPtr = this._wasm.malloc(byteLengthSamples);
-            console.log("samples ptr starting from", this._samplesPtr, "to", this._samplesPtr + byteLengthSamples, byteLengthSamples);
         }
         return this;
     }
