@@ -45,6 +45,18 @@ body {
     display: none;
 }
 
+#app-container {
+    opacity: initial;
+    will-change: none;
+    @include transition-property(opacity);
+    @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
+    @include transition-duration(0.22s);
+}
+
+#app-container.initial {
+    opacity: 0;
+    will-change: opacity;
+}
 
 .link-text {
     cursor: pointer;

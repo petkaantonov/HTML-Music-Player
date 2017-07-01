@@ -10,6 +10,8 @@ import {noop, setIsDevelopment} from "util";
 
 const defaultTitle = `Soita`;
 
+const TOO_LONG_TO_LOAD_MS = 300;
+
 try {
     Object.defineProperty(self, `Promise`, {
         value: Promise,
@@ -45,6 +47,13 @@ const dbValuesPromise = db.getInitialValues();
 const env = new Env(page);
 const globalEvents = new GlobalEvents(page);
 const featureCheckResultsPromise = env.getRequiredPlatformFeatures();
+const loadingIndicatorShowerTimeoutId = setTimeout(() => {
+    page.$(`.loader-container`)
+            .show("inline-block")
+            .forceReflow()
+            .removeClass(`initial`)
+            .forceReflow();
+}, TOO_LONG_TO_LOAD_MS);
 
 setDepChecking(env.isDevelopment());
 setIsDevelopment(env.isDevelopment());
@@ -75,6 +84,7 @@ page.window().onerror = function(a, b, c, d, e) {
     const [featureCheckResults] = await Promise.all([featureCheckResultsPromise, ready]);
     const featureMissing = featureCheckResults.some(v => !v.supported);
     if (featureMissing) {
+        clearTimeout(loadingIndicatorShowerTimeoutId);
         page.$(`#app-load-text`).remove();
         page.$(`#app-loader .missing-features`).removeClass(`no-display`);
 
@@ -99,7 +109,6 @@ page.window().onerror = function(a, b, c, d, e) {
 
         throw new Error(`missing features`);
     } else {
-        page.$(`#app-loader`).remove();
         page.$(`#app-container`).show();
     }
 
@@ -107,6 +116,7 @@ page.window().onerror = function(a, b, c, d, e) {
         await globalEvents.windowWasForegrounded();
     }
     const dbValues = await dbValuesPromise;
+
     self.soitaApp = withDeps({
         env,
         db,
@@ -114,6 +124,6 @@ page.window().onerror = function(a, b, c, d, e) {
         defaultTitle,
         globalEvents,
         page
-    }, deps => new Application(deps));
+    }, deps => new Application(deps, loadingIndicatorShowerTimeoutId));
 })();
 

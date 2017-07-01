@@ -45,7 +45,7 @@ const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;
 const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 
-export default function Application(deps) {
+export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     const bootstrapStart = performance.now();
 
     const {page,
@@ -529,15 +529,18 @@ export default function Application(deps) {
     this.page.addDocumentListener(`selectstart`, this.selectStarted.bind(this));
     this.player.on(`stop`, this.playerStopped.bind(this));
 
-
     this.page.changeDom(() => {
+        page.$(`#app-loader`).remove();
         this.page.setTimeout(() => {
             this.globalEvents._triggerSizeChange();
             this.visualizerCanvas.initialize();
             console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
+            this.page.changeDom(() => {
+                clearTimeout(loadingIndicatorShowerTimeoutId);
+                this.page.$(`#app-container`).removeClass(`initial`);
+            });
         }, 10);
     });
-
 }
 
 Application.prototype.selectStarted = function(e) {

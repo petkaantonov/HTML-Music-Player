@@ -56,6 +56,18 @@ $animation-duration: 0.85s;
     vertical-align: top;
     @include translate3d(0, 0, 0);
     margin-top: $ball-size/2;
+    opacity: initial;
+    will-change: initial;
+    @include transition-property(opacity);
+    @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
+    @include transition-duration(0.6s);
+
+
+    &.initial {
+      display: none;
+      opacity: 0;
+      will-change: opacity;
+    }
 }
 
 .loader-container .ball {
