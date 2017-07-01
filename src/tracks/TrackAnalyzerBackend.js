@@ -74,10 +74,10 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         });
     }
 
-    reportEstimate(id, value) {
+    reportProgress(id, value) {
         this.postMessage({
             id,
-            type: `estimate`,
+            type: `progress`,
             value,
             jobType: `analyze`
         });

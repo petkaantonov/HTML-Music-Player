@@ -217,8 +217,8 @@ Track.prototype.startPlaying = function() {
     this.emit(`viewUpdate`, `viewUpdatePlayingStatusChange`, true);
 };
 
-Track.prototype.analysisEstimate = function(analysisEstimate) {
-    this.emit(`viewUpdate`, `viewUpdateAnalysisEstimate`, analysisEstimate);
+Track.prototype.analysisProgress = function(analysisProgress) {
+    this.emit(`viewUpdate`, `viewUpdateAnalysisProgress`, analysisProgress);
 };
 
 Track.prototype.unsetAnalysisStatus = function() {

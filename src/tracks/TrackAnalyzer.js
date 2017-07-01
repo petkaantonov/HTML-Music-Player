@@ -72,8 +72,8 @@ TrackAnalyzer.prototype.receiveMessage = function(event) {
             if (this._analyzerJobs[i].id === id) {
                 const job = this._analyzerJobs[i];
                 switch (type) {
-                    case `estimate`:
-                        job.track.analysisEstimate(value);
+                    case `progress`:
+                        job.track.analysisProgress(value);
                     break;
 
                     case `error`: {

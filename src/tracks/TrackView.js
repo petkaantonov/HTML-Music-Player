@@ -1,5 +1,3 @@
-import {performance} from "platform/platform";
-
 const ANALYSIS_TOOLTIP_MESSAGE = [
     `This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.`,
     `Playing this track before the analysis has been completed may require manually adjusting volume.`
@@ -20,12 +18,12 @@ export default function TrackView(track, opts) {
     this._isAttached = false;
     this._errorTooltip = null;
     this._analysisTooltip = null;
-    this._analysisCompletionEstimate = -1;
+    this._analysisProgress = -1;
+    this._analysisProgressUpdateFrameQueued = false;
     this._dragged = false;
     this._offset = 0;
     this._renderedPlayingStatus = false;
     this._viewUpdated = this._viewUpdated.bind(this);
-
     this._track.on(`viewUpdate`, this._viewUpdated);
 }
 
@@ -254,27 +252,6 @@ TrackView.prototype.unselected = function() {
     this.$().removeClass(`track-active`);
 };
 
-TrackView.prototype._updateAnalysisEstimate = function() {
-    if (this._analysisCompletionEstimate === -1) return;
-    const transitionDuration = this._analysisCompletionEstimate - performance.now();
-    if (transitionDuration < 0) return;
-    this.$().addClass(`track-container-progress`);
-    const bar = this.page().createElement(`div`, {class: `track-progress-bar`}).
-                appendTo(this.$()).
-                setStyle(`transitionDuration`, `${transitionDuration / 1000}s`).
-                forceReflow();
-
-    this.page().requestAnimationFrame(() => {
-        bar.setTransform(`translateX(0)`);
-    });
-};
-
-TrackView.prototype.viewUpdateAnalysisEstimate = function(analysisEstimate) {
-    this._analysisCompletionEstimate = analysisEstimate + performance.now();
-    if (!this._shouldUpdateDom()) return;
-    this._updateAnalysisEstimate();
-};
-
 TrackView.prototype.viewUpdateDestroyed = function() {
     this.destroy();
 };
@@ -309,9 +286,34 @@ TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
     }
 };
 
-TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
-    this._analysisCompletionEstimate = -1;
 
+TrackView.prototype._updateAnalysisProgress = function() {
+    if (!this._analysisProgressUpdateFrameQueued) {
+        this._analysisProgressUpdateFrameQueued = true;
+        this.page().requestAnimationFrame(() => {
+            this._analysisProgressUpdateFrameQueued = false;
+            if (!this._shouldUpdateDom()) {
+                return;
+            }
+            this.$().
+                find(`.track-progress-bar`).
+                setTransform(`translateX(${-(100 - this._analysisProgress * 100)}%)`);
+        });
+    }
+};
+
+TrackView.prototype.viewUpdateAnalysisProgress = function(analysisProgress) {
+    if (!this._shouldUpdateDom()) return;
+    const previous = this._analysisProgress;
+    this._analysisProgress = analysisProgress;
+    if (previous === -1) {
+        this.$().addClass(`track-container-progress`);
+        this.page().createElement(`div`, {class: `track-progress-bar`}).appendTo(this.$());
+    }
+    this._updateAnalysisProgress();
+};
+
+TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
     if (this._analysisTooltip) {
         this._analysisTooltip.destroy();
         this._analysisTooltip = null;
@@ -337,7 +339,6 @@ TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
     this._analysisTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
                                                                     ANALYSIS_TOOLTIP_MESSAGE);
     this.$trackStatus().addClass(`unclickable`);
-    this._updateAnalysisEstimate();
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {

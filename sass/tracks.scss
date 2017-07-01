@@ -16,6 +16,8 @@
     @include translateX(-100%);
     @include transition-property(-webkit-transform, transform);
     @include transition-timing-function(linear);
+    @include transition-duration(0.1s)
+    ẃill-change: transform;
 }
 
 .track-container {

@@ -3,7 +3,6 @@ import demuxer from "audio/demuxer";
 import getCodec from "audio/codec";
 import getCodecName from "audio/sniffer";
 import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/pool";
-import {performance} from "platform/platform";
 import LoudnessAnalyzer from "audio/LoudnessAnalyzer";
 import ChannelMixer from "audio/ChannelMixer";
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
@@ -143,29 +142,25 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             loudnessAnalyzer: this.loudnessAnalyzer
         });
 
-        const analysisStarted = performance.now();
         const fileStartPosition = metadata.dataStart;
         let filePosition = fileStartPosition;
         const fileEndPosition = metadata.dataEnd;
-        let estimateReported = false;
-
+        let progress = 0;
+        let previousProgress = 0;
         while (filePosition < fileEndPosition) {
             const bytesRead = await this.audioPipeline.decodeFromFileViewAtOffset(fileView,
                                                                                   filePosition,
                                                                                   metadata,
                                                                                   this.cancellationToken);
             this.cancellationToken.check();
-            const chunkProcessingEnded = performance.now();
             this.audioPipeline.consumeFilledBuffer();
 
             filePosition += bytesRead;
 
-            const progress = (filePosition - fileStartPosition) / (fileEndPosition - fileStartPosition);
-            if (progress > 0.15 && !estimateReported) {
-                estimateReported = true;
-                const elapsed = chunkProcessingEnded - analysisStarted;
-                const estimate = Math.round(elapsed / progress - elapsed);
-                this.backend.reportEstimate(id, estimate);
+            progress = (filePosition - fileStartPosition) / (fileEndPosition - fileStartPosition);
+            if (progress - previousProgress > 0.02) {
+                this.backend.reportProgress(id, progress);
+                previousProgress = progress;
             }
         }
 
