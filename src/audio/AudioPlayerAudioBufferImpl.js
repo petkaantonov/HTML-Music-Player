@@ -20,7 +20,8 @@ import WorkerFrontend from "WorkerFrontend";
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;
 const TARGET_BUFFER_LENGTH_SECONDS = 0.2;
-const SUSTAINED_BUFFER_TIME_SECONDS = 1.6;
+const SUSTAINED_BUFFER_TIME_SECONDS = 0.6;
+const INITIAL_BUFFER_COUNT = 2;
 const FLOAT32_BYTES = 4;
 
 if (!AudioContext.prototype.suspend) {
@@ -1080,10 +1081,10 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
     const requestId = ++this._seekRequestId;
     this._player._message(this._id, `seek`, {
         requestId,
-        count: 1,
+        count: INITIAL_BUFFER_COUNT,
         time,
         isUserSeek
-    }, this._getBuffersForTransferList(1));
+    }, this._getBuffersForTransferList(INITIAL_BUFFER_COUNT));
     if (!this._currentSeekEmitted && isUserSeek) {
         this._currentSeekEmitted = true;
         this.emit(`seeking`, this._currentTime);
@@ -1277,10 +1278,10 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
         blob,
         requestId,
         seekTime,
-        count: 1,
+        count: INITIAL_BUFFER_COUNT,
         gaplessPreload: !!gaplessPreload,
         metadata
-    }, this._getBuffersForTransferList(1));
+    }, this._getBuffersForTransferList(INITIAL_BUFFER_COUNT));
 };
 
 

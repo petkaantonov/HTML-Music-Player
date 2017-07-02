@@ -32,7 +32,7 @@ DoubleTapRecognizer.prototype._tapHandler = function(e, ...args) {
         this.lastTap = -1;
         if (yDelta < this.recognizerContext.DOUBLE_TAP_MINIMUM_MOVEMENT &&
             xDelta < this.recognizerContext.DOUBLE_TAP_MINIMUM_MOVEMENT) {
-            this.handler.call(e.currentTarget, ...args);
+            this.handler.call(e.currentTarget, e, ...args);
         }
     } else {
         this.lastTouch = changedTouches[0];

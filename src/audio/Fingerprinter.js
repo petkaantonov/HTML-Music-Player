@@ -18,7 +18,10 @@ export default class Fingerprinter {
     }
 
     newFrames(samplePtr, byteLength) {
-        this.chromaprint_add_samples(this._ptr, samplePtr, byteLength / I16_BYTE_LENGTH);
+        const err = this.chromaprint_add_samples(this._ptr, samplePtr, byteLength / I16_BYTE_LENGTH);
+        if (err) {
+            throw new Error(`chromaprint error ${err}`);
+        }
     }
 
     needFrames() {

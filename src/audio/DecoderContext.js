@@ -1,4 +1,4 @@
-export const MAXIMUM_BUFFER_TIME_SECONDS = 1;
+export const MAXIMUM_BUFFER_TIME_SECONDS = 1.6;
 
 let autoIncrementId = 0;
 export default class DecoderContext {
