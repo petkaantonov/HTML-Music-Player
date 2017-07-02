@@ -131,7 +131,7 @@ typedef struct _mp3_context {
     int nb_channels;
     uint8_t last_buf[2*BACKSTEP_SIZE + EXTRABYTES];
     int last_buf_size;
-    int frame_size;
+    uint32_t frame_size;
     uint32_t free_format_next_header;
     int error_protection;
     int sample_rate_index;

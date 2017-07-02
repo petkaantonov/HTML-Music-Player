@@ -2571,6 +2571,11 @@ EXPORT int mp3_decode_frame(mp3_context_t* this,
       }
 
       uint32_t frame_size = this->frame_size;
+
+      if (frame_size > src_length) {
+        return bytes_read;
+      }
+
       const uint8_t* next = &src[frame_size];
       uint32_t next_header = (next[-4] << 24) |
                              (next[-3] << 16) |
