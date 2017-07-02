@@ -131,7 +131,7 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
 
         try {
             const result = await job.analyze();
-            // Await this.db.insert(job.uid, result);
+            await this.db.insert(job.uid, result);
             this.reportSuccess(job.id, result);
         } catch (e) {
             if (e && e instanceof CancellationError) {

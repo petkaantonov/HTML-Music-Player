@@ -254,6 +254,10 @@ PreferencesManager.prototype.$ = function() {
     return this._domNode;
 };
 
+PreferencesManager.prototype.layoutUpdated = function() {
+    // Noop
+};
+
 PreferencesManager.prototype.applyPreferencesFrom = function(preferences) {
     this.preferences.copyFrom(preferences);
     this.preferencesUpdated();

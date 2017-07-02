@@ -58,6 +58,23 @@ Slider.prototype.shouldUpdateDom = function() {
     return this._shouldUpdateDom;
 };
 
+Slider.prototype.setWidth = function(px) {
+    if (this._direction !== `vertical`) {
+        throw new Error(`cannot set width of horizontal slider`);
+    }
+
+    this.$().setStyle(`width`, `${px}px`);
+    this._onReLayout();
+};
+
+Slider.prototype.setHeight = function(px) {
+    if (this._direction !== `horizontal`) {
+        throw new Error(`cannot set height of vertical slider`);
+    }
+    this.$().setStyle(`height`, `${px}px`);
+    this._onReLayout();
+};
+
 Slider.prototype._onMousedown = function(e) {
     const wasTouchEvent = this.page.isTouchEvent(e);
     if (this._sliding ||
@@ -225,3 +242,4 @@ Slider.prototype._percentage = function(e) {
         (e.clientX - this._containerRect.left) / this._containerRect.width;
     return Math.max(0, Math.min(1, r));
 };
+

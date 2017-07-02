@@ -1,187 +1,222 @@
-import {slugTitle, noUndefinedGet} from "util";
+import {slugTitle, noUndefinedGet, animationPromisify, _} from "util";
+import {DECELERATE_CUBIC} from "ui/animation/easing";
 import Popup from "ui/Popup";
 import withDeps from "ApplicationDependencies";
 
-export default function PopupContext(opts, deps) {
-    opts = noUndefinedGet(opts);
+const blockerAnimationKeyFrames = [
+    {opacity: 0},
+    {opacity: 0.55}
+];
 
-    this.animationContext = deps.animationContext;
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.db = deps.db;
-    this.scrollerContext = deps.scrollerContext;
-    this.recognizerContext = deps.recognizerContext;
-    this.dbValues = deps.dbValues;
-    this.keyboardShortcuts = deps.keyboardShortcuts;
-    this.rippler = deps.rippler;
+const blockerShowAnimationOptions = {
+    fill: `both`,
+    duration: 156,
+    easing: DECELERATE_CUBIC
+};
 
-    this.popupZIndex = opts.zIndex;
-    this.containerClass = opts.containerClass;
-    this.headerClass = opts.headerClass;
-    this.footerClass = opts.footerClass;
-    this.bodyClass = opts.bodyClass;
-    this.scrollAreaContainerClass = opts.scrollAreaContainerClass;
-    this.bodyContentClass = opts.bodyContentClass;
-    this.closerContainerClass = opts.closerContainerClass;
-    this.scrollbarContainerClass = opts.scrollbarContainerClass;
-    this.scrollbarRailClass = opts.scrollbarRailClass;
-    this.scrollbarKnobClass = opts.scrollbarKnobClass;
-    this.popupButtonClass = opts.popupButtonClass;
-    this.buttonDisabledClass = opts.buttonDisabledClass;
+const blockerHideAnimationOptions = Object.assign({direction: `reverse`}, blockerShowAnimationOptions);
 
-    this.shownPopups = [];
-    this.blocker = this.page.NULL();
-    this.animator = null;
 
-    this.popupOpened = this.popupOpened.bind(this);
-    this.popupClosed = this.popupClosed.bind(this);
-    this.closePopups = this.closePopups.bind(this);
+const popupOpacityAnimationKeyFrames = [
+    {opacity: 0},
+    {opacity: 1}
+];
 
-    this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
+const popupShowAnimationOptions = {
+    fill: `none`,
+    duration: 156,
+    easing: DECELERATE_CUBIC
+};
+
+const popupHideAnimationOptions = Object.assign({direction: `reverse`}, popupShowAnimationOptions);
+
+const popupTranslateAnimationOptions = {
+    fill: `none`,
+    duration: 156,
+    easing: DECELERATE_CUBIC
+};
+
+function getDesktopTransitionIn($node) {
+    return animationPromisify($node.animate(
+                                $node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
+                                popupShowAnimationOptions));
 }
 
-PopupContext.prototype.closePopups = function() {
-    this.shownPopups.forEach((v) => {
-        v.close();
-    });
-};
+function getDesktopTransitionOut($node) {
+    return animationPromisify($node.animate(popupOpacityAnimationKeyFrames, popupHideAnimationOptions));
+}
 
-PopupContext.prototype.showBlocker = function() {
-    if (this.animator) {
-        this.animator.stop(true);
-        this.animator = null;
-        this.blocker.remove();
-    }
+function getMobileTransitionIn($node, rect) {
+    return animationPromisify($node.animate($node.getTranslateKeyFrames(-rect.width, 0, 0, 0), popupTranslateAnimationOptions));
+}
 
-    this.blocker = this.page.createElement(`div`, {class: `popup-blocker`}).appendTo(`body`);
-    this.blocker.addEventListener(`click`, this.closePopups);
-    this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
+function getMobileTransitionOut($node, rect) {
+    return animationPromisify($node.animate($node.getTranslateKeyFrames(0, 0, -rect.width, 0), popupTranslateAnimationOptions));
+}
 
-    const animator = this.animationContext.createAnimator(this.blocker, {
-        opacity: {
-            range: [0, 55],
-            unit: `%`,
-            duration: 300,
-            interpolate: this.animationContext.DECELERATE_CUBIC
-        }
-    });
+function toPreferenceKey(popupTitle) {
+        return `${slugTitle(popupTitle)}-popup-preferences`;
+}
 
-    animator.start();
-};
+export default class PopupContext {
+    constructor(opts, deps) {
+        opts = noUndefinedGet(opts);
 
-PopupContext.prototype.hideBlocker = async function() {
-    if (!this.blocker.length) return;
+        this.env = deps.env;
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.db = deps.db;
+        this.scrollerContext = deps.scrollerContext;
+        this.recognizerContext = deps.recognizerContext;
+        this.dbValues = deps.dbValues;
+        this.keyboardShortcuts = deps.keyboardShortcuts;
+        this.rippler = deps.rippler;
 
-    const animator = this.animationContext.createAnimator(this.blocker, {
-        opacity: {
-            range: [55, 0],
-            unit: `%`,
-            duration: 300,
-            interpolate: this.animationContext.DECELERATE_CUBIC
-        }
-    });
+        this.popupZIndex = opts.zIndex;
+        this.containerClass = opts.containerClass;
+        this.headerClass = opts.headerClass;
+        this.footerClass = opts.footerClass;
+        this.bodyClass = opts.bodyClass;
+        this.scrollAreaContainerClass = opts.scrollAreaContainerClass;
+        this.bodyContentClass = opts.bodyContentClass;
+        this.closerContainerClass = opts.closerContainerClass;
+        this.scrollbarContainerClass = opts.scrollbarContainerClass;
+        this.scrollbarRailClass = opts.scrollbarRailClass;
+        this.scrollbarKnobClass = opts.scrollbarKnobClass;
+        this.popupButtonClass = opts.popupButtonClass;
+        this.buttonDisabledClass = opts.buttonDisabledClass;
 
-    this.animator = animator;
-
-    const wasCancelled = await animator.start();
-    if (!wasCancelled) {
-        this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
-        this.blocker.remove();
+        this.shownPopups = [];
         this.blocker = this.page.NULL();
-        this.animator = null;
+        this.animation = null;
+
+        this.closeTopPopup = this.closeTopPopup.bind(this);
+        this.popupOpened = this.popupOpened.bind(this);
+        this.popupClosed = this.popupClosed.bind(this);
+        this.closePopups = this.closePopups.bind(this);
+
+        this.globalEvents.on(`clear`, this.closeTopPopup);
+        this.globalEvents.on(`backbuttonPress`, this.closeTopPopup);
+
+        this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
     }
-};
 
-PopupContext.prototype.popupOpened = function(popup) {
-    this.keyboardShortcuts.disable();
-
-    if (this.shownPopups.push(popup) === 1) {
-        this.showBlocker();
+    isMobile() {
+        return this.env.isMobileScreenSize();
     }
-};
 
-PopupContext.prototype.popupClosed = function(popup) {
-    this.keyboardShortcuts.enable();
-    this.db.set(this.toPreferenceKey(popup.title), {
-        screenPosition: popup.getScreenPosition(),
-        scrollPosition: popup.getScrollPosition()
-    });
+    closePopups() {
+        this.shownPopups.forEach(_.close);
+    }
 
-    const index = this.shownPopups.indexOf(popup);
-    if (index >= 0) {
-        this.shownPopups.splice(index, 1);
-        if (this.shownPopups.length === 0) {
-            this.hideBlocker();
+    showBlocker() {
+        if (this.isMobile()) {
+            return;
+        }
+        if (this.animation) {
+            this.animation.finish();
+            this.animation = null;
+            this.blocker.remove();
+        }
+
+        this.blocker = this.page.createElement(`div`, {class: `popup-blocker`}).appendTo(`body`);
+        this.blocker.addEventListener(`click`, this.closePopups);
+        this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
+        this.blocker.animate(blockerAnimationKeyFrames, blockerShowAnimationOptions);
+    }
+
+    async hideBlocker() {
+        if (!this.blocker.length) return;
+
+        const animation = this.blocker.animate(blockerAnimationKeyFrames, blockerHideAnimationOptions);
+        this.animation = animation;
+        await animationPromisify(animation);
+
+        if (this.animation) {
+            this.animation = null;
+            this.blockerTapRecognizer.unrecognizeBubbledOn(this.blocker);
+            this.blocker.remove();
+            this.blocker = this.page.NULL();
         }
     }
-};
 
-PopupContext.prototype.toPreferenceKey = function(popupTitle) {
-    return `${slugTitle(popupTitle)}-popup-preferences`;
-};
+    closeTopPopup() {
+        if (this.shownPopups.length > 0) {
+            this.shownPopups.last().close();
 
-PopupContext.prototype.makePopup = function(title, body, opener, footerButtons) {
-    const {containerClass, headerClass, footerClass, bodyClass, scrollAreaContainerClass,
-            bodyContentClass, closerContainerClass, scrollbarContainerClass, scrollbarRailClass,
-            scrollbarKnobClass, popupButtonClass, buttonDisabledClass,
-            page, globalEvents, recognizerContext, scrollerContext, rippler} = this;
-    const popup = withDeps({page, globalEvents, recognizerContext, scrollerContext, rippler}, deps => new Popup({
-        containerClass,
-        headerClass,
-        footerClass,
-        bodyClass,
-        scrollAreaContainerClass,
-        bodyContentClass,
-        closerContainerClass,
-        scrollbarContainerClass,
-        scrollbarRailClass,
-        scrollbarKnobClass,
-        popupButtonClass,
-        buttonDisabledClass,
-        transitionClass: ``,
-        zIndex: this.popupZIndex,
-        footerButtons,
-        title,
-        body,
-        closer: `<span class="icon glyphicon glyphicon-remove"></span>`,
-        beforeTransitionIn: $node => this.animationContext.createAnimator($node, {
-                opacity: {
-                    interpolate: this.animationContext.DECELERATE_CUBIC,
-                    duration: 300,
-                    range: [0, 100],
-                    unit: `%`
-                },
-                scale: {
-                    interpolate: this.animationContext.DECELERATE_CUBIC,
-                    duration: 300,
-                    range: [
-                        [0.95, 0.95],
-                        [1, 1]
-                    ],
-                    baseValue: $node.getTransform()
-                }
-            }).start(),
-
-        beforeTransitionOut: $node => this.animationContext.createAnimator($node, {
-                opacity: {
-                    interpolate: this.animationContext.DECELERATE_CUBIC,
-                    duration: 300,
-                    range: [100, 0],
-                    unit: `%`
-                }
-            }).start()
-    }, deps));
-
-    popup.on(`open`, this.popupOpened);
-    popup.on(`close`, this.popupClosed);
-
-    if (this.toPreferenceKey(popup.title) in this.dbValues) {
-        const data = Object(this.dbValues[this.toPreferenceKey(popup.title)]);
-        popup.setScreenPosition(data.screenPosition);
-        popup.setScrollPosition(data.scrollPosition);
+        }
     }
 
-    this.globalEvents.on(`clear`, popup.close.bind(popup));
+    popupOpened(popup) {
+        this.keyboardShortcuts.disable();
 
-    return popup;
-};
+        if (this.shownPopups.push(popup) === 1) {
+            this.showBlocker();
+        }
+    }
+
+    popupClosed(popup) {
+        if (!this.isMobile()) {
+            this.db.set(toPreferenceKey(popup.title), {
+                screenPosition: popup.getScreenPosition(),
+                scrollPosition: popup.getScrollPosition()
+            });
+        }
+
+        const index = this.shownPopups.indexOf(popup);
+        if (index >= 0) {
+            this.shownPopups.splice(index, 1);
+            if (this.shownPopups.length === 0) {
+                this.keyboardShortcuts.enable();
+                this.hideBlocker();
+            }
+        }
+    }
+
+    getTransitionInHandler() {
+        return (($node, rect) => (this.isMobile() ? getMobileTransitionIn : getDesktopTransitionIn)($node, rect));
+    }
+
+    getTransitionOutHandler() {
+        return (($node, rect) => (this.isMobile() ? getMobileTransitionOut : getDesktopTransitionOut)($node, rect));
+    }
+
+    makePopup(title, body, opener, footerButtons) {
+        const {containerClass, headerClass, footerClass, bodyClass, scrollAreaContainerClass,
+                bodyContentClass, closerContainerClass, scrollbarContainerClass, scrollbarRailClass,
+                scrollbarKnobClass, popupButtonClass, buttonDisabledClass,
+                page, env, globalEvents, recognizerContext, scrollerContext, rippler} = this;
+        const popup = withDeps({env, page, globalEvents, recognizerContext, scrollerContext, rippler}, deps => new Popup({
+            containerClass,
+            headerClass,
+            footerClass,
+            bodyClass,
+            scrollAreaContainerClass,
+            bodyContentClass,
+            closerContainerClass,
+            scrollbarContainerClass,
+            scrollbarRailClass,
+            scrollbarKnobClass,
+            popupButtonClass,
+            buttonDisabledClass,
+            zIndex: this.popupZIndex,
+            footerButtons,
+            title,
+            body,
+            closer: `<span class="icon glyphicon glyphicon-remove"></span>`,
+            beforeTransitionIn: this.getTransitionInHandler(),
+            beforeTransitionOut: this.getTransitionOutHandler()
+        }, deps));
+
+        popup.on(`open`, this.popupOpened);
+        popup.on(`close`, this.popupClosed);
+
+        if (toPreferenceKey(popup.title) in this.dbValues) {
+            const data = Object(this.dbValues[toPreferenceKey(popup.title)]);
+            popup.setScreenPosition(data.screenPosition);
+            popup.setScrollPosition(data.scrollPosition);
+        }
+
+        return popup;
+    }
+}

@@ -1,13 +1,12 @@
-
-
 import AbstractPreferences from "preferences/AbstractPreferences";
 import EventEmitter from "events";
-import {inherits, noUndefinedGet} from "util";
+import {inherits, noUndefinedGet, _, _set} from "util";
 import createPreferences from "preferences/PreferenceCreator";
 
 const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;
 const STORAGE_KEY = `effect-preferences`;
+const ALL_SLIDERS_ON_SAME_ROW_THRESHOLD = 620;
 
 const gainValueToProgress = function(gainValue) {
     const max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -344,11 +343,33 @@ function EqualizerEffectManager(effectsManager) {
     });
 
     this.$().find(`.equalizer-preset-selector`).addEventListener(`change`, this.equalizerPresetChanged.bind(this));
+    this._slidersUsingWidth = -1;
 }
 
 EqualizerEffectManager.prototype.$ = function() {
     return this._effectsManager.$();
 };
+
+EqualizerEffectManager.prototype.$equalizerSlidersContainer = function() {
+    return this.$().find(`.equalizer-sliders-container`);
+};
+
+EqualizerEffectManager.prototype.$equalizerSliderContainers = function() {
+    return this.$equalizerSlidersContainer().find(`.equalizer-band-configurator-container`);
+};
+
+EqualizerEffectManager.prototype.layoutUpdated = function() {
+    const widthAvailable = this.$equalizerSlidersContainer().innerWidth();
+    if (widthAvailable !== this._slidersUsingWidth) {
+        this._slidersUsingWidth = widthAvailable;
+        const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
+                                                                                  : this._equalizerSliders.length / 2;
+        const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
+        this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
+    }
+
+};
+
 
 EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
     const val = this._effectsManager.effectPreferences.page().$(e.target).value();
@@ -391,6 +412,10 @@ inherits(EffectManager, EventEmitter);
 
 EffectManager.prototype.$ = function() {
     return this._domNode;
+};
+
+EffectManager.prototype.layoutUpdated = function() {
+    this._equalizerEffectManager.layoutUpdated();
 };
 
 EffectManager.prototype.applyPreferencesFrom = function(preferences) {

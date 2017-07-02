@@ -1,5 +1,3 @@
-
-
 import {addLegacyListener, inherits} from "util";
 import {canvasToImage} from "platform/dom/util";
 import {Int16Array, Float32Array, performance} from "platform/platform";
@@ -7,6 +5,7 @@ import Default2dImageRenderer from "visualization/Default2dImageRenderer";
 import WebGl2dImageRenderer from "visualization/WebGl2dImageRenderer";
 import EventEmitter from "events";
 import {delay} from "platform/PromiseExtensions";
+import {ACCELERATE_QUAD_INTERPOLATOR} from "ui/animation/easing";
 
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = `rgb(11,32,53)`;
@@ -182,7 +181,6 @@ export default function VisualizerCanvas(opts, deps) {
     this.sliderContext = deps.sliderContext;
     this.menuContext = deps.menuContext;
     this.rippler = deps.rippler;
-    this.animationContext = deps.animationContext;
     this.applicationPreferences = deps.applicationPreferences;
     this.globalEvents = deps.globalEvents;
     this.player = deps.player;
@@ -202,7 +200,7 @@ export default function VisualizerCanvas(opts, deps) {
     this.targetFps = opts.targetFps;
     this.sectionContainerSelector = opts.sectionContainerSelector || `.visualizer-section-container`;
     this.capInterpolator = null;
-    this.setCapInterpolator(opts.capInterpolator || `ACCELERATE_QUAD`);
+    this.setCapInterpolator(opts.capInterpolator || ACCELERATE_QUAD_INTERPOLATOR);
     this.ghostOpacity = opts.ghostOpacity || 0.25;
     this.capDropTime = opts.capDropTime;
     this.currentCapPositions = null;
@@ -479,9 +477,9 @@ VisualizerCanvas.prototype.binHeightSourcePixels = function() {
     return (this.height + (SHADOW_BLUR * this.page.devicePixelRatio()) | 0);
 };
 
-VisualizerCanvas.prototype.setCapInterpolator = function(name) {
-    if (typeof this.animationContext[name] !== `function`) throw new Error(`${name} is not a known interpolator`);
-    this.capInterpolator = this.animationContext[name];
+VisualizerCanvas.prototype.setCapInterpolator = function(interpolator) {
+    if (typeof interpolator !== `function`) throw new Error(`${interpolator} is not a function`);
+    this.capInterpolator = interpolator;
 };
 
 VisualizerCanvas.prototype.getTargetFps = function() {

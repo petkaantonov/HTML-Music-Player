@@ -433,3 +433,6 @@ CrossFadeManager.prototype.$ = function() {
     return this._domNode;
 };
 
+CrossFadeManager.prototype.layoutUpdated = function() {
+    // Noop
+};

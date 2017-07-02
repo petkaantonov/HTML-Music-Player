@@ -16,6 +16,7 @@ export default function AbstractPreferences(preferences, opts, deps) {
     this._db = deps.db;
     this._recognizerContext = deps.recognizerContext;
     this._sliderContext = deps.sliderContext;
+    this._toolbarSubmenu = deps.toolbarSubmenu;
     this._popup = deps.popupContext.makePopup(this.TITLE, this.getHtml(), opts.preferencesButton, [{
         id: RESTORE_DEFAULTS_BUTTON,
         text: `Restore defaults`,
@@ -28,13 +29,14 @@ export default function AbstractPreferences(preferences, opts, deps) {
 
     this.savePreferences = throttle(this.savePreferences, 250);
 
+
     this._manager = null;
 
-
-    const popupOpen = this._popup.open.bind(this._popup);
-    this.page().$(opts.preferencesButton).addEventListener(`click`, popupOpen);
-    this._recognizerContext.createTapRecognizer(popupOpen).recognizeBubbledOn(this.page().$(opts.preferencesButton));
+    this.preferencesButtonClicked = this.preferencesButtonClicked.bind(this);
+    this.page().$(opts.preferencesButton).addEventListener(`click`, this.preferencesButtonClicked);
+    this._recognizerContext.createTapRecognizer(this.preferencesButtonClicked).recognizeBubbledOn(this.page().$(opts.preferencesButton));
     this._popup.on(`open`, this.popupOpened.bind(this));
+    this._popup.on(`layoutUpdate`, this.layoutUpdated.bind(this));
     if (deps.dbValues && this.STORAGE_KEY in deps.dbValues) {
         this.preferences().copyFrom(deps.dbValues[this.STORAGE_KEY]);
         this.emit(`change`, this.preferences());
@@ -42,6 +44,17 @@ export default function AbstractPreferences(preferences, opts, deps) {
 
 }
 inherits(AbstractPreferences, EventEmitter);
+
+AbstractPreferences.prototype.preferencesButtonClicked = function(event) {
+    this._toolbarSubmenu.close();
+    this._popup.open();
+};
+
+AbstractPreferences.prototype.layoutUpdated = function() {
+    if (this._manager) {
+        this._manager.layoutUpdated();
+    }
+};
 
 AbstractPreferences.prototype.popupOpened = function() {
     if (!this._manager) {

@@ -15,23 +15,21 @@ $popup-container-border: 2px;
     box-sizing: border-box;
     border-radius: 4px;
     background-color: #fcfcfc;
-    border: ($popup-container-border / 2) solid #F4F4F4;
+    border: none;
     top: 0px;
     left: 0px;
     z-index: 960;
 
     height: 100%;
     max-width: 100%;
+    max-height: 100%;
 
-    @include long-screen {
+    @include desktop {
+        border: ($popup-container-border / 2) solid #F4F4F4;
         height: $large-screen-height;
-    }
-
-    @include large-screen {
+        max-height: $large-screen-height;
         max-width: $large-screen-width;
     }
-
-    max-height: $large-screen-height;
 
     .last-focus-item {
         position: absolute;
@@ -54,15 +52,14 @@ $popup-container-border: 2px;
 
 .popup-body {
 
-    @include calc(max-width, "100% - #{popup-container-border}");
+    @include calc(max-width, "100% - #{$popup-container-border}");
     @include calc(max-height, "100% - #{$footer-header-size}");
+    @include calc(height, "100% - #{$footer-header-size}");
 
-    @include long-screen {
+    @include desktop {
         max-height: $large-screen-height - $footer-header-size;
-    }
-
-    @include large-screen {
         max-width: $large-screen-width - $popup-container-border;
+        height: auto;
     }
 
     .popup-body-content {
@@ -74,9 +71,11 @@ $popup-container-border: 2px;
 .popup-container.no-footer {
     .popup-body {
         @include calc(max-height, "100% - #{$header-size}");
+        @include calc(height, "100% - #{$header-size}");
 
-        @include long-screen {
+        @include desktop {
             max-height: $large-screen-height - $header-size;
+            height: auto;
         }
     }
 }
@@ -90,7 +89,7 @@ $popup-container-border: 2px;
     left: 0px;
     position: absolute;
     z-index: 940;
-    @include css-filter(opacity(0%));
+    opacity: 0;
 }
 
 .popup-header {
@@ -120,6 +119,7 @@ $popup-container-border: 2px;
 
     .popup-button {
         $padding: 10px;
+        $margin: 22px;
 
         outline: none;
         box-sizing: border-box;
@@ -128,10 +128,10 @@ $popup-container-border: 2px;
         display: inline-block;
         height: $footer-height;
         text-transform: uppercase;
-        margin: 0px 22px;
         line-height: $footer-height - $padding * 2;
-        padding: $padding 0;
+        padding: $padding $margin;
         color: $secondary-color;
+        text-align: center;
 
         &.popup-button-disabled {
             opacity: 0.3;

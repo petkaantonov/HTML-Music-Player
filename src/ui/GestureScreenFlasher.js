@@ -1,4 +1,24 @@
+import {DECELERATE_CUBIC} from "ui/animation/easing";
+import {animationPromisify} from "util";
 
+const fadeInAnimationOptions = {
+    fill: `both`,
+    easing: DECELERATE_CUBIC,
+    duration: 100
+};
+
+const fadeOutAnimationOptions = {
+    fill: `both`,
+    easing: DECELERATE_CUBIC,
+    duration: 250,
+    direction: `reverse`
+};
+
+const fadeKeyFrames = [{
+    opacity: 0
+}, {
+    opacity: 0.8
+}];
 
 const gestureIcon = function(icon) {
     return `<div class="gesture-flash"><span class="gesture-flash-icon ${icon}"></span></div>`;
@@ -13,7 +33,6 @@ const gestureNameMap = {
 
 export default function GestureScreenFlasher(deps) {
     this._page = deps.page;
-    this._animationContext = deps.animationContext;
     this._queue = [];
     this._current = null;
     this._gestureMap = {};
@@ -30,28 +49,18 @@ GestureScreenFlasher.prototype._next = function() {
     const $dom = this._gestureMap[name].remove().removeAttribute(`style`);
     $dom.appendTo(`body`);
 
-    const fadeIn = this._animationContext.createAnimator($dom, {
-        opacity: {
-            range: [0, 80],
-            unit: `%`,
-            duration: 100,
-            interpolate: this._animationContext.DECELERATE_CUBIC
-        }
-    });
+    const fadeIn = $dom.animate(fadeKeyFrames, fadeInAnimationOptions);
+    fadeIn.pause();
 
-    const fadeOut = this._animationContext.createAnimator($dom, {
-        opacity: {
-            range: [80, 0],
-            unit: `%`,
-            duration: 250,
-            interpolate: this._animationContext.DECELERATE_CUBIC
-        }
-    });
+    const fadeOut = $dom.animate(fadeKeyFrames, fadeOutAnimationOptions);
+    fadeOut.pause();
 
     this._current = (async () => {
         try {
-            await fadeIn.start();
-            await fadeOut.start();
+            fadeIn.play();
+            await animationPromisify(fadeIn);
+            fadeOut.play();
+            await animationPromisify(fadeOut);
             $dom.remove().removeAttribute(`style`);
         } finally {
             this._next();

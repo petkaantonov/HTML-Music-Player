@@ -11,6 +11,7 @@ export default function GlobalEvents(page) {
     this._fireSizeChangeEvents = true;
     this._pendingSizeChange = false;
     this._beforeUnloadListener = null;
+    this._history = page.window().history;
 
     this._triggerSizeChange = this._triggerSizeChange.bind(this);
     this._firePendingSizeChangeEvent = this._firePendingSizeChangeEvent.bind(this);
@@ -27,8 +28,25 @@ export default function GlobalEvents(page) {
     this._page.addWindowListener(`resize`, this._triggerSizeChange, true);
     this._page.addWindowListener(`unload`, this.emit.bind(this, `shutdown`));
     this._page.addWindowListener(`beforeunload`, this._beforeUnload.bind(this));
+    this._page.addWindowListener(`popstate`, this._historyStatePopped.bind(this));
+
+    this._history.scrollRestoration = `manual`;
+    this._ensureHistoryState();
+
 }
 inherits(GlobalEvents, EventEmitter);
+
+GlobalEvents.prototype._historyStatePopped = function() {
+    this.emit(`backbuttonPress`);
+    this._ensureHistoryState();
+};
+
+GlobalEvents.prototype._ensureHistoryState = function() {
+    const currentState = this._history.state;
+    if (!currentState || (currentState && currentState.app !== `soita`)) {
+        this._history.pushState({app: `soita`}, ``);
+    }
+};
 
 GlobalEvents.prototype._windowBlurred = function() {
     this._blurred = true;

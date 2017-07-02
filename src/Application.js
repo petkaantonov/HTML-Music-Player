@@ -1,6 +1,5 @@
 import withDeps from "ApplicationDependencies";
 import {console, matchMedia, performance} from "platform/platform";
-import AnimationContext from "ui/animation/AnimationContext";
 import Snackbar from "ui/Snackbar";
 import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
@@ -38,6 +37,7 @@ import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
 import UsageData from "usageData/UsageData";
 import TagDataContext from "tracks/TagData";
+import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -71,8 +71,6 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     /* eslint-disable no-unused-vars */
     const workerWrapper = this.workerWrapper = new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`);
 
-    const animationContext = this.animationContext = withDeps({page}, d => new AnimationContext(d));
-
     const recognizerContext = this.recognizerContext = withDeps({
         page,
         env,
@@ -94,8 +92,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     }, d => new ScrollEvents(d));
 
     const gestureScreenFlasher = this.gestureScreenFlasher = withDeps({
-        page,
-        animationContext
+        page
     }, d => new GestureScreenFlasher(d));
 
     const permissionPrompt = this.permissionPrompt = withDeps({
@@ -107,8 +104,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     }, d));
 
     const rippler = this.rippler = withDeps({
-        page,
-        animationContext
+        page
     }, d => new Rippler({
         zIndex: POPUP_ZINDEX - 60,
         target: `body`
@@ -201,7 +197,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     }, d));
 
     const popupContext = this.popupContext = withDeps({
-        animationContext,
+        env,
         page,
         globalEvents,
         recognizerContext,
@@ -256,6 +252,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         db,
         rippler,
         popupContext,
+        toolbarSubmenu,
         env
     }, d => new ApplicationPreferences({
         preferencesButton: `.menul-preferences`
@@ -269,6 +266,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         db,
         rippler,
         popupContext,
+        toolbarSubmenu,
         env
     }, d => new EffectPreferences({
         preferencesButton: `.menul-effects`
@@ -281,6 +279,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         dbValues,
         db,
         rippler,
+        toolbarSubmenu,
         popupContext,
         env
     }, d => new CrossfadingPreferences({
@@ -465,7 +464,6 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     const visualizerCanvas = this.visualizerCanvas = withDeps({
         player,
         page,
-        animationContext,
         globalEvents,
         recognizerContext,
         applicationPreferences,
@@ -484,7 +482,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         targetFps: 60,
         capDropTime: 750,
         ghostOpacity: 0.14,
-        capInterpolator: `ACCELERATE_CUBIC`,
+        capInterpolator: ACCELERATE_CUBIC_INTERPOLATOR,
         enabledMediaMatcher: matchMedia(`(min-height: 500px)`)
     }, d));
 
@@ -536,7 +534,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
             this.visualizerCanvas.initialize();
             console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
             this.page.changeDom(() => {
-                clearTimeout(loadingIndicatorShowerTimeoutId);
+                this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
                 this.page.$(`#app-container`).removeClass(`initial`);
             });
         }, 10);

@@ -108,7 +108,8 @@ export default function TabController(domNode, specs, opts, deps) {
     this._dragAnchorEnd = -1;
     this._activeTabRect = null;
 
-    this.recognizerContext.createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd).
+    this.recognizerContext.
+        createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd).
         recognizeBubbledOn(this.$());
 
 }

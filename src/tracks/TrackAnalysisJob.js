@@ -171,8 +171,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         if (this.loudnessAnalyzer) {
             result.loudness = this.loudnessAnalyzer.getLoudnessAnalysis();
         }
-        console.log(result.loudness.trackGain, result.loudness.silence.beginSilenceLength,
-            result.loudness.silence.endSilenceLength);
+
         return {
             duration: result.duration,
             loudness: result.loudness,

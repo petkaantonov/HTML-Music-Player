@@ -735,6 +735,18 @@ export const iDbPromisify = function(ee) {
     });
 };
 
+export const animationPromisify = function(animation) {
+  return new Promise((resolve) => {
+    function finished() {
+      animation.oncancel = null;
+      animation.onfinish = null;
+      resolve();
+    }
+    animation.oncancel = finished;
+    animation.onfinish = finished;
+  });
+};
+
 export const reverseString = (function() {
     let utf16decoder = null;
     return function(str) {
@@ -1084,3 +1096,69 @@ export function gcd(a, b) {
 
     return gcd(b, a % b);
 }
+
+export const _ = new Proxy(new Map(), {get(cache, name) {
+  const cached = cache.get(name);
+  if (cached) {
+    return cached;
+  }
+
+  const code = `
+    const val = v.${name};
+    return typeof val === "function" ? v.${name}() : val;`;
+  const ret = new Function(`v`, code);
+  cache.set(name, ret);
+  return ret;
+}});
+
+export const _call = new Proxy(new Map(), {get(cache, name) {
+  const cached = cache.get(name);
+  if (cached) {
+    return cached;
+  }
+
+  const code = `
+    return function(v) {
+      return v.${name}(...args);
+    };
+  `;
+
+  const ret = new Function(`...args`, code);
+  cache.set(name, ret);
+  return ret;
+}});
+
+export const _set = new Proxy(new Map(), {get(cache, name) {
+  const cached = cache.get(name);
+  if (cached) {
+    return cached;
+  }
+
+  const code = `
+    return function(v) {
+      v.${name} = value;
+    };
+  `;
+
+  const ret = new Function(`value`, code);
+  cache.set(name, ret);
+  return ret;
+}});
+
+export const _equals = new Proxy(new Map(), {get(cache, name) {
+  const cached = cache.get(name);
+  if (cached) {
+    return cached;
+  }
+
+  const code = `
+    return function(v) {
+      const val = v.${name};
+      return (typeof val === "function" ? v.${name}() : val) === rhs
+    };
+  `;
+
+  const ret = new Function(`rhs`, code);
+  cache.set(name, ret);
+  return ret;
+}});
