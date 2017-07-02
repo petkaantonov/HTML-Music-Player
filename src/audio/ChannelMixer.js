@@ -1,14 +1,17 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
+import BufferAllocator from "wasm/BufferAllocator";
 
 const OUTPUT_PTR_OFFSET = 0;
 
-export default class ChannelMixer {
+const pointersToInstances = new Map();
+
+export default class ChannelMixer extends BufferAllocator {
     constructor(wasm, {destinationChannelCount}) {
+        super(wasm);
         if (!(destinationChannelCount >= 1 && destinationChannelCount <= 5)) {
             throw new Error(`invalid count ${destinationChannelCount}`);
         }
         this.destinationChannelCount = destinationChannelCount;
-        this._wasm = wasm;
         this._ptr = 0;
         this._alloc();
     }
@@ -39,26 +42,26 @@ export default class ChannelMixer {
             throw new Error(`already allocated`);
         }
         this._ptr = this.channel_mixer_create(this.destinationChannelCount);
+        if (!this._ptr) {
+            throw new Error("out of memory");
+        }
+        pointersToInstances.set(this._ptr, this);
     }
 
     destroy() {
+        super.destroy();
         if (this._ptr === 0) {
             throw new Error(`not allocated`);
         }
         this.channel_mixer_destroy(this._ptr);
+        pointersToInstances.delete(this._ptr);
         this._ptr = 0;
     }
 }
 
 moduleEvents.on(`main_beforeModuleImport`, (wasm, imports) => {
-    const bufferCache = new Map();
-    imports.env.channelMixerGetBuffer = function(byteLength) {
-        let ptr = bufferCache.get(byteLength);
-        if (!ptr) {
-            ptr = wasm.malloc(byteLength);
-            bufferCache.set(byteLength, ptr);
-        }
-        return ptr;
+    imports.env.channelMixerGetBuffer = function(ptr, byteLength) {
+        return pointersToInstances.get(ptr).getBuffer(byteLength);
     };
 });
 

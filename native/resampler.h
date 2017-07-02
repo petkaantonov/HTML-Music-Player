@@ -18,6 +18,6 @@ EXPORT SpeexResamplerState* resampler_create(uint32_t channels,
 EXPORT void resampler_destroy(SpeexResamplerState* this);
 EXPORT void resampler_reset(SpeexResamplerState* this);
 
-extern int16_t* resamplerGetBuffer(uint32_t length);
+extern int16_t* resamplerGetBuffer(SpeexResamplerState* this, uint32_t length);
 
 #endif //RESAMPLER_H

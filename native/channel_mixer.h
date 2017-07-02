@@ -21,5 +21,5 @@ EXPORT ChannelMixer* channel_mixer_create(uint8_t channels);
 EXPORT void channel_mixer_destroy(ChannelMixer* channel_mixer);
 EXPORT void channel_mixer_set_output_channels(ChannelMixer* channel_mixer, uint8_t channels);
 
-extern int16_t* channelMixerGetBuffer(uint32_t length);
+extern int16_t* channelMixerGetBuffer(ChannelMixer* this, uint32_t length);
 #endif //CHANNEL_MIXER_H

@@ -1,12 +1,15 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
+import BufferAllocator from "wasm/BufferAllocator";
 
 const I16_BYTE_LENGTH = 2;
 
+const pointersToInstances = new Map();
+
 let id = 0;
-export default class Resampler {
+export default class Resampler extends BufferAllocator {
     constructor(wasm, {nb_channels, in_rate, out_rate, quality}) {
+        super(wasm);
         if (quality === undefined) quality = 0;
-        this._wasm = wasm;
         this.channelCount = nb_channels;
         this._passedArgs = {nb_channels, in_rate, out_rate, quality};
         this._id = id++;
@@ -47,12 +50,18 @@ export default class Resampler {
         }
     }
 
-    end() {
+    destroy() {
+        super.destroy();
         if (this._ptr === 0) {
             throw new Error(`not started`);
         }
         this.resampler_destroy(this._ptr);
+        pointersToInstances.delete(this._ptr);
         this._ptr = 0;
+    }
+
+    end() {
+        this.destroy();
     }
 
     start() {
@@ -61,18 +70,16 @@ export default class Resampler {
         }
         const {nb_channels, in_rate, out_rate, quality} = this._passedArgs;
         this._ptr = this.resampler_create(nb_channels, in_rate, out_rate, quality);
+        if (!this._ptr) {
+            throw new Error("out of memory");
+        }
+        pointersToInstances.set(this._ptr, this);
     }
 }
 
 moduleEvents.on(`main_beforeModuleImport`, (wasm, imports) => {
-    const bufferCache = new Map();
-    imports.env.resamplerGetBuffer = function(byteLength) {
-        let ptr = bufferCache.get(byteLength);
-        if (!ptr) {
-            ptr = wasm.malloc(byteLength);
-            bufferCache.set(byteLength, ptr);
-        }
-        return ptr;
+    imports.env.resamplerGetBuffer = function(ptr, byteLength) {
+        return pointersToInstances.get(ptr).getBuffer(byteLength);
     };
 });
 

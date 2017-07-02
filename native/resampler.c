@@ -43,7 +43,7 @@ EXPORT int resampler_resample(SpeexResamplerState* this,
     *output_sample_ptr_out = NULL;
     resampler_error = 0;
     spx_uint32_t output_length_audio_frames = resampler_get_length(this, input_length_audio_frames);
-    int16_t* output_sample_ptr = resamplerGetBuffer(output_length_audio_frames * channel_count * sizeof(int16_t));
+    int16_t* output_sample_ptr = resamplerGetBuffer(this, output_length_audio_frames * channel_count * sizeof(int16_t));
     resampler_error = speex_resampler_process_interleaved_int(this,
                                                               input_sample_ptr,
                                                               &input_length_audio_frames,
