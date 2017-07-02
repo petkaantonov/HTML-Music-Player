@@ -5,7 +5,7 @@ import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
 import PermissionPrompt from "ui/PermissionPrompt";
 import TrackDisplay from "player/TrackDisplay";
-import MainTabs from "player/MainTabs";
+import {default as MainTabs, PLAYLIST_TAB_ID} from "player/MainTabs";
 import PlaylistModeManager from "player/PlaylistModeManager";
 import PlayerTimeManager from "player/PlayerTimeManager";
 import PlayerVolumeManager from "player/PlayerVolumeManager";
@@ -45,6 +45,7 @@ const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;
 const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
+
 
 export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     const bootstrapStart = performance.now();
@@ -531,6 +532,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     this.page.changeDom(() => {
         page.$(`#app-loader`).remove();
         this.page.setTimeout(() => {
+            mainTabs.tabController.activateTabById(PLAYLIST_TAB_ID);
             this.globalEvents._triggerSizeChange();
             this.visualizerCanvas.initialize();
             console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);

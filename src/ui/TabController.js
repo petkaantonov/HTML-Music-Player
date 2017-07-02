@@ -5,7 +5,7 @@ import {SWIFT_OUT} from "ui/animation/easing";
 const animationOptions = {
     easing: SWIFT_OUT,
     duration: 220,
-    fill: "none"
+    fill: `none`
 };
 
 const EMPTY_TRANSLATE = `translate3d(0, 0, 0)`;
@@ -36,14 +36,12 @@ class Tab extends EventEmitter {
         return this._contentNode;
     }
 
-    // TODO Terrible Names
     setPositionByProgress(activeTabIndex, progress, contentWidth) {
         const newPosition = ((this.index() - activeTabIndex) + progress) * contentWidth;
         this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
     }
 
-    // TODO Terrible Names
-    async setPosition(activeTabIndex, contentWidth) {
+    async animateToPosition(activeTabIndex, contentWidth) {
         const newPosition = (this.index() - activeTabIndex) * contentWidth;
         const keyFrames = [
             {transform: this.$content().getTransformForKeyFrame(EMPTY_TRANSLATE)},
@@ -61,6 +59,10 @@ class Tab extends EventEmitter {
 
     _relayout() {
         this.updateRectCache();
+        const activeTabIndex = this._controller.getActiveTab().index();
+        const contentWidth = this.contentRect().width;
+        const newPosition = (this.index() - activeTabIndex) * contentWidth;
+        this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
     }
 
     updateRectCache() {
@@ -78,7 +80,7 @@ class Tab extends EventEmitter {
     activate() {
         if (this._active) return;
         this._active = true;
-        this.$().addClass("active");
+        this.$().addClass(`active`);
     }
 
     isActive() {
@@ -88,7 +90,7 @@ class Tab extends EventEmitter {
     deactivate() {
         if (!this._active) return;
         this._active = false;
-        this.$().removeClass("active");
+        this.$().removeClass(`active`);
     }
 
     page() {
@@ -170,7 +172,6 @@ export default class TabController extends EventEmitter {
 
         const contentWidth = this._activeTabRect.width;
         const progress = deltaX / contentWidth;
-        const nextIndex = deltaX < 0 ? activeIndex + 1 : activeIndex - 1;
         this._tabs.forEach(_call.setPositionByProgress(activeIndex, progress, contentWidth));
         this.$indicator().setTransform(`translate3d(${(activeIndex * 100) + (-1 * progress * 100)}%, 0, 0)`);
         this._dragAnchorEnd = gesture.clientX;
@@ -205,19 +206,19 @@ export default class TabController extends EventEmitter {
         this._activateTab(tab);
     }
 
+    getActiveTab() {
+        return this._activeTab || this._tabs[0];
+    }
+
     async _activateTab(tab, force) {
-        const initialTabActivation = !this._activeTab;
-
-        if (!this._activeTabRect) {
-            this._activeTabRect = tab.contentRect();
-        }
-
         if (this._pendingAnimations) {
             await this._pendingAnimations;
         }
 
         const willChangeTabs = tab !== this._activeTab;
         if (!willChangeTabs && !force) return;
+
+        this._activeTabRect = tab.contentRect();
 
         let previousActiveTabId;
         let newActiveTabId;
@@ -236,9 +237,7 @@ export default class TabController extends EventEmitter {
 
         const activeIndex = this._activeTab.index();
         const contentWidth = this._activeTabRect.width;
-
-        const animationsFinished = this._tabs.map(_call.setPosition(activeIndex, contentWidth));
-
+        const animationsFinished = this._tabs.map(_call.animateToPosition(activeIndex, contentWidth));
 
         const indicatorKeyFrames = [
             {transform: this.$indicator().getTransformForKeyFrame(EMPTY_TRANSLATE)},

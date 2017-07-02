@@ -3,9 +3,9 @@ import TabController from "ui/TabController";
 import TrackRater from "tracks/TrackRater";
 import withDeps from "ApplicationDependencies";
 
-const PLAYLIST_TAB_ID = `playlist`;
-const SEARCH_TAB_ID = `search`;
-const QUEUE_TAB_ID = `queue`;
+export const PLAYLIST_TAB_ID = `playlist`;
+export const SEARCH_TAB_ID = `search`;
+export const QUEUE_TAB_ID = `queue`;
 
 const lessThanAllSelected = function(selectedCount, totalCount) {
     return selectedCount < totalCount && totalCount > 0;
@@ -75,8 +75,6 @@ export default function MainTabs(opts, deps) {
     }], {
         indicator: opts.activeTabIndicator
     }, d));
-    this.tabController.activateTabById(PLAYLIST_TAB_ID);
-
     this.tabController.on(`tabWillDeactivate`, this.tabEventHandler(`tabWillHide`));
     this.tabController.on(`tabWillActivate`, this.tabEventHandler(`tabWillShow`));
     this.tabController.on(`tabDidDeactivate`, this.tabEventHandler(`tabDidHide`));
