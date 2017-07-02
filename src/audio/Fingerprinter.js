@@ -20,7 +20,17 @@ export default class Fingerprinter {
     newFrames(samplePtr, byteLength) {
         const err = this.chromaprint_add_samples(this._ptr, samplePtr, byteLength / I16_BYTE_LENGTH);
         if (err) {
-            throw new Error(`chromaprint error ${err}`);
+            if (err !== 3) {
+                throw new Error(`chromaprint error ${err}
+                            chromaprint_add_samples(${this._ptr}, ${samplePtr}, ${byteLength / I16_BYTE_LENGTH})
+                            state:
+                                    frames_processed:  ${this._wasm.u32(this._ptr + 0)}
+                                    note_buffer_index: ${this._wasm.u32(this._ptr + 4)}
+                                    coeff: ${this._wasm.u32(this._ptr + 8)}
+                                    row: ${this._wasm.u32(this._ptr + 12)}
+                                    bits_index: ${this._wasm.u32(this._ptr + 16)}
+                                    tmp_length: ${this._wasm.u32(this._ptr + 20)}`);
+            }
         }
     }
 

@@ -107,7 +107,7 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src,
 }
 
 EXPORT uint32_t chromaprint_needs_samples(Chromaprint* this) {
-    return this->frames_processed < FRAMES_NEEDED_TOTAL;
+    return this->frames_processed + FRAMES - 1 < FRAMES_NEEDED_TOTAL;
 }
 
 EXPORT int chromaprint_can_calculate(Chromaprint* this) {
