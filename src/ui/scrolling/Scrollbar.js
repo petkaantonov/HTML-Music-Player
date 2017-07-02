@@ -13,6 +13,7 @@ export default function Scrollbar({target, railSelector, knobSelector, scrollerI
     this._timerId = -1;
     this._anchorDistance = -1;
     this._hasScroll = false;
+    this._renderedPosition = 0;
 
     this._stopScrolling = this._stopScrolling.bind(this);
     this._railMousedowned = this._railMousedowned.bind(this);
@@ -142,15 +143,20 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
     const room = this._rect.height - this._knobRect.height;
     const px = Math.round(room * percentage);
 
+    if (px === this._renderedPosition) {
+       return;
+    }
+
     if (!dimensionsChanged) {
         if (!this._scrolling) {
             this._scrolling = true;
-            this.$().addClass(`scrolling`);
+            this.$().setStyle("visibility", "visible").addClass(`scrolling`);
         }
         this._page.clearTimeout(this._timerId);
         this._timerId = this._page.setTimeout(this._stopScrolling, 450);
     }
 
+    this._renderedPosition = px;
     this.$knob().setTransform(`translate3d(0, ${px}px, 0)`);
 };
 

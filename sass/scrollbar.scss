@@ -2,6 +2,7 @@
 
 .scrollbar-container {
     position: absolute;
+    visibility: hidden;
     width: $scrollbar-width;
     top: 0px;
     right: 0px;
