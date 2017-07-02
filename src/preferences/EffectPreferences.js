@@ -264,10 +264,15 @@ function NoiseSharpeningEffectManager(effectsManager) {
     this.$().find(`.noise-sharpening-enable-checkbox`).addEventListener(`change`, this._enabledChanged);
     this._renderedStrength = -1;
     this._renderedEnabled = null;
+    this.update();
 }
 
 NoiseSharpeningEffectManager.prototype.$ = function() {
     return this._effectsManager.$();
+};
+
+NoiseSharpeningEffectManager.prototype.layoutUpdated = function() {
+    this._slider.setHeight(this.$().find(`.noise-sharpening-slider`).parent().innerHeight());
 };
 
 NoiseSharpeningEffectManager.prototype._strengthChanged = function(p) {
@@ -370,7 +375,6 @@ EqualizerEffectManager.prototype.layoutUpdated = function() {
 
 };
 
-
 EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
     const val = this._effectsManager.effectPreferences.page().$(e.target).value();
 
@@ -416,6 +420,7 @@ EffectManager.prototype.$ = function() {
 
 EffectManager.prototype.layoutUpdated = function() {
     this._equalizerEffectManager.layoutUpdated();
+    this._noiseSharpeningEffectManager.layoutUpdated();
 };
 
 EffectManager.prototype.applyPreferencesFrom = function(preferences) {

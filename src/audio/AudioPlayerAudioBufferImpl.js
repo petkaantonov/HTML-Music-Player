@@ -115,6 +115,7 @@ export default class AudioPlayer extends WorkerFrontend {
         this.getOutputTimestamp = typeof AudioContext.prototype.getOutputTimestamp === `function` ? NativeGetOutputTimestamp
                                                                                                   : PolyfillGetOutputTimestamp;
         this._resetAudioContext();
+        this._initBackend();
     }
 }
 
@@ -142,6 +143,11 @@ AudioPlayer.prototype._bufferFrameCountForSampleRate = function(sampleRate) {
 AudioPlayer.prototype._updateBackendConfig = async function(config) {
     await this.ready();
     this._message(-1, `audioConfiguration`, config);
+};
+
+AudioPlayer.prototype._initBackend = async function() {
+    await this.ready();
+    this.setEffects(this.effectPreferences.getAudioPlayerEffects());
 };
 
 AudioPlayer.prototype._audioContextChanged = async function() {

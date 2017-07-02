@@ -2,6 +2,11 @@ import {Float32Array} from "platform/platform";
 
 const I16_BYTE_LENGTH = 2;
 
+const BEFORE_MIX_BEFORE_RESAMPLE = 0;
+const AFTER_MIX_BEFORE_RESAMPLE = 1;
+const AFTER_MIX_AFTER_RESAMPLE = 2;
+const INITIAL = -1;
+
 class FilledBufferDescriptor {
     constructor(length, startTime, endTime, channelData) {
         this.length = length;
@@ -166,22 +171,48 @@ export default class AudioProcessingPipeline {
                 resampler,
                 loudnessAnalyzer,
                 fingerprinter} = this;
+        let leastSamplesToProcessEffectsPhase = INITIAL;
 
+        if (effects) {
+            const leastSamples = Math.min(destinationChannelCount * destinationSampleRate,
+                                            Math.min(sourceChannelCount * sourceSampleRate,
+                                                     destinationChannelCount * sourceSampleRate));
+
+            if (leastSamples === sourceChannelCount * sourceSampleRate) {
+                leastSamplesToProcessEffectsPhase = BEFORE_MIX_BEFORE_RESAMPLE;
+            } else if (leastSamples === destinationChannelCount * destinationSampleRate) {
+                leastSamplesToProcessEffectsPhase = AFTER_MIX_BEFORE_RESAMPLE;
+            } else {
+                leastSamplesToProcessEffectsPhase = AFTER_MIX_AFTER_RESAMPLE;
+            }
+        }
 
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
             loudnessAnalyzer.newFrames(samplePtr, audioFrameLength);
         }
 
+        if (leastSamplesToProcessEffectsPhase === BEFORE_MIX_BEFORE_RESAMPLE) {
+            for (const effect of effects) {
+                ({samplePtr, byteLength} = effect.apply(sourceChannelCount, samplePtr, byteLength));
+            }
+        }
+
         if (sourceChannelCount !== destinationChannelCount) {
             ({samplePtr, byteLength} = channelMixer.mix(sourceChannelCount, samplePtr, byteLength));
+        }
+
+        if (leastSamplesToProcessEffectsPhase === AFTER_MIX_BEFORE_RESAMPLE) {
+            for (const effect of effects) {
+                ({samplePtr, byteLength} = effect.apply(destinationChannelCount, samplePtr, byteLength));
+            }
         }
 
         if (sourceSampleRate !== destinationSampleRate) {
             ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength));
         }
 
-        if (effects) {
+        if (leastSamplesToProcessEffectsPhase === AFTER_MIX_AFTER_RESAMPLE) {
             for (const effect of effects) {
                 ({samplePtr, byteLength} = effect.apply(destinationChannelCount, samplePtr, byteLength));
             }
