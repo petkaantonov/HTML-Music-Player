@@ -41,6 +41,10 @@ TrackAnalyzer.prototype._maxMetadataParsers = function() {
     return this._player.isPlaying ? Math.floor(base / 2) : base;
 };
 
+TrackAnalyzer.prototype._metadataParserDelay = function() {
+    return this._player.isPlaying && this._env.isMobile() ? 250 : 0;
+};
+
 TrackAnalyzer.prototype.receiveMessage = function(event) {
     if (!event.data) return;
     if (!event.data.jobType) return;
@@ -300,7 +304,7 @@ TrackAnalyzer.prototype.fetchAnalysisData = async function(track) {
     });
 };
 
-TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
+TrackAnalyzer.prototype.trackMetadataParsed = async function(track, data, error) {
     if (error && this._env.isDevelopment()) {
         console.error(error);
     }
@@ -313,6 +317,10 @@ TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
             this.fetchAnalysisData(track);
         }
     } finally {
+        const delayMs = this._metadataParserDelay();
+        if (delayMs > 0) {
+            await delay(delayMs);
+        }
         this._currentlyParsingMetadata--;
         this._metadataParsingQueueUpdated();
     }
