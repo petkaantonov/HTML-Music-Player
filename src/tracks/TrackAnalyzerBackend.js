@@ -140,8 +140,11 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 this.reportError(job.id, e);
             }
         } finally {
-            job.destroy();
-            this.nextJob();
+            try {
+                job.destroy();
+            } finally {
+                this.nextJob();
+            }
         }
     }
 }
