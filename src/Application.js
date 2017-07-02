@@ -38,6 +38,7 @@ import WorkerWrapper from "WorkerWrapper";
 import UsageData from "usageData/UsageData";
 import TagDataContext from "tracks/TagData";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
+import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -542,7 +543,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 }
 
 Application.prototype.selectStarted = function(e) {
-    if (!this.page.isTextInputElement(e.target)) {
+    if (!isTextInputElement(e.target)) {
         e.preventDefault();
     }
 };
@@ -575,7 +576,7 @@ Application.prototype.documentKeydowned = function(e) {
 
     if (e.target === this.page.activeElement() &&
         e.target.tabIndex >= 0 &&
-        !this.page.isAnyInputElement(e.target)) {
+        !isAnyInputElement(e.target)) {
         if (key === `Spacebar` || key === `Enter`) {
             this.page.emulateClickEventFrom(e);
         } else if (key === `Escape`) {

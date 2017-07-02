@@ -1,5 +1,6 @@
 import {inherits, toFunction} from "util";
 import EventEmitter from "events";
+import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
@@ -646,7 +647,7 @@ export function ContextMenu(opts, deps) {
 
     this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
     this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
-    this.preventDefault = this.page().preventDefaultHandler;
+    this.preventDefault = preventDefaultHandler;
 
     this.$target().addEventListener(`contextmenu`, this.rightClicked);
     this.page().addDocumentListener(`mousedown`, this.documentClicked, true);
@@ -768,7 +769,7 @@ prevented = true;
     this.$().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`);
 
     // Transition from desktop right click feels weird so only do it on touch.
-    if (this.page().isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.$().detach().
                 addClass([`initial`, `transition-in`]).
                 appendTo(`body`).

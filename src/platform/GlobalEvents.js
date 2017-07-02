@@ -1,5 +1,4 @@
-
-
+import {isTextInputElement} from "platform/dom/Page";
 import EventEmitter from "events";
 import {inherits, throttle} from "util";
 
@@ -85,7 +84,7 @@ GlobalEvents.prototype._triggerSizeChange = function() {
     }
 
     const activeElement = this._page.activeElement();
-    if (activeElement && this._page.isTextInputElement(activeElement)) {
+    if (activeElement && isTextInputElement(activeElement)) {
         this._pendingSizeChange = true;
         return;
     }
@@ -97,14 +96,14 @@ GlobalEvents.prototype._resetFireSizeChangeEvents = function() {
 };
 
 GlobalEvents.prototype._elementFocused = function(e) {
-    if (this._page.isTextInputElement(e.target)) {
+    if (isTextInputElement(e.target)) {
         this._fireSizeChangeEvents = false;
         this._resetFireSizeChangeEvents();
     }
 };
 
 GlobalEvents.prototype._elementBlurred = function(e) {
-    if (this._page.isTextInputElement(e.target)) {
+    if (isTextInputElement(e.target)) {
         this._page.window().scrollTo(0, 0);
         if (this._pendingSizeChange) {
             this._pendingSizeChange = false;

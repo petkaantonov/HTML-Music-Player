@@ -1,5 +1,4 @@
-
-
+import {preventDefaultHandler, isAnyInputElement} from "platform/dom/Page";
 import SingleTapTimeout from "ui/gestures/SingleTapTimeout";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import TapRecognizer from "ui/gestures/TapRecognizer";
@@ -50,15 +49,15 @@ export default function GestureRecognizerContext(deps) {
         this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, true);
         this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, true);
         this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, true);
-        this.page.addDocumentListener(`gesturestart`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`gesturechange`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`gestureend`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureStart`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureEnd`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureTap`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureHold`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureChange`, this.page.preventDefaultHandler);
-        this.page.addDocumentListener(`MSInertiaStart`, this.page.preventDefaultHandler);
+        this.page.addDocumentListener(`gesturestart`, preventDefaultHandler);
+        this.page.addDocumentListener(`gesturechange`, preventDefaultHandler);
+        this.page.addDocumentListener(`gestureend`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSGestureStart`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSGestureEnd`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSGestureTap`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSGestureHold`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSGestureChange`, preventDefaultHandler);
+        this.page.addDocumentListener(`MSInertiaStart`, preventDefaultHandler);
     }
 
 
@@ -90,7 +89,7 @@ GestureRecognizerContext.prototype.checkTouchPropagation = function(e) {
                 matchesActive = node === activeElement;
             }
 
-            if (this.page.isAnyInputElement(node)) {
+            if (isAnyInputElement(node)) {
                 return;
             }
             node = node.parentNode;

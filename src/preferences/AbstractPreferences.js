@@ -45,7 +45,7 @@ export default function AbstractPreferences(preferences, opts, deps) {
 }
 inherits(AbstractPreferences, EventEmitter);
 
-AbstractPreferences.prototype.preferencesButtonClicked = function(event) {
+AbstractPreferences.prototype.preferencesButtonClicked = function() {
     this._toolbarSubmenu.close();
     this._popup.open();
 };

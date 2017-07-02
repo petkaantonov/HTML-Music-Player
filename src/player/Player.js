@@ -4,6 +4,7 @@ import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
 import {inherits, noUndefinedGet} from "util";
 import {URL} from "platform/platform";
+import {isTouchEvent} from "platform/dom/Page";
 import {FILESYSTEM_ACCESS_ERROR, DECODE_ERROR} from "tracks/Track";
 
 const MINIMUM_DURATION = 3;
@@ -437,7 +438,7 @@ Player.prototype.loadTrack = async function(track, isUserInitiatedSkip) {
 Player.prototype.nextButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.next(true);
-    if (this.page.isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.gestureEducator.educate(`next`);
     }
 };
@@ -445,7 +446,7 @@ Player.prototype.nextButtonClicked = function(e) {
 Player.prototype.prevButtonClicked = function(e) {
     this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
     this.playlist.prev();
-    if (this.page.isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.gestureEducator.educate(`previous`);
     }
 };
@@ -457,7 +458,7 @@ Player.prototype.playButtonClicked = function(e) {
     } else {
         this.play();
     }
-    if (this.page.isTouchEvent(e)) {
+    if (isTouchEvent(e)) {
         this.gestureEducator.educate(`playpause`);
     }
 };

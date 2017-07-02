@@ -10,7 +10,7 @@
 // In the catastrophic case where ui is blocked, the output will be silence
 // Instead of ear destroying noise.
 
-import {inherits, throttle, gcd} from "util";
+import {inherits, throttle} from "util";
 import {AudioContext, ArrayBuffer, Float32Array,
         Blob, File, console, performance} from "platform/platform";
 import EventEmitter from "events";
@@ -22,7 +22,6 @@ const EXPENSIVE_CALL_THROTTLE_TIME = 100;
 const TARGET_BUFFER_LENGTH_SECONDS = 0.2;
 const SUSTAINED_BUFFER_TIME_SECONDS = 1.6;
 const FLOAT32_BYTES = 4;
-const WEB_AUDIO_BLOCK_SIZE = 128;
 
 if (!AudioContext.prototype.suspend) {
     AudioContext.prototype.suspend = function() {

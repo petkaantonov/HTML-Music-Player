@@ -1,6 +1,7 @@
 import {URL} from "platform/platform";
 import {delay} from "platform/PromiseExtensions";
 import {noUndefinedGet} from "util";
+import {preventDefaultHandler} from "platform/dom/Page";
 
 const PAUSE = `\u275a\u275a`;
 const PLAY = `\u23f5`;
@@ -51,7 +52,7 @@ export default function PlaylistNotifications(opts, deps) {
     } else {
         if (this.env.maxNotificationActions() > 0) {
             this.$().addEventListener(`click`, this.settingClicked).
-                    addEventListener(`mousedown`, this.page.preventDefaultHandler);
+                    addEventListener(`mousedown`, preventDefaultHandler);
             this.recognizerContext.createTapRecognizer(this.settingClicked).recognizeBubbledOn(this.$());
         } else {
             this.$().addClass(`no-display`);

@@ -1,6 +1,5 @@
-
-
 import EventEmitter from "events";
+import {isAnyInputElement} from "platform/dom/Page";
 /* eslint-disable no-unused-vars */
 import keyboard from "keyboard";
 /* eslint-enable no-unused-vars */
@@ -93,7 +92,7 @@ inherits(KeyboardShortcuts, EventEmitter);
 KeyboardShortcuts.prototype._documentKeyDowned = function(e) {
     if (!this._enabled) return;
 
-    if (this._page.isAnyInputElement(e.target) || e.target.tabIndex >= 0 || e.target.isContentEditable) {
+    if (isAnyInputElement(e.target) || e.target.tabIndex >= 0 || e.target.isContentEditable) {
         return;
     }
 

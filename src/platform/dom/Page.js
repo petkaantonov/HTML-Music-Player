@@ -11,6 +11,29 @@ const rAnyInput = /^(?:input|optgroup|select|textarea|option|button|label)$/i;
 const rApple = /Mac|iPod|iPhone|iPad/;
 const rClickOrTap = /^(?:click|touch)/;
 
+export const isTouchEvent = function(e) {
+    return rtouchevent.test(e.type);
+};
+
+export const preventDefaultHandler = function(e) {
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+};
+
+export const isTextInputElement = function(elem) {
+    return (rInput.test(elem.nodeName) && rKeyboard.test(elem.type)) ||
+        rTextarea.test(elem.nodeName);
+};
+
+export const isAnyInputElement = function(elem) {
+    return rAnyInput.test(elem.nodeName);
+};
+
+export const isRealClickOrTap = function(e) {
+    return e.isTrusted && rClickOrTap.test(e.type);
+};
+
 const documentCompare = function(a, b) {
     if (a === b) return 0;
     const result = a.compareDocumentPosition(b);
@@ -844,25 +867,6 @@ export default class Page {
         return this._null;
     }
 
-    isTouchEvent(e) {
-        return rtouchevent.test(e.type);
-    }
-
-    preventDefaultHandler(e) {
-        if (e.cancelable) {
-            e.preventDefault();
-        }
-    }
-
-    isTextInputElement(elem) {
-        return (rInput.test(elem.nodeName) && rKeyboard.test(elem.type)) ||
-            rTextarea.test(elem.nodeName);
-    }
-
-    isAnyInputElement(elem) {
-        return rAnyInput.test(elem.nodeName);
-    }
-
     changeDom(callback) {
         if (typeof callback !== `function`) throw new Error(`callback must be a function`);
         for (let i = 0; i < this._rafCallbacks.length; ++i) {
@@ -1074,9 +1078,5 @@ export default class Page {
             clientY: y
         });
         baseEvent.target.dispatchEvent(ev);
-    }
-
-    isRealClickOrTap(e) {
-        return e.isTrusted && rClickOrTap.test(e.type);
     }
 }

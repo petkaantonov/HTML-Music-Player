@@ -25,7 +25,7 @@ export default class Resampler {
         if (this._ptr === 0) {
             throw new Error(`start() not called`);
         }
-        const [, outputSamplesPtr, inputAudioFramesRead, outputAudioFramesWritten] =
+        const [, outputSamplesPtr, , outputAudioFramesWritten] =
                 this.resampler_resample(this._ptr, samplesPtr, this._byteLengthToAudioFrameCount(byteLength));
         const err = this.get_error();
 

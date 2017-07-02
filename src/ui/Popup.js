@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import {toFunction, noop, noUndefinedGet, _equals, _, _call} from "util";
+import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
 class PopupButton {
     constructor(popup, opts) {
@@ -17,7 +18,7 @@ class PopupButton {
         this._tapRecognizer = this._popup.recognizerContext.createTapRecognizer(this._clicked);
 
         this.$().addEventListener(`click`, this._clicked).
-                addEventListener(`mousedown`, this.page().preventDefaultHandler);
+                addEventListener(`mousedown`, preventDefaultHandler);
         this._tapRecognizer.recognizeBubbledOn(this.$());
     }
 
@@ -387,7 +388,7 @@ export default class Popup extends EventEmitter {
 
     mousemoved(e) {
         if (!this._shown || this.isMobile()) return;
-        if (!this.page.isTouchEvent(e) && e.which !== 1) {
+        if (!isTouchEvent(e) && e.which !== 1) {
             this.draggingEnd();
             return;
         }
@@ -399,7 +400,7 @@ export default class Popup extends EventEmitter {
     }
 
     headerMouseDowned(e) {
-        if (this.isMobile() || !this._shown || this._dragging || (this.page.isTouchEvent(e) && e.isFirst === false)) return;
+        if (this.isMobile() || !this._shown || this._dragging || (isTouchEvent(e) && e.isFirst === false)) return;
         if (this.page.$(e.target).closest(`.${this.closerContainerClass}`).length > 0) return;
         this._dragging = true;
         this._anchorDistanceX = e.clientX - this._x;

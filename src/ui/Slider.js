@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import {inherits, noUndefinedGet} from "util";
+import {isTouchEvent} from "platform/dom/Page";
 
 export default function Slider(opts, deps) {
     opts = Object(opts);
@@ -76,7 +77,7 @@ Slider.prototype.setHeight = function(px) {
 };
 
 Slider.prototype._onMousedown = function(e) {
-    const wasTouchEvent = this.page.isTouchEvent(e);
+    const wasTouchEvent = isTouchEvent(e);
     if (this._sliding ||
         (!wasTouchEvent && e.which !== 1) ||
         (wasTouchEvent && e.isFirst === false)) {
@@ -162,7 +163,7 @@ Slider.prototype._setupKeyboard = function() {
 };
 
 Slider.prototype._onMousemove = function(e) {
-    if (!this.page.isTouchEvent(e) && e.which !== 1) {
+    if (!isTouchEvent(e) && e.which !== 1) {
         this._onMouseup(this._lastEvent);
         return;
     }

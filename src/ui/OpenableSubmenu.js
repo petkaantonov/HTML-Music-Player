@@ -1,3 +1,5 @@
+import {isRealClickOrTap} from "platform/dom/Page";
+
 export default function OpenableSubmenu({target, openerTarget, activeClass, transitionClass, openerActiveClass},
                                         deps) {
     this._globalEvents = deps.globalEvents;
@@ -112,7 +114,7 @@ OpenableSubmenu.prototype.toggle = function() {
 };
 
 OpenableSubmenu.prototype._openerClicked = function(e) {
-    if (this._page.isRealClickOrTap(e)) {
+    if (isRealClickOrTap(e)) {
         this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.toggle();
     } else {

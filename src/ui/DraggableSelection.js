@@ -1,6 +1,7 @@
 import {inherits, noUndefinedGet} from "util";
 import Selectable from "ui/Selectable";
 import EventEmitter from "events";
+import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
 const DRAG_START_DELAY_MS = 300;
 
@@ -48,7 +49,7 @@ DraggableSelection.prototype.recentlyStoppedDragging = function() {
 DraggableSelection.prototype.bindEvents = function() {
     this._touchdownRecognizer.recognizeBubbledOn(this.$());
     this.$().addEventListener(`mousedown`, this._onItemViewMouseDown);
-    this.$().addEventListener(`selectstart`, this._page.preventDefaultHandler);
+    this.$().addEventListener(`selectstart`, preventDefaultHandler);
 };
 
 DraggableSelection.prototype.isDragging = function() {
@@ -153,7 +154,7 @@ DraggableSelection.prototype._fireDragStart = function() {
 };
 
 DraggableSelection.prototype._onMovement = function(e) {
-    if (!this._page.isTouchEvent(e) && e.which !== 1) {
+    if (!isTouchEvent(e) && e.which !== 1) {
         this._onMouseRelease();
         return;
     }
@@ -255,7 +256,7 @@ DraggableSelection.prototype._onItemViewMouseDown = function(e) {
         return;
     }
 
-    if (this._page.isTouchEvent(e) &&
+    if (isTouchEvent(e) &&
         (!this._listView.selectionContainsAnyItemViewsBetween(e.clientY, e.clientY) ||
         e.isFirst === false)) {
         return;
