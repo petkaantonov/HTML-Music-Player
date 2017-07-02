@@ -12,12 +12,9 @@ self.env = {
 };
 
 (async () => {
-    // TODO: Compile from database in Production
-    // TODO: minified
-    const wasmBuild = `debug`;
-    console.log(`using ${wasmBuild}`);
+    const wasmBuild = self.env.isDevelopment() ? `debug` : `release`;
     const request = new Request(`wasm/main.${wasmBuild}.wasm`, {
-        cache: `no-store`
+        cache: self.env.isDevelopment() ? `no-store` : `default`
     });
     const response = await fetch(request);
     if (!response.ok) {

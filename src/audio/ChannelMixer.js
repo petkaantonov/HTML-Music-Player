@@ -43,7 +43,7 @@ export default class ChannelMixer extends BufferAllocator {
         }
         this._ptr = this.channel_mixer_create(this.destinationChannelCount);
         if (!this._ptr) {
-            throw new Error("out of memory");
+            throw new Error(`out of memory`);
         }
         pointersToInstances.set(this._ptr, this);
     }

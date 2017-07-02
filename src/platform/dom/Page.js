@@ -669,7 +669,7 @@ export class DomWrapper {
         return this[0].style[prop];
     }
 
-    getTransformForKeyFrame(defaultValue = "") {
+    getTransformForKeyFrame(defaultValue = ``) {
         const transform = this.getTransform().trim();
         return transform === `none` || transform.length === 0 ? defaultValue : `${transform} `;
     }

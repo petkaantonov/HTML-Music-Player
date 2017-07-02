@@ -137,7 +137,7 @@ function getServiceWorkerGeneratedCode() {
     var assets = ["dist/css/app-css-public.min.css"]
                     .concat(glob("dist/images/**/*.*"))
                     .concat(glob("dist/fonts/**/*.woff*"))
-                    .concat("dist/worker/AudioPlayerBackend.min.js", "dist/worker/TrackAnalyzerBackend.min.js");
+                    .concat("dist/worker/WorkerBackend.min.js", "dist/worker/wasm/main.release.wasm");
 
     var serviceWorkerAssetsList = assets.concat("dist/main.min.js", "index.html", "/").sort();
     var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4).replace(/"/g, '`') + ";\n";

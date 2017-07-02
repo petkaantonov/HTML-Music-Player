@@ -71,7 +71,7 @@ export default class Resampler extends BufferAllocator {
         const {nb_channels, in_rate, out_rate, quality} = this._passedArgs;
         this._ptr = this.resampler_create(nb_channels, in_rate, out_rate, quality);
         if (!this._ptr) {
-            throw new Error("out of memory");
+            throw new Error(`out of memory`);
         }
         pointersToInstances.set(this._ptr, this);
     }
