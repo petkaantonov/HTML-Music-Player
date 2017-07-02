@@ -42,7 +42,7 @@ TrackAnalyzer.prototype._maxMetadataParsers = function() {
 };
 
 TrackAnalyzer.prototype._metadataParserDelay = function() {
-    return this._player.isPlaying && this._env.isMobile() ? 250 : 0;
+    return true || this._player.isPlaying && this._env.isMobile() ? 1000 : 0;
 };
 
 TrackAnalyzer.prototype.receiveMessage = function(event) {
