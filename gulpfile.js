@@ -19,6 +19,7 @@ var sass = require('gulp-sass');
 var pump = Promise.promisify(require("pump"));
 var eslint = require("gulp-eslint");
 var gulpIf = require("gulp-if");
+var exec = require("./scripts/exec");
 
 var gulpMinify = require("gulp-babili");
 var rollupMinify = require("rollup-plugin-babili");
@@ -174,12 +175,22 @@ function bundleSass() {
 
 }
 
+function cpWasm(target) {
+    mkdirp("dist/worker/wasm");
+    if (target & DEBUG) {
+        return exec("cp wasm/main.debug.wasm dist/worker/wasm/main.debug.wasm");
+    } else if (target & RELEASE) {
+        return exec("cp wasm/main.release.wasm dist/worker/wasm/main.release.wasm");
+    }
+}
+
 function build() {
     return Promise.all([
         bundleSass(),
         bundleGui(RELEASE),
         bundleWorkerBackend(RELEASE),
-        bundleServiceWorker()
+        bundleServiceWorker(),
+        cpWasm(RELEASE)
     ]);
 }
 
@@ -188,7 +199,8 @@ function buildDebug() {
         bundleSass(),
         bundleGui(DEBUG),
         bundleWorkerBackend(DEBUG),
-        bundleServiceWorker()
+        bundleServiceWorker(),
+        cpWasm(DEBUG)
     ]);
 }
 
