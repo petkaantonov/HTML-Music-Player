@@ -65,11 +65,11 @@ function bundleJs(opts) {
     }
     if (opts.target & RELEASE) {
         args.sourceMap = true;
-        plugins.push(rollupMinify({
+        /*plugins.push(rollupMinify({
             sourceMap: true,
             comments: false,
             banner: licenseHeader
-        }));
+        }));*/
         minified = rollup(args);
     }
 

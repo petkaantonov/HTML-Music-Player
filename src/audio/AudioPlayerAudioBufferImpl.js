@@ -20,8 +20,10 @@ import WorkerFrontend from "WorkerFrontend";
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;
 const TARGET_BUFFER_LENGTH_SECONDS = 0.2;
-const SUSTAINED_BUFFER_TIME_SECONDS = 0.6;
+const SUSTAINED_BUFFER_COUNT_INITIAL = 3;
+const SUSTAINED_BUFFER_COUNT_MAX = 14;
 const INITIAL_BUFFER_COUNT = 2;
+
 const FLOAT32_BYTES = 4;
 
 if (!AudioContext.prototype.suspend) {
@@ -84,7 +86,6 @@ export default class AudioPlayer extends WorkerFrontend {
         this._arrayBufferPool = [];
         this._audioBufferPool = [];
         this._sourceNodes = [];
-        this._sustainedBufferCount = 0;
         this._bufferFrameCount = 0;
         this._playedAudioBuffersNeededForVisualization = 0;
         this._arrayBufferByteLength = 0;
@@ -161,8 +162,7 @@ AudioPlayer.prototype._audioContextChanged = async function() {
     if (this._setAudioOutputParameters({channelCount, sampleRate})) {
 
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
-        this._sustainedBufferCount = Math.ceil(SUSTAINED_BUFFER_TIME_SECONDS / (this._bufferFrameCount / sampleRate));
-        this._maxAudioBuffers = this._sustainedBufferCount * channelCount * 2;
+        this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT_MAX * channelCount * 2;
         this._maxArrayBuffers = this._maxAudioBuffers * 2;
         this._audioBufferTime = this._bufferFrameCount / sampleRate;
         this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
@@ -471,6 +471,7 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._previousAudioContextTime = -1;
     this._previousHighResTime = -1;
     this._previousCombinedTime = -1;
+    this._sustainedBufferCount = SUSTAINED_BUFFER_COUNT_INITIAL;
 
     this._gaplessPreloadArgs = null;
 
@@ -488,6 +489,10 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._playedBufferQueue = [];
 }
 inherits(AudioPlayerSourceNode, EventEmitter);
+
+AudioPlayerSourceNode.prototype._resetSustainedBufferCount = function() {
+    this._sustainedBufferCount = SUSTAINED_BUFFER_COUNT_INITIAL;
+};
 
 AudioPlayerSourceNode.prototype.page = function() {
     return this._player.page;
@@ -884,8 +889,10 @@ AudioPlayerSourceNode.prototype._getBuffersForTransferList = function(count) {
 ;
 AudioPlayerSourceNode.prototype._fillBuffers = function() {
     if (!this._haveBlob || this._destroyed) return;
-    if (this._bufferQueue.length < this._player._sustainedBufferCount) {
-        const count = this._player._sustainedBufferCount - this._bufferQueue.length;
+    if (this._bufferQueue.length < this._sustainedBufferCount) {
+        const count = this._sustainedBufferCount - this._bufferQueue.length;
+        this._sustainedBufferCount =
+            Math.min(SUSTAINED_BUFFER_COUNT_MAX, Math.ceil(this._sustainedBufferCount * 1.4));
 
         this._player._message(this._id, `fillBuffers`, {
             count
@@ -1079,6 +1086,7 @@ AudioPlayerSourceNode.prototype._seeked = function(args, transferList) {
     if (args.isUserSeek) {
         this.emit(`seekComplete`, this._currentTime);
     }
+    this._resetSustainedBufferCount();
     this._fillBuffers();
 };
 
@@ -1187,6 +1195,7 @@ AudioPlayerSourceNode.prototype._error = function(args, transferList) {
 AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     if (this._destroyed) return;
     if (this._replacementRequestId !== args.requestId) return;
+    this._resetSustainedBufferCount();
     this._loadingNext = false;
     this._haveBlob = true;
     this._duration = args.metadata.duration;
@@ -1207,6 +1216,7 @@ AudioPlayerSourceNode.prototype.replaceUsingGaplessPreload = function() {
     this._gaplessPreloadArgs = null;
     this._lastBufferLoadedEmitted = false;
     this._applyReplacementLoadedArgs(args);
+    this._resetSustainedBufferCount();
     this._fillBuffers();
     return args.replacementFirstBufferStartTime;
 };
@@ -1242,6 +1252,7 @@ AudioPlayerSourceNode.prototype._replacementLoaded = function(args, transferList
         this._destroySourceDescriptor(sourceDescriptor);
     }
     const replacementFirstBufferStartTime = this._applyBuffers(args, transferList);
+    this._resetSustainedBufferCount();
     this._fillBuffers();
     // Sync so that proper gains nodes are set up already when applying the buffers
     // For this track.
