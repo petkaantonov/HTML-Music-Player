@@ -150,7 +150,7 @@ Scrollbar.prototype.render = function(y, dimensionsChanged) {
     if (!dimensionsChanged) {
         if (!this._scrolling) {
             this._scrolling = true;
-            this.$().setStyle("visibility", "visible").addClass(`scrolling`);
+            this.$().setStyle(`visibility`, `visible`).addClass(`scrolling`);
         }
         this._page.clearTimeout(this._timerId);
         this._timerId = this._page.setTimeout(this._stopScrolling, 450);

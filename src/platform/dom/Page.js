@@ -669,13 +669,13 @@ export class DomWrapper {
         return this[0].style[prop];
     }
 
-    _getTransformForKeyFrame() {
+    getTransformForKeyFrame(defaultValue = "") {
         const transform = this.getTransform().trim();
-        return transform === `none` || transform.length === 0 ? `` : `${transform} `;
+        return transform === `none` || transform.length === 0 ? defaultValue : `${transform} `;
     }
 
     getScaleKeyFrames(startX, startY, endX, endY, baseKeyFrames = UNSET_BASE_KEY_FRAMES) {
-      const base = this._getTransformForKeyFrame();
+      const base = this.getTransformForKeyFrame();
 
       return [
         Object.assign({transform: `${base}scale3d(${startX}, ${startY}, 0)`}, baseKeyFrames[0]),
@@ -684,7 +684,7 @@ export class DomWrapper {
     }
 
     getTranslateKeyFrames(startX, startY, endX, endY, baseKeyFrames = UNSET_BASE_KEY_FRAMES) {
-      const base = this._getTransformForKeyFrame();
+      const base = this.getTransformForKeyFrame();
       return [
         Object.assign({transform: `${base}translate3d(${startX}px, ${startY}px, 0)`}, baseKeyFrames[0]),
         Object.assign({transform: `${base}translate3d(${endX}px, ${endY}px, 0)`}, baseKeyFrames[1])

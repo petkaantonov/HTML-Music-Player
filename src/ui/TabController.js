@@ -1,284 +1,255 @@
-import {inherits, noUndefinedGet} from "util";
+import {noUndefinedGet, _equals, _, _call, animationPromisify} from "util";
 import EventEmitter from "events";
+import {SWIFT_OUT} from "ui/animation/easing";
 
-function Tab(spec, controller, index) {
-    EventEmitter.call(this);
-    this._controller = controller;
-    this._id = spec.id;
-    this._domNode = this.page().$(spec.tab).eq(0);
-    this._contentNode = this.page().$(spec.content).eq(0);
-    this._index = index;
-    this._active = false;
-    this._clicked = this._clicked.bind(this);
-    this._contentRect = this.$content()[0].getBoundingClientRect();
-    this.$().addEventListener(`click`, this._clicked);
-    controller.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
-    const position = this._contentRect.width * this._index;
+const animationOptions = {
+    easing: SWIFT_OUT,
+    duration: 220,
+    fill: "none"
+};
 
-    this.$content().setTransform(`translate3d(${position}px, 0px, 0px)`);
+const EMPTY_TRANSLATE = `translate3d(0, 0, 0)`;
+
+class Tab extends EventEmitter {
+    constructor(spec, controller, index) {
+        super();
+        this._controller = controller;
+        this._id = spec.id;
+        this._domNode = this.page().$(spec.tab).eq(0);
+        this._contentNode = this.page().$(spec.content).eq(0);
+        this._index = index;
+        this._active = false;
+        this._clicked = this._clicked.bind(this);
+        this._contentRect = this.$content()[0].getBoundingClientRect();
+        this.$().addEventListener(`click`, this._clicked);
+        controller.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
+        const position = this._contentRect.width * this._index;
+
+        this.$content().setTransform(`translate3d(${position}px, 0px, 0px)`);
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    $content() {
+        return this._contentNode;
+    }
+
+    // TODO Terrible Names
+    setPositionByProgress(activeTabIndex, progress, contentWidth) {
+        const newPosition = ((this.index() - activeTabIndex) + progress) * contentWidth;
+        this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
+    }
+
+    // TODO Terrible Names
+    async setPosition(activeTabIndex, contentWidth) {
+        const newPosition = (this.index() - activeTabIndex) * contentWidth;
+        const keyFrames = [
+            {transform: this.$content().getTransformForKeyFrame(EMPTY_TRANSLATE)},
+            {transform: `translate3d(${newPosition}px, 0, 0)`}
+        ];
+        const animation = this.$content().animate(keyFrames, animationOptions);
+        await animationPromisify(animation);
+        this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
+    }
+
+    _clicked(e) {
+        this._controller.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        this.emit(`click`, this);
+    }
+
+    _relayout() {
+        this.updateRectCache();
+    }
+
+    updateRectCache() {
+        this._contentRect = this.$content()[0].getBoundingClientRect();
+    }
+
+    index() {
+        return this._index;
+    }
+
+    contentRect() {
+        return this._contentRect;
+    }
+
+    activate() {
+        if (this._active) return;
+        this._active = true;
+        this.$().addClass("active");
+    }
+
+    isActive() {
+        return this._active;
+    }
+
+    deactivate() {
+        if (!this._active) return;
+        this._active = false;
+        this.$().removeClass("active");
+    }
+
+    page() {
+        return this._controller.page;
+    }
 }
-inherits(Tab, EventEmitter);
 
-Tab.prototype.$ = function() {
-    return this._domNode;
-};
+export default class TabController extends EventEmitter {
 
-Tab.prototype.$content = function() {
-    return this._contentNode;
-};
+    constructor(domNode, specs, opts, deps) {
+        super();
+        opts = noUndefinedGet(opts);
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.recognizerContext = deps.recognizerContext;
+        this.rippler = deps.rippler;
+        this._domNode = this.page.$(domNode).eq(0);
+        this._tabClicked = this._tabClicked.bind(this);
 
-Tab.prototype._clicked = function(e) {
-    this._controller.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-    this.emit(`click`, this);
-};
+        this._activeTab = null;
+        this._tabs = specs.map(function(v, index) {
+            const tab = new Tab(v, this, index);
+            tab.on(`click`, this._tabClicked);
+            return tab;
+        }, this);
+        this._indicatorNode = this.page.$(opts.indicator).eq(0);
 
-Tab.prototype._relayout = function() {
-    this.updateRectCache();
-};
+        this._relayout = this._relayout.bind(this);
+        this.globalEvents.on(`resize`, this._relayout);
 
-Tab.prototype.updateRectCache = function() {
-    this._contentRect = this.$content()[0].getBoundingClientRect();
-};
+        this._dragStart = this._dragStart.bind(this);
+        this._dragMove = this._dragMove.bind(this);
+        this._dragEnd = this._dragEnd.bind(this);
+        this._dragStartTime = -1;
+        this._dragAnchorStart = -1;
+        this._dragAnchorEnd = -1;
+        this._activeTabRect = null;
+        this._pendingAnimations = null;
 
-Tab.prototype.index = function() {
-    return this._index;
-};
-
-Tab.prototype.contentRect = function() {
-    return this._contentRect;
-};
-
-Tab.prototype.activate = function() {
-    if (this._active) return;
-    this._active = true;
-};
-
-Tab.prototype.prepareForSetColor = function() {
-    this.$().removeClass(`no-transition`).forceReflow();
-};
-
-Tab.prototype.setColor = function() {
-    if (this.isActive()) {
-        this.$().setFilter(`grayscale(0%) brightness(100%)`);
-    } else {
-        this.$().setFilter(`grayscale(100%) brightness(60%)`);
-    }
-};
-
-Tab.prototype.isActive = function() {
-    return this._active;
-};
-
-Tab.prototype.deactivate = function() {
-    if (!this._active) return;
-    this._active = false;
-};
-
-Tab.prototype.page = function() {
-    return this._controller.page;
-};
-
-export default function TabController(domNode, specs, opts, deps) {
-    EventEmitter.call(this);
-    opts = noUndefinedGet(opts);
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.recognizerContext = deps.recognizerContext;
-    this.rippler = deps.rippler;
-    this._domNode = this.page.$(domNode).eq(0);
-    this._tabClicked = this._tabClicked.bind(this);
-
-    this._contentHideTimeoutId = -1;
-    this._activeTab = null;
-    this._tabs = specs.map(function(v, index) {
-        const tab = new Tab(v, this, index);
-        tab.on(`click`, this._tabClicked);
-        return tab;
-    }, this);
-    this._indicatorNode = this.page.$(opts.indicator).eq(0);
-
-    this._relayout = this._relayout.bind(this);
-    this.globalEvents.on(`resize`, this._relayout);
-
-    this._dragStart = this._dragStart.bind(this);
-    this._dragMove = this._dragMove.bind(this);
-    this._dragEnd = this._dragEnd.bind(this);
-    this._dragStartTime = -1;
-    this._dragAnchorStart = -1;
-    this._dragAnchorEnd = -1;
-    this._activeTabRect = null;
-
-    this.recognizerContext.
-        createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd).
-        recognizeBubbledOn(this.$());
-
-}
-inherits(TabController, EventEmitter);
-
-TabController.prototype.$ = function() {
-    return this._domNode;
-};
-
-TabController.prototype.$indicator = function() {
-    return this._indicatorNode;
-};
-
-TabController.prototype.$containers = function() {
-    return this.page.$(this._tabs.map(v => v.$content()[0]));
-};
-
-TabController.prototype.$tabs = function() {
-    return this.page.$(this._tabs.map(v => v.$()[0]));
-};
-
-TabController.prototype._dragStart = function(gesture) {
-    this._dragAnchorStart = gesture.clientX;
-    this._dragStartTime = gesture.timeStamp;
-
-    this.$indicator().addClass(`no-transition`).setStyle(`willChange`, `transform`);
-
-    for (let i = 0; i < this._tabs.length; ++i) {
-        const tab = this._tabs[i];
-        tab.$content().show().addClass(`no-transition`).setStyle(`willChange`, `transform`);
-        tab.$().addClass(`no-transition`);
-        tab.updateRectCache();
-    }
-    this._activeTabRect = this._activeTab.contentRect();
-};
-
-TabController.prototype._dragMove = function(gesture) {
-    const deltaX = -1 * (this._dragAnchorStart - gesture.clientX);
-    const activeIndex = this._activeTab.index();
-
-    if ((activeIndex === 0 && deltaX > 0) ||
-        (activeIndex === this._tabs.length - 1 && deltaX < 0)) {
-        return;
+        this.recognizerContext.
+            createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd).
+            recognizeBubbledOn(this.$());
     }
 
-    const contentWidth = this._activeTabRect.width;
-    const progress = deltaX / contentWidth;
-    const absProgress = Math.min(1, Math.abs(progress) / 0.40);
-    const nextIndex = deltaX < 0 ? activeIndex + 1 : activeIndex - 1;
 
-    for (let i = 0; i < this._tabs.length; ++i) {
-        const tab = this._tabs[i];
-        const newPosition = ((i - activeIndex) + progress) * contentWidth;
-        tab.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
+    $() {
+        return this._domNode;
+    }
 
-        if (i === activeIndex) {
-            const brightness = ((1 - absProgress) * (100 - 60) + 60);
-            const grayscale = ((absProgress) * 100);
-            tab.$().setFilter(`grayscale(${grayscale}%) brightness(${brightness}%)`);
-        } else if (i === nextIndex) {
-            const brightness = (absProgress * (100 - 60) + 60);
-            const grayscale = ((1 - absProgress) * 100);
-            tab.$().setFilter(`grayscale(${grayscale}%) brightness(${brightness}%)`);
+    $indicator() {
+        return this._indicatorNode;
+    }
+
+    $containers() {
+        return this.page.$(this._tabs.map(_.$content));
+    }
+
+    $tabs() {
+        return this.page.$(this._tabs.map(_.$));
+    }
+
+    _dragStart(gesture) {
+        this._dragAnchorStart = gesture.clientX;
+        this._dragStartTime = gesture.timeStamp;
+
+        this._tabs.forEach(_.updateRectCache);
+        this._activeTabRect = this._activeTab.contentRect();
+    }
+
+    _dragMove(gesture) {
+        const deltaX = -1 * (this._dragAnchorStart - gesture.clientX);
+        const activeIndex = this._activeTab.index();
+
+        if ((activeIndex === 0 && deltaX > 0) ||
+            (activeIndex === this._tabs.length - 1 && deltaX < 0) ||
+            this._pendingAnimations) {
+            return;
+        }
+
+        const contentWidth = this._activeTabRect.width;
+        const progress = deltaX / contentWidth;
+        const nextIndex = deltaX < 0 ? activeIndex + 1 : activeIndex - 1;
+        this._tabs.forEach(_call.setPositionByProgress(activeIndex, progress, contentWidth));
+        this.$indicator().setTransform(`translate3d(${(activeIndex * 100) + (-1 * progress * 100)}%, 0, 0)`);
+        this._dragAnchorEnd = gesture.clientX;
+    }
+
+    _dragEnd(gesture) {
+        const delta = (this._dragAnchorEnd - this._dragAnchorStart) / this._activeTabRect.width;
+        const elapsed = gesture.timeStamp - this._dragStartTime;
+        const speed = delta / elapsed * 1000;
+
+        let newTab;
+        if ((delta < -0.3 || speed < -1.2) && this._activeTab.index() < this._tabs.length - 1) {
+            newTab = this._tabs[this._activeTab.index() + 1];
+        } else if ((delta > 0.3 || speed > 1.2) && this._activeTab.index() > 0) {
+            newTab = this._tabs[this._activeTab.index() - 1];
         } else {
-            tab.$().setFilter(`grayscale(100%) brightness(60%)`);
+            newTab = this._activeTab;
         }
-    }
-    this.$indicator().setTransform(`translate3d(${(activeIndex * 100) + (-1 * progress * 100)}%, 0, 0)`);
-    this._dragAnchorEnd = gesture.clientX;
-};
 
-TabController.prototype._dragEnd = function(gesture) {
-    const delta = (this._dragAnchorEnd - this._dragAnchorStart) / this._activeTabRect.width;
-    const elapsed = gesture.timeStamp - this._dragStartTime;
-    const speed = delta / elapsed * 1000;
-
-    let newTab;
-    if ((delta < -0.40 || speed < -1.2) && this._activeTab.index() < this._tabs.length - 1) {
-        newTab = this._tabs[this._activeTab.index() + 1];
-    } else if ((delta > 0.40 || speed > 1.2) && this._activeTab.index() > 0) {
-        newTab = this._tabs[this._activeTab.index() - 1];
-    } else {
-        newTab = this._activeTab;
+        this._activateTab(newTab, true);
     }
 
-    this._activateTab(newTab, true);
-};
-
-TabController.prototype._clearContentHideTimeout = function() {
-    this.page.clearTimeout(this._contentHideTimeoutId);
-    this._contentHideTimeoutId = -1;
-};
-
-TabController.prototype._relayout = function() {
-    this._tabs.forEach((tab) => {
-        tab._relayout();
-    });
-    this._activeTabRect = this._activeTab.contentRect();
-};
-
-TabController.prototype._tabClicked = function(tab) {
-    this._activateTab(tab);
-};
-
-TabController.prototype._activateTab = function(tab, force) {
-    const initialTabActivation = !this._activeTab;
-
-    if (!this._activeTabRect) {
-        this._activeTabRect = tab.contentRect();
+    _relayout() {
+        this._tabs.forEach(_._relayout);
+        this._activeTabRect = this._activeTab.contentRect();
     }
 
-    const willChangeTabs = tab !== this._activeTab;
-    if (!willChangeTabs && !force) return;
-    this._clearContentHideTimeout();
-
-    let previousActiveTabId;
-    let newActiveTabId;
-
-    if (willChangeTabs) {
-        if (this._activeTab) {
-            previousActiveTabId = this._activeTab._id;
-            this._activeTab.deactivate();
-            this.emit(`tabWillDeactivate`, this._activeTab._id);
+    _tabClicked(tab) {
+        if (!tab) {
+            throw new Error(`no tab?`);
         }
-        this.emit(`tabWillActivate`, tab._id);
-        this._activeTab = tab;
-        newActiveTabId = tab._id;
-        tab.activate();
+        this._activateTab(tab);
     }
 
-    const activeIndex = this._activeTab.index();
-    const contentWidth = this._activeTabRect.width;
+    async _activateTab(tab, force) {
+        const initialTabActivation = !this._activeTab;
 
-    if (!initialTabActivation) {
-        this.$indicator().
-            removeClass(`no-transition`).
-            setStyle(`willChange`, `transform`).
-            forceReflow();
-
-        for (let i = 0; i < this._tabs.length; ++i) {
-            const targetTab = this._tabs[i];
-            targetTab.$content().
-                removeClass(`no-transition`).
-                show().
-                setStyle(`willChange`, `transform`).
-                forceReflow();
-            targetTab.prepareForSetColor();
+        if (!this._activeTabRect) {
+            this._activeTabRect = tab.contentRect();
         }
-    }
 
-    for (let i = 0; i < this._tabs.length; ++i) {
-        const targetTab = this._tabs[i];
-        targetTab.setColor();
-        const contentPosition = (targetTab.index() - activeIndex) * contentWidth;
-        targetTab.$content().setTransform(`translate3d(${contentPosition}px, 0, 0)`);
-    }
-    this.$indicator().setTransform(`translate3d(${100 * activeIndex}%, 0, 0)`);
+        if (this._pendingAnimations) {
+            await this._pendingAnimations;
+        }
 
-    this._contentHideTimeoutId = this.page.setTimeout(() => {
-        this._contentHideTimeoutId = -1;
-        for (let i = 0; i < this._tabs.length; ++i) {
-            const targetTab = this._tabs[i];
-            if (!targetTab.isActive()) {
-                targetTab.$content().hide();
+        const willChangeTabs = tab !== this._activeTab;
+        if (!willChangeTabs && !force) return;
+
+        let previousActiveTabId;
+        let newActiveTabId;
+
+        if (willChangeTabs) {
+            if (this._activeTab) {
+                previousActiveTabId = this._activeTab._id;
+                this._activeTab.deactivate();
+                this.emit(`tabWillDeactivate`, this._activeTab._id);
             }
-            targetTab.$content().setStyle(`willChange`, ``);
+            this.emit(`tabWillActivate`, tab._id);
+            this._activeTab = tab;
+            newActiveTabId = tab._id;
+            tab.activate();
         }
 
-        this.$indicator().setStyle(`willChange`, ``);
+        const activeIndex = this._activeTab.index();
+        const contentWidth = this._activeTabRect.width;
+
+        const animationsFinished = this._tabs.map(_call.setPosition(activeIndex, contentWidth));
+
+
+        const indicatorKeyFrames = [
+            {transform: this.$indicator().getTransformForKeyFrame(EMPTY_TRANSLATE)},
+            {transform: `translate3d(${100 * activeIndex}%, 0, 0)`}
+        ];
+        const indicatorAnimation = this.$indicator().animate(indicatorKeyFrames, animationOptions);
+        animationsFinished.push(animationPromisify(indicatorAnimation));
+        this._pendingAnimations = Promise.all(animationsFinished);
+        await this._pendingAnimations;
+        this.$indicator().setTransform(`translate3d(${100 * activeIndex}%, 0, 0)`);
+        this._pendingAnimations = null;
 
         if (previousActiveTabId) {
             this.emit(`tabDidDeactivate`, previousActiveTabId);
@@ -286,15 +257,9 @@ TabController.prototype._activateTab = function(tab, force) {
         if (newActiveTabId) {
             this.emit(`tabDidActivate`, newActiveTabId);
         }
-    }, 330);
-
-};
-
-TabController.prototype.activateTabById = function(id) {
-    for (let i = 0; i < this._tabs.length; ++i) {
-        if (this._tabs[i]._id === id) {
-            return this._activateTab(this._tabs[i]);
-        }
     }
-    throw new Error(`unknown id: ${id}`);
-};
+
+    activateTabById(id) {
+        return this._activateTab(this._tabs.find(_equals._id(id)));
+    }
+}
