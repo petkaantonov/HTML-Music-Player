@@ -312,13 +312,50 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const tagDataContext = this.tagDataContext = new TagDataContext();
 
+    const localFileHandler = this.localFileHandler = withDeps({
+        page,
+        fileInputContext,
+        env,
+        playlist
+    }, d => new LocalFileHandler({
+        directoryButton: `.menul-folder, .add-folder-link`,
+        fileButton: `.menul-files, .add-files-link`
+    }, d));
+
+
+    const player = this.player = withDeps({
+        page,
+        playlist,
+        env,
+        globalEvents,
+        recognizerContext,
+        dbValues,
+        db,
+        gestureEducator,
+        rippler,
+        crossfadingPreferences,
+        effectPreferences,
+        applicationPreferences,
+        tooltipContext,
+        localFileHandler,
+        workerWrapper
+    }, d => new Player({
+        target: `.app-player-controls`,
+        playButtonDom: `.play-button`,
+        pauseButtonDom: `.pause-button`,
+        previousButtonDom: `.previous-button`,
+        stopButtonDom: `.stop-button`,
+        nextButtonDom: `.next-button`
+    }, d));
+
     const trackAnalyzer = this.trackAnalyzer = withDeps({
         page,
         env,
         playlist,
         globalEvents,
         workerWrapper,
-        tagDataContext
+        tagDataContext,
+        player
     }, d => new TrackAnalyzer(d));
 
     const search = this.search = withDeps({
@@ -365,46 +402,11 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         activeTabIndicator: `.active-tab-indicator`
     }, d));
 
-    const localFileHandler = this.localFileHandler = withDeps({
-        page,
-        fileInputContext,
-        env,
-        playlist
-    }, d => new LocalFileHandler({
-        directoryButton: `.menul-folder, .add-folder-link`,
-        fileButton: `.menul-files, .add-files-link`
-    }, d));
-
     /* eslint-disable no-constant-condition */
     if (false && env.isDevelopment()) {
         this.localFileHandler.generateFakeFiles(30);
     }
     /* eslint-enable no-constant-condition */
-
-    const player = this.player = withDeps({
-        page,
-        playlist,
-        env,
-        globalEvents,
-        recognizerContext,
-        dbValues,
-        db,
-        gestureEducator,
-        rippler,
-        crossfadingPreferences,
-        effectPreferences,
-        applicationPreferences,
-        tooltipContext,
-        localFileHandler,
-        workerWrapper
-    }, d => new Player({
-        target: `.app-player-controls`,
-        playButtonDom: `.play-button`,
-        pauseButtonDom: `.pause-button`,
-        previousButtonDom: `.previous-button`,
-        stopButtonDom: `.stop-button`,
-        nextButtonDom: `.next-button`
-    }, d));
 
     const playerPictureManager = this.playerPictureManager = withDeps({
         page,
