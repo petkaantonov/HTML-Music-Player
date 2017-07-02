@@ -10,7 +10,7 @@ const blockerAnimationKeyFrames = [
 
 const blockerShowAnimationOptions = {
     fill: `both`,
-    duration: 156,
+    duration: 230,
     easing: DECELERATE_CUBIC
 };
 
@@ -24,7 +24,7 @@ const popupOpacityAnimationKeyFrames = [
 
 const popupShowAnimationOptions = {
     fill: `none`,
-    duration: 156,
+    duration: 230,
     easing: DECELERATE_CUBIC
 };
 
@@ -32,7 +32,7 @@ const popupHideAnimationOptions = Object.assign({direction: `reverse`}, popupSho
 
 const popupTranslateAnimationOptions = {
     fill: `none`,
-    duration: 156,
+    duration: 230,
     easing: DECELERATE_CUBIC
 };
 
