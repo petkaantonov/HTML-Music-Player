@@ -120,9 +120,9 @@ class TrackListDeletionUndo {
     constructor(playlist) {
         this.playlist = playlist;
         this.tracksAndViews = playlist.getTrackViews().map(v => ({
-                track: v.track(),
-                view: v
-            }));
+            track: v.track(),
+            view: v
+        }));
         this.selectionIndices = playlist.getSelection().map(v => v.getIndex());
         const priorityTrackView = playlist._selectable.getPriorityTrackView();
         this.priorityTrackViewIndex = priorityTrackView ? priorityTrackView.getIndex() : -1;
@@ -181,8 +181,8 @@ export default class Playlist extends EventEmitter {
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
 
-            minPrerenderedItems: 15,
-            maxPrerenderedItems: 50,
+            minPrerenderedItems: 6,
+            maxPrerenderedItems: 12,
 
             shouldScroll: () => !this._draggable.isDragging(),
 

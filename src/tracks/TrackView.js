@@ -16,8 +16,6 @@ export default function TrackView(track, opts) {
     this._error = null;
     this._domNode = null;
     this._isAttached = false;
-    this._errorTooltip = null;
-    this._analysisTooltip = null;
     this._analysisProgress = -1;
     this._analysisProgressUpdateFrameQueued = false;
     this._dragged = false;
@@ -79,38 +77,50 @@ TrackView.prototype._shouldUpdateDom = function() {
     return this._domNode !== null;
 };
 
-TrackView.prototype._ensureDomNode = function() {
+TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
     if (this._shouldUpdateDom()) return;
-    this._domNode = this.page().createElement(`div`, {
+
+    this._domNode = recycledDomNode || this.page().createElement(`div`, {
         class: `track-container`
-    }).setHtml(`<div class='track'>                                                                   \
-        <div class='track-status'>                                                                    \
-            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>                     \
-        </div>                                                                                        \
-        <div class='track-number'></div>                                                              \
-        <div class='track-info'>                                                                      \
-            <div class='track-title notextflow'></div>                                                \
-            <div class='track-artist notextflow'></div>                                               \
-        </div>                                                                                        \
-        <div class='track-duration'></div>                                                            \
-        <div class='track-availability'>                                                              \
-            <div class='track-availability-item offline'>                                             \
-                <span class='material-icons icon offline_pin'></span>                                 \
-                <div class='text'>Offline</div>                                                       \
-            </div>                                                                                    \
-            <div class='track-availability-item cloud'>                                               \
-                <span class='material-icons icon cloud_upload'></span>                                \
-                <div class='text'>Sync</div>                                                          \
-            </div>                                                                                    \
-        </div>                                                                                        \
+    }).setHtml(`<div class='track'>
+        <div class='track-status'>
+            <span class='glyphicon glyphicon-info-sign track-analysis-status icon' style="display: none;">
+
+            </span>
+            <span class='glyphicon glyphicon-exclamation-sign track-error-status icon' style="display: none;">
+
+            </span
+            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>
+        </div>
+        <div class='track-number'></div>
+        <div class='track-info'>
+            <div class='track-title notextflow'></div>
+            <div class='track-artist notextflow'></div>
+        </div>
+        <div class='track-duration'></div>
+        <div class='track-availability'>
+            <div class='track-availability-item offline'>
+                <span class='material-icons icon offline_pin'></span>
+                <div class='text'>Offline</div>
+            </div>
+            <div class='track-availability-item cloud'>
+                <span class='material-icons icon cloud_upload'></span>
+                <div class='text'>Sync</div>
+            </div>
+        </div>
+        <div class='track-progress-bar' style="display: none;"></div>
     </div>`);
 
     if (this.selectable().contains(this)) {
         this.selected();
+    } else {
+        this.unselected();
     }
 
     if (this._dragged) {
         this.$().addClass(`track-dragging`);
+    } else {
+        this.$().removeClass("track-dragging");
     }
 
     this.viewUpdateTagDataChange();
@@ -118,15 +128,32 @@ TrackView.prototype._ensureDomNode = function() {
     this.viewUpdateSyncStatusChange();
     this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
+    let unclickableTrackStatus = false;
     if (this._track.isBeingAnalyzed()) {
         this.viewUpdateShowAnalysisStatus();
+        unclickableTrackStatus = true;
+    } else {
+        this.viewUpdateHideAnalysisStatus();
     }
 
     if (this._track.hasError()) {
         this.viewUpdateShowErrorStatus();
+        unclickableTrackStatus = true;
+    } else {
+        this.viewUpdateHideErrorStatus();
+    }
+
+    if (unclickableTrackStatus) {
+        this.$trackStatus().addClass(`unclickable`);
+    } else {
+        this.$trackStatus().removeClass(`unclickable`);
     }
 
     this._updateTranslate();
+
+    if (!recycledDomNode && target) {
+        this.$().appendTo(target);
+    }
 };
 
 TrackView.prototype.isDestroyed = function() {
@@ -135,14 +162,8 @@ TrackView.prototype.isDestroyed = function() {
 
 TrackView.prototype.destroy = function() {
     if (this._isDestroyed) return false;
-    this.destroyTooltips();
     this._track.removeListener(`viewUpdate`, this._viewUpdated);
-
-    if (this._shouldUpdateDom()) {
-        this.$().remove();
-        this._domNode = null;
-    }
-    this._isAttached = false;
+    this._index = -1;
     this._isDestroyed = true;
     return true;
 };
@@ -195,51 +216,19 @@ TrackView.prototype.renderTrackDuration = function() {
     this.$trackDuration().setText(this._track.formatTime());
 };
 
-TrackView.prototype.destroyTooltips = function() {
-    if (this._analysisTooltip) {
-        this._analysisTooltip.destroy();
-        this._analysisTooltip = null;
-    }
-
-    if (this._errorTooltip) {
-        this._errorTooltip.destroy();
-        this._errorTooltip = null;
-    }
-};
-
-TrackView.prototype.stageRemoval = function() {
-    this.detach();
-
-    if (this._shouldUpdateDom()) {
-        this.$().remove();
-        this._domNode = null;
-    }
-};
-
-TrackView.prototype.unstageRemoval = function() {
-    this._ensureDomNode();
-};
-
-TrackView.prototype.attach = function(target) {
-    this._ensureDomNode();
+TrackView.prototype.attach = function(target, node) {
+    this._ensureDomNode(node, target);
     this._isAttached = true;
-    this.$().appendTo(target);
 };
 
 TrackView.prototype.detach = function() {
     if (this._isAttached) {
-        if (this._shouldUpdateDom()) {
-            this.$().detach();
-        }
         this._isAttached = false;
-        if (this._analysisTooltip) {
-            this._analysisTooltip.hide();
-        }
-
-        if (this._errorTooltip) {
-            this._errorTooltip.hide();
-        }
+        const node = this._domNode;
+        this._domNode = null;
+        return node;
     }
+    return null;
 };
 
 TrackView.prototype.selected = function() {
@@ -286,7 +275,6 @@ TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
     }
 };
 
-
 TrackView.prototype._updateAnalysisProgress = function() {
     if (!this._analysisProgressUpdateFrameQueued) {
         this._analysisProgressUpdateFrameQueued = true;
@@ -304,63 +292,37 @@ TrackView.prototype._updateAnalysisProgress = function() {
 
 TrackView.prototype.viewUpdateAnalysisProgress = function(analysisProgress) {
     if (!this._shouldUpdateDom()) return;
-    const previous = this._analysisProgress;
-    this._analysisProgress = analysisProgress;
-    if (previous === -1) {
-        this.$().addClass(`track-container-progress`);
-        this.page().createElement(`div`, {class: `track-progress-bar`}).appendTo(this.$());
+    if (this._analysisProgress === -1) {
+        this.$().addClass(`track-container-progress`).find(".track-progress-bar").show();
     }
+    this._analysisProgress = analysisProgress;
     this._updateAnalysisProgress();
 };
 
 TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
-    if (this._analysisTooltip) {
-        this._analysisTooltip.destroy();
-        this._analysisTooltip = null;
-
-        if (!this._shouldUpdateDom()) return;
-        this.$().removeClass(`track-container-progress`).
-                find(`.track-progress-bar`).
-                remove();
-        this.$trackStatus().find(`.track-analysis-status`).remove();
-        this.$trackStatus().removeClass(`unclickable`);
-
-    }
+    if (!this._shouldUpdateDom()) return;
+    this.$().removeClass(`track-container-progress`).find(`.track-progress-bar`).hide();
+    this.$trackStatus().find(`.track-analysis-status`).hide();
 };
 
 TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
     if (!this._shouldUpdateDom()) return;
-
-    this.$trackStatus().append(this.page().parse(`<span ` +
-        `class='glyphicon glyphicon-info-sign track-analysis-status icon'` +
-        `></span>`));
-
-
-    this._analysisTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
-                                                                    ANALYSIS_TOOLTIP_MESSAGE);
-    this.$trackStatus().addClass(`unclickable`);
+    this.$trackStatus().find(".track-analysis-status").show("inline-block");
+    if (this._analysisProgress >= 0) {
+        this.$().addClass(`track-container-progress`).find(".track-progress-bar").show();
+    } else {
+        this.$().removeClass(`track-container-progress`).find(".track-progress-bar").hide();
+    }
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {
     if (!this._shouldUpdateDom()) return;
-
-    this.$trackStatus().append(this.page().parse(`<span ` +
-        `class='glyphicon glyphicon-exclamation-sign track-error-status icon'` +
-        `></span>`));
-
-    this._errorTooltip = this.tooltipContext().createTooltip(this.$trackStatus(),
-                                                                 ERROR_HEADER.concat(this._track._error));
-    this.$trackStatus().addClass(`unclickable`);
+    this.$trackStatus().find(".track-error-status").show("inline-block");
 };
 
 TrackView.prototype.viewUpdateHideErrorStatus = function() {
     if (!this._shouldUpdateDom()) return;
-    if (this._errorTooltip) {
-        this._errorTooltip.destroy();
-        this._errorTooltip = null;
-    }
-    this.$trackStatus().find(`.track-error-status`).remove();
-    this.$trackStatus().removeClass(`unclickable`);
+    this.$trackStatus().find(`.track-error-status`).hide();
 };
 
 TrackView.prototype.viewUpdatePositionChange = function() {
@@ -392,6 +354,7 @@ TrackView.prototype._getTranslate = function() {
 };
 
 TrackView.prototype.setOffset = function(value) {
+    console.log(value);
     this._offset = value;
     if (!this._shouldUpdateDom()) return;
     this._updateTranslate();

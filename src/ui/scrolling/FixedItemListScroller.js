@@ -123,17 +123,19 @@ FixedItemListScroller.prototype._renderItems = function(now, forced) {
     const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
     const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
 
+    const detachedDomNodes = [];
+
     for (let i = 0; i < displayedItems.length; ++i) {
         const index = displayedItems[i].getIndex();
         if (!(start <= index && index <= end) && displayedItems[i].isVisible()) {
-            displayedItems[i].detach();
+            detachedDomNodes.push(displayedItems[i].detach());
         }
     }
 
     for (let i = start; i <= end; ++i) {
         const item = items[i];
         if (!item.isVisible()) {
-            item.attach(container);
+            item.attach(container, detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null);
         }
         displayedItems[i - start] = item;
     }
