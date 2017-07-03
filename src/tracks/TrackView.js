@@ -108,7 +108,6 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
                 <div class='text'>Sync</div>
             </div>
         </div>
-        <div class='track-progress-bar' style="display: none;"></div>
     </div>`);
 
     if (this.selectable().contains(this)) {
@@ -120,7 +119,7 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
     if (this._dragged) {
         this.$().addClass(`track-dragging`);
     } else {
-        this.$().removeClass("track-dragging");
+        this.$().removeClass(`track-dragging`);
     }
 
     this.viewUpdateTagDataChange();
@@ -278,46 +277,28 @@ TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
 TrackView.prototype._updateAnalysisProgress = function() {
     if (!this._analysisProgressUpdateFrameQueued) {
         this._analysisProgressUpdateFrameQueued = true;
-        this.page().requestAnimationFrame(() => {
-            this._analysisProgressUpdateFrameQueued = false;
-            if (!this._shouldUpdateDom()) {
-                return;
-            }
-            this.$().
-                find(`.track-progress-bar`).
-                setTransform(`translateX(${-(100 - this._analysisProgress * 100)}%)`);
-        });
     }
 };
 
 TrackView.prototype.viewUpdateAnalysisProgress = function(analysisProgress) {
     if (!this._shouldUpdateDom()) return;
-    if (this._analysisProgress === -1) {
-        this.$().addClass(`track-container-progress`).find(".track-progress-bar").show();
-    }
     this._analysisProgress = analysisProgress;
     this._updateAnalysisProgress();
 };
 
 TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
     if (!this._shouldUpdateDom()) return;
-    this.$().removeClass(`track-container-progress`).find(`.track-progress-bar`).hide();
     this.$trackStatus().find(`.track-analysis-status`).hide();
 };
 
 TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
     if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(".track-analysis-status").show("inline-block");
-    if (this._analysisProgress >= 0) {
-        this.$().addClass(`track-container-progress`).find(".track-progress-bar").show();
-    } else {
-        this.$().removeClass(`track-container-progress`).find(".track-progress-bar").hide();
-    }
+    this.$trackStatus().find(`.track-analysis-status`).show(`inline-block`);
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {
     if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(".track-error-status").show("inline-block");
+    this.$trackStatus().find(`.track-error-status`).show(`inline-block`);
 };
 
 TrackView.prototype.viewUpdateHideErrorStatus = function() {
@@ -354,7 +335,6 @@ TrackView.prototype._getTranslate = function() {
 };
 
 TrackView.prototype.setOffset = function(value) {
-    console.log(value);
     this._offset = value;
     if (!this._shouldUpdateDom()) return;
     this._updateTranslate();
