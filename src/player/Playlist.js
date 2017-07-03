@@ -181,8 +181,8 @@ export default class Playlist extends EventEmitter {
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
 
-            minPrerenderedItems: 15,
-            maxPrerenderedItems: 75,
+            minPrerenderedItems: 6,
+            maxPrerenderedItems: 12,
 
             shouldScroll: () => !this._draggable.isDragging(),
 
