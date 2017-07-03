@@ -1,15 +1,6 @@
-
-
 // Audio player implemented using AudioBuffers. Tracks are resampled and mixed
 // Manually to hardware specs to guarantee seamless playback between consecutive
 // Audiobuffers.
-
-// Over ScriptProcessorNode it has the benefit of not having any
-// Latency regardless of buffer size, the buffer size can be arbitrarily large
-// So that audio doens't glitch when ui is blocked for a long time and
-// In the catastrophic case where ui is blocked, the output will be silence
-// Instead of ear destroying noise.
-
 import {inherits, throttle} from "util";
 import {AudioContext, ArrayBuffer, Float32Array,
         Blob, File, console, performance} from "platform/platform";
@@ -19,10 +10,10 @@ import WorkerFrontend from "WorkerFrontend";
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;
-const TARGET_BUFFER_LENGTH_SECONDS = 0.2;
-const SUSTAINED_BUFFER_COUNT_INITIAL = 3;
-const SUSTAINED_BUFFER_COUNT_MAX = 10;
-const INITIAL_BUFFER_COUNT = 2;
+const TARGET_BUFFER_LENGTH_SECONDS = 0.1;
+const SUSTAINED_BUFFER_COUNT_INITIAL = 2;
+const SUSTAINED_BUFFER_COUNT_MAX = 16;
+const INITIAL_BUFFER_COUNT = 1;
 
 const FLOAT32_BYTES = 4;
 
