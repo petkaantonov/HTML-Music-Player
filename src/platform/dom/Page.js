@@ -829,6 +829,17 @@ export default class Page {
         this._modifierKey = rApple.test(this.navigator().platform) ? `meta` : `ctrl`;
         this._modifierKeyPropertyName = `${this._modifierKey}Key`;
         this._null = new DomWrapper(null, null, this);
+        this._env = null;
+    }
+
+    _setEnv(env) {
+        this._env = env;
+    }
+
+    warn(...args) {
+        if (this._env.isDevelopment()) {
+            this._env.warn(...args);
+        }
     }
 
     platform() {

@@ -112,7 +112,11 @@ MainTabs.prototype.tabEventHandler = function(methodName) {
     return function(tabId) {
         const contentInstance = this.contentInstancesByTabId[tabId];
         if (contentInstance) {
-            contentInstance[methodName]();
+            if (contentInstance[methodName]) {
+                contentInstance[methodName]();
+            }
+        } else {
+            this.page.warn(`no tab id ${tabId}`);
         }
     }.bind(this);
 };

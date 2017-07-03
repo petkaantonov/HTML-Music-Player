@@ -1,4 +1,4 @@
-import {AudioContext, indexedDB, File, Blob, URL, Worker, Uint8Array, crypto} from "platform/platform";
+import {AudioContext, indexedDB, File, Blob, URL, Worker, Uint8Array, crypto, console} from "platform/platform";
 import parser from "ua-parser-js";
 
 const MOBILE_WIDTH_THRESHOLD = 768;
@@ -7,6 +7,7 @@ const MOBILE_HEIGHT_THRESHOLD = 768;
 export default class Env {
     constructor(page) {
         this._page = page;
+        page._setEnv(this);
         const document = page.document();
         const navigator = page.navigator();
         const window = page.window();
@@ -63,6 +64,12 @@ export default class Env {
             typeof window.Notification.maxActions === `number` &&
             typeof navigator.serviceWorker !== `undefined`) {
             this._maxNotificationActions = window.Notification.maxActions;
+        }
+    }
+
+    warn(...args) {
+        if (this.isDevelopment()) {
+            console.warn(...args);
         }
     }
 
