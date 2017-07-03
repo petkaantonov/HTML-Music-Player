@@ -2,9 +2,15 @@ import {XMLHttpRequest} from "platform/platform";
 import AcoustIdApiError, {ERROR_TIMEOUT, ERROR_INVALID_RESPONSE_SYNTAX} from "audio/AcoustIdApiError";
 import {queryString} from "util";
 
+const groupTypeValue = {
+    single: 0,
+    album: 1
+};
+
 const getBestRecordingGroup = function(recordings) {
-    recordings.reverse();
     const groups = [];
+
+
 
     for (let i = 0; i < recordings.length; ++i) {
         const recording = recordings[i];
@@ -22,15 +28,17 @@ const getBestRecordingGroup = function(recordings) {
             }
 
             if (!releasegroup.type) {
-                releasegroup.type = `crap`;
+                releasegroup.type = `unknown`;
             }
 
             const {secondarytypes} = releasegroup;
+            const type = releasegroup.type.toLowerCase();
             groups.push({
                 indexI: i,
                 indexJ: j,
                 recording,
-                type: releasegroup.type.toLowerCase(),
+                type,
+                typeValue: groupTypeValue[type] || 10,
                 album: releasegroups[j],
                 secondarytypes: secondarytypes ? secondarytypes.map(v => v.toLowerCase()) : null
             });
@@ -38,40 +46,40 @@ const getBestRecordingGroup = function(recordings) {
     }
 
     groups.sort((aGroup, bGroup) => {
-        if (aGroup.type === `album` && bGroup.type === `album`) {
-            const aSec = aGroup.secondarytypes;
-            const bSec = bGroup.secondarytypes;
+        const valueDiff = aGroup.typeValue - bGroup.typeValue;
 
-            if (aSec && bSec) {
-                const aCompilation = aSec.indexOf(`compilation`) >= 0;
-                const bCompilation = bSec.indexOf(`compilation`) >= 0;
+        if (valueDiff !== 0) {
+            return valueDiff;
+        }
 
-                if (aCompilation && bCompilation) {
-                    const diff = aGroup.indexI - bGroup.indexI;
-                    if (diff !== 0) return diff;
-                    return aGroup.indexJ - bGroup.indexJ;
-                } else if (aCompilation && !bCompilation) {
-                    return 1;
-                } else if (!aCompilation && bCompilation) {
-                    return -1;
-                } else {
-                    const diff = aGroup.indexI - bGroup.indexI;
-                    if (diff !== 0) return diff;
-                    return aGroup.indexJ - bGroup.indexJ;
-                }
-            } else if (aSec && !bSec) {
+        const aSec = aGroup.secondarytypes;
+        const bSec = bGroup.secondarytypes;
+
+        if (aSec && bSec) {
+            const aCompilation = aSec.indexOf(`compilation`) >= 0;
+            const bCompilation = bSec.indexOf(`compilation`) >= 0;
+
+            if (aCompilation && bCompilation) {
+                const diff = aGroup.indexI - bGroup.indexI;
+                if (diff !== 0) return diff;
+                return aGroup.indexJ - bGroup.indexJ;
+            } else if (aCompilation && !bCompilation) {
                 return 1;
-            } else if (!aSec && bSec) {
+            } else if (!aCompilation && bCompilation) {
                 return -1;
             } else {
                 const diff = aGroup.indexI - bGroup.indexI;
                 if (diff !== 0) return diff;
                 return aGroup.indexJ - bGroup.indexJ;
             }
-        } else if (aGroup.type === `album`) {
+        } else if (aSec && !bSec) {
+            return 1;
+        } else if (!aSec && bSec) {
             return -1;
         } else {
-            return 1;
+            const diff = aGroup.indexI - bGroup.indexI;
+            if (diff !== 0) return diff;
+            return aGroup.indexJ - bGroup.indexJ;
         }
     });
 
