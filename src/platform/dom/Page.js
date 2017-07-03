@@ -683,12 +683,18 @@ export class DomWrapper {
       ];
     }
 
-    getTranslateKeyFrames(startX, startY, endX, endY, baseKeyFrames = UNSET_BASE_KEY_FRAMES) {
-      const base = this.getTransformForKeyFrame();
+    getTranslateKeyFrames(startX, startY, endX, endY, baseKeyFrames = UNSET_BASE_KEY_FRAMES, nobase = false) {
+      const base = nobase ? `` : this.getTransformForKeyFrame();
       return [
         Object.assign({transform: `${base}translate3d(${startX}px, ${startY}px, 0)`}, baseKeyFrames[0]),
         Object.assign({transform: `${base}translate3d(${endX}px, ${endY}px, 0)`}, baseKeyFrames[1])
       ];
+    }
+
+    animateTranslate(startX, startY, endX, endY, animationOptions = {}) {
+        const nobase = !!animationOptions.noComposite;
+        return this.animate(this.getTranslateKeyFrames(startX, startY, endX, endY, UNSET_BASE_KEY_FRAMES, nobase),
+                            animationOptions);
     }
 
     forceReflow() {
