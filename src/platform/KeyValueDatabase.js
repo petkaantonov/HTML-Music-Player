@@ -1,8 +1,5 @@
-
-
-import {iDbPromisify, throttle} from "util";
+import {delay, iDbPromisify, throttle} from "util";
 import {indexedDB} from "platform/platform";
-import {delay} from "platform/PromiseExtensions";
 
 const VERSION = 2;
 const NAME = `KeyValueDatabase2`;

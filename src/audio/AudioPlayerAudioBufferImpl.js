@@ -10,9 +10,9 @@ import WorkerFrontend from "WorkerFrontend";
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;
-const TARGET_BUFFER_LENGTH_SECONDS = 0.1;
-const SUSTAINED_BUFFER_COUNT_INITIAL = 2;
-const SUSTAINED_BUFFER_COUNT_MAX = 16;
+const TARGET_BUFFER_LENGTH_SECONDS = 0.25;
+const SUSTAINED_BUFFER_COUNT_INITIAL = 1;
+const SUSTAINED_BUFFER_COUNT_MAX = 10;
 const INITIAL_BUFFER_COUNT = 1;
 
 const FLOAT32_BYTES = 4;
@@ -63,6 +63,7 @@ export default class AudioPlayer extends WorkerFrontend {
         this.page = deps.page;
         this.env = deps.env;
         this.db = deps.db;
+        this.timers = deps.timers;
         this.dbValues = deps.dbValues;
         this.crossfadingPreferences = deps.crossfadingPreferences;
         this.effectPreferences = deps.effectPreferences;
@@ -628,68 +629,72 @@ AudioPlayerSourceNode.prototype._sourceEndedPong = function(args) {
 };
 
 AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
-    if (!descriptor) {
-        console.warn(new Date().toISOString(), `!descriptor`,
-                        `ended emitted`, this._endedEmitted,
-                        `length`, this._bufferQueue.length);
-        return;
-    }
+    try {
+        if (!descriptor) {
+            console.warn(new Date().toISOString(), `!descriptor`,
+                            `ended emitted`, this._endedEmitted,
+                            `length`, this._bufferQueue.length);
+            return;
+        }
 
-    const {length} = this._bufferQueue;
-    let sourceDescriptor = null;
-    if (length > 0) {
-        sourceDescriptor = this._bufferQueue.shift();
-    }
+        const {length} = this._bufferQueue;
+        let sourceDescriptor = null;
+        if (length > 0) {
+            sourceDescriptor = this._bufferQueue.shift();
+        }
 
-    if (!sourceDescriptor) {
-        this._destroySourceDescriptor(descriptor);
-        console.warn(new Date().toISOString(), `!sourceDescriptor`,
-                     `ended emitted`, this._endedEmitted,
-                     `prelen`, length,
-                     `postlen`, this._bufferQueue.length,
-                     `referencedStart`, descriptor.startTime,
-                     `referencedEnd`, descriptor.endTime);
-        this._ended();
-        return;
-    }
+        if (!sourceDescriptor) {
+            this._destroySourceDescriptor(descriptor);
+            console.warn(new Date().toISOString(), `!sourceDescriptor`,
+                         `ended emitted`, this._endedEmitted,
+                         `prelen`, length,
+                         `postlen`, this._bufferQueue.length,
+                         `referencedStart`, descriptor.startTime,
+                         `referencedEnd`, descriptor.endTime);
+            this._ended();
+            return;
+        }
 
-    if (sourceDescriptor !== descriptor) {
-        console.warn(new Date().toISOString(), `sourceDescriptor !== descriptor`,
-                     `ended emitted`, this._endedEmitted,
-                     `prelen`, length,
-                     `postlen`, this._bufferQueue.length,
-                     `queuedStart`, sourceDescriptor.startTime,
-                     `queuedEnd`, sourceDescriptor.endTime,
-                     `referencedStart`, descriptor.startTime,
-                     `referencedEnd`, descriptor.endTime);
-        this._destroySourceDescriptor(descriptor);
-        this._destroySourceDescriptor(sourceDescriptor);
-        this._ended();
-        return;
-    }
-    this._baseTime += sourceDescriptor.duration;
+        if (sourceDescriptor !== descriptor) {
+            console.warn(new Date().toISOString(), `sourceDescriptor !== descriptor`,
+                         `ended emitted`, this._endedEmitted,
+                         `prelen`, length,
+                         `postlen`, this._bufferQueue.length,
+                         `queuedStart`, sourceDescriptor.startTime,
+                         `queuedEnd`, sourceDescriptor.endTime,
+                         `referencedStart`, descriptor.startTime,
+                         `referencedEnd`, descriptor.endTime);
+            this._destroySourceDescriptor(descriptor);
+            this._destroySourceDescriptor(sourceDescriptor);
+            this._ended();
+            return;
+        }
+        this._baseTime += sourceDescriptor.duration;
 
-    source.descriptor = null;
-    source.onended = null;
-    sourceDescriptor.source = null;
-    this._playedBufferQueue.push(sourceDescriptor);
-    if (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
-        this._destroySourceDescriptor(this._playedBufferQueue.shift());
-    }
+        source.descriptor = null;
+        source.onended = null;
+        sourceDescriptor.source = null;
+        this._playedBufferQueue.push(sourceDescriptor);
+        if (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
+            this._destroySourceDescriptor(this._playedBufferQueue.shift());
+        }
 
-    if (this._baseTime >= this._duration ||
-        (sourceDescriptor.isLastForTrack && this._bufferQueue.length === 0)) {
-        this._ended();
-        return;
-    }
+        if (this._baseTime >= this._duration ||
+            (sourceDescriptor.isLastForTrack && this._bufferQueue.length === 0)) {
+            this._ended();
+            return;
+        }
 
-    for (let i = 0; i < this._bufferQueue.length; ++i) {
-        if (this._bufferQueue[i].isLastForTrack) return;
+        for (let i = 0; i < this._bufferQueue.length; ++i) {
+            if (this._bufferQueue[i].isLastForTrack) return;
+        }
+        const id = ++this._sourceEndedId;
+        // Delay the fillBuffers call in case more sourceEnded calls will come
+        // Right after this one.
+        this._player._message(this._id, `sourceEndedPing`, {requestId: id});
+    } finally {
+        this._player.timers.tick();
     }
-    const id = ++this._sourceEndedId;
-    // Delay the fillBuffers call in case more sourceEnded calls will come
-    // Right after this one.
-    this._player._message(this._id, `sourceEndedPing`, {requestId: id});
 };
 
 AudioPlayerSourceNode.prototype._lastSourceEnds = function() {

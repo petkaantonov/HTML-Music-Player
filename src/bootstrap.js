@@ -5,8 +5,9 @@ import {setDepChecking, default as withDeps} from "ApplicationDependencies";
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import Env from "platform/Env";
 import GlobalEvents from "platform/GlobalEvents";
+import Timers from "platform/Timers";
 import Page from "platform/dom/Page";
-import {noop, setIsDevelopment} from "util";
+import {noop, setIsDevelopment, setTimers} from "util";
 
 const defaultTitle = `Soita`;
 
@@ -40,7 +41,9 @@ if (typeof console === `undefined` || !console) {
     window.console = {log: noop, error: noop, warn: noop};
 }
 
-const page = new Page(document, window);
+const timers = new Timers(window);
+setTimers(timers);
+const page = new Page(document, window, timers);
 const ready = page.ready();
 const db = new KeyValueDatabase();
 const dbValuesPromise = db.getInitialValues();
@@ -123,7 +126,8 @@ page.window().onerror = function(a, b, c, d, e) {
         dbValues: Object(dbValues),
         defaultTitle,
         globalEvents,
-        page
+        page,
+        timers
     }, deps => new Application(deps, loadingIndicatorShowerTimeoutId));
 })();
 

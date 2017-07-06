@@ -1,7 +1,6 @@
-import {inherits} from "util";
+import {inherits, delay} from "util";
 import {DISMISSED, TIMED_OUT, ACTION_CLICKED} from "ui/Snackbar";
 import EventEmitter from "events";
-import {delay} from "platform/PromiseExtensions";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());

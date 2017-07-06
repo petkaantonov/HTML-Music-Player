@@ -1,7 +1,5 @@
-
-
 import {AudioParam, Float32Array} from "platform/platform";
-import {delay} from "platform/PromiseExtensions";
+import {delay} from "util";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 

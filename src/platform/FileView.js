@@ -1,7 +1,4 @@
-
-
 import {Uint8Array, DataView} from "platform/platform";
-import {delay} from "platform/PromiseExtensions";
 import {readAsArrayBuffer} from "util";
 
 function isRetryable(e) {
@@ -139,7 +136,6 @@ FileView.prototype.readBlockOfSizeAt = async function(size, startOffset, padding
                     this._freeBuffer();
                     throw e;
                 }
-                await delay(500);
                 retries++;
             }
         }

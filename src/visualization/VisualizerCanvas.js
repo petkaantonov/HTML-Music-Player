@@ -1,10 +1,9 @@
-import {addLegacyListener, inherits} from "util";
+import {addLegacyListener, inherits, delay} from "util";
 import {canvasToImage} from "platform/dom/util";
 import {Int16Array, Float32Array, performance} from "platform/platform";
 import Default2dImageRenderer from "visualization/Default2dImageRenderer";
 import WebGl2dImageRenderer from "visualization/WebGl2dImageRenderer";
 import EventEmitter from "events";
-import {delay} from "platform/PromiseExtensions";
 import {ACCELERATE_QUAD_INTERPOLATOR} from "ui/animation/easing";
 
 const SHADOW_BLUR = 2;

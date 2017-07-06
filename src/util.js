@@ -1,15 +1,19 @@
 /* eslint-disable no-invalid-this */
 
 let isDevelopment = true;
+let timers = null;
 
 export const setIsDevelopment = function(isIt) {
     isDevelopment = isIt;
 };
 
+export const setTimers = function(theTimers) {
+  timers = theTimers;
+};
+
 import {console, Uint8Array, Uint16Array, Uint32Array,
          Int32Array, Float32Array, Float64Array,
-         FileReader, FileReaderSync, DataView,
-         clearTimeout, setTimeout, TextDecoder, TextEncoder, crypto,
+         FileReader, FileReaderSync, DataView, TextDecoder, TextEncoder, crypto,
          performance, Proxy, Symbol} from "platform/platform";
 
 export const queryString = function(obj) {
@@ -119,11 +123,11 @@ export const throttle = function(callback, delay) {
 
     return function(...args) {
         if (timerId !== -1) {
-            clearTimeout(timerId);
+            timers.clearTimeout(timerId);
             timerId = -1;
         }
         const myCallId = ++callId;
-        timerId = setTimeout(() => {
+        timerId = timers.setTimeout(() => {
             if (callId !== myCallId) return;
             callId = 0;
             timerId = -1;
@@ -1162,3 +1166,9 @@ export const _equals = new Proxy(new Map(), {get(cache, name) {
   cache.set(name, ret);
   return ret;
 }});
+
+export const delay = function(ms) {
+    return new Promise((resolve) => {
+        timers.setTimeout(resolve, ms);
+    });
+};

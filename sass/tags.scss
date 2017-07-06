@@ -53,6 +53,12 @@ body {
     @include transition-duration(0.22s);
 }
 
+.player-upper-container,
+.visualizer-section-container,
+.content-section-container {
+    contain: layout;
+}
+
 #app-container.initial {
     opacity: 0;
     will-change: opacity;

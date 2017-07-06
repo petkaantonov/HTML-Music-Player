@@ -55,7 +55,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
             db,
             defaultTitle,
             globalEvents,
-            dbValues} = deps;
+            dbValues,
+            timers} = deps;
 
     if (!env.hasTouch()) {
         page.$(`body`).addClass(`no-touch`);
@@ -67,6 +68,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     this.dbValues = dbValues;
     this.defaultTitle = defaultTitle;
     this.globalEvents = globalEvents;
+    this.timers = timers;
 
 
 
@@ -338,7 +340,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         applicationPreferences,
         tooltipContext,
         localFileHandler,
-        workerWrapper
+        workerWrapper,
+        timers
     }, d => new Player({
         target: `.app-player-controls`,
         playButtonDom: `.play-button`,

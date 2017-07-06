@@ -1,8 +1,5 @@
-
-
 import EventEmitter from "events";
-import {delay} from "platform/PromiseExtensions";
-import {inherits, toFunction, noUndefinedGet} from "util";
+import {delay, inherits, toFunction, noUndefinedGet} from "util";
 
 const getDirection = function(value) {
     value = (`${value}`).trim().toLowerCase();

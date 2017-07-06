@@ -57,7 +57,8 @@ export default function Player(opts, deps) {
         crossfadingPreferences: this.crossfadingPreferences,
         effectPreferences: this.effectPreferences,
         applicationPreferences: this.applicationPreferences,
-        workerWrapper: deps.workerWrapper
+        workerWrapper: deps.workerWrapper,
+        timers: deps.timers
     }, d => new AudioPlayer(d));
 
     this.nextTrackChanged = this.nextTrackChanged.bind(this);

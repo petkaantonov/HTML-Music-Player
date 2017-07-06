@@ -1,8 +1,5 @@
-
-
 import EventEmitter from "events";
-import {noop, noUndefinedGet} from "util";
-import {delay} from "platform/PromiseExtensions";
+import {delay, noop, noUndefinedGet} from "util";
 import {performance} from "platform/platform";
 
 const NO_TAG = {};

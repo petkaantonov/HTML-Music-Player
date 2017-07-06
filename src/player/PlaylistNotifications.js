@@ -1,6 +1,5 @@
 import {URL} from "platform/platform";
-import {delay} from "platform/PromiseExtensions";
-import {noUndefinedGet} from "util";
+import {delay, noUndefinedGet} from "util";
 import {preventDefaultHandler} from "platform/dom/Page";
 
 const PAUSE = `\u275a\u275a`;

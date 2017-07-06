@@ -1,5 +1,4 @@
-import {throttle} from "util";
-import {delay} from "platform/PromiseExtensions";
+import {throttle, delay} from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
 import Track from "tracks/Track";
 import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";

@@ -1,7 +1,5 @@
-
-
 import {MouseEvent, MediaMetadata} from "platform/platform";
-import {delay} from "platform/PromiseExtensions";
+import {delay} from "util";
 
 const rTextarea = /^textarea$/i;
 const rInput = /^input$/i;
@@ -774,7 +772,8 @@ class Platform {
 }
 
 export default class Page {
-    constructor(document, window) {
+    constructor(document, window, timers) {
+        this._timers = timers;
         this._platform = new Platform(window);
         this._document = document;
         this._window = window;
@@ -1037,13 +1036,13 @@ export default class Page {
     setTimeout(fn, time) {
         if (typeof fn !== `function`) throw new TypeError(`fn must be a function`);
         if (typeof time !== `number`) throw new TypeError(`time must be a number`);
-        return this._window.setTimeout(fn, time);
+        return this._timers.setTimeout(fn, time);
     }
 
     clearTimeout(handle) {
         if (typeof handle !== `number`) throw new TypeError(`handle must be a number`);
         if (+handle >= 0) {
-            return this._window.clearTimeout(+handle);
+            return this._timers.clearTimeout(+handle);
         }
         return -1;
     }
@@ -1051,13 +1050,13 @@ export default class Page {
     setInterval(fn, time) {
         if (typeof fn !== `function`) throw new TypeError(`fn must be a function`);
         if (typeof time !== `number`) throw new TypeError(`time must be a number`);
-        return this._window.setInterval(fn, time);
+        return this._timers.setInterval(fn, time);
     }
 
     clearInterval(handle) {
         if (typeof handle !== `number`) throw new TypeError(`handle must be a number`);
         if (+handle >= 0) {
-            return this._window.clearInterval(+handle);
+            return this._timers.clearInterval(+handle);
         }
         return -1;
     }
