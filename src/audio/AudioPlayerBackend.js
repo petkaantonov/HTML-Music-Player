@@ -6,13 +6,14 @@ import AbstractBackend from "AbstractBackend";
 export const PLAYER_READY_EVENT_NAME = `playerReady`;
 
 export default class AudioPlayerBackend extends AbstractBackend {
-    constructor(wasm) {
+    constructor(wasm, timers) {
         super(PLAYER_READY_EVENT_NAME);
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
         this._bufferTime = 0;
         this._resamplerQuality = -1;
         this._channelMixer = null;
+        this._timers = timers;
         this._audioSources = new Map();
         this._effects = new Effects();
     }
@@ -96,6 +97,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
     }
 
     receiveMessage(event) {
+        this._timers.tick();
         const {nodeId, args, methodName, transferList} = event.data;
 
         if (nodeId === -1) {
