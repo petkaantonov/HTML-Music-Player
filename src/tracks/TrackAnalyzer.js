@@ -36,8 +36,7 @@ export default class TrackAnalyzer extends WorkerFrontend {
 }
 
 TrackAnalyzer.prototype._maxMetadataParsers = function() {
-    const base = this._env.isDesktop() ? 4 : 4;
-    return this._player.isPlaying ? Math.floor(base / 2) : base;
+    return Infinity;
 };
 
 TrackAnalyzer.prototype._metadataParserDelay = function() {

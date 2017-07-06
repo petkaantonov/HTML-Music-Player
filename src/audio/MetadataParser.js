@@ -1,12 +1,7 @@
-
-
 import getCodecName from "audio/sniffer";
 import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
-
-const maxActive = 8;
-const queue = [];
-let active = 0;
+import {sha1Binary} from "util";
 
 const codecNotSupportedError = function() {
     const e = new Error(`codec not supported`);
@@ -14,33 +9,45 @@ const codecNotSupportedError = function() {
     return e;
 };
 
-const next = function() {
-    active--;
-    if (queue.length > 0) {
-        const item = queue.shift();
-        const parser = new MetadataParser(item.file, item.resolve, item.transientId);
-        active++;
-        parser.parse();
-    }
+export const getFileCacheKey = async function(file) {
+    return sha1Binary(`${file.lastModified}-${file.name}-${file.size}-${file.type}`);
 };
 
-function MetadataParser(file, resolve, transientId) {
-    this.file = file;
-    this.resolve = resolve;
-    this.transientId = transientId;
-    this.fileView = new FileView(file);
-}
+export default class MetadataParser {
+    constructor(tagDatabase) {
+        this._tagDatabase = tagDatabase;
+        this._maxActive = 8;
+        this._queue = [];
+        this._active = 0;
+    }
 
-MetadataParser.prototype.parse = function() {
-    const data = {
-        basicInfo: {
-            duration: NaN,
-            sampleRate: 44100,
-            channels: 2
+    _next() {
+        this._active--;
+        if (this._queue.length > 0) {
+            const item = this._queue.shift();
+            this._active++;
+            this._parse(item.file, item.resolve, item.transientId);
         }
-    };
-    const done = (async () => {
-        const codecName = await getCodecName(this.fileView);
+    }
+
+    async _parse(file, resolve, transientId) {
+        const cacheKey = await getFileCacheKey(file);
+        const cachedResult = await this._tagDatabase.getCachedMetadata(cacheKey);
+
+        if (cachedResult) {
+            resolve(cachedResult);
+            return;
+        }
+
+        const data = {
+            basicInfo: {
+                duration: NaN,
+                sampleRate: 44100,
+                channels: 2
+            }
+        };
+        const fileView = new FileView(file);
+        const codecName = await getCodecName(fileView);
         if (!codecName) {
             throw codecNotSupportedError();
         }
@@ -52,50 +59,49 @@ MetadataParser.prototype.parse = function() {
             case `ogg`:
                 throw codecNotSupportedError();
             case `mp3`:
-                await parseMp3Metadata(data, this.fileView);
+                await parseMp3Metadata(data, fileView);
                 break;
             default: break;
         }
 
-        return data;
-    })();
+        await this._tagDatabase.setCachedMetadata(cacheKey, data);
+        resolve(data);
+    }
 
-    this.resolve(done);
-};
+    async parse(file, transientId) {
+        try {
+            const ret = await new Promise((resolve) => {
+                if (this._active >= this._maxActive) {
+                    this._queue.push({
+                        file,
+                        transientId,
+                        resolve
+                    });
+                } else {
+                    this._active++;
+                    this._parse(file, resolve, transientId);
+                }
+            });
+            return ret;
+        } finally {
+            this._next();
+        }
+    }
 
-export const parse = async function(file, transientId) {
-    try {
-        const ret = await new Promise((resolve) => {
-            if (active >= maxActive) {
-                queue.push({
-                    file,
-                    transientId,
-                    resolve
-                });
-            } else {
-                const parser = new MetadataParser(file, resolve, transientId);
-                active++;
-                parser.parse();
+    async fetchAnalysisData(uid, albumKey) {
+        const db = this._tagDatabase;
+        const [data, albumImage] = await Promise.all([db.query(uid), db.getAlbumImage(albumKey)]);
+
+        if (data) {
+            const {trackGain, trackPeak, silence} = data;
+            if (!data.loudness && (trackGain || trackPeak || silence)) {
+                data.loudness = {trackPeak, trackGain, silence};
             }
-        });
-        return ret;
-    } finally {
-        next();
-    }
-};
 
-export const fetchAnalysisData = async function(db, uid, albumKey) {
-    const [data, albumImage] = await Promise.all([db.query(uid), db.getAlbumImage(albumKey)]);
-
-    if (data) {
-        const {trackGain, trackPeak, silence} = data;
-        if (!data.loudness && (trackGain || trackPeak || silence)) {
-            data.loudness = {trackPeak, trackGain, silence};
+            if (albumImage) {
+                data.albumImage = albumImage;
+            }
         }
-
-        if (albumImage) {
-            data.albumImage = albumImage;
-        }
+        return data;
     }
-    return data;
-};
+}

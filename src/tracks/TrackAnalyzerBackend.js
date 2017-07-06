@@ -1,5 +1,5 @@
 import AbstractBackend from "AbstractBackend";
-import {parse as parseMetadata, fetchAnalysisData} from "audio/MetadataParser";
+import MetadataParser from "audio/MetadataParser";
 import TrackAnalysisJob from "tracks/TrackAnalysisJob";
 import {fetchAcoustId, fetchAcoustIdImage} from "audio/AcoustId";
 import TagDatabase from "tracks/TagDatabase";
@@ -14,6 +14,7 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
     constructor(wasm) {
         super(ANALYZER_READY_EVENT_NAME);
         this.db = new TagDatabase();
+        this.metadataParser = new MetadataParser(this.db);
         this.wasm = wasm;
         this.cpuUtilization = MAX_CPU_UTILIZATION;
         this.analysisQueue = [];
@@ -39,9 +40,9 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 }
             },
 
-            // TODO import static methods
             async parseMetadata({file, transientId, id}) {
-                const metadata = await this.promiseMessageSuccessErrorHandler(id, parseMetadata(file, transientId), `metadata`);
+                const promise = this.metadataParser.parse(file, transientId);
+                const metadata = await this.promiseMessageSuccessErrorHandler(id, promise, `metadata`);
                 if (metadata) {
                     this.emit(`metadataParsed`, {file, metadata, transientId});
                 }
@@ -49,7 +50,8 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
             },
 
             fetchAnalysisData({uid, albumKey, id}) {
-                this.promiseMessageSuccessErrorHandler(id, fetchAnalysisData(this.db, uid, albumKey), `analysisData`);
+                const promise = this.metadataParser.fetchAnalysisData(uid, albumKey);
+                this.promiseMessageSuccessErrorHandler(id, promise, `analysisData`);
             },
 
             fetchAcoustId({id, uid, fingerprint, duration}) {

@@ -1,14 +1,15 @@
-
-
 import {iDbPromisify, assign} from "util";
 import {indexedDB} from "platform/platform";
 
-const VERSION = 3;
+const VERSION = 4;
 const NAME = `TagDatabase`;
 const KEY_NAME = `trackUid`;
 const ALBUM_KEY_NAME = `album`;
 const TABLE_NAME = `trackInfo`;
 const COVERART_TABLE_NAME = `coverart`;
+const METADATA_CACHE_TABLE_NAME = `metadataCache`;
+const METADATA_CACHE_KEY = `cacheKey`;
+
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
 
@@ -23,6 +24,7 @@ export default class TagDatabase {
         const db = event.target.result;
         let objectStore = Promise.resolve();
         let albumStore = Promise.resolve();
+        let metadataCache = Promise.resolve();
 
         try {
             objectStore = db.createObjectStore(TABLE_NAME, {keyPath: KEY_NAME});
@@ -38,10 +40,30 @@ export default class TagDatabase {
             // NOOP
         }
 
+        try {
+            metadataCache = db.createObjectStore(METADATA_CACHE_TABLE_NAME, {keyPath: METADATA_CACHE_KEY});
+            metadataCache = iDbPromisify(metadataCache.transaction);
+        } catch (e) {
+            // NOOP
+        }
+
         this.db = (async () => {
-            await Promise.all([objectStore, albumStore]);
+            await Promise.all([objectStore, albumStore, metadataCache]);
             return db;
         })();
+    }
+
+    async getCachedMetadata(cacheKey) {
+        const db = await this.db;
+        const store = db.transaction(METADATA_CACHE_TABLE_NAME).objectStore(METADATA_CACHE_TABLE_NAME);
+        return iDbPromisify(store.get(cacheKey));
+    }
+
+    async setCachedMetadata(cacheKey, data) {
+        const db = await this.db;
+        data.cacheKey = cacheKey;
+        const tx = db.transaction(METADATA_CACHE_TABLE_NAME, READ_WRITE).objectStore(METADATA_CACHE_TABLE_NAME);
+        return iDbPromisify(tx.put(data));
     }
 
     async query(trackUid) {

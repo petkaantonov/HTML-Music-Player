@@ -466,10 +466,20 @@ const parseId3v1Data = async function(data, fileView) {
         }
         offset += 30;
         const genre = id3v1Genres[fileView.getUint8(offset)];
-        data.title = title;
-        data.artist = artist;
-        data.album = album;
-        data.year = +year;
+        if (title) {
+            data.title = title;
+        }
+
+        if (artist) {
+            data.artist = artist;
+        }
+
+        if (album) {
+            data.album = album;
+        }
+        if (!isNaN(+year)) {
+            data.year = +year;
+        }
 
         if (trackIndex !== -1) {
             data.trackIndex = trackIndex;

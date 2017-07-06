@@ -12,7 +12,7 @@ export default class Timers {
     _setTimeout(fn, time) {
         let id = -1;
         let called = false;
-        let callback = () => {
+        const callback = () => {
             if (called) {
                 return;
             }

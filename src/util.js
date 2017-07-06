@@ -1032,6 +1032,11 @@ export async function sha1HexString(text) {
             (padding[e.length] + e);
 }
 
+export async function sha1Binary(text) {
+  const buffer = textEncoder.encode(text);
+  return await crypto.subtle.digest(`SHA-1`, buffer);
+}
+
 const thrower = function() {
     throw new Error(`unsupported operation`);
 };
