@@ -19,8 +19,6 @@ export default class TrackAnalyzer extends WorkerFrontend {
         this._nextJobId = 0;
         this._analysisQueue = [];
         this._acoustIdQueue = [];
-        this._tracksAwaitingMetadataParse = [];
-        this._currentlyParsingMetadata = 0;
         this._currentlyAnalysing = false;
         this._currentlyFetchingAcoustId = false;
         this._metadataParsingTracks = {};
@@ -34,14 +32,6 @@ export default class TrackAnalyzer extends WorkerFrontend {
         this.abortJobForTrack = this.abortJobForTrack.bind(this);
     }
 }
-
-TrackAnalyzer.prototype._maxMetadataParsers = function() {
-    return Infinity;
-};
-
-TrackAnalyzer.prototype._metadataParserDelay = function() {
-    return 0;
-};
 
 TrackAnalyzer.prototype.receiveMessage = function(event) {
     if (!event.data) return;
@@ -139,22 +129,12 @@ TrackAnalyzer.prototype.unparsedTracksAvailable = function() {
             if (track.tagData) {
                 this.fetchAnalysisData(track);
             } else {
-                this._tracksAwaitingMetadataParse.push(track);
+                this.parseMetadata(track);
             }
         }
     }
-
-    this._metadataParsingQueueUpdated();
 };
 
-TrackAnalyzer.prototype._metadataParsingQueueUpdated = function() {
-    if (this._tracksAwaitingMetadataParse.length > 0 &&
-        this._currentlyParsingMetadata < this._maxMetadataParsers()) {
-        this._currentlyParsingMetadata++;
-        this.parseMetadata(this._tracksAwaitingMetadataParse.shift());
-    }
-
-};
 
 TrackAnalyzer.prototype.acoustIdImageFetched = function(track, image, error) {
     track.tagData.fetchAcoustIdImageEnded(image, error);
@@ -307,20 +287,11 @@ TrackAnalyzer.prototype.trackMetadataParsed = async function(track, data, error)
         console.error(error);
     }
 
-    try {
-        if (!track.isDetachedFromPlaylist() && !error) {
-            const tagData = this._tagDataContext.create(track, data);
-            track.setTagData(tagData);
-            this.emit(`metadataUpdate`);
-            this.fetchAnalysisData(track);
-        }
-    } finally {
-        const delayMs = this._metadataParserDelay();
-        if (delayMs > 0) {
-            await delay(delayMs);
-        }
-        this._currentlyParsingMetadata--;
-        this._metadataParsingQueueUpdated();
+    if (!track.isDetachedFromPlaylist() && !error) {
+        const tagData = this._tagDataContext.create(track, data);
+        track.setTagData(tagData);
+        this.emit(`metadataUpdate`);
+        this.fetchAnalysisData(track);
     }
 };
 
