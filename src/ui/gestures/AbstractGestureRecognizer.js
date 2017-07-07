@@ -1,6 +1,5 @@
-
-
 import {DomWrapper} from "platform/dom/Page";
+import {PASSIVE_TOUCH_EVENTS} from "ui/gestures/GestureRecognizerContext";
 
 export default function AbstractGestureRecognizer(recognizerContext) {
     this.recognizerContext = recognizerContext;
@@ -41,7 +40,11 @@ AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
     }
     const eventTypes = this._eventType;
     for (let i = 0; i < eventTypes.length; ++i) {
-        elem.addEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
+        const type = eventTypes[i];
+        elem.addEventListener(eventTypes[i], this._recognizerHandler, {
+            passive: PASSIVE_TOUCH_EVENTS[type] === type,
+            capture: !!useCapture
+        });
     }
 };
 
@@ -50,8 +53,13 @@ AbstractGestureRecognizer.prototype._unrecognizeOn = function(elem, useCapture) 
         throw new TypeError(`elem is not a dom node`);
     }
     const eventTypes = this._eventType;
+
     for (let i = 0; i < eventTypes.length; ++i) {
-        elem.removeEventListener(eventTypes[i], this._recognizerHandler, !!useCapture);
+        const type = eventTypes[i];
+        elem.removeEventListener(eventTypes[i], this._recognizerHandler, {
+            passive: PASSIVE_TOUCH_EVENTS[type] === type,
+            capture: !!useCapture
+        });
     }
 };
 

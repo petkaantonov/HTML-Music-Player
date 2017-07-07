@@ -18,18 +18,21 @@ import HorizontalTwoFingerSwipeRecognizer from "ui/gestures/HorizontalTwoFingerS
 import LongTapRecognizer from "ui/gestures/LongTapRecognizer";
 import DoubleTapRecognizer from "ui/gestures/DoubleTapRecognizer";
 
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_CANCEL = `touchcancel`;
-const TOUCH_MOVE = `touchmove`;
-const TAP_TIME = 270;
-const LONG_TAP_TIME = 600;
-const SWIPE_LENGTH = 100;
-const SWIPE_VELOCITY = 200;
-const TWO_FINGER_TAP_MINIMUM_DISTANCE = 100;
-const TAP_MAX_MOVEMENT = 24;
-const PINCER_MINIMUM_MOVEMENT = 24;
-const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
+export const TOUCH_START = `touchstart`;
+export const TOUCH_END = `touchend`;
+export const TOUCH_CANCEL = `touchcancel`;
+export const TOUCH_MOVE = `touchmove`;
+export const TAP_TIME = 270;
+export const LONG_TAP_TIME = 600;
+export const SWIPE_LENGTH = 100;
+export const SWIPE_VELOCITY = 200;
+export const TWO_FINGER_TAP_MINIMUM_DISTANCE = 100;
+export const TAP_MAX_MOVEMENT = 24;
+export const PINCER_MINIMUM_MOVEMENT = 24;
+export const DOUBLE_TAP_MINIMUM_MOVEMENT = 24;
+export const TOUCH_EVENTS = [TOUCH_START, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_END];
+export const TOUCH_EVENTS_NO_MOVE = [TOUCH_START, TOUCH_CANCEL, TOUCH_END];
+export const PASSIVE_TOUCH_EVENTS = {[TOUCH_START]: TOUCH_START, [TOUCH_MOVE]: TOUCH_MOVE};
 
 export default function GestureRecognizerContext(deps) {
     this.env = deps.env;
@@ -42,13 +45,13 @@ export default function GestureRecognizerContext(deps) {
     this.updateModifierTouch = this.updateModifierTouch.bind(this);
 
     if (this.isTouchSupported()) {
-        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, true);
-        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, true);
-        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, true);
-        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, true);
-        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, true);
-        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, true);
-        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, true);
+        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, {capture: true, passive: true});
+        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, , {capture: true, passive: true};
+        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, {capture: true, passive: true});
+        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, {capture: true, passive: true});
+        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, {capture: true, passive: true});
+        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, , {capture: true, passive: false});
+        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, , {capture: true, passive: true});
         this.page.addDocumentListener(`gesturestart`, preventDefaultHandler);
         this.page.addDocumentListener(`gesturechange`, preventDefaultHandler);
         this.page.addDocumentListener(`gestureend`, preventDefaultHandler);
@@ -59,46 +62,33 @@ export default function GestureRecognizerContext(deps) {
         this.page.addDocumentListener(`MSGestureChange`, preventDefaultHandler);
         this.page.addDocumentListener(`MSInertiaStart`, preventDefaultHandler);
     }
-
-
 }
 
-GestureRecognizerContext.prototype.TOUCH_EVENTS = [TOUCH_START, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_END];
-GestureRecognizerContext.prototype.TOUCH_EVENTS_NO_MOVE = [TOUCH_START, TOUCH_CANCEL, TOUCH_END];
-
-GestureRecognizerContext.prototype.TAP_TIME = TAP_TIME;
-GestureRecognizerContext.prototype.LONG_TAP_TIME = LONG_TAP_TIME;
-GestureRecognizerContext.prototype.SWIPE_LENGTH = SWIPE_LENGTH;
-GestureRecognizerContext.prototype.SWIPE_VELOCITY = SWIPE_VELOCITY;
-GestureRecognizerContext.prototype.TWO_FINGER_TAP_MINIMUM_DISTANCE = TWO_FINGER_TAP_MINIMUM_DISTANCE;
-GestureRecognizerContext.prototype.TAP_MAX_MOVEMENT = TAP_MAX_MOVEMENT;
-GestureRecognizerContext.prototype.PINCER_MINIMUM_MOVEMENT = PINCER_MINIMUM_MOVEMENT;
-GestureRecognizerContext.prototype.DOUBLE_TAP_MINIMUM_MOVEMENT = DOUBLE_TAP_MINIMUM_MOVEMENT;
 
 GestureRecognizerContext.prototype.isTouchSupported = function() {
     return this.env.hasTouch();
 };
 
 GestureRecognizerContext.prototype.checkTouchPropagation = function(e) {
-    if (e.cancelable) {
-        let node = e.target;
-        const activeElement = this.page.activeElement();
-        let matchesActive = false;
-        while (node !== null && typeof node !== `undefined`) {
-            if (!matchesActive) {
-                matchesActive = node === activeElement;
-            }
-
-            if (isAnyInputElement(node)) {
-                return;
-            }
-            node = node.parentNode;
+    let node = e.target;
+    const activeElement = this.page.activeElement();
+    let matchesActive = false;
+    while (node !== null && typeof node !== `undefined`) {
+        if (!matchesActive) {
+            matchesActive = node === activeElement;
         }
 
-        if (activeElement && !matchesActive) {
-            activeElement.blur();
+        if (isAnyInputElement(node)) {
+            return;
         }
+        node = node.parentNode;
+    }
 
+    if (activeElement && !matchesActive) {
+        activeElement.blur();
+    }
+
+    if (e.type === TOUCH_END) {
         e.preventDefault();
     }
 };

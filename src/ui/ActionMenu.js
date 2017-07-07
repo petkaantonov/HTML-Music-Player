@@ -186,9 +186,11 @@ ActionMenuItem.prototype.itemClicked = function(e) {
     } else {
         let prevented = false;
         try {
-            this.handler({preventDefault() {
-prevented = true;
-}});
+            this.handler({
+                preventDefault() {
+                    prevented = true;
+                }
+            });
         } finally {
             if (!prevented) {
                 this.root.hideContainer();
@@ -743,7 +745,7 @@ ContextMenu.prototype.rightClicked = function(e) {
     this.emit(`beforeOpen`, ev);
     if (defaultPrevented) return;
     this.show(e);
-    if (this._shown) {
+    if (this._shown && !isTouchEvent(e)) {
         e.preventDefault();
     }
 };
@@ -755,8 +757,8 @@ ContextMenu.prototype.show = function(e) {
 
     let prevented = false;
     this.preventDefault = function() {
-prevented = true;
-};
+        prevented = true;
+    };
     this.emit(`willShowMenu`, e, this);
     if (prevented) return;
     this._shown = true;

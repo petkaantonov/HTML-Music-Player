@@ -16,8 +16,7 @@ body,
 .module-container,
 .tracks-list-container,
 .tracklist-transform-container {
-    -ms-touch-action: none;
-    touch-action: none;
+    touch-action: pan-y;
 }
 
 body {
