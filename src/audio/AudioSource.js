@@ -51,10 +51,14 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         this._next = this._next.bind(this);
     }
 
+    _freeTransferList(transferList) {
+        this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
+    }
+
     _clearAllRequestsExceptFirst() {
         for (let i = 1; i < this.messageQueue.length; ++i) {
             const spec = this.messageQueue[i];
-            this.backend.sendMessage(-1, `_freeTransferList`, null, spec.transferList);
+            this._freeTransferList(spec.transferList);
         }
         this.messageQueue.length = Math.min(this.messageQueue.length, 1);
     }
@@ -62,7 +66,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
     _clearAllRequests() {
         for (let i = 0; i < this.messageQueue.length; ++i) {
             const spec = this.messageQueue[i];
-            this.backend.sendMessage(-1, `_freeTransferList`, null, spec.transferList);
+            this._freeTransferList(spec.transferList);
         }
         this.messageQueue.length = 0;
     }
@@ -74,7 +78,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         for (let i = 0; i < this.messageQueue.length; ++i) {
             if (this.messageQueue[i].methodName === `fillBuffers`) {
                 const spec = this.messageQueue[i];
-                this.backend.sendMessage(-1, `_freeTransferList`, null, spec.transferList);
+                this._freeTransferList(spec.transferList);
                 this.messageQueue.splice(i, 1);
                 i--;
             }
@@ -88,7 +92,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         for (let i = 0; i < this.messageQueue.length; ++i) {
             if (this.messageQueue[i].methodName === `loadReplacement`) {
                 const spec = this.messageQueue[i];
-                this.backend.sendMessage(-1, `_freeTransferList`, null, spec.transferList);
+                this._freeTransferList(spec.transferList);
                 this.messageQueue.splice(i, 1);
                 i--;
             }
@@ -169,7 +173,12 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         }
     }
 
-    messageFromReplacement(name, args, transferList) {
+    messageFromReplacement(name, args, transferList, sender) {
+        if (sender !== this.replacementSource) {
+            sender.destroy();
+            this._freeTransferList(transferList);
+            return;
+        }
         switch (name) {
         case `_error`:
             this.destroyReplacement();
@@ -210,7 +219,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         if (this.replacementSource) {
             const spec = this.replacementSpec;
             if (spec) {
-                this.backend.sendMessage(-1, `_freeTransferList`, {}, spec.transferList);
+                this._freeTransferList(spec.transferList);
                 this.replacementSpec = null;
             }
             this.replacementSource.destroy();
@@ -451,12 +460,12 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
 
                 if (this._bufferFillCancellationToken.isCancelled()) {
                     this._bufferFillCancellationToken.signal();
-                    this.backend.sendMessage(-1, `_freeTransferList`, null, transferList.concat(currentTransferList));
+                    this._freeTransferList(transferList.concat(currentTransferList));
                     break;
                 }
 
                 if (!bufferDescriptor) {
-                    this.backend.sendMessage(-1, `_freeTransferList`, null, transferList.concat(currentTransferList));
+                    this._freeTransferList(transferList.concat(currentTransferList));
                     break;
                 }
 
@@ -476,7 +485,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
                 currentBufferFillType = BUFFER_FILL_TYPE_NORMAL;
 
                 if (this.ended) {
-                    this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
+                    this._freeTransferList(transferList);
                     break;
                 }
             }
@@ -500,7 +509,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
             }
 
             if (this._bufferFillCancellationToken) {
-                this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
+                this._freeTransferList(transferList);
                 return;
             }
             this._fillBuffers(count, -1, BUFFER_FILL_TYPE_NORMAL, transferList);

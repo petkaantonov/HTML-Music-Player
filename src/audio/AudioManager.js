@@ -179,19 +179,19 @@ AudioManager.prototype.replaceTrack = function(track, explicitlyLoaded) {
     const {gaplessPreloadTrack} = this;
     this.gaplessPreloadTrack = null;
 
-    if (this.sourceNode.hasGaplessPreload() && !explicitlyLoaded) {
-        if (track === gaplessPreloadTrack) {
-            this.tickCounter.reset();
-            this.intendingToSeek = -1;
-            this.track.removeListener(`tagDataUpdate`, this.trackTagDataUpdated);
-            this.track = track;
-            this.track.on(`tagDataUpdate`, this.trackTagDataUpdated);
-            const playbackStartTime = this.sourceNode.replaceUsingGaplessPreload();
-            this.normalizeLoudness(playbackStartTime);
-            this.updateSchedules();
-            this.resume();
-            return;
-        }
+    if (this.sourceNode.hasGaplessPreload() &&
+        !explicitlyLoaded &&
+        track === gaplessPreloadTrack) {
+        this.tickCounter.reset();
+        this.intendingToSeek = -1;
+        this.track.removeListener(`tagDataUpdate`, this.trackTagDataUpdated);
+        this.track = track;
+        this.track.on(`tagDataUpdate`, this.trackTagDataUpdated);
+        const playbackStartTime = this.sourceNode.replaceUsingGaplessPreload();
+        this.normalizeLoudness(playbackStartTime);
+        this.updateSchedules();
+        this.resume();
+        return;
     }
 
     this.intendingToSeek = 0;
