@@ -115,7 +115,7 @@ export default class Env {
     }
 
     supportsDirectories() {
-        return this._directories;
+        return this._directories && !this.isMobile();
     }
 
     canReadFiles() {
