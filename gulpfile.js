@@ -20,6 +20,9 @@ var pump = Promise.promisify(require("pump"));
 var eslint = require("gulp-eslint");
 var gulpIf = require("gulp-if");
 var exec = require("./scripts/exec");
+const minimist = require("minimist");
+const argv = minimist(process.argv.slice());
+const releaseVersion = argv.releaseVersion;
 
 var gulpMinify = require("gulp-babili");
 var rollupMinify = require("rollup-plugin-babili");
@@ -124,10 +127,14 @@ function bundleWorkerBackend(target) {
     }
 
     if (target & RELEASE) {
+        let globals = `self.DEBUGGING = false;\n`;
+        if (releaseVersion) {
+            globals += `self.VERSION = "${releaseVersion}";\n`;
+        }
         minified = pump([bundles.minified, source(name + ".min.js"),
             buffer(),
             sourcemaps.init({loadMaps: true}),
-            replace(/^/, "self.DEBUGGING = false;\n"),
+            replace(/^/, globals),
             sourcemaps.write("."),
             gulp.dest("dist/worker")]);
     }
@@ -144,6 +151,11 @@ function getServiceWorkerGeneratedCode() {
     var assetsCode = "const assets = " + JSON.stringify(serviceWorkerAssetsList, null, 4).replace(/"/g, '`') + ";\n";
     var buildDate = "const buildDate = `" + new Date().toUTCString()+ "`;\n";
     var code = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + licenseHeader + assetsCode + buildDate;
+
+    if (releaseVersion) {
+        code += `const version = "${releaseVersion}"`;
+    }
+
     return code;
 }
 
@@ -169,6 +181,7 @@ function bundleSass() {
             criticalCss = '<style type="text/css">' + criticalCss + '</style>';
             return pump([gulp.src("index_base.html"),
                     replace("$critical_css", criticalCss),
+                    replace("$VERSION", `${releaseVersion}`),
                     rename("index.html"),
                     gulp.dest(".")]);
         });
