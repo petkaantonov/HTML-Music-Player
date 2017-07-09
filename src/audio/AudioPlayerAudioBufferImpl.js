@@ -456,7 +456,6 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._id = id;
     this._sourceEndedId = 0;
     this._seekRequestId = 0;
-    this._audioBufferFillRequestId = 0;
     this._replacementRequestId = 0;
 
     this._lastExpensiveCall = 0;
@@ -495,7 +494,6 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._ended = this._ended.bind(this);
 
     this._timeUpdater = this.page().setInterval(this._timeUpdate, 32);
-
     this._player._message(-1, `register`, {
         id: this._id
     });
@@ -519,7 +517,6 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
     this.removeAllListeners();
     this.page().clearInterval(this._timeUpdater);
-    this._player._message(this._id, `destroy`);
     this.unload();
     this._player._sourceNodeDestroyed(this);
     try {
@@ -533,6 +530,7 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     this._sourceEnded =
     this._ended = null;
     this._destroyed = true;
+    this._player._message(this._id, `destroy`);
 };
 
 AudioPlayerSourceNode.prototype.adoptNewAudioContext = function(audioContext) {
@@ -567,14 +565,10 @@ AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function(n
     return Math.min((now - started) + sourceDescriptor.playedSoFar, this._player.getBufferDuration());
 };
 
-AudioPlayerSourceNode.prototype._nullifyPendingLoadRequests = function() {
+AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
     this._seekRequestId++;
     this._replacementRequestId++;
-};
-
-AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
-    this._audioBufferFillRequestId++;
-    this._nullifyPendingLoadRequests();
+    this._player._message(this._id, `cancelAllOperations`);
 };
 
 AudioPlayerSourceNode.prototype._timeUpdate = function() {
@@ -921,9 +915,7 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
             }
             currentSourcesShouldBeStopped = true;
             this._applySeek(baseTime);
-            if (isUserSeek) {
-                afterScheduleKnownCallbacks.push(this._emitSeekComplete);
-            }
+            afterScheduleKnownCallbacks.push(isUserSeek ? this._emitSeekComplete : this._emitReplacementLoaded);
         } else if (bufferFillType === BUFFER_FILL_TYPE_REPLACEMENT) {
             const {metadata, gaplessPreload, requestId, baseTime} = descriptor.fillTypeData;
 
@@ -933,7 +925,6 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
             this._loadingNext = false;
 
             if (gaplessPreload) {
-                console.log(`gaplessPreload done`);
                 afterScheduleKnownCallbacks.push((scheduledStartTime) => {
                     this._gaplessPreloadArgs = {scheduledStartTime, metadata, baseTime};
                 });
@@ -997,7 +988,6 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
 
         if (isLastBuffer && !this._lastBufferLoadedEmitted) {
             this._lastBufferLoadedEmitted = true;
-            console.log(`lastBufferQueued`);
             this.emit(`lastBufferQueued`);
 
         }
@@ -1224,7 +1214,6 @@ AudioPlayerSourceNode.prototype._applySeek = function(baseTime) {
     this._baseTime = baseTime;
     this._currentSeekEmitted = false;
     this._lastBufferLoadedEmitted = false;
-    this._nullifyPendingLoadRequests();
     this._timeUpdate();
 };
 
@@ -1247,7 +1236,6 @@ AudioPlayerSourceNode.prototype._actualReplace = function(blob, seekTime, gaples
     if (seekTime === undefined) {
         seekTime = 0;
     }
-
     const requestId = ++this._replacementRequestId;
     this._player._message(this._id, `loadReplacement`, {
         blob,
@@ -1265,7 +1253,6 @@ AudioPlayerSourceNode.prototype.replace = function(blob, seekTime, gaplessPreloa
     if (this._destroyed) return;
     if (seekTime === undefined) seekTime = 0;
     this._loadingNext = true;
-    this._nullifyPendingRequests();
     const now = performance.now();
     if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
         this._actualReplace(blob, seekTime, gaplessPreload, metadata);

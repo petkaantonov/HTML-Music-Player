@@ -13,20 +13,23 @@ export const BUFFER_FILL_TYPE_SEEK = `BUFFER_FILL_TYPE_SEEK`;
 export const BUFFER_FILL_TYPE_REPLACEMENT = `BUFFER_FILL_TYPE_REPLACEMENT`;
 export const BUFFER_FILL_TYPE_NORMAL = `BUFFER_FILL_TYPE_NORMAL`;
 
-const noDelayMessageMap = {
-    sourceEndedPing: true
-};
-
-const obsoletesOtherMessagesMap = {
+const queuedMessage = {
     seek: true,
-    loadBlob: true
+    loadBlob: true,
+    loadReplacement: true,
+    fillBuffers: true
 };
 
-const priorityMessageMap = {
+const overridingMessage = {
+    seek: true,
+    loadBlob: true,
     loadReplacement: true
 };
 
-export default class AudioSource extends CancellableOperations(EventEmitter, `bufferFillOperation`) {
+export default class AudioSource extends CancellableOperations(EventEmitter,
+                                                               `bufferFillOperation`,
+                                                               `seekOperation`,
+                                                               `replacementOperation`) {
     constructor(backend, id, parent) {
         super();
         this.backend = backend;
@@ -46,6 +49,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         this.replacementSpec = null;
         this.parent = parent || null;
         this.messageQueue = [];
+        this._processingMessage = false;
 
         this._errored = this._errored.bind(this);
         this._next = this._next.bind(this);
@@ -55,15 +59,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
     }
 
-    _clearAllRequestsExceptFirst() {
-        for (let i = 1; i < this.messageQueue.length; ++i) {
-            const spec = this.messageQueue[i];
-            this._freeTransferList(spec.transferList);
-        }
-        this.messageQueue.length = Math.min(this.messageQueue.length, 1);
-    }
-
-    _clearAllRequests() {
+    _clearQueue() {
         for (let i = 0; i < this.messageQueue.length; ++i) {
             const spec = this.messageQueue[i];
             this._freeTransferList(spec.transferList);
@@ -71,50 +67,16 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         this.messageQueue.length = 0;
     }
 
-    _clearFillRequests() {
-        if (typeof this.fillBuffers !== `function`) {
-            throw new Error(`fillBuffers not found`);
-        }
-        for (let i = 0; i < this.messageQueue.length; ++i) {
-            if (this.messageQueue[i].methodName === `fillBuffers`) {
-                const spec = this.messageQueue[i];
-                this._freeTransferList(spec.transferList);
-                this.messageQueue.splice(i, 1);
-                i--;
+    async _next() {
+        if (!this._processingMessage && this.messageQueue.length > 0) {
+            const {methodName, args, transferList} = this.messageQueue.shift();
+            try {
+                this._processingMessage = true;
+                await this[methodName](args, transferList);
+            } finally {
+                this._processingMessage = false;
+                this._next();
             }
-        }
-    }
-
-    _clearLoadReplacementRequests() {
-        if (typeof this.loadReplacement !== `function`) {
-            throw new Error(`loadReplacement not found`);
-        }
-        for (let i = 0; i < this.messageQueue.length; ++i) {
-            if (this.messageQueue[i].methodName === `loadReplacement`) {
-                const spec = this.messageQueue[i];
-                this._freeTransferList(spec.transferList);
-                this.messageQueue.splice(i, 1);
-                i--;
-            }
-        }
-    }
-
-    async _processMessage(spec) {
-        const {methodName, args, transferList} = spec;
-        try {
-            await this[methodName](args, transferList);
-        } finally {
-            if (this.messageQueue.length > 0 &&
-                this.messageQueue[0] === spec) {
-                this.messageQueue.shift();
-            }
-            this._next();
-        }
-    }
-
-    _next() {
-        if (this.messageQueue.length > 0) {
-            this._processMessage(this.messageQueue[0]);
         }
     }
 
@@ -136,28 +98,20 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
                                false);
     }
 
-
     newMessage(spec) {
         const {methodName, args, transferList} = spec;
-        if (noDelayMessageMap[methodName] === true) {
-            this[methodName](args, transferList);
-            return;
+
+        if (overridingMessage[methodName] === true) {
+            this.cancelAllOperations();
+            this._clearQueue();
         }
 
-        if (obsoletesOtherMessagesMap[methodName] === true) {
-            this.cancelAllBufferFillOperations();
-            this._clearAllRequestsExceptFirst();
+        if (queuedMessage[methodName] === true) {
             this.messageQueue.push(spec);
-        } else if (priorityMessageMap[methodName] === true) {
-            this._clearLoadReplacementRequests();
-            this.messageQueue.splice(1, 0, spec);
         } else {
-            this.messageQueue.push(spec);
+            this[methodName](args, transferList);
         }
-
-        if (this.messageQueue.length === 1) {
-            this._next();
-        }
+        this._next();
     }
 
     getBlobSize() {
@@ -179,6 +133,15 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
             this._freeTransferList(transferList);
             return;
         }
+
+        const {cancellationToken} = this.replacementSpec;
+
+        if (cancellationToken.isCancelled()) {
+            this._freeTransferList(transferList);
+            this.destroyReplacement();
+            return;
+        }
+
         switch (name) {
         case `_error`:
             this.destroyReplacement();
@@ -227,38 +190,17 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         }
     }
 
-    loadReplacement(args, transferList) {
-        if (this.destroyed) return;
-        this.destroyReplacement();
-        try {
-            this.replacementSpec = {
-                requestId: args.requestId,
-                blob: args.blob,
-                seekTime: args.seekTime,
-                transferList,
-                metadata: null,
-                preloadBufferCount: args.count,
-                gaplessPreload: args.gaplessPreload
-            };
-            this.replacementSource = new AudioSource(this.backend, -1, this);
-            this.replacementSource.loadBlob(args);
-        } catch (e) {
-            this.destroyReplacement();
-            this.passError(e.message, e.stack);
-        }
-    }
-
     async destroy() {
         if (this.destroyed) return;
         this.destroyed = true;
-        this._clearAllRequests();
-        const signal = this._getSignal();
-        this.cancelAllBufferFillOperations();
-        if (signal) {
-            await signal;
-        }
-        this.parent = null;
+        this._clearQueue();
+        const bufferFillOperationCancellationAcknowledgedPromise = this._bufferFillOperationCancellationAcknowledged();
+        this.cancelAllOperations();
+        await bufferFillOperationCancellationAcknowledgedPromise;
+
         this.destroyReplacement();
+        this.parent = null;
+
         if (this._decoder) {
             freeDecoderContext(this.codecName, this._decoder);
             this._decoder = null;
@@ -289,114 +231,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
 
     _errored(e) {
         this.passError(e.message, e.stack, e.name);
-    }
-
-    async gotCodec(codec, requestId, playerMetadata) {
-        const {destinationChannelCount,
-                destinationSampleRate,
-                resamplerQuality,
-                bufferTime,
-                bufferAudioFrameCount,
-                wasm,
-                channelMixer,
-                effects} = this.backend;
-        const {codecName} = this;
-        try {
-            if (this.destroyed) return;
-            const metadata = await demuxer(codecName, this.fileView);
-
-            if (!metadata) {
-                this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Invalid ${codec.name} file`});
-                return;
-            }
-
-            if (playerMetadata) {
-                if (playerMetadata.encoderDelay !== -1) {
-                    metadata.encoderDelay = playerMetadata.encoderDelay;
-                }
-
-                if (playerMetadata.encoderPadding !== -1) {
-                    metadata.encoderPadding = playerMetadata.encoderPadding;
-                }
-            }
-
-            this.metadata = metadata;
-            const {sampleRate: sourceSampleRate,
-                   channels: sourceChannelCount} = metadata;
-
-            if (sourceSampleRate !== destinationSampleRate) {
-                this.resampler = allocResampler(wasm,
-                                                destinationChannelCount,
-                                                sourceSampleRate,
-                                                destinationSampleRate,
-                                                resamplerQuality);
-            } else if (this.resampler) {
-                freeResampler(this.resampler);
-                this.resampler = null;
-            }
-
-            this._decoder = allocDecoderContext(wasm, codecName, codec, {
-                targetBufferLengthAudioFrames: bufferTime * sourceSampleRate
-            });
-
-            this._decoder.start(metadata);
-
-            const {resampler, _decoder: decoder} = this;
-
-            this._filePosition = this.metadata.dataStart;
-            this._audioPipeline = new AudioProcessingPipeline(wasm, {
-                sourceSampleRate, sourceChannelCount,
-                destinationSampleRate, destinationChannelCount,
-                decoder, resampler,
-                channelMixer, effects, bufferTime, bufferAudioFrameCount
-            });
-            this.sendMessage(`_blobLoaded`, {requestId, metadata});
-        } catch (e) {
-            this.passError(e.message, e.stack, e.name);
-        }
-    }
-
-    async loadBlob(args) {
-        try {
-            if (this.destroyed) return;
-            if (this._decoder) {
-                freeDecoderContext(this.codecName, this._decoder);
-                this._decoder = null;
-            }
-            if (this.resampler) {
-                freeResampler(this.resampler);
-                this.resampler = null;
-            }
-            this.ended = false;
-            this.resampler = this.fileView = this._decoder = this.blob = this.metadata = null;
-            this._filePosition = 0;
-            this.codecName = ``;
-
-            const {blob} = args;
-            if (!(blob instanceof Blob) && !(blob instanceof File)) {
-                this.sendMessage(`_error`, {message: `Blob must be a file or blob`});
-                return;
-            }
-            this.fileView = new FileView(blob);
-            this.blob = blob;
-            const codecName = await getCodecName(this.fileView);
-            if (!codecName) {
-                this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Codec not supported`});
-                return;
-            }
-            this.codecName = codecName;
-            try {
-                const codec = await getCodec(codecName);
-                await this.gotCodec(codec, args.requestId, args.metadata);
-            } catch (e) {
-                this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Unable to load codec: ${e.message}`});
-            }
-        } catch (e) {
-            this.passError(e.message, e.stack, e.name);
-        }
     }
 
     async _decodeNextBuffer(transferList, cancellationToken) {
@@ -434,8 +268,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         return ret;
     }
 
-    _getSignal() {
-        return this._bufferFillCancellationToken && this._bufferFillCancellationToken.getSignal() || null;
+    _bufferFillOperationCancellationAcknowledged() {
+        return this._bufferFillCancellationToken && this._bufferFillCancellationToken.getSignal() || Promise.resolve();
     }
 
     async _fillBuffers(count, requestId, bufferFillType, transferList, fillTypeData = null) {
@@ -497,6 +331,85 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         }
     }
 
+    async _gotCodec(codec, requestId, playerMetadata) {
+        const {destinationChannelCount,
+                destinationSampleRate,
+                resamplerQuality,
+                bufferTime,
+                bufferAudioFrameCount,
+                wasm,
+                channelMixer,
+                effects} = this.backend;
+        const {codecName} = this;
+        try {
+            if (this.destroyed) {
+                return;
+            }
+            const metadata = await demuxer(codecName, this.fileView);
+
+            if (this.destroyed) {
+                return;
+            }
+
+            if (!metadata) {
+                this.fileView = this.blob = null;
+                this.sendMessage(`_error`, {message: `Invalid ${codec.name} file`});
+                return;
+            }
+
+            if (playerMetadata) {
+                if (playerMetadata.encoderDelay !== -1) {
+                    metadata.encoderDelay = playerMetadata.encoderDelay;
+                }
+
+                if (playerMetadata.encoderPadding !== -1) {
+                    metadata.encoderPadding = playerMetadata.encoderPadding;
+                }
+            }
+
+            this.metadata = metadata;
+            const {sampleRate: sourceSampleRate,
+                   channels: sourceChannelCount} = metadata;
+
+            if (sourceSampleRate !== destinationSampleRate) {
+                this.resampler = allocResampler(wasm,
+                                                destinationChannelCount,
+                                                sourceSampleRate,
+                                                destinationSampleRate,
+                                                resamplerQuality);
+            } else if (this.resampler) {
+                freeResampler(this.resampler);
+                this.resampler = null;
+            }
+
+            this._decoder = allocDecoderContext(wasm, codecName, codec, {
+                targetBufferLengthAudioFrames: bufferTime * sourceSampleRate
+            });
+
+            this._decoder.start(metadata);
+
+            const {resampler, _decoder: decoder} = this;
+
+            this._filePosition = this.metadata.dataStart;
+            this._audioPipeline = new AudioProcessingPipeline(wasm, {
+                sourceSampleRate, sourceChannelCount,
+                destinationSampleRate, destinationChannelCount,
+                decoder, resampler,
+                channelMixer, effects, bufferTime, bufferAudioFrameCount
+            });
+            this.sendMessage(`_blobLoaded`, {requestId, metadata});
+        } catch (e) {
+            this.passError(e.message, e.stack, e.name);
+        }
+    }
+
+    cancelAllOperations() {
+        this.destroyReplacement();
+        this.cancelAllSeekOperations();
+        this.cancelAllBufferFillOperations();
+        this.cancelAllReplacementOperations();
+    }
+
     fillBuffers({count}, transferList) {
         try {
             if (this.destroyed) {
@@ -518,6 +431,29 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
         }
     }
 
+    loadReplacement(args, transferList) {
+        if (this.destroyed) return;
+        this.destroyReplacement();
+        const cancellationToken = this.cancellationTokenForReplacementOperation();
+        try {
+            this.replacementSpec = {
+                requestId: args.requestId,
+                blob: args.blob,
+                seekTime: args.seekTime,
+                transferList,
+                metadata: null,
+                preloadBufferCount: args.count,
+                gaplessPreload: args.gaplessPreload,
+                cancellationToken
+            };
+            this.replacementSource = new AudioSource(this.backend, -1, this);
+            this.replacementSource.loadBlob(args);
+        } catch (e) {
+            this.destroyReplacement();
+            this.passError(e.message, e.stack);
+        }
+    }
+
     async seek(args, transferList) {
         try {
             const {requestId, count, time} = args;
@@ -532,21 +468,32 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
                 return;
             }
 
-            this.ended = false;
+            const bufferFillOperationCancellationAcknowledgedPromise =
+                this._bufferFillOperationCancellationAcknowledged();
+            this.cancelAllOperations();
 
+            const cancellationToken = this.cancellationTokenForSeekOperation();
+            const seekerResult = await seeker(this.codecName, time, this.metadata, this._decoder, this.fileView);
+            if (cancellationToken.isCancelled()) {
+                this._freeTransferList(transferList);
+                return;
+            }
+
+            this._filePosition = seekerResult.offset;
+            this._decoder.applySeek(seekerResult);
+
+            await bufferFillOperationCancellationAcknowledgedPromise;
+
+            if (cancellationToken.isCancelled()) {
+                this._freeTransferList(transferList);
+                return;
+            }
+
+            this.ended = false;
             if (this.resampler) {
                 this.resampler.reset();
             }
 
-            const seekerResult = await seeker(this.codecName, time, this.metadata, this._decoder, this.fileView);
-            this._filePosition = seekerResult.offset;
-            this._decoder.applySeek(seekerResult);
-            const signal = this._getSignal();
-            this._clearFillRequests();
-            this.cancelAllBufferFillOperations();
-            if (signal) {
-                await signal;
-            }
             this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, transferList, {
                 baseTime: seekerResult.time,
                 isUserSeek: args.isUserSeek,
@@ -556,4 +503,68 @@ export default class AudioSource extends CancellableOperations(EventEmitter, `bu
             this.passError(e.message, e.stack, e.name, transferList);
         }
     }
+
+    async loadBlob(args) {
+        try {
+            if (this.destroyed) {
+                return;
+            }
+
+            if (this._decoder) {
+                freeDecoderContext(this.codecName, this._decoder);
+                this._decoder = null;
+            }
+
+            if (this.resampler) {
+                freeResampler(this.resampler);
+                this.resampler = null;
+            }
+
+            this.ended = false;
+            this.resampler = this.fileView = this._decoder = this.blob = this.metadata = null;
+            this._filePosition = 0;
+            this.codecName = ``;
+
+            const {blob} = args;
+            if (!(blob instanceof Blob) && !(blob instanceof File)) {
+                this.sendMessage(`_error`, {message: `Blob must be a file or blob`});
+                return;
+            }
+            this.fileView = new FileView(blob);
+            this.blob = blob;
+            const codecName = await getCodecName(this.fileView);
+
+            if (this.destroyed) {
+                return;
+            }
+
+            if (!codecName) {
+                this.fileView = this.blob = null;
+                this.sendMessage(`_error`, {message: `Codec not supported`});
+                return;
+            }
+
+            this.codecName = codecName;
+            try {
+                const codec = await getCodec(codecName);
+
+                if (this.destroyed) {
+                    return;
+                }
+
+                await this._gotCodec(codec, args.requestId, args.metadata);
+
+                if (this.destroyed) {
+                    return;
+                }
+
+            } catch (e) {
+                this.fileView = this.blob = null;
+                this.sendMessage(`_error`, {message: `Unable to load codec: ${e.message}`});
+            }
+        } catch (e) {
+            this.passError(e.message, e.stack, e.name);
+        }
+    }
+
 }

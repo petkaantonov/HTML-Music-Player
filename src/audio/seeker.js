@@ -1,7 +1,7 @@
 import {Mp3SeekTable} from "audio/demuxer";
 
 const seekMp3 = async (time, metadata, context, fileView) => {
-    time = Math.min(metadata.duration - 0.5, Math.max(0, time));
+    time = Math.min(metadata.duration, Math.max(0, time));
     const frames = ((metadata.duration * metadata.sampleRate) / metadata.samplesPerFrame) | 0;
     let frame = (time / metadata.duration * frames) | 0;
     let currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
