@@ -349,15 +349,16 @@ TagData.prototype.getBeginSilenceLength = function() {
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId) {
         let searchTermsUpdated = false;
-        if (acoustId.artist && !this.taggedArtist) {
+        if (acoustId.artist && acoustId.artist.name && !this.taggedArtist) {
             this.artist = formatTagString(acoustId.artist.name);
             searchTermsUpdated = true;
         }
-        if (acoustId.title && !this.taggedTitle) {
+
+        if (acoustId.title && acoustId.title.name && !this.taggedTitle) {
             this.title = formatTagString(acoustId.title.name);
             searchTermsUpdated = true;
         }
-        if (acoustId.album && !this.taggedAlbum) {
+        if (acoustId.album && acoustId.album.name &&!this.taggedAlbum) {
             this.album = formatTagString(acoustId.album.name);
             searchTermsUpdated = true;
         }
