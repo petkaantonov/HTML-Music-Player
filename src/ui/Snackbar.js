@@ -30,7 +30,6 @@ class SnackbarInstance extends EventEmitter {
         this._titleDom = null;
         this._domNode = null;
 
-
         this._visibilityChanged = this._visibilityChanged.bind(this);
         this._clicked = this._clicked.bind(this);
         this._timeoutChecker = this._timeoutChecker.bind(this);
@@ -312,26 +311,30 @@ Snackbar.prototype.show = async function(message, opts) {
     }
 
     const queue = this._queue;
-    if (this._currentInstance) {
-        if (tag && queue.length) {
-            for (let i = 0; i < queue.length; ++i) {
-                if (queue[i].tag === tag) {
-                    queue[i].message = message;
-                    return queue[i].finished();
+    try {
+        if (this._currentInstance) {
+            if (tag && queue.length) {
+                for (let i = 0; i < queue.length; ++i) {
+                    if (queue[i].tag === tag) {
+                        queue[i].message = message;
+                        return queue[i].finished();
+                    }
                 }
             }
-        }
 
-        if (queue.length >= this.maxLength) {
-            queue.pop();
-        }
+            if (queue.length >= this.maxLength) {
+                queue.pop();
+            }
 
-        const queuedMessage = new SnackbarInstance(this, message, opts);
-        queue.push(queuedMessage);
-        return queuedMessage.finished();
-    } else {
-        this._currentInstance = new SnackbarInstance(this, message, opts);
-        this._currentInstance.show();
-        return this._currentInstance.finished();
+            const queuedMessage = new SnackbarInstance(this, message, opts);
+            queue.push(queuedMessage);
+            return await queuedMessage.finished();
+        } else {
+            this._currentInstance = new SnackbarInstance(this, message, opts);
+            this._currentInstance.show();
+            return await this._currentInstance.finished();
+        }
+    } finally {
+        this._next();
     }
 };
