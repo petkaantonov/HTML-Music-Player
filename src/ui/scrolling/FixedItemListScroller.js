@@ -139,6 +139,11 @@ FixedItemListScroller.prototype._renderItems = function(now, forced) {
         }
         displayedItems[i - start] = item;
     }
+
+    for (let i = 0; i < detachedDomNodes.length; ++i) {
+        detachedDomNodes[i].remove();
+    }
+
     displayedItems.length = end - start + 1;
 };
 
