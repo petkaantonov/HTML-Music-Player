@@ -36,26 +36,13 @@ const popupTranslateAnimationOptions = {
     easing: DECELERATE_CUBIC
 };
 
-function getDesktopTransitionIn($node) {
-    return animationPromisify($node.animate(
-                                $node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
-                                popupShowAnimationOptions));
-}
-
-function getDesktopTransitionOut($node) {
-    return animationPromisify($node.animate(popupOpacityAnimationKeyFrames, popupHideAnimationOptions));
-}
-
-function getMobileTransitionIn($node, rect) {
-    return animationPromisify($node.animate($node.getTranslateKeyFrames(-rect.width, 0, 0, 0), popupTranslateAnimationOptions));
-}
-
-function getMobileTransitionOut($node, rect) {
-    return animationPromisify($node.animate($node.getTranslateKeyFrames(0, 0, -rect.width, 0), popupTranslateAnimationOptions));
-}
-
 function toPreferenceKey(popupTitle) {
         return `${slugTitle(popupTitle)}-popup-preferences`;
+}
+
+function withDuration(opts, duration) {
+    opts.duration = duration;
+    return opts;
 }
 
 export default class PopupContext {
@@ -101,6 +88,10 @@ export default class PopupContext {
         this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
     }
 
+    getAnimationDuration() {
+        return this.isMobile() ? 300 : 230;
+    }
+
     isMobile() {
         return this.env.isMobileScreenSize();
     }
@@ -122,13 +113,15 @@ export default class PopupContext {
         this.blocker = this.page.createElement(`div`, {class: `popup-blocker`}).appendTo(`body`);
         this.blocker.addEventListener(`click`, this.closePopups);
         this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
-        this.blocker.animate(blockerAnimationKeyFrames, blockerShowAnimationOptions);
+        this.blocker.animate(blockerAnimationKeyFrames,
+                             withDuration(blockerShowAnimationOptions, this.getAnimationDuration()));
     }
 
     async hideBlocker() {
         if (!this.blocker.length) return;
 
-        const animation = this.blocker.animate(blockerAnimationKeyFrames, blockerHideAnimationOptions);
+        const animation = this.blocker.animate(blockerAnimationKeyFrames,
+                                               withDuration(blockerHideAnimationOptions, this.getAnimationDuration()));
         this.animation = animation;
         await animationPromisify(animation);
 
@@ -138,6 +131,27 @@ export default class PopupContext {
             this.blocker.remove();
             this.blocker = this.page.NULL();
         }
+    }
+
+    getDesktopTransitionIn($node) {
+        return animationPromisify($node.animate(
+                                    $node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
+                                    withDuration(popupShowAnimationOptions, this.getAnimationDuration())));
+    }
+
+    getDesktopTransitionOut($node) {
+        return animationPromisify($node.animate(popupOpacityAnimationKeyFrames,
+                                                withDuration(popupHideAnimationOptions, this.getAnimationDuration())));
+    }
+
+    getMobileTransitionIn($node, rect) {
+        return animationPromisify($node.animate($node.getTranslateKeyFrames(-rect.width, 0, 0, 0),
+                                                withDuration(popupTranslateAnimationOptions, this.getAnimationDuration())));
+    }
+
+    getMobileTransitionOut($node, rect) {
+        return animationPromisify($node.animate($node.getTranslateKeyFrames(0, 0, -rect.width, 0),
+                                                withDuration(popupTranslateAnimationOptions, this.getAnimationDuration())));
     }
 
     closeTopPopup() {
@@ -174,11 +188,13 @@ export default class PopupContext {
     }
 
     getTransitionInHandler() {
-        return (($node, rect) => (this.isMobile() ? getMobileTransitionIn : getDesktopTransitionIn)($node, rect));
+        return (($node, rect) =>
+            (this.isMobile() ? this.getMobileTransitionIn($node, rect) : this.getDesktopTransitionIn($node, rect)));
     }
 
     getTransitionOutHandler() {
-        return (($node, rect) => (this.isMobile() ? getMobileTransitionOut : getDesktopTransitionOut)($node, rect));
+        return (($node, rect) =>
+            (this.isMobile() ? this.getMobileTransitionOut($node, rect) : this.getDesktopTransitionOut($node, rect)));
     }
 
     makePopup(title, body, opener, footerButtons) {

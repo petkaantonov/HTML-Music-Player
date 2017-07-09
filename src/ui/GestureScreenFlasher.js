@@ -4,7 +4,7 @@ import {animationPromisify} from "util";
 const fadeInAnimationOptions = {
     fill: `both`,
     easing: DECELERATE_CUBIC,
-    duration: 100
+    duration: 250
 };
 
 const fadeOutAnimationOptions = {
