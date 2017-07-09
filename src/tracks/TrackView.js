@@ -20,7 +20,6 @@ export default function TrackView(track, opts) {
     this._analysisProgressUpdateFrameQueued = false;
     this._dragged = false;
     this._offset = 0;
-    this._renderedPlayingStatus = false;
     this._viewUpdated = this._viewUpdated.bind(this);
     this._track.on(`viewUpdate`, this._viewUpdated);
 }
@@ -84,12 +83,8 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
         class: `track-container`
     }).setHtml(`<div class='track'>
         <div class='track-status'>
-            <span class='glyphicon glyphicon-info-sign track-analysis-status icon' style="display: none;">
-
-            </span>
-            <span class='glyphicon glyphicon-exclamation-sign track-error-status icon' style="display: none;">
-
-            </span
+            <span class='glyphicon glyphicon-info-sign track-analysis-status icon' style="display: none;"></span>
+            <span class='glyphicon glyphicon-exclamation-sign track-error-status icon' style="display: none;"></span>
             <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>
         </div>
         <div class='track-number'></div>
@@ -123,8 +118,8 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
     }
 
     this.viewUpdateTagDataChange();
-    this.viewUpdateOfflineStatusChange();
-    this.viewUpdateSyncStatusChange();
+    //this.viewUpdateOfflineStatusChange();
+    //this.viewUpdateSyncStatusChange();
     this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
     let unclickableTrackStatus = false;
@@ -264,9 +259,6 @@ TrackView.prototype.viewUpdateSyncStatusChange = function() {
 
 TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
     if (!this._shouldUpdateDom()) return;
-    if (this._renderedPlayingStatus === playingStatus) return;
-    this._renderedPlayingStatus = playingStatus;
-
     if (playingStatus) {
         this.$().addClass(`track-playing`);
     } else {
