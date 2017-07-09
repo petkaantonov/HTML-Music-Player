@@ -5,6 +5,10 @@ export class CancellationToken {
         this._idProvider = idProvider;
         this._fieldName = fieldName || null;
         this._currentId = this._getId();
+        this._signalPromiseResolve = null;
+        this._signalPromise = new Promise((resolve) => {
+            this._signalPromiseResolve = resolve;
+        });
     }
 
     _getId() {
@@ -17,6 +21,17 @@ export class CancellationToken {
 
     isCancelled() {
         return this._currentId !== this._getId();
+    }
+
+    getSignal() {
+        return this._signalPromise;
+    }
+
+    signal() {
+        if (this._signalPromiseResolve) {
+            this._signalPromiseResolve();
+            this._signalPromiseResolve = null;
+        }
     }
 
     check() {

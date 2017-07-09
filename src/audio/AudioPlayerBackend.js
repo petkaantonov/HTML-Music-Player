@@ -96,8 +96,16 @@ export default class AudioPlayerBackend extends AbstractBackend {
         }, transferList);
     }
 
+    transferSourceId(from, to) {
+        if (to.id !== -1 || !this._audioSources.has(from.id)) {
+            throw new Error(`invalid source id transfer from ${from.id} to ${to.id}`);
+        }
+        to.id = from.id;
+        from.id = -1;
+        this._audioSources.set(to.id, to);
+    }
+
     receiveMessage(event) {
-        this._timers.tick();
         const {nodeId, args, methodName, transferList} = event.data;
 
         if (nodeId === -1) {
@@ -124,11 +132,15 @@ export default class AudioPlayerBackend extends AbstractBackend {
             } else if (methodName === `register`) {
                 const audioSource = new AudioSource(this, args.id);
                 audioSource.once(`destroy`, () => {
-                    this._audioSources.delete(audioSource);
+                    if (audioSource.id >= 0) {
+                        this._audioSources.delete(audioSource.id);
+                    }
                 });
                 this._audioSources.set(args.id, audioSource);
             } else if (methodName === `setEffects`) {
                 this._effects.setEffects(args.effects);
+            } else if (methodName === `ping`) {
+                this._timers.tick();
             }
         } else {
             this._audioSources.get(nodeId).newMessage({

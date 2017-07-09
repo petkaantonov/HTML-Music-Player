@@ -8,8 +8,8 @@ const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 const SEEK_START_CURVE = new Float32Array([1, 0.001]);
 const SEEK_END_CURVE = new Float32Array([0.001, 1]);
-const SEEK_START_FADE_TIME = 0.5;
-const SEEK_END_FADE_TIME = 0.5;
+const SEEK_START_FADE_TIME = 0.042666666666666665 * 2;
+const SEEK_END_FADE_TIME = 0.042666666666666665 * 8;
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
@@ -173,13 +173,13 @@ AudioManager.prototype.lastBufferQueued = function() {
     }
 };
 
-AudioManager.prototype.replaceTrack = function(track) {
+AudioManager.prototype.replaceTrack = function(track, explicitlyLoaded) {
     if (this.destroyed || this.player.currentAudioManager !== this) return;
     this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
     const {gaplessPreloadTrack} = this;
     this.gaplessPreloadTrack = null;
 
-    if (this.sourceNode.hasGaplessPreload()) {
+    if (this.sourceNode.hasGaplessPreload() && !explicitlyLoaded) {
         if (track === gaplessPreloadTrack) {
             this.tickCounter.reset();
             this.intendingToSeek = -1;
@@ -209,7 +209,7 @@ AudioManager.prototype.replaceTrack = function(track) {
             this.normalizeLoudness(playbackStartTime);
         }
         this.resume();
-        this.fadeInSeekGain();
+        this.fadeInSeekGain(playbackStartTime);
     });
     this.currentTime = track.convertFromSilenceAdjustedTime(0);
     this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
@@ -226,7 +226,7 @@ AudioManager.prototype.trackTagDataUpdated = function() {
     this.normalizeLoudness();
 };
 
-AudioManager.prototype.normalizeLoudness = function(startTime) {
+AudioManager.prototype.normalizeLoudness = function(startTime = -1) {
     if (this.destroyed) return;
     const {track} = this;
     let replayGain = this.player.effectPreferences.decibelChangeToAmplitudeRatio(
@@ -236,7 +236,7 @@ AudioManager.prototype.normalizeLoudness = function(startTime) {
         replayGain *= (1 / track.getTrackPeak());
     }
 
-    if (typeof startTime === `number` && startTime >= 0) {
+    if (startTime >= 0) {
         this.replayGain.gain.cancelScheduledValues(0);
         this.replayGain.gain.setValueAtTime(replayGain, startTime);
     } else {
@@ -425,9 +425,9 @@ AudioManager.prototype.fadeOutSeekGain = function() {
     this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, this.now(), SEEK_START_FADE_TIME);
 };
 
-AudioManager.prototype.fadeInSeekGain = function() {
-    cancelAndHold(this.seekGain.gain, 0);
-    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, this.now(), SEEK_END_FADE_TIME);
+AudioManager.prototype.fadeInSeekGain = function(scheduledStartTime = 0) {
+    cancelAndHold(this.seekGain.gain, scheduledStartTime);
+    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, scheduledStartTime || this.now(), SEEK_END_FADE_TIME);
 };
 
 AudioManager.prototype.willSeek = function() {
@@ -436,11 +436,11 @@ AudioManager.prototype.willSeek = function() {
     this.fadeOutSeekGain();
 };
 
-AudioManager.prototype.didSeek = function() {
+AudioManager.prototype.didSeek = function(scheduledStartTime) {
     if (this.destroyed) return;
     this.intendingToSeek = -1;
     this.updateSchedules(true);
-    this.fadeInSeekGain();
+    this.fadeInSeekGain(scheduledStartTime);
 };
 
 AudioManager.prototype.mute = function() {

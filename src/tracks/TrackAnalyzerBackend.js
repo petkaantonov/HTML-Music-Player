@@ -41,7 +41,7 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
             },
 
             async parseMetadata({file, transientId, id}) {
-                const promise = this.metadataParser.parse(file, transientId);
+                const promise = this.metadataParser.parse(file);
                 const metadata = await this.promiseMessageSuccessErrorHandler(id, promise, `metadata`);
                 if (metadata) {
                     this.emit(`metadataParsed`, {file, metadata, transientId});

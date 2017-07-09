@@ -9,7 +9,7 @@ const codecNotSupportedError = function() {
     return e;
 };
 
-export const getFileCacheKey = async function(file) {
+export const getFileCacheKey = function(file) {
     return sha1Binary(`${file.lastModified}-${file.name}-${file.size}-${file.type}`);
 };
 
@@ -26,11 +26,11 @@ export default class MetadataParser {
         if (this._queue.length > 0) {
             const item = this._queue.shift();
             this._active++;
-            this._parse(item.file, item.resolve, item.transientId);
+            this._parse(item.file, item.resolve);
         }
     }
 
-    async _parse(file, resolve, transientId) {
+    async _parse(file, resolve) {
         const cacheKey = await getFileCacheKey(file);
         const cachedResult = await this._tagDatabase.getCachedMetadata(cacheKey);
 
@@ -68,18 +68,17 @@ export default class MetadataParser {
         resolve(data);
     }
 
-    async parse(file, transientId) {
+    async parse(file) {
         try {
             const ret = await new Promise((resolve) => {
                 if (this._active >= this._maxActive) {
                     this._queue.push({
                         file,
-                        transientId,
                         resolve
                     });
                 } else {
                     this._active++;
-                    this._parse(file, resolve, transientId);
+                    this._parse(file, resolve);
                 }
             });
             return ret;

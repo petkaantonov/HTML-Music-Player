@@ -6,6 +6,7 @@ const BEFORE_MIX_BEFORE_RESAMPLE = 0;
 const AFTER_MIX_BEFORE_RESAMPLE = 1;
 const AFTER_MIX_AFTER_RESAMPLE = 2;
 const INITIAL = -1;
+const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
     constructor(length, startTime, endTime, channelData) {
@@ -223,14 +224,15 @@ export default class AudioProcessingPipeline {
         }
 
         const audioFrameLength = byteLength / I16_BYTE_LENGTH / destinationChannelCount;
+        let paddingFrameLength = 0;
         const src = this._wasm.i16view(samplePtr, byteLength / I16_BYTE_LENGTH);
 
         let channelData = null;
         if (outputSpec) {
             if (outputSpec.transferList) {
                 const {transferList} = outputSpec;
-                let {transferListIndex} = outputSpec;
                 channelData = new Array(destinationChannelCount);
+                let transferListIndex = 0;
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     channelData[ch] = new Float32Array(transferList[transferListIndex++]);
                 }
@@ -240,13 +242,25 @@ export default class AudioProcessingPipeline {
                 throw new Error(`unknown output spec`);
             }
 
+            if (audioFrameLength < this.bufferAudioFrameCount) {
+                paddingFrameLength =
+                    Math.ceil(audioFrameLength / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE - audioFrameLength;
+            }
+
             if (destinationChannelCount === 2) {
                 const dst0 = channelData[0];
                 const dst1 = channelData[1];
+
                 for (let i = 0; i < audioFrameLength; ++i) {
                     dst0[i] = Math.fround(src[i * 2] / 32768);
                     dst1[i] = Math.fround(src[i * 2 + 1] / 32768);
                 }
+
+                for (let i = 0; i < paddingFrameLength; ++i) {
+                    const j = i + audioFrameLength;
+                    dst0[j] = dst1[j] = 0.0;
+                }
+
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch];
@@ -254,11 +268,16 @@ export default class AudioProcessingPipeline {
                         const sample = src[i * destinationChannelCount + ch];
                         dst[i] = Math.fround(sample / 32768);
                     }
+
+                    for (let i = 0; i < paddingFrameLength; ++i) {
+                        const j = i + audioFrameLength;
+                        dst[j] = 0.0;
+                    }
                 }
             }
         }
 
-        const length = audioFrameLength;
+        const length = audioFrameLength + paddingFrameLength;
         const startTime = Math.round(startAudioFrame / sourceSampleRate * 1e9) / 1e9;
         const endTime = Math.round((startTime + (length / destinationSampleRate)) * 1e9) / 1e9;
         this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData);

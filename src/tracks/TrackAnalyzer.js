@@ -282,7 +282,7 @@ TrackAnalyzer.prototype.fetchAnalysisData = async function(track) {
     });
 };
 
-TrackAnalyzer.prototype.trackMetadataParsed = async function(track, data, error) {
+TrackAnalyzer.prototype.trackMetadataParsed = function(track, data, error) {
     if (error && this._env.isDevelopment()) {
         console.error(error);
     }

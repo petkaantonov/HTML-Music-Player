@@ -416,9 +416,11 @@ Player.prototype.loadTrack = async function(track, isUserInitiatedSkip) {
         this.currentAudioManager = null;
     }
 
+
+    const explicit = !implicit;
     if (this.currentAudioManager &&
-        (!implicit || this.currentAudioManager.hasGaplessPreload())) {
-        this.currentAudioManager.replaceTrack(track);
+        (explicit || this.currentAudioManager.hasGaplessPreload())) {
+        this.currentAudioManager.replaceTrack(track, explicit);
         this.startedPlay();
         this.emit(`trackPlaying`);
         this.emit(`newTrackLoad`, track);

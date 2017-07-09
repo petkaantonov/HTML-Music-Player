@@ -20,7 +20,7 @@ export default class Timers {
             this.clearTimeout(id);
             fn();
         };
-        id = this._window.setTimeout(callback, time * 10);
+        id = this._window.setTimeout(callback, time);
         const deadline = Date.now() + time;
         this._timers.set(id, {callback, deadline});
         this._earliestDeadline = Math.min(this._earliestDeadline, deadline);

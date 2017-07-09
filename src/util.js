@@ -1032,9 +1032,9 @@ export async function sha1HexString(text) {
             (padding[e.length] + e);
 }
 
-export async function sha1Binary(text) {
+export function sha1Binary(text) {
   const buffer = textEncoder.encode(text);
-  return await crypto.subtle.digest(`SHA-1`, buffer);
+  return crypto.subtle.digest(`SHA-1`, buffer);
 }
 
 const thrower = function() {
@@ -1177,3 +1177,10 @@ export const delay = function(ms) {
         timers.setTimeout(resolve, ms);
     });
 };
+
+export function roundSampleTime(sample, sampleRate) {
+    while ((sample / sampleRate * sampleRate) !== sample) {
+        sample++;
+    }
+    return sample;
+}
