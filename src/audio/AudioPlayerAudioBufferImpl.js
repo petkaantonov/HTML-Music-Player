@@ -764,7 +764,6 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
     if (this._destroyed) return false;
     if (!(input instanceof Float32Array)) throw new Error(`need Float32Array`);
     let samplesNeeded = Math.min(MAX_ANALYSER_SIZE, input.length);
-    const inputView = new Array(1);
     const inputBuffer = input.buffer;
 
     if (!this._sourceStopped) {
@@ -832,14 +831,17 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
             for (let ch = 0; ch < sampleViews.length; ++ch) {
                 sampleViews[ch] = new Float32Array(channelData[ch].buffer, j * 4, fillCount);
             }
-            inputView[0] = new Float32Array(inputBuffer, samplesIndex * 4, samplesNeeded);
-            const dst = inputView[0];
-            if (channelData.length >= 2) {
+            const dst = new Float32Array(inputBuffer, samplesIndex * 4, samplesNeeded);
+
+            if (sampleViews.length === 2) {
                 for (let k = 0; k < fillCount; ++k) {
                     dst[k] = Math.fround(Math.fround(sampleViews[0][k] + sampleViews[1][k]) / 2);
                 }
-            } else {
+            } else if (sampleViews.length === 1) {
                 dst.set(new Float32Array(sampleViews[0].buffer, sampleViews[0].byteOffset, fillCount));
+            } else {
+                // TODO Support more than 2 channels.
+                return false;
             }
             samplesIndex += fillCount;
             samplesNeeded -= fillCount;
