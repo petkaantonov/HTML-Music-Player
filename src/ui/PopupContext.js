@@ -89,7 +89,7 @@ export default class PopupContext {
     }
 
     getAnimationDuration() {
-        return this.isMobile() ? 300 : 230;
+        return this.isMobile() ? 450 : 300;
     }
 
     isMobile() {
