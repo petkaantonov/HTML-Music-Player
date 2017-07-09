@@ -17,8 +17,8 @@ const SUSTAINED_BUFFER_COUNT = 20;
 const MIN_BUFFERS_TO_REQUEST = SUSTAINED_BUFFER_COUNT / 4;
 const SCHEDULE_AHEAD_RATIO = 0.75;
 const FLOAT32_BYTES = 4;
-
-export const WEB_AUDIO_BLOCK_SIZE = 128;
+const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
+const WEB_AUDIO_BLOCK_SIZE = 128;
 
 if (!AudioContext.prototype.suspend) {
     AudioContext.prototype.suspend = function() {
@@ -90,7 +90,7 @@ export default class AudioPlayer extends WorkerFrontend {
         this._audioBufferTime = -1;
         this._audioBuffersAllocated = 0;
         this._arrayBuffersAllocated = 0;
-        this._suspensionTimeoutMs = 5 * 1000;
+        this._suspensionTimeoutMs = SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS * 1000;
         this._currentStateModificationAction = null;
         this._lastAudioContextRefresh = 0;
 
@@ -723,8 +723,6 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
 AudioPlayerSourceNode.prototype._startSources = function(when) {
     if (this._destroyed || this._paused) return;
     if (!this._sourceStopped) throw new Error(`sources are not stopped`);
-    this._player.playbackStarted();
-    this._player.resume();
     this._sourceStopped = false;
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         when = this._startSource(this._bufferQueue[i], when);
@@ -936,6 +934,7 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         }
 
         this._player.playbackStarted();
+        this._player.resume();
         const channelCount = this._player._outputChannelCount;
         const audioBuffer = this._player._allocAudioBuffer();
         const channelData = new Array(channelCount);
@@ -1020,6 +1019,8 @@ AudioPlayerSourceNode.prototype.play = function() {
     }
     this._paused = false;
     if (this._bufferQueue.length > 0 && this._sourceStopped && this._haveBlob) {
+        this._player.playbackStarted();
+        this._player.resume();
         this._startSources(this.getCurrentTimeScheduledAhead());
     }
     this.emit(`timeUpdate`, this._currentTime, this._duration);
