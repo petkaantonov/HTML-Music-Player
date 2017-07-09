@@ -12,7 +12,12 @@ import CancellableOperations from "utils/CancellationToken";
 
 const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
 
-export class TrackAnalysisError extends Error {}
+export class TrackAnalysisError extends Error {
+    constructor(msg) {
+        super(msg);
+        this.name = "TrackAnalysisError";
+    }
+}
 
 export default class TrackAnalysisJob extends CancellableOperations(null, `analysisOperation`) {
     constructor(backend, {id, file, loudness, fingerprint, uid}) {

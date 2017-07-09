@@ -1,9 +1,10 @@
 import {throttle, delay} from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
-import Track from "tracks/Track";
+import {default as Track, DECODE_ERROR, FILESYSTEM_ACCESS_ERROR} from "tracks/Track";
 import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";
 import {console} from "platform/platform";
 import WorkerFrontend from "WorkerFrontend";
+
 
 export default class TrackAnalyzer extends WorkerFrontend {
     constructor(deps) {
@@ -79,6 +80,7 @@ TrackAnalyzer.prototype.receiveMessage = function(event) {
                         this._analyzerJobs.splice(i, 1);
                         const e = new Error(error.message);
                         e.stack = error.stack;
+                        e.name = error.name;
                         job.reject(e);
                         break;
                     }
@@ -134,7 +136,6 @@ TrackAnalyzer.prototype.unparsedTracksAvailable = function() {
         }
     }
 };
-
 
 TrackAnalyzer.prototype.acoustIdImageFetched = function(track, image, error) {
     track.tagData.fetchAcoustIdImageEnded(image, error);
@@ -250,7 +251,15 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
                 this.emit(`metadataUpdate`);
             } catch (e) {
                 if (!(e instanceof TrackWasRemovedError)) {
-                    throw e;
+                    let trackError;
+                    if (e.name === "TrackAnalysisError") {
+                        trackError = DECODE_ERROR;
+                    } else if (e.name === `NotFoundError` || e.name === `NotReadableError`) {
+                        trackError = FILESYSTEM_ACCESS_ERROR;
+                    } else {
+                        throw e;
+                    }
+                    track.setError(trackError);
                 }
             } finally {
                 track.unsetAnalysisStatus();

@@ -353,7 +353,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             if (!metadata) {
                 this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Invalid ${codec.name} file`});
+                this._errored(new Error(`Invalid ${codec.name} file`));
                 return;
             }
 
@@ -540,7 +540,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             if (!codecName) {
                 this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Codec not supported`});
+                this._errored(new Error(`Codec not supported`));
                 return;
             }
 
@@ -560,7 +560,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             } catch (e) {
                 this.fileView = this.blob = null;
-                this.sendMessage(`_error`, {message: `Unable to load codec: ${e.message}`});
+                this._errored(e);
             }
         } catch (e) {
             this.passError(e.message, e.stack, e.name);

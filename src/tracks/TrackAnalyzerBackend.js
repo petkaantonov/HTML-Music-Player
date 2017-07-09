@@ -92,7 +92,8 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
             jobType: `analyze`,
             error: {
                 message: e.message,
-                stack: e.stack
+                stack: e.stack,
+                name: e.name
             }
         });
     }
