@@ -41,6 +41,7 @@ export default function Track(audioFile) {
     this._isBeingAnalyzed = false;
     this._isDisplayedAsSearchResult = false;
     this._searchTerm = null;
+    this._weight = 3;
 }
 inherits(Track, EventEmitter);
 
@@ -238,6 +239,7 @@ Track.prototype.setAnalysisStatus = function() {
 Track.prototype.unsetError = function() {
     this._error = null;
     this.emit(`viewUpdate`, `viewUpdateHideErrorStatus`);
+    this._weightChanged();
 };
 
 Track.prototype.setError = function(message) {
@@ -247,6 +249,7 @@ Track.prototype.setError = function(message) {
     }
     this._error = message;
     this.emit(`viewUpdate`, `viewUpdateShowErrorStatus`);
+    this._weightChanged();
 };
 
 Track.prototype.hasError = function() {
@@ -347,6 +350,7 @@ Track.prototype.isRated = function() {
 Track.prototype.tagDataUpdated = function() {
     this.emit(`tagDataUpdate`, this);
     this.emit(`viewUpdate`, `viewUpdateTagDataChange`);
+    this._weightChanged();
 };
 
 Track.prototype.uid = async function() {
@@ -442,6 +446,7 @@ Track.prototype.getSkipCount = function() {
 Track.prototype.recordSkip = function() {
     if (this.tagData) {
         this.tagData.recordSkip();
+        this._weightChanged();
     }
 };
 
@@ -451,6 +456,7 @@ Track.prototype.triggerPlaythrough = function() {
     }
     if (this.tagData) {
         this.tagData.triggerPlaythrough();
+        this._weightChanged();
     }
 };
 
@@ -507,6 +513,27 @@ Track.prototype.playerMetadata = function() {
 
 Track.prototype.getTagStateId = function() {
     return this.tagData ? this.tagData.getStateId() : -1;
+};
+
+Track.prototype._weightChanged = function() {
+    if (this.hasError()) {
+        this._weight = 0;
+    } else {
+        const rating = this.isRated() ? this.getRating() : 3;
+        let weight = Math.pow(1.5, rating - 1) * 3;
+        const lastHour = Date.now() - 60 * 60 * 1000;
+        if (this.hasBeenPlayedWithin(lastHour)) {
+            weight /= 9;
+        }
+        this._weight = Math.ceil(weight);
+    }
+};
+
+Track.prototype.getWeight = function(currentTrack, nextTrack) {
+    if (this === currentTrack || this === nextTrack) {
+        return 0;
+    }
+    return this._weight;
 };
 
 export const byTransientId = function(transientId) {

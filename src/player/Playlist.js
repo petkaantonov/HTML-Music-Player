@@ -55,55 +55,26 @@ const Modes = {
     },
 
     shuffle(currentTrack) {
-        const lastHour = Date.now() - 60 * 60 * 1000;
-
-        function getWeight(track) {
-            for (let j = 0; j < zeroWeights.length; ++j) {
-                if (zeroWeights[j] === track) {
-                    return 0;
-                }
-            }
-
-            if (track.hasError()) {
-                return 0;
-            }
-
-            const rating = track.isRated() ? track.getRating() : 3;
-            let weight = Math.pow(1.5, rating - 1);
-
-            if (track.hasBeenPlayedWithin(lastHour)) {
-                weight /= Math.pow(3, 2);
-            }
-
-            return Math.ceil(weight);
-        }
-
-        const zeroWeights = [currentTrack, this.getNextTrack()].filter(track => track && !track.isDetachedFromPlaylist() && !track.hasError());
-
-        let maxWeight = 0;
+        const nextTrack = this.getNextTrack();
         const trackViews = this.getTrackViews();
 
+        let maxWeight = 0;
         for (let i = 0; i < trackViews.length; ++i) {
-            const trackView = trackViews[i];
-            maxWeight += getWeight(trackView.track());
+            maxWeight += trackViews[i].track().getWeight(currentTrack, nextTrack);
         }
 
-        const target = ((Math.random() * maxWeight + 1) | 0) - 1;
-        let currentWeight = -1;
-        let randomlyChosenTrackView = null;
+        let target = (Math.random() * maxWeight) | 0;
+        const originalTarget = target;
         for (let i = 0; i < trackViews.length; ++i) {
-            randomlyChosenTrackView = trackViews[i];
-            const weight = getWeight(randomlyChosenTrackView.track());
+            const track = trackViews[i].track();
+            const weight = track.getWeight(currentTrack, nextTrack);
 
-            if (currentWeight + weight >= target) {
-                return randomlyChosenTrackView.track();
+            if (target < weight) {
+                return track;
             }
-            currentWeight += weight;
+            target -= weight;
         }
-
-        randomlyChosenTrackView = randomlyChosenTrackView && randomlyChosenTrackView.track().hasError() ? trackViews.last() : randomlyChosenTrackView;
-        randomlyChosenTrackView = randomlyChosenTrackView && randomlyChosenTrackView.track().hasError() ? null : randomlyChosenTrackView;
-        return randomlyChosenTrackView ? randomlyChosenTrackView.track() : null;
+        return nextTrack || currentTrack || null;
     },
 
     repeat(currentTrack) {
