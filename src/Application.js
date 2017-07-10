@@ -210,12 +210,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         headerClass: `popup-header`,
         footerClass: `popup-footer`,
         bodyClass: `popup-body`,
-        scrollAreaContainerClass: `scrollbar-scrollarea`,
         bodyContentClass: `popup-body-content`,
         closerContainerClass: `popup-closer-container`,
-        scrollbarContainerClass: `scrollbar-container`,
-        scrollbarRailClass: `scrollbar-rail`,
-        scrollbarKnobClass: `scrollbar-knob`,
         popupButtonClass: `popup-button`,
         buttonDisabledClass: `popup-button-disabled`
     }, d));

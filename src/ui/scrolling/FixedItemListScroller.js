@@ -1,15 +1,14 @@
-export default class FixedItemListScroller {
+import ContentScroller from "ui/scrolling/ContentScroller";
+
+export default class FixedItemListScroller extends ContentScroller {
     constructor({
         target, contentContainer, itemHeight, itemList, minPrerenderedItems, maxPrerenderedItems
-    }, {page}) {
-        this._page = page;
-        this._domNode = this._page.$(target).eq(0);
-        this._contentContainer = this._page.$(contentContainer).eq(0);
+    }, deps) {
+        super({target, contentContainer}, deps);
         this._itemHeight = itemHeight;
         this._itemList = itemList;
         this._displayedItems = new Array(300);
         this._displayedItems.length = 0;
-        this._rect = this.$contentContainer()[0].getBoundingClientRect();
         this._minPrerenderedItems = minPrerenderedItems || 15;
         this._maxPrerenderedItems = maxPrerenderedItems || 100;
         this._sentinel = this._page.createElement(`div`).setStyles({
@@ -18,82 +17,10 @@ export default class FixedItemListScroller {
             position: `absolute`,
             transform: `translate3d(0, 0, 0)`
         }).setText(` `).prependTo(this.$contentContainer());
-        this.$contentContainer().addEventListener(`scroll`, () => { this._onScroll(); });
-        const {left, top} = this.$()[0].getBoundingClientRect();
-        this._left = left;
-        this._top = top;
-    }
-
-    $() {
-        return this._domNode;
-    }
-
-    $contentContainer() {
-        return this._contentContainer;
     }
 
     $sentinel() {
         return this._sentinel;
-    }
-
-    _onScroll(forced = false) {
-        const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
-
-        const scrollTop = this.getScrollTop();
-        const contentHeight = this.contentHeight();
-
-        if (displayedItems.length > 2 && !forced) {
-            const virtualStart = displayedItems[0].getIndex();
-            const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
-
-            const screenStart = scrollTop / itemHeight;
-            const screenEnd = (scrollTop + contentHeight) / itemHeight;
-
-            const {_minPrerenderedItems: minPrerenderedItems} = this;
-            if (screenStart > (virtualStart + minPrerenderedItems) &&
-                screenEnd < (virtualEnd - minPrerenderedItems)) {
-                return;
-            }
-        }
-
-        const {_itemList: items, _maxPrerenderedItems: maxPrerenderedItems} = this;
-        const container = this.$contentContainer();
-        const itemsBefore = Math.min(items.length, scrollTop / itemHeight | 0);
-        const itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
-
-        const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
-        const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
-
-        const detachedDomNodes = [];
-
-        for (let i = 0; i < displayedItems.length; ++i) {
-            const index = displayedItems[i].getIndex();
-            if (!(start <= index && index <= end) && displayedItems[i].isVisible()) {
-                detachedDomNodes.push(displayedItems[i].detach());
-            }
-        }
-
-        for (let i = start; i <= end; ++i) {
-            const item = items[i];
-            if (!item.isVisible()) {
-                item.attach(container, detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null);
-            }
-            displayedItems[i - start] = item;
-        }
-
-        for (let i = 0; i < detachedDomNodes.length; ++i) {
-            detachedDomNodes[i].remove();
-        }
-
-        displayedItems.length = end - start + 1;
-    }
-
-    getScrollTop() {
-        return this.$contentContainer()[0].scrollTop | 0;
-    }
-
-    setScrollTop(value) {
-        this.$contentContainer()[0].scrollTop = value | 0;
     }
 
     length() {
@@ -108,27 +35,10 @@ export default class FixedItemListScroller {
         return this._itemHeight;
     }
 
-    scrollToUnsnapped(top, animate) {
-        this.setScrollTop(top);
-        this._onScroll();
-    }
-
-    scrollBy(amount) {
-        if (amount === 0) return;
-        this.setScrollTop(amount + this.getScrollTop());
-        this._onScroll();
-    }
-
     resize() {
         this.$sentinel().setTransform(`translate3d(0px, ${this.physicalHeight()}px, 0px)`);
-        const nodeRect = this.$()[0].getBoundingClientRect();
-        this._top = nodeRect.top + (this.$()[0].clientHeight - this.$contentContainer()[0].clientHeight);
-        this._left = nodeRect.left + (this.$()[0].clientWidth - this.$contentContainer()[0].clientWidth);
+        super.resize();
         this._onScroll();
-    }
-
-    refresh() {
-        this._onScroll(true);
     }
 
     itemsVisibleInContainer() {
@@ -209,4 +119,56 @@ export default class FixedItemListScroller {
         return index * this.itemHeight();
     }
 
+    _onScroll(forced = false) {
+        super._onScroll(forced);
+        const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
+
+        const scrollTop = this.getScrollTop();
+        const contentHeight = this.contentHeight();
+
+        if (displayedItems.length > 2 && !forced) {
+            const virtualStart = displayedItems[0].getIndex();
+            const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
+
+            const screenStart = scrollTop / itemHeight;
+            const screenEnd = (scrollTop + contentHeight) / itemHeight;
+
+            const {_minPrerenderedItems: minPrerenderedItems} = this;
+            if (screenStart > (virtualStart + minPrerenderedItems) &&
+                screenEnd < (virtualEnd - minPrerenderedItems)) {
+                return;
+            }
+        }
+
+        const {_itemList: items, _maxPrerenderedItems: maxPrerenderedItems} = this;
+        const container = this.$contentContainer();
+        const itemsBefore = Math.min(items.length, scrollTop / itemHeight | 0);
+        const itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
+
+        const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
+        const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
+
+        const detachedDomNodes = [];
+
+        for (let i = 0; i < displayedItems.length; ++i) {
+            const index = displayedItems[i].getIndex();
+            if (!(start <= index && index <= end) && displayedItems[i].isVisible()) {
+                detachedDomNodes.push(displayedItems[i].detach());
+            }
+        }
+
+        for (let i = start; i <= end; ++i) {
+            const item = items[i];
+            if (!item.isVisible()) {
+                item.attach(container, detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null);
+            }
+            displayedItems[i - start] = item;
+        }
+
+        for (let i = 0; i < detachedDomNodes.length; ++i) {
+            detachedDomNodes[i].remove();
+        }
+
+        displayedItems.length = end - start + 1;
+    }
 }

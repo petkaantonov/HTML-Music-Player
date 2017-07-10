@@ -63,10 +63,6 @@ class PopupButton {
     }
 }
 
-const bodyScrolled = function(e) {
-    e.target.scrollTop = 0;
-};
-
 export default class Popup extends EventEmitter {
 
     constructor(opts, deps) {
@@ -84,12 +80,8 @@ export default class Popup extends EventEmitter {
         this.headerClass = opts.headerClass;
         this.footerClass = opts.footerClass;
         this.bodyClass = opts.bodyClass;
-        this.scrollAreaContainerClass = opts.scrollAreaContainerClass;
         this.bodyContentClass = opts.bodyContentClass;
         this.closerContainerClass = opts.closerContainerClass;
-        this.scrollbarContainerClass = opts.scrollbarContainerClass;
-        this.scrollbarRailClass = opts.scrollbarRailClass;
-        this.scrollbarKnobClass = opts.scrollbarKnobClass;
         this.popupButtonClass = opts.popupButtonClass;
         this.buttonDisabledClass = opts.buttonDisabledClass;
 
@@ -185,18 +177,14 @@ export default class Popup extends EventEmitter {
         const headerText = this.page.createElement(`h2`).setText(`${this.title()}`);
         const header = this.page.createElement(`div`).addClass(this.headerClass);
 
-        const body = this.page.createElement(`div`).addClass([this.bodyClass, this.scrollAreaContainerClass]);
+        const body = this.page.createElement(`div`).addClass([this.bodyClass]);
         const bodyContent = this.page.createElement(`div`).addClass(this.bodyContentClass).setHtml(`${this.body()}`);
         const closer = this.page.createElement(`div`).addClass(this.closerContainerClass).setHtml(`${this.closer()}`);
-        const scrollbar = this.page.createElement(`div`).addClass(this.scrollbarContainerClass);
-        const scrollbarRail = this.page.createElement(`div`).addClass(this.scrollbarRailClass);
-        const scrollbarKnob = this.page.createElement(`div`).addClass(this.scrollbarKnobClass);
 
         headerText.appendTo(header);
         closer.appendTo(header);
         header.appendTo(ret);
         bodyContent.appendTo(body);
-        scrollbar.appendTo(body);
         body.appendTo(ret);
 
         if (this._footerButtons.length > 0) {
@@ -208,9 +196,6 @@ export default class Popup extends EventEmitter {
         }
         lastFocusItem.appendTo(ret);
 
-        scrollbarRail.appendTo(scrollbar);
-        scrollbarKnob.appendTo(scrollbar);
-
         closer.addEventListener(`click`, this.closerClicked);
         header.addEventListener(`mousedown`, this.headerMouseDowned);
         this.closerTapRecognizer.recognizeBubbledOn(closer);
@@ -218,22 +203,8 @@ export default class Popup extends EventEmitter {
 
         this._contentScroller = this.scrollerContext.createContentScroller({
             target: body,
-            contentContainer: bodyContent,
-
-            scrollerOpts: {
-                scrollingX: false,
-                snapping: false,
-                zooming: false,
-                paging: false
-            },
-
-            scrollbarOpts: {
-                target: scrollbar,
-                railSelector: `.${this.scrollbarRailClass}`,
-                knobSelector: `.${this.scrollbarKnobClass}`
-            }
+            contentContainer: bodyContent
         });
-
         this._popupDom = ret;
     }
 
@@ -267,7 +238,7 @@ export default class Popup extends EventEmitter {
             } else {
                 const body = this.$().find(`.popup-body`);
                 if ($target.closest(body).length !== 0) {
-                    this._contentScroller.scrollIntoView(e.target, true);
+                    e.target.scrollIntoView();
                 }
             }
         }
@@ -376,13 +347,12 @@ export default class Popup extends EventEmitter {
         this.emit(`open`, this, firstOpen);
         this._viewPort = this._getViewPort();
         this._updateLayout();
-        this._contentScroller.loadScrollTop(this._scrollTop);
+        this._contentScroller.setScrollTop(this._scrollTop);
 
         this.beforeTransitionIn(this.$(), this._rect);
         this.$().focus();
 
         this.page.addDocumentListener(`focus`, this._elementFocused, true);
-        this.$().find(`.popup-body`).addEventListener(`scroll`, bodyScrolled, true);
         this.emit(`layoutUpdate`);
     }
 
@@ -434,9 +404,8 @@ export default class Popup extends EventEmitter {
         this._activeElementBeforeOpen = null;
 
         this.page.removeDocumentListener(`focus`, this._elementFocused, true);
-        this.$().find(`.popup-body`).removeEventListener(`scroll`, bodyScrolled, true);
         this._shown = false;
-        this._scrollTop = this._contentScroller.settledScrollTop();
+        this._scrollTop = this._contentScroller.getScrollTop();
 
         this.emit(`close`, this);
         const deferredDeinit = Promise.resolve(this.beforeTransitionOut(this._popupDom, this._rect));
@@ -466,7 +435,7 @@ export default class Popup extends EventEmitter {
         if (!isFinite(y)) return;
         this._scrollTop = y;
         if (this._contentScroller && this._shown) {
-            this._contentScroller.loadScrollTop(this._scrollTop);
+            this._contentScroller.setScrollTop(this._scrollTop);
         }
     }
 

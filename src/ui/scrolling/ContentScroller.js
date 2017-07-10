@@ -1,170 +1,60 @@
 import {noUndefinedGet} from "util";
-import Scroller from "scroller";
-import Scrollbar from "ui/scrolling/Scrollbar";
 import withDeps from "ApplicationDependencies";
 
-export default function ContentScroller(opts, deps) {
-    opts = noUndefinedGet(opts);
-    this._page = deps.page;
+export default class ContentScroller {
+    constructor({target, contentContainer}, {page}) {
+        this._page = page;
+        this._domNode = this._page.$(target).eq(0);
+        this._contentContainer = this._page.$(contentContainer).eq(0);
+        this._rect = this.$contentContainer()[0].getBoundingClientRect();
+        const {left, top} = this._getTopLeft();
+        this._left = left;
+        this._top = top;
+        this.$contentContainer().addEventListener(`scroll`, () => { this._onScroll(); });
+    }
 
-    this._domNode = this._page.$(opts.target).eq(0);
-    this._contentContainer = this._page.$(opts.contentContainer).eq(0);
+    $() {
+        return this._domNode;
+    }
 
-    this._scrollTop = 0;
-    this._frameId = -1;
+    $contentContainer() {
+        return this._contentContainer;
+    }
 
-    this._containerHeight = 0;
-    this._containerPadding = 0;
-    this._top = this._left = 0;
-    this._clearWillChangeTimerId = -1;
-    this._willChangeSet = false;
+    getScrollTop() {
+        return this.$contentContainer()[0].scrollTop | 0;
+    }
 
-    this._renderScroller = this._renderScroller.bind(this);
-    this._renderScrollTop = this._renderScrollTop.bind(this);
-    this._clearWillChange = this._clearWillChange.bind(this);
+    setScrollTop(value) {
+        this.$contentContainer()[0].scrollTop = value | 0;
+    }
 
-    this._scroller = new Scroller(this._renderScroller, opts.scrollerOpts);
-    const {scrollbarOpts} = opts;
-    scrollbarOpts.scrollerInfo = this;
-    this._scrollbar = withDeps({page: this._page}, d => new Scrollbar(scrollbarOpts, d));
-    this._scrollerEventBinding = deps.scrollEvents.createBinding({
-        target: this.$contentContainer(),
-        scroller: this._scroller,
-        scrollbar: this._scrollbar,
-        shouldScroll: opts.shouldScroll
-    });
-    this.refresh();
+    refresh() {
+        this._onScroll(true);
+    }
 
+    scrollToUnsnapped(top, animate) {
+        this.setScrollTop(top);
+        this._onScroll();
+    }
+
+    scrollBy(amount) {
+        if (amount === 0) return;
+        this.setScrollTop(amount + this.getScrollTop());
+        this._onScroll();
+    }
+
+    resize() {
+        const {top, left} = this._getTopLeft();
+        this._top = top + (this.$()[0].clientHeight - this.$contentContainer()[0].clientHeight);
+        this._left = left + (this.$()[0].clientWidth - this.$contentContainer()[0].clientWidth);
+    }
+
+    _getTopLeft() {
+        return this.$()[0].getBoundingClientRect();
+    }
+
+    _onScroll() {
+        // NOOP.
+    }
 }
-
-ContentScroller.prototype.$ = function() {
-    return this._domNode;
-};
-
-ContentScroller.prototype.$contentContainer = function() {
-    return this._contentContainer;
-};
-
-ContentScroller.prototype.getTopLeft = function() {
-    return this.$()[0].getBoundingClientRect();
-};
-
-ContentScroller.prototype.refresh = function() {
-    this._containerHeight = this.$()[0].clientHeight;
-    this._containerPadding = this._containerHeight - this.$().innerHeight();
-};
-
-ContentScroller.prototype.physicalHeight = function() {
-    return this.$contentContainer()[0].clientHeight;
-};
-
-ContentScroller.prototype.contentHeight = function() {
-    return this.$().innerHeight();
-};
-
-ContentScroller.prototype._scheduleRender = function() {
-    if (this._frameId === -1) {
-        this._clearWillChangeTimer();
-        this._setWillChange();
-        this._frameId = this._page.requestAnimationFrame(this._renderScrollTop);
-    }
-};
-
-ContentScroller.prototype._renderScrollTop = function() {
-    this._clearWillChangeTimerId = this._page.setTimeout(this._clearWillChange, 500);
-    this._frameId = -1;
-    const y = -this._scrollTop;
-    this.$contentContainer().setTransform(`translate3d(0px, ${y}px, 0px)`);
-    this._scrollbar.render(this._scrollTop);
-};
-
-
-ContentScroller.prototype._clearWillChangeTimer = function() {
-    this._page.clearTimeout(this._clearWillChangeTimerId);
-    this._clearWillChangeTimerId = -1;
-};
-
-ContentScroller.prototype._clearWillChange = function() {
-    if (!this._willChangeSet) return;
-    this._willChangeSet = false;
-    this.$contentContainer().setStyle(`willChange`, ``);
-};
-
-ContentScroller.prototype._setWillChange = function() {
-    if (this._willChangeSet) return;
-    this._willChangeSet = true;
-    this.$contentContainer().setStyle(`willChange`, `transform`);
-};
-
-ContentScroller.prototype._renderScroller = function(left, top) {
-    if (!this.needScrollbar()) top = 0;
-    this._scrollTop = top;
-    this._scheduleRender();
-};
-
-ContentScroller.prototype.needScrollbar = function() {
-    return this.physicalHeight() > this.contentHeight();
-};
-
-ContentScroller.prototype.scrollToUnsnapped = function(top, animate) {
-    top = Math.max(0, Math.min(this.maxTop(), +top));
-    if (!this.needScrollbar()) top = 0;
-    this._scrollTop = top;
-    this._scroller.scrollTo(null, top, !!animate);
-};
-
-ContentScroller.prototype.maxTop = function() {
-    return this.physicalHeight() - this.contentHeight();
-};
-
-ContentScroller.prototype.scrollBy = function(amount) {
-    if (amount === 0) return;
-    const maxTop = this.maxTop();
-    let top = this.settledScrollTop() + amount;
-    top = Math.max(0, Math.min(Math.round(top), maxTop));
-    this._scrollTop = top;
-    this._scroller.scrollTo(null, top, false);
-};
-
-ContentScroller.prototype.resize = function() {
-    const topLeft = this.getTopLeft();
-    this._left = topLeft.left;
-    this._top = topLeft.top;
-    const width = this.$().innerWidth();
-    const maxTop = this.maxTop();
-    const top = this.needScrollbar() ? Math.min(maxTop, Math.max(0, this._scrollTop)) : 0;
-    this._scrollTop = top;
-    this._scrollbar.resize();
-    this._scroller.setPosition(this._left, this._top);
-    this._scroller.setDimensions(width, this.contentHeight(), width, this.physicalHeight());
-    this._scroller.scrollTo(null, top, false);
-};
-
-ContentScroller.prototype.loadScrollTop = function(top) {
-    this._scrollTop = top;
-    this.resize();
-};
-
-ContentScroller.prototype.settledScrollTop = function() {
-    if (!this.needScrollbar()) return 0;
-    return this._scrollTop | 0;
-};
-
-ContentScroller.prototype.scrollIntoView = function(elem, animate) {
-    const scrollTop = this.settledScrollTop();
-    const height = this.contentHeight();
-    const rect = elem.getBoundingClientRect();
-    const elemStart = rect.top - this._top + scrollTop;
-    const elemEnd = rect.bottom - this._top + scrollTop;
-
-    const visibleStart = scrollTop;
-    const visibleEnd = scrollTop + height;
-
-    if (elemStart >= visibleStart && elemEnd <= visibleEnd) {
-        return;
-    }
-
-    const pos = elemEnd < visibleStart ? elemStart : elemEnd;
-
-    this.scrollToUnsnapped(pos / this.physicalHeight() * this.maxTop(), !!animate);
-};

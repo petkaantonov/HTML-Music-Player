@@ -149,22 +149,8 @@ export default class Search extends WorkerFrontend {
             target: this.$(),
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
-
             minPrerenderedItems: 15,
-            maxPrerenderedItems: 50,
-
-            scrollerOpts: {
-                scrollingX: false,
-                snapping: true,
-                zooming: false,
-                paging: false
-            },
-
-            scrollbarOpts: {
-                target: this.$().find(`.scrollbar-container`),
-                railSelector: `.scrollbar-rail`,
-                knobSelector: `.scrollbar-knob`
-            }
+            maxPrerenderedItems: 50
         });
 
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();

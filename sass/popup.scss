@@ -48,6 +48,11 @@ $popup-container-border: 2px;
     box-sizing: border-box;
     position: relative;
     font-size: 15px;
+    contain: layout;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    will-change: transform;
 }
 
 .popup-body {
@@ -60,11 +65,6 @@ $popup-container-border: 2px;
         max-height: $large-screen-height - $footer-header-size;
         max-width: $large-screen-width - $popup-container-border;
         height: auto;
-    }
-
-    .popup-body-content {
-        @include transform-origin(left top 0px);
-        @include translate3d(0, 0, 0);
     }
 }
 

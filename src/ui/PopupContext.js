@@ -64,12 +64,8 @@ export default class PopupContext {
         this.headerClass = opts.headerClass;
         this.footerClass = opts.footerClass;
         this.bodyClass = opts.bodyClass;
-        this.scrollAreaContainerClass = opts.scrollAreaContainerClass;
         this.bodyContentClass = opts.bodyContentClass;
         this.closerContainerClass = opts.closerContainerClass;
-        this.scrollbarContainerClass = opts.scrollbarContainerClass;
-        this.scrollbarRailClass = opts.scrollbarRailClass;
-        this.scrollbarKnobClass = opts.scrollbarKnobClass;
         this.popupButtonClass = opts.popupButtonClass;
         this.buttonDisabledClass = opts.buttonDisabledClass;
 
@@ -198,21 +194,16 @@ export default class PopupContext {
     }
 
     makePopup(title, body, opener, footerButtons) {
-        const {containerClass, headerClass, footerClass, bodyClass, scrollAreaContainerClass,
-                bodyContentClass, closerContainerClass, scrollbarContainerClass, scrollbarRailClass,
-                scrollbarKnobClass, popupButtonClass, buttonDisabledClass,
+        const {containerClass, headerClass, footerClass, bodyClass,
+                bodyContentClass, closerContainerClass, popupButtonClass, buttonDisabledClass,
                 page, env, globalEvents, recognizerContext, scrollerContext, rippler} = this;
         const popup = withDeps({env, page, globalEvents, recognizerContext, scrollerContext, rippler}, deps => new Popup({
             containerClass,
             headerClass,
             footerClass,
             bodyClass,
-            scrollAreaContainerClass,
             bodyContentClass,
             closerContainerClass,
-            scrollbarContainerClass,
-            scrollbarRailClass,
-            scrollbarKnobClass,
             popupButtonClass,
             buttonDisabledClass,
             zIndex: this.popupZIndex,

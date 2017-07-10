@@ -88,7 +88,7 @@ GestureRecognizerContext.prototype.checkTouchPropagation = function(e) {
         activeElement.blur();
     }
 
-    if (e.type === TOUCH_END) {
+    if (e.type === TOUCH_END && e.cancelable) {
         e.preventDefault();
     }
 };
