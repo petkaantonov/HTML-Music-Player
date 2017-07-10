@@ -256,6 +256,7 @@ VisualizerCanvas.prototype.initialize = async function() {
     this.source = new GraphicsSource(this);
     this.enabled = this.applicationPreferences.preferences().getEnableVisualizer();
     this.setupCanvasContextMenu();
+    this.applyVisibility();
 
     let properRendererLoaded = false;
 

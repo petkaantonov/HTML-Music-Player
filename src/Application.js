@@ -538,8 +538,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         page.$(`#app-loader`).remove();
         this.page.setTimeout(() => {
             mainTabs.tabController.activateTabById(PLAYLIST_TAB_ID);
-            this.globalEvents._triggerSizeChange();
             this.visualizerCanvas.initialize();
+            this.globalEvents._triggerSizeChange();
             console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
             this.page.changeDom(() => {
                 this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
