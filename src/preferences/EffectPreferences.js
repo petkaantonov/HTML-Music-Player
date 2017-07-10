@@ -348,7 +348,6 @@ function EqualizerEffectManager(effectsManager) {
     });
 
     this.$().find(`.equalizer-preset-selector`).addEventListener(`change`, this.equalizerPresetChanged.bind(this));
-    this._slidersUsingWidth = -1;
 }
 
 EqualizerEffectManager.prototype.$ = function() {
@@ -365,14 +364,10 @@ EqualizerEffectManager.prototype.$equalizerSliderContainers = function() {
 
 EqualizerEffectManager.prototype.layoutUpdated = function() {
     const widthAvailable = this.$equalizerSlidersContainer().innerWidth();
-    if (widthAvailable !== this._slidersUsingWidth) {
-        this._slidersUsingWidth = widthAvailable;
-        const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
-                                                                                  : this._equalizerSliders.length / 2;
-        const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
-        this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
-    }
-
+    const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
+                                                                              : this._equalizerSliders.length / 2;
+    const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
+    this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
 };
 
 EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
