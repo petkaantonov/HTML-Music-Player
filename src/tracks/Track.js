@@ -26,8 +26,21 @@ const FORMATS = [
     [/^(audio\/ogg|application\/ogg|audio\/x-ogg|application\/x-ogg)$/, OGG]
 ];
 
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const QUARTER_HOUR_MS = 15 * 60 * 1000;
+
 const transientIdToTrack = Object.create(null);
 let nextTransientId = 10000;
+
+const tracksWithWeightDeadline = new Set();
+
+export function timerTick(now) {
+    for (const track of tracksWithWeightDeadline) {
+        if (now > track._weightDeadline) {
+            track._weightChanged();
+        }
+    }
+}
 
 export default function Track(audioFile) {
     EventEmitter.call(this);
@@ -42,6 +55,7 @@ export default function Track(audioFile) {
     this._isDisplayedAsSearchResult = false;
     this._searchTerm = null;
     this._weight = 3;
+    this._weightDeadline = -1;
 }
 inherits(Track, EventEmitter);
 
@@ -521,9 +535,19 @@ Track.prototype._weightChanged = function() {
     } else {
         const rating = this.isRated() ? this.getRating() : 3;
         let weight = Math.pow(1.5, rating - 1) * 3;
-        const lastHour = Date.now() - 60 * 60 * 1000;
-        if (this.hasBeenPlayedWithin(lastHour)) {
+        const now = Date.now();
+
+        if (this.hasBeenPlayedWithin(now - QUARTER_HOUR_MS)) {
+            weight = 0;
+            this._weightDeadline = this.getLastPlayed() + QUARTER_HOUR_MS;
+            tracksWithWeightDeadline.add(this);
+        } else if (this.hasBeenPlayedWithin(now - ONE_HOUR_MS)) {
             weight /= 9;
+            this._weightDeadline = this.getLastPlayed() + ONE_HOUR_MS;
+            tracksWithWeightDeadline.add(this);
+        } else {
+            this._weightDeadline = -1;
+            tracksWithWeightDeadline.delete(this);
         }
         this._weight = Math.ceil(weight);
     }
@@ -533,6 +557,7 @@ Track.prototype.getWeight = function(currentTrack, nextTrack) {
     if (this === currentTrack || this === nextTrack) {
         return 0;
     }
+
     return this._weight;
 };
 

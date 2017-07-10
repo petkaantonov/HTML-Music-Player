@@ -37,6 +37,7 @@ import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
 import UsageData from "usageData/UsageData";
 import TagDataContext from "tracks/TagData";
+import {timerTick as trackTimerTick} from "tracks/Track";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
 
@@ -547,7 +548,19 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
             });
         }, 10);
     });
+
+    this.tickLongTimers = this.tickLongTimers.bind(this);
+    this.tickLongTimers();
 }
+
+Application.prototype.tickLongTimers = function() {
+    try {
+        const now = Date.now();
+        trackTimerTick(now);
+    } finally {
+        this.page.setTimeout(this.tickLongTimers, 60 * 1000);
+    }
+};
 
 Application.prototype.selectStarted = function(e) {
     if (!isTextInputElement(e.target)) {

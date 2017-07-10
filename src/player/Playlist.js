@@ -73,7 +73,10 @@ const Modes = {
             }
             target -= weight;
         }
-        return nextTrack || currentTrack || null;
+
+        target = (Math.random() * trackViews.length) | 0;
+        const view = trackViews[target];
+        return (view && view.track()) || nextTrack || currentTrack || null;
     },
 
     repeat(currentTrack) {
