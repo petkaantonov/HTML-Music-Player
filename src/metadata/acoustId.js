@@ -1,6 +1,4 @@
-import {XMLHttpRequest} from "platform/platform";
-import AcoustIdApiError, {ERROR_TIMEOUT, ERROR_INVALID_RESPONSE_SYNTAX} from "audio/AcoustIdApiError";
-import {queryString} from "util";
+import AcoustIdApiError, {ERROR_INVALID_RESPONSE_SYNTAX} from "metadata/AcoustIdApiError";
 
 const groupTypeValue = {
     single: 0,
@@ -9,8 +7,6 @@ const groupTypeValue = {
 
 const getBestRecordingGroup = function(recordings) {
     const groups = [];
-
-
 
     for (let i = 0; i < recordings.length; ++i) {
         const recording = recordings[i];
@@ -107,7 +103,7 @@ const formatArtist = function(artists) {
     }
 };
 
-const parseAcoustId = function(data) {
+export default function parseAcoustId(data) {
     if (!data) {
         throw new AcoustIdApiError(`syntax error`, ERROR_INVALID_RESPONSE_SYNTAX);
     }
@@ -153,108 +149,4 @@ const parseAcoustId = function(data) {
         album,
         artist
     };
-};
-
-function ajaxGet(url) {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.timeout = 5000;
-
-        function error() {
-            reject(new AcoustIdApiError(`request timed out`, ERROR_TIMEOUT));
-        }
-
-        xhr.addEventListener(`load`, () => {
-            try {
-              const result = JSON.parse(xhr.responseText);
-              resolve(result);
-            } catch (e) {
-              reject(e);
-            }
-        }, false);
-
-        xhr.addEventListener(`abort`, error);
-        xhr.addEventListener(`timeout`, error);
-        xhr.addEventListener(`error`, () => {
-            reject(new AcoustIdApiError(`Response status: ${xhr.status}`, ERROR_INVALID_RESPONSE_SYNTAX));
-        });
-
-        xhr.open(`GET`, url);
-        xhr.send(null);
-    });
 }
-
-export const fetchAcoustId = async function(db, uid, fingerprint, duration) {
-    const data = queryString({
-        client: `djbbrJFK`,
-        format: `json`,
-        duration: duration | 0,
-        meta: `recordings+releasegroups+compress`,
-        fingerprint
-    });
-
-    let result;
-    let retries = 0;
-    while (retries < 5) {
-        try {
-            const response = await ajaxGet(`https://api.acoustId.org/v2/lookup?${data}`);
-            result = parseAcoustId(response);
-            break;
-        } catch (e) {
-            if (!e.isRetryable()) {
-                throw e;
-            }
-            retries++;
-        }
-    }
-    db.updateAcoustId(uid, result);
-    return result;
-};
-
-const imageFetchQueue = [];
-let currentImageFetch = false;
-
-const actualFetchImage = async function(db, acoustId, albumKey) {
-    const image = await db.getAlbumImage(albumKey);
-    if (image) return image;
-
-    if (acoustId && acoustId.album) {
-        const {type, mbid} = acoustId.album;
-        const url = `https://coverartarchive.org/${type}/${mbid}/front-250`;
-        const ret = {url};
-        db.setAlbumImage(albumKey, url);
-        return ret;
-    } else {
-        return null;
-    }
-};
-
-const next = function() {
-    if (imageFetchQueue.length > 0) {
-        const {db, acoustId, albumKey, resolve} = imageFetchQueue.shift();
-        resolve(actualFetchImage(db, acoustId, albumKey));
-    } else {
-        currentImageFetch = false;
-    }
-};
-export const fetchAcoustIdImage = function(db, acoustId, albumKey) {
-    return (async () => {
-        try {
-            await new Promise((resolve) => {
-                if (!currentImageFetch) {
-                    currentImageFetch = true;
-                    resolve(actualFetchImage(db, acoustId, albumKey));
-                } else {
-                    imageFetchQueue.push({
-                        acoustId,
-                        albumKey,
-                        resolve,
-                        db
-                    });
-                }
-            });
-        } finally {
-            next();
-        }
-    })();
-};

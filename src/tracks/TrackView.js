@@ -118,8 +118,8 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
     }
 
     this.viewUpdateTagDataChange();
-    //this.viewUpdateOfflineStatusChange();
-    //this.viewUpdateSyncStatusChange();
+    // This.viewUpdateOfflineStatusChange();
+    // This.viewUpdateSyncStatusChange();
     this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
     let unclickableTrackStatus = false;

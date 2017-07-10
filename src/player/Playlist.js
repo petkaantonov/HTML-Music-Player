@@ -64,7 +64,6 @@ const Modes = {
         }
 
         let target = (Math.random() * maxWeight) | 0;
-        const originalTarget = target;
         for (let i = 0; i < trackViews.length; ++i) {
             const track = trackViews[i].track();
             const weight = track.getWeight(currentTrack, nextTrack);

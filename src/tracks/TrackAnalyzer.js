@@ -252,7 +252,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
             } catch (e) {
                 if (!(e instanceof TrackWasRemovedError)) {
                     let trackError;
-                    if (e.name === "TrackAnalysisError") {
+                    if (e.name === `TrackAnalysisError`) {
                         trackError = DECODE_ERROR;
                     } else if (e.name === `NotFoundError` || e.name === `NotReadableError`) {
                         trackError = FILESYSTEM_ACCESS_ERROR;

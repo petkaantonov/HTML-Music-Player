@@ -358,7 +358,7 @@ TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
             this.title = formatTagString(acoustId.title.name);
             searchTermsUpdated = true;
         }
-        if (acoustId.album && acoustId.album.name &&!this.taggedAlbum) {
+        if (acoustId.album && acoustId.album.name && !this.taggedAlbum) {
             this.album = formatTagString(acoustId.album.name);
             searchTermsUpdated = true;
         }

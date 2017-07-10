@@ -1,7 +1,6 @@
 import AbstractBackend from "AbstractBackend";
 import MetadataParser from "audio/MetadataParser";
 import TrackAnalysisJob from "tracks/TrackAnalysisJob";
-import {fetchAcoustId, fetchAcoustIdImage} from "audio/AcoustId";
 import TagDatabase from "tracks/TagDatabase";
 import {CancellationError} from "utils/CancellationToken";
 
@@ -55,11 +54,13 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
             },
 
             fetchAcoustId({id, uid, fingerprint, duration}) {
-                this.promiseMessageSuccessErrorHandler(id, fetchAcoustId(this.db, uid, fingerprint, duration), `acoustId`);
+                const promise = this.metadataParser.fetchAcoustId(uid, fingerprint, duration);
+                this.promiseMessageSuccessErrorHandler(id, promise, `acoustId`);
             },
 
             fetchAcoustIdImage({id, albumKey, acoustId}) {
-                this.promiseMessageSuccessErrorHandler(id, fetchAcoustIdImage(this.db, acoustId, albumKey), `acoustIdImage`);
+                const promise = this.metadataParser.fetchAcoustIdImage(acoustId, albumKey);
+                this.promiseMessageSuccessErrorHandler(id, promise, `acoustIdImage`);
             }
         };
     }

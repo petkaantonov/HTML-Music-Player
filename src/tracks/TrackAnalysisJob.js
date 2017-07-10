@@ -15,7 +15,7 @@ const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
 export class TrackAnalysisError extends Error {
     constructor(msg) {
         super(msg);
-        this.name = "TrackAnalysisError";
+        this.name = `TrackAnalysisError`;
     }
 }
 
