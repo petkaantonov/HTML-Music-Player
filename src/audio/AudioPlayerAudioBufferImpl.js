@@ -154,15 +154,15 @@ AudioPlayer.prototype._audioContextChanged = async function() {
 
     this._previousAudioContextTime = _audioContext.currentTime;
 
-    // TODO: Check -1 return vfalue from bufferFrameCountForSampleRate
     if (this._setAudioOutputParameters({channelCount, sampleRate})) {
-
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
-        this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT * channelCount * 2;
-        this._maxArrayBuffers = this._maxAudioBuffers * 2;
         this._audioBufferTime = this._bufferFrameCount / sampleRate;
-        this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
         this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
+        this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT * channelCount;
+        this._maxArrayBuffers = (this._maxAudioBuffers * channelCount * (channelCount + 1)) +
+            (SUSTAINED_BUFFER_COUNT + this._playedAudioBuffersNeededForVisualization) * (channelCount + 1);
+        this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
+
         this._silentBuffer = _audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
         await this._updateBackendConfig({channelCount, sampleRate, bufferTime: this._audioBufferTime});
         this._resetPools();
@@ -187,7 +187,7 @@ AudioPlayer.prototype._setAudioOutputParameters = function({sampleRate, channelC
         changed = true;
     }
     this._scheduleAheadTime = Math.max(this._scheduleAheadTime,
-                                       roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 8, sampleRate) / sampleRate);
+                                       roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 12, sampleRate) / sampleRate);
     return changed;
 };
 
@@ -507,12 +507,6 @@ AudioPlayerSourceNode.prototype.page = function() {
     return this._player.page;
 };
 
-AudioPlayerSourceNode.prototype._destroySourceDescriptors = function(descriptors) {
-    for (let i = 0; i < descriptors.length; ++i) {
-        this._destroySourceDescriptor(descriptors[i]);
-    }
-};
-
 AudioPlayerSourceNode.prototype.destroy = function() {
     if (this._destroyed) return;
     this.removeAllListeners();
@@ -607,13 +601,23 @@ AudioPlayerSourceNode.prototype._ended = function() {
     this.emit(`timeUpdate`, this._currentTime, this._duration);
 };
 
-AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor) {
+AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor, stopTime = -1) {
     if (sourceDescriptor.buffer === null) return;
-    if (sourceDescriptor.source) {
-        sourceDescriptor.source.descriptor = null;
-        sourceDescriptor.source.onended = null;
+    const src = sourceDescriptor.source;
+    if (src) {
+        src.descriptor = null;
+        src.onended = null;
+
+        if (stopTime !== -1) {
+            try {
+                src.stop(stopTime);
+            } catch (e) {
+                // NOOP
+            }
+        }
+
         try {
-            sourceDescriptor.source.disconnect();
+            src.disconnect();
         } catch (e) {
             // NOOP
         }
@@ -638,8 +642,18 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
 
         const {length} = this._bufferQueue;
         let sourceDescriptor = null;
-        if (length > 0) {
+        if (length > 0 && this._bufferQueue[0] === descriptor) {
             sourceDescriptor = this._bufferQueue.shift();
+        } else {
+            for (let i = 0; i < this._playedBufferQueue.length; ++i) {
+                if (this._playedBufferQueue[i] === descriptor) {
+                    for (let j = i; j < this._playedBufferQueue.length; ++j) {
+                        this._destroySourceDescriptor(this._playedBufferQueue[j]);
+                    }
+                    this._playedBufferQueue.length = i;
+                    return;
+                }
+            }
         }
 
         if (!sourceDescriptor) {
@@ -674,7 +688,7 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
         source.onended = null;
         sourceDescriptor.source = null;
         this._playedBufferQueue.push(sourceDescriptor);
-        if (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
+        while (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
             this._destroySourceDescriptor(this._playedBufferQueue.shift());
         }
 
@@ -734,13 +748,23 @@ AudioPlayerSourceNode.prototype._startSources = function(when) {
     }
 };
 
-AudioPlayerSourceNode.prototype._stopSources = function(when = this._player.getCurrentTime()) {
+AudioPlayerSourceNode.prototype._stopSources = function(when = this._player.getCurrentTime(),
+                                                        destroyDescriptorsThatWillNeverPlay = false) {
     if (this._destroyed) return;
     this._player.playbackStopped();
 
     this._sourceStopped = true;
+
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         const sourceDescriptor = this._bufferQueue[i];
+        if (destroyDescriptorsThatWillNeverPlay && (sourceDescriptor.started === -1 ||
+            sourceDescriptor.started > when)) {
+            for (let j = i; j < this._bufferQueue.length; ++j) {
+                this._destroySourceDescriptor(this._bufferQueue[j], when);
+            }
+            this._bufferQueue.length = i;
+            return;
+        }
         const src = sourceDescriptor.source;
         if (!src) continue;
         if (when >= sourceDescriptor.started &&
@@ -960,12 +984,9 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         const now = performance.now();
         if (currentSourcesShouldBeStopped) {
             scheduledStartTime = this.getCurrentTimeScheduledAhead();
-            this._stopSources(scheduledStartTime);
-            const sourceDescriptorsToDestroy = this._bufferQueue.slice();
+            this._stopSources(scheduledStartTime, true);
+            this._playedBufferQueue.push(...this._bufferQueue);
             this._bufferQueue.length = 0;
-            this.page().setTimeout(() => {
-                this._destroySourceDescriptors(sourceDescriptorsToDestroy);
-            }, (this._player.getScheduleAheadTime() * 2 * 1000) | 0);
             this._bufferQueue.push(sourceDescriptor);
             this._startSource(sourceDescriptor, scheduledStartTime);
         } else if (this._sourceStopped) {
