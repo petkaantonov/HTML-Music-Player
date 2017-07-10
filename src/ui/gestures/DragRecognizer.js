@@ -1,14 +1,8 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_EVENTS, TOUCH_START, TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL} from "ui/gestures/GestureRecognizerContext";
 
 export default function DragRecognizer(recognizerContext, moveHandler, endHandler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -17,7 +11,7 @@ export default function DragRecognizer(recognizerContext, moveHandler, endHandle
     this.actives = new ActiveTouchList();
     this.currentTouch = null;
     this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 }
 inherits(DragRecognizer, AbstractGestureRecognizer);
 

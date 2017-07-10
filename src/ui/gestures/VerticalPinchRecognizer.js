@@ -1,13 +1,7 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_START, TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL, TAP_TIME, TOUCH_EVENTS} from "ui/gestures/GestureRecognizerContext";
 
 export default function VerticalPinchRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -18,7 +12,7 @@ export default function VerticalPinchRecognizer(recognizerContext, handler) {
     this.currentBTouch = null;
     this.aChanged = false;
     this.bChanged = false;
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
     this._recognizerHandler = this._recognizerHandler.bind(this);
 }
 inherits(VerticalPinchRecognizer, AbstractGestureRecognizer);
@@ -79,7 +73,7 @@ VerticalPinchRecognizer.prototype._recognizerHandler = function(e) {
 
         if ((this.aChanged || this.bChanged) &&
             this.started !== -1 &&
-            ((e.timeStamp || e.originalEvent.timeStamp) - this.started) > (this.recognizerContext.TAP_TIME * 2)) {
+            ((e.timeStamp || e.originalEvent.timeStamp) - this.started) > (TAP_TIME * 2)) {
             this.aChanged = this.bChanged = false;
             let start, end;
 

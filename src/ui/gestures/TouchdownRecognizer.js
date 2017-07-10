@@ -1,18 +1,15 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
+import {TOUCH_START, TOUCH_EVENTS_NO_MOVE} from "ui/gestures/GestureRecognizerContext";
 
 export default function TouchdownRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
     this.handler = handler;
     this.actives = new ActiveTouchList();
     this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerContext.TOUCH_EVENTS_NO_MOVE;
+    this._eventType = TOUCH_EVENTS_NO_MOVE;
 }
 inherits(TouchdownRecognizer, AbstractGestureRecognizer);
 

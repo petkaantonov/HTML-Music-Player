@@ -1,13 +1,7 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import GestureObject from "ui/gestures/GestureObject";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_EVENTS, TAP_TIME, TOUCH_START, TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL} from "ui/gestures/GestureRecognizerContext";
 
 export default function ModifierTapRecognizer(recognizerContext, handler) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -15,7 +9,7 @@ export default function ModifierTapRecognizer(recognizerContext, handler) {
     this.currentTouch = null;
     this.started = -1;
     this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 }
 inherits(ModifierTapRecognizer, AbstractGestureRecognizer);
 
@@ -68,7 +62,7 @@ ModifierTapRecognizer.prototype._recognizerHandler = function(e) {
         const xDelta = Math.abs(touch.clientX - this.currentTouch.clientX);
         const elapsed = (e.timeStamp || e.originalEvent.timeStamp) - this.started;
 
-        if (elapsed > 20 && elapsed < this.recognizerContext.TAP_TIME && xDelta <= 25 && yDelta <= 25) {
+        if (elapsed > 20 && elapsed < TAP_TIME && xDelta <= 25 && yDelta <= 25) {
             if (this.hasSettledModifierTouch(e.timeStamp)) {
                 const g = new GestureObject(e, touch);
                 this.handler.call(e.currentTarget, g);

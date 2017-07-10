@@ -1,8 +1,4 @@
-
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_START, TOUCH_END, TOUCH_CANCEL} from "ui/gestures/GestureRecognizerContext";
 
 export default function ActiveTouchList() {
     this.activeTouches = [];

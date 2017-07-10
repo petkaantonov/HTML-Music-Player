@@ -1,14 +1,8 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_START, TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_EVENTS} from "ui/gestures/GestureRecognizerContext";
 
 const VERTICAL = 1;
 const HORIZONTAL = -1;
@@ -23,7 +17,7 @@ export default function AbstractDimensionCommittedDragRecognizer(recognizerConte
     this.currentTouch = null;
     this.committed = UNCOMMITTED;
     this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 }
 inherits(AbstractDimensionCommittedDragRecognizer, AbstractGestureRecognizer);
 

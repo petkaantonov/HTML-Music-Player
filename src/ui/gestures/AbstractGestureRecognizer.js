@@ -1,5 +1,5 @@
 import {DomWrapper} from "platform/dom/Page";
-import {PASSIVE_TOUCH_EVENTS} from "ui/gestures/GestureRecognizerContext";
+import {PASSIVE_TOUCH_EVENTS, TAP_TIME} from "ui/gestures/GestureRecognizerContext";
 
 export default function AbstractGestureRecognizer(recognizerContext) {
     this.recognizerContext = recognizerContext;
@@ -19,7 +19,7 @@ AbstractGestureRecognizer.prototype.fireLongPressEnd = function(t) {
 
 AbstractGestureRecognizer.prototype.hasSettledModifierTouch = function(now) {
     const {modifierTouch} = this.recognizerContext;
-    return !!(modifierTouch && (now - modifierTouch.started > this.recognizerContext.TAP_TIME * 0.5));
+    return !!(modifierTouch && (now - modifierTouch.started > TAP_TIME * 0.5));
 };
 
 AbstractGestureRecognizer.prototype.hasModifierTouch = function() {

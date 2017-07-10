@@ -46,12 +46,12 @@ export default function GestureRecognizerContext(deps) {
 
     if (this.isTouchSupported()) {
         this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, , {capture: true, passive: true};
+        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, {capture: true, passive: true});
         this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, {capture: true, passive: true});
         this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, {capture: true, passive: true});
         this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, , {capture: true, passive: false});
-        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, , {capture: true, passive: true});
+        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, {capture: true, passive: false});
+        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, {capture: true, passive: true});
         this.page.addDocumentListener(`gesturestart`, preventDefaultHandler);
         this.page.addDocumentListener(`gesturechange`, preventDefaultHandler);
         this.page.addDocumentListener(`gestureend`, preventDefaultHandler);

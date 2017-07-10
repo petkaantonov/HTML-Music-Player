@@ -4,11 +4,7 @@ import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import GestureObject from "ui/gestures/GestureObject";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_EVENTS, LONG_TAP_TIME, TOUCH_START, TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL} from "ui/gestures/GestureRecognizerContext";
 
 export default function LongTapRecognizer(recognizerContext, handler, noTrigger) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -18,7 +14,7 @@ export default function LongTapRecognizer(recognizerContext, handler, noTrigger)
     this.currentTouch = null;
     this.event = null;
     this.timeoutId = -1;
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 
     this._longTapTimedOut = this._longTapTimedOut.bind(this);
     this.clear = this.clear.bind(this);
@@ -46,7 +42,7 @@ LongTapRecognizer.prototype._recognizerHandler = function(e) {
             this.event = e;
             const timeout = this.recognizerContext.createSingleTapTimeout(this._longTapTimedOut,
                                                                       this.clear,
-                                                                      this.recognizerContext.LONG_TAP_TIME);
+                                                                      LONG_TAP_TIME);
             this.timeoutId = timeout.id;
             if (!this.noTrigger) {
                 this.fireLongPressStart(this.currentTouch);

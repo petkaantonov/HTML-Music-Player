@@ -1,5 +1,3 @@
-
-
 import AbstractDimensionCommittedDragRecognizer from "ui/gestures/AbstractDimensionCommittedDragRecognizer";
 import {inherits} from "util";
 

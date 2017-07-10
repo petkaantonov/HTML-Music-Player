@@ -1,5 +1,3 @@
-
-
 export default function GestureObject(e, touch, isFirst) {
     this.clientX = touch.clientX;
     this.clientY = touch.clientY;

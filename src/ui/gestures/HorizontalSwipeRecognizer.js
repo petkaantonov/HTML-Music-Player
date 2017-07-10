@@ -1,8 +1,7 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import DragRecognizer from "ui/gestures/DragRecognizer";
+import {TOUCH_EVENTS, SWIPE_LENGTH, SWIPE_VELOCITY} from "ui/gestures/GestureRecognizerContext";
 import {inherits} from "util";
 
 export default function HorizontalSwipeRecognizer(recognizerContext, handler, direction) {
@@ -18,7 +17,7 @@ export default function HorizontalSwipeRecognizer(recognizerContext, handler, di
                                              this._dragMoveHandler.bind(this),
                                              this._dragEndHandler.bind(this));
     this._recognizerHandler = this.dragRecognizer._recognizerHandler;
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 }
 inherits(HorizontalSwipeRecognizer, AbstractGestureRecognizer);
 
@@ -41,11 +40,11 @@ HorizontalSwipeRecognizer.prototype._dragEndHandler = function(e) {
     if (this.startX !== -1 && this.elapsedTotal > 10) {
         const diff = e.clientX - this.startX;
         const absDiff = Math.abs(diff);
-        const minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
+        const minSwipeLength = SWIPE_LENGTH;
         const velocity = (absDiff / this.elapsedTotal * 1000) | 0;
 
         if (absDiff > minSwipeLength &&
-            velocity > this.recognizerContext.SWIPE_VELOCITY &&
+            velocity > SWIPE_VELOCITY &&
             (diff < 0 && this.direction < 0 ||
             diff > 0 && this.direction > 0)) {
             this.handler.call(e.currentTarget, e);

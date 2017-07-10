@@ -1,13 +1,8 @@
-
-
 import AbstractGestureRecognizer from "ui/gestures/AbstractGestureRecognizer";
 import ActiveTouchList from "ui/gestures/ActiveTouchList";
 import {inherits} from "util";
-
-const TOUCH_START = `touchstart`;
-const TOUCH_END = `touchend`;
-const TOUCH_MOVE = `touchmove`;
-const TOUCH_CANCEL = `touchcancel`;
+import {TOUCH_EVENTS, SWIPE_LENGTH, SWIPE_VELOCITY, TOUCH_START,
+        TOUCH_END, TOUCH_MOVE, TOUCH_CANCEL} from "ui/gestures/GestureRecognizerContext";
 
 export default function HorizontalTwoFingerSwipeRecognizer(recognizerContext, handler, direction) {
     AbstractGestureRecognizer.call(this, recognizerContext);
@@ -24,7 +19,7 @@ export default function HorizontalTwoFingerSwipeRecognizer(recognizerContext, ha
     this.lastBY = -1;
     this.startTime = -1;
     this._recognizerHandler = this._recognizerHandler.bind(this);
-    this._eventType = recognizerContext.TOUCH_EVENTS;
+    this._eventType = TOUCH_EVENTS;
 }
 inherits(HorizontalTwoFingerSwipeRecognizer, AbstractGestureRecognizer);
 
@@ -109,8 +104,8 @@ HorizontalTwoFingerSwipeRecognizer.prototype.checkCompletion = function(elapsedT
         const aVelocity = (aAbsDiff / elapsedTotal * 1000) | 0;
         const bVelocity = (bAbsDiff / elapsedTotal * 1000) | 0;
         const {direction} = this;
-        const minSwipeLength = this.recognizerContext.SWIPE_LENGTH;
-        const minSwipeVelocity = this.recognizerContext.SWIPE_VELOCITY;
+        const minSwipeLength = SWIPE_LENGTH;
+        const minSwipeVelocity = SWIPE_VELOCITY;
 
         if (aAbsDiff > minSwipeLength &&
             bAbsDiff > minSwipeLength &&
