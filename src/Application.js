@@ -22,7 +22,6 @@ import TooltipContext from "ui/TooltipContext";
 import TrackAnalyzer from "tracks/TrackAnalyzer";
 import GestureEducator from "player/GestureEducator";
 import GestureRecognizerContext from "ui/gestures/GestureRecognizerContext";
-import ScrollEvents from "ui/scrolling/ScrollEvents";
 import SliderContext from "ui/SliderContext";
 import MenuContext from "ui/MenuContext";
 import ScrollerContext from "ui/scrolling/ScrollerContext";
@@ -91,11 +90,6 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         fillSelector: `.slider-fill`
     }, d));
 
-    const scrollEvents = this.scrollEvents = withDeps({
-        page,
-        recognizerContext
-    }, d => new ScrollEvents(d));
-
     const gestureScreenFlasher = this.gestureScreenFlasher = withDeps({
         page
     }, d => new GestureScreenFlasher(d));
@@ -146,8 +140,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     }, d => new FileInputContext(d));
 
     const scrollerContext = this.scrollerContext = withDeps({
-        page,
-        scrollEvents
+        page
     }, d => new ScrollerContext({
         itemHeight: ITEM_HEIGHT
     }, d));

@@ -153,23 +153,8 @@ export default class Playlist extends EventEmitter {
             target: this.$(),
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
-
             minPrerenderedItems: 6,
-            maxPrerenderedItems: 12,
-
-            shouldScroll: () => !this._draggable.isDragging(),
-
-            scrollerOpts: {
-                scrollingX: false,
-                snapping: true,
-                zooming: false,
-                paging: false
-            },
-            scrollbarOpts: {
-                target: this.$().find(`.scrollbar-container`),
-                railSelector: `.scrollbar-rail`,
-                knobSelector: `.scrollbar-knob`
-            }
+            maxPrerenderedItems: 12
         });
 
         this._draggable = withDeps({
@@ -248,11 +233,6 @@ export default class Playlist extends EventEmitter {
 
     _listContentsChanged() {
         this._fixedItemListScroller.resize();
-        if (this._fixedItemListScroller.needScrollbar()) {
-            this.$().addClass(`has-scrollbar`);
-        } else {
-            this.$().removeClass(`has-scrollbar`);
-        }
     }
 
     tabWillHide() {

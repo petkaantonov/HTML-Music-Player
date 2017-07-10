@@ -7,11 +7,6 @@
         box-sizing: border-box;
     }
 
-    .scrollbar-container {
-        @include calc(height, "100% - #{$track-item-height}");
-        top: $track-item-height;
-    }
-
     background: #fafafa;
 
     .search-panel-container {

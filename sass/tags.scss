@@ -11,12 +11,19 @@ html, body {
     overflow: hidden;
 }
 
-html,
-body,
-.module-container,
-.tracks-list-container,
 .tracklist-transform-container {
     touch-action: pan-y;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    contain: layout;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    will-change: transform;
+    box-sizing: border-box;
 }
 
 body {

@@ -52,14 +52,17 @@
 }
 
 .tracklist-transform-container {
-    @include transform-origin(left top 0px);
-    @include translate3d(0, 0, 0);
     position: absolute;
     top: 0px;
     left: 0px;
     width: 100%;
     height: 100%;
-    contain: layout size style;
+    contain: layout;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    will-change: transform;
+    box-sizing: border-box;
 
     &.tracks-dragging {
         .track-container {

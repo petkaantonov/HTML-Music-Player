@@ -41,7 +41,7 @@ AbstractGestureRecognizer.prototype._recognizeOn = function(elem, useCapture) {
     const eventTypes = this._eventType;
     for (let i = 0; i < eventTypes.length; ++i) {
         const type = eventTypes[i];
-        elem.addEventListener(eventTypes[i], this._recognizerHandler, {
+        elem.addEventListener(type, this._recognizerHandler, {
             passive: PASSIVE_TOUCH_EVENTS[type] === type,
             capture: !!useCapture
         });
@@ -56,7 +56,7 @@ AbstractGestureRecognizer.prototype._unrecognizeOn = function(elem, useCapture) 
 
     for (let i = 0; i < eventTypes.length; ++i) {
         const type = eventTypes[i];
-        elem.removeEventListener(eventTypes[i], this._recognizerHandler, {
+        elem.removeEventListener(type, this._recognizerHandler, {
             passive: PASSIVE_TOUCH_EVENTS[type] === type,
             capture: !!useCapture
         });
