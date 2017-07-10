@@ -1,6 +1,11 @@
 #ifndef RESAMPLER_H
 #define RESAMPLER_H
 
+#define OUTSIDE_SPEEX 1
+#define RANDOM_PREFIX speex
+#define FIXED_POINT 1
+#define RESAMPLE_FULL_SINC_TABLE 1
+
 #include <resampler/resample.c>
 
 EXPORT const char* resampler_get_error(void);

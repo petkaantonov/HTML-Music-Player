@@ -95,9 +95,6 @@ FILE* stderr = (FILE*)2;
 #define FOOTERS 1
 #endif
 
-#define OUTSIDE_SPEEX 1
-#define RANDOM_PREFIX speex
-#define FIXED_POINT 1
 #define EXPORT extern __attribute__((visibility("default")))
 #define DLMALLOC_EXPORT EXPORT
 
