@@ -197,14 +197,14 @@ AudioPlayer.prototype.getScheduleAheadTime = function() {
 
 AudioPlayer.prototype.recordSchedulingTime = function(elapsedMs) {
     const seconds = elapsedMs / 1000;
-    if (seconds * SCHEDULE_AHEAD_RATIO > this._scheduleAheadTime) {
+    const scheduleAheadTime = this._scheduleAheadTime;
+    if (seconds * SCHEDULE_AHEAD_RATIO > scheduleAheadTime) {
         const sampleRate = this._outputSampleRate;
         let minScheduleAheadSamples = seconds * (1 / SCHEDULE_AHEAD_RATIO) * sampleRate;
         minScheduleAheadSamples = Math.ceil(minScheduleAheadSamples / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE;
-        minScheduleAheadSamples = roundSampleTime(minScheduleAheadSamples, sampleRate) / sampleRate;
-        this._scheduleAheadTime = minScheduleAheadSamples;
+        this._scheduleAheadTime = roundSampleTime(minScheduleAheadSamples, sampleRate) / sampleRate;
+        console.warn(`increased _scheduleAheadTime from ${scheduleAheadTime} to ${this._scheduleAheadTime} because operation took ${elapsedMs.toFixed(0)} ms`);
     }
-
 };
 
 AudioPlayer.prototype._touchended = async function() {
@@ -959,16 +959,15 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         let scheduledStartTime;
         const now = performance.now();
         if (currentSourcesShouldBeStopped) {
-            this._bufferQueue.push(sourceDescriptor);
             scheduledStartTime = this.getCurrentTimeScheduledAhead();
             this._stopSources(scheduledStartTime);
             const sourceDescriptorsToDestroy = this._bufferQueue.slice();
-            this._bufferQueue.splice(0, this._bufferQueue.length);
+            this._bufferQueue.length = 0;
             this.page().setTimeout(() => {
                 this._destroySourceDescriptors(sourceDescriptorsToDestroy);
             }, (this._player.getScheduleAheadTime() * 2 * 1000) | 0);
+            this._bufferQueue.push(sourceDescriptor);
             this._startSource(sourceDescriptor, scheduledStartTime);
-
         } else if (this._sourceStopped) {
             this._bufferQueue.push(sourceDescriptor);
             scheduledStartTime = this.getCurrentTimeScheduledAhead();
@@ -990,7 +989,6 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         if (isLastBuffer && !this._lastBufferLoadedEmitted) {
             this._lastBufferLoadedEmitted = true;
             this.emit(`lastBufferQueued`);
-
         }
     } finally {
         this._freeTransferList(transferList);
