@@ -58,10 +58,6 @@ function TagData(track, data, context) {
     this.albumIndex = data.albumIndex || -1;
     this.trackCount = data.trackCount || -1;
 
-    this.trackGain = 0;
-    this.albumGain = 0;
-    this.trackPeak = 1;
-    this.albumPeak = 1;
     this.rating = -1;
     this.acoustId = null;
 
@@ -75,9 +71,6 @@ function TagData(track, data, context) {
     this._coverArtImageState = INITIAL;
 
     this._hasBeenAnalyzed = false;
-
-    this.beginSilenceLength = 0;
-    this.endSilenceLength = 0;
 
     this._context = context;
     this._stateId = 1;
@@ -108,7 +101,7 @@ TagData.prototype.formatTime = function() {
         this._formattedTime = ``;
         return ``;
     }
-    const duration = Math.max(0, this.basicInfo.duration - this.getTotalSilenceLength());
+    const duration = Math.max(0, this.basicInfo.duration);
     return (this._formattedTime = toTimeString(duration));
 };
 
@@ -338,14 +331,6 @@ TagData.prototype.getAlbumIndexForSort = function() {
     return this.albumIndex;
 };
 
-TagData.prototype.getTotalSilenceLength = function() {
-    return this.beginSilenceLength + this.endSilenceLength;
-};
-
-TagData.prototype.getBeginSilenceLength = function() {
-    return this.beginSilenceLength;
-};
-
 TagData.prototype.updateFieldsFromAcoustId = function(acoustId) {
     if (acoustId) {
         let searchTermsUpdated = false;
@@ -423,24 +408,6 @@ TagData.prototype.triggerPlaythrough = function() {
     this._context.usageData.setPlaythroughCounter(this.track, this.playthroughCounter);
 };
 
-TagData.prototype.setLoudness = function(data, noUpdate = false) {
-    this.trackGain = data.trackGain;
-    this.trackPeak = data.trackPeak || 1;
-    this.albumGain = data.albumGain;
-    this.albumPeak = data.albumPeak || 1;
-    this.beginSilenceLength = data.silence && data.silence.beginSilenceLength ||
-                              this.beginSilenceLength ||
-                              0;
-    this.endSilenceLength = data.silence && data.silence.endSilenceLength ||
-                            this.endSilenceLength ||
-                            0;
-    if (this.endSilenceLength < 1) this.endSilenceLength = 0;
-
-    if (!noUpdate) {
-        this.track.tagDataUpdated();
-    }
-};
-
 TagData.prototype.setDataFromTagDatabase = function(data) {
     this._stateUpdate();
     this._hasBeenAnalyzed = true;
@@ -454,9 +421,6 @@ TagData.prototype.setDataFromTagDatabase = function(data) {
     this._formattedTime = null;
     this.basicInfo.duration = data.duration || this.duration || NaN;
     this.rating = data.rating === undefined ? -1 : data.rating;
-    if (data.loudness) {
-        this.setLoudness(data.loudness, true);
-    }
     this.track.tagDataUpdated();
 };
 

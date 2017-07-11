@@ -1,6 +1,3 @@
-import {noUndefinedGet} from "util";
-import withDeps from "ApplicationDependencies";
-
 export default class ContentScroller {
     constructor({target, contentContainer}, {page}) {
         this._page = page;
@@ -10,7 +7,9 @@ export default class ContentScroller {
         const {left, top} = this._getTopLeft();
         this._left = left;
         this._top = top;
-        this.$contentContainer().addEventListener(`scroll`, () => { this._onScroll(); });
+        this.$contentContainer().addEventListener(`scroll`, () => {
+            this._onScroll();
+        });
     }
 
     $() {
@@ -33,7 +32,7 @@ export default class ContentScroller {
         this._onScroll(true);
     }
 
-    scrollToUnsnapped(top, animate) {
+    scrollToUnsnapped(top) {
         this.setScrollTop(top);
         this._onScroll();
     }
@@ -54,7 +53,9 @@ export default class ContentScroller {
         return this.$()[0].getBoundingClientRect();
     }
 
+    /* eslint-disable class-methods-use-this */
     _onScroll() {
         // NOOP.
     }
+    /* eslint-enable class-methods-use-this */
 }

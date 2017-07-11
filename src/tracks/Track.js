@@ -130,7 +130,6 @@ Track.prototype.willBeReplaced = function() {
 };
 
 Track.prototype.stageRemoval = function() {
-    this.unsetAnalysisStatus();
     this.unsetError();
     this.setIndex(-1);
     this.emit(`viewUpdate`, `viewUpdateDestroyed`);
@@ -147,7 +146,6 @@ Track.prototype.unstageRemoval = function() {
 };
 
 Track.prototype.destroy = function() {
-    this.unsetAnalysisStatus();
     this.unsetError();
     this.setIndex(-1);
     this.emit(`viewUpdate`, `viewUpdateDestroyed`);
@@ -230,24 +228,6 @@ Track.prototype.stopPlaying = function() {
 
 Track.prototype.startPlaying = function() {
     this.emit(`viewUpdate`, `viewUpdatePlayingStatusChange`, true);
-};
-
-Track.prototype.analysisProgress = function(analysisProgress) {
-    this.emit(`viewUpdate`, `viewUpdateAnalysisProgress`, analysisProgress);
-};
-
-Track.prototype.unsetAnalysisStatus = function() {
-    this._isBeingAnalyzed = false;
-    this.emit(`viewUpdate`, `viewUpdateHideAnalysisStatus`);
-};
-
-Track.prototype.isBeingAnalyzed = function() {
-    return this._isBeingAnalyzed;
-};
-
-Track.prototype.setAnalysisStatus = function() {
-    this._isBeingAnalyzed = true;
-    this.emit(`viewUpdate`, `viewUpdateShowAnalysisStatus`);
 };
 
 Track.prototype.unsetError = function() {
@@ -377,41 +357,6 @@ Track.prototype.uid = async function() {
     }
 };
 
-Track.prototype.getSilenceAdjustedDuration = function(duration) {
-    return Math.max(0, duration - this.getTotalSilenceLength());
-};
-
-Track.prototype.convertToSilenceAdjustedTime = function(rawCurrentTime) {
-    const total = this.getTotalSilenceLength();
-    if (!total || !this.tagData || !this.tagData.basicInfo.duration) return rawCurrentTime;
-    return Math.max(0, rawCurrentTime - this.getBeginSilenceLength());
-};
-
-Track.prototype.convertFromSilenceAdjustedTime = function(currentTime) {
-    const total = this.getTotalSilenceLength();
-    if (!total || !this.tagData || !this.tagData.basicInfo.duration) return currentTime;
-    const physicalDuration = this.tagData.basicInfo.duration;
-    const logicalDuration = physicalDuration - total;
-    currentTime = Math.min(logicalDuration, Math.max(0, currentTime));
-    const startSilence = this.getBeginSilenceLength();
-    currentTime += startSilence;
-
-    if (currentTime >= logicalDuration + startSilence) {
-        currentTime = physicalDuration;
-    }
-    return currentTime;
-};
-
-Track.prototype.getTotalSilenceLength = function() {
-    if (!this.tagData) return 0;
-    return this.tagData.getTotalSilenceLength();
-};
-
-Track.prototype.getBeginSilenceLength = function() {
-    if (!this.tagData) return 0;
-    return this.tagData.getBeginSilenceLength();
-};
-
 Track.prototype.comesBeforeInSameAlbum = function(otherTrack) {
     return this.isFromSameAlbumAs(otherTrack) &&
         this.tagData.albumIndex === otherTrack.tagData.albumIndex - 1;
@@ -441,13 +386,6 @@ Track.prototype.isFromSameAlbumAs = function(otherTrack) {
 
     return thisAlbum === otherAlbum &&
            thisTagData.albumArtist === otherTagData.albumArtist;
-};
-
-Track.prototype.hasSilenceAtEnd = function() {
-    if (this.tagData && this.tagData.endSilenceLength > 0) {
-        return true;
-    }
-    return false;
 };
 
 Track.prototype.getSkipCount = function() {

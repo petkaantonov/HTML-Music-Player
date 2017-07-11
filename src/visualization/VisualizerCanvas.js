@@ -9,28 +9,6 @@ import {ACCELERATE_QUAD_INTERPOLATOR} from "ui/animation/easing";
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = `rgb(11,32,53)`;
 
-const LATENCY_POPUP_HTML = `<div class='settings-container latency-popup-content-container'>
-            <div class='section-container'>
-                <div class='inputs-container'>
-                    <div class='label overhead-label'>
-                        Increase this value if the visualization is too early or
-                        decrease this value if it is too late
-                    </div>
-                    <div class='latency-slider slider horizontal-slider unlabeled-slider'>
-                        <div class='slider-knob'></div>
-                        <div class='slider-background'>
-                            <div class='slider-fill'></div>
-                        </div>
-                    </div>
-                    <div class='latency-value slider-value-indicator'></div>
-                </div>
-                <div class='inputs-container'>
-                    <div class='label overhead-label'>Changes are effective in real time</div>
-                </div>
-            </div>
-        </div>`;
-
-
 function TransitionInfo(visualizerCanvas) {
     this.duration = -1;
     this.capStarted = -1;
@@ -180,8 +158,8 @@ export default function VisualizerCanvas(opts, deps) {
     this.sliderContext = deps.sliderContext;
     this.menuContext = deps.menuContext;
     this.rippler = deps.rippler;
-    this.applicationPreferences = deps.applicationPreferences;
     this.globalEvents = deps.globalEvents;
+    this.env = deps.env;
     this.player = deps.player;
     this.player.setVisualizerCanvas(this);
     this.webglSupported = WebGl2dImageRenderer.isSupported(this.page.document());
@@ -211,19 +189,14 @@ export default function VisualizerCanvas(opts, deps) {
 
     this.binSizeMediaMatchChanged = this.binSizeMediaMatchChanged.bind(this);
     this.enabledMediaMatchChanged = this.enabledMediaMatchChanged.bind(this);
-    this.latencyPopupOpened = this.latencyPopupOpened.bind(this);
     this.playerStopped = this.playerStopped.bind(this);
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
-    this.latencyPopup = deps.popupContext.makePopup(`Playback latency`, LATENCY_POPUP_HTML, `.synchronize-with-audio`);
-
-    this.applicationPreferences.on(`change`, this.applicationPreferencesChanged.bind(this));
 
     this.enabled = true;
     this.shown = true;
     this.source = null;
     this.renderer = null;
-    this.contextMenu = null;
 
 }
 inherits(VisualizerCanvas, EventEmitter);
@@ -249,13 +222,11 @@ VisualizerCanvas.prototype.initialize = async function() {
     }
 
     this.globalEvents.on(`resize`, this.binSizeMediaMatchChanged);
-    this.latencyPopup.on(`open`, this.latencyPopupOpened);
     this.player.on(`stop`, this.playerStopped);
     this.player.on(`play`, this.playerStarted);
 
     this.source = new GraphicsSource(this);
-    this.enabled = this.applicationPreferences.preferences().getEnableVisualizer();
-    this.setupCanvasContextMenu();
+    this.enabled = this.env.isDesktop();
     this.applyVisibility();
 
     let properRendererLoaded = false;
@@ -293,13 +264,6 @@ VisualizerCanvas.prototype.initialize = async function() {
             }
         }
         this.drawIdleBins(performance.now());
-        this.refreshContextMenu();
-    }
-};
-
-VisualizerCanvas.prototype.refreshContextMenu = function() {
-    if (this.contextMenu) {
-        this.contextMenu.refreshAll();
     }
 };
 
@@ -311,83 +275,7 @@ VisualizerCanvas.prototype.applyVisibility = function() {
     }
 };
 
-VisualizerCanvas.prototype.applicationPreferencesChanged = function() {
-    if (this.enabled !== this.applicationPreferences.preferences().getEnableVisualizer()) {
-        this.enabled = !this.enabled;
-        this.refreshContextMenu();
-        this.applyVisibility();
-    }
-};
-
-VisualizerCanvas.prototype.setupCanvasContextMenu = function() {
-    const {menuContext} = this;
-    this.destroyCanvasContextMenu();
-    this.contextMenu = menuContext.createContextMenu({
-        target: this.canvas,
-        menu: [{
-            id: `hardware-acceleration`,
-            disabled: true,
-            onClick(e) {
-                e.preventDefault();
-            },
-            content: () => menuContext.createMenuItem(`Hardware acceleration`,
-                                                      this.isHardwareRendering() ? `glyphicon glyphicon-ok` : null)
-
-        }, {
-            divider: true
-        }, {
-            id: `hardware-latency`,
-            content: menuContext.createMenuItem(`Synchronize with audio...`),
-            onClick: () => {
-                this.latencyPopup.open();
-            }
-        }, {
-            id: `visualizer-enabled`,
-            content: () => menuContext.createMenuItem(`Enabled`, this.isEnabled() ? `glyphicon glyphicon-ok` : null),
-            onClick: (e) => {
-                e.preventDefault();
-                this.enabled = !this.enabled;
-                this.applicationPreferences.setVisualizerEnabled(this.enabled);
-                this.refreshContextMenu();
-                this.applyVisibility();
-            }
-        }]
-    });
-};
-
-VisualizerCanvas.prototype.latencyPopupOpened = function(popup, needsInitialization) {
-    const hardwareLatency = (this.player.getAudioHardwareLatency() * 1000) | 0;
-    const maxLatency = (this.player.getMaximumAudioHardwareLatency() * 1000) | 0;
-    const minLatency = 0;
-    if (needsInitialization) {
-        const sliderValue = this.latencyPopup.$().find(`.latency-value`);
-        const slider = this.sliderContext.createSlider({
-            target: this.latencyPopup.$().find(`.latency-slider`)
-        });
-        slider.setValue((hardwareLatency + minLatency) / (maxLatency - minLatency));
-        sliderValue.setText(`${hardwareLatency}ms`);
-        popup.on(`open`, () => {
-            slider.setValue((hardwareLatency + minLatency) / (maxLatency - minLatency));
-            sliderValue.setText(`${hardwareLatency}ms`);
-        });
-
-        slider.on(`slide`, (p) => {
-            const latency = Math.round(p * (maxLatency - minLatency) + minLatency);
-            sliderValue.setText(`${latency}ms`);
-            this.player.setAudioHardwareLatency(latency / 1000);
-        });
-    }
-};
-
-VisualizerCanvas.prototype.destroyCanvasContextMenu = function() {
-    if (this.contextMenu) {
-        this.contextMenu.destroy();
-        this.contextMenu = null;
-    }
-};
-
 VisualizerCanvas.prototype.resetCanvas = function() {
-    this.destroyCanvasContextMenu();
     const canvas = this.page.createElement(`canvas`).get(0);
     canvas.className = this.canvas.className;
     canvas.width = this.width;
@@ -395,7 +283,6 @@ VisualizerCanvas.prototype.resetCanvas = function() {
     this.canvas.parentNode.replaceChild(canvas, this.canvas);
     this.emit(`canvasChange`, canvas, this.canvas);
     this.canvas = canvas;
-    this.setupCanvasContextMenu();
 };
 
 VisualizerCanvas.prototype.useSoftwareRendering = function() {
@@ -420,7 +307,6 @@ VisualizerCanvas.prototype.isHardwareRendering = function() {
 
 VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
     this.binSizeMediaMatchChanged();
-    this.refreshContextMenu();
     if (this.source && this.source.isReady()) {
         this.drawIdleBins(performance.now());
     }
@@ -521,7 +407,7 @@ VisualizerCanvas.prototype.needsToDraw = function() {
 };
 
 VisualizerCanvas.prototype.shouldHideWhenNothingToDraw = function() {
-    return !this.applicationPreferences.preferences().getEnableVisualizer() || !this.isSupported();
+    return !this.isSupported();
 };
 
 VisualizerCanvas.prototype.emptyBinDraw = function(now) {

@@ -204,12 +204,9 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
     if (!track.isDetachedFromPlaylist() && !error) {
         this.emit(`metadataUpdate`);
         let needFingerprint = !track.tagData.hasSufficientMetadata();
-        let needLoudness = true;
 
         if (result) {
             needFingerprint = needFingerprint ? !result.fingerprint : false;
-            needLoudness = !result.loudness;
-
 
             track.tagData.setDataFromTagDatabase(result);
 
@@ -223,26 +220,16 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
             acoustIdFilled = this.fillInAcoustId(track, result.duration, result.fingerprint);
         }
 
-        if (needFingerprint || needLoudness) {
-            const opts = {
-                fingerprint: needFingerprint,
-                loudness: needLoudness
-            };
+        if (needFingerprint) {
             try {
-                track.setAnalysisStatus(opts);
-                const analysis = await this.analyzeTrack(track, opts);
+                const analysis = await this.analyzeTrack(track);
                 const {duration} = analysis;
-                let {fingerprint, loudness} = analysis;
+                let {fingerprint} = analysis;
 
                 if (result) {
                     fingerprint = needFingerprint ? fingerprint : result.fingerprint || null;
-                    loudness = needLoudness ? loudness : result.loudness;
                 } else {
                     track.tagData.setDataFromTagDatabase(analysis);
-                }
-
-                if (needLoudness) {
-                    track.tagData.setLoudness(loudness);
                 }
 
                 if (needFingerprint && !acoustIdFilled) {
@@ -261,8 +248,6 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
                     }
                     track.setError(trackError);
                 }
-            } finally {
-                track.unsetAnalysisStatus();
             }
         }
     }
@@ -447,15 +432,15 @@ TrackAnalyzer.prototype.fetchTrackAcoustId = async function(track, opts) {
     }
 };
 
-TrackAnalyzer.prototype.analyzeTrack = async function(track, opts) {
+TrackAnalyzer.prototype.analyzeTrack = async function(track) {
     if (this._currentlyAnalysing) {
         track.once(`destroy`, this.trackRemovedWhileInQueue);
         return new Promise((resolve, reject) => {
             this._analysisQueue.push({
                 track,
-                opts,
                 resolve,
-                reject
+                reject,
+                opts: null
             });
 
             if (this._playlist.isTrackHighlyRelevant(track)) {
@@ -485,8 +470,6 @@ TrackAnalyzer.prototype.analyzeTrack = async function(track, opts) {
                 action: `analyze`,
                 args: {
                     id,
-                    fingerprint: !!opts.fingerprint,
-                    loudness: !!opts.loudness,
                     file: track.getFile(),
                     uid,
                     transientId: track.transientId()

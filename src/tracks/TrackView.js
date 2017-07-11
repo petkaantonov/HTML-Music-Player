@@ -1,8 +1,3 @@
-const ANALYSIS_TOOLTIP_MESSAGE = [
-    `This track is currently being analyzed for loudness normalization, silence removal, clipping protection and fingerprinting.`,
-    `Playing this track before the analysis has been completed may require manually adjusting volume.`
-];
-
 const ERROR_HEADER = [
     `There was an error with this track:`
 ];
@@ -16,8 +11,6 @@ export default function TrackView(track, opts) {
     this._error = null;
     this._domNode = null;
     this._isAttached = false;
-    this._analysisProgress = -1;
-    this._analysisProgressUpdateFrameQueued = false;
     this._dragged = false;
     this._offset = 0;
     this._viewUpdated = this._viewUpdated.bind(this);
@@ -83,7 +76,6 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
         class: `track-container`
     }).setHtml(`<div class='track'>
         <div class='track-status'>
-            <span class='glyphicon glyphicon-info-sign track-analysis-status icon' style="display: none;"></span>
             <span class='glyphicon glyphicon-exclamation-sign track-error-status icon' style="display: none;"></span>
             <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>
         </div>
@@ -122,25 +114,10 @@ TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
     // This.viewUpdateSyncStatusChange();
     this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
-    let unclickableTrackStatus = false;
-    if (this._track.isBeingAnalyzed()) {
-        this.viewUpdateShowAnalysisStatus();
-        unclickableTrackStatus = true;
-    } else {
-        this.viewUpdateHideAnalysisStatus();
-    }
-
     if (this._track.hasError()) {
         this.viewUpdateShowErrorStatus();
-        unclickableTrackStatus = true;
     } else {
         this.viewUpdateHideErrorStatus();
-    }
-
-    if (unclickableTrackStatus) {
-        this.$trackStatus().addClass(`unclickable`);
-    } else {
-        this.$trackStatus().removeClass(`unclickable`);
     }
 
     this._updateTranslate();
@@ -264,28 +241,6 @@ TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
     } else {
         this.$().removeClass(`track-playing`);
     }
-};
-
-TrackView.prototype._updateAnalysisProgress = function() {
-    if (!this._analysisProgressUpdateFrameQueued) {
-        this._analysisProgressUpdateFrameQueued = true;
-    }
-};
-
-TrackView.prototype.viewUpdateAnalysisProgress = function(analysisProgress) {
-    if (!this._shouldUpdateDom()) return;
-    this._analysisProgress = analysisProgress;
-    this._updateAnalysisProgress();
-};
-
-TrackView.prototype.viewUpdateHideAnalysisStatus = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(`.track-analysis-status`).hide();
-};
-
-TrackView.prototype.viewUpdateShowAnalysisStatus = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(`.track-analysis-status`).show(`inline-block`);
 };
 
 TrackView.prototype.viewUpdateShowErrorStatus = function() {

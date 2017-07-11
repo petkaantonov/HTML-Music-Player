@@ -38,6 +38,7 @@ function SourceDescriptor(buffer, descriptor, channelData, isLastForTrack) {
     this.endTime = descriptor.endTime;
     this.length = descriptor.length;
     this.duration = descriptor.length / buffer.sampleRate;
+    this.gain = Math.min(1, Math.pow(10, (descriptor.loudness / 20)));
     this.started = -1;
     this.source = null;
     this.channelData = channelData;
@@ -464,8 +465,7 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._audioContext = audioContext;
     this._haveBlob = false;
     this._sourceStopped = true;
-    this._node = audioContext.createGain();
-
+    this._normalizerNode = audioContext.createGain();
     this._volume = 1;
     this._muted = false;
     this._loadingNext = false;
@@ -514,11 +514,11 @@ AudioPlayerSourceNode.prototype.destroy = function() {
     this.unload();
     this._player._sourceNodeDestroyed(this);
     try {
-        this.node().disconnect();
+        this._normalizerNode.disconnect();
     } catch (e) {
         // NOOP
     }
-    this._node = null;
+    this._normalizerNode = null;
     this._audioContext = null;
     this._timeUpdate =
     this._sourceEnded =
@@ -532,7 +532,7 @@ AudioPlayerSourceNode.prototype.adoptNewAudioContext = function(audioContext) {
         throw new Error(`sources must be stopped while adopting new audio context`);
     }
     this._audioContext = audioContext;
-    this._node = audioContext.createGain();
+    this._normalizerNode = audioContext.createGain();
     this._previousAudioContextTime = -1;
     this._previousHighResTime = -1;
     this._previousCombinedTime = -1;
@@ -723,6 +723,11 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
     sourceDescriptor.started = when;
     src.buffer = buffer;
     src.connect(this.node());
+    try {
+        this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
+    } catch (e) {
+        console.warn(e.stack);
+    }
     src.start(when, sourceDescriptor.playedSoFar);
     src.stop(when + duration);
     src.onended = () => {
@@ -731,6 +736,7 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
         src.onended = null;
         this._sourceEnded(sourceDescriptor, src);
     };
+
     return when + duration;
 };
 
@@ -754,6 +760,11 @@ AudioPlayerSourceNode.prototype._stopSources = function(when = this._player.getC
     this._player.playbackStopped();
 
     this._sourceStopped = true;
+    try {
+        this._normalizerNode.gain.cancelScheduledValues(when);
+    } catch (e) {
+        console.warn(e.stack);
+    }
 
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         const sourceDescriptor = this._bufferQueue[i];
@@ -850,7 +861,7 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
             }
             const byteLength = buffer.channelData[0].buffer.byteLength - j * 4;
             const fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, (byteLength / 4) | 0);
-            const {channelData} = buffer;
+            const {channelData, gain} = buffer;
             const sampleViews = new Array(channelData.length);
             for (let ch = 0; ch < sampleViews.length; ++ch) {
                 sampleViews[ch] = new Float32Array(channelData[ch].buffer, j * 4, fillCount);
@@ -859,10 +870,13 @@ AudioPlayerSourceNode.prototype.getUpcomingSamples = function(input) {
 
             if (sampleViews.length === 2) {
                 for (let k = 0; k < fillCount; ++k) {
-                    dst[k] = Math.fround(Math.fround(sampleViews[0][k] + sampleViews[1][k]) / 2);
+                    dst[k] = Math.fround((sampleViews[0][k] + sampleViews[1][k]) / 2 * gain);
                 }
             } else if (sampleViews.length === 1) {
-                dst.set(new Float32Array(sampleViews[0].buffer, sampleViews[0].byteOffset, fillCount));
+                const src = sampleViews[0];
+                for (let k = 0; k < fillCount; ++k) {
+                    dst[k] = Math.fround(src[k] * gain);
+                }
             } else {
                 // TODO Support more than 2 channels.
                 return false;
@@ -1063,33 +1077,8 @@ AudioPlayerSourceNode.prototype.unsetLooping = function() {
     this._loop = false;
 };
 
-AudioPlayerSourceNode.prototype.mute = function() {
-    if (this._destroyed) return;
-    this._muted = true;
-    this.node().gain.value = 0;
-};
-
-AudioPlayerSourceNode.prototype.unmute = function() {
-    if (this._destroyed) return;
-    this._muted = false;
-    this.node().gain.value = this._volume;
-};
-
-AudioPlayerSourceNode.prototype.setVolume = function(vol) {
-    if (this._destroyed) return;
-    vol = +vol;
-    if (!isFinite(vol)) return;
-    vol = Math.min(1, Math.max(0, vol));
-    this._volume = vol;
-    this.node().gain.value = vol;
-};
-
-AudioPlayerSourceNode.prototype.getVolume = function() {
-    return this._volume;
-};
-
 AudioPlayerSourceNode.prototype.node = function() {
-    return this._node;
+    return this._normalizerNode;
 };
 
 AudioPlayerSourceNode.prototype.getCurrentTime = function() {

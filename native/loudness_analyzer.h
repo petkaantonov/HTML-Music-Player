@@ -5,10 +5,24 @@
 
 #define REFERENCE_LUFS -18.0
 
-EXPORT ebur128_state* loudness_analyzer_init(uint32_t channel_count, uint32_t sample_rate);
-EXPORT void loudness_analyzer_destroy(ebur128_state* st);
-EXPORT int loudness_analyzer_add_frames(ebur128_state* st, int16_t* frames, uint32_t frame_count);
-EXPORT int loudness_analyzer_get_result(ebur128_state* st,
-                                        double* track_gain, double* track_peak, double* begin_silence_length, double* end_silence_length);
+typedef struct {
+    uint32_t frames_added;
+    uint32_t window;
+    ebur128_state* st;
+} LoudnessAnalyzer;
 
+EXPORT int loudness_analyzer_init(uint32_t channel_count,
+                                  uint32_t sample_rate,
+                                  uint32_t window,
+                                  LoudnessAnalyzer** retval);
+EXPORT void loudness_analyzer_destroy(LoudnessAnalyzer* this);
+EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this,
+                                      int16_t* frames,
+                                      uint32_t frame_count,
+                                      double* gain);
+EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
+                                          uint32_t channel_count,
+                                          uint32_t sample_rate,
+                                          uint32_t window);
+EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this);
 #endif //LOUDNESS_ANALYZER_H

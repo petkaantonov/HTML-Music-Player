@@ -592,7 +592,7 @@ Player.prototype.getProbableDuration = function() {
     if (ret) return ret;
     const track = this.playlist.getCurrentTrack();
     if (track.tagData && track.tagData.basicInfo) {
-        return track.getSilenceAdjustedDuration(track.tagData.basicInfo.duration || 0);
+        return track.tagData.basicInfo.duration || 0;
     }
     return 0;
 };

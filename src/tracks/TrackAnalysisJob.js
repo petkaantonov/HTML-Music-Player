@@ -3,7 +3,6 @@ import demuxer from "audio/demuxer";
 import getCodec from "audio/codec";
 import getCodecName from "audio/sniffer";
 import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/pool";
-import LoudnessAnalyzer from "audio/LoudnessAnalyzer";
 import ChannelMixer from "audio/ChannelMixer";
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
 import Fingerprinter from "audio/Fingerprinter";
@@ -20,14 +19,10 @@ export class TrackAnalysisError extends Error {
 }
 
 export default class TrackAnalysisJob extends CancellableOperations(null, `analysisOperation`) {
-    constructor(backend, {id, file, loudness, fingerprint, uid}) {
+    constructor(backend, file) {
         super();
         this.backend = backend;
-        this.id = id;
         this.file = file;
-        this.loudness = loudness;
-        this.fingerprint = fingerprint;
-        this.uid = uid;
 
         this.cancellationToken = null;
         this.decoder = null;
@@ -35,7 +30,6 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         this.resampler = null;
         this.decodedChannelData = null;
         this.fingerprinter = null;
-        this.loudnessAnalyzer = null;
         this.channelMixer = null;
         this.metadata = null;
         this.fileView = null;
@@ -51,20 +45,8 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         return this.metadata.channels;
     }
 
-    get shouldComputeLoudness() {
-        return !!this.loudness;
-    }
-
     get shouldComputeFingerprint() {
-        return this.fingerprint && this.metadata.duration >= 7;
-    }
-
-    get targetCpuUtilization() {
-        return this.backend.cpuUtilization;
-    }
-
-    getDowntime(cpuUsedTime) {
-        return cpuUsedTime / this.targetCpuUtilization - cpuUsedTime;
+        return this.metadata.duration >= 7;
     }
 
     async analyze() {
@@ -97,14 +79,17 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
 
     async _analyze() {
         const {sourceSampleRate, sourceChannelCount, metadata,
-                shouldComputeFingerprint, shouldComputeLoudness, fileView, id, file,
+                shouldComputeFingerprint, fileView, file,
                 codecName, codec} = this;
         const {wasm} = this.backend;
         const result = {
-            loudness: null,
             fingerprint: null,
             duration: metadata.duration
         };
+
+        if (!shouldComputeFingerprint) {
+            return result;
+        }
 
         const tooLongToScan = metadata.duration ? metadata.duration > 30 * 60 : file.size > 100 * 1024 * 1024;
         if (tooLongToScan) {
@@ -117,23 +102,15 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
 
         decoder.start(metadata);
 
-        if (shouldComputeLoudness) {
-            this.loudnessAnalyzer = new LoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate);
-        }
 
-        let destinationChannelCount = sourceChannelCount;
-        let destinationSampleRate = sourceSampleRate;
-        let resamplerQuality;
-        if (shouldComputeFingerprint) {
-            this.fingerprinter = new Fingerprinter(wasm);
-            ({destinationChannelCount, destinationSampleRate, resamplerQuality} = this.fingerprinter);
-            this.resampler = allocResampler(wasm,
-                                            destinationChannelCount,
-                                            sourceSampleRate,
-                                            destinationSampleRate,
-                                            resamplerQuality);
-            this.channelMixer = new ChannelMixer(wasm, {destinationChannelCount});
-        }
+        this.fingerprinter = new Fingerprinter(wasm);
+        const {destinationChannelCount, destinationSampleRate, resamplerQuality} = this.fingerprinter;
+        this.resampler = allocResampler(wasm,
+                                        destinationChannelCount,
+                                        sourceSampleRate,
+                                        destinationSampleRate,
+                                        resamplerQuality);
+        this.channelMixer = new ChannelMixer(wasm, {destinationChannelCount});
 
         this.audioPipeline = new AudioProcessingPipeline(wasm, {
             sourceSampleRate, sourceChannelCount,
@@ -143,16 +120,13 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             channelMixer: this.channelMixer,
             bufferTime: BUFFER_DURATION,
             bufferAudioFrameCount: destinationSampleRate * BUFFER_DURATION,
-            fingerprinter: this.fingerprinter,
-            loudnessAnalyzer: this.loudnessAnalyzer
+            fingerprinter: this.fingerprinter
         });
 
         const fileStartPosition = metadata.dataStart;
         let filePosition = fileStartPosition;
         const fileEndPosition = metadata.dataEnd;
-        let progress = 0;
-        let previousProgress = 0;
-        while (filePosition < fileEndPosition) {
+        while (filePosition < fileEndPosition && this.fingerprinter.needFrames()) {
             const bytesRead = await this.audioPipeline.decodeFromFileViewAtOffset(fileView,
                                                                                   filePosition,
                                                                                   metadata,
@@ -161,25 +135,11 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             this.audioPipeline.consumeFilledBuffer();
 
             filePosition += bytesRead;
-
-            progress = (filePosition - fileStartPosition) / (fileEndPosition - fileStartPosition);
-            if (progress - previousProgress > 0.02) {
-                this.backend.reportProgress(id, progress);
-                previousProgress = progress;
-            }
         }
-
-        if (this.fingerprinter) {
-            result.fingerprint = this.fingerprinter.calculateFingerprint();
-        }
-
-        if (this.loudnessAnalyzer) {
-            result.loudness = this.loudnessAnalyzer.getLoudnessAnalysis();
-        }
+        result.fingerprint = this.fingerprinter.calculateFingerprint();
 
         return {
             duration: result.duration,
-            loudness: result.loudness,
             fingerprint: result.fingerprint
         };
     }
@@ -205,11 +165,6 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         if (this.fingerprinter) {
             this.fingerprinter.destroy();
             this.fingerprinter = null;
-        }
-
-        if (this.loudnessAnalyzer) {
-            this.loudnessAnalyzer.destroy();
-            this.loudnessAnalyzer = null;
         }
 
         if (this.channelMixer) {

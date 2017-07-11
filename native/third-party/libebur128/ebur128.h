@@ -62,8 +62,6 @@ enum channel {
   EBUR128_Bm045           /**< itu B-045 */
 };
 
-#define SILENCE_THRESHOLD -63.0
-
 /** \enum error
  *  Error return values.
  */
@@ -105,9 +103,9 @@ struct ebur128_state_internal;
  *  You should not need to modify this struct directly.
  */
 typedef struct {
+  int mode;                           /**< The current mode. */
   unsigned int channels;              /**< The number of channels. */
   unsigned long samplerate;           /**< The sample rate. */
-  int mode;                           /**< The current mode. */
   struct ebur128_state_internal* d;   /**< Internal state. */
 } ebur128_state;
 
@@ -128,7 +126,8 @@ void ebur128_get_version(int* major, int* minor, int* patch);
  */
 ebur128_state* ebur128_init(unsigned int channels,
                             unsigned long samplerate,
-                            int mode);
+                            int mode,
+                            int window);
 
 /** \brief Destroy library state.
  *
@@ -420,10 +419,6 @@ int ebur128_prev_true_peak(ebur128_state* st,
  *      been set.
  */
 int ebur128_relative_threshold(ebur128_state* st, double* out);
-
-int ebur128_check_silence(ebur128_state* st);
-void ebur128_check_end_silence(ebur128_state* st);
-int ebur128_get_silence(ebur128_state* st, double* begin_silence_length, double* end_silence_length);
 
 #ifdef __cplusplus
 }

@@ -28,6 +28,10 @@ export default class AudioPlayerBackend extends AbstractBackend {
         return ret;
     }
 
+    get bufferTimeMs() {
+        return this.bufferTime * 1000 | 0;
+    }
+
     get bufferAudioFrameCount() {
         return Math.ceil(this.bufferTime * this.destinationSampleRate);
     }

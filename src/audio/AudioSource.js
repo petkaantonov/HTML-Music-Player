@@ -1,6 +1,7 @@
 import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
 import {Blob, File} from "platform/platform";
-import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/pool";
+import {allocResampler, allocDecoderContext, allocLoudnessAnalyzer,
+        freeResampler, freeDecoderContext, freeLoudnessAnalyzer} from "audio/pool";
 import EventEmitter from "events";
 import FileView from "platform/FileView";
 import seeker from "audio/seeker";
@@ -36,6 +37,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.id = id;
         this.ended = false;
         this._decoder = null;
+        this._loudnessAnalyzer = null;
         this.blob = null;
         this._filePosition = 0;
         this._bufferFillCancellationToken = null;
@@ -89,6 +91,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             length: bufferDescriptor.length,
             startTime: bufferDescriptor.startTime,
             endTime: bufferDescriptor.endTime,
+            loudness: bufferDescriptor.loudness,
             fillTypeData
         };
         this._sendFilledBuffer(requestId,
@@ -205,13 +208,19 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             freeDecoderContext(this.codecName, this._decoder);
             this._decoder = null;
         }
+
+        if (this._loudnessAnalyzer) {
+            freeLoudnessAnalyzer(this._loudnessAnalyzer);
+            this._loudnessAnalyzer = null;
+        }
+
         if (this.resampler) {
             freeResampler(this.resampler);
             this.resampler = null;
         }
         this.fileView = null;
         this.codecName = ``;
-        this._decoder = this.blob = null;
+        this.blob = null;
         this._filePosition = 0;
         this._audioPipeline = null;
         this.metadata = null;
@@ -307,6 +316,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     length: bufferDescriptor.length,
                     startTime: bufferDescriptor.startTime,
                     endTime: bufferDescriptor.endTime,
+                    loudness: bufferDescriptor.loudness,
                     fillTypeData: null
                 };
 
@@ -336,6 +346,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 destinationSampleRate,
                 resamplerQuality,
                 bufferTime,
+                bufferTimeMs,
                 bufferAudioFrameCount,
                 wasm,
                 channelMixer,
@@ -378,6 +389,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                                                 destinationSampleRate,
                                                 resamplerQuality);
             } else if (this.resampler) {
+                console.warn(`should not have resampler`);
                 freeResampler(this.resampler);
                 this.resampler = null;
             }
@@ -388,13 +400,15 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             this._decoder.start(metadata);
 
-            const {resampler, _decoder: decoder} = this;
+            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate, bufferTimeMs);
+
+            const {resampler, _decoder: decoder, _loudnessAnalyzer: loudnessAnalyzer} = this;
 
             this._filePosition = this.metadata.dataStart;
             this._audioPipeline = new AudioProcessingPipeline(wasm, {
                 sourceSampleRate, sourceChannelCount,
                 destinationSampleRate, destinationChannelCount,
-                decoder, resampler,
+                decoder, resampler, loudnessAnalyzer,
                 channelMixer, effects, bufferTime, bufferAudioFrameCount
             });
             this.sendMessage(`_blobLoaded`, {requestId, metadata});
@@ -494,6 +508,10 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this.resampler.reset();
             }
 
+            if (this._loudnessAnalyzer) {
+                this._loudnessAnalyzer.reset();
+            }
+
             this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, transferList, {
                 baseTime: seekerResult.time,
                 isUserSeek: args.isUserSeek,
@@ -515,13 +533,18 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this._decoder = null;
             }
 
+            if (this._loudnessAnalyzer) {
+                freeLoudnessAnalyzer(this._loudnessAnalyzer);
+                this._loudnessAnalyzer = null;
+            }
+
             if (this.resampler) {
                 freeResampler(this.resampler);
                 this.resampler = null;
             }
 
             this.ended = false;
-            this.resampler = this.fileView = this._decoder = this.blob = this.metadata = null;
+            this.fileView = this.blob = this.metadata = null;
             this._filePosition = 0;
             this.codecName = ``;
 

@@ -1,7 +1,29 @@
 import Resampler from "audio/Resampler";
+import LoudnessAnalyzer from "audio/LoudnessAnalyzer";
 
 const decoderPool = Object.create(null);
 const resamplers = Object.create(null);
+const loudnessAnalyzers = {
+    allocationCount: 0,
+    instances: []
+};
+
+export function allocLoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs) {
+    if (!loudnessAnalyzers.instances.length) {
+        loudnessAnalyzers.allocationCount++;
+        loudnessAnalyzers.instances.push(new LoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs));
+
+        if (loudnessAnalyzers.allocationCount > 4) {
+            console.warn(`memory leak`);
+        }
+    }
+
+    return loudnessAnalyzers.instances.shift().reinitialized(channelCount, sampleRate, windowMs);
+}
+
+export function freeLoudnessAnalyzer(loudnessAnalyzer) {
+    loudnessAnalyzers.instances.push(loudnessAnalyzer);
+}
 
 export function allocResampler(wasm, channels, from, to, quality) {
     const opts = {
@@ -23,7 +45,7 @@ export function allocResampler(wasm, channels, from, to, quality) {
         entry.instances.push(new Resampler(wasm, opts));
         entry.allocationCount++;
         if (entry.allocationCount > 4) {
-            throw new Error(`memory leak`);
+            console.warn(`memory leak`);
         }
     }
     const ret = entry.instances.shift();
@@ -51,7 +73,7 @@ export function allocDecoderContext(wasm, name, ContextConstructor, contextOpts)
         entry.instances.push(new ContextConstructor(wasm, contextOpts));
         entry.allocationCount++;
         if (entry.allocationCount > 4) {
-            throw new Error(`memory leak`);
+            console.warn(`memory leak`);
         }
     }
 

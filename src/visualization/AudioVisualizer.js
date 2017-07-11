@@ -54,8 +54,6 @@ const buffers = {};
 export default function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
     opts = noUndefinedGet(opts);
     this.visualizerCanvas = visualizerCanvas;
-    this.multiplier = 1;
-    this.setMultiplier(`multiplier` in opts ? +opts.multiplier : 1);
     this.sampleRate = audioContext.sampleRate;
     this.maxFrequency = opts.maxFrequency || 18500;
     this.minFrequency = opts.minFrequency || 20;
@@ -102,12 +100,6 @@ AudioVisualizer.prototype.binCount = function() {
 
 AudioVisualizer.prototype.fps = function() {
     return this.visualizerCanvas.getTargetFps();
-};
-
-AudioVisualizer.prototype.setMultiplier = function(value) {
-    if (!isFinite(value)) throw new Error(`infinite`);
-    value = Math.max(0.40, Math.min(256, value));
-    this.multiplier = value;
 };
 
 AudioVisualizer.prototype.pause = function() {
@@ -242,9 +234,8 @@ AudioVisualizer.prototype.fillWindow = function() {
 
 AudioVisualizer.prototype.forwardFft = function() {
     const [samples, window] = this.buffer;
-    const {multiplier} = this;
     for (let i = 0; i < samples.length; ++i) {
-        samples[i] = Math.fround(samples[i] * window[i] * multiplier);
+        samples[i] = Math.fround(samples[i] * window[i]);
     }
     realFft(this.buffer[0]);
 };

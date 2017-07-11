@@ -463,10 +463,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         page,
         globalEvents,
         recognizerContext,
-        applicationPreferences,
         snackbar,
+        env,
         rippler,
-        popupContext,
         menuContext,
         sliderContext
     }, d => new VisualizerCanvas({

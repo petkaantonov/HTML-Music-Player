@@ -9,11 +9,12 @@ const INITIAL = -1;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
-    constructor(length, startTime, endTime, channelData) {
+    constructor(length, startTime, endTime, channelData, loudness) {
         this.length = length;
         this.startTime = startTime;
         this.endTime = endTime;
         this.channelData = channelData;
+        this.loudness = loudness;
     }
 }
 
@@ -188,9 +189,11 @@ export default class AudioProcessingPipeline {
             }
         }
 
+
+        let loudness = 0;
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
-            loudnessAnalyzer.newFrames(samplePtr, audioFrameLength);
+            loudness = loudnessAnalyzer.getLoudness(samplePtr, audioFrameLength);
         }
 
         if (leastSamplesToProcessEffectsPhase === BEFORE_MIX_BEFORE_RESAMPLE) {
@@ -280,6 +283,6 @@ export default class AudioProcessingPipeline {
         const length = audioFrameLength + paddingFrameLength;
         const startTime = Math.round(startAudioFrame / sourceSampleRate * 1e9) / 1e9;
         const endTime = Math.round((startTime + (length / destinationSampleRate)) * 1e9) / 1e9;
-        this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData);
+        this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData, loudness);
     }
 }

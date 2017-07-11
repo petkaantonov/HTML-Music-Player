@@ -181,11 +181,6 @@ export default class MetadataParser {
         const [data, albumImage] = await Promise.all([db.query(uid), db.getAlbumImage(albumKey)]);
 
         if (data) {
-            const {trackGain, trackPeak, silence} = data;
-            if (!data.loudness && (trackGain || trackPeak || silence)) {
-                data.loudness = {trackPeak, trackGain, silence};
-            }
-
             if (albumImage) {
                 data.albumImage = albumImage;
             }

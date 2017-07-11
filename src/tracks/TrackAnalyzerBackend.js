@@ -6,16 +6,12 @@ import {CancellationError} from "utils/CancellationToken";
 
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
-// Utilize 75% of one core.
-const MAX_CPU_UTILIZATION = 0.75;
-
 export default class TrackAnalyzerBackend extends AbstractBackend {
     constructor(wasm) {
         super(ANALYZER_READY_EVENT_NAME);
         this.db = new TagDatabase();
         this.metadataParser = new MetadataParser(this.db);
         this.wasm = wasm;
-        this.cpuUtilization = MAX_CPU_UTILIZATION;
         this.analysisQueue = [];
         this.currentJob = null;
         this.actions = {
@@ -130,18 +126,19 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         }
 
         const jobArgs = this.analysisQueue.shift();
-        const job = new TrackAnalysisJob(this, jobArgs);
+        const {id, uid, file} = jobArgs;
+        const job = new TrackAnalysisJob(this, file);
         this.currentJob = job;
 
         try {
             const result = await job.analyze();
-            await this.db.insert(job.uid, result);
-            this.reportSuccess(job.id, result);
+            await this.db.insert(uid, result);
+            this.reportSuccess(id, result);
         } catch (e) {
             if (e && e instanceof CancellationError) {
-                this.reportAbort(job.id);
+                this.reportAbort(id);
             } else {
-                this.reportError(job.id, e);
+                this.reportError(id, e);
             }
         } finally {
             try {
