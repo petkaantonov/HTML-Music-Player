@@ -558,12 +558,10 @@ Player.prototype.isMuted = function() {
 };
 
 Player.prototype.togglePlayback = function() {
-    if (!this.isStopped) {
-        if (this.isPlaying) {
-            this.pause();
-        } else if (this.isPaused) {
-            this.resume();
-        }
+    if (this.isPlaying) {
+        this.pause();
+    } else {
+        this.play();
     }
 };
 
