@@ -33,22 +33,21 @@ EXPORT void loudness_analyzer_destroy(LoudnessAnalyzer* this) {
     free(this);
 }
 
-EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this,
-                                      int16_t* frames,
-                                      uint32_t frame_count,
-                                      double* gain) {
-    *gain = NAN;
+EXPORT int loudness_analyzer_add_frames(LoudnessAnalyzer* this,
+                                        int16_t* frames,
+                                        uint32_t frame_count) {
     int err = ebur128_add_frames_short(this->st, frames, frame_count);
     if (err) {
         return err;
     }
     this->frames_added += frame_count;
+    return EBUR128_SUCCESS;
+}
 
-    uint32_t frames_needed = (uint32_t)((double)this->st->samplerate * (double)2);
-    if (this->frames_added < frames_needed) {
-        *gain = NAN;
-        return EBUR128_SUCCESS;
-    } else {
+EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
+    *gain = NAN;
+    uint32_t frames_needed = this->st->samplerate * 2;
+    if (this->frames_added >= frames_needed) {
         double result;
         int err = ebur128_loudness_global(this->st, &result);
         if (err) {
@@ -56,8 +55,8 @@ EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this,
         }
         result = (REFERENCE_LUFS - result);
         *gain = result;
-        return EBUR128_SUCCESS;
     }
+    return EBUR128_SUCCESS;
 }
 
 EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this) {
