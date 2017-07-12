@@ -9,7 +9,6 @@ import Timers from "platform/Timers";
 import MetadataParser from "audio/MetadataParser";
 import TagDatabase from "tracks/TagDatabase";
 
-
 self.env = {
     isDevelopment() {
         return !(self.location.href.indexOf(`.min.js`) >= 0);
@@ -21,6 +20,10 @@ self.uiLog = function(...args) {
         type: "uiLog",
         args: args
     });
+};
+
+self.onerror = function(...args) {
+    self.uiLog(...args);
 };
 
 (async () => {

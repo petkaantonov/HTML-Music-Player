@@ -62,23 +62,8 @@ setDepChecking(env.isDevelopment());
 setIsDevelopment(env.isDevelopment());
 
 page.setTitle(defaultTitle);
-page.window().onerror = function(a, b, c, d, e) {
-    const date = new Date().toISOString();
-    if (env.isDevelopment()) {
-        if (e && e.stack) {
-            console.log(date, e.stack);
-        } else {
-            const msg = `${a} ${b}:${c}:${d}`;
-            console.log(date, msg);
-        }
-    } else {
-        if (e && e.stack) {
-            console.log(date, e.stack);
-        } else {
-            const msg = `${a} ${b}:${c}:${d}`;
-            console.log(date, msg);
-        }
-    }
+page.window().onerror = function(...args) {
+    page.uiLog(...args);
 };
 
 (async () => {
