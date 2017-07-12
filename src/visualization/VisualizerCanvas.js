@@ -193,17 +193,17 @@ export default function VisualizerCanvas(opts, deps) {
     this.playerStarted = this.playerStarted.bind(this);
     this.emptyBinDraw = this.emptyBinDraw.bind(this);
 
-    this.enabled = true;
-    this.shown = true;
+    this.enabled = this.env.isDesktop();
+    this.shown = false;
     this.source = null;
     this.renderer = null;
-
+    this.applyVisibility();
 }
 inherits(VisualizerCanvas, EventEmitter);
 
 VisualizerCanvas.prototype.initialize = async function() {
-    const width = this.canvas.clientWidth * this.page.devicePixelRatio() | 0;
-    const height = this.canvas.clientHeight * this.page.devicePixelRatio() | 0;
+    const width = (this.canvas.clientWidth * this.page.devicePixelRatio() | 0) || 120;
+    const height = (this.canvas.clientHeight * this.page.devicePixelRatio() | 0) || 50;
     this.width = width;
     this.height = height;
     this.currentCapPositions = new Float32Array(this.getNumBins());
@@ -313,6 +313,7 @@ VisualizerCanvas.prototype.enabledMediaMatchChanged = function() {
 };
 
 VisualizerCanvas.prototype.binSizeMediaMatchChanged = function() {
+    this.applyVisibility();
     if (!this.shown) return;
     const width = this.canvas.clientWidth * this.page.devicePixelRatio() | 0;
     if (width !== this.width) {
@@ -439,7 +440,6 @@ VisualizerCanvas.prototype.show = function() {
     this.shown = true;
     this.page.$(this.canvas).closest(this.sectionContainerSelector).show();
     this.binSizeMediaMatchChanged();
-    this.globalEvents._triggerSizeChange();
 };
 
 VisualizerCanvas.prototype.hide = function() {
