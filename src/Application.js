@@ -73,7 +73,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
 
     /* eslint-disable no-unused-vars */
-    const workerWrapper = this.workerWrapper = new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`);
+    const workerWrapper = this.workerWrapper = withDeps({
+        page
+    }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
 
     const recognizerContext = this.recognizerContext = withDeps({
         page,

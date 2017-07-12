@@ -43,3 +43,28 @@
 .app-bread-text {
     font-size: 14px;
 }
+
+#ui-log-container {
+    display: none;
+    position: absolute;
+    right: 10px;
+    font-size: 12px;
+    top: 10px;
+    pointer-events: none;
+    max-height: calc(100% - 10px);
+    height: 1000px;
+    width: 260px;
+    z-index: 100000000;
+    background-color: #999;
+    opacity: 0.9;
+    box-sizing: border-box;
+    padding: 5px 10px;
+    color: #fff;
+    border: 1px solid #000;
+    #ui-log {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        line-height: 12px;
+    }
+}

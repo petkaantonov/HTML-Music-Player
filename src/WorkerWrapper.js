@@ -1,11 +1,16 @@
 import {Worker} from "platform/platform";
 
 export default class WorkerWrapper {
-    constructor(src) {
+    constructor(src, deps) {
+        this._page = deps.page;
         this._worker = new Worker(src);
         this._postedMessagePorts = new Map();
         this._worker.addEventListener(`message`, (event) => {
             const {type} = event.data;
+            if (type === "uiLog") {
+                this._page.uiLog(...event.data.args);
+                return;
+            }
             const [postedPort] = event.ports;
             const currentPort = this._postedMessagePorts.get(type);
             this._postedMessagePorts.set(type, postedPort);

@@ -16,6 +16,13 @@ self.env = {
     }
 };
 
+self.uiLog = function(...args) {
+    self.postMessage({
+        type: "uiLog",
+        args: args
+    });
+};
+
 (async () => {
     const timers = new Timers(self);
     setTimers(timers);
