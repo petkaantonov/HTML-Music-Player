@@ -1,311 +1,303 @@
-const ERROR_HEADER = [
-    `There was an error with this track:`
-];
-
-export default function TrackView(track, opts) {
-    opts = Object(opts);
-    this._opts = opts;
-    this._track = track;
-    this._isDestroyed = false;
-    this._index = -1;
-    this._error = null;
-    this._domNode = null;
-    this._isAttached = false;
-    this._dragged = false;
-    this._offset = 0;
-    this._viewUpdated = this._viewUpdated.bind(this);
-    this._track.on(`viewUpdate`, this._viewUpdated);
-}
-
-TrackView.prototype.selectable = function() {
-    return this._opts.selectable;
-};
-
-TrackView.prototype.page = function() {
-    return this._opts.page;
-};
-
-TrackView.prototype.shouldUpdateTrackIndex = function() {
-    return this._opts.updateTrackIndex;
-};
-
-TrackView.prototype.playlist = function() {
-    return this._opts.playlist;
-};
-
-TrackView.prototype.itemHeight = function() {
-    return this._opts.itemHeight;
-};
-
-TrackView.prototype.tooltipContext = function() {
-    return this._opts.tooltipContext;
-};
-
-TrackView.prototype.$ = function() {
-    return this._domNode;
-};
-
-TrackView.prototype.$container = function() {
-    return this.$().find(`.track`);
-};
-
-TrackView.prototype.$trackStatus = function() {
-    return this.$().find(`.track-status`);
-};
-
-TrackView.prototype.$trackNumber = function() {
-    return this.$().find(`.track-number`);
-};
-
-TrackView.prototype.$trackDuration = function() {
-    return this.$().find(`.track-duration`);
-};
-
-TrackView.prototype.track = function() {
-    return this._track;
-};
-
-TrackView.prototype._shouldUpdateDom = function() {
-    return this._domNode !== null;
-};
-
-TrackView.prototype._ensureDomNode = function(recycledDomNode, target) {
-    if (this._shouldUpdateDom()) return;
-
-    this._domNode = recycledDomNode || this.page().createElement(`div`, {
-        class: `track-container`
-    }).setHtml(`<div class='track'>
-        <div class='track-status'>
-            <span class='glyphicon glyphicon-exclamation-sign track-error-status icon' style="display: none;"></span>
-            <span class='icon glyphicon glyphicon-volume-up playing-icon'></span>
-        </div>
+const TEMPLATE = `<div class='track'>
+    <div class='track-selector-container'>
+        <div class='material-icons large-material-icon blank-checkbox track-selection-indicator'></div>
+    </div>
+    <div class='track-data'>
         <div class='track-number'></div>
         <div class='track-info'>
             <div class='track-title notextflow'></div>
             <div class='track-artist notextflow'></div>
         </div>
         <div class='track-duration'></div>
-        <div class='track-availability'>
-            <div class='track-availability-item offline'>
-                <span class='material-icons icon offline_pin'></span>
-                <div class='text'>Offline</div>
-            </div>
-            <div class='track-availability-item cloud'>
-                <span class='material-icons icon cloud_upload'></span>
-                <div class='text'>Sync</div>
-            </div>
-        </div>
-    </div>`);
+    </div>
+    <div class='track-controls'></div>
+</div>`;
 
-    if (this.selectable().contains(this)) {
-        this.selected();
-    } else {
-        this.unselected();
+export default class TrackView {
+    constructor(track, opts) {
+        opts = Object(opts);
+        this._opts = opts;
+        this._track = track;
+        this._isDestroyed = false;
+        this._index = -1;
+        this._error = null;
+        this._domNode = null;
+        this._isAttached = false;
+        this._dragged = false;
+        this._offset = 0;
+        this._viewUpdated = this._viewUpdated.bind(this);
+        this._track.on(`viewUpdate`, this._viewUpdated);
     }
 
-    if (this._dragged) {
-        this.$().addClass(`track-dragging`);
-    } else {
-        this.$().removeClass(`track-dragging`);
+    selectable() {
+        return this._opts.selectable;
     }
 
-    this.viewUpdateTagDataChange();
-    // This.viewUpdateOfflineStatusChange();
-    // This.viewUpdateSyncStatusChange();
-    this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
-
-    if (this._track.hasError()) {
-        this.viewUpdateShowErrorStatus();
-    } else {
-        this.viewUpdateHideErrorStatus();
+    page() {
+        return this._opts.page;
     }
 
-    this._updateTranslate();
-
-    if (!recycledDomNode && target) {
-        this.$().appendTo(target);
+    hasTouch() {
+        return this._opts.hasTouch;
     }
-};
 
-TrackView.prototype.isDestroyed = function() {
-    return this._isDestroyed;
-};
+    shouldUpdateTrackIndex() {
+        return this._opts.updateTrackIndex;
+    }
 
-TrackView.prototype.destroy = function() {
-    if (this._isDestroyed) return false;
-    this._track.removeListener(`viewUpdate`, this._viewUpdated);
-    this._index = -1;
-    this._isDestroyed = true;
-    return true;
-};
+    playlist() {
+        return this._opts.playlist;
+    }
 
-TrackView.prototype.isDetachedFromPlaylist = function() {
-    return !this._track || this._track.isDetachedFromPlaylist();
-};
+    itemHeight() {
+        return this._opts.itemHeight;
+    }
 
-TrackView.prototype.isVisible = function() {
-    return this._isAttached;
-};
+    tooltipContext() {
+        return this._opts.tooltipContext;
+    }
 
-TrackView.prototype.setIndex = function(index) {
-    if (this._index !== index) {
-        this._index = index;
-        if (this._shouldUpdateDom()) {
-            this._updateTranslate();
+    $() {
+        return this._domNode;
+    }
+
+    $container() {
+        return this.$().find(`.track`);
+    }
+
+    $trackNumber() {
+        return this.$().find(`.track-number`);
+    }
+
+    $trackDuration() {
+        return this.$().find(`.track-duration`);
+    }
+
+    $trackSelectionIndicator() {
+        return this.$().find(`.track-selection-indicator`);
+    }
+
+    track() {
+        return this._track;
+    }
+
+    _shouldUpdateDom() {
+        return this._domNode !== null;
+    }
+
+    _ensureDomNode(recycledDomNode, target) {
+        if (this._shouldUpdateDom()) return;
+
+        this._domNode = recycledDomNode || this.page().createElement(`div`, {
+            class: `track-container`
+        }).setHtml(TEMPLATE);
+
+        if (this.selectable().contains(this)) {
+            this.selected();
+        } else {
+            this.unselected();
+        }
+
+        if (this._dragged) {
+            this.$().addClass(`track-dragging`);
+        } else {
+            this.$().removeClass(`track-dragging`);
+        }
+
+        this.viewUpdateTagDataChange();
+        this.viewUpdateOfflineStatusChange();
+        this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
+
+
+        if (this._track.hasError()) {
+            this.viewUpdateShowErrorStatus();
+        } else {
+            this.viewUpdateHideErrorStatus();
+        }
+
+        this._updateTranslate();
+
+        if (!recycledDomNode && target) {
+            this.$().appendTo(target);
         }
     }
 
-    if (this.shouldUpdateTrackIndex() && this._track) {
-        this._track.setIndex(index);
+    isDestroyed() {
+        return this._isDestroyed;
     }
-};
 
-TrackView.prototype.getIndex = function() {
-    return this._index;
-};
-
-TrackView.prototype._viewUpdated = function(methodName, ...args) {
-    if (args.length > 0) {
-        this[methodName](...args);
-    } else {
-        this[methodName]();
+    destroy() {
+        if (this._isDestroyed) return false;
+        this._track.removeListener(`viewUpdate`, this._viewUpdated);
+        this._index = -1;
+        this._isDestroyed = true;
+        return true;
     }
-};
 
-TrackView.prototype.renderTrackInfo = function() {
-    const artistAndTitle = this._track.getTrackInfo();
-
-    this.$().find(`.track-title`).setText(artistAndTitle.title);
-    this.$().find(`.track-artist`).setText(artistAndTitle.artist);
-};
-
-TrackView.prototype.renderTrackNumber = function() {
-    this.$trackNumber().setText(`${this._track.getIndex() + 1}.`);
-};
-
-TrackView.prototype.renderTrackDuration = function() {
-    this.$trackDuration().setText(this._track.formatTime());
-};
-
-TrackView.prototype.attach = function(target, node) {
-    this._ensureDomNode(node, target);
-    this._isAttached = true;
-};
-
-TrackView.prototype.detach = function() {
-    if (this._isAttached) {
-        this._isAttached = false;
-        const node = this._domNode;
-        this._domNode = null;
-        return node;
+    isDetachedFromPlaylist() {
+        return !this._track || this._track.isDetachedFromPlaylist();
     }
-    return null;
-};
 
-TrackView.prototype.selected = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$().addClass(`track-active`);
-};
-
-TrackView.prototype.unselected = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$().removeClass(`track-active`);
-};
-
-TrackView.prototype.viewUpdateDestroyed = function() {
-    this.destroy();
-};
-
-TrackView.prototype.viewUpdateOfflineStatusChange = function() {
-    if (!this._shouldUpdateDom()) return;
-    if (this._track.isAvailableOffline()) {
-        this.$().find(`.offline`).addClass(`active`);
-    } else {
-        this.$().find(`.offline`).removeClass(`active`);
+    isVisible() {
+        return this._isAttached;
     }
-};
 
-TrackView.prototype.viewUpdateSyncStatusChange = function() {
-    if (!this._shouldUpdateDom()) return;
-    if (this._track.isSyncedToCloud()) {
-        this.$().find(`.cloud`).addClass(`active`);
-    } else {
-        this.$().find(`.cloud`).removeClass(`active`);
+    setIndex(index) {
+        if (this._index !== index) {
+            this._index = index;
+            if (this._shouldUpdateDom()) {
+                this._updateTranslate();
+            }
+        }
+
+        if (this.shouldUpdateTrackIndex() && this._track) {
+            this._track.setIndex(index);
+        }
     }
-};
 
-TrackView.prototype.viewUpdatePlayingStatusChange = function(playingStatus) {
-    if (!this._shouldUpdateDom()) return;
-    if (playingStatus) {
-        this.$().addClass(`track-playing`);
-    } else {
-        this.$().removeClass(`track-playing`);
+    getIndex() {
+        return this._index;
     }
-};
 
-TrackView.prototype.viewUpdateShowErrorStatus = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(`.track-error-status`).show(`inline-block`);
-};
-
-TrackView.prototype.viewUpdateHideErrorStatus = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.$trackStatus().find(`.track-error-status`).hide();
-};
-
-TrackView.prototype.viewUpdatePositionChange = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.renderTrackNumber();
-};
-
-TrackView.prototype.viewUpdateTagDataChange = function() {
-    if (!this._shouldUpdateDom()) return;
-    this.renderTrackNumber();
-    this.renderTrackDuration();
-    this.renderTrackInfo();
-};
-
-TrackView.prototype._updateTranslate = function() {
-    this.$().setTransform(this._getTranslate());
-};
-
-TrackView.prototype._getTranslate = function() {
-    const index = this._index;
-    let y = index * this.itemHeight();
-    let x = 0;
-    if (this._dragged) {
-        x -= 25;
-        y -= 10;
+    _viewUpdated(methodName, ...args) {
+        if (args.length > 0) {
+            this[methodName](...args);
+        } else {
+            this[methodName]();
+        }
     }
-    y += this._offset;
-    return `translate(${x}px, ${y}px)`;
-};
 
-TrackView.prototype.setOffset = function(value) {
-    this._offset = value;
-    if (!this._shouldUpdateDom()) return;
-    this._updateTranslate();
-};
+    renderTrackInfo() {
+        const artistAndTitle = this._track.getTrackInfo();
 
-TrackView.prototype.startDragging = function() {
-    if (this._dragged) return;
-    this._dragged = true;
-    if (!this._shouldUpdateDom()) return;
-    this.$().addClass(`track-dragging`).removeClass(`transition`);
-    this._updateTranslate();
-};
+        this.$().find(`.track-title`).setText(artistAndTitle.title);
+        this.$().find(`.track-artist`).setText(artistAndTitle.artist);
+    }
 
-TrackView.prototype.stopDragging = function() {
-    if (!this._dragged) return;
-    this._dragged = false;
-    this._offset = 0;
-    if (!this._shouldUpdateDom()) return;
-    this.$().removeClass(`track-dragging`).addClass(`transition`);
-    this._updateTranslate();
+    renderTrackNumber() {
+        this.$trackNumber().setText(`${this._track.getIndex() + 1}.`);
+    }
 
-    this.page().setTimeout(() => {
+    renderTrackDuration() {
+        this.$trackDuration().setText(this._track.formatTime());
+    }
+
+    attach(target, node) {
+        this._ensureDomNode(node, target);
+        this._isAttached = true;
+    }
+
+    detach() {
+        if (this._isAttached) {
+            this._isAttached = false;
+            const node = this._domNode;
+            this._domNode = null;
+            return node;
+        }
+        return null;
+    }
+
+    selected() {
         if (!this._shouldUpdateDom()) return;
-        this.$().removeClass(`transition`);
-    }, 220);
+        if (!this.hasTouch()) {
+            this.$().addClass(`track-active`);
+        } else {
+            this.$trackSelectionIndicator().removeClass(`blank-checkbox`).addClass(`checked-checkbox`);
+        }
+    }
 
-};
+    unselected() {
+        if (!this._shouldUpdateDom()) return;
+        if (!this.hasTouch()) {
+            this.$().removeClass(`track-active`);
+        } else {
+            this.$trackSelectionIndicator().addClass(`blank-checkbox`).removeClass(`checked-checkbox`);
+        }
+    }
+
+    viewUpdateDestroyed() {
+        this.destroy();
+    }
+
+    viewUpdateOfflineStatusChange() {
+        // NOOP
+    }
+
+    viewUpdatePlayingStatusChange(playingStatus) {
+        if (!this._shouldUpdateDom()) return;
+        if (playingStatus) {
+            this.$().addClass(`track-playing`);
+        } else {
+            this.$().removeClass(`track-playing`);
+        }
+    }
+
+    viewUpdateShowErrorStatus() {
+        if (!this._shouldUpdateDom()) return;
+        this.$().addClass(`track-error`).removeClass(`available-offline`);
+        // This.$trackStatus().find(`.track-error-status`).show(`inline-block`);
+    }
+
+    viewUpdateHideErrorStatus() {
+        if (!this._shouldUpdateDom()) return;
+        this.$().removeClass(`track-error`);
+        // This.$trackStatus().find(`.track-error-status`).hide();
+    }
+
+    viewUpdatePositionChange() {
+        if (!this._shouldUpdateDom()) return;
+        this.renderTrackNumber();
+    }
+
+    viewUpdateTagDataChange() {
+        if (!this._shouldUpdateDom()) return;
+        this.renderTrackNumber();
+        this.renderTrackDuration();
+        this.renderTrackInfo();
+    }
+
+    _updateTranslate() {
+        this.$().setTransform(this._getTranslate());
+    }
+
+    _getTranslate() {
+        const index = this._index;
+        let y = index * this.itemHeight();
+        let x = 0;
+        if (this._dragged) {
+            x -= 25;
+            y -= 10;
+        }
+        y += this._offset;
+        return `translate(${x}px, ${y}px)`;
+    }
+
+    setOffset(value) {
+        this._offset = value;
+        if (!this._shouldUpdateDom()) return;
+        this._updateTranslate();
+    }
+
+    startDragging() {
+        if (this._dragged) return;
+        this._dragged = true;
+        if (!this._shouldUpdateDom()) return;
+        this.$().addClass(`track-dragging`).removeClass(`transition`);
+        this._updateTranslate();
+    }
+
+    stopDragging() {
+        if (!this._dragged) return;
+        this._dragged = false;
+        this._offset = 0;
+        if (!this._shouldUpdateDom()) return;
+        this.$().removeClass(`track-dragging`).addClass(`transition`);
+        this._updateTranslate();
+
+        this.page().setTimeout(() => {
+            if (!this._shouldUpdateDom()) return;
+            this.$().removeClass(`transition`);
+        }, 220);
+
+    }
+}

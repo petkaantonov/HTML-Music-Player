@@ -126,38 +126,6 @@
     }
 }
 
-.track .track-info {
-    @include large-screen {
-        width: $large-screen-width - $total-app-border - $track-width-used - $track-info-gutter;
-    }
-
-    @include small-screen {
-        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
-    }
-
-    @include medium-small-screen {
-        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
-    }
-
-    @include ultra-small-screen {
-        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
-    }
-}
-
-.ratings-disabled .track .track-info {
-    @include large-screen {
-        width: $large-screen-width - $total-app-border - $track-width-used - $track-info-gutter;
-    }
-
-    @include small-screen {
-        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
-    }
-
-    @include medium-small-screen {
-        @include calc(width, "100% - #{$track-width-used + $track-info-gutter}");
-    }
-}
-
 .visualizer {
     width: 100%;
 }

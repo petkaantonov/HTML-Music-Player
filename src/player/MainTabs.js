@@ -26,6 +26,8 @@ const moreThan1Selected = function(selectedCount, totalCount) {
 export default function MainTabs(opts, deps) {
     opts = noUndefinedGet(opts);
     this.page = deps.page;
+    this.env = deps.env;
+    this.selectionStatus = deps.selectionStatus;
     this.globalEvents = deps.globalEvents;
     this.menuContext = deps.menuContext;
     this.recognizerContext = deps.recognizerContext;
@@ -95,11 +97,24 @@ export default function MainTabs(opts, deps) {
     this.playlistActionSpec = this.getPlaylistActionSpec();
     this.searchActionSpec = this.getSearchActionSpec();
 
-    this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
-    this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
+    if (this.env.hasTouch()) {
+        this.playlistContextMenu = this.menuContext.createButtonMenu(this.playlistActionSpec);
+        this.searchContextMenu = this.menuContext.createButtonMenu(this.searchActionSpec);
+        this.selectionStatus.on(`menuClick`, (e) => {
+            const tabId = this.tabController.getActiveTabId();
+            if (tabId === SEARCH_TAB_ID) {
+                this.searchContextMenu.show(e);
+            } else if (tabId === PLAYLIST_TAB_ID) {
+                this.playlistContextMenu.show(e);
+            }
+        });
+    } else {
+        this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
+        this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
+        this.playlistContextMenu.on(`beforeOpen`, this.beforePlaylistContextMenuOpen.bind(this));
+        this.searchContextMenu.on(`beforeOpen`, this.beforeSearchContextMenuOpen.bind(this));
+    }
 
-    this.playlistContextMenu.on(`beforeOpen`, this.beforePlaylistContextMenuOpen.bind(this));
-    this.searchContextMenu.on(`beforeOpen`, this.beforeSearchContextMenuOpen.bind(this));
     this.playlist.on(`tracksSelected`, this.updatePlaylistContextMenuEnabledStates.bind(this));
     this.playlist.on(`lengthChange`, this.updatePlaylistContextMenuEnabledStates.bind(this));
     this.search.on(`tracksSelected`, this.updateSearchContextMenuEnabledStates.bind(this));
@@ -115,7 +130,20 @@ MainTabs.prototype.tabEventHandler = function(methodName) {
             if (contentInstance[methodName]) {
                 contentInstance[methodName]();
             }
+
+            if (methodName === `tabWillShow`) {
+                this.playlistContextMenu.hide(true);
+                this.searchContextMenu.hide(true);
+                this.selectionStatus.setSelectionCount(contentInstance.getSelectedItemViewCount(),
+                                                       contentInstance.length,
+                                                       false);
+            }
         } else {
+            if (methodName === `tabWillShow`) {
+                this.playlistContextMenu.hide(true);
+                this.searchContextMenu.hide(true);
+                this.selectionStatus.setSelectionCount(0, 0, false);
+            }
             this.page.warn(`no tab id ${tabId}`);
         }
     }.bind(this);
@@ -133,89 +161,110 @@ MainTabs.prototype.actionHandler = function(preventDefault, contentInstance, met
 };
 
 MainTabs.prototype.getPlaylistActionSpec = function() {
-    return {
-        target: this.playlist.$trackContainer(),
-        menu: [{
+    const haveTouch = this.env.hasTouch();
+    const target = haveTouch ? this.selectionStatus.$menuButton() : this.playlist.$trackContainer();
+    const menu = [];
+
+    if (!haveTouch) {
+        menu.push({
             id: `play`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
             onClick: this.actionHandler(false, this.playlist, `playPrioritySelection`),
             enabledPredicate: moreThan0Selected
-        }, {
-            id: `delete`,
-            disabled: true,
-            content: this.menuContext.createMenuItem(`Delete`, `material-icons small-material-icon delete`),
-            onClick: this.actionHandler(false, this.playlist, `removeSelected`),
-            enabledPredicate: moreThan0Selected
-        }, {
-            divider: true
-        }, {
+        });
+    }
+
+    menu.push({
+        id: `delete`,
+        disabled: true,
+        content: this.menuContext.createMenuItem(`Delete`, `material-icons small-material-icon delete`),
+        onClick: this.actionHandler(false, this.playlist, `removeSelected`),
+        enabledPredicate: moreThan0Selected
+    });
+
+    menu.push({
+        divider: true
+    });
+
+    if (!haveTouch) {
+        menu.push({
             id: `clear-selection`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Select none`, `material-icons small-material-icon crop_square`),
             onClick: this.actionHandler(true, this.playlist, `clearSelection`),
             enabledPredicate: moreThan0Selected
-        }, {
+        });
+
+        menu.push({
             id: `select-all`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Select all`, `material-icons small-material-icon select_all`),
             onClick: this.actionHandler(true, this.playlist, `selectAll`),
             enabledPredicate: lessThanAllSelected
+        });
+    }
+
+    menu.push({
+        id: `sort`,
+        disabled: true,
+        content: this.menuContext.createMenuItem(`Sort by`, `glyphicon glyphicon-sort`),
+        enabledPredicate: moreThan1Selected,
+        children: [{
+            id: `sort-by-album`,
+            content: this.menuContext.createMenuItem(`Album`, `material-icons small-material-icon album`),
+            onClick: this.actionHandler(true, this.playlist, `sortByAlbum`),
+            enabledPredicate: moreThan1Selected
         }, {
-            id: `sort`,
-            disabled: true,
-            content: this.menuContext.createMenuItem(`Sort by`, `glyphicon glyphicon-sort`),
-            enabledPredicate: moreThan1Selected,
-            children: [{
-                id: `sort-by-album`,
-                content: this.menuContext.createMenuItem(`Album`, `material-icons small-material-icon album`),
-                onClick: this.actionHandler(true, this.playlist, `sortByAlbum`),
-                enabledPredicate: moreThan1Selected
-            }, {
-                id: `sort-by-artist`,
-                content: this.menuContext.createMenuItem(`Artist`, `material-icons small-material-icon mic`),
-                onClick: this.actionHandler(true, this.playlist, `sortByArtist`),
-                enabledPredicate: moreThan1Selected
+            id: `sort-by-artist`,
+            content: this.menuContext.createMenuItem(`Artist`, `material-icons small-material-icon mic`),
+            onClick: this.actionHandler(true, this.playlist, `sortByArtist`),
+            enabledPredicate: moreThan1Selected
 
-            }, {
-                id: `sort-by-album-artist`,
-                content: this.menuContext.createMenuItem(`Album artist`, `material-icons small-material-icon perm_camera_mic`),
-                onClick: this.actionHandler(true, this.playlist, `sortByAlbumArtist`),
-                enabledPredicate: moreThan1Selected
+        }, {
+            id: `sort-by-album-artist`,
+            content: this.menuContext.createMenuItem(`Album artist`, `material-icons small-material-icon perm_camera_mic`),
+            onClick: this.actionHandler(true, this.playlist, `sortByAlbumArtist`),
+            enabledPredicate: moreThan1Selected
 
-            }, {
-                id: `sort-by-title`,
-                content: this.menuContext.createMenuItem(`Title`, `material-icons small-material-icon music_note`),
-                onClick: this.actionHandler(true, this.playlist, `sortByTitle`),
-                enabledPredicate: moreThan1Selected
+        }, {
+            id: `sort-by-title`,
+            content: this.menuContext.createMenuItem(`Title`, `material-icons small-material-icon music_note`),
+            onClick: this.actionHandler(true, this.playlist, `sortByTitle`),
+            enabledPredicate: moreThan1Selected
 
-            }, {
-                id: `sort-by-rating`,
-                content: this.menuContext.createMenuItem(`Rating`, `material-icons small-material-icon grade`),
-                onClick: this.actionHandler(true, this.playlist, `sortByRating`),
-                enabledPredicate: moreThan1Selected
+        }, {
+            id: `sort-by-rating`,
+            content: this.menuContext.createMenuItem(`Rating`, `material-icons small-material-icon grade`),
+            onClick: this.actionHandler(true, this.playlist, `sortByRating`),
+            enabledPredicate: moreThan1Selected
 
-            }, {
-                id: `sort-by-duration`,
-                content: this.menuContext.createMenuItem(`Duration`, `material-icons small-material-icon access_time`),
-                onClick: this.actionHandler(true, this.playlist, `sortByDuration`),
-                enabledPredicate: moreThan1Selected
-            }, {
-                divider: true
-            }, {
-                id: `sort-by-shuffling`,
-                content: this.menuContext.createMenuItem(`Shuffle`, `material-icons small-material-icon shuffle`),
-                onClick: this.actionHandler(true, this.playlist, `sortByShuffling`),
-                enabledPredicate: moreThan1Selected
-            }, {
-                id: `sort-by-reverse-order`,
-                content: this.menuContext.createMenuItem(`Reverse order`, `material-icons small-material-icon undo`),
-                onClick: this.actionHandler(true, this.playlist, `sortByReverseOrder`),
-                enabledPredicate: moreThan1Selected
-            }]
+        }, {
+            id: `sort-by-duration`,
+            content: this.menuContext.createMenuItem(`Duration`, `material-icons small-material-icon access_time`),
+            onClick: this.actionHandler(true, this.playlist, `sortByDuration`),
+            enabledPredicate: moreThan1Selected
         }, {
             divider: true
         }, {
+            id: `sort-by-shuffling`,
+            content: this.menuContext.createMenuItem(`Shuffle`, `material-icons small-material-icon shuffle`),
+            onClick: this.actionHandler(true, this.playlist, `sortByShuffling`),
+            enabledPredicate: moreThan1Selected
+        }, {
+            id: `sort-by-reverse-order`,
+            content: this.menuContext.createMenuItem(`Reverse order`, `material-icons small-material-icon undo`),
+            onClick: this.actionHandler(true, this.playlist, `sortByReverseOrder`),
+            enabledPredicate: moreThan1Selected
+        }]
+    });
+
+    if (!haveTouch) {
+        menu.push({
+            divider: true
+        });
+
+        menu.push({
             disabled: true,
             id: `track-rating`,
             enabledPredicate: exactly1Selected,
@@ -225,36 +274,51 @@ MainTabs.prototype.getPlaylistActionSpec = function() {
             onClick(e) {
                 e.preventDefault();
             }
-        }]
-    };
+        });
+    }
+
+    return {target, menu};
 };
 
 MainTabs.prototype.getSearchActionSpec = function() {
-    return {
-        target: this.search.$trackContainer(),
-        menu: [{
+    const haveTouch = this.env.hasTouch();
+    const target = haveTouch ? this.selectionStatus.$menuButton() : this.search.$trackContainer();
+    const menu = [];
+
+    if (!haveTouch) {
+        menu.push({
             id: `play`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
             onClick: this.actionHandler(false, this.search, `playPrioritySelection`),
             enabledPredicate: moreThan0Selected
-        }, {
+        });
+
+        menu.push({
             divider: true
-        }, {
+        });
+
+        menu.push({
             id: `clear-selection`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Select none`, `material-icons small-material-icon crop_square`),
             onClick: this.actionHandler(true, this.search, `clearSelection`),
             enabledPredicate: moreThan0Selected
-        }, {
+        });
+
+        menu.push({
             id: `select-all`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Select all`, `material-icons small-material-icon select_all`),
             onClick: this.actionHandler(true, this.search, `selectAll`),
             enabledPredicate: lessThanAllSelected
-        }, {
+        });
+
+        menu.push({
             divider: true
-        }, {
+        });
+
+        menu.push({
             disabled: true,
             id: `track-rating`,
             enabledPredicate: exactly1Selected,
@@ -264,8 +328,16 @@ MainTabs.prototype.getSearchActionSpec = function() {
             onClick(e) {
                 e.preventDefault();
             }
-        }]
-    };
+        });
+    }
+
+    if (haveTouch) {
+        menu.push({
+            divider: true
+        });
+    }
+
+    return {target, menu};
 };
 
 MainTabs.prototype.layoutChanged = function() {
@@ -291,6 +363,7 @@ MainTabs.prototype.layoutChanged = function() {
 
 MainTabs.prototype.updatePlaylistContextMenuEnabledStates = function() {
     const selectedCount = this.playlist.getSelectedItemViewCount();
+    this.selectionStatus.setSelectionCount(selectedCount, this.playlist.length);
     if (selectedCount === 1) {
         this.playlistTrackRater.enable(this.playlist.getSelectable().first().track());
     } else {
@@ -301,6 +374,7 @@ MainTabs.prototype.updatePlaylistContextMenuEnabledStates = function() {
 
 MainTabs.prototype.updateSearchContextMenuEnabledStates = function() {
     const selectedCount = this.search.getSelectedItemViewCount();
+    this.selectionStatus.setSelectionCount(selectedCount, this.search.length);
     if (selectedCount === 1) {
         this.searchTrackRater.enable(this.search.getSelectable().first().track());
     } else {
@@ -311,14 +385,8 @@ MainTabs.prototype.updateSearchContextMenuEnabledStates = function() {
 
 MainTabs.prototype.beforePlaylistContextMenuOpen = function(e) {
     this.playlistTrackRater.update();
-    if (this.page.$(e.originalEvent.target).closest(`.unclickable`).length > 0) {
-        e.preventDefault();
-    }
 };
 
 MainTabs.prototype.beforeSearchContextMenuOpen = function(e) {
     this.searchTrackRater.update();
-    if (this.page.$(e.originalEvent.target).closest(`.unclickable`).length > 0) {
-        e.preventDefault();
-    }
 };

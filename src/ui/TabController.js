@@ -210,6 +210,10 @@ export default class TabController extends EventEmitter {
         return this._activeTab || this._tabs[0];
     }
 
+    getActiveTabId() {
+        return this.getActiveTab()._id;
+    }
+
     async _activateTab(tab, force) {
         if (this._pendingAnimations) {
             await this._pendingAnimations;

@@ -1,24 +1,6 @@
 @import "variables";
 @import "shadows";
 
-.track-container.track-container-progress {
-    padding-bottom: 1px !important;
-    border-bottom: none !important;
-}
-
-.track-container .track-progress-bar {
-    position: absolute;
-    left: 0px;
-    bottom: 0px;
-    width: 100%;
-    height: 1px;
-    background-color: #6BC5E1;
-    @include translateX(-100%);
-    @include transition-property(-webkit-transform, transform);
-    @include transition-timing-function(linear);
-    @include transition-duration(0.1s)
-    ẃill-change: transform;
-}
 
 .track-container {
     left: 0px;
@@ -49,6 +31,125 @@
         @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
         @include transition-duration(0.22s);
     }
+
+    .track-selector-container {
+        width: $track-selector-width;
+        padding: 0px 8px;
+        height: 100%;
+        text-align: center;
+
+        .material-icons {
+            margin-top: 10px;
+            &.blank-checkbox {
+                color: $text-color-lighter;
+            }
+
+            &.checked-checkbox {
+                color: $primary-color-darker;
+            }
+        }
+    }
+
+    .track {
+        $track-duration-margin: 6px;
+        color: $text-color;
+        width: 100%;
+        height: 100%;
+
+        .track-data {
+            @include calc(width, "100% - #{$track-controls-width + $track-selector-width}");
+        }
+
+        .track-number {
+            width: $track-number-width;
+        }
+
+        .track-info {
+            @include calc(width, "100% - #{$track-duration-width + $track-number-width + $track-duration-margin}");
+            height: 100%;
+            overflow: hidden;
+            padding: 4px 0px 4px 6px;
+
+            .track-title,
+            .track-artist {
+                display: block;
+            }
+
+            .track-title {
+                font-size: 15px;
+            }
+
+            .track-artist {
+                font-size: 13px;
+                color: $text-color-lighter;
+                margin-top: 2px;
+            }
+        }
+
+        .track-duration {
+            width: $track-duration-width;
+            text-align: center;
+            margin-left: $track-duration-margin;
+            overflow: hidden;
+        }
+
+        .track-duration,
+        .track-number {
+            font-size: 14px;
+            line-height: 14px;
+            padding-top: 15px;
+            height: 100%;
+        }
+
+        .track-controls {
+            $track-controls-room: $track-controls-width - $track-controls-gutter;
+            $vertical-gutter: 2px;
+            $vertical-space-available: $track-item-height - 2px - $vertical-gutter * 2;
+
+            padding: $vertical-gutter 0px $vertical-gutter $track-controls-gutter;
+            height: 100%;
+            width: $track-controls-width;
+        }
+    }
+
+    &.track-active {
+        background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
+        border-bottom: 1px solid #B0D1F8;
+    }
+
+    &.track-playing {
+        .track {
+            color: $secondary-color;
+        }
+        border-bottom: 1px solid $secondary-color;
+    }
+
+    &.track-error {
+        .track {
+            color: $error-color;
+        }
+        border-bottom: 1px solid $error-color;
+    }
+}
+
+.no-touch {
+    .track-container {
+        $left-padding: $track-selector-width/2;
+        padding-left: $left-padding;
+        .track {
+            .track-data {
+                @include calc(width, "100% - #{$left-padding}");
+            }
+        }
+
+        .track-selector-container {
+            display: none;
+        }
+
+        .track-controls {
+            display: none;
+        }
+    }
 }
 
 .tracklist-transform-container {
@@ -75,141 +176,6 @@
                 @include transition-timing-function(initial);
                 @include transition-duration(initial);
             }
-        }
-    }
-}
-
-.track-container.touch-hover {
-    background-color: $touch-hover-color;
-}
-
-.track-container.track-active {
-    background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
-    border-bottom: 1px solid #B0D1F8;
-}
-
-.track .track-status {
-    width: $track-status-width;
-    height: 100%;
-    font-size: 14px;
-    line-height: 14px;
-    text-align: center;
-}
-
-.track-status .icon {
-    margin-top: 14px;
-}
-
-.track-status .track-analysis-status {
-    color: #6BC5E1;
-}
-
-.track-status .track-error-status {
-    color: #a94442;
-}
-
-.track-status .playing-icon {
-    color: #BE7306;
-    display: none;
-}
-
-.track-container.track-playing .playing-icon {
-    display: inline-block;
-}
-
-.track-container.track-playing .track-analysis-status,
-.track-container.track-playing .track-error-status {
-    display: none;
-}
-
-.track-container > .track {
-    height: 100%;
-    width: 100%;
-}
-
-
-.track {
-    .track-clickable {
-        height: 100%;
-    }
-
-    .track-number {
-        width: $track-number-width;
-    }
-
-    .track-info {
-        height: 100%;
-        overflow: hidden;
-        padding: 4px 0px 4px 6px;
-
-        .track-title,
-        .track-artist {
-            display: block;
-        }
-
-        .track-title {
-            font-size: 15px;
-            color: #333;
-        }
-
-        .track-artist {
-            font-size: 13px;
-            color: #777;
-            margin-top: 2px;
-        }
-    }
-
-    .track-duration {
-        width: $track-duration-width;
-        text-align: center;
-        margin-left: 6px;
-        overflow: hidden;
-    }
-
-    .track-duration,
-    .track-number {
-        color: #333;
-        font-size: 14px;
-        line-height: 14px;
-        padding-top: 15px;
-        height: 100%;
-    }
-
-    .track-availability {
-        $track-availability-room: $track-availability-width - $track-availability-gutter;
-        $vertical-gutter: 2px;
-        $vertical-space-available: $track-item-height - 2px - $vertical-gutter * 2;
-
-        padding: $vertical-gutter 0px $vertical-gutter $track-availability-gutter;
-        height: 100%;
-        width: $track-availability-width;
-        color: #bbb;
-        .track-availability-item {
-            height: 100% / $number-of-track-availability-items;
-            width: $track-availability-room;
-            line-height: $vertical-space-available / $number-of-track-availability-items;
-
-            .icon {
-                font-size: 16px;
-                vertical-align: middle;
-            }
-
-            .text {
-                font-size: 11px;
-                vertical-align: middle;
-                text-transform: uppercase;
-                width: $track-availability-room - $track-availability-icon-size;
-                padding-left: $track-availability-icon-text-gutter;
-                text-align: left;
-            }
-        }
-
-        .track-availability-item.offline.active {
-            color: #1C6E1C;
-        }
-
-        .track-availability-item.cloud.active {
-            color: #BE7306;
         }
     }
 }

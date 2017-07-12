@@ -1,9 +1,8 @@
 export default {
     _bindListEvents() {
-        const {page} = this;
+        const {page, env} = this;
 
         this.$().addEventListener(`click`, page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
             if (!trackView) return;
             if (this._draggable && this._draggable.recentlyStoppedDragging()) return;
@@ -14,55 +13,37 @@ export default {
         }, `.track-container`));
 
         this.$().addEventListener(`mousedown`, page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
             if (!trackView) return;
             this._selectable.trackViewMouseDown(e, trackView);
         }, `.track-container`));
 
         this.$().addEventListener(`dblclick`, page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
             if (!trackView) return;
             this.changeTrackExplicitly(trackView.track());
         }, `.track-container`));
 
-        this.recognizerContext.createModifierTapRecognizer(page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
-            const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
-            if (!trackView) return;
 
-            if (this._selectable.contains(trackView)) {
-                this._selectable.removeTrackView(trackView);
-            } else {
-                this._selectable.addTrackView(trackView);
-                this._selectable.setPriorityTrackView(trackView);
-            }
-        }, `.track-container`)).recognizeBubbledOn(this.$());
+        if (env.hasTouch()) {
+            this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
+                const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+                if (!trackView) return;
 
-        this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
-            const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
-            if (!trackView) return;
-            this._selectable.selectTrackView(trackView);
-        }, `.track-container`)).recognizeBubbledOn(this.$());
+                if (this._selectable.contains(trackView)) {
+                    this._selectable.removeTrackView(trackView);
+                } else {
+                    this._selectable.addTrackView(trackView);
+                    this._selectable.setPriorityTrackView(trackView);
+                }
+            }, `.track-selector-container`)).recognizeBubbledOn(this.$());
 
-        this.recognizerContext.createLongTapRecognizer(page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
-            const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
-            if (!trackView) return;
-            if (!this._selectable.contains(trackView)) {
-                this._selectable.selectTrackView(trackView);
-            }
-            this._selectable.setPriorityTrackView(trackView);
-        }, `.track-container`)).recognizeBubbledOn(this.$trackContainer());
-
-        this.recognizerContext.createDoubleTapRecognizer(page.delegatedEventHandler((e) => {
-            if (page.$(e.target).closest(`.unclickable`).length > 0) return;
-            const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
-            if (!trackView) return;
-            this.changeTrackExplicitly(trackView.track());
-        }, `.track-container`)).recognizeBubbledOn(this.$());
+            this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
+                const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+                if (!trackView) return;
+                this.changeTrackExplicitly(trackView.track());
+            }, `.track-data`)).recognizeBubbledOn(this.$());
+        }
 
         if (this._draggable) {
             this._draggable.on(`dragStart`, () => {

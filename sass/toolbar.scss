@@ -6,12 +6,21 @@
     margin: 0px auto;
 }
 
+$toolbar-height: 45px;
+$toolbar-bottom-margin: 10px;
+
+body {
+    padding-top: #{$toolbar-height + $toolbar-bottom-margin};
+}
+
 .toolbar {
     background-color: #fff;
-    height: 45px;
+    height: $toolbar-height;
     width: 100%;
-    margin-bottom: 10px;
-    position: relative;
+    position: absolute;
+    z-index: 940;
+    top: 0px;
+    left: 0px;
     background: rgb(255,255,255);
     background: -moz-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(248,248,248,1) 100%);
     background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
@@ -104,18 +113,35 @@
     }
 }
 
+.toolbar-items .toolbar-text,
 .toolbar-items .toolbar-item {
     display: inline-block;
     height: 100%;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.toolbar-items .toolbar-item {
+
     width: 50px;
     border-right: 1px solid #EBEBEB;
     font-size: 18px;
     line-height: 18px;
     text-align: center;
     color: #474747;
-    box-sizing: border-box;
+
     vertical-align: top;
-    outline: none;
+}
+
+.toolbar-items .toolbar-text {
+    margin-left: 10px;
+    font-size: 14px;
+    line-height: 14px;
+    padding: 15px 0px;
+    text-align: left;
+    color: $text-color;
+    box-sizing: border-box;
+    vertical-align: middle;
 }
 
 .toolbar-items .toolbar-item:hover,

@@ -39,6 +39,8 @@ import TagDataContext from "tracks/TagData";
 import {timerTick as trackTimerTick} from "tracks/Track";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
+import ToolbarManager from "ui/ToolbarManager";
+import SelectionStatus from "ui/SelectionStatus";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -46,6 +48,8 @@ const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;
 const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 
+const MAIN_TOOLBAR_INDEX = 0;
+const SELECTION_TOOLBAR_INDEX = 1;
 
 export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     const bootstrapStart = performance.now();
@@ -70,7 +74,18 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     this.globalEvents = globalEvents;
     this.timers = timers;
 
+    const toolbars = [`#main-toolbar`];
 
+    if (env.hasTouch()) {
+        toolbars.push(`#selection-toolbar`);
+    }
+
+    const toolbarManager = this.toolbarManager = withDeps({
+        page, globalEvents
+    }, d => new ToolbarManager({
+        toolbars,
+        activeToolbar: `#main-toolbar`
+    }, d));
 
     /* eslint-disable no-unused-vars */
     const workerWrapper = this.workerWrapper = withDeps({
@@ -110,6 +125,25 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         zIndex: POPUP_ZINDEX - 60,
         target: `body`
     }, d));
+
+    const selectionStatus = this.selectionStatus = withDeps({
+        page, recognizerContext, rippler
+    }, d => new SelectionStatus({
+        countDisplay: `#selected-items-count`,
+        closeButton: `#unselect-all-menu-button`,
+        menuButton: `#show-selection-menu-button`,
+        selectAllButton: `#select-all-menu-button`
+    }, d));
+
+    if (env.hasTouch()) {
+        selectionStatus.on(`emptySelection`, (count, animationAppropriate) => {
+            toolbarManager.activateToolbar(MAIN_TOOLBAR_INDEX, animationAppropriate);
+        });
+
+        selectionStatus.on(`nonEmptySelection`, (count, animationAppropriate) => {
+            toolbarManager.activateToolbar(SELECTION_TOOLBAR_INDEX, animationAppropriate);
+        });
+    }
 
     const keyboardShortcuts = this.keyboardShortcuts = withDeps({
         page
@@ -284,6 +318,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const playlist = this.playlist = withDeps({
         env,
+        selectionStatus,
         page,
         db,
         dbValues,
@@ -355,6 +390,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const search = this.search = withDeps({
         env,
+        selectionStatus,
         page,
         playlist,
         db,
@@ -379,8 +415,10 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const mainTabs = this.mainTabs = withDeps({
         page,
+        env,
         keyboardShortcuts,
         globalEvents,
+        selectionStatus,
         menuContext,
         playlist,
         search,

@@ -1,7 +1,5 @@
-
-
 import {slugTitle} from "util";
-import ActionMenu, {ContextMenu} from "ui/ActionMenu";
+import ActionMenu, {ContextMenu, ButtonMenu} from "ui/ActionMenu";
 import withDeps from "ApplicationDependencies";
 
 export default function MenuContext(opts, deps) {
@@ -58,6 +56,24 @@ MenuContext.prototype.createContextMenu = function(opts) {
         globalEvents: this.globalEvents
     }, deps => new ContextMenu(opts, deps));
 };
+
+MenuContext.prototype.createButtonMenu = function(opts) {
+    opts.rootClass = this.rootClass;
+    opts.containerClass = this.containerClass;
+    opts.itemClass = this.itemClass;
+    opts.disabledClass = this.disabledClass;
+    opts.dividerClass = this.dividerClass;
+    opts.activeSubMenuClass = this.activeSubMenuClass;
+    opts.subMenuShowDelay = this.subMenuShowDelay;
+    opts.subMenuHideDelay = this.subMenuHideDelay;
+    return withDeps({
+        page: this.page,
+        recognizerContext: this.recognizerContext,
+        rippler: this.rippler,
+        globalEvents: this.globalEvents
+    }, deps => new ButtonMenu(opts, deps));
+};
+
 
 MenuContext.prototype.createMenuItem = function(text, icon) {
     const content = this.page.createElement(`div`, {

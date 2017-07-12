@@ -623,213 +623,247 @@ ActionMenu.prototype.enable = function(actions) {
     this.emit(`activationChange`, this);
 };
 
-export function ContextMenu(opts, deps) {
-    EventEmitter.call(this);
-    opts = Object(opts);
-    opts._initialLevel = 2;
-    opts.rootClass = `${opts.rootClass} action-menu-context-root`;
-    this._menu = new ActionMenu(opts, deps);
-    this._domNode = this._menu.$().setStyles({
-        position: `absolute`,
-        zIndex: 50
-    });
-    this._shown = false;
-    this._targetDom = this.page().$(opts.target);
-    this._x = 0;
-    this._y = 0;
-    this._xMax = 0;
-    this._yMax = 0;
-    this._delayTimerId = -1;
-
-    this.documentClicked = this.documentClicked.bind(this);
-    this.hide = this.hide.bind(this);
-    this.rightClicked = this.rightClicked.bind(this);
-    this.keypressed = this.keypressed.bind(this);
-    this.position = this.position.bind(this);
-
-    this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
-    this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
-    this.preventDefault = preventDefaultHandler;
-
-    this.$target().addEventListener(`contextmenu`, this.rightClicked);
-    this.page().addDocumentListener(`mousedown`, this.documentClicked, true);
-    this.page().addDocumentListener(`keydown`, this.keypressed, true);
-    this.longTapRecognizer.recognizeBubbledOn(this.$target());
-    this.documentTouchedRecognizer.recognizeCapturedOn(this.page().document());
-
-    this._menu.on(`itemClick`, this.hide);
-    this._menu.globalEvents.on(`resize`, this.position);
-    this._menu.globalEvents.on(`visibilityChange`, this.hide);
-}
-inherits(ContextMenu, EventEmitter);
-
-ContextMenu.prototype.page = function() {
-    return this._menu.page;
-};
-
-ContextMenu.prototype.destroy = function() {
-    this.hide();
-    this._menu.removeListener(`itemClick`, this.hide);
-    this._menu.globalEvents.removeListener(`resize`, this.position);
-    this._menu.globalEvents.removeListener(`visibilityChange`, this.hide);
-    this.page().removeDocumentListener(`mousedown`, this.documentClicked, true);
-    this.page().removeDocumentListener(`keydown`, this.keypressed, true);
-    this.$target().removeEventListener(`contextmenu`, this.rightClicked);
-    this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
-    this.documentTouchedRecognizer.unrecognizeCapturedOn(this.page().document());
-    this.removeAllListeners();
-    this._menu.destroy();
-};
-
-ContextMenu.prototype.$target = function() {
-    return this._targetDom;
-};
-
-ContextMenu.prototype.$ = function() {
-    return this._domNode;
-};
-
-ContextMenu.prototype.position = function() {
-    const origin = {x: 0, y: 0};
-    if (!this._shown) return origin;
-    let x = this._x;
-    let y = this._y;
-    const box = this.$()[0].getBoundingClientRect();
-    const xMax = this.page().width();
-    const yMax = this.page().height();
-
-    let positionChanged = false;
-    if (xMax !== this._xMax || yMax !== this._yMax) {
-        x *= (xMax / this._xMax);
-        y *= (yMax / this._yMax);
-        this._x = x;
-        this._y = y;
-        this._xMax = xMax;
-        this._yMax = yMax;
-        positionChanged = true;
-    }
-
-    if (x + box.width > xMax) {
-        positionChanged = true;
-        x = Math.max(0, xMax - box.width);
-        origin.x = Math.max(0, this._x - x);
-    }
-
-    if (y + box.height > yMax) {
-        positionChanged = true;
-        y = Math.max(0, yMax - box.height);
-        origin.y = Math.max(0, this._y - y);
-    }
-
-    this.$().setStyles({left: `${x}px`, top: `${y}px`});
-
-    if (positionChanged) {
-        this._menu.forEach((child) => {
-            if (child.children) {
-                child.positionSubMenu();
-            }
+export class ButtonMenu extends EventEmitter {
+    constructor(opts, deps) {
+        super();
+        opts = Object(opts);
+        opts._initialLevel = 2;
+        opts.rootClass = `${opts.rootClass} action-menu-context-root`;
+        this._menu = new ActionMenu(opts, deps);
+        this._domNode = this._menu.$().setStyles({
+            position: `absolute`,
+            zIndex: 945
         });
-    }
-    return origin;
-};
+        this._shown = false;
+        this._targetDom = this.page().$(opts.target);
+        this._x = 0;
+        this._y = 0;
+        this._xMax = 0;
+        this._yMax = 0;
+        this._delayTimerId = -1;
 
-ContextMenu.prototype.rightClicked = function(e) {
-    this.hide();
-    let defaultPrevented = false;
-    const ev = {
-        preventDefault() {
-            defaultPrevented = true;
-        },
-        originalEvent: e
-    };
-    this.emit(`beforeOpen`, ev);
-    if (defaultPrevented) return;
-    this.show(e);
-    if (this._shown && !isTouchEvent(e)) {
-        e.preventDefault();
-    }
-};
-
-ContextMenu.prototype.show = function(e) {
-    if (this._shown) return;
-    this.page().clearTimeout(this._delayTimerId);
-    this._delayTimerId = -1;
-
-    let prevented = false;
-    this.preventDefault = function() {
-        prevented = true;
-    };
-    this.emit(`willShowMenu`, e, this);
-    if (prevented) return;
-    this._shown = true;
-    this.$().removeClass([`transition-out`, `transition-in`, `initial`]).appendTo(`body`);
-    this._x = e.clientX;
-    this._y = e.clientY;
-    this._xMax = this.page().width();
-    this._yMax = this.page().height();
-    const origin = this.position();
-    this.$().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`);
-
-    // Transition from desktop right click feels weird so only do it on touch.
-    if (isTouchEvent(e)) {
-        this.$().detach().
-                addClass([`initial`, `transition-in`]).
-                appendTo(`body`).
-                forceReflow();
-        this.page().changeDom(() => {
-            this.$().removeClass(`initial`);
-        });
+        this.documentClicked = this.documentClicked.bind(this);
+        this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
+        this.documentTouchedRecognizer.recognizeCapturedOn(this.page().document());
+        this.page().addDocumentListener(`mousedown`, this.documentClicked, true);
+        this._menu.on(`itemClick`, this.hide);
+        this._menu.globalEvents.on(`resize`, this.position);
+        this._menu.globalEvents.on(`visibilityChange`, this.hide);
     }
 
-    this.emit(`didShowMenu`, e, this);
-};
+    page() {
+        return this._menu.page;
+    }
 
-ContextMenu.prototype.hide = function() {
-    if (!this._shown) return;
-    this.emit(`willHideMenu`, this);
-    this._shown = false;
-    this.$().removeClass(`transition-in`).
-            addClass([`initial`, `transition-out`]).
-            forceReflow();
+    $target() {
+        return this._targetDom;
+    }
 
-    this.page().changeDom(() => {
-        this.$().removeClass(`initial`);
-        this._delayTimerId = this.page().setTimeout(() => {
-            this._delayTimerId = -1;
+    $() {
+        return this._domNode;
+    }
+
+    destroy() {
+        this.hide();
+        this._menu.destroy();
+    }
+
+    position() {
+        const origin = {x: 0, y: 0};
+        if (!this._shown) return origin;
+        let x = this._x;
+        let y = this._y;
+        const box = this.$()[0].getBoundingClientRect();
+        const xMax = this.page().width();
+        const yMax = this.page().height();
+
+        let positionChanged = false;
+        if (xMax !== this._xMax || yMax !== this._yMax) {
+            x *= (xMax / this._xMax);
+            y *= (yMax / this._yMax);
+            this._x = x;
+            this._y = y;
+            this._xMax = xMax;
+            this._yMax = yMax;
+            positionChanged = true;
+        }
+
+        if (x + box.width > xMax) {
+            positionChanged = true;
+            x = Math.max(0, xMax - box.width);
+            origin.x = Math.max(0, this._x - x);
+        }
+
+        if (y + box.height > yMax) {
+            positionChanged = true;
+            y = Math.max(0, yMax - box.height);
+            origin.y = Math.max(0, this._y - y);
+        }
+
+        this.$().setStyles({left: `${x}px`, top: `${y}px`});
+
+        if (positionChanged) {
+            this._menu.forEach((child) => {
+                if (child.children) {
+                    child.positionSubMenu();
+                }
+            });
+        }
+        return origin;
+    }
+
+    hide(noAnimation = false) {
+        if (!this._shown) return;
+        this.emit(`willHideMenu`, this);
+        this._shown = false;
+
+        if (!noAnimation) {
+            this.$().removeClass(`transition-in`).
+                    addClass([`initial`, `transition-out`]).
+                    forceReflow();
+            this.page().changeDom(() => {
+                this.$().removeClass(`initial`);
+                this._delayTimerId = this.page().setTimeout(() => {
+                    this._delayTimerId = -1;
+                    this.$().detach();
+                }, TRANSITION_OUT_DURATION);
+            });
+        } else {
             this.$().detach();
-        }, TRANSITION_OUT_DURATION);
-    });
-    this._menu.hideContainer();
-    this.emit(`didHideMenu`, this);
-};
+        }
+
+
+        this._menu.hideContainer();
+        this.emit(`didHideMenu`, this);
+    }
+
+    documentClicked(e) {
+        if (!this._shown) return;
+
+        const $target = this.page().$(e.target);
+        let containerClicked = false;
+        this._menu.$containers().forEach((elem) => {
+            if ($target.closest(elem).length > 0) {
+                containerClicked = true;
+                return false;
+            }
+            return true;
+        });
+
+        if (!containerClicked) {
+            this.hide();
+        }
+    }
+
+    show(e) {
+        if (this._shown) return;
+        this.page().clearTimeout(this._delayTimerId);
+        this._delayTimerId = -1;
+
+        let prevented = false;
+        this.preventDefault = function() {
+            prevented = true;
+        };
+        this.emit(`willShowMenu`, e, this);
+        if (prevented) return;
+        this._shown = true;
+        this.$().removeClass([`transition-out`, `transition-in`, `initial`]).appendTo(`body`);
+        const coords = this.getCoords(e);
+        this._x = coords.x;
+        this._y = coords.y;
+        this._xMax = this.page().width();
+        this._yMax = this.page().height();
+        const origin = this.position();
+        this.$().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`);
+
+        // Transition from desktop right click feels weird so only do it on touch.
+        if (isTouchEvent(e)) {
+            this.$().detach().
+                    addClass([`initial`, `transition-in`]).
+                    appendTo(`body`).
+                    forceReflow();
+            this.page().changeDom(() => {
+                this.$().removeClass(`initial`);
+            });
+        }
+
+        this.emit(`didShowMenu`, e, this);
+    }
+
+    getCoords(e) {
+        const box = this.$target()[0].getBoundingClientRect();
+        return {
+            x: box.right - 5,
+            y: box.top + 2
+        };
+    }
+}
 
 [`disable`, `enable`, `disableAll`, `enableAll`, `refreshAll`, `setEnabledStateFromPredicate`,
 `forEach`].forEach((methodName) => {
     const menuMethod = ActionMenu.prototype[methodName];
-    ContextMenu.prototype[methodName] = function(...args) {
+    ButtonMenu.prototype[methodName] = function(...args) {
         return menuMethod.call(this._menu, ...args);
     };
 });
 
-ContextMenu.prototype.documentClicked = function(e) {
-    if (!this._shown) return;
+export class ContextMenu extends ButtonMenu {
+    constructor(opts, deps) {
+        super(opts, deps);
+        this.hide = this.hide.bind(this);
+        this.rightClicked = this.rightClicked.bind(this);
+        this.keypressed = this.keypressed.bind(this);
+        this.position = this.position.bind(this);
 
-    const $target = this.page().$(e.target);
-    let containerClicked = false;
-    this._menu.$containers().forEach((elem) => {
-        if ($target.closest(elem).length > 0) {
-            containerClicked = true;
-            return false;
+        this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
+        this.preventDefault = preventDefaultHandler;
+
+        this.$target().addEventListener(`contextmenu`, this.rightClicked);
+        this.page().addDocumentListener(`keydown`, this.keypressed, true);
+        this.longTapRecognizer.recognizeBubbledOn(this.$target());
+    }
+
+
+    destroy() {
+        super.destroy();
+        this._menu.removeListener(`itemClick`, this.hide);
+        this._menu.globalEvents.removeListener(`resize`, this.position);
+        this._menu.globalEvents.removeListener(`visibilityChange`, this.hide);
+        this.page().removeDocumentListener(`mousedown`, this.documentClicked, true);
+        this.page().removeDocumentListener(`keydown`, this.keypressed, true);
+        this.$target().removeEventListener(`contextmenu`, this.rightClicked);
+        this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
+        this.documentTouchedRecognizer.unrecognizeCapturedOn(this.page().document());
+        this.removeAllListeners();
+    }
+
+    rightClicked(e) {
+        this.hide();
+        let defaultPrevented = false;
+        const ev = {
+            preventDefault() {
+                defaultPrevented = true;
+            },
+            originalEvent: e
+        };
+        this.emit(`beforeOpen`, ev);
+        if (defaultPrevented) return;
+        this.show(e);
+        if (this._shown && !isTouchEvent(e)) {
+            e.preventDefault();
         }
-        return true;
-    });
+    }
 
-    if (!containerClicked) {
+    getCoords(e) {
+        return {x: e.clientX, y: e.clientY};
+    }
+
+    keypressed() {
+        if (!this._shown) return;
         this.hide();
     }
-};
 
-ContextMenu.prototype.keypressed = function() {
-    if (!this._shown) return;
-    this.hide();
-};
+}
+
+
+

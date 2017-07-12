@@ -24,8 +24,7 @@ const boundedOpacityAnimationOptions = {
 
 const boundedScaleAnimationOptions = {
     easing: DECELERATE_QUINT,
-    duration: BOUNDED_RADIUS_DURATION,
-    fill: `both`
+    duration: BOUNDED_RADIUS_DURATION
 };
 
 const unboundedOpacityAnimationKeyFrames = [

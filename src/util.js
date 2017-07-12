@@ -1154,23 +1154,31 @@ export const _set = new Proxy(new Map(), {get(cache, name) {
   return ret;
 }});
 
-export const _equals = new Proxy(new Map(), {get(cache, name) {
-  const cached = cache.get(name);
-  if (cached) {
-    return cached;
+export const _equals = new Proxy(new Map(), {
+  get(cache, name) {
+    const cached = cache.get(name);
+    if (cached) {
+      return cached;
+    }
+
+    const code = `
+      return function(v) {
+        const val = v.${name};
+        return (typeof val === "function" ? v.${name}() : val) === rhs
+      };
+    `;
+
+    const ret = new Function(`rhs`, code);
+    cache.set(name, ret);
+    return ret;
   }
+});
 
-  const code = `
-    return function(v) {
-      const val = v.${name};
-      return (typeof val === "function" ? v.${name}() : val) === rhs
-    };
-  `;
-
-  const ret = new Function(`rhs`, code);
-  cache.set(name, ret);
-  return ret;
-}});
+export const equals = function(arg) {
+  return function(v) {
+    return v === arg;
+  };
+};
 
 export const delay = function(ms) {
     return new Promise((resolve) => {

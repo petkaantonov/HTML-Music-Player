@@ -17,8 +17,8 @@ self.env = {
 
 self.uiLog = function(...args) {
     self.postMessage({
-        type: "uiLog",
-        args: args
+        type: `uiLog`,
+        args
     });
 };
 

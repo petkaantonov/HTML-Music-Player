@@ -5,12 +5,12 @@ export default class WorkerWrapper {
         this._page = deps.page;
         this._worker = new Worker(src);
         this._postedMessagePorts = new Map();
-        this._worker.addEventListener("error", (event) => {
-            this._page.uiLog(event.message, event.filename, event.lineno, event.colno)
+        this._worker.addEventListener(`error`, (event) => {
+            this._page.uiLog(event.message, event.filename, event.lineno, event.colno);
         });
         this._worker.addEventListener(`message`, (event) => {
             const {type} = event.data;
-            if (type === "uiLog") {
+            if (type === `uiLog`) {
                 this._page.uiLog(...event.data.args);
                 return;
             }

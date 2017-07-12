@@ -59,8 +59,7 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
     <meta name="theme-color" content="#e0f0ff">
 </head>
 <body class="ui-text" role="application">
-
-<div class="toolbar">
+<div class="toolbar" id="main-toolbar">
     <div class="toolbar-items">
         <div class="toolbar-items-section-1">
             <div class="toolbar-item menul-submenu-open" tabindex="0">
@@ -104,6 +103,31 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
         <div class="toolbar-items-section-2">
             <div class="toolbar-item notification-setting" tabindex="0">
                 <span class="icon material-icons large-material-icon flip_to_front"></span>
+            </div>
+
+        </div>
+    </div>
+    <div class="toolbar-border"></div>
+</div>
+
+<div class="toolbar" id="selection-toolbar" style="display: none;">
+    <div class="toolbar-items">
+        <div class="toolbar-items-section-1">
+            <div class="toolbar-item" tabindex="0" id="unselect-all-menu-button">
+                <span class="icon material-icons large-material-icon close"></span>
+            </div>
+            <div class="toolbar-text">
+                <span>Selected</span>
+                <span class="small-chip" id="selected-items-count">0</span>
+            </div>
+        </div>
+
+        <div class="toolbar-items-section-2">
+            <div class="toolbar-item" tabindex="0" id="select-all-menu-button">
+                <span class="icon material-icons large-material-icon select_all"></span>
+            </div>
+            <div class="toolbar-item" tabindex="0" id="show-selection-menu-button">
+                <span class="icon material-icons large-material-icon selection-menu-options"></span>
             </div>
 
         </div>

@@ -1,5 +1,11 @@
 $primary-color: #B3DAFF;
+$primary-color-darker: #6BC5E1;
 $secondary-color: #BE7306;
+$tertiary-color: #1C6E1C;
+$error-color: #a94442;
+
+$text-color: #333;
+$text-color-lighter: #777;
 
 $unfocused-form-color: #aaa;
 
@@ -22,16 +28,15 @@ $track-rating-star-size: 22px;
 $track-rating-vertical-gutter: 6px;
 $track-rating-horizontal-gutter: 4px;
 
-$number-of-track-availability-items: 2;
-$track-availability-gutter: 10px;
-$track-availability-icon-size: 16px;
-$track-availability-icon-text-gutter: 5px;
+$track-controls-gutter: 10px;
+$track-controls-icon-size: 16px;
+$track-controls-icon-text-gutter: 5px;
 
-$track-status-width: 36px;
+$track-selector-width: 44px;
 $track-number-width: 42px;
 $track-duration-width: 38px;
-$track-availability-width: 80px;
-$track-width-used: $track-info-gutter + $track-status-width + $track-number-width + $track-duration-width + $track-availability-width;
+$track-controls-width: 80px;
+$track-width-used: $track-info-gutter + $track-selector-width + $track-number-width + $track-duration-width + $track-controls-width;
 
 $track-item-height: 44px;
 

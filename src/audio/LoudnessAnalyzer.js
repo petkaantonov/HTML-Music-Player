@@ -27,7 +27,7 @@ export default class LoudnessAnalyzer {
             throw new Error(`not allocated`);
         }
 
-        let err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, audioFrameCount);
+        const err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, audioFrameCount);
         if (err) {
             throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
         }
@@ -39,9 +39,9 @@ export default class LoudnessAnalyzer {
         if (currentWindowIndex > windowIndex) {
             this._windowIndex = currentWindowIndex;
 
-            const [err, gain] = this.loudness_analyzer_get_gain(this._ptr);
-            if (err) {
-                throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
+            const [error, gain] = this.loudness_analyzer_get_gain(this._ptr);
+            if (error) {
+                throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
             }
 
             this._previousGain = gain;
