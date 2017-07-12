@@ -6,7 +6,7 @@ import AbstractBackend from "AbstractBackend";
 export const PLAYER_READY_EVENT_NAME = `playerReady`;
 
 export default class AudioPlayerBackend extends AbstractBackend {
-    constructor(wasm, timers) {
+    constructor(wasm, timers, db, metadataParser) {
         super(PLAYER_READY_EVENT_NAME);
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
@@ -16,6 +16,12 @@ export default class AudioPlayerBackend extends AbstractBackend {
         this._timers = timers;
         this._audioSources = new Map();
         this._effects = new Effects();
+        this._db = db;
+        this._metadataParser = metadataParser;
+    }
+
+    get metadataParser() {
+        return this._metadataParser;
     }
 
     get wasm() {
@@ -26,10 +32,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
         const ret = this._bufferTime;
         if (!ret) throw new Error(`buffer time not set`);
         return ret;
-    }
-
-    get bufferTimeMs() {
-        return this.bufferTime * 1000 | 0;
     }
 
     get bufferAudioFrameCount() {

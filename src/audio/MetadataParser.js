@@ -128,6 +128,23 @@ export default class MetadataParser {
         resolve(data);
     }
 
+    async getCachedMetadata(file) {
+        const cacheKey = await getFileCacheKey(file);
+        return this._tagDatabase.getCachedMetadata(cacheKey);
+    }
+
+    async updateCachedMetadata(file, metadata) {
+        const cacheKey = await getFileCacheKey(file);
+        const cachedResult = await this._tagDatabase.getCachedMetadata(cacheKey);
+
+        let dataToSave = metadata;
+        if (cachedResult) {
+            dataToSave = Object.assign({}, cachedResult, metadata);
+        }
+
+        await this._tagDatabase.setCachedMetadata(cacheKey, dataToSave);
+    }
+
     async fetchAcoustId(uid, fingerprint, duration) {
         const data = queryString({
             client: `djbbrJFK`,

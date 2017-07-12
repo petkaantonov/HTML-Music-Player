@@ -1,3 +1,5 @@
+import {Uint32Array} from "platform/platform";
+
 export default function createStdlib(wasm) {
     const brk = (addr) => {
         let ret;
@@ -59,6 +61,30 @@ export default function createStdlib(wasm) {
                 throw new Error(`unsupported`);
             }
             return ret;
+        },
+
+        qsort(ptr, length, itemByteLength, comparerFuncTableIndex) {
+            const comparer = wasm.table(comparerFuncTableIndex);
+
+            let tmp = 0;
+            try {
+                tmp = wasm.malloc(length * itemByteLength);
+                wasm.memcpy(tmp, ptr, length * itemByteLength);
+                const array = new Uint32Array(length);
+                for (let i = 0; i < length; ++i) {
+                    array[i] = ptr + i * itemByteLength;
+                }
+                array.sort(comparer);
+                for (let i = 0; i < length; ++i) {
+                    const offset = array[i] - ptr;
+                    const value = tmp + offset;
+                    wasm.memcpy(ptr + i * itemByteLength, value, itemByteLength);
+                }
+            } finally {
+                if (tmp) {
+                    wasm.free(tmp);
+                }
+            }
         }
     };
 }

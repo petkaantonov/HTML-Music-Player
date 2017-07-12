@@ -6,6 +6,9 @@ import UsageDataBackend from "usageData/UsageDataBackend";
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import Timers from "platform/Timers";
+import MetadataParser from "audio/MetadataParser";
+import TagDatabase from "tracks/TagDatabase";
+
 
 self.env = {
     isDevelopment() {
@@ -29,8 +32,12 @@ self.env = {
     const module = await WebAssembly.compile(bufferSource);
     self.mainWasmModule = new WebAssemblyWrapper(module, `main`);
     await self.mainWasmModule.start();
-    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers).start();
-    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule).start();
+
+    const db = new TagDatabase();
+    const metadataParser = new MetadataParser(db);
+
+    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, db, metadataParser).start();
+    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataParser).start();
     self.searchBackend = new SearchBackend(self.trackAnalyzerBackend).start();
     self.usageDataBackend = new UsageDataBackend().start();
 })();

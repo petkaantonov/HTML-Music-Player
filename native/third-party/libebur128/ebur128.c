@@ -44,7 +44,6 @@ struct ebur128_state_internal {
   double* audio_data;
   /** Size of audio_data array. */
   size_t audio_data_frames;
-  size_t audio_data_max_frames;
   /** Current index for audio_data. */
   size_t audio_data_index;
   /** How many frames are needed for a gating block. Will correspond to 400ms
@@ -343,8 +342,7 @@ void ebur128_get_version(int* major, int* minor, int* patch) {
 
 ebur128_state* ebur128_init(unsigned int channels,
                             unsigned long samplerate,
-                            int mode,
-                            int window) {
+                            int mode) {
   int result;
   int errcode;
   ebur128_state* st;
@@ -388,8 +386,6 @@ ebur128_state* ebur128_init(unsigned int channels,
     st->d->window = 3000;
   } else if ((mode & EBUR128_MODE_M) == EBUR128_MODE_M) {
     st->d->window = 400;
-  } else if (window != -1) {
-    st->d->window = window;
   } else {
     goto free_prev_true_peak;
   }
@@ -400,12 +396,11 @@ ebur128_state* ebur128_init(unsigned int channels,
                              + st->d->samples_in_100ms
                              - (st->d->audio_data_frames % st->d->samples_in_100ms);
   }
-  st->d->audio_data_max_frames = MAX(st->d->audio_data_frames, st->d->samples_in_100ms * 4);
-  st->d->audio_data = (double*) malloc(st->d->audio_data_max_frames *
+  st->d->audio_data = (double*) malloc(st->d->audio_data_frames *
                                        st->channels *
                                        sizeof(double));
   CHECK_ERROR(!st->d->audio_data, 0, free_true_peak)
-  for (j = 0; j < st->d->audio_data_max_frames * st->channels; ++j) {
+  for (j = 0; j < st->d->audio_data_frames * st->channels; ++j) {
     st->d->audio_data[i] = 0.0;
   }
 
@@ -538,6 +533,7 @@ static void ebur128_check_true_peak(ebur128_state* st, size_t frames) {
 #define TURN_OFF_FTZ _mm_setcsr(mxcsr);
 #define FLUSH_MANUALLY
 #else
+#warning "manual FTZ is being used, please enable SSE2 (-msse2 -mfpmath=sse)"
 #define TURN_ON_FTZ
 #define TURN_OFF_FTZ
 #define FLUSH_MANUALLY \
@@ -776,12 +772,11 @@ int ebur128_change_parameters(ebur128_state* st,
                              + st->d->samples_in_100ms
                              - (st->d->audio_data_frames % st->d->samples_in_100ms);
   }
-  st->d->audio_data_max_frames = MAX(st->d->audio_data_frames, st->d->samples_in_100ms * 4);
-  st->d->audio_data = (double*) malloc(st->d->audio_data_max_frames *
+  st->d->audio_data = (double*) malloc(st->d->audio_data_frames *
                                        st->channels *
                                        sizeof(double));
   CHECK_ERROR(!st->d->audio_data, EBUR128_ERROR_NOMEM, exit)
-  for (j = 0; j < st->d->audio_data_max_frames * st->channels; ++j) {
+  for (j = 0; j < st->d->audio_data_frames * st->channels; ++j) {
     st->d->audio_data[j] = 0.0;
   }
 
@@ -824,12 +819,11 @@ int ebur128_set_max_window(ebur128_state* st, unsigned long window)
                              + st->d->samples_in_100ms
                              - (st->d->audio_data_frames % st->d->samples_in_100ms);
   }
-  st->d->audio_data_max_frames = MAX(st->d->audio_data_frames, st->d->samples_in_100ms * 4);
-  st->d->audio_data = (double*) malloc(st->d->audio_data_max_frames *
+  st->d->audio_data = (double*) malloc(st->d->audio_data_frames *
                                        st->channels *
                                        sizeof(double));
   CHECK_ERROR(!st->d->audio_data, EBUR128_ERROR_NOMEM, exit)
-  for (j = 0; j < st->d->audio_data_max_frames * st->channels; ++j) {
+  for (j = 0; j < st->d->audio_data_frames * st->channels; ++j) {
     st->d->audio_data[j] = 0.0;
   }
 
@@ -925,8 +919,7 @@ int ebur128_add_frames_##type(ebur128_state* st,                               \
       /* 100ms are needed for all blocks besides the first one */              \
       st->d->needed_frames = st->d->samples_in_100ms;                          \
       /* reset audio_data_index when buffer full */                            \
-                                                                               \
-      if (st->d->audio_data_index >= st->d->audio_data_frames * st->channels) {\
+      if (st->d->audio_data_index == st->d->audio_data_frames * st->channels) {\
         st->d->audio_data_index = 0;                                           \
       }                                                                        \
     } else {                                                                   \
@@ -1130,10 +1123,154 @@ int ebur128_loudness_window(ebur128_state* st,
   return EBUR128_SUCCESS;
 }
 
+static int ebur128_double_cmp(const void *p1, const void *p2) {
+  const double* d1 = (const double*) p1;
+  const double* d2 = (const double*) p2;
+  return (*d1 > *d2) - (*d1 < *d2);
+}
+
 /* EBU - TECH 3342 */
 int ebur128_loudness_range_multiple(ebur128_state** sts, size_t size,
                                     double* out) {
-  return EBUR128_ERROR_INVALID_MODE;
+  size_t i, j;
+  struct ebur128_dq_entry* it;
+  double* stl_vector;
+  size_t stl_size;
+  double* stl_relgated;
+  size_t stl_relgated_size;
+  double stl_power, stl_integrated;
+  /* High and low percentile energy */
+  double h_en, l_en;
+  int use_histogram = 0;
+
+  for (i = 0; i < size; ++i) {
+    if (sts[i]) {
+      if ((sts[i]->mode & EBUR128_MODE_LRA) != EBUR128_MODE_LRA) {
+        return EBUR128_ERROR_INVALID_MODE;
+      }
+      if (i == 0 && sts[i]->mode & EBUR128_MODE_HISTOGRAM) {
+        use_histogram = 1;
+      } else if (use_histogram != !!(sts[i]->mode & EBUR128_MODE_HISTOGRAM)) {
+        return EBUR128_ERROR_INVALID_MODE;
+      }
+    }
+  }
+
+  if (use_histogram) {
+    unsigned long hist[1000] = { 0 };
+    size_t percentile_low, percentile_high;
+    size_t index;
+
+    stl_size = 0;
+    stl_power = 0.0;
+    for (i = 0; i < size; ++i) {
+      if (!sts[i]) {
+        continue;
+      }
+      for (j = 0; j < 1000; ++j) {
+        hist[j]   += sts[i]->d->short_term_block_energy_histogram[j];
+        stl_size  += sts[i]->d->short_term_block_energy_histogram[j];
+        stl_power += sts[i]->d->short_term_block_energy_histogram[j]
+                     * histogram_energies[j];
+      }
+    }
+    if (!stl_size) {
+      *out = 0.0;
+      return EBUR128_SUCCESS;
+    }
+
+    stl_power /= stl_size;
+    stl_integrated = minus_twenty_decibels * stl_power;
+
+    if (stl_integrated < histogram_energy_boundaries[0]) {
+      index = 0;
+    } else {
+      index = find_histogram_index(stl_integrated);
+      if (stl_integrated > histogram_energies[index]) {
+        ++index;
+      }
+    }
+    stl_size = 0;
+    for (j = index; j < 1000; ++j) {
+      stl_size += hist[j];
+    }
+    if (!stl_size) {
+      *out = 0.0;
+      return EBUR128_SUCCESS;
+    }
+
+    percentile_low  = (size_t) ((stl_size - 1) * 0.1 + 0.5);
+    percentile_high = (size_t) ((stl_size - 1) * 0.95 + 0.5);
+
+    stl_size = 0;
+    j = index;
+    while (stl_size <= percentile_low) {
+      stl_size += hist[j++];
+    }
+    l_en = histogram_energies[j - 1];
+    while (stl_size <= percentile_high) {
+      stl_size += hist[j++];
+    }
+    h_en = histogram_energies[j - 1];
+    *out = ebur128_energy_to_loudness(h_en) - ebur128_energy_to_loudness(l_en);
+    return EBUR128_SUCCESS;
+
+  } else {
+    stl_size = 0;
+    for (i = 0; i < size; ++i) {
+      if (!sts[i]) {
+        continue;
+      }
+      STAILQ_FOREACH(it, &sts[i]->d->short_term_block_list, entries) {
+        ++stl_size;
+      }
+    }
+    if (!stl_size) {
+      *out = 0.0;
+      return EBUR128_SUCCESS;
+    }
+    stl_vector = (double*) malloc(stl_size * sizeof(double));
+    if (!stl_vector) {
+      return EBUR128_ERROR_NOMEM;
+    }
+
+    j = 0;
+    for (i = 0; i < size; ++i) {
+      if (!sts[i]) {
+        continue;
+      }
+      STAILQ_FOREACH(it, &sts[i]->d->short_term_block_list, entries) {
+        stl_vector[j] = it->z;
+        ++j;
+      }
+    }
+    qsort(stl_vector, stl_size, sizeof(double), ebur128_double_cmp);
+    stl_power = 0.0;
+    for (i = 0; i < stl_size; ++i) {
+      stl_power += stl_vector[i];
+    }
+    stl_power /= (double) stl_size;
+    stl_integrated = minus_twenty_decibels * stl_power;
+
+    stl_relgated = stl_vector;
+    stl_relgated_size = stl_size;
+    while (stl_relgated_size > 0 && *stl_relgated < stl_integrated) {
+      ++stl_relgated;
+      --stl_relgated_size;
+    }
+
+    if (stl_relgated_size) {
+      h_en = stl_relgated[(size_t) ((stl_relgated_size - 1) * 0.95 + 0.5)];
+      l_en = stl_relgated[(size_t) ((stl_relgated_size - 1) * 0.1 + 0.5)];
+      free(stl_vector);
+      *out = ebur128_energy_to_loudness(h_en) - ebur128_energy_to_loudness(l_en);
+      return EBUR128_SUCCESS;
+    } else {
+      free(stl_vector);
+      *out = 0.0;
+      return EBUR128_SUCCESS;
+    }
+  }
 }
 
 int ebur128_loudness_range(ebur128_state* st, double* out) {

@@ -7,13 +7,13 @@
 
 typedef struct {
     uint32_t frames_added;
-    uint32_t window;
+    uint32_t max_history;
     ebur128_state* st;
 } LoudnessAnalyzer;
 
 EXPORT int loudness_analyzer_init(uint32_t channel_count,
                                   uint32_t sample_rate,
-                                  uint32_t window,
+                                  uint32_t max_history,
                                   LoudnessAnalyzer** retval);
 EXPORT void loudness_analyzer_destroy(LoudnessAnalyzer* this);
 EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this,
@@ -23,6 +23,6 @@ EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this,
 EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
                                           uint32_t channel_count,
                                           uint32_t sample_rate,
-                                          uint32_t window);
+                                          uint32_t max_history);
 EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this);
 #endif //LOUDNESS_ANALYZER_H

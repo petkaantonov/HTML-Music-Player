@@ -1,16 +1,14 @@
 import AbstractBackend from "AbstractBackend";
-import MetadataParser from "audio/MetadataParser";
 import TrackAnalysisJob from "tracks/TrackAnalysisJob";
-import TagDatabase from "tracks/TagDatabase";
 import {CancellationError} from "utils/CancellationToken";
 
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
 export default class TrackAnalyzerBackend extends AbstractBackend {
-    constructor(wasm) {
+    constructor(wasm, db, metadataParser) {
         super(ANALYZER_READY_EVENT_NAME);
-        this.db = new TagDatabase();
-        this.metadataParser = new MetadataParser(this.db);
+        this.db = db;
+        this.metadataParser = metadataParser;
         this.wasm = wasm;
         this.analysisQueue = [];
         this.currentJob = null;

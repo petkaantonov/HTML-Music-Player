@@ -293,6 +293,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
         this._bufferFillCancellationToken = this.cancellationTokenForBufferFillOperation();
 
+        const {trackMetadata} = this.metadata;
         let i = 0;
         let currentBufferFillType = bufferFillType;
         try {
@@ -312,11 +313,22 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     break;
                 }
 
+
+                let loudness = bufferDescriptor.loudness;
+                if (!trackMetadata.establishedGain &&
+                    this._loudnessAnalyzer.hasEstablishedGain()) {
+                    trackMetadata.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
+                    this.backend.metadataParser.updateCachedMetadata(this.blob, trackMetadata);
+                } else if (trackMetadata.establishedGain &&
+                           !this._loudnessAnalyzer.hasEstablishedGain()) {
+                    loudness = trackMetadata.establishedGain;
+                }
+
                 const descriptor = {
                     length: bufferDescriptor.length,
                     startTime: bufferDescriptor.startTime,
                     endTime: bufferDescriptor.endTime,
-                    loudness: bufferDescriptor.loudness,
+                    loudness,
                     fillTypeData: null
                 };
 
@@ -346,12 +358,12 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 destinationSampleRate,
                 resamplerQuality,
                 bufferTime,
-                bufferTimeMs,
                 bufferAudioFrameCount,
                 wasm,
                 channelMixer,
-                effects} = this.backend;
-        const {codecName} = this;
+                effects,
+                metadataParser} = this.backend;
+        const {codecName, blob} = this;
         try {
             if (this.destroyed) {
                 return;
@@ -378,6 +390,17 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 }
             }
 
+            const trackMetadata = await metadataParser.getCachedMetadata(blob);
+
+            if (this.destroyed) {
+                return;
+            }
+
+            if (trackMetadata) {
+                metadata.trackMetadata = trackMetadata;
+            }
+
+
             this.metadata = metadata;
             const {sampleRate: sourceSampleRate,
                    channels: sourceChannelCount} = metadata;
@@ -400,7 +423,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             this._decoder.start(metadata);
 
-            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate, bufferTimeMs);
+            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate, 20 * 1000);
 
             const {resampler, _decoder: decoder, _loudnessAnalyzer: loudnessAnalyzer} = this;
 
@@ -506,10 +529,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this.ended = false;
             if (this.resampler) {
                 this.resampler.reset();
-            }
-
-            if (this._loudnessAnalyzer) {
-                this._loudnessAnalyzer.reset();
             }
 
             this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, transferList, {

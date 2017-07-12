@@ -1,12 +1,20 @@
-
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
+const maxHistoryMs = 20 * 1000;
 
 export default class LoudnessAnalyzer {
-    constructor(wasm, channelCount, sampleRate, windowMs) {
+    constructor(wasm, channelCount, sampleRate) {
+
+        this._maxHistoryMs = maxHistoryMs;
+        this._sampleRate = sampleRate;
+        this._channelCount = channelCount;
         this._wasm = wasm;
-        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, windowMs);
+        this._ptr = 0;
+        this._establishedGain = -1;
+        this._framesAdded = 0;
+
+        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, maxHistoryMs);
         if (err) {
-            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${windowMs}`);
+            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${maxHistoryMs}`);
         }
         this._ptr = ptr;
     }
@@ -15,11 +23,29 @@ export default class LoudnessAnalyzer {
         if (!this._ptr) {
             throw new Error(`not allocated`);
         }
+        this._framesAdded += audioFrameCount;
+
+
         const [err, gain] = this.loudness_analyzer_get_gain(this._ptr, samplePtr, audioFrameCount);
         if (err) {
             throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
         }
+
+        if (!this.hasEstablishedGain()) {
+            const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
+            if (this._framesAdded >= neededFrames) {
+                this._establishedGain = gain;
+            }
+        }
         return gain;
+    }
+
+    hasEstablishedGain() {
+        return this._establishedGain !== -1;
+    }
+
+    getEstablishedGain() {
+        return this._establishedGain;
     }
 
     destroy() {
@@ -33,23 +59,29 @@ export default class LoudnessAnalyzer {
         if (!this._ptr) {
             throw new Error(`not allocated`);
         }
+        this._establishedGain = -1;
+        this._framesAdded = 0;
         const err = this.loudness_analyzer_reset(this._ptr);
         if (err) {
             throw new Error(`ebur128: reset error ${err}`);
         }
     }
 
-    reinitialized(channelCount, sampleRate, windowMs) {
+    reinitialized(channelCount, sampleRate) {
+        this._channelCount = channelCount;
+        this._sampleRate = sampleRate;
+        this._establishedGain = -1;
+        this._framesAdded = 0;
         if (!this._ptr) {
-            const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, windowMs);
+            const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
             if (err) {
-                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${windowMs}`);
+                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
             }
             this._ptr = ptr;
         } else {
-            const err = this.loudness_analyzer_reinitialize(this._ptr, channelCount, sampleRate, windowMs);
+            const err = this.loudness_analyzer_reinitialize(this._ptr, channelCount, sampleRate, this._maxHistoryMs);
             if (err) {
-                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${windowMs}`);
+                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
             }
         }
         return this;

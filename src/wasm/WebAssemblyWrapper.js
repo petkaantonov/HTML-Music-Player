@@ -195,6 +195,7 @@ export default class WebAssemblyWrapper {
         this._exportsProxy = null;
         this._imports = null;
         this._mem = null;
+        this._table = null;
         this._view = null;
         this._name = name;
         this._jsStackMemorySize = 0;
@@ -524,6 +525,7 @@ export default class WebAssemblyWrapper {
         };
 
         this._mem = this._getMemory();
+        this._table = this._getTable();
         this._refreshMemoryView();
         this.__errno_location = this._exportsProxy.__errno_location;
         this._main = this._exportsProxy.main;
@@ -619,6 +621,17 @@ export default class WebAssemblyWrapper {
 
     i16view(ptr, length = undefined) {
         return new Int16Array(this._mem.buffer, ptr, length);
+    }
+
+    table(index) {
+        return this._exports.table.get(index);
+    }
+
+    _getTable() {
+        if (!this._exports.table) {
+            throw new InvalidModuleError(`Expected table to be exported but it wasn't`);
+        }
+        return this._exports.table;
     }
 
     _getMemory() {

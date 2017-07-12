@@ -31,23 +31,34 @@ if (!AudioContext.prototype.resume) {
     };
 }
 
-function SourceDescriptor(buffer, descriptor, channelData, isLastForTrack) {
-    this.buffer = buffer;
-    this.playedSoFar = 0;
-    this.startTime = descriptor.startTime;
-    this.endTime = descriptor.endTime;
-    this.length = descriptor.length;
-    this.duration = descriptor.length / buffer.sampleRate;
-    this.gain = Math.min(1, Math.pow(10, (descriptor.loudness / 20)));
-    this.started = -1;
-    this.source = null;
-    this.channelData = channelData;
-    this.isLastForTrack = isLastForTrack;
-}
-
-SourceDescriptor.prototype.getRemainingDuration = function() {
-    return this.duration - this.playedSoFar;
+const decibelToGain = function(loudness) {
+    return Math.pow(10, (loudness / 20));
 };
+
+class SourceDescriptor {
+    constructor(sourceNode, buffer, descriptor, channelData, isLastForTrack) {
+        this._sourceNode = sourceNode;
+        this.buffer = buffer;
+        this.playedSoFar = 0;
+        this.startTime = descriptor.startTime;
+        this.endTime = descriptor.endTime;
+        this.length = descriptor.length;
+        this.duration = descriptor.length / buffer.sampleRate;
+        this._gain = isNaN(descriptor.loudness) ? NaN : decibelToGain(descriptor.loudness);
+        this.started = -1;
+        this.source = null;
+        this.channelData = channelData;
+        this.isLastForTrack = isLastForTrack;
+    }
+
+    get gain() {
+        return isNaN(this._gain) ? this._sourceNode._baseGain : this._gain;
+    }
+
+    getRemainingDuration() {
+        return this.duration - this.playedSoFar;
+    }
+}
 
 function NativeGetOutputTimestamp() {
     return this._audioContext.getOutputTimestamp();
@@ -476,6 +487,7 @@ function AudioPlayerSourceNode(player, id, audioContext) {
 
     this._paused = true;
     this._destroyed = false;
+    this._baseGain = 1;
 
     this._initialPlaythroughEmitted = false;
     this._currentSeekEmitted = false;
@@ -599,6 +611,7 @@ AudioPlayerSourceNode.prototype._ended = function() {
 
 AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor, stopTime = -1) {
     if (sourceDescriptor.buffer === null) return;
+    sourceDescriptor._sourceNode = null;
     const src = sourceDescriptor.source;
     if (src) {
         src.descriptor = null;
@@ -931,6 +944,31 @@ AudioPlayerSourceNode.prototype._idle = function() {
     this._requestMoreBuffers();
 };
 
+AudioPlayerSourceNode.prototype._rescheduleLoudness = function() {
+    let when = this.getCurrentTimeScheduledAhead();
+    try {
+        this._normalizerNode.gain.cancelScheduledValues(when);
+    } catch (e) {
+        console.warn(e.stack);
+    }
+    for (let i = 0; i < this._bufferQueue.length; ++i) {
+        try {
+            const sourceDescriptor = this._bufferQueue[i];
+            let {duration} = sourceDescriptor;
+            if (sourceDescriptor.playedSoFar > 0) {
+                duration = sourceDescriptor.getRemainingDuration() - this._player.getScheduleAheadTime();
+                if (duration < 0) {
+                    continue;
+                }
+            }
+            this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
+            when += duration;
+        } catch (e) {
+            console.warn(e.stack);
+        }
+    }
+};
+
 AudioPlayerSourceNode.prototype._emitTimeUpdate = function(currentTime, duration, willEmitEnded = false) {
     this.emit(`timeUpdate`, currentTime, duration, willEmitEnded, this._endedEmitted);
 };
@@ -985,13 +1023,20 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
             channelData[ch] = data;
         }
 
-        const sourceDescriptor = new SourceDescriptor(audioBuffer, descriptor, channelData, isLastBuffer);
+        const sourceDescriptor = new SourceDescriptor(this, audioBuffer, descriptor, channelData, isLastBuffer);
 
         if (sourceDescriptor.isLastForTrack &&
             sourceDescriptor.endTime < this._duration - this._player.getBufferDuration()) {
             this._duration = sourceDescriptor.endTime;
             this._emitTimeUpdate(this._currentTime, this._duration);
             this.emit(`durationChange`, this._duration);
+        }
+
+        if (this._baseGain === 1 && !isNaN(descriptor.loudness)) {
+            this._baseGain = decibelToGain(descriptor.loudness);
+            if (!currentSourcesShouldBeStopped && !this._sourceStopped) {
+                this._rescheduleLoudness();
+            }
         }
 
         let scheduledStartTime;
@@ -1190,9 +1235,11 @@ AudioPlayerSourceNode.prototype._error = function(args, transferList) {
 AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     if (this._destroyed) return;
     if (this._replacementRequestId !== args.requestId) return;
+    const {metadata} = args;
     this._loadingNext = false;
     this._haveBlob = true;
-    this._duration = args.metadata.duration;
+    this._duration = metadata.duration;
+    this._baseGain = typeof metadata.establishedGain === `number` ? metadata.establishedGain : 1;
     this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
     this._seek(this._currentTime, false);
     this._emitTimeUpdate(this._currentTime, this._duration);
@@ -1224,6 +1271,7 @@ AudioPlayerSourceNode.prototype._applySeek = function(baseTime) {
 AudioPlayerSourceNode.prototype._applyReplacementLoaded = function({metadata, baseTime}) {
     if (this._destroyed) return;
     this._duration = metadata.duration;
+    this._baseGain = typeof metadata.establishedGain === `number` ? metadata.establishedGain : 1;
     this._applySeek(baseTime);
 };
 

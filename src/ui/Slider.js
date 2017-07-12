@@ -99,7 +99,9 @@ Slider.prototype._onMousedown = function(e) {
     this.page.addDocumentListener(`mouseup`, this._onMouseup);
     this.dragRecognizer.recognizeBubbledOn(this.page.document());
 
-    e.preventDefault();
+    if (e.cancelable) {
+        e.preventDefault();
+    }
 };
 
 Slider.prototype._keydowned = function(e) {

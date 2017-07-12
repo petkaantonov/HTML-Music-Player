@@ -171,6 +171,8 @@ const clangFlags = `${RELEASE ? "-Werror" : ""}`;
 await exec(`${clang} -std=c11 -nostdinc -nostdlib ${clangFlags} -Wall -Inative/third-party -Inative/lib -Inative/lib/include -DDEBUG=${dDebug} -DSTACK_SIZE=${STACK_SIZE} -emit-llvm --target=wasm32 ${oLevelClang} "${source}" -c -o "${bcfile}"`, {doErr: true, doOut: true});
 await exec(`${llc} -march=wasm32 -thread-model=single -data-sections -function-sections -asm-verbose=false -o "${sfile}" "${bcfile}"`, {doErr: true})
 await exec(`${s2wasm} -i ${INITIAL_MEMORY} -s ${STACK_SIZE} -o ${wastfile} ${sfile}`, {doErr: true})
+
+await exec(`sed -i 's/ (export "memory" (memory $0))/ (export "memory" (memory $0))\\n (export "table" (table $0))/' ${wastfile}`);
 if (RELEASE) {
     await exec(`${wasmOpt} -Oz -o ${wasmFileFullName} ${wastfile}`, {doErr: true});
 } else {

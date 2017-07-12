@@ -10,7 +10,7 @@ const SEEK_START_CURVE = new Float32Array([1, 0.001]);
 const SEEK_END_CURVE = new Float32Array([0.001, 1]);
 const SEEK_START_FADE_TIME = 0.042666666666666665 * 2;
 const SEEK_END_FADE_TIME = 0.042666666666666665 * 8;
-const VOLUME_RATIO = 1.2;
+const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
 function cancelAndHoldStandardImpl(audioParam, value) {

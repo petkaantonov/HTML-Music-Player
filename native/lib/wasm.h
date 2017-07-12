@@ -115,6 +115,7 @@ void abort();
 size_t strlen(const char*);
 extern double performance_now(void);
 extern double math_random(void);
+extern void qsort(void*, size_t, size_t, int (*compar)(const void*, const void*));
 
 #ifdef DEBUG
 

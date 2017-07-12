@@ -126,8 +126,7 @@ void ebur128_get_version(int* major, int* minor, int* patch);
  */
 ebur128_state* ebur128_init(unsigned int channels,
                             unsigned long samplerate,
-                            int mode,
-                            int window);
+                            int mode);
 
 /** \brief Destroy library state.
  *
