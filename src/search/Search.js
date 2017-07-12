@@ -282,7 +282,7 @@ Search.prototype.tabDidShow = function() {
     this.$().find(`.search-next-tab-focus`).show();
     this._visible = true;
 
-    if (!this.env.isMobile()) {
+    if (!this.env.isMobile() || !this._session || !this._session._resultCount) {
         this.$input().focus();
     }
     this._fixedItemListScroller.resize();
