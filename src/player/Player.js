@@ -294,33 +294,36 @@ Player.prototype.trackFinished = function() {
 
 Player.prototype.audioManagerEnded = function(audioManager, haveGaplessPreloadPending) {
     if (audioManager === this.currentAudioManager) {
-        const alreadyFinished = haveGaplessPreloadPending && !audioManager.sourceNode.hasGaplessPreload();
+        const alreadyFinished = haveGaplessPreloadPending && !audioManager.hasGaplessPreload();
         if (!haveGaplessPreloadPending) {
             audioManager.destroy();
         }
 
         if (!alreadyFinished) {
             this.trackFinished();
+            return true;
         }
     } else {
         audioManager.destroy();
     }
+    return false;
 };
 
-Player.prototype.audioManagerProgressed = function(audioManager) {
+Player.prototype.audioManagerProgressed = function(audioManager, currentTime, totalTime, shouldHandleEnding) {
     if (audioManager === this.currentAudioManager) {
-        const currentTime = audioManager.getCurrentTime();
-        const totalTime = audioManager.getDuration();
         const fadeInTime = this.getFadeInTimeForNextTrack();
 
-        if ((currentTime >= totalTime && totalTime > 0 && currentTime > 0) ||
+        if (shouldHandleEnding &&
+            (currentTime >= totalTime && totalTime > 0 && currentTime > 0) ||
             (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
             (totalTime - currentTime <= fadeInTime))) {
             this.trackFinished();
+            return true;
         } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
             this.emit(`progress`, currentTime, totalTime);
         }
     }
+    return false;
 };
 
 Player.prototype.getSampleRate = function() {

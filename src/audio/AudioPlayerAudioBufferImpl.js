@@ -159,9 +159,9 @@ AudioPlayer.prototype._audioContextChanged = async function() {
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
         this._audioBufferTime = this._bufferFrameCount / sampleRate;
         this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
-        this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT * channelCount;
+        this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT * 2 + this._playedAudioBuffersNeededForVisualization;
         this._maxArrayBuffers = (this._maxAudioBuffers * channelCount * (channelCount + 1)) +
-            (SUSTAINED_BUFFER_COUNT + this._playedAudioBuffersNeededForVisualization) * (channelCount + 1);
+            (SUSTAINED_BUFFER_COUNT + this._playedAudioBuffersNeededForVisualization) * channelCount;
         this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
 
         this._silentBuffer = _audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
@@ -476,7 +476,6 @@ function AudioPlayerSourceNode(player, id, audioContext) {
 
     this._paused = true;
     this._destroyed = false;
-    this._loop = false;
 
     this._initialPlaythroughEmitted = false;
     this._currentSeekEmitted = false;
@@ -570,7 +569,7 @@ AudioPlayerSourceNode.prototype._timeUpdate = function() {
     const currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
     const currentTime = this._baseTime + currentBufferPlayedSoFar;
     this._currentTime = this._haveBlob ? Math.min(this._duration, currentTime) : currentTime;
-    this.emit(`timeUpdate`, this._currentTime, this._duration);
+    this._emitTimeUpdate(this._currentTime, this._duration);
 };
 
 AudioPlayerSourceNode.prototype._ended = function() {
@@ -581,7 +580,7 @@ AudioPlayerSourceNode.prototype._ended = function() {
 
     if (this.hasGaplessPreload()) {
         this._currentTime = this._duration;
-        this.emit(`timeUpdate`, this._currentTime, this._duration);
+        this._emitTimeUpdate(this._currentTime, this._duration, true);
         this.emit(`ended`, true);
         return;
     }
@@ -593,12 +592,9 @@ AudioPlayerSourceNode.prototype._ended = function() {
     while (sourceDescriptor = this._bufferQueue.shift()) {
         this._destroySourceDescriptor(sourceDescriptor);
     }
-    if (this._loop) {
-        this.setCurrentTime(0, NO_THROTTLE);
-    } else {
-        this.emit(`ended`, false);
-    }
-    this.emit(`timeUpdate`, this._currentTime, this._duration);
+
+    this._emitTimeUpdate(this._currentTime, this._duration, true);
+    this.emit(`ended`, false);
 };
 
 AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescriptor, stopTime = -1) {
@@ -935,6 +931,10 @@ AudioPlayerSourceNode.prototype._idle = function() {
     this._requestMoreBuffers();
 };
 
+AudioPlayerSourceNode.prototype._emitTimeUpdate = function(currentTime, duration, willEmitEnded = false) {
+    this.emit(`timeUpdate`, currentTime, duration, willEmitEnded, this._endedEmitted);
+};
+
 AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuffer, bufferFillType},
                                                          transferList) {
     try {
@@ -990,7 +990,7 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         if (sourceDescriptor.isLastForTrack &&
             sourceDescriptor.endTime < this._duration - this._player.getBufferDuration()) {
             this._duration = sourceDescriptor.endTime;
-            this.emit(`timeUpdate`, this._currentTime, this._duration);
+            this._emitTimeUpdate(this._currentTime, this._duration);
             this.emit(`durationChange`, this._duration);
         }
 
@@ -1058,7 +1058,7 @@ AudioPlayerSourceNode.prototype.play = function() {
         this._player.resume();
         this._startSources(this.getCurrentTimeScheduledAhead());
     }
-    this.emit(`timeUpdate`, this._currentTime, this._duration);
+    this._emitTimeUpdate(this._currentTime, this._duration);
 };
 
 AudioPlayerSourceNode.prototype.isMuted = function() {
@@ -1067,14 +1067,6 @@ AudioPlayerSourceNode.prototype.isMuted = function() {
 
 AudioPlayerSourceNode.prototype.isPaused = function() {
     return this._paused;
-};
-
-AudioPlayerSourceNode.prototype.setLooping = function() {
-    this._loop = true;
-};
-
-AudioPlayerSourceNode.prototype.unsetLooping = function() {
-    this._loop = false;
 };
 
 AudioPlayerSourceNode.prototype.node = function() {
@@ -1203,7 +1195,7 @@ AudioPlayerSourceNode.prototype._blobLoaded = function(args) {
     this._duration = args.metadata.duration;
     this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
     this._seek(this._currentTime, false);
-    this.emit(`timeUpdate`, this._currentTime, this._duration);
+    this._emitTimeUpdate(this._currentTime, this._duration);
     this.emit(`canPlay`);
 };
 
@@ -1225,6 +1217,7 @@ AudioPlayerSourceNode.prototype._applySeek = function(baseTime) {
     this._baseTime = baseTime;
     this._currentSeekEmitted = false;
     this._lastBufferLoadedEmitted = false;
+    this._endedEmitted = false;
     this._timeUpdate();
 };
 

@@ -168,6 +168,7 @@ AudioManager.prototype.replaceTrack = function(track, explicitlyLoaded) {
         this.intendingToSeek = -1;
         this.track = track;
         this.updateSchedules();
+        this.sourceNode.replaceUsingGaplessPreload();
         this.resume();
         return;
     }
@@ -288,11 +289,11 @@ AudioManager.prototype.hasPlaythroughBeenTriggered = function() {
     return this.tickCounter.hasTriggered();
 };
 
-AudioManager.prototype.timeUpdated = function() {
+AudioManager.prototype.timeUpdated = function(currentTime, duration, willEmitEnded, endedHasBeenEmitted) {
     if (this.destroyed || this.intendingToSeek !== -1) return;
-    const currentTime = this.getCurrentTime();
-    const duration = this.getDuration();
-    if (currentTime >= duration) {
+    const shouldHandleEnding = !willEmitEnded && !endedHasBeenEmitted;
+
+    if (currentTime >= duration && shouldHandleEnding) {
         this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
     }
     if (!this.tickCounter.hasTriggered() &&
@@ -304,7 +305,7 @@ AudioManager.prototype.timeUpdated = function() {
             this.track.triggerPlaythrough();
         }
     }
-    this.player.audioManagerProgressed(this);
+    this.player.audioManagerProgressed(this, currentTime, duration, shouldHandleEnding);
 };
 
 AudioManager.prototype.now = function() {
