@@ -242,12 +242,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.passError(e.message, e.stack, e.name);
     }
 
-    async _decodeNextBuffer(transferList, cancellationToken) {
+    async _decodeNextBuffer(transferList, cancellationToken, buffersRemainingToDecode) {
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.metadata,
                                                                                cancellationToken,
-                                                                               {transferList});
+                                                                               {transferList},
+                                                                                buffersRemainingToDecode);
         if (cancellationToken.isCancelled()) {
             this._audioPipeline.dropFilledBuffer();
             return null;
@@ -298,9 +299,11 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         let currentBufferFillType = bufferFillType;
         try {
             while (i < count) {
+                const buffersRemainingToDecode = count - i;
                 const currentTransferList = this._drainArrayBuffersFromTransferlist(transferList);
                 const bufferDescriptor = await this._decodeNextBuffer(currentTransferList,
-                                                                      this._bufferFillCancellationToken);
+                                                                      this._bufferFillCancellationToken,
+                                                                      buffersRemainingToDecode);
 
                 if (this._bufferFillCancellationToken.isCancelled()) {
                     this._bufferFillCancellationToken.signal();

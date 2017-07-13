@@ -1076,6 +1076,15 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
     }
 };
 
+AudioPlayerSourceNode.prototype._printQueue = function() {
+    const page = this._player.page;
+    const s = this._player._outputSampleRate;
+    for (let i = 0; i < this._bufferQueue.length; ++i) {
+        const b = this._bufferQueue[i];
+        page.uiLog(`${i}: startTime ${b.startTime} (${b.startTime * s}) endTime ${b.endTime} (${b.endTime * s})`);
+    }
+}
+
 AudioPlayerSourceNode.prototype.receiveMessage = function(event) {
     const {nodeId, methodName, args, transferList} = event.data;
     if (this._destroyed) return;

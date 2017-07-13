@@ -111,7 +111,8 @@ export default class AudioProcessingPipeline {
                                      filePosition,
                                      metadata,
                                      cancellationToken,
-                                     outputSpec = null) {
+                                     outputSpec = null,
+                                     paddingFactorHint = 1) {
         if (this.hasFilledBuffer) {
             throw new Error(`previous buffer has not been consumed`);
         }
@@ -128,7 +129,7 @@ export default class AudioProcessingPipeline {
 
         let currentFilePosition = filePosition + totalBytesRead;
         while (dataRemaining > 0) {
-            await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, 1);
+            await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, paddingFactorHint);
             if (cancellationToken.isCancelled()) {
                 return 0;
             }
