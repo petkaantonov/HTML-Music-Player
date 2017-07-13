@@ -251,7 +251,7 @@ AudioPlayer.prototype._setAudioOutputParameters = function({sampleRate, channelC
         changed = true;
     }
     this._scheduleAheadTime = Math.max(this._scheduleAheadTime,
-                                       roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 12, sampleRate) / sampleRate);
+                                       roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 8, sampleRate) / sampleRate);
     return changed;
 };
 
@@ -267,7 +267,7 @@ AudioPlayer.prototype.recordSchedulingTime = function(elapsedMs) {
         let minScheduleAheadSamples = seconds * (1 / SCHEDULE_AHEAD_RATIO) * sampleRate;
         minScheduleAheadSamples = Math.ceil(minScheduleAheadSamples / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE;
         this._scheduleAheadTime = roundSampleTime(minScheduleAheadSamples, sampleRate) / sampleRate;
-        console.warn(`increased _scheduleAheadTime from ${scheduleAheadTime} to ${this._scheduleAheadTime} because operation took ${elapsedMs.toFixed(0)} ms`);
+        self.uiLog(`increased _scheduleAheadTime from ${scheduleAheadTime} to ${this._scheduleAheadTime} because operation took ${elapsedMs.toFixed(0)} ms`);
     }
 };
 
@@ -818,7 +818,7 @@ AudioPlayerSourceNode.prototype._startSources = function(when) {
 
 AudioPlayerSourceNode.prototype._stopSources = function(when = this._player.getCurrentTime(),
                                                         destroyDescriptorsThatWillNeverPlay = false) {
-    if (this._destroyed) return;
+    if (this._destroyed || this._sourceStopped) return;
     this._player.playbackStopped();
 
     this._sourceStopped = true;
@@ -1141,7 +1141,7 @@ AudioPlayerSourceNode.prototype._printQueue = function() {
     const s = this._player._outputSampleRate;
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         const b = this._bufferQueue[i];
-        console.log(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
+        page.uiLog(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
     }
 };
 

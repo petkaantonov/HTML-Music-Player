@@ -1,23 +1,25 @@
 import EventEmitter from "events";
 
 export default class WorkerFrontend extends EventEmitter {
-    constructor(readyEventName, workerWrapper) {
+    constructor(frontendName, workerWrapper) {
         super();
-        this._messagePort = null;
+        this._channel = null;
         this._readyPromise = null;
-        this._readyEventName = readyEventName;
-        this._bindBackend(readyEventName, workerWrapper);
+        this._frontendName = frontendName;
+        this._workerWrapper = workerWrapper;
+        this._bindToBackend();
     }
 
-    async _bindBackend(readyEventName, workerWrapper) {
+    async _bindToBackend() {
+        const workerWrapper = this._workerWrapper;
         let resolveReady;
         this._readyPromise = new Promise((resolve) => {
-         resolveReady = resolve;
+            resolveReady = resolve;
         });
-        const port = workerWrapper.getPort(readyEventName);
-        this._messagePort = await port;
-        this._messagePort.addEventListener(`message`, event => this.receiveMessage(event), false);
-        this._messagePort.start();
+
+        const channel = await workerWrapper.getChannelForFrontend(this._frontendName);
+        this._channel = channel;
+        workerWrapper.registerFrontendListener(channel, this);
         resolveReady();
     }
 
@@ -25,11 +27,11 @@ export default class WorkerFrontend extends EventEmitter {
         return this._readyPromise;
     }
 
-    postMessage(...args) {
-        this._messagePort.postMessage(...args);
+    postMessage(args, transferList) {
+        this._workerWrapper.postMessage(this._channel, args, transferList);
     }
 
     receiveMessage(event) {
-        throw new Error(`unimplemented receiveMessage in: ${this._readyEventName} data: ${JSON.stringify(event.data)}`);
+        throw new Error(`unimplemented receiveMessage in: ${this._frontendName} data: ${JSON.stringify(event.data)}`);
     }
 }
