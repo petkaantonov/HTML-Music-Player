@@ -1,7 +1,7 @@
 import TrackView from "tracks/TrackView";
 
 export default class SearchResultTrackView extends TrackView {
-    constructor (track, result, opts) {
+    constructor(track, result, opts) {
         super(track, opts);
         this._result = result;
         if (track._isDisplayedAsSearchResult) {

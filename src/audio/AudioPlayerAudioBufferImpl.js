@@ -21,6 +21,8 @@ const FLOAT32_BYTES = 4;
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
+
+
 if (!AudioContext.prototype.suspend) {
     AudioContext.prototype.suspend = function() {
         return Promise.resolve();
@@ -31,6 +33,54 @@ if (!AudioContext.prototype.resume) {
         return Promise.resolve();
     };
 }
+
+// TODO: Remove this comment after testing framework is in place and it will become unnecessary.
+/*const WAV_CHANNELS = 2;
+const WAV_SR = 48000;
+const WAV_DURATION_SECONDS = 5;
+const WAV_DURATION = TARGET_BUFFER_LENGTH_SECONDS * WAV_SR * 1 / TARGET_BUFFER_LENGTH_SECONDS * WAV_DURATION_SECONDS;
+//const offlineAudioContext = new OfflineAudioContext(WAV_CHANNELS, WAV_DURATION_SECONDS * WAV_SR, WAV_SR);
+const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
+let wavLength = 0;
+let debugged = false;
+
+function applyWav(planarF32Arrays, frameLength) {
+    if (wavLength < WAV_DURATION) {
+        const o = wavLength * WAV_CHANNELS + 22;
+
+        for (let i = 0; i < frameLength; ++i) {
+            for (let ch = 0; ch < WAV_CHANNELS; ++ch) {
+                const j = o + i * WAV_CHANNELS + ch;
+                wavData[j] = Math.min(32767, Math.max(-32768, planarF32Arrays[ch][i] * 32768));
+            }
+        }
+        wavLength += frameLength;
+    } else if (!debugged) {
+        debugged = true;
+        const buf = new Uint8Array(wavData.buffer);
+        const dataV = new DataView(wavData.buffer);
+        dataV.setUint32(0, 0x52494646 >>> 0, false);
+        dataV.setUint32(4, wavData.byteLength - 8, true);
+        dataV.setUint32(8, 0x57415645 >>> 0, false);
+        dataV.setUint32(12, 0x666d7420 >>> 0, false);
+        dataV.setUint32(16, 16, true);
+        dataV.setUint16(20, 1, true);
+        dataV.setUint16(22, WAV_CHANNELS, true);
+        dataV.setUint32(24, WAV_SR, true);
+        dataV.setUint32(28, WAV_SR * 2 * WAV_CHANNELS, true);
+        dataV.setUint16(32, 2 * WAV_CHANNELS, true);
+        dataV.setUint16(34, 16, true);
+        dataV.setUint32(36, 0x64617461 >>> 0, false);
+        dataV.setUint32(40, wavData.byteLength - 44, true);
+
+
+        const a = new Blob([wavData], {type: `audio/wav`});
+        // Just listen to the wav file to see if decoding/channelmixing/resampling was done correctly...
+        const b = URL.createObjectURL(a);
+        console.log(b);
+        debugger;
+    }
+}*/
 
 const decibelToGain = function(loudness) {
     return Math.pow(10, (loudness / 20));
@@ -47,6 +97,7 @@ class SourceDescriptor {
         this.duration = descriptor.length / buffer.sampleRate;
         this._gain = isNaN(descriptor.loudness) ? NaN : decibelToGain(descriptor.loudness);
         this.started = -1;
+        this.stopped = -1;
         this.source = null;
         this.channelData = channelData;
         this.isLastForTrack = isLastForTrack;
@@ -731,6 +782,7 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
     let endedEmitted = false;
     sourceDescriptor.source = src;
     sourceDescriptor.started = when;
+    sourceDescriptor.stopped = when + duration;
     src.buffer = buffer;
     src.connect(this.node());
     try {
@@ -1044,11 +1096,19 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
         const now = performance.now();
         if (currentSourcesShouldBeStopped) {
             scheduledStartTime = this.getCurrentTimeScheduledAhead();
-            this._stopSources(scheduledStartTime, true);
+            if (!this._sourceStopped) {
+                this._stopSources(scheduledStartTime, true);
+            }
+
             this._playedBufferQueue.push(...this._bufferQueue);
             this._bufferQueue.length = 0;
             this._bufferQueue.push(sourceDescriptor);
-            this._startSource(sourceDescriptor, scheduledStartTime);
+
+            if (this._sourceStopped) {
+                this._startSources(scheduledStartTime);
+            } else {
+                this._startSource(sourceDescriptor, scheduledStartTime);
+            }
         } else if (this._sourceStopped) {
             this._bufferQueue.push(sourceDescriptor);
             scheduledStartTime = this.getCurrentTimeScheduledAhead();
@@ -1081,9 +1141,9 @@ AudioPlayerSourceNode.prototype._printQueue = function() {
     const s = this._player._outputSampleRate;
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         const b = this._bufferQueue[i];
-        page.uiLog(`${i}: startTime ${b.startTime} (${b.startTime * s}) endTime ${b.endTime} (${b.endTime * s})`);
+        console.log(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
     }
-}
+};
 
 AudioPlayerSourceNode.prototype.receiveMessage = function(event) {
     const {nodeId, methodName, args, transferList} = event.data;
