@@ -42,7 +42,7 @@ export default class SelectionStatus extends EventEmitter {
         }
     }
 
-    _closeButtonClicked(e) {
+    _closeButtonClicked() {
         this.emit(`unselectAll`);
     }
 

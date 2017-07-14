@@ -108,7 +108,7 @@ export default function MainTabs(opts, deps) {
                 this.playlistContextMenu.show(e);
             }
         });
-    } else {
+    } else {
         this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
         this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
         this.playlistContextMenu.on(`beforeOpen`, this.beforePlaylistContextMenuOpen.bind(this));
@@ -383,10 +383,10 @@ MainTabs.prototype.updateSearchContextMenuEnabledStates = function() {
     this.searchContextMenu.setEnabledStateFromPredicate(selectedCount, this.search.length);
 };
 
-MainTabs.prototype.beforePlaylistContextMenuOpen = function(e) {
+MainTabs.prototype.beforePlaylistContextMenuOpen = function() {
     this.playlistTrackRater.update();
 };
 
-MainTabs.prototype.beforeSearchContextMenuOpen = function(e) {
+MainTabs.prototype.beforeSearchContextMenuOpen = function() {
     this.searchTrackRater.update();
 };

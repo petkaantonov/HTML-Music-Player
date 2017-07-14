@@ -1,13 +1,13 @@
 import EventEmitter from "events";
-import {MessageChannel, console, self} from "platform/platform";
+import {console, self} from "platform/platform";
 
 const VERBOSE_DEBUGGING = false;
 
 function randomChannelId() {
-    return `${Math.random()}${Math.random()}${Math.random()}`.replace(/[^0-9]/g, "");
+    return `${Math.random()}${Math.random()}${Math.random()}`.replace(/[^0-9]/g, ``);
 }
 
-const channelsToBackends = new Map();
+const channelsToBackends = new Map();
 
 self.onmessage = function(event) {
     const backend = channelsToBackends.get(event.data.channel);
@@ -16,7 +16,7 @@ self.onmessage = function(event) {
         return;
     }
 
-    const args = event.data.args;
+    const {args} = event.data;
     event.data.args = undefined;
     Object.assign(event.data, args);
     backend.receiveMessage(event);

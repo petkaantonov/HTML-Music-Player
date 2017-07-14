@@ -15,7 +15,7 @@ export default class SearchResultTrackView extends TrackView {
     }
 
     destroy() {
-        if (!this.destroy$()) return false;
+        if (!super.destroy()) return false;
         if (!this._track._isDisplayedAsSearchResult) {
             throw new Error(`track is not displayed as search result`);
         }
@@ -24,7 +24,9 @@ export default class SearchResultTrackView extends TrackView {
         return true;
     }
 
+    /* eslint-disable class-methods-use-this */
     viewUpdateDestroyed() {
         // NOOP
     }
+    /* eslint-enable class-methods-use-this */
 }

@@ -790,7 +790,7 @@ export class ButtonMenu extends EventEmitter {
         this.emit(`didShowMenu`, e, this);
     }
 
-    getCoords(e) {
+    getCoords() {
         const box = this.$target()[0].getBoundingClientRect();
         return {
             x: box.right - 5,
@@ -855,7 +855,10 @@ export class ContextMenu extends ButtonMenu {
     }
 
     getCoords(e) {
-        return {x: e.clientX, y: e.clientY};
+        const ret = super.getCoords(e);
+        ret.x = e.clientX;
+        ret.y = e.clientY;
+        return ret;
     }
 
     keypressed() {

@@ -105,7 +105,6 @@ export default class TrackView {
         }
 
         this.viewUpdateTagDataChange();
-        this.viewUpdateOfflineStatusChange();
         this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
 
 
@@ -217,10 +216,6 @@ export default class TrackView {
 
     viewUpdateDestroyed() {
         this.destroy();
-    }
-
-    viewUpdateOfflineStatusChange() {
-        // NOOP
     }
 
     viewUpdatePlayingStatusChange(playingStatus) {

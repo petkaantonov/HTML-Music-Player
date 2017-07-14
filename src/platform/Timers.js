@@ -30,7 +30,7 @@ export default class Timers {
     setTimeout(fn, time) {
         if (+time >= 100) {
             return this._setTimeout(fn, +time);
-        } else {
+        } else {
             return this._window.setTimeout(fn, time);
         }
     }
@@ -54,11 +54,11 @@ export default class Timers {
         if (now < this._earliestDeadline) {
             return;
         }
-        const timersToFire = [];
+        const timersToFire = [];
         let earliestDeadline = Infinity;
         for (const timer of this._timers.values()) {
 
-            const deadline = timer.deadline;
+            const {deadline} = timer;
             if (now >= deadline) {
                 timersToFire.push(timer);
             } else {

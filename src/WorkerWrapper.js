@@ -13,7 +13,7 @@ export default class WorkerWrapper {
             const {type} = event.data;
             if (type === `uiLog`) {
                 self.uiLog(...event.data.args);
-                return;
+
             } else if (type === `ready`) {
                 const name = event.data.frontendName;
                 const promise = this._frontendNamesToChannels.get(name);
@@ -23,7 +23,7 @@ export default class WorkerWrapper {
                 this._frontendNamesToChannels.set(name, event.data.channel);
             } else {
                 const frontend = this._channelsToFrontends.get(event.data.channel);
-                const args = event.data.args;
+                const {args} = event.data;
                 event.data.args = undefined;
                 Object.assign(event.data, args);
                 frontend.receiveMessage(event);

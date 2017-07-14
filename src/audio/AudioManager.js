@@ -1,35 +1,14 @@
-import {AudioParam, Float32Array} from "platform/platform";
+import {Float32Array} from "platform/platform";
 import {delay} from "util";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
+import {cancelAndHold} from "audio/AudioPlayerAudioBufferImpl";
 
 const PAUSE_RESUME_FADE_TIME = 0.37;
 const RESUME_FADE_CURVE = new Float32Array([0, 1]);
 const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
-const SEEK_START_CURVE = new Float32Array([1, 0.001]);
-const SEEK_END_CURVE = new Float32Array([0.001, 1]);
-const SEEK_START_FADE_TIME = 0.042666666666666665 * 2;
-const SEEK_END_FADE_TIME = 0.042666666666666665 * 8;
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
-
-function cancelAndHoldStandardImpl(audioParam, value) {
-    return audioParam.cancelAndHoldAtTime(value);
-}
-
-function cancelAndHoldNonStandardImpl(audioParam, value) {
-    return audioParam.cancelValuesAndHoldAtTime(value);
-}
-
-function cancelAndHoldPolyfillImpl(audioParam, value) {
-    const currentValue = audioParam.value;
-    audioParam.cancelScheduledValues(value);
-    audioParam.setValueAtTime(currentValue, value);
-}
-
-const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime === `function` ? cancelAndHoldStandardImpl :
-                      typeof AudioParam.prototype.cancelValuesAndHoldAtTime === `function` ? cancelAndHoldNonStandardImpl :
-                      cancelAndHoldPolyfillImpl;
 
 export default function AudioManager(player, track, implicitlyLoaded) {
     this.gaplessPreloadTrack = null;
@@ -43,7 +22,6 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.sourceNode = null;
     this.paused = false;
     this.pauseResumeFadeGain = null;
-    this.seekGain = null;
     this.volumeGain = null;
     this.muteGain = null;
     this.fadeInGain = null;
@@ -73,7 +51,6 @@ export default function AudioManager(player, track, implicitlyLoaded) {
 AudioManager.prototype.setupNodes = function() {
     const audioCtx = this.player.getAudioContext();
     this.pauseResumeFadeGain = audioCtx.createGain();
-    this.seekGain = audioCtx.createGain();
     this.volumeGain = audioCtx.createGain();
     this.muteGain = audioCtx.createGain();
     this.fadeInGain = audioCtx.createGain();
@@ -93,8 +70,7 @@ AudioManager.prototype.setupNodes = function() {
 
     this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
-    this.volumeGain.connect(this.seekGain);
-    this.seekGain.connect(this.muteGain);
+    this.volumeGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
     this.fadeInGain.connect(this.fadeOutGain);
     this.fadeOutGain.connect(audioCtx.destination);
@@ -178,16 +154,14 @@ AudioManager.prototype.replaceTrack = function(track, explicitlyLoaded) {
     this.track = track;
     this.implicitlyLoaded = false;
     this.sourceNode.removeAllListeners(`replacementLoaded`);
-    this.sourceNode.once(`replacementLoaded`, (playbackStartTime) => {
+    this.sourceNode.once(`replacementLoaded`, () => {
         this.tickCounter.reset();
         this.intendingToSeek = -1;
         if (this.destroyed || this.player.currentAudioManager !== this) return;
         this.resume();
-        this.fadeInSeekGain(playbackStartTime);
     });
     this.currentTime = 0;
     this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
-    this.fadeOutSeekGain();
 };
 
 AudioManager.prototype.nextTrackChanged = function() {
@@ -332,8 +306,6 @@ AudioManager.prototype.pause = async function() {
 
 AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started || !this.paused) return;
-    this.seekGain.gain.cancelScheduledValues(0);
-    this.seekGain.gain.setValueAtTime(1, this.now());
     this.paused = false;
     this.cancelPauseResumeFade();
     this.sourceNode.play();
@@ -366,27 +338,14 @@ AudioManager.prototype.initialPlaythrough = function() {
     this.sourceNode.on(`seekComplete`, this.didSeek);
 };
 
-AudioManager.prototype.fadeOutSeekGain = function() {
-    cancelAndHold(this.seekGain.gain, 0);
-    this.seekGain.gain.setValueCurveAtTime(SEEK_START_CURVE, this.now(), SEEK_START_FADE_TIME);
-};
-
-AudioManager.prototype.fadeInSeekGain = function(scheduledStartTime = 0) {
-    cancelAndHold(this.seekGain.gain, scheduledStartTime);
-    this.seekGain.gain.setValueCurveAtTime(SEEK_END_CURVE, scheduledStartTime || this.now(), SEEK_END_FADE_TIME);
-};
-
 AudioManager.prototype.willSeek = function() {
     this.intendingToSeek = -1;
-    if (this.destroyed) return;
-    this.fadeOutSeekGain();
 };
 
-AudioManager.prototype.didSeek = function(scheduledStartTime) {
+AudioManager.prototype.didSeek = function() {
     if (this.destroyed) return;
     this.intendingToSeek = -1;
     this.updateSchedules(true);
-    this.fadeInSeekGain(scheduledStartTime);
 };
 
 AudioManager.prototype.mute = function() {
@@ -496,13 +455,11 @@ AudioManager.prototype.destroy = function() {
     });
     this.pauseResumeFadeGain.disconnect();
     this.muteGain.disconnect();
-    this.seekGain.disconnect();
     this.volumeGain.disconnect();
     this.fadeInGain.disconnect();
     this.fadeOutGain.disconnect();
     this.sourceNode.destroy();
     this.destroyVisualizer();
-    this.seekGain = null;
     this.sourceNode = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;

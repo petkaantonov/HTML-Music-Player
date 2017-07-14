@@ -317,7 +317,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 }
 
 
-                let loudness = bufferDescriptor.loudness;
+                let {loudness} = bufferDescriptor;
                 if (!trackMetadata.establishedGain &&
                     this._loudnessAnalyzer.hasEstablishedGain()) {
                     trackMetadata.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
