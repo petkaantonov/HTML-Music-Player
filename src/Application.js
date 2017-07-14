@@ -10,7 +10,7 @@ import PlaylistModeManager from "player/PlaylistModeManager";
 import PlayerTimeManager from "player/PlayerTimeManager";
 import PlayerVolumeManager from "player/PlayerVolumeManager";
 import PlayerPictureManager from "player/PlayerPictureManager";
-import PlaylistNotifications from "player/PlaylistNotifications";
+import MediaSessionWrapper from "player/MediaSessionWrapper";
 import LocalFileHandler from "platform/LocalFileHandler";
 import VisualizerCanvas from "visualization/VisualizerCanvas";
 import KeyboardShortcuts from "keyboard/KeyboardShortcuts";
@@ -481,22 +481,13 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         muteDom: `.volume-mute`
     }, d));
 
-    const playlistNotifications = this.playlistNotifications = withDeps({
-        permissionPrompt,
+    const mediaSessionWrapper = this.mediaSessionWrapper = withDeps({
         player,
         playlist,
         page,
         env,
-        serviceWorkerManager,
-        recognizerContext,
-        rippler,
-        db,
-        dbValues,
-        tooltipContext,
         playerPictureManager
-    }, d => new PlaylistNotifications({
-        target: `.notification-setting`
-    }, d));
+    }, d => new MediaSessionWrapper(d));
 
     const visualizerCanvas = this.visualizerCanvas = withDeps({
         player,
