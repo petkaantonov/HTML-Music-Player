@@ -265,7 +265,7 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
 
     const nextTrack = this.playlist.getNextTrack();
     if (!nextTrack) return 0;
-    if (!preferences.getShouldAlbumCrossFade() &&
+    if (preferences.getShouldAlbumNotCrossFade() &&
         audioManager.track.comesBeforeInSameAlbum(nextTrack)) {
         return 0;
     }

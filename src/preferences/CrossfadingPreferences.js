@@ -154,7 +154,7 @@ const Preferences = preferenceCreator({
                 return CURVE_MAP.hasOwnProperty(value) ? value : DEFAULT_CURVE;
             }
         },
-        shouldAlbumCrossFade: {
+        shouldAlbumNotCrossFade: {
             defaultValue: true,
             asValidValue(value) {
                 return !!value;
@@ -226,7 +226,7 @@ class CrossFadeManager extends AbstractUiBindingManager {
         addBinding(new ToggleableValuePreferenceUiBinding(
             this.$().find(`.album-preference-container`),
             new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
-            `shouldAlbumCrossFade`,
+            `shouldAlbumNotCrossFade`,
             this
         )).
         addBinding(new ToggleableSlideableValuePreferenceUiBinding(

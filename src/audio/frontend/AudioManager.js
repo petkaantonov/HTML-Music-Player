@@ -355,7 +355,7 @@ AudioManager.prototype.getFadeInTime = function() {
 
     if (!fadeInEnabled) return 0;
 
-    if (!preferences.getShouldAlbumCrossFade()) {
+    if (preferences.getShouldAlbumNotCrossFade()) {
         if (this.player.playlist.getPreviousTrack() &&
             this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
             return 0;
@@ -373,7 +373,7 @@ AudioManager.prototype.getFadeOutTime = function() {
 
     if (!fadeOutEnabled) return 0;
 
-    if (!preferences.getShouldAlbumCrossFade()) {
+    if (preferences.getShouldAlbumNotCrossFade()) {
         if (this.player.playlist.getNextTrack() &&
             this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
             return 0;
