@@ -14,7 +14,7 @@ export function allocLoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs) 
         loudnessAnalyzers.instances.push(new LoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs));
 
         if (loudnessAnalyzers.allocationCount > 4) {
-            console.warn(`memory leak`);
+            self.uiLog(`memory leak: ${loudnessAnalyzers.allocationCount} loudnessAnalyzers allocated.`);
         }
     }
 
@@ -45,7 +45,7 @@ export function allocResampler(wasm, channels, from, to, quality) {
         entry.instances.push(new Resampler(wasm, opts));
         entry.allocationCount++;
         if (entry.allocationCount > 4) {
-            console.warn(`memory leak`);
+            self.uiLog(`memory leak: ${entry.allocationCount} resamplers allocated with key: ${key}`);
         }
     }
     const ret = entry.instances.shift();
@@ -73,7 +73,7 @@ export function allocDecoderContext(wasm, name, ContextConstructor, contextOpts)
         entry.instances.push(new ContextConstructor(wasm, contextOpts));
         entry.allocationCount++;
         if (entry.allocationCount > 4) {
-            console.warn(`memory leak`);
+            self.uiLog(`memory leak: ${entry.allocationCount} decoders allocated with key: ${name}`);
         }
     }
 

@@ -38,6 +38,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.ended = false;
         this._decoder = null;
         this._loudnessAnalyzer = null;
+        this._resampler = null;
         this.blob = null;
         this._filePosition = 0;
         this._bufferFillCancellationToken = null;
@@ -46,7 +47,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.destroyed = false;
         this.metadata = null;
         this.fileView = null;
-        this.resampler = null;
         this.replacementSource = null;
         this.replacementSpec = null;
         this.parent = parent || null;
@@ -214,9 +214,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this._loudnessAnalyzer = null;
         }
 
-        if (this.resampler) {
-            freeResampler(this.resampler);
-            this.resampler = null;
+        if (this._resampler) {
+            freeResampler(this._resampler);
+            this._resampler = null;
         }
         this.fileView = null;
         this.codecName = ``;
@@ -403,21 +403,21 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 metadata.trackMetadata = trackMetadata;
             }
 
+            if (this._resampler || this._loudnessAnalyzer || this._decoder) {
+                self.uiLog(`memory leak: unfreed resampler/loudnessAnalyzer/decoder`);
+            }
+
 
             this.metadata = metadata;
             const {sampleRate: sourceSampleRate,
                    channels: sourceChannelCount} = metadata;
 
             if (sourceSampleRate !== destinationSampleRate) {
-                this.resampler = allocResampler(wasm,
+                this._resampler = allocResampler(wasm,
                                                 destinationChannelCount,
                                                 sourceSampleRate,
                                                 destinationSampleRate,
                                                 resamplerQuality);
-            } else if (this.resampler) {
-                console.warn(`should not have resampler`);
-                freeResampler(this.resampler);
-                this.resampler = null;
             }
 
             this._decoder = allocDecoderContext(wasm, codecName, codec, {
@@ -428,7 +428,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate, 20 * 1000);
 
-            const {resampler, _decoder: decoder, _loudnessAnalyzer: loudnessAnalyzer} = this;
+            const {_resampler: resampler,
+                    _decoder: decoder,
+                    _loudnessAnalyzer: loudnessAnalyzer} = this;
 
             this._filePosition = this.metadata.dataStart;
             this._audioPipeline = new AudioProcessingPipeline(wasm, {
@@ -530,8 +532,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             }
 
             this.ended = false;
-            if (this.resampler) {
-                this.resampler.reset();
+            if (this._resampler) {
+                this._resampler.reset();
             }
 
             this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, transferList, {
@@ -560,9 +562,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this._loudnessAnalyzer = null;
             }
 
-            if (this.resampler) {
-                freeResampler(this.resampler);
-                this.resampler = null;
+            if (this._resampler) {
+                freeResampler(this._resampler);
+                this._resampler = null;
             }
 
             this.ended = false;

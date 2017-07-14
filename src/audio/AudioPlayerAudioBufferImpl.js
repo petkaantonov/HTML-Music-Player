@@ -389,7 +389,7 @@ AudioPlayer.prototype._allocAudioBuffer = function() {
     const ret = _audioContext.createBuffer(_outputChannelCount, _bufferFrameCount, _outputSampleRate);
     this._audioBuffersAllocated++;
     if (this._audioBuffersAllocated > this._maxAudioBuffers) {
-        console.warn(`Possible memory leak: over ${this._maxAudioBuffers} audio buffers allocated`);
+        self.uiLog(`Possible memory leak: over ${this._maxAudioBuffers} audio buffers allocated`);
     }
     return ret;
 };
@@ -408,7 +408,7 @@ AudioPlayer.prototype._allocArrayBuffer = function(size) {
     if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
     this._arrayBuffersAllocated++;
     if (this._arrayBuffersAllocated > this._maxArrayBuffers) {
-        console.warn(`Possible memory leak: over ${this._maxArrayBuffers} array buffers allocated`);
+        self.uiLog(`Possible memory leak: over ${this._maxArrayBuffers} array buffers allocated`);
     }
     const buffer = new ArrayBuffer(this._arrayBufferByteLength);
     return new Float32Array(buffer, 0, size);
@@ -693,7 +693,7 @@ AudioPlayerSourceNode.prototype._destroySourceDescriptor = function(sourceDescri
 AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
     try {
         if (!descriptor) {
-            console.warn(new Date().toISOString(), `!descriptor`,
+            self.uiLog(new Date().toISOString(), `!descriptor`,
                             `ended emitted`, this._endedEmitted,
                             `length`, this._bufferQueue.length);
             return;
@@ -717,7 +717,7 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
 
         if (!sourceDescriptor) {
             this._destroySourceDescriptor(descriptor);
-            console.warn(new Date().toISOString(), `!sourceDescriptor`,
+            self.uiLog(new Date().toISOString(), `!sourceDescriptor`,
                          `ended emitted`, this._endedEmitted,
                          `prelen`, length,
                          `postlen`, this._bufferQueue.length,
@@ -728,7 +728,7 @@ AudioPlayerSourceNode.prototype._sourceEnded = function(descriptor, source) {
         }
 
         if (sourceDescriptor !== descriptor) {
-            console.warn(new Date().toISOString(), `sourceDescriptor !== descriptor`,
+            self.uiLog(new Date().toISOString(), `sourceDescriptor !== descriptor`,
                          `ended emitted`, this._endedEmitted,
                          `prelen`, length,
                          `postlen`, this._bufferQueue.length,
@@ -786,7 +786,7 @@ AudioPlayerSourceNode.prototype._startSource = function(sourceDescriptor, when) 
     try {
         this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
     } catch (e) {
-        console.warn(e.stack);
+        self.uiLog(e.stack);
     }
     src.start(when, sourceDescriptor.playedSoFar);
     src.stop(when + duration);
@@ -823,7 +823,7 @@ AudioPlayerSourceNode.prototype._stopSources = function(when = this._player.getC
     try {
         this._normalizerNode.gain.cancelScheduledValues(when);
     } catch (e) {
-        console.warn(e.stack);
+        self.uiLog(e.stack);
     }
 
     for (let i = 0; i < this._bufferQueue.length; ++i) {
@@ -1000,7 +1000,7 @@ AudioPlayerSourceNode.prototype._rescheduleLoudness = function() {
     try {
         this._normalizerNode.gain.cancelScheduledValues(when);
     } catch (e) {
-        console.warn(e.stack);
+        self.uiLog(e.stack);
     }
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         try {
@@ -1015,7 +1015,7 @@ AudioPlayerSourceNode.prototype._rescheduleLoudness = function() {
             this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
             when += duration;
         } catch (e) {
-            console.warn(e.stack);
+            self.uiLog(e.stack);
         }
     }
 };
