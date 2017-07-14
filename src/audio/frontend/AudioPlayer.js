@@ -100,7 +100,6 @@ export default class AudioPlayer extends WorkerFrontend {
         this._suspend = this._suspend.bind(this);
 
         this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
-        this._hardwareLatency = 0;
 
         this.effectPreferences.on(`change`, async () => {
             await this.ready();
@@ -373,21 +372,6 @@ export default class AudioPlayer extends WorkerFrontend {
     _sourceNodeDestroyed(node) {
         const i = this._sourceNodes.indexOf(node);
         if (i >= 0) this._sourceNodes.splice(i, 1);
-    }
-
-    getMaxLatency() {
-        return this._bufferFrameCount / this._outputSampleRate / 2;
-    }
-
-    getHardwareLatency() {
-        return this._hardwareLatency;
-    }
-
-    setHardwareLatency(amount) {
-        amount = +amount;
-        if (!isFinite(amount)) return;
-        amount = Math.min(this.getMaxLatency(), Math.max(amount, 0));
-        this._hardwareLatency = amount;
     }
 
     getCurrentTime() {

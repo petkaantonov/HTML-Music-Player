@@ -11,7 +11,6 @@ const MINIMUM_DURATION = 3;
 
 const VOLUME_KEY = `volume`;
 const MUTED_KEY = `muted`;
-const LATENCY_KEY = `audio-hardware-latency`;
 
 export default function Player(opts, deps) {
     EventEmitter.call(this);
@@ -88,10 +87,6 @@ export default function Player(opts, deps) {
         if (this.dbValues[MUTED_KEY]) {
             this.toggleMute();
         }
-    }
-
-    if (LATENCY_KEY in this.dbValues) {
-        this.setAudioHardwareLatency(+this.dbValues[LATENCY_KEY]);
     }
 
     this.ready = (async () => {
@@ -611,19 +606,6 @@ Player.prototype.setVolume = function(val) {
     this.emit(`volumeChange`);
     this.db.set(VOLUME_KEY, volume);
     return this;
-};
-
-Player.prototype.getAudioHardwareLatency = function() {
-    return this.audioPlayer.getHardwareLatency();
-};
-
-Player.prototype.setAudioHardwareLatency = function(value) {
-    this.audioPlayer.setHardwareLatency(+value);
-    this.db.set(LATENCY_KEY, this.audioPlayer.getHardwareLatency());
-};
-
-Player.prototype.getMaximumAudioHardwareLatency = function() {
-    return this.audioPlayer.getMaxLatency();
 };
 
 // Supports deletion mid-iteration.

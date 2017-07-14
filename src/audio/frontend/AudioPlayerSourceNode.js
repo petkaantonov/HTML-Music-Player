@@ -469,7 +469,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             let samplesIndex = 0;
             const bufferQueue = this._bufferQueue;
             const playedBufferQueue = this._playedBufferQueue;
-            const latency = this._player.getHardwareLatency();
 
             if (bufferQueue.length === 0) {
                 return false;
@@ -479,22 +478,22 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             const {sampleRate} = this._audioContext;
             const offsetInCurrentBuffer = this._getCurrentAudioBufferBaseTimeDelta(now);
 
-            if (Math.ceil((offsetInCurrentBuffer + (samplesNeeded / sampleRate) - latency) * sampleRate) > buffers[0].length &&
+            if (Math.ceil((offsetInCurrentBuffer + (samplesNeeded / sampleRate)) * sampleRate) > buffers[0].length &&
                 bufferQueue.length < 2) {
                 return false;
             } else {
                 buffers.push(bufferQueue[1]);
             }
 
-            if (offsetInCurrentBuffer < latency && playedBufferQueue.length === 0) {
+            if (playedBufferQueue.length === 0) {
                 return false;
             } else {
                 buffers.unshift(playedBufferQueue.length > 0 ? playedBufferQueue[0] : null);
             }
 
-            const bufferIndex = offsetInCurrentBuffer >= latency ? 1 : 0;
-            let bufferDataIndex = bufferIndex === 0 ? (buffers[0].length - ((latency * sampleRate) | 0)) + ((offsetInCurrentBuffer * sampleRate) | 0)
-                                                    : ((offsetInCurrentBuffer - latency) * sampleRate) | 0;
+            const bufferIndex = offsetInCurrentBuffer >= 0 ? 1 : 0;
+            let bufferDataIndex = bufferIndex === 0 ? (buffers[0].length + ((offsetInCurrentBuffer * sampleRate) | 0))
+                                                    : ((offsetInCurrentBuffer) * sampleRate) | 0;
 
             for (let i = bufferIndex; i < buffers.length; ++i) {
                 const j = bufferDataIndex;
