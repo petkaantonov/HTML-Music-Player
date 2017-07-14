@@ -305,7 +305,6 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const playlist = this.playlist = withDeps({
         env,
-        selectionStatus,
         page,
         db,
         dbValues,
@@ -375,7 +374,6 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const search = this.search = withDeps({
         env,
-        selectionStatus,
         page,
         playlist,
         db,

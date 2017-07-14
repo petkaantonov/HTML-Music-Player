@@ -1,4 +1,4 @@
-import {noUndefinedGet} from "util";
+import {noUndefinedGet, _call} from "util";
 import TabController from "ui/TabController";
 import TrackRater from "tracks/TrackRater";
 import withDeps from "ApplicationDependencies";
@@ -60,6 +60,7 @@ export default class MainTabs {
         this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;
         this.contentInstancesByTabId[SEARCH_TAB_ID] = this.search;
 
+
         this.tabController = withDeps({
             recognizerContext: this.recognizerContext,
             rippler: this.rippler,
@@ -100,29 +101,51 @@ export default class MainTabs {
         this.playlistActionSpec = this.getPlaylistActionSpec();
         this.searchActionSpec = this.getSearchActionSpec();
 
+        this.menuInstancesByTabId = Object.create(null);
         if (this.env.hasTouch()) {
             this.playlistContextMenu = this.menuContext.createButtonMenu(this.playlistActionSpec);
             this.searchContextMenu = this.menuContext.createButtonMenu(this.searchActionSpec);
+
             this.selectionStatus.on(`menuClick`, (e) => {
-                const tabId = this.tabController.getActiveTabId();
-                if (tabId === SEARCH_TAB_ID) {
-                    this.searchContextMenu.show(e);
-                } else if (tabId === PLAYLIST_TAB_ID) {
-                    this.playlistContextMenu.show(e);
-                }
+                this.withActiveMenuInstance(_call.show(e));
             });
+
+            this.selectionStatus.on(`unselectAll`,
+                                    this.withActiveContentInstance.bind(this, _call.clearSelection());
+
+            this.selectionStatus.on(`selectAll`,
+                                    this.withActiveContentInstance.bind(this, _call.selectAll());
         } else {
             this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
             this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
             this.playlistContextMenu.on(`beforeOpen`, this.beforePlaylistContextMenuOpen.bind(this));
             this.searchContextMenu.on(`beforeOpen`, this.beforeSearchContextMenuOpen.bind(this));
         }
+        this.menuInstancesByTabId[PLAYLIST_TAB_ID] = this.playlistContextMenu;
+        this.menuInstancesByTabId[SEARCH_TAB_ID] = this.searchContextMenu;
+
 
         this.playlist.on(`tracksSelected`, this.updatePlaylistContextMenuEnabledStates.bind(this));
         this.playlist.on(`lengthChange`, this.updatePlaylistContextMenuEnabledStates.bind(this));
         this.search.on(`tracksSelected`, this.updateSearchContextMenuEnabledStates.bind(this));
         this.search.on(`lengthChange`, this.updateSearchContextMenuEnabledStates.bind(this));
         this.globalEvents.on(`resize`, this.layoutChanged.bind(this));
+    }
+
+    withActiveMenuInstance(fn) {
+        const tabId = this.tabController.getActiveTabId();
+        const instance = this.menuInstancesByTabId[tabId];
+        if (tabId) {
+            return fn(instance);
+        }
+    }
+
+    withActiveContentInstance(fn) {
+        const tabId = this.tabController.getActiveTabId();
+        const instance = this.contentInstancesByTabId[tabId];
+        if (instance) {
+            return fn(instance);
+        }
     }
 
     tabEventHandler(methodName) {

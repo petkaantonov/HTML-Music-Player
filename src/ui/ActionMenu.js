@@ -16,7 +16,6 @@ export const ALIGN_RIGHT_TOP_CORNER = `right-top-corner`;
 export const ALIGN_LEFT_BOTTOM_CORNER = `left-bottom-corner`;
 export const ALIGN_RIGHT_BOTTOM_CORNER = `right-bottom-corner`;
 
-
 const alignMap = {
     [ALIGN_LEFT_SIDE_AT_TOP](buttonBox, menuBox) {
         return {

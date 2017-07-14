@@ -49,15 +49,15 @@ export default class SelectionStatus extends EventEmitter {
     }
 
     _selectAllButtonClicked(e) {
+        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, ABOVE_TOOLBAR_Z_INDEX);
         if (!this._canSelectAll) {
             return;
         }
-        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, ABOVE_TOOLBAR_Z_INDEX);
         this.emit(`selectAll`);
     }
 
     _menuButtonClicked(e) {
-        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, ABOVE_TOOLBAR_Z_INDEX);
+        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, ABOVE_TOOLBAR_Z_INDEX);
         this.emit(`menuClick`, e);
     }
 

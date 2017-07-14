@@ -124,7 +124,6 @@ export default class Playlist extends EventEmitter {
         this.dbValues = deps.dbValues;
         this.rippler = deps.rippler;
         this.snackbar = deps.snackbar;
-        this.selectionStatus = deps.selectionStatus;
         this.applicationPreferences = deps.applicationPreferences;
         this.tooltipContext = deps.tooltipContext;
 
@@ -178,13 +177,6 @@ export default class Playlist extends EventEmitter {
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
         }
-
-        this.selectionStatus.on(`unselectAll`, () => {
-            this.clearSelection();
-        });
-        this.selectionStatus.on(`selectAll`, () => {
-            this.selectAll();
-        });
 
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
         this._keyboardShortcutContext.addShortcut(`mod+a`, this.selectAll.bind(this));

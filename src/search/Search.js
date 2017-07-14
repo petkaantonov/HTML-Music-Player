@@ -118,7 +118,6 @@ export default class Search extends WorkerFrontend {
         this.env = deps.env;
         this.recognizerContext = deps.recognizerContext;
         this.db = deps.db;
-        this.selectionStatus = deps.selectionStatus;
         this.dbValues = deps.dbValues;
         this.keyboardShortcuts = deps.keyboardShortcuts;
 
@@ -153,14 +152,6 @@ export default class Search extends WorkerFrontend {
             contentContainer: this.$trackContainer(),
             minPrerenderedItems: 15,
             maxPrerenderedItems: 50
-        });
-
-        this.selectionStatus.on(`unselectAll`, () => {
-            this.clearSelection();
-        });
-
-        this.selectionStatus.on(`selectAll`, () => {
-            this.selectAll();
         });
 
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
