@@ -193,7 +193,7 @@ export default class PopupContext {
             (this.isMobile() ? this.getMobileTransitionOut($node, rect) : this.getDesktopTransitionOut($node, rect)));
     }
 
-    makePopup(title, body, opener, footerButtons) {
+    makePopup(title, body, footerButtons) {
         const {containerClass, headerClass, footerClass, bodyClass,
                 bodyContentClass, closerContainerClass, popupButtonClass, buttonDisabledClass,
                 page, env, globalEvents, recognizerContext, scrollerContext, rippler} = this;

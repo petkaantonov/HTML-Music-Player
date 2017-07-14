@@ -2,6 +2,7 @@ import EventEmitter from "events";
 import {equals, _, animationPromisify} from "util";
 import {DECELERATE_CUBIC} from "ui/animation/easing";
 
+export const ABOVE_TOOLBAR_Z_INDEX = 942;
 const DURATION = 300;
 
 const animationOptions = {

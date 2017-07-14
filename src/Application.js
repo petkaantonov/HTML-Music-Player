@@ -14,7 +14,6 @@ import MediaSessionWrapper from "player/MediaSessionWrapper";
 import LocalFileHandler from "platform/LocalFileHandler";
 import VisualizerCanvas from "visualization/VisualizerCanvas";
 import KeyboardShortcuts from "keyboard/KeyboardShortcuts";
-import OpenableSubmenu from "ui/OpenableSubmenu";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "keyboard/DefaultShortcuts";
 import PopupContext from "ui/PopupContext";
@@ -41,6 +40,7 @@ import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
 import ToolbarManager from "ui/ToolbarManager";
 import SelectionStatus from "ui/SelectionStatus";
+import MainMenu from "ui/MainMenu";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -217,17 +217,10 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         maxLength: 3
     }, d));
 
-    const toolbarSubmenu = this.toolbarSubmenu = withDeps({
-        page,
-        recognizerContext,
-        rippler,
-        globalEvents
-    }, d => new OpenableSubmenu({
-        target: `.toolbar-submenu`,
-        openerTarget: `.menul-submenu-open`,
-        openerActiveClass: `toolbar-item-active`,
-        activeClass: `shown`,
-        transitionClass: `transition-in`
+    const mainMenu = this.mainMenu = withDeps({
+        menuContext, env
+    }, d => new MainMenu({
+        target: `#main-menu`
     }, d));
 
     const popupContext = this.popupContext = withDeps({
@@ -282,11 +275,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         db,
         rippler,
         popupContext,
-        toolbarSubmenu,
+        mainMenu,
         env
-    }, d => new ApplicationPreferences({
-        preferencesButton: `.menul-preferences`
-    }, d));
+    }, d => new ApplicationPreferences(d));
 
     const effectPreferences = this.effectPreferences = withDeps({
         page,
@@ -296,11 +287,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         db,
         rippler,
         popupContext,
-        toolbarSubmenu,
+        mainMenu,
         env
-    }, d => new EffectPreferences({
-        preferencesButton: `.menul-effects`
-    }, d));
+    }, d => new EffectPreferences(d));
 
     const crossfadingPreferences = this.crossfadingPreferences = withDeps({
         page,
@@ -309,12 +298,10 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         dbValues,
         db,
         rippler,
-        toolbarSubmenu,
+        mainMenu,
         popupContext,
         env
-    }, d => new CrossfadingPreferences({
-        preferencesButton: `.menul-crossfade`
-    }, d));
+    }, d => new CrossfadingPreferences(d));
 
     const playlist = this.playlist = withDeps({
         env,
@@ -345,11 +332,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         page,
         fileInputContext,
         env,
-        playlist
-    }, d => new LocalFileHandler({
-        directoryButton: `.menul-folder, .add-folder-link`,
-        fileButton: `.menul-files, .add-files-link`
-    }, d));
+        playlist,
+        mainMenu
+    }, d => new LocalFileHandler(d));
 
 
     const player = this.player = withDeps({

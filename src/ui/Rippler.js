@@ -18,8 +18,8 @@ const boundedOpacityAnimationKeyFrames = [
 
 const boundedOpacityAnimationOptions = {
     duration: BOUNDED_OPACITY_DURATION,
-    easing: LINEAR,
-    fill: `both`
+    easing: LINEAR
+    // Fill: `both`
 };
 
 const boundedScaleAnimationOptions = {

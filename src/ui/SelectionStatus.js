@@ -1,4 +1,6 @@
 import EventEmitter from "events";
+import {ABOVE_TOOLBAR_Z_INDEX} from "ui/ToolbarManager";
+
 
 export default class SelectionStatus extends EventEmitter {
     constructor(opts, deps) {
@@ -50,12 +52,12 @@ export default class SelectionStatus extends EventEmitter {
         if (!this._canSelectAll) {
             return;
         }
-        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, ABOVE_TOOLBAR_Z_INDEX);
         this.emit(`selectAll`);
     }
 
     _menuButtonClicked(e) {
-        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
+        this._rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, ABOVE_TOOLBAR_Z_INDEX);
         this.emit(`menuClick`, e);
     }
 

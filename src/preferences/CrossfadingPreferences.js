@@ -173,51 +173,55 @@ const presets = {
     "Custom": new Preferences()
 };
 
-export default function CrossfadingPreferences(opts, deps) {
-    opts = noUndefinedGet(opts);
-    AbstractPreferences.call(this, new Preferences(), opts, deps);
-}
-inherits(CrossfadingPreferences, AbstractPreferences);
+const PRESET_HTML = `<select class='fade-preset-select'>
+    ${Object.keys(presets).map(key => `<option value='${key}'>${key}</option>`).join(``)}
+</select>`;
 
-CrossfadingPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
-CrossfadingPreferences.prototype.TITLE = `Crossfading`;
 
-/* eslint-disable no-use-before-define */
-CrossfadingPreferences.prototype._createManager = function() {
-    return new CrossFadeManager(this.popup().$(), this);
-};
-/* eslint-enable no-use-before-define */
-
-CrossfadingPreferences.prototype.getHtml = function() {
-    const PRESET_HTML = `<select class='fade-preset-select'>
-        ${Object.keys(presets).map(key => `<option value='${key}'>${key}</option>`).join(``)}
-    </select>`;
-
-    return `<div class='settings-container crossfade-settings-container'>
-            <div class='section-container'>
-                <div class='fade-inputs-container inputs-container'>
-                    <div class='checkbox-container'>
-                        <input type='checkbox' id='album-preference-checkbox-id' class='album-preference-checkbox checkbox'>
-                    </div>
-                    <div class='album-preference-label label wide-label'>
-                        <label class='album-preference-text' for='album-preference-checkbox-id'>
-                            Don't crossfade between consecutive tracks of the same album
-                        </label>
-                    </div>
-                </div>
+const TEMPLATE = `<div class='settings-container crossfade-settings-container'>
+    <div class='section-container'>
+        <div class='fade-inputs-container inputs-container'>
+            <div class='checkbox-container'>
+                <input type='checkbox' id='album-preference-checkbox-id' class='album-preference-checkbox checkbox'>
             </div>
-        <div class='section-separator'></div>
-        <div class='left fade-in-configurator fade-configurator-container'></div>
-        <div class='right fade-out-configurator fade-configurator-container'></div>
-        <div class='section-separator'></div>
-        <div class='section-container'>
-            <div class='fade-inputs-container inputs-container'>
-                <div class='label fade-preset-label'>Preset</div>
-                <div class='select-container preset-selector-container'>${PRESET_HTML}</div>
+            <div class='album-preference-label label wide-label'>
+                <label class='album-preference-text' for='album-preference-checkbox-id'>
+                    Don't crossfade between consecutive tracks of the same album
+                </label>
             </div>
         </div>
-        </div>`;
-};
+    </div>
+<div class='section-separator'></div>
+<div class='left fade-in-configurator fade-configurator-container'></div>
+<div class='right fade-out-configurator fade-configurator-container'></div>
+<div class='section-separator'></div>
+<div class='section-container'>
+    <div class='fade-inputs-container inputs-container'>
+        <div class='label fade-preset-label'>Preset</div>
+        <div class='select-container preset-selector-container'>${PRESET_HTML}</div>
+    </div>
+</div>
+</div>`;
+
+
+export default class CrossfadingPreferences extends AbstractPreferences {
+    constructor(deps) {
+        super(new Preferences(), deps, {
+            storageKey: STORAGE_KEY,
+            title: `Crossfading`,
+            template: TEMPLATE
+        });
+        deps.mainMenu.on(`crossfading`, this.openPopup.bind(this));
+    }
+
+    /* eslint-disable no-use-before-define */
+    _createManager() {
+        return new CrossFadeManager(this.popup().$(), this);
+    }
+    /* eslint-enable no-use-before-define */
+}
+
+
 
 const CURVE_SELECTOR_HTML = `<select class='fade-curve-select'>
     ${Object.keys(CURVE_MAP).map(key => `<option value='${key}'>${CURVE_MAP[key]}</option>`).join(``)}

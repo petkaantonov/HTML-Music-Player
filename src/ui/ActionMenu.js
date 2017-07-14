@@ -5,6 +5,82 @@ import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 const TRANSITION_IN_DURATION = 300;
 const TRANSITION_OUT_DURATION = 200;
 
+export const ALIGN_LEFT_SIDE_AT_TOP = `left-side-at-top`;
+export const ALIGN_LEFT_SIDE_AT_BOTTOM = `left-side-at-bottom`;
+export const ALIGN_LEFT_SIDE_ABOVE_TOP = `left-side-above-top`;
+export const ALIGN_RIGHT_SIDE_AT_TOP = `right-side-at-top`;
+export const ALIGN_RIGHT_SIDE_AT_BOTTOM = `right-side-at-bottom`;
+export const ALIGN_RIGHT_SIDE_ABOVE_TOP = `right-side-above-top`;
+export const ALIGN_LEFT_TOP_CORNER = `left-top-corner`;
+export const ALIGN_RIGHT_TOP_CORNER = `right-top-corner`;
+export const ALIGN_LEFT_BOTTOM_CORNER = `left-bottom-corner`;
+export const ALIGN_RIGHT_BOTTOM_CORNER = `right-bottom-corner`;
+
+
+const alignMap = {
+    [ALIGN_LEFT_SIDE_AT_TOP](buttonBox, menuBox) {
+        return {
+            x: buttonBox.left - menuBox.width,
+            y: buttonBox.top
+        };
+    },
+    [ALIGN_LEFT_SIDE_AT_BOTTOM](buttonBox, menuBox) {
+        return {
+            x: buttonBox.left - menuBox.width,
+            y: buttonBox.bottom
+        };
+    },
+    [ALIGN_LEFT_SIDE_ABOVE_TOP](buttonBox, menuBox) {
+        return {
+            x: buttonBox.left - menuBox.width,
+            y: buttonBox.top - menuBox.height
+        };
+    },
+    [ALIGN_RIGHT_SIDE_AT_TOP](buttonBox, menuBox) {
+        return {
+            x: buttonBox.right,
+            y: buttonBox.top
+        };
+    },
+    [ALIGN_RIGHT_SIDE_AT_BOTTOM](buttonBox, menuBox) {
+        return {
+            x: buttonBox.right,
+            y: buttonBox.bottom
+        };
+    },
+    [ALIGN_RIGHT_SIDE_ABOVE_TOP](buttonBox, menuBox) {
+        return {
+            x: buttonBox.right,
+            y: buttonBox.top - menuBox.height
+        };
+    },
+    [ALIGN_LEFT_TOP_CORNER](buttonBox, menuBox) {
+        return {
+            x: buttonBox.left,
+            y: buttonBox.top
+        };
+    },
+    [ALIGN_RIGHT_TOP_CORNER](buttonBox, menuBox) {
+        return {
+            x: buttonBox.right - menuBox.width,
+            y: buttonBox.top
+        };
+    },
+    [ALIGN_LEFT_BOTTOM_CORNER](buttonBox, menuBox) {
+        return {
+            x: buttonBox.left,
+            y: buttonBox.bottom - menuBox.height
+        };
+    },
+    [ALIGN_RIGHT_BOTTOM_CORNER](buttonBox, menuBox) {
+        return {
+            x: buttonBox.right - menuBox.width,
+            y: buttonBox.bottom - menuBox.height
+        };
+    }
+};
+
+
 function ActionMenuItem(root, spec, children, level) {
     this.root = root;
     this.parent = null;
@@ -630,9 +706,10 @@ export class ButtonMenu extends EventEmitter {
         opts._initialLevel = 2;
         opts.rootClass = `${opts.rootClass} action-menu-context-root`;
         this._menu = new ActionMenu(opts, deps);
+        this._zIndex = opts.zIndex;
         this._domNode = this._menu.$().setStyles({
             position: `absolute`,
-            zIndex: 945
+            zIndex: opts.zIndex
         });
         this._shown = false;
         this._targetDom = this.page().$(opts.target);
@@ -641,6 +718,7 @@ export class ButtonMenu extends EventEmitter {
         this._xMax = 0;
         this._yMax = 0;
         this._delayTimerId = -1;
+        this._aligner = null;
 
         this.documentClicked = this.documentClicked.bind(this);
         this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
@@ -649,6 +727,22 @@ export class ButtonMenu extends EventEmitter {
         this._menu.on(`itemClick`, this.hide);
         this._menu.globalEvents.on(`resize`, this.position);
         this._menu.globalEvents.on(`visibilityChange`, this.hide);
+
+        this._tapRecognizer = null;
+        if (!opts.manualTrigger) {
+            this.buttonClicked = this.buttonClicked.bind(this);
+            this._tapRecognizer = this._menu.recognizerContext.createTapRecognizer(this.buttonClicked);
+            this._tapRecognizer.recognizeBubbledOn(this.$target());
+            this.$target().addEventListener(`click`, this.buttonClicked, false);
+        }
+        if (opts.align) {
+            this._aligner = alignMap[opts.align];
+            if (typeof this._aligner !== `function`) {
+                throw new Error(`${opts.align} is not valid alignment`);
+            }
+        } else {
+            this._aligner = null;
+        }
     }
 
     page() {
@@ -665,6 +759,10 @@ export class ButtonMenu extends EventEmitter {
 
     destroy() {
         this.hide();
+        if (this._tapRecognizer) {
+            this._tapRecognizer.unrecognizeBubbledOn(this.$target());
+        }
+        this.$target().removeEventListener(`click`, this.buttonClicked, false);
         this._menu.destroy();
     }
 
@@ -755,6 +853,15 @@ export class ButtonMenu extends EventEmitter {
         }
     }
 
+    buttonClicked(e) {
+        this._menu.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this._zIndex);
+        if (this._shown) {
+            this.hide();
+        } else {
+            this.show(e);
+        }
+    }
+
     show(e) {
         if (this._shown) return;
         this.page().clearTimeout(this._delayTimerId);
@@ -791,10 +898,14 @@ export class ButtonMenu extends EventEmitter {
     }
 
     getCoords() {
-        const box = this.$target()[0].getBoundingClientRect();
+        const buttonBox = this.$target()[0].getBoundingClientRect();
+        const menuBox = this.$()[0].getBoundingClientRect();
+        if (this._aligner) {
+            return this._aligner(buttonBox, menuBox);
+        }
         return {
-            x: box.right - 5,
-            y: box.top + 2
+            x: buttonBox.right - 5,
+            y: buttonBox.top + 2
         };
     }
 }
@@ -809,6 +920,7 @@ export class ButtonMenu extends EventEmitter {
 
 export class ContextMenu extends ButtonMenu {
     constructor(opts, deps) {
+        opts.manualTrigger = true;
         super(opts, deps);
         this.hide = this.hide.bind(this);
         this.rightClicked = this.rightClicked.bind(this);

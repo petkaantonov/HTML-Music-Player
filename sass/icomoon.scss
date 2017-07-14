@@ -24,7 +24,12 @@
     font-size: 28px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    &.small-icomoon-icon {
+        font-size: 18px;
+    }
 }
+
 
 .icomoon-icon.icomoon-audio-folder:before {
     content: "\e903";

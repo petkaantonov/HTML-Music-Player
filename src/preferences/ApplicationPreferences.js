@@ -5,6 +5,63 @@ import createPreferences from "preferences/PreferenceCreator";
 
 const STORAGE_KEY = `application-preferences`;
 
+const mobileNetworkHtml = `<div class='inputs-container'>
+    <div class='checkbox-container'>
+        <input type='checkbox' class='mobile-network-enable-checkbox checkbox' id='mobile-network-enable-label-id'>\
+    </div>
+    <div class='mobile-network-enable-label label wide-label'>
+        <label for='mobile-network-enable-label-id'>Enable cellular network syncing </label>
+    </div>
+</div>`;
+
+
+const trackOfflineDownloadHtml = `<div class='inputs-container'>
+    <div class='checkbox-container'>
+        <input type='checkbox' class='offline-enable-checkbox checkbox' id='offline-enable-label-id'>
+    </div>
+    <div class='offline-enable-label label wide-label'>
+        <label for='offline-enable-label-id'>Download tracks for offline use</label>
+    </div>
+</div>`;
+
+const loudnessNormalizationHtml = `<div class='inputs-container'>
+    <div class='checkbox-container'>
+        <input type='checkbox' class='loudness-normalization-enable-checkbox checkbox' id='loudness-normalization-enable-label-id'>\
+    </div>
+    <div class='loudness-normalization-enable-label label wide-label'>
+        <label for='loudness-normalization-enable-label-id'>Normalize loudness</label>
+    </div>
+</div>`;
+
+
+const albumArtSettingsHtml = `<div class='inputs-container'>
+    <div class='checkbox-container'>
+        <input type='checkbox' class='album-art-enable-checkbox checkbox' id='album-art-enable-label-id'>
+    </div>
+    <div class='album-art-enable-label label wide-label'>
+        <label for='album-art-enable-label-id'>Show album art</label>
+    </div>
+</div>`;
+
+
+const TEMPLATE = `<div class='settings-container preferences-popup-content-container'>
+<div class='section-container'>
+    <div class='inputs-container'>
+                <div class='label wide-label subtitle'>Playback</div>
+        </div>
+        ${albumArtSettingsHtml}
+        ${loudnessNormalizationHtml}
+    </div>
+    <div class='section-separator'></div>
+    <div class='section-container'>
+        <div class='inputs-container'>
+                <div class='label wide-label subtitle'>Network</div>
+        </div>
+        ${mobileNetworkHtml}
+        ${trackOfflineDownloadHtml}
+    </div>
+</div>`;
+
 const validBoolean = function(val) {
     return !!val;
 };
@@ -33,77 +90,20 @@ const Preferences = createPreferences({
     }
 });
 
-export default function ApplicationPreferences(opts, deps) {
-    opts = noUndefinedGet(opts);
-    AbstractPreferences.call(this, new Preferences(), opts, deps);
+export default class ApplicationPreferences extends AbstractPreferences {
+    constructor(deps) {
+        super(new Preferences(), deps, {
+            storageKey: STORAGE_KEY,
+            title: `Preferences`,
+            template: TEMPLATE
+        });
+        deps.mainMenu.on(`preferences`, this.openPopup.bind(this));
+    }
+
+    _createManager() {
+        return new PreferencesManager(this.popup().$(), this);
+    }
 }
-inherits(ApplicationPreferences, AbstractPreferences);
-
-ApplicationPreferences.prototype._createManager = function() {
-    return new PreferencesManager(this.popup().$(), this);
-};
-
-ApplicationPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
-ApplicationPreferences.prototype.TITLE = `Preferences`;
-
-ApplicationPreferences.prototype.getHtml = function() {
-    const mobileNetworkHtml = `<div class='inputs-container'>
-        <div class='checkbox-container'>
-            <input type='checkbox' class='mobile-network-enable-checkbox checkbox' id='mobile-network-enable-label-id'>\
-        </div>
-        <div class='mobile-network-enable-label label wide-label'>
-            <label for='mobile-network-enable-label-id'>Enable cellular network syncing </label>
-        </div>
-    </div>`;
-
-
-    const trackOfflineDownloadHtml = `<div class='inputs-container'>
-        <div class='checkbox-container'>
-            <input type='checkbox' class='offline-enable-checkbox checkbox' id='offline-enable-label-id'>
-        </div>
-        <div class='offline-enable-label label wide-label'>
-            <label for='offline-enable-label-id'>Download tracks for offline use</label>
-        </div>
-    </div>`;
-
-    const loudnessNormalizationHtml = `<div class='inputs-container'>
-        <div class='checkbox-container'>
-            <input type='checkbox' class='loudness-normalization-enable-checkbox checkbox' id='loudness-normalization-enable-label-id'>\
-        </div>
-        <div class='loudness-normalization-enable-label label wide-label'>
-            <label for='loudness-normalization-enable-label-id'>Normalize loudness</label>
-        </div>
-    </div>`;
-
-
-    const albumArtSettingsHtml = `<div class='inputs-container'>
-        <div class='checkbox-container'>
-            <input type='checkbox' class='album-art-enable-checkbox checkbox' id='album-art-enable-label-id'>
-        </div>
-        <div class='album-art-enable-label label wide-label'>
-            <label for='album-art-enable-label-id'>Show album art</label>
-        </div>
-    </div>`;
-
-
-    return `<div class='settings-container preferences-popup-content-container'>
-            <div class='section-container'>
-                <div class='inputs-container'>
-                            <div class='label wide-label subtitle'>Playback</div>
-                    </div>
-                    ${albumArtSettingsHtml}
-                    ${loudnessNormalizationHtml}
-                </div>
-                <div class='section-separator'></div>
-                <div class='section-container'>
-                    <div class='inputs-container'>
-                            <div class='label wide-label subtitle'>Network</div>
-                    </div>
-                    ${mobileNetworkHtml}
-                    ${trackOfflineDownloadHtml}
-                </div>
-            </div>`;
-};
 
 function PreferencesManager(domNode, applicationPreferences) {
     EventEmitter.call(this);

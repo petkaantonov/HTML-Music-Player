@@ -2,6 +2,8 @@ import {noUndefinedGet} from "util";
 import TabController from "ui/TabController";
 import TrackRater from "tracks/TrackRater";
 import withDeps from "ApplicationDependencies";
+import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
+import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
 
 export const PLAYLIST_TAB_ID = `playlist`;
 export const SEARCH_TAB_ID = `search`;
@@ -277,7 +279,13 @@ export default class MainTabs {
             });
         }
 
-        return {target, menu};
+        return {
+            target,
+            menu,
+            zIndex,
+            align,
+            manualTrigger: true
+        };
     }
 
     getSearchActionSpec() {
@@ -337,7 +345,13 @@ export default class MainTabs {
             });
         }
 
-        return {target, menu};
+        return {
+            target,
+            menu,
+            zIndex,
+            align,
+            manualTrigger: true
+        };
     }
 
     layoutChanged() {

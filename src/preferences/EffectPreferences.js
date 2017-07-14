@@ -64,6 +64,84 @@ const equalizerPresets = {
 
 const equalizerPresetKeys = Object.keys(equalizerPresets);
 
+const noiseSharpeningEffectHtml = `<div class='inputs-container'>
+    <div class='label wide-label subtitle'>Noise sharpening</div>
+</div>
+
+<div class='inputs-container'>
+    <div class='checkbox-container'>
+        <input type='checkbox' class='noise-sharpening-enable-checkbox checkbox' id='noise-sharpening-enable-label-id'>
+    </div>
+    <div class='noise-sharpening-enable-label label wide-label'>
+        <label for='noise-sharpening-enable-label-id'>Enable noise sharpening</label>
+    </div>
+</div>
+
+<div class='inputs-container'>
+    <div class='label'>Strength</div>
+    <div class='noise-sharpening-slider slider horizontal-slider'>
+        <div class='slider-knob'></div>
+        <div class='slider-background'>
+            <div class='slider-fill'></div>
+        </div>
+    </div>
+    <div class='noise-sharpening-value slider-value-indicator'></div>
+</div>`;
+
+const equalizerBandGroups = [];
+const groupSize = 5;
+let cur = 0;
+while (cur < equalizerBands.length) {
+    const equalizerBandGroup = equalizerBands.slice(cur, cur + groupSize);
+    equalizerBandGroups.push(equalizerBandGroup);
+    cur += groupSize;
+}
+
+let sliderContainerHtml = `<div class='inputs-container'>
+    <div class='label wide-label subtitle'>Equalizer</div>
+</div>`;
+
+sliderContainerHtml += `<div class='equalizer-sliders-container row'>${
+    equalizerBandGroups.map(bands => `<div class='equalizer-band-group-container col-lg-6'>${
+                bands.map((band) => {
+                    const sliderId = `equalizer-band-${band[0]}-slider`;
+                    return `<div class='equalizer-band-configurator-container'>
+                            <div class='equalizer-slider-container'>
+                                <div class='${sliderId} slider equalizer-slider vertical-slider'>
+                                    <div class='slider-knob'></div>
+                                    <div class='slider-background'>
+                                        <div class='slider-fill'></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class='equalizer-band-label-container'>
+                                <div class='notextflow band-frequency-label'>${formatFreq(band[0])}</div>
+                            </div>
+                        </div>`;
+                }).join(``)
+        }</div>`).join(``)}</div>`;
+
+const presetHtml = `<select class='equalizer-preset-selector'><option selected value='Custom'>Custom</option>${
+    equalizerPresetKeys.map(presetName => `<option value='${presetName}'>${presetName}</option>`).join(``)
+}</select>`;
+
+const presetContainerHtml = `<div class='section-container'>
+        <div class='inputs-container'>
+            <div class='label'>Preset</div>
+            <div class='select-container'>
+                ${presetHtml}
+            </div>
+        </div>
+    </div>`;
+
+
+const TEMPLATE = `<div class='settings-container equalizer-popup-content-container'>
+                <div class='section-container'>${noiseSharpeningEffectHtml}</div>
+                <div class='section-separator'></div>
+                <div class='section-container'>${sliderContainerHtml}</div>
+                ${presetContainerHtml}
+            </div>`;
+
 const Preferences = createPreferences({
     methods: {
         getMatchingEqualizerPresetName() {
@@ -112,144 +190,61 @@ const Preferences = createPreferences({
     }
 });
 
-export default function EffectPreferences(opts, deps) {
-    opts = noUndefinedGet(opts);
-    AbstractPreferences.call(this, new Preferences(), opts, deps);
-}
-inherits(EffectPreferences, AbstractPreferences);
+const frequencyToIndexMap = Object.create(null);
 
+equalizerBands.forEach((band, index) => {
+    frequencyToIndexMap[band[0]] = index;
+});
 
-EffectPreferences.prototype.STORAGE_KEY = STORAGE_KEY;
-EffectPreferences.prototype.TITLE = `Effects`;
-
-/* eslint-disable no-use-before-define */
-EffectPreferences.prototype._createManager = function() {
-    return new EffectManager(`.equalizer-popup-content-container`, this);
-};
-/* eslint-enable no-use-before-define */
-
-EffectPreferences.prototype.amplitudeRatioToDecibelChange = function(ratio) {
-    if (!isFinite(+ratio)) throw new Error(`ratio must be a number`);
-    return 20 * Math.log(ratio) * Math.LOG10E;
-};
-
-EffectPreferences.prototype.decibelChangeToAmplitudeRatio = function(decibel) {
-    if (!isFinite(+decibel)) return 1;
-    return Math.pow(10, (decibel / 20));
-};
-
-EffectPreferences.prototype.frequencyToIndex = (function() {
-    const map = Object.create(null);
-
-    equalizerBands.forEach((band, index) => {
-        map[band[0]] = index;
-    });
-
-    return function(freq) {
-        return map[freq];
-    };
-}());
-
-EffectPreferences.prototype.indexToFrequency = function(index) {
-    return equalizerBands[index][0];
-};
-
-EffectPreferences.prototype.getEqualizerSetup = function() {
-    return {
-        specs: equalizerBands,
-        gains: this.preferences().getEqualizer()
-    };
-};
-
-EffectPreferences.prototype.getAudioPlayerEffects = function() {
-    const pref = this.preferences();
-    return [{
-        name: `noise-sharpening`,
-        effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
-    }];
-};
-
-EffectPreferences.prototype.getHtml = function() {
-    let noiseSharpeningEffectHtml = `<div class='inputs-container'>
-        <div class='label wide-label subtitle'>Noise sharpening</div>
-    </div>`;
-
-    noiseSharpeningEffectHtml += `<div class='inputs-container'>
-        <div class='checkbox-container'>
-            <input type='checkbox' class='noise-sharpening-enable-checkbox checkbox' id='noise-sharpening-enable-label-id'>
-        </div>
-        <div class='noise-sharpening-enable-label label wide-label'>
-            <label for='noise-sharpening-enable-label-id'>Enable noise sharpening</label>
-        </div>
-    </div>`;
-
-    noiseSharpeningEffectHtml += `<div class='inputs-container'>
-        <div class='label'>Strength</div>
-        <div class='noise-sharpening-slider slider horizontal-slider'>
-            <div class='slider-knob'></div>
-            <div class='slider-background'>
-                <div class='slider-fill'></div>
-            </div>
-        </div>
-        <div class='noise-sharpening-value slider-value-indicator'></div>
-    </div>`;
-
-    const equalizerBandGroups = [];
-    const groupSize = 5;
-    let cur = 0;
-    while (cur < equalizerBands.length) {
-        const equalizerBandGroup = equalizerBands.slice(cur, cur + groupSize);
-        equalizerBandGroups.push(equalizerBandGroup);
-        cur += groupSize;
+export default class EffectPreferences extends AbstractPreferences {
+    constructor(deps) {
+        super(new Preferences(), deps, {
+            storageKey: STORAGE_KEY,
+            title: `Effects`,
+            template: TEMPLATE
+        });
+        deps.mainMenu.on(`effects`, this.openPopup.bind(this));
     }
 
-    let sliderContainerHtml = `<div class='inputs-container'>
-        <div class='label wide-label subtitle'>Equalizer</div>
-    </div>`;
+    /* eslint-disable no-use-before-define */
+    _createManager() {
+        return new EffectManager(`.equalizer-popup-content-container`, this);
+    }
+    /* eslint-enable no-use-before-define */
 
-    sliderContainerHtml += `<div class='equalizer-sliders-container row'>${
-        equalizerBandGroups.map(bands => `<div class='equalizer-band-group-container col-lg-6'>${
-                    bands.map((band) => {
-                        const sliderId = `equalizer-band-${band[0]}-slider`;
-                        return `<div class='equalizer-band-configurator-container'>
-                                <div class='equalizer-slider-container'>
-                                    <div class='${sliderId} slider equalizer-slider vertical-slider'>
-                                        <div class='slider-knob'></div>
-                                        <div class='slider-background'>
-                                            <div class='slider-fill'></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class='equalizer-band-label-container'>
-                                    <div class='notextflow band-frequency-label'>${formatFreq(band[0])}</div>
-                                </div>
-                            </div>`;
-                    }).join(``)
-            }</div>`).join(``)}</div>`;
+    amplitudeRatioToDecibelChange(ratio) {
+        if (!isFinite(+ratio)) throw new Error(`ratio must be a number`);
+        return 20 * Math.log(ratio) * Math.LOG10E;
+    }
 
-    const presetHtml = `<select class='equalizer-preset-selector'><option selected value='Custom'>Custom</option>${
-        equalizerPresetKeys.map(presetName => `<option value='${presetName}'>${presetName}</option>`).join(``)
-    }</select>`;
+    decibelChangeToAmplitudeRatio(decibel) {
+        if (!isFinite(+decibel)) return 1;
+        return Math.pow(10, (decibel / 20));
+    }
 
-    const presetContainerHtml = `<div class='section-container'>
-            <div class='inputs-container'>
-                <div class='label'>Preset</div>
-                <div class='select-container'>
-                    ${presetHtml}
-                </div>
-            </div>
-        </div>`;
+    frequencyToIndex(freq) {
+        return frequencyToIndexMap[freq];
+    }
 
+    indexToFrequency(index) {
+        return equalizerBands[index][0];
+    }
 
-    return `<div class='settings-container equalizer-popup-content-container'>
-                <div class='section-container'>${noiseSharpeningEffectHtml}</div>
-                <div class='section-separator'></div>
-                <div class='section-container'>${sliderContainerHtml}</div>
-                ${presetContainerHtml}
-            </div>`;
-};
+    getEqualizerSetup() {
+        return {
+            specs: equalizerBands,
+            gains: this.preferences().getEqualizer()
+        };
+    }
 
-
+    getAudioPlayerEffects() {
+        const pref = this.preferences();
+        return [{
+            name: `noise-sharpening`,
+            effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
+        }];
+    }
+}
 
 function NoiseSharpeningEffectManager(effectsManager) {
     this._effectsManager = effectsManager;
