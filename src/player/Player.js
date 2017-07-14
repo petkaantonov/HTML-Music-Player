@@ -23,9 +23,9 @@ export default function Player(opts, deps) {
     this.db = deps.db;
     this.dbValues = deps.dbValues;
     this.rippler = deps.rippler;
-    this.crossfadingPreferences = deps.crossfadingPreferences;
-    this.effectPreferences = deps.effectPreferences;
-    this.applicationPreferences = deps.applicationPreferences;
+    this.crossfadePreferencesBindingContext = deps.crossfadePreferencesBindingContext;
+    this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
+    this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
     this.gestureEducator = deps.gestureEducator;
     this.tooltipContext = deps.tooltipContext;
     this.playlist = deps.playlist;
@@ -53,9 +53,9 @@ export default function Player(opts, deps) {
         env: this.env,
         db: this.db,
         dbValues: this.dbValues,
-        crossfadingPreferences: this.crossfadingPreferences,
-        effectPreferences: this.effectPreferences,
-        applicationPreferences: this.applicationPreferences,
+        crossfadePreferencesBindingContext: this.crossfadePreferencesBindingContext,
+        effectPreferencesBindingContext: this.effectPreferencesBindingContext,
+        applicationPreferencesBindingContext: this.applicationPreferencesBindingContext,
         workerWrapper: deps.workerWrapper,
         timers: deps.timers
     }, d => new AudioPlayer(d));
@@ -104,9 +104,9 @@ export default function Player(opts, deps) {
     }
 
     this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
-    this.effectPreferences.on(`change`, this.effectPreferencesChanged.bind(this));
-    this.crossfadingPreferences.on(`change`, this.crossfadingPreferencesChanged.bind(this));
-    this.applicationPreferences.on(`change`, this.applicationPreferencesChanged.bind(this));
+    this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
+    this.crossfadePreferencesBindingContext.on(`change`, this.crossfadePreferencesChanged.bind(this));
+    this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
 
 }
 inherits(Player, EventEmitter);
@@ -121,13 +121,13 @@ Player.prototype.audioContextReset = function() {
 
 Player.prototype.effectPreferencesChanged = function() {
     this.forEachAudioManager((am) => {
-        am.effectsChanged(this.effectPreferences);
+        am.effectsChanged(this.effectPreferencesBindingContext);
     });
 };
 
-Player.prototype.crossfadingPreferencesChanged = function() {
+Player.prototype.crossfadePreferencesChanged = function() {
     this.forEachAudioManager((am) => {
-        am.crossfadingChanged(this.crossfadingPreferences);
+        am.crossfadingChanged(this.crossfadePreferencesBindingContext);
     });
 };
 
@@ -255,7 +255,7 @@ Player.prototype.seekIntent = function(p) {
 };
 
 Player.prototype.getFadeInTimeForNextTrack = function() {
-    const preferences = this.crossfadingPreferences.preferences();
+    const preferences = this.crossfadePreferencesBindingContext.preferences();
     const fadeInTime = preferences.getInTime();
     if (fadeInTime <= 0 || !preferences.getInEnabled()) return 0;
 

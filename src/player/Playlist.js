@@ -124,7 +124,7 @@ export default class Playlist extends EventEmitter {
         this.dbValues = deps.dbValues;
         this.rippler = deps.rippler;
         this.snackbar = deps.snackbar;
-        this.applicationPreferences = deps.applicationPreferences;
+        this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.tooltipContext = deps.tooltipContext;
 
         this._trackViews = [];

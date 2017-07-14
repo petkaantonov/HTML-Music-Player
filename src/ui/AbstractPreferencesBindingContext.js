@@ -1,12 +1,10 @@
-
-
 import EventEmitter from "events";
-import {inherits, throttle, noUndefinedGet} from "util";
+import {throttle, noUndefinedGet} from "util";
 
 const RESTORE_DEFAULTS_BUTTON = `restore-defaults`;
 const UNDO_CHANGES_BUTTON = `undo-changes`;
 
-export default class AbstractPreferences extends EventEmitter {
+export default class AbstractPreferencesBindingContext extends EventEmitter {
     constructor(preferences, deps, opts) {
         super();
         opts = noUndefinedGet(opts);

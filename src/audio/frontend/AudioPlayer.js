@@ -69,9 +69,9 @@ export default class AudioPlayer extends WorkerFrontend {
         this.db = deps.db;
         this.timers = deps.timers;
         this.dbValues = deps.dbValues;
-        this.crossfadingPreferences = deps.crossfadingPreferences;
-        this.effectPreferences = deps.effectPreferences;
-        this.applicationPreferences = deps.applicationPreferences;
+        this.crossfadePreferencesBindingContext = deps.crossfadePreferencesBindingContext;
+        this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
+        this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
 
         this._audioContext = null;
         this._unprimedAudioContext = null;
@@ -101,9 +101,9 @@ export default class AudioPlayer extends WorkerFrontend {
 
         this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
 
-        this.effectPreferences.on(`change`, async () => {
+        this.effectPreferencesBindingContext.on(`change`, async () => {
             await this.ready();
-            this.setEffects(this.effectPreferences.getAudioPlayerEffects());
+            this.setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
         });
 
         this._updateBackendConfig({resamplerQuality: this._determineResamplerQuality()});
@@ -157,7 +157,7 @@ export default class AudioPlayer extends WorkerFrontend {
 
     async _initBackend() {
         await this.ready();
-        this.setEffects(this.effectPreferences.getAudioPlayerEffects());
+        this.setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
     }
 
     async _audioContextChanged() {

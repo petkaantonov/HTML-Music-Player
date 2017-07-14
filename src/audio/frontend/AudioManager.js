@@ -59,7 +59,7 @@ AudioManager.prototype.setupNodes = function() {
         minFrequency: 20
     });
 
-    this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
+    this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
     this.volumeGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
     this.fadeInGain.connect(this.fadeOutGain);
@@ -161,7 +161,7 @@ AudioManager.prototype.nextTrackChanged = function() {
 
 AudioManager.prototype.effectsChanged = function() {
     if (this.destroyed) return;
-    this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
+    this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
 };
 
 AudioManager.prototype.crossfadingChanged = function() {
@@ -350,7 +350,7 @@ AudioManager.prototype.updateVolume = function(volume) {
 };
 
 AudioManager.prototype.getFadeInTime = function() {
-    const preferences = this.player.crossfadingPreferences.preferences();
+    const preferences = this.player.crossfadePreferencesBindingContext.preferences();
     const fadeInEnabled = preferences.getInEnabled();
 
     if (!fadeInEnabled) return 0;
@@ -368,7 +368,7 @@ AudioManager.prototype.getFadeInTime = function() {
 };
 
 AudioManager.prototype.getFadeOutTime = function() {
-    const preferences = this.player.crossfadingPreferences.preferences();
+    const preferences = this.player.crossfadePreferencesBindingContext.preferences();
     const fadeOutEnabled = preferences.getOutEnabled();
 
     if (!fadeOutEnabled) return 0;
@@ -392,7 +392,7 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
     cancelAndHold(this.fadeInGain.gain, 0);
     cancelAndHold(this.fadeOutGain.gain, 0);
 
-    const preferences = this.player.crossfadingPreferences.preferences();
+    const preferences = this.player.crossfadePreferencesBindingContext.preferences();
     const fadeInTime = this.getFadeInTime();
     const fadeOutTime = this.getFadeOutTime();
     const fadeInSamples = preferences.getInCurveSamples();

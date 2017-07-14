@@ -28,9 +28,9 @@ import FileInputContext from "platform/FileInputContext";
 import Player from "player/Player";
 import Playlist from "player/Playlist";
 import Search from "search/Search";
-import ApplicationPreferences from "preferences/ApplicationPreferences";
-import EffectPreferences from "preferences/EffectPreferences";
-import CrossfadingPreferences from "preferences/CrossfadingPreferences";
+import ApplicationPreferencesBindingContext from "ui/ApplicationPreferencesBindingContext";
+import EffectPreferencesBindingContext from "ui/EffectPreferencesBindingContext";
+import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingContext";
 import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
 import UsageData from "usageData/UsageData";
@@ -267,7 +267,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
     }, d => new ServiceWorkerManager(d));
     this.serviceWorkerManager.start();
 
-    const applicationPreferences = this.applicationPreferences = withDeps({
+    const applicationPreferencesBindingContext = this.applicationPreferencesBindingContext = withDeps({
         page,
         recognizerContext,
         sliderContext,
@@ -277,9 +277,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         popupContext,
         mainMenu,
         env
-    }, d => new ApplicationPreferences(d));
+    }, d => new ApplicationPreferencesBindingContext(d));
 
-    const effectPreferences = this.effectPreferences = withDeps({
+    const effectPreferencesBindingContext = this.effectPreferencesBindingContext = withDeps({
         page,
         recognizerContext,
         sliderContext,
@@ -289,9 +289,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         popupContext,
         mainMenu,
         env
-    }, d => new EffectPreferences(d));
+    }, d => new EffectPreferencesBindingContext(d));
 
-    const crossfadingPreferences = this.crossfadingPreferences = withDeps({
+    const crossfadePreferencesBindingContext = this.crossfadePreferencesBindingContext = withDeps({
         page,
         recognizerContext,
         sliderContext,
@@ -301,7 +301,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         mainMenu,
         popupContext,
         env
-    }, d => new CrossfadingPreferences(d));
+    }, d => new CrossfadePreferencesBindingContext(d));
 
     const playlist = this.playlist = withDeps({
         env,
@@ -315,7 +315,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         globalEvents,
         tooltipContext,
         keyboardShortcuts,
-        applicationPreferences
+        applicationPreferencesBindingContext
     }, d => new Playlist({
         target: `#app-playlist-container`,
         itemHeight: ITEM_HEIGHT
@@ -346,9 +346,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         db,
         gestureEducator,
         rippler,
-        crossfadingPreferences,
-        effectPreferences,
-        applicationPreferences,
+        crossfadePreferencesBindingContext,
+        effectPreferencesBindingContext,
+        applicationPreferencesBindingContext,
         tooltipContext,
         localFileHandler,
         workerWrapper,
