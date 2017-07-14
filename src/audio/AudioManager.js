@@ -4,9 +4,6 @@ import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 import {cancelAndHold} from "audio/AudioPlayerAudioBufferImpl";
 
-const PAUSE_RESUME_FADE_TIME = 0.37;
-const RESUME_FADE_CURVE = new Float32Array([0, 1]);
-const PAUSE_FADE_CURVE = new Float32Array([1, 0]);
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
@@ -21,14 +18,12 @@ export default function AudioManager(player, track, implicitlyLoaded) {
     this.currentTime = 0;
     this.sourceNode = null;
     this.paused = false;
-    this.pauseResumeFadeGain = null;
     this.volumeGain = null;
     this.muteGain = null;
     this.fadeInGain = null;
     this.fadeOutGain = null;
     this.filterNodes = [];
     this.visualizer = null;
-    this.pauseResumeFadeRequestId = 0;
 
     this.timeUpdated = this.timeUpdated.bind(this);
     this.ended = this.ended.bind(this);
@@ -50,7 +45,6 @@ export default function AudioManager(player, track, implicitlyLoaded) {
 
 AudioManager.prototype.setupNodes = function() {
     const audioCtx = this.player.getAudioContext();
-    this.pauseResumeFadeGain = audioCtx.createGain();
     this.volumeGain = audioCtx.createGain();
     this.muteGain = audioCtx.createGain();
     this.fadeInGain = audioCtx.createGain();
@@ -58,7 +52,6 @@ AudioManager.prototype.setupNodes = function() {
 
     this.filterNodes = [];
 
-    this.pauseResumeFadeGain.gain.value = 1;
     this.muteGain.gain.value = this.player.isMuted() ? 0 : 1;
     this.volumeGain.gain.value = this.player.getVolume() * VOLUME_RATIO;
 
@@ -68,7 +61,6 @@ AudioManager.prototype.setupNodes = function() {
         minFrequency: 20
     });
 
-    this.sourceNode.node().connect(this.pauseResumeFadeGain);
     this.connectEqualizer(this.player.effectPreferences.getEqualizerSetup(this.track));
     this.volumeGain.connect(this.muteGain);
     this.muteGain.connect(this.fadeInGain);
@@ -183,7 +175,7 @@ AudioManager.prototype.connectEqualizer = function(setup) {
     if (this.destroyed) return;
     const audioCtx = this.player.getAudioContext();
     try {
-        this.pauseResumeFadeGain.disconnect();
+        this.sourceNode.node().disconnect();
     } catch (e) {
         // NOOP
     }
@@ -214,12 +206,12 @@ AudioManager.prototype.connectEqualizer = function(setup) {
     this.filterNodes = nodes;
 
     if (!nodes.length) {
-        this.pauseResumeFadeGain.connect(this.volumeGain);
+        this.sourceNode.node().connect(this.volumeGain);
     } else {
         const lastFilter = nodes.reduce((prev, curr) => {
             prev.connect(curr);
             return curr;
-        }, this.pauseResumeFadeGain);
+        }, this.sourceNode.node());
 
         lastFilter.connect(this.volumeGain);
     }
@@ -290,14 +282,6 @@ AudioManager.prototype.pause = async function() {
     if (this.destroyed || !this.started || this.paused) return;
     this.paused = true;
     this.tickCounter.pause();
-    this.cancelPauseResumeFade();
-    cancelAndHold(this.pauseResumeFadeGain.gain, 0);
-    this.pauseResumeFadeGain.gain.setValueCurveAtTime(
-        PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
-    const id = ++this.pauseResumeFadeRequestId;
-    await delay(PAUSE_RESUME_FADE_TIME * 1000);
-    if (id !== this.pauseResumeFadeRequestId) return;
-    if (this.destroyed) return;
     this.sourceNode.pause();
     if (this.visualizer) {
         this.visualizer.pause();
@@ -307,14 +291,10 @@ AudioManager.prototype.pause = async function() {
 AudioManager.prototype.resume = function() {
     if (this.destroyed || !this.started || !this.paused) return;
     this.paused = false;
-    this.cancelPauseResumeFade();
     this.sourceNode.play();
     if (this.visualizer) {
         this.visualizer.resume();
     }
-    cancelAndHold(this.pauseResumeFadeGain.gain, 0);
-    this.pauseResumeFadeGain.gain.setValueCurveAtTime(
-        RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.start = function() {
@@ -350,14 +330,14 @@ AudioManager.prototype.didSeek = function() {
 
 AudioManager.prototype.mute = function() {
     if (this.destroyed) return;
-    cancelAndHold(this.muteGain.gain, 0);
-    this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
+    //cancelAndHold(this.muteGain.gain, 0);
+    //this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.unmute = function() {
     if (this.destroyed) return;
-    cancelAndHold(this.muteGain.gain, 0);
-    this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
+    //cancelAndHold(this.muteGain.gain, 0);
+    //this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
 };
 
 AudioManager.prototype.seek = function(time) {
@@ -436,10 +416,6 @@ AudioManager.prototype.updateSchedules = function(forceReset) {
 
 };
 
-AudioManager.prototype.cancelPauseResumeFade = function() {
-    this.pauseResumeFadeRequestId++;
-};
-
 AudioManager.prototype.getVisualizer = function() {
     if (this.destroyed || !this.started) return null;
     return this.visualizer;
@@ -453,7 +429,6 @@ AudioManager.prototype.destroy = function() {
     this.filterNodes.forEach((node) => {
         node.disconnect();
     });
-    this.pauseResumeFadeGain.disconnect();
     this.muteGain.disconnect();
     this.volumeGain.disconnect();
     this.fadeInGain.disconnect();
@@ -465,7 +440,6 @@ AudioManager.prototype.destroy = function() {
     this.fadeOutGain = null;
     this.volumeGain = null;
     this.muteGain = null;
-    this.pauseResumeFadeGain = null;
     this.filterNodes = [];
     this.track = null;
     this.destroyed = true;
