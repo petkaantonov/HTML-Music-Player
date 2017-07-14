@@ -1,6 +1,6 @@
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
-import {cancelAndHold} from "audio/AudioPlayerAudioBufferImpl";
+import {cancelAndHold} from "audio/frontend/AudioPlayer";
 
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;

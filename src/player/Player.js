@@ -1,5 +1,5 @@
 import withDeps from "ApplicationDependencies";
-import AudioPlayer from "audio/AudioPlayerAudioBufferImpl";
+import AudioPlayer from "audio/frontend/AudioPlayer";
 import AudioManager from "audio/AudioManager";
 import EventEmitter from "events";
 import {inherits, noUndefinedGet} from "util";
