@@ -5,6 +5,7 @@ import createPreferences from "preferences/PreferenceCreator";
 import {ToggleableSlideableValue,
         SingleSelectableValue} from "ui/templates";
 import {ToggleableSlideableValuePreferenceUiBinding} from "preferences/uibinders";
+import AbstractUiBindingManager from "ui/AbstractUiBindingManager";
 
 const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;
@@ -219,7 +220,7 @@ class EqualizerUiBinding {
     constructor(effectsManager) {
         this._effectsManager = effectsManager;
         this._equalizerSliders = equalizerBands.map((band, index) => {
-            const slider = effectsManager.effectPreferences.sliderContext().createSlider({
+            const slider = effectsManager.bindingContext().sliderContext().createSlider({
                 direction: `vertical`,
                 target: this.$().find(`.equalizer-band-${band[0]}-slider`)
             });
@@ -298,15 +299,9 @@ class EqualizerUiBinding {
     }
 }
 
-class EffectManager extends EventEmitter {
-    constructor(domNode, effectPreferences) {
-        super();
-        this.effectPreferences = effectPreferences;
-        this._domNode = effectPreferences.page().$(domNode).eq(0);
-        this.preferences = effectPreferences.preferences();
-        this.defaultPreferences = new Preferences();
-        this.unchangedPreferences = null;
-        this._equalizerUiBinding = new EqualizerUiBinding(this);
+class EffectManager extends AbstractUiBindingManager {
+    constructor(rootSelector, bindingContext) {
+        super(rootSelector, bindingContext, new Preferences());
 
         const toggleableSlideableValue = new ToggleableSlideableValue({
             checkboxLabel: `Enable noise sharpening`,
@@ -315,56 +310,18 @@ class EffectManager extends EventEmitter {
             minValue: 0,
             maxValue: 2
         }, {
-            sliderContext: effectPreferences.sliderContext()
+            sliderContext: bindingContext.sliderContext()
         });
-        this._noiseSharpeningUiBinding = new ToggleableSlideableValuePreferenceUiBinding(
-            this.$().find(`.noise-sharpening-container`),
-            toggleableSlideableValue,
-            `noiseSharpeningStrength`,
-            `noiseSharpeningEnabled`,
-            this
-        );
-    }
 
-    $() {
-        return this._domNode;
-    }
-
-    layoutUpdated() {
-        this._equalizerUiBinding.layoutUpdated();
-        this._noiseSharpeningUiBinding.layoutUpdated();
-    }
-
-    applyPreferencesFrom(preferences) {
-        this.preferences.copyFrom(preferences);
-        this._noiseSharpeningUiBinding.update();
-        this._equalizerUiBinding.update();
-        this.preferencesUpdated();
-    }
-
-    preferencesUpdated() {
-        this.emit(`update`);
+        this.addBinding(new EqualizerUiBinding(this)).
+            addBinding(new ToggleableSlideableValuePreferenceUiBinding(
+                this.$().find(`.noise-sharpening-container`),
+                toggleableSlideableValue,
+                `noiseSharpeningStrength`,
+                `noiseSharpeningEnabled`,
+                this
+            ));
         this.update();
-    }
-
-    update() {
-        this.effectPreferences.setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
-        this.effectPreferences.setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
-    }
-
-    restoreDefaults() {
-        this.applyPreferencesFrom(this.defaultPreferences);
-    }
-
-    undoChanges() {
-        this.applyPreferencesFrom(this.unchangedPreferences);
-    }
-
-    setUnchangedPreferences() {
-        this.unchangedPreferences = this.preferences.snapshot();
-        this.update();
-        this._noiseSharpeningUiBinding.update();
-        this._equalizerUiBinding.update();
     }
 }
 

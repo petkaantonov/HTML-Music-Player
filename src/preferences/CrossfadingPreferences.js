@@ -9,6 +9,7 @@ import {SingleSelectableValue,
 import {SingleSelectableValuePreferenceUiBinding,
         ToggleableValuePreferenceUiBinding,
         ToggleableSlideableValuePreferenceUiBinding} from "preferences/uibinders";
+import AbstractUiBindingManager from "ui/AbstractUiBindingManager";
 
 const PROGRESS_INCREASE = 1;
 const PROGRESS_DECREASE = 2;
@@ -215,25 +216,20 @@ export default class CrossfadingPreferences extends AbstractPreferences {
 }
 
 
-class CrossFadeManager extends EventEmitter {
-    constructor(domNode, crossfadingPreferences) {
-        super();
-        this._domNode = crossfadingPreferences.page().$(domNode).eq(0);
-        this.crossfadingPreferences = crossfadingPreferences;
-        this.preferences = crossfadingPreferences.preferences();
-        this.defaultPreferences = presets[`Default (Disabled)`].snapshot();
-        this.unchangedPreferences = null;
+class CrossFadeManager extends AbstractUiBindingManager {
+    constructor(rootSelector, bindingContext) {
+        super(rootSelector, bindingContext, presets[`Default (Disabled)`].snapshot());
 
-        const sliderContext = crossfadingPreferences.sliderContext();
+        const sliderContext = bindingContext.sliderContext();
 
-        this._albumCrossFadeUiBinding = new ToggleableValuePreferenceUiBinding(
+        this.
+        addBinding(new ToggleableValuePreferenceUiBinding(
             this.$().find(`.album-preference-container`),
             new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
             `shouldAlbumCrossFade`,
             this
-        );
-
-        this._fadeInParamsUiBinding = new ToggleableSlideableValuePreferenceUiBinding(
+        )).
+        addBinding(new ToggleableSlideableValuePreferenceUiBinding(
             this.$().find(`.fade-in-slide-toggle-container`),
             new ToggleableSlideableValue({
                 checkboxLabel: `Enable fade in`,
@@ -245,9 +241,8 @@ class CrossFadeManager extends EventEmitter {
             `inTime`,
             `inEnabled`,
             this
-        );
-
-        this._fadeInCurveUiBinding = new SingleSelectableValuePreferenceUiBinding(
+        )).
+        addBinding(new SingleSelectableValuePreferenceUiBinding(
             this.$().find(`.fade-in-curve-container`),
             new SingleSelectableValue({
                 label: `Curve`,
@@ -255,9 +250,8 @@ class CrossFadeManager extends EventEmitter {
             }),
             `inCurve`,
             this
-        );
-
-        this._fadeOutParamsUiBinding = new ToggleableSlideableValuePreferenceUiBinding(
+        )).
+        addBinding(new ToggleableSlideableValuePreferenceUiBinding(
             this.$().find(`.fade-out-slide-toggle-container`),
             new ToggleableSlideableValue({
                 checkboxLabel: `Enable fade out`,
@@ -269,9 +263,8 @@ class CrossFadeManager extends EventEmitter {
             `outTime`,
             `outEnabled`,
             this
-        );
-
-        this._fadeOutCurveUiBinding = new SingleSelectableValuePreferenceUiBinding(
+        )).
+        addBinding(new SingleSelectableValuePreferenceUiBinding(
             this.$().find(`.fade-out-curve-container`),
             new SingleSelectableValue({
                 label: `Curve`,
@@ -279,7 +272,15 @@ class CrossFadeManager extends EventEmitter {
             }),
             `outCurve`,
             this
-        );
+        )).
+        addBinding({
+            update: () => {
+                this._updatePreset();
+            },
+            layoutUpdated() {
+                // Noop
+            }
+        });
 
         this._presetSelector = new SingleSelectableValue({
             label: `Preset`,
@@ -287,17 +288,10 @@ class CrossFadeManager extends EventEmitter {
             onValueChange: this.presetChanged.bind(this)
         });
         this._presetSelector.renderTo(this.$().find(`.preset-container`));
+
         this.update();
     }
 
-    layoutUpdated() {
-        this._albumCrossFadeUiBinding.layoutUpdated();
-        this._fadeInParamsUiBinding.layoutUpdated();
-        this._fadeInCurveUiBinding.layoutUpdated();
-        this._fadeOutParamsUiBinding.layoutUpdated();
-        this._fadeOutCurveUiBinding.layoutUpdated();
-        this._presetSelector.layoutUpdated();
-    }
 
     presetChanged(val) {
         if (presets[val]) {
@@ -305,53 +299,8 @@ class CrossFadeManager extends EventEmitter {
         }
     }
 
-    applyPreferencesFrom(preferences) {
-        this.preferences.copyFrom(preferences);
-
-        this._albumCrossFadeUiBinding.update();
-        this._fadeInParamsUiBinding.update();
-        this._fadeInCurveUiBinding.update();
-        this._fadeOutParamsUiBinding.update();
-        this._fadeOutCurveUiBinding.update();
-        this._updatePreset();
-        this.preferencesUpdated();
-    }
-
     _updatePreset() {
         const presetName = this.preferences.getMatchingPresetName();
         this._presetSelector.setValue(presetName);
-    }
-
-    preferencesUpdated() {
-        this.update();
-        this.emit(`update`);
-    }
-
-    update() {
-        this.crossfadingPreferences.setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
-        this.crossfadingPreferences.setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
-    }
-
-    restoreDefaults() {
-        this.applyPreferencesFrom(this.defaultPreferences);
-    }
-
-    undoChanges() {
-        this.applyPreferencesFrom(this.unchangedPreferences);
-    }
-
-    setUnchangedPreferences() {
-        this.unchangedPreferences = this.preferences.snapshot();
-        this.update();
-        this._albumCrossFadeUiBinding.update();
-        this._fadeInParamsUiBinding.update();
-        this._fadeInCurveUiBinding.update();
-        this._fadeOutParamsUiBinding.update();
-        this._fadeOutCurveUiBinding.update();
-        this._updatePreset();
-    }
-
-    $() {
-        return this._domNode;
     }
 }

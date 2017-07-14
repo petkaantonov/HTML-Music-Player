@@ -1,0 +1,62 @@
+import EventEmitter from "events";
+import {_} from "util";
+
+export default class AbstractUiBindingManager extends EventEmitter {
+    constructor(rootSelector, bindingContext, defaultPreferences) {
+        super();
+        this._domNode = bindingContext.page().$(rootSelector).eq(0);
+        this._bindingContext = bindingContext;
+
+        this.preferences = bindingContext.preferences();
+        this.defaultPreferences = defaultPreferences;
+        this.unchangedPreferences = null;
+        this.bindings = [];
+    }
+
+    bindingContext() {
+        return this._bindingContext;
+    }
+
+    addBinding(binding) {
+        this.bindings.push(binding);
+        return this;
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    layoutUpdated() {
+        this.bindings.forEach(_.layoutUpdated);
+    }
+
+    applyPreferencesFrom(preferences) {
+        this.preferences.copyFrom(preferences);
+        this.bindings.forEach(_.update);
+        this.preferencesUpdated();
+    }
+
+    preferencesUpdated() {
+        this.emit(`update`);
+        this.update();
+    }
+
+    update() {
+        this.bindingContext().setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
+        this.bindingContext().setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
+    }
+
+    restoreDefaults() {
+        this.applyPreferencesFrom(this.defaultPreferences);
+    }
+
+    undoChanges() {
+        this.applyPreferencesFrom(this.unchangedPreferences);
+    }
+
+    setUnchangedPreferences() {
+        this.unchangedPreferences = this.preferences.snapshot();
+        this.update();
+        this.bindings.forEach(_.update);
+    }
+}
