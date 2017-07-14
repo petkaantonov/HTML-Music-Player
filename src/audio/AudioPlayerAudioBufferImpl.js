@@ -27,6 +27,7 @@ const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
 
 const SEEK_FADE_TIME = 0.2;
 const PAUSE_RESUME_FADE_TIME = 0.4;
+const MUTE_UNMUTE_FADE_TIME = 0.4;
 
 export const MAXIMUM_FADE_TIME_SECONDS = TARGET_BUFFER_LENGTH_SECONDS;
 export const MINIMUM_FADE_TIME_SECONDS = 0;
@@ -224,6 +225,10 @@ AudioPlayer.prototype.getPauseResumeFadeTime = function() {
 
 AudioPlayer.prototype.getSeekFadeTime = function() {
     return SEEK_FADE_TIME;
+};
+
+AudioPlayer.prototype.getMuteUnmuteFadeTime = function() {
+    return MUTE_UNMUTE_FADE_TIME;
 };
 
 AudioPlayer.prototype.receiveMessage = function(event) {
@@ -581,7 +586,6 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._fadeInOutNode = audioContext.createGain();
     this._normalizerNode.connect(this._fadeInOutNode);
     this._volume = 1;
-    this._muted = false;
     this._loadingNext = false;
 
     this._currentTime = 0;
@@ -1228,6 +1232,23 @@ AudioPlayerSourceNode.prototype.receiveMessage = function(event) {
     }
 };
 
+AudioPlayerSourceNode.prototype.muteRequested = function() {
+    if (this._maybeFadeOut(this._player.getMuteUnmuteFadeTime())) {
+        return this._fadeOutEnded;
+    } else {
+        return this._player.getCurrentTime();
+    }
+};
+
+AudioPlayerSourceNode.prototype.unmuteRequested = function() {
+    const scheduledStartTime = Math.max(this._fadeOutEnded, this.getCurrentTimeScheduledAhead());
+    if (this._maybeFadeIn(this._player.getMuteUnmuteFadeTime(), scheduledStartTime)) {
+        return this._fadeInStarted;
+    } else {
+        return scheduledStartTime;
+    }
+};
+
 AudioPlayerSourceNode.prototype.pause = function() {
     if (this._destroyed || this._paused) return;
     if (this._maybeFadeOut(this._player.getPauseResumeFadeTime())) {
@@ -1255,10 +1276,6 @@ AudioPlayerSourceNode.prototype.play = function() {
         this._maybeFadeIn(this._player.getSeekFadeTime(), scheduledStartTime);
     }
     this._emitTimeUpdate(this._currentTime, this._duration);
-};
-
-AudioPlayerSourceNode.prototype.isMuted = function() {
-    return this._muted;
 };
 
 AudioPlayerSourceNode.prototype.isPaused = function() {

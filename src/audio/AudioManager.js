@@ -1,5 +1,3 @@
-import {Float32Array} from "platform/platform";
-import {delay} from "util";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 import {cancelAndHold} from "audio/AudioPlayerAudioBufferImpl";
@@ -278,7 +276,7 @@ AudioManager.prototype.now = function() {
     return this.player.getAudioContext().currentTime;
 };
 
-AudioManager.prototype.pause = async function() {
+AudioManager.prototype.pause = function() {
     if (this.destroyed || !this.started || this.paused) return;
     this.paused = true;
     this.tickCounter.pause();
@@ -330,14 +328,14 @@ AudioManager.prototype.didSeek = function() {
 
 AudioManager.prototype.mute = function() {
     if (this.destroyed) return;
-    //cancelAndHold(this.muteGain.gain, 0);
-    //this.muteGain.gain.setValueCurveAtTime(PAUSE_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
+    const scheduledTime = this.sourceNode.muteRequested();
+    this.muteGain.gain.setValueAtTime(0, scheduledTime);
 };
 
 AudioManager.prototype.unmute = function() {
     if (this.destroyed) return;
-    //cancelAndHold(this.muteGain.gain, 0);
-    //this.muteGain.gain.setValueCurveAtTime(RESUME_FADE_CURVE, this.now(), PAUSE_RESUME_FADE_TIME);
+    const scheduledTime = this.sourceNode.unmuteRequested();
+    this.muteGain.gain.setValueAtTime(1, scheduledTime);
 };
 
 AudioManager.prototype.seek = function(time) {
