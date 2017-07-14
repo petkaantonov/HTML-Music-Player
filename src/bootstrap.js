@@ -22,21 +22,6 @@ try {
     // Empty
 }
 
-const desc = {
-    value: noop,
-    writable: false,
-    configurable: false
-};
-try {
-    Object.defineProperties(self, {
-        alert: desc,
-        prompt: desc,
-        confirm: desc
-    });
-} catch (e) {
-    // NOOP;
-}
-
 if (typeof console === `undefined` || !console) {
     window.console = {log: noop, error: noop, warn: noop};
 }
