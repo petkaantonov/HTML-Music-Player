@@ -268,9 +268,6 @@ AudioPlayer.prototype._audioContextChanged = async function() {
     const {sampleRate} = _audioContext;
 
     this._previousAudioContextTime = _audioContext.currentTime;
-    this._fadeOutEnded = 0;
-    this._fadeInStarted = 0;
-    this._fadeInStartedWithLength = 0;
 
     if (this._setAudioOutputParameters({channelCount, sampleRate})) {
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
@@ -665,6 +662,9 @@ AudioPlayerSourceNode.prototype.adoptNewAudioContext = function(audioContext) {
     this._previousAudioContextTime = -1;
     this._previousHighResTime = -1;
     this._previousCombinedTime = -1;
+    this._fadeOutEnded = 0;
+    this._fadeInStarted = 0;
+    this._fadeInStartedWithLength = 0;
 
     if (this._bufferQueue.length > 0) {
         this._bufferQueue[0].started = audioContext.currentTime - this._bufferQueue[0].playedSoFar;
@@ -1314,6 +1314,9 @@ AudioPlayerSourceNode.prototype._seek = function(time, isUserSeek) {
 };
 
 AudioPlayerSourceNode.prototype._resetAudioBuffers = function() {
+    this._fadeOutEnded = 0;
+    this._fadeInStarted = 0;
+    this._fadeInStartedWithLength = 0;
     if (this.isSeekable() && this._haveBlob) {
         this.setCurrentTime(this._currentTime, true);
     } else {
