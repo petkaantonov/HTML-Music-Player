@@ -1,8 +1,6 @@
-
-
 import {Uint8Array, Blob, TextDecoder} from "platform/platform";
 import {readBit, sha1HexString} from "util";
-import demux from "audio/demuxer";
+import demux from "audio/backend/demuxer";
 
 const ID3 = 0x494433 | 0;
 const TAG = 0x544147 | 0;

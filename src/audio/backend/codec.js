@@ -1,5 +1,5 @@
 import {importScripts} from "platform/platform";
-import Mp3Context from "audio/mp3";
+import Mp3Context from "audio/backend/mp3";
 
 const codecs = new Map([
     [`mp3`, Mp3Context]

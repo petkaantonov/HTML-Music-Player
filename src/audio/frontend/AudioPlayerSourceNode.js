@@ -7,7 +7,7 @@ import {SUSTAINED_BUFFER_COUNT,
         TARGET_BUFFER_LENGTH_SECONDS,
         MIN_BUFFERS_TO_REQUEST} from "audio/frontend/buffering";
 import {BUFFER_FILL_TYPE_SEEK,
-        BUFFER_FILL_TYPE_REPLACEMENT} from "audio/AudioSource";
+        BUFFER_FILL_TYPE_REPLACEMENT} from "audio/backend/AudioSource";
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;

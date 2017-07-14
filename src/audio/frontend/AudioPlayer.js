@@ -3,7 +3,7 @@
 // Audiobuffers.
 import {roundSampleTime} from "util";
 import {AudioParam, AudioContext, ArrayBuffer, Float32Array, performance} from "platform/platform";
-import {PLAYER_READY_EVENT_NAME} from "audio/AudioPlayerBackend";
+import {PLAYER_READY_EVENT_NAME} from "audio/backend/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
 import AudioPlayerSourceNode from "audio/frontend/AudioPlayerSourceNode";
 import {FLOAT32_BYTES, WEB_AUDIO_BLOCK_SIZE,

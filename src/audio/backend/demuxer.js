@@ -1,5 +1,3 @@
-
-
 import {Uint16Array, Uint8Array} from "platform/platform";
 
 const SAMPLES_PER_FRAME_DEFAULT = 1152;

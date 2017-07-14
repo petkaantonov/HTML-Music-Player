@@ -1,13 +1,13 @@
-import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
+import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import {Blob, File} from "platform/platform";
 import {allocResampler, allocDecoderContext, allocLoudnessAnalyzer,
-        freeResampler, freeDecoderContext, freeLoudnessAnalyzer} from "audio/pool";
+        freeResampler, freeDecoderContext, freeLoudnessAnalyzer} from "audio/backend/pool";
 import EventEmitter from "events";
 import FileView from "platform/FileView";
-import seeker from "audio/seeker";
-import getCodecName from "audio/sniffer";
-import getCodec from "audio/codec";
-import demuxer from "audio/demuxer";
+import seeker from "audio/backend/seeker";
+import getCodecName from "audio/backend/sniffer";
+import getCodec from "audio/backend/codec";
+import demuxer from "audio/backend/demuxer";
 import CancellableOperations from "utils/CancellationToken";
 
 export const BUFFER_FILL_TYPE_SEEK = `BUFFER_FILL_TYPE_SEEK`;

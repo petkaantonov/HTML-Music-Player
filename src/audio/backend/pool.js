@@ -1,5 +1,5 @@
-import Resampler from "audio/Resampler";
-import LoudnessAnalyzer from "audio/LoudnessAnalyzer";
+import Resampler from "audio/backend/Resampler";
+import LoudnessAnalyzer from "audio/backend/LoudnessAnalyzer";
 
 const decoderPool = Object.create(null);
 const resamplers = Object.create(null);

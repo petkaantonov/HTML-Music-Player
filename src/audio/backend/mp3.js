@@ -1,5 +1,5 @@
 import {Uint8Array} from "platform/platform";
-import {default as DecoderContext, MAXIMUM_BUFFER_TIME_SECONDS} from "audio/DecoderContext";
+import {default as DecoderContext, MAXIMUM_BUFFER_TIME_SECONDS} from "audio/backend/DecoderContext";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 const DECODER_DELAY = 529;

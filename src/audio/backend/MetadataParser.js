@@ -1,4 +1,4 @@
-import getCodecName from "audio/sniffer";
+import getCodecName from "audio/backend/sniffer";
 import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
 import parseAcoustId from "metadata/acoustId";

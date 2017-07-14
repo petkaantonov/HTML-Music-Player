@@ -1,4 +1,4 @@
-import {Mp3SeekTable} from "audio/demuxer";
+import {Mp3SeekTable} from "audio/backend/demuxer";
 
 const seekMp3 = async (time, metadata, context, fileView) => {
     time = Math.min(metadata.duration, Math.max(0, time));

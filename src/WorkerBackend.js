@@ -1,12 +1,12 @@
 import {setTimers} from "util";
-import AudioPlayerBackend from "audio/AudioPlayerBackend";
+import AudioPlayerBackend from "audio/backend/AudioPlayerBackend";
 import TrackAnalyzerBackend from "tracks/TrackAnalyzerBackend";
 import SearchBackend from "search/SearchBackend";
 import UsageDataBackend from "usageData/UsageDataBackend";
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import Timers from "platform/Timers";
-import MetadataParser from "audio/MetadataParser";
+import MetadataParser from "audio/backend/MetadataParser";
 import TagDatabase from "tracks/TagDatabase";
 
 self.env = {

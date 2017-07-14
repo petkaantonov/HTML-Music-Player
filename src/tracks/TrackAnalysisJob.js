@@ -1,12 +1,12 @@
 import FileView from "platform/FileView";
-import demuxer from "audio/demuxer";
-import getCodec from "audio/codec";
-import getCodecName from "audio/sniffer";
-import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/pool";
-import ChannelMixer from "audio/ChannelMixer";
-import AudioProcessingPipeline from "audio/AudioProcessingPipeline";
-import Fingerprinter from "audio/Fingerprinter";
-import {MAXIMUM_BUFFER_TIME_SECONDS} from "audio/DecoderContext";
+import demuxer from "audio/backend/demuxer";
+import getCodec from "audio/backend/codec";
+import getCodecName from "audio/backend/sniffer";
+import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/backend/pool";
+import ChannelMixer from "audio/backend/ChannelMixer";
+import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
+import Fingerprinter from "audio/backend/Fingerprinter";
+import {MAXIMUM_BUFFER_TIME_SECONDS} from "audio/backend/DecoderContext";
 import CancellableOperations from "utils/CancellationToken";
 
 const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
