@@ -7,12 +7,12 @@ export default class WorkerWrapper {
         this._frontendNamesToChannels = new Map();
         this._channelsToFrontends = new Map();
         this._worker.addEventListener(`error`, (event) => {
-            this._page.uiLog(event.message, event.filename, event.lineno, event.colno);
+            self.uiLog(event.message, event.filename, event.lineno, event.colno);
         });
         this._worker.addEventListener(`message`, (event) => {
             const {type} = event.data;
             if (type === `uiLog`) {
-                this._page.uiLog(...event.data.args);
+                self.uiLog(...event.data.args);
                 return;
             } else if (type === `ready`) {
                 const name = event.data.frontendName;

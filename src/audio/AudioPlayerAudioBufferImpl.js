@@ -21,8 +21,6 @@ const FLOAT32_BYTES = 4;
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
-
-
 if (!AudioContext.prototype.suspend) {
     AudioContext.prototype.suspend = function() {
         return Promise.resolve();
@@ -1137,11 +1135,10 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
 };
 
 AudioPlayerSourceNode.prototype._printQueue = function() {
-    const page = this._player.page;
     const s = this._player._outputSampleRate;
     for (let i = 0; i < this._bufferQueue.length; ++i) {
         const b = this._bufferQueue[i];
-        page.uiLog(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
+        self.uiLog(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
     }
 };
 

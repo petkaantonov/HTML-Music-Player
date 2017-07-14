@@ -829,30 +829,6 @@ export default class Page {
         this._modifierKeyPropertyName = `${this._modifierKey}Key`;
         this._null = new DomWrapper(null, null, this);
         this._env = null;
-        this._uiLogLines = [];
-        this._maxUiLogLines = 0;
-        this.$(`#close-log`).addEventListener(`click`, () => this._closeUiLog(), {passive: true, capture: true});
-        this.$(`#close-log`).addEventListener(`touchstart`, () => this._closeUiLog(), {passive: true, capture: true});
-    }
-
-    _closeUiLog() {
-        this.$(`#ui-log-container`).hide();
-    }
-
-    uiLog(...args) {
-        this._uiLogLines.push(args.join(` `));
-
-        this.$(`#ui-log-container`).show();
-
-        if (this._maxUiLogLines === 0) {
-            this._maxUiLogLines = Math.floor(this.$(`#ui-log`).innerHeight() / 12);
-        }
-
-        if (this._uiLogLines.length > this._maxUiLogLines) {
-            this._uiLogLines.shift();
-        }
-
-        this.$(`#ui-log`).setText(this._uiLogLines.join(`\n`));
     }
 
     _setEnv(env) {

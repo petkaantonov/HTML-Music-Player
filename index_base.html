@@ -5,6 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="height=device-height,width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
     <script type="text/javascript">
+(function(){function c(){d.style.display="none"}var e=[],f=0,g=!1,d,a,b;self.uiLog=function(){var h=[].slice.call(arguments);if(!g)return setTimeout(function(){d=document.getElementById("ui-log-container");a=document.getElementById("close-log");b=document.getElementById("ui-log");if(d&&a&&b){g=!0;try{a.addEventListener("click",c,{passive:!0,capture:!0}),a.addEventListener("touchstart",c,{passive:!0,capture:!0})}catch(l){a.onclick=c,a.ontouchstart=c}}self.uiLog.apply(null,h)},100);e.push(h.join(" "));
+d.style.display="block";0===f&&(f=Math.floor(b.clientHeight/12));e.length>f&&e.shift();var k=e.join("\n");void 0!==b.textContent?b.textContent=k:b.innerText=k};self.onerror=function(){var a=[].slice.call(arguments);self.uiLog.apply(self,a)}})();
+    </script>
+    <script type="text/javascript">
         window.CSS_LOAD_START = performance.now();
     /*! loadCSS: load a CSS file asynchronously. [c]2016 @scottjehl, Filament Group, Inc. Licensed MIT */
     (function(k){var e=function(e,f,c){function l(a){if(b.body)return a();setTimeout(function(){l(a)})}var b=k.document,a=b.createElement("link"),g=c||"all",d;f?d=f:(c=(b.body||b.getElementsByTagName("head")[0]).childNodes,d=c[c.length-1]);var m=b.styleSheets;a.rel="stylesheet";a.href=e;a.media="only x";l(function(){d.parentNode.insertBefore(a,f?d:d.nextSibling)});var h=function(b){for(var d=a.href,c=m.length;c--;)if(m[c].href===d)return b();setTimeout(function(){h(b)})};a.addEventListener&&a.addEventListener("load",
@@ -58,7 +62,11 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
     <meta name="theme-color" content="#e0f0ff">
 </head>
 <body class="ui-text" role="application">
-
+<div id="ui-log-container">
+    <span>Log</span>
+    <span id="close-log">Close</span>
+    <pre id="ui-log"></pre>
+</div>
 <div class="toolbar" id="main-toolbar">
     <div class="toolbar-items">
         <div class="toolbar-items-section-1">
@@ -159,11 +167,6 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
     </div>
 
     <div id="app-container" class="app-container initial">
-        <div id="ui-log-container">
-            <span>Log</span>
-            <span id="close-log">Close</span>
-            <pre id="ui-log"></pre>
-        </div>
         <div class="player-upper-container">
             <div class="playback-status-wrapper">
                 <div class="hidden time-container slanted left-side-slant right-side-slant current-time-container">

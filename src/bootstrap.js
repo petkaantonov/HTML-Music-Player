@@ -62,9 +62,6 @@ setDepChecking(env.isDevelopment());
 setIsDevelopment(env.isDevelopment());
 
 page.setTitle(defaultTitle);
-page.window().onerror = function(...args) {
-    page.uiLog(...args);
-};
 
 (async () => {
     await cssLoaded(Promise);
