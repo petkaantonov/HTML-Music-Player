@@ -21,6 +21,7 @@ const FLOAT32_BYTES = 4;
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
+const FADE_MINIMUM_VOLUME = 0.2;
 const CURVE_LENGTH = 8;
 const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
 
@@ -579,6 +580,8 @@ function AudioPlayerSourceNode(player, id, audioContext) {
     this._baseTime = 0;
     this._duration = 0;
     this._fadeOutEnded = 0;
+    this._fadeInStarted = 0;
+    this._fadeInStartedWithLength = 0;
 
     this._paused = true;
     this._destroyed = false;
@@ -673,12 +676,12 @@ AudioPlayerSourceNode.prototype._getCurrentAudioBufferBaseTimeDelta = function(n
     return Math.min((now - started) + sourceDescriptor.playedSoFar, this._player.getBufferDuration());
 };
 
-AudioPlayerSourceNode.prototype._getFadeOutCurve = function() {
-    return getCurve(this._fadeInOutNode.gain.value, 0.2);
+AudioPlayerSourceNode.prototype._getFadeOutCurve = function(startValue) {
+    return getCurve(startValue, FADE_MINIMUM_VOLUME);
 };
 
 AudioPlayerSourceNode.prototype._getFadeInCurve = function() {
-    return getCurve(0.2, 1);
+    return getCurve(FADE_MINIMUM_VOLUME, 1);
 };
 
 AudioPlayerSourceNode.prototype._nullifyPendingRequests = function() {
@@ -1120,7 +1123,7 @@ AudioPlayerSourceNode.prototype._bufferFilled = function({descriptor, isLastBuff
             this._loadingNext = false;
 
             if (gaplessPreload) {
-                afterScheduleKnownCallbacks.push((scheduledStartTime) => {
+                afterScheduleKnownCallbacks.push(() => {
                     this._gaplessPreloadArgs = {scheduledStartTime, metadata, baseTime};
                 });
             } else {
@@ -1291,8 +1294,19 @@ AudioPlayerSourceNode.prototype._maybeFadeOut = function(time,
                                                          ctxTime = this._player.getCurrentTime()) {
     if (time > 0) {
         const param = this._fadeInOutNode.gain;
+        let startValue = param.value;
+        if (startValue < 1) {
+            const t0 = this._fadeInStarted;
+            const t1 = t0 + this._fadeInStartedWithLength;
+            const t = ctxTime;
+            if (t0 < t && t < t1) {
+                const v0 = FADE_MINIMUM_VOLUME;
+                const v1 = 1;
+                startValue = v0 * Math.pow(v1 / v0, (t - t0) / (t1 - t0));
+            }
+        }
         cancelAndHold(param, ctxTime);
-        const curve = this._getFadeOutCurve();
+        const curve = this._getFadeOutCurve(startValue);
         param.setValueCurveAtTime(curve, ctxTime, time);
         this._fadeOutEnded = ctxTime + time;
     }
@@ -1303,6 +1317,8 @@ AudioPlayerSourceNode.prototype._maybeFadeIn = function(time,
     if (time > 0) {
         const curve = this._getFadeInCurve();
         this._fadeInOutNode.gain.setValueCurveAtTime(curve, ctxTime, time);
+        this._fadeInStarted = ctxTime;
+        this._fadeInStartedWithLength = time;
     }
 };
 
