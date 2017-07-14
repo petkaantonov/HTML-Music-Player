@@ -47,6 +47,7 @@ export default class ContentScroller {
         const {top, left} = this._getTopLeft();
         this._top = top + (this.$()[0].clientHeight - this.$contentContainer()[0].clientHeight);
         this._left = left + (this.$()[0].clientWidth - this.$contentContainer()[0].clientWidth);
+        this._rect = this.$contentContainer()[0].getBoundingClientRect();
     }
 
     _getTopLeft() {

@@ -21,10 +21,10 @@ class Tab extends EventEmitter {
         this._active = false;
         this._clicked = this._clicked.bind(this);
         this._contentRect = this.$content()[0].getBoundingClientRect();
+        this._animation = null;
         this.$().addEventListener(`click`, this._clicked);
         controller.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
         const position = this._contentRect.width * this._index;
-
         this.$content().setTransform(`translate3d(${position}px, 0px, 0px)`);
     }
 
@@ -42,13 +42,18 @@ class Tab extends EventEmitter {
     }
 
     async animateToPosition(activeTabIndex, contentWidth) {
+        if (this._animation) {
+            await this._animation;
+        }
         const newPosition = (this.index() - activeTabIndex) * contentWidth;
         const keyFrames = [
             {transform: this.$content().getTransformForKeyFrame(EMPTY_TRANSLATE)},
             {transform: `translate3d(${newPosition}px, 0, 0)`}
         ];
         const animation = this.$content().animate(keyFrames, animationOptions);
-        await animationPromisify(animation);
+        this._animation = animationPromisify(animation);
+        await this._animation;
+        this._animation = null;
         this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
     }
 
@@ -57,11 +62,14 @@ class Tab extends EventEmitter {
         this.emit(`click`, this);
     }
 
-    _relayout() {
+    async _relayout() {
         this.updateRectCache();
         const activeTabIndex = this._controller.getActiveTab().index();
         const contentWidth = this.contentRect().width;
         const newPosition = (this.index() - activeTabIndex) * contentWidth;
+        if (this._animation) {
+            await this._animation;
+        }
         this.$content().setTransform(`translate3d(${newPosition}px, 0, 0)`);
     }
 
@@ -99,7 +107,6 @@ class Tab extends EventEmitter {
 }
 
 export default class TabController extends EventEmitter {
-
     constructor(domNode, specs, opts, deps) {
         super();
         opts = noUndefinedGet(opts);

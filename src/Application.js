@@ -573,6 +573,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
             this.page.changeDom(() => {
                 this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
                 this.page.$(`#app-container`).removeClass(`initial`);
+                this.globalEvents._triggerSizeChange();
             });
         }, 10);
     });
