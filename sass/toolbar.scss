@@ -11,6 +11,7 @@ $toolbar-bottom-margin: 10px;
 
 body {
     padding-top: #{$toolbar-height + $toolbar-bottom-margin};
+    box-sizing: border-box;
 }
 
 .toolbar {

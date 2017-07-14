@@ -111,10 +111,10 @@ export default class MainTabs {
             });
 
             this.selectionStatus.on(`unselectAll`,
-                                    this.withActiveContentInstance.bind(this, _call.clearSelection());
+                                    this.withActiveContentInstance.bind(this, _call.clearSelection()));
 
             this.selectionStatus.on(`selectAll`,
-                                    this.withActiveContentInstance.bind(this, _call.selectAll());
+                                    this.withActiveContentInstance.bind(this, _call.selectAll()));
         } else {
             this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
             this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
@@ -136,7 +136,7 @@ export default class MainTabs {
         const tabId = this.tabController.getActiveTabId();
         const instance = this.menuInstancesByTabId[tabId];
         if (tabId) {
-            return fn(instance);
+            fn(instance);
         }
     }
 
@@ -144,7 +144,7 @@ export default class MainTabs {
         const tabId = this.tabController.getActiveTabId();
         const instance = this.contentInstancesByTabId[tabId];
         if (instance) {
-            return fn(instance);
+            fn(instance);
         }
     }
 

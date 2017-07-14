@@ -2,6 +2,9 @@ import AbstractPreferences from "preferences/AbstractPreferences";
 import EventEmitter from "events";
 import {inherits, noUndefinedGet, _, _set} from "util";
 import createPreferences from "preferences/PreferenceCreator";
+import {ToggleableSlideableValue,
+        SingleSelectableValue} from "ui/templates";
+import {ToggleableSlideableValuePreferenceUiBinding} from "preferences/uibinders";
 
 const EQUALIZER_MAX_GAIN = 12;
 const EQUALIZER_MIN_GAIN = -12;
@@ -64,30 +67,6 @@ const equalizerPresets = {
 
 const equalizerPresetKeys = Object.keys(equalizerPresets);
 
-const noiseSharpeningEffectHtml = `<div class='inputs-container'>
-    <div class='label wide-label subtitle'>Noise sharpening</div>
-</div>
-
-<div class='inputs-container'>
-    <div class='checkbox-container'>
-        <input type='checkbox' class='noise-sharpening-enable-checkbox checkbox' id='noise-sharpening-enable-label-id'>
-    </div>
-    <div class='noise-sharpening-enable-label label wide-label'>
-        <label for='noise-sharpening-enable-label-id'>Enable noise sharpening</label>
-    </div>
-</div>
-
-<div class='inputs-container'>
-    <div class='label'>Strength</div>
-    <div class='noise-sharpening-slider slider horizontal-slider'>
-        <div class='slider-knob'></div>
-        <div class='slider-background'>
-            <div class='slider-fill'></div>
-        </div>
-    </div>
-    <div class='noise-sharpening-value slider-value-indicator'></div>
-</div>`;
-
 const equalizerBandGroups = [];
 const groupSize = 5;
 let cur = 0;
@@ -121,25 +100,15 @@ sliderContainerHtml += `<div class='equalizer-sliders-container row'>${
                 }).join(``)
         }</div>`).join(``)}</div>`;
 
-const presetHtml = `<select class='equalizer-preset-selector'><option selected value='Custom'>Custom</option>${
-    equalizerPresetKeys.map(presetName => `<option value='${presetName}'>${presetName}</option>`).join(``)
-}</select>`;
-
-const presetContainerHtml = `<div class='section-container'>
-        <div class='inputs-container'>
-            <div class='label'>Preset</div>
-            <div class='select-container'>
-                ${presetHtml}
-            </div>
-        </div>
-    </div>`;
-
 
 const TEMPLATE = `<div class='settings-container equalizer-popup-content-container'>
-                <div class='section-container'>${noiseSharpeningEffectHtml}</div>
+                <div class="inputs-container">
+                    <div class="label wide-label subtitle">Noise sharpening</div>
+                </div>
+                <div class='section-container noise-sharpening-container'></div>
                 <div class='section-separator'></div>
                 <div class='section-container'>${sliderContainerHtml}</div>
-                ${presetContainerHtml}
+                <div class='section-container preset-selector-container'></div>
             </div>`;
 
 const Preferences = createPreferences({
@@ -246,201 +215,156 @@ export default class EffectPreferences extends AbstractPreferences {
     }
 }
 
-function NoiseSharpeningEffectManager(effectsManager) {
-    this._effectsManager = effectsManager;
-    this._slider = effectsManager.effectPreferences.sliderContext().createSlider({
-        target: this.$().find(`.noise-sharpening-slider`)
-    });
+class EqualizerUiBinding {
+    constructor(effectsManager) {
+        this._effectsManager = effectsManager;
+        this._equalizerSliders = equalizerBands.map((band, index) => {
+            const slider = effectsManager.effectPreferences.sliderContext().createSlider({
+                direction: `vertical`,
+                target: this.$().find(`.equalizer-band-${band[0]}-slider`)
+            });
 
-    this._strengthChanged = this._strengthChanged.bind(this);
-    this._enabledChanged = this._enabledChanged.bind(this);
+            let eq;
+            slider.on(`slideBegin`, () => {
+                eq = this._effectsManager.preferences.getEqualizer();
+            });
 
-    this._slider.on(`slide`, this._strengthChanged);
-    this.$().find(`.noise-sharpening-enable-checkbox`).addEventListener(`change`, this._enabledChanged);
-    this._renderedStrength = -1;
-    this._renderedEnabled = null;
-    this.update();
-}
+            slider.on(`slide`, (p) => {
+                const value = progressToGainValue(p);
+                eq[index] = value;
+                this._effectsManager.preferences.setInPlaceEqualizer(eq);
+                this._effectsManager.preferencesUpdated();
+                this._updatePreset();
+            });
 
-NoiseSharpeningEffectManager.prototype.$ = function() {
-    return this._effectsManager.$();
-};
+            slider.on(`slideEnd`, () => {
+                eq = null;
+            });
 
-NoiseSharpeningEffectManager.prototype.layoutUpdated = function() {
-    this._slider.setHeight(this.$().find(`.noise-sharpening-slider`).parent().innerHeight());
-};
-
-NoiseSharpeningEffectManager.prototype._strengthChanged = function(p) {
-    const strength = (p * (2 - 0)) + 0;
-    this._effectsManager.preferences.setNoiseSharpeningStrength(strength);
-    this._effectsManager.preferences.setNoiseSharpeningEnabled(true);
-    this._updateSlider(strength, true);
-    this._updateCheckbox(true);
-    this._effectsManager.preferencesUpdated(true);
-};
-
-NoiseSharpeningEffectManager.prototype._enabledChanged = function() {
-    const enabled = this.$().find(`.noise-sharpening-enable-checkbox`)[0].checked;
-    this._effectsManager.preferences.setNoiseSharpeningEnabled(enabled);
-    this._updateSlider(this._effectsManager.preferences.getNoiseSharpeningStrength(), enabled);
-    this._effectsManager.preferencesUpdated(true);
-};
-
-NoiseSharpeningEffectManager.prototype._updateSlider = function(strength, enabled) {
-    this._renderedStrength = strength;
-    this.$().find(`.noise-sharpening-value`).setText(strength.toFixed(1));
-    if (enabled) {
-        this.$().find(`.noise-sharpening-slider`).removeClass(`slider-inactive`);
-    } else {
-        this.$().find(`.noise-sharpening-slider`).addClass(`slider-inactive`);
-    }
-    this._slider.setValue((strength - 0) / (2 - 0));
-};
-
-NoiseSharpeningEffectManager.prototype._updateCheckbox = function(enabled) {
-    this._renderedEnabled = enabled;
-    this.$().find(`.noise-sharpening-enable-checkbox`).setProperty(`checked`, enabled);
-};
-
-NoiseSharpeningEffectManager.prototype.update = function() {
-    const enabled = this._effectsManager.preferences.getNoiseSharpeningEnabled();
-    const strength = this._effectsManager.preferences.getNoiseSharpeningStrength();
-
-    if (enabled === this._renderedEnabled && strength === this._renderedStrength) {
-        return;
-    }
-
-    this._updateSlider(strength, enabled);
-    this._updateCheckbox(enabled);
-};
-
-function EqualizerEffectManager(effectsManager) {
-    this._effectsManager = effectsManager;
-    this._equalizerSliders = equalizerBands.map((band, index) => {
-        const slider = effectsManager.effectPreferences.sliderContext().createSlider({
-            direction: `vertical`,
-            target: this.$().find(`.equalizer-band-${band[0]}-slider`)
+            return slider;
         });
 
-        let eq;
-        slider.on(`slideBegin`, () => {
-            eq = this._effectsManager.preferences.getEqualizer();
+        this._presetSelector = new SingleSelectableValue({
+            label: `Preset`,
+            valueTextMap: equalizerPresetKeys,
+            onValueChange: this.equalizerPresetChanged.bind(this)
         });
+        this._presetSelector.renderTo(this.$().find(`.preset-selector-container`));
+    }
 
-        slider.on(`slide`, (p) => {
-            const value = progressToGainValue(p);
-            eq[index] = value;
-            this._effectsManager.preferences.setInPlaceEqualizer(eq);
+    $() {
+        return this._effectsManager.$();
+    }
+
+    $equalizerSlidersContainer() {
+        return this.$().find(`.equalizer-sliders-container`);
+    }
+
+    $equalizerSliderContainers() {
+        return this.$equalizerSlidersContainer().find(`.equalizer-band-configurator-container`);
+    }
+
+    layoutUpdated() {
+        const widthAvailable = this.$equalizerSlidersContainer().innerWidth();
+        const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
+                                                                                  : this._equalizerSliders.length / 2;
+        const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
+        this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
+    }
+
+    equalizerPresetChanged(val) {
+        if (equalizerPresets[val]) {
+            this._effectsManager.preferences.setEqualizer(equalizerPresets[val]);
             this._effectsManager.preferencesUpdated();
-            this._updatePreset();
-        });
+            this._updateSliders();
+        }
+    }
 
-        slider.on(`slideEnd`, () => {
-            eq = null;
-        });
+    _updatePreset() {
+        const presetName = this._effectsManager.preferences.getMatchingEqualizerPresetName();
+        this._presetSelector.setValue(presetName);
+    }
 
-        return slider;
-    });
+    _updateSliders() {
+        const eq = this._effectsManager.preferences.getInPlaceEqualizer();
+        for (let i = 0; i < eq.length; ++i) {
+            this._equalizerSliders[i].setValue(gainValueToProgress(eq[i]));
+        }
+    }
 
-    this.$().find(`.equalizer-preset-selector`).addEventListener(`change`, this.equalizerPresetChanged.bind(this));
-}
-
-EqualizerEffectManager.prototype.$ = function() {
-    return this._effectsManager.$();
-};
-
-EqualizerEffectManager.prototype.$equalizerSlidersContainer = function() {
-    return this.$().find(`.equalizer-sliders-container`);
-};
-
-EqualizerEffectManager.prototype.$equalizerSliderContainers = function() {
-    return this.$equalizerSlidersContainer().find(`.equalizer-band-configurator-container`);
-};
-
-EqualizerEffectManager.prototype.layoutUpdated = function() {
-    const widthAvailable = this.$equalizerSlidersContainer().innerWidth();
-    const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
-                                                                              : this._equalizerSliders.length / 2;
-    const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
-    this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
-};
-
-EqualizerEffectManager.prototype.equalizerPresetChanged = function(e) {
-    const val = this._effectsManager.effectPreferences.page().$(e.target).value();
-
-    if (equalizerPresets[val]) {
-        this._effectsManager.preferences.setEqualizer(equalizerPresets[val]);
-        this._effectsManager.preferencesUpdated();
+    update() {
+        this._updatePreset();
         this._updateSliders();
     }
-};
-
-EqualizerEffectManager.prototype._updatePreset = function() {
-    const presetName = this._effectsManager.preferences.getMatchingEqualizerPresetName();
-    this.$().find(`.equalizer-preset-selector`).setValue(presetName);
-};
-
-EqualizerEffectManager.prototype._updateSliders = function() {
-    const eq = this._effectsManager.preferences.getInPlaceEqualizer();
-    for (let i = 0; i < eq.length; ++i) {
-        this._equalizerSliders[i].setValue(gainValueToProgress(eq[i]));
-    }
-};
-
-EqualizerEffectManager.prototype.update = function() {
-    this._updatePreset();
-    this._updateSliders();
-};
-
-function EffectManager(domNode, effectPreferences) {
-    EventEmitter.call(this);
-    this.effectPreferences = effectPreferences;
-    this._domNode = effectPreferences.page().$(domNode).eq(0);
-    this.preferences = effectPreferences.preferences();
-    this.defaultPreferences = new Preferences();
-    this.unchangedPreferences = null;
-    this._noiseSharpeningEffectManager = new NoiseSharpeningEffectManager(this);
-    this._equalizerEffectManager = new EqualizerEffectManager(this);
 }
-inherits(EffectManager, EventEmitter);
 
-EffectManager.prototype.$ = function() {
-    return this._domNode;
-};
+class EffectManager extends EventEmitter {
+    constructor(domNode, effectPreferences) {
+        super();
+        this.effectPreferences = effectPreferences;
+        this._domNode = effectPreferences.page().$(domNode).eq(0);
+        this.preferences = effectPreferences.preferences();
+        this.defaultPreferences = new Preferences();
+        this.unchangedPreferences = null;
+        this._equalizerUiBinding = new EqualizerUiBinding(this);
 
-EffectManager.prototype.layoutUpdated = function() {
-    this._equalizerEffectManager.layoutUpdated();
-    this._noiseSharpeningEffectManager.layoutUpdated();
-};
+        const toggleableSlideableValue = new ToggleableSlideableValue({
+            checkboxLabel: `Enable noise sharpening`,
+            sliderLabel: `Strength`,
+            valueFormatter: value => value.toFixed(1),
+            minValue: 0,
+            maxValue: 2
+        }, {
+            sliderContext: effectPreferences.sliderContext()
+        });
+        this._noiseSharpeningUiBinding = new ToggleableSlideableValuePreferenceUiBinding(
+            this.$().find(`.noise-sharpening-container`),
+            toggleableSlideableValue,
+            `noiseSharpeningStrength`,
+            `noiseSharpeningEnabled`,
+            this
+        );
+    }
 
-EffectManager.prototype.applyPreferencesFrom = function(preferences) {
-    this.preferences.copyFrom(preferences);
-    this._noiseSharpeningEffectManager.update();
-    this._equalizerEffectManager.update();
-    this.preferencesUpdated();
-};
+    $() {
+        return this._domNode;
+    }
 
-EffectManager.prototype.preferencesUpdated = function() {
-    this.emit(`update`);
-    this.update();
-};
+    layoutUpdated() {
+        this._equalizerUiBinding.layoutUpdated();
+        this._noiseSharpeningUiBinding.layoutUpdated();
+    }
 
-EffectManager.prototype.update = function() {
-    this.effectPreferences.setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
-    this.effectPreferences.setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
-};
+    applyPreferencesFrom(preferences) {
+        this.preferences.copyFrom(preferences);
+        this._noiseSharpeningUiBinding.update();
+        this._equalizerUiBinding.update();
+        this.preferencesUpdated();
+    }
 
-EffectManager.prototype.restoreDefaults = function() {
-    this.applyPreferencesFrom(this.defaultPreferences);
-};
+    preferencesUpdated() {
+        this.emit(`update`);
+        this.update();
+    }
 
-EffectManager.prototype.undoChanges = function() {
-    this.applyPreferencesFrom(this.unchangedPreferences);
-};
+    update() {
+        this.effectPreferences.setResetDefaultsEnabled(!this.preferences.equals(this.defaultPreferences));
+        this.effectPreferences.setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
+    }
 
-EffectManager.prototype.setUnchangedPreferences = function() {
-    this.unchangedPreferences = this.preferences.snapshot();
-    this.update();
-    this._noiseSharpeningEffectManager.update();
-    this._equalizerEffectManager.update();
-};
+    restoreDefaults() {
+        this.applyPreferencesFrom(this.defaultPreferences);
+    }
+
+    undoChanges() {
+        this.applyPreferencesFrom(this.unchangedPreferences);
+    }
+
+    setUnchangedPreferences() {
+        this.unchangedPreferences = this.preferences.snapshot();
+        this.update();
+        this._noiseSharpeningUiBinding.update();
+        this._equalizerUiBinding.update();
+    }
+}
+

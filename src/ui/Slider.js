@@ -166,7 +166,9 @@ Slider.prototype._setupKeyboard = function() {
 
 Slider.prototype._onMousemove = function(e) {
     if (!isTouchEvent(e) && e.which !== 1) {
-        this._onMouseup(this._lastEvent);
+        if (this._lastEvent) {
+            this._onMouseup(this._lastEvent);
+        }
         return;
     }
 
