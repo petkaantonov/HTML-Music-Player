@@ -1,4 +1,3 @@
-import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioSource from "audio/backend/AudioSource";
 import Effects from "audio/backend/Effects";
 import {ArrayBuffer, Map} from "platform/platform";
@@ -11,8 +10,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
         this._bufferTime = 0;
-        this._resamplerQuality = -1;
-        this._channelMixer = null;
         this._timers = timers;
         this._audioSources = new Map();
         this._effects = new Effects();
@@ -31,39 +28,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
     get bufferTime() {
         const ret = this._bufferTime;
         if (!ret) throw new Error(`buffer time not set`);
-        return ret;
-    }
-
-    get bufferAudioFrameCount() {
-        return Math.ceil(this.bufferTime * this.destinationSampleRate);
-    }
-
-    get destinationChannelCount() {
-        return this.channelMixer.getChannels();
-    }
-
-    get destinationSampleRate() {
-        const ret = this._hardwareSampleRate;
-        if (!ret) {
-            throw new Error(`sample rate not set`);
-        }
-        return ret;
-    }
-
-    get resamplerQuality() {
-        const ret = this._resamplerQuality;
-        if (ret < 0) {
-            throw new Error(`resampler quality not set`);
-        }
-        return ret;
-    }
-
-
-    get channelMixer() {
-        const ret = this._channelMixer;
-        if (!ret) {
-            throw new Error(`channel count not set`);
-        }
         return ret;
     }
 
@@ -112,26 +76,10 @@ export default class AudioPlayerBackend extends AbstractBackend {
     }
 
     receiveMessage(event) {
-        const {nodeId, args, methodName, transferList} = event.data;
+        const {nodeId, args, methodName} = event.data;
 
         if (nodeId === -1) {
             if (methodName === `audioConfiguration`) {
-                if (`resamplerQuality` in args) {
-                    this._resamplerQuality = args.resamplerQuality;
-                }
-
-                if (`channelCount` in args) {
-                    if (!this._channelMixer) {
-                         this._channelMixer = new ChannelMixer(this._wasm, {destinationChannelCount: args.channelCount});
-                    } else {
-                        this.channelMixer.setChannels(args.channelCount);
-                    }
-                }
-
-                if (`sampleRate` in args) {
-                    this._hardwareSampleRate = args.sampleRate;
-                }
-
                 if (`bufferTime` in args) {
                     this._bufferTime = args.bufferTime;
                 }
@@ -149,11 +97,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
                 this._timers.tick();
             }
         } else {
-            this._audioSources.get(nodeId).newMessage({
-                methodName,
-                args,
-                transferList
-            });
+            this._audioSources.get(nodeId).newMessage({methodName, args});
         }
     }
 }

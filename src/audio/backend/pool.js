@@ -8,17 +8,17 @@ const loudnessAnalyzers = {
     instances: []
 };
 
-export function allocLoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs) {
+export function allocLoudnessAnalyzer(wasm, channelCount, sampleRate) {
     if (!loudnessAnalyzers.instances.length) {
         loudnessAnalyzers.allocationCount++;
-        loudnessAnalyzers.instances.push(new LoudnessAnalyzer(wasm, channelCount, sampleRate, windowMs));
+        loudnessAnalyzers.instances.push(new LoudnessAnalyzer(wasm, channelCount, sampleRate));
 
         if (loudnessAnalyzers.allocationCount > 4) {
             self.uiLog(`memory leak: ${loudnessAnalyzers.allocationCount} loudnessAnalyzers allocated.`);
         }
     }
 
-    return loudnessAnalyzers.instances.shift().reinitialized(channelCount, sampleRate, windowMs);
+    return loudnessAnalyzers.instances.shift().reinitialized(channelCount, sampleRate);
 }
 
 export function freeLoudnessAnalyzer(loudnessAnalyzer) {

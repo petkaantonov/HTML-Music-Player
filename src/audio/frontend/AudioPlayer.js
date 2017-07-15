@@ -2,7 +2,7 @@
 // Manually to hardware specs to guarantee seamless playback between consecutive
 // Audiobuffers.
 import {roundSampleTime} from "util";
-import {AudioParam, AudioContext, ArrayBuffer, Float32Array, performance} from "platform/platform";
+import {AudioParam, AudioContext, performance} from "platform/platform";
 import {PLAYER_READY_EVENT_NAME} from "audio/backend/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
 import AudioPlayerSourceNode from "audio/frontend/AudioPlayerSourceNode";
@@ -10,7 +10,6 @@ import {FLOAT32_BYTES, WEB_AUDIO_BLOCK_SIZE,
         SUSTAINED_BUFFER_COUNT, SCHEDULE_AHEAD_RATIO,
         TARGET_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 
-const RESAMPLER_QUALITY = 5;
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 
 // TODO Make end user configurable
@@ -105,7 +104,7 @@ export default class AudioPlayer extends WorkerFrontend {
             this.setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
         });
 
-        this._updateBackendConfig({resamplerQuality: this._determineResamplerQuality()});
+
         this.page.addDocumentListener(`touchend`, this._touchended.bind(this), true);
 
         this.getOutputTimestamp = typeof AudioContext.prototype.getOutputTimestamp === `function` ? NativeGetOutputTimestamp
@@ -131,9 +130,6 @@ export default class AudioPlayer extends WorkerFrontend {
         return TARGET_BUFFER_LENGTH_SECONDS * sampleRate;
     }
 
-    _determineResamplerQuality() {
-        return RESAMPLER_QUALITY;
-    }
     /* eslint-enable class-methods-use-this */
 
     receiveMessage(event) {
@@ -179,9 +175,8 @@ export default class AudioPlayer extends WorkerFrontend {
                 (SUSTAINED_BUFFER_COUNT + this._playedAudioBuffersNeededForVisualization) * channelCount;
             this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
 
-            this._silentBuffer = _audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
-            await this._updateBackendConfig({channelCount, sampleRate, bufferTime: this._audioBufferTime});
-            this._resetPools();
+            this._silentBuffer = this.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
+            await this._updateBackendConfig({bufferTime: this._audioBufferTime});
             for (const sourceNode of this._sourceNodes.slice()) {
                 sourceNode._resetAudioBuffers();
             }
@@ -221,6 +216,10 @@ export default class AudioPlayer extends WorkerFrontend {
             this._scheduleAheadTime = roundSampleTime(minScheduleAheadSamples, sampleRate) / sampleRate;
             self.uiLog(`increased _scheduleAheadTime from ${scheduleAheadTime} to ${this._scheduleAheadTime} because operation took ${elapsedMs.toFixed(0)} ms`);
         }
+    }
+
+    createBuffer(channelCount, length, sampleRate) {
+        return this._audioContext.createBuffer(channelCount, length, sampleRate);
     }
 
     async _touchended() {
@@ -306,66 +305,6 @@ export default class AudioPlayer extends WorkerFrontend {
             args,
             transferList
         }, transferList);
-    }
-
-    _freeTransferList(args, transferList) {
-        if (!transferList) return;
-
-        while (transferList.length > 0) {
-            let item = transferList.pop();
-            if (!(item instanceof ArrayBuffer)) {
-                item = item.buffer;
-            }
-            if (item.byteLength > 0) {
-                this._freeArrayBuffer(item);
-            }
-        }
-    }
-
-    _resetPools() {
-        this._audioBuffersAllocated = 0;
-        this._arrayBuffersAllocated = 0;
-        this._audioBufferPool = [];
-        this._arrayBufferPool = [];
-    }
-
-    _freeAudioBuffer(audioBuffer) {
-        if (audioBuffer.sampleRate === this._outputSampleRate &&
-            audioBuffer.numberOfChannels === this._outputChannelCount &&
-            audioBuffer.length === this._bufferFrameCount) {
-            this._audioBufferPool.push(audioBuffer);
-        }
-    }
-
-    _allocAudioBuffer() {
-        if (this._audioBufferPool.length > 0) return this._audioBufferPool.shift();
-        const {_outputChannelCount, _outputSampleRate, _bufferFrameCount, _audioContext} = this;
-        const ret = _audioContext.createBuffer(_outputChannelCount, _bufferFrameCount, _outputSampleRate);
-        this._audioBuffersAllocated++;
-        if (this._audioBuffersAllocated > this._maxAudioBuffers) {
-            self.uiLog(`Possible memory leak: over ${this._maxAudioBuffers} audio buffers allocated`);
-        }
-        return ret;
-    }
-
-    _freeArrayBuffer(arrayBuffer) {
-        if (!(arrayBuffer instanceof ArrayBuffer)) {
-            arrayBuffer = arrayBuffer.buffer;
-        }
-
-        if (arrayBuffer.byteLength === this._arrayBufferByteLength) {
-            this._arrayBufferPool.push(arrayBuffer);
-        }
-    }
-
-    _allocArrayBuffer(size) {
-        if (this._arrayBufferPool.length) return new Float32Array(this._arrayBufferPool.shift(), 0, size);
-        this._arrayBuffersAllocated++;
-        if (this._arrayBuffersAllocated > this._maxArrayBuffers) {
-            self.uiLog(`Possible memory leak: over ${this._maxArrayBuffers} array buffers allocated`);
-        }
-        const buffer = new ArrayBuffer(this._arrayBufferByteLength);
-        return new Float32Array(buffer, 0, size);
     }
 
     _sourceNodeDestroyed(node) {

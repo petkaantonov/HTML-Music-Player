@@ -1,11 +1,4 @@
-import {Float32Array} from "platform/platform";
-
 const I16_BYTE_LENGTH = 2;
-
-const BEFORE_MIX_BEFORE_RESAMPLE = 0;
-const AFTER_MIX_BEFORE_RESAMPLE = 1;
-const AFTER_MIX_AFTER_RESAMPLE = 2;
-const INITIAL = -1;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
@@ -174,22 +167,6 @@ export default class AudioProcessingPipeline {
                 resampler,
                 loudnessAnalyzer,
                 fingerprinter} = this;
-        let leastSamplesToProcessEffectsPhase = INITIAL;
-
-        if (effects) {
-            const leastSamples = Math.min(destinationChannelCount * destinationSampleRate,
-                                            Math.min(sourceChannelCount * sourceSampleRate,
-                                                     destinationChannelCount * sourceSampleRate));
-
-            if (leastSamples === sourceChannelCount * sourceSampleRate) {
-                leastSamplesToProcessEffectsPhase = BEFORE_MIX_BEFORE_RESAMPLE;
-            } else if (leastSamples === destinationChannelCount * destinationSampleRate) {
-                leastSamplesToProcessEffectsPhase = AFTER_MIX_BEFORE_RESAMPLE;
-            } else {
-                leastSamplesToProcessEffectsPhase = AFTER_MIX_AFTER_RESAMPLE;
-            }
-        }
-
 
         let loudness = 0;
         if (loudnessAnalyzer) {
@@ -197,7 +174,7 @@ export default class AudioProcessingPipeline {
             loudness = loudnessAnalyzer.getLoudness(samplePtr, audioFrameLength);
         }
 
-        if (leastSamplesToProcessEffectsPhase === BEFORE_MIX_BEFORE_RESAMPLE) {
+        if (effects) {
             for (const effect of effects) {
                 ({samplePtr, byteLength} = effect.apply(sourceChannelCount, samplePtr, byteLength));
             }
@@ -207,20 +184,8 @@ export default class AudioProcessingPipeline {
             ({samplePtr, byteLength} = channelMixer.mix(sourceChannelCount, samplePtr, byteLength));
         }
 
-        if (leastSamplesToProcessEffectsPhase === AFTER_MIX_BEFORE_RESAMPLE) {
-            for (const effect of effects) {
-                ({samplePtr, byteLength} = effect.apply(destinationChannelCount, samplePtr, byteLength));
-            }
-        }
-
         if (sourceSampleRate !== destinationSampleRate) {
             ({samplePtr, byteLength} = resampler.resample(samplePtr, byteLength));
-        }
-
-        if (leastSamplesToProcessEffectsPhase === AFTER_MIX_AFTER_RESAMPLE) {
-            for (const effect of effects) {
-                ({samplePtr, byteLength} = effect.apply(destinationChannelCount, samplePtr, byteLength));
-            }
         }
 
         if (fingerprinter && fingerprinter.needFrames()) {
@@ -231,21 +196,8 @@ export default class AudioProcessingPipeline {
         let paddingFrameLength = 0;
         const src = this._wasm.i16view(samplePtr, byteLength / I16_BYTE_LENGTH);
 
-        let channelData = null;
-        if (outputSpec) {
-            if (outputSpec.transferList) {
-                const {transferList} = outputSpec;
-                channelData = new Array(destinationChannelCount);
-                let transferListIndex = 0;
-                for (let ch = 0; ch < destinationChannelCount; ++ch) {
-                    channelData[ch] = new Float32Array(transferList[transferListIndex++]);
-                }
-            } else if (outputSpec.channelData) {
-                ({channelData} = outputSpec);
-            } else {
-                throw new Error(`unknown output spec`);
-            }
-
+        const channelData = outputSpec ? outputSpec.channelData : null;
+        if (channelData) {
             if (audioFrameLength < this.bufferAudioFrameCount) {
                 paddingFrameLength =
                     Math.ceil(audioFrameLength / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE - audioFrameLength;
@@ -264,7 +216,6 @@ export default class AudioProcessingPipeline {
                     const j = i + audioFrameLength;
                     dst0[j] = dst1[j] = 0.0;
                 }
-
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch];

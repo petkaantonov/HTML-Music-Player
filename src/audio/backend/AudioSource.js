@@ -1,7 +1,6 @@
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
-import {Blob, File} from "platform/platform";
-import {allocResampler, allocDecoderContext, allocLoudnessAnalyzer,
-        freeResampler, freeDecoderContext, freeLoudnessAnalyzer} from "audio/backend/pool";
+import {Blob, File, Float32Array} from "platform/platform";
+import {allocDecoderContext, allocLoudnessAnalyzer, freeDecoderContext, freeLoudnessAnalyzer} from "audio/backend/pool";
 import EventEmitter from "events";
 import FileView from "platform/FileView";
 import seeker from "audio/backend/seeker";
@@ -13,6 +12,7 @@ import CancellableOperations from "utils/CancellationToken";
 export const BUFFER_FILL_TYPE_SEEK = `BUFFER_FILL_TYPE_SEEK`;
 export const BUFFER_FILL_TYPE_REPLACEMENT = `BUFFER_FILL_TYPE_REPLACEMENT`;
 export const BUFFER_FILL_TYPE_NORMAL = `BUFFER_FILL_TYPE_NORMAL`;
+
 
 const queuedMessage = {
     seek: true,
@@ -38,7 +38,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.ended = false;
         this._decoder = null;
         this._loudnessAnalyzer = null;
-        this._resampler = null;
         this.blob = null;
         this._filePosition = 0;
         this._bufferFillCancellationToken = null;
@@ -57,24 +56,34 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._next = this._next.bind(this);
     }
 
-    _freeTransferList(transferList) {
-        this.backend.sendMessage(-1, `_freeTransferList`, null, transferList);
+    get sampleRate() {
+        if (!this.metadata) {
+            throw new Error(`no metadata set`);
+        }
+        return this.metadata.sampleRate;
+    }
+
+    get channelCount() {
+        if (!this.metadata) {
+            throw new Error(`no metadata set`);
+        }
+        return this.metadata.channels;
+    }
+
+    get targetBufferLengthAudioFrames() {
+        return this.backend.bufferTime * this.sampleRate;
     }
 
     _clearQueue() {
-        for (let i = 0; i < this.messageQueue.length; ++i) {
-            const spec = this.messageQueue[i];
-            this._freeTransferList(spec.transferList);
-        }
         this.messageQueue.length = 0;
     }
 
     async _next() {
         if (!this._processingMessage && this.messageQueue.length > 0) {
-            const {methodName, args, transferList} = this.messageQueue.shift();
+            const {methodName, args} = this.messageQueue.shift();
             try {
                 this._processingMessage = true;
-                await this[methodName](args, transferList);
+                await this[methodName](args);
             } finally {
                 this._processingMessage = false;
                 this._next();
@@ -82,7 +91,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    _passReplacementBuffer(spec, args, bufferTransferList) {
+    _passReplacementBuffer(spec, args, destinationBuffers) {
         const {metadata, gaplessPreload, requestId} = spec;
         const {descriptor: bufferDescriptor} = args;
         const {baseTime} = bufferDescriptor.fillTypeData;
@@ -92,17 +101,19 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             startTime: bufferDescriptor.startTime,
             endTime: bufferDescriptor.endTime,
             loudness: bufferDescriptor.loudness,
+            sampleRate: bufferDescriptor.sampleRate,
+            channelCount: bufferDescriptor.channelCount,
             fillTypeData
         };
         this._sendFilledBuffer(requestId,
                                descriptor,
-                               bufferTransferList,
+                               destinationBuffers,
                                BUFFER_FILL_TYPE_REPLACEMENT,
                                false);
     }
 
     newMessage(spec) {
-        const {methodName, args, transferList} = spec;
+        const {methodName, args} = spec;
 
         if (overridingMessage[methodName] === true) {
             this.cancelAllOperations();
@@ -112,7 +123,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         if (queuedMessage[methodName] === true) {
             this.messageQueue.push(spec);
         } else {
-            this[methodName](args, transferList);
+            this[methodName](args);
         }
         this._next();
     }
@@ -121,26 +132,24 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         return this.blob.size;
     }
 
-    sendMessage(name, args, transferList) {
+    sendMessage(name, args, destinationBuffers) {
         if (this.destroyed) return;
         if (this.parent === null || this.parent === undefined) {
-            this.backend.sendMessage(this.id, name, args, transferList);
+            this.backend.sendMessage(this.id, name, args, destinationBuffers);
         } else {
-            this.parent.messageFromReplacement(name, args, transferList, this);
+            this.parent.messageFromReplacement(name, args, destinationBuffers, this);
         }
     }
 
-    messageFromReplacement(name, args, transferList, sender) {
+    messageFromReplacement(name, args, destinationBuffers, sender) {
         if (sender !== this.replacementSource) {
             sender.destroy();
-            this._freeTransferList(transferList);
             return;
         }
 
         const {cancellationToken} = this.replacementSpec;
 
         if (cancellationToken.isCancelled()) {
-            this._freeTransferList(transferList);
             this.destroyReplacement();
             return;
         }
@@ -158,7 +167,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 count: this.replacementSpec.preloadBufferCount,
                 time: this.replacementSpec.seekTime,
                 isUserSeek: false
-            }, this.replacementSpec.transferList);
+            });
         break;
 
         case `_bufferFilled`: {
@@ -167,7 +176,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this.backend.transferSourceId(this, this.replacementSource);
             this.replacementSource.parent = null;
             try {
-                this.replacementSource._passReplacementBuffer(spec, args, transferList);
+                this.replacementSource._passReplacementBuffer(spec, args, destinationBuffers);
             } finally {
                 this.replacementSource = null;
                 this.destroy(false);
@@ -185,7 +194,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         if (this.replacementSource) {
             const spec = this.replacementSpec;
             if (spec) {
-                this._freeTransferList(spec.transferList);
                 this.replacementSpec = null;
             }
             this.replacementSource.destroy();
@@ -214,10 +222,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this._loudnessAnalyzer = null;
         }
 
-        if (this._resampler) {
-            freeResampler(this._resampler);
-            this._resampler = null;
-        }
         this.fileView = null;
         this.codecName = ``;
         this.blob = null;
@@ -230,24 +234,24 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._bufferFillCancellationToken = null;
     }
 
-    passError(errorMessage, stack, name, transferList) {
+    passError(errorMessage, stack, name) {
         this.sendMessage(`_error`, {
             message: errorMessage,
             stack,
             name
-        }, transferList);
+        });
     }
 
     _errored(e) {
         this.passError(e.message, e.stack, e.name);
     }
 
-    async _decodeNextBuffer(transferList, cancellationToken, buffersRemainingToDecode) {
+    async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.metadata,
                                                                                cancellationToken,
-                                                                               {transferList},
+                                                                               {channelData: destinationBuffers},
                                                                                 buffersRemainingToDecode);
         if (cancellationToken.isCancelled()) {
             this._audioPipeline.dropFilledBuffer();
@@ -263,28 +267,28 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         return this._audioPipeline.consumeFilledBuffer();
     }
 
-    _sendFilledBuffer(requestId, descriptor, transferList, bufferFillType, isLastBuffer = false) {
+    _sendFilledBuffer(requestId, descriptor, destinationBuffers, bufferFillType, isLastBuffer = false) {
         this.sendMessage(`_bufferFilled`,
                         {requestId, descriptor, isLastBuffer, bufferFillType},
-                        transferList);
-    }
-
-    _drainArrayBuffersFromTransferlist(transferList) {
-        const buffersNeeded = this.backend.destinationChannelCount;
-        const ret = [];
-        while (ret.length < buffersNeeded) {
-            ret.push(transferList.shift());
-        }
-        return ret;
+                        destinationBuffers);
     }
 
     _bufferFillOperationCancellationAcknowledged() {
         return this._bufferFillCancellationToken && this._bufferFillCancellationToken.getSignal() || Promise.resolve();
     }
 
-    async _fillBuffers(count, requestId, bufferFillType, transferList, fillTypeData = null) {
+    _getDestinationBuffers() {
+        const {channelCount, targetBufferLengthAudioFrames} = this;
+        const ret = new Array(channelCount);
+        for (let ch = 0; ch < channelCount; ++ch) {
+            ret[ch] = new Float32Array(targetBufferLengthAudioFrames);
+        }
+        return ret;
+    }
+
+    async _fillBuffers(count, requestId, bufferFillType, fillTypeData = null) {
         if (this.ended) {
-            this._sendFilledBuffer(requestId, null, transferList, bufferFillType, true);
+            this._sendFilledBuffer(requestId, null, null, bufferFillType, true);
             return;
         }
 
@@ -295,24 +299,23 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._bufferFillCancellationToken = this.cancellationTokenForBufferFillOperation();
 
         const {trackMetadata} = this.metadata;
+        const {sampleRate, channelCount} = this;
         let i = 0;
         let currentBufferFillType = bufferFillType;
         try {
             while (i < count) {
                 const buffersRemainingToDecode = count - i;
-                const currentTransferList = this._drainArrayBuffersFromTransferlist(transferList);
-                const bufferDescriptor = await this._decodeNextBuffer(currentTransferList,
+                const destinationBuffers = this._getDestinationBuffers();
+                const bufferDescriptor = await this._decodeNextBuffer(destinationBuffers,
                                                                       this._bufferFillCancellationToken,
                                                                       buffersRemainingToDecode);
 
                 if (this._bufferFillCancellationToken.isCancelled()) {
                     this._bufferFillCancellationToken.signal();
-                    this._freeTransferList(transferList.concat(currentTransferList));
                     break;
                 }
 
                 if (!bufferDescriptor) {
-                    this._freeTransferList(transferList.concat(currentTransferList));
                     break;
                 }
 
@@ -331,7 +334,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     length: bufferDescriptor.length,
                     startTime: bufferDescriptor.startTime,
                     endTime: bufferDescriptor.endTime,
-                    loudness,
+                    loudness, sampleRate, channelCount,
                     fillTypeData: null
                 };
 
@@ -339,12 +342,11 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     descriptor.fillTypeData = fillTypeData;
                 }
 
-                this._sendFilledBuffer(requestId, descriptor, currentTransferList, currentBufferFillType, this.ended);
+                this._sendFilledBuffer(requestId, descriptor, destinationBuffers, currentBufferFillType, this.ended);
                 i++;
                 currentBufferFillType = BUFFER_FILL_TYPE_NORMAL;
 
                 if (this.ended) {
-                    this._freeTransferList(transferList);
                     break;
                 }
             }
@@ -357,15 +359,10 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     async _gotCodec(codec, requestId, playerMetadata) {
-        const {destinationChannelCount,
-                destinationSampleRate,
-                resamplerQuality,
-                bufferTime,
-                bufferAudioFrameCount,
-                wasm,
-                channelMixer,
+        const {wasm,
                 effects,
-                metadataParser} = this.backend;
+                metadataParser,
+                bufferTime} = this.backend;
         const {codecName, blob} = this;
         try {
             if (this.destroyed) {
@@ -403,41 +400,29 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 metadata.trackMetadata = trackMetadata;
             }
 
-            if (this._resampler || this._loudnessAnalyzer || this._decoder) {
-                self.uiLog(`memory leak: unfreed resampler/loudnessAnalyzer/decoder`);
+            if (this._loudnessAnalyzer || this._decoder) {
+                self.uiLog(`memory leak: unfreed loudnessAnalyzer/decoder`);
             }
-
 
             this.metadata = metadata;
-            const {sampleRate: sourceSampleRate,
-                   channels: sourceChannelCount} = metadata;
-
-            if (sourceSampleRate !== destinationSampleRate) {
-                this._resampler = allocResampler(wasm,
-                                                destinationChannelCount,
-                                                sourceSampleRate,
-                                                destinationSampleRate,
-                                                resamplerQuality);
-            }
+            this._filePosition = this.metadata.dataStart;
+            const {sampleRate, channelCount, targetBufferLengthAudioFrames} = this;
 
             this._decoder = allocDecoderContext(wasm, codecName, codec, {
-                targetBufferLengthAudioFrames: bufferTime * sourceSampleRate
+                targetBufferLengthAudioFrames
             });
-
             this._decoder.start(metadata);
+            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate);
 
-            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, sourceChannelCount, sourceSampleRate, 20 * 1000);
-
-            const {_resampler: resampler,
-                    _decoder: decoder,
-                    _loudnessAnalyzer: loudnessAnalyzer} = this;
-
-            this._filePosition = this.metadata.dataStart;
             this._audioPipeline = new AudioProcessingPipeline(wasm, {
-                sourceSampleRate, sourceChannelCount,
-                destinationSampleRate, destinationChannelCount,
-                decoder, resampler, loudnessAnalyzer,
-                channelMixer, effects, bufferTime, bufferAudioFrameCount
+                sourceSampleRate: sampleRate,
+                destinationSampleRate: sampleRate,
+                sourceChannelCount: channelCount,
+                destinationChannelCount: channelCount,
+                decoder: this._decoder,
+                loudnessAnalyzer: this._loudnessAnalyzer,
+                bufferAudioFrameCount: targetBufferLengthAudioFrames,
+                effects, bufferTime
             });
             this.sendMessage(`_blobLoaded`, {requestId, metadata});
         } catch (e) {
@@ -452,28 +437,27 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.cancelAllReplacementOperations();
     }
 
-    fillBuffers({count}, transferList) {
+    fillBuffers({count}) {
         try {
             if (this.destroyed) {
-                this.sendMessage(`_error`, {message: `Destroyed`}, transferList);
+                this.sendMessage(`_error`, {message: `Destroyed`});
                 return;
             }
             if (!this.blob) {
-                this.sendMessage(`_error`, {message: `No blob loaded`}, transferList);
+                this.sendMessage(`_error`, {message: `No blob loaded`});
                 return;
             }
 
             if (this._bufferFillCancellationToken) {
-                this._freeTransferList(transferList);
                 return;
             }
-            this._fillBuffers(count, -1, BUFFER_FILL_TYPE_NORMAL, transferList);
+            this._fillBuffers(count, -1, BUFFER_FILL_TYPE_NORMAL);
         } catch (e) {
-            this.passError(e.message, e.stack, e.name, transferList);
+            this.passError(e.message, e.stack, e.name);
         }
     }
 
-    loadReplacement(args, transferList) {
+    loadReplacement(args) {
         if (this.destroyed) return;
         this.destroyReplacement();
         const cancellationToken = this.cancellationTokenForReplacementOperation();
@@ -482,7 +466,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 requestId: args.requestId,
                 blob: args.blob,
                 seekTime: args.seekTime,
-                transferList,
                 metadata: null,
                 preloadBufferCount: args.count,
                 gaplessPreload: args.gaplessPreload,
@@ -496,17 +479,17 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    async seek(args, transferList) {
+    async seek(args) {
         try {
             const {requestId, count, time} = args;
 
             if (this.destroyed) {
-                this.sendMessage(`_error`, {message: `Destroyed`}, transferList);
+                this.sendMessage(`_error`, {message: `Destroyed`});
                 return;
             }
 
             if (!this.blob) {
-                this.sendMessage(`_error`, {message: `No blob loaded`}, transferList);
+                this.sendMessage(`_error`, {message: `No blob loaded`});
                 return;
             }
 
@@ -517,7 +500,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             const cancellationToken = this.cancellationTokenForSeekOperation();
             const seekerResult = await seeker(this.codecName, time, this.metadata, this._decoder, this.fileView);
             if (cancellationToken.isCancelled()) {
-                this._freeTransferList(transferList);
                 return;
             }
 
@@ -527,22 +509,18 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             await bufferFillOperationCancellationAcknowledgedPromise;
 
             if (cancellationToken.isCancelled()) {
-                this._freeTransferList(transferList);
                 return;
             }
 
             this.ended = false;
-            if (this._resampler) {
-                this._resampler.reset();
-            }
 
-            this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, transferList, {
+            this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, {
                 baseTime: seekerResult.time,
                 isUserSeek: args.isUserSeek,
                 requestId
             });
         } catch (e) {
-            this.passError(e.message, e.stack, e.name, transferList);
+            this.passError(e.message, e.stack, e.name);
         }
     }
 
@@ -560,11 +538,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             if (this._loudnessAnalyzer) {
                 freeLoudnessAnalyzer(this._loudnessAnalyzer);
                 this._loudnessAnalyzer = null;
-            }
-
-            if (this._resampler) {
-                freeResampler(this._resampler);
-                this._resampler = null;
             }
 
             this.ended = false;

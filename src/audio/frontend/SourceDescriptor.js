@@ -10,7 +10,9 @@ export default class SourceDescriptor {
         this.startTime = descriptor.startTime;
         this.endTime = descriptor.endTime;
         this.length = descriptor.length;
-        this.duration = descriptor.length / buffer.sampleRate;
+        this.sampleRate = descriptor.sampleRate;
+        this.channelCount = descriptor.channelCount;
+        this.duration = buffer.duration;
         this._gain = isNaN(descriptor.loudness) ? NaN : decibelToGain(descriptor.loudness);
         this.started = -1;
         this.stopped = -1;
@@ -25,5 +27,32 @@ export default class SourceDescriptor {
 
     getRemainingDuration() {
         return this.duration - this.playedSoFar;
+    }
+
+    destroy(stopTime = -1) {
+        if (this.buffer === null) return;
+        this._sourceNode = null;
+        const src = this.source;
+        if (src !== null) {
+            src.descriptor = null;
+            src.onended = null;
+
+            if (stopTime !== -1) {
+                try {
+                    src.stop(stopTime);
+                } catch (e) {
+                    // NOOP
+                }
+            }
+
+            try {
+                src.disconnect();
+            } catch (e) {
+                // NOOP
+            }
+            this.source = null;
+        }
+        this.buffer = null;
+        this.channelData = null;
     }
 }
