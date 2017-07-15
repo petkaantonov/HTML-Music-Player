@@ -32,8 +32,13 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
 
         this._popup.on(`open`, this.popupOpened.bind(this));
         this._popup.on(`layoutUpdate`, this.layoutUpdated.bind(this));
-        if (deps.dbValues && this._storageKey in deps.dbValues) {
-            this.preferences().copyFrom(deps.dbValues[this._storageKey]);
+        this.checkDbValues(deps.dbValues);
+    }
+
+    async checkDbValues(dbValues) {
+        await Promise.resolve();
+        if (dbValues && this._storageKey in dbValues) {
+            this.preferences().copyFrom(dbValues[this._storageKey]);
             this.emit(`change`, this.preferences());
         }
     }
@@ -46,8 +51,8 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         if (!this._manager) {
             this._manager = this._createManager();
             this._manager.on(`update`, this.savePreferences.bind(this));
-            this._manager.on("willUpdatePreferences", this.willUpdatePreferences.bind(this));
-            this._manager.on("willUpdatePreference", this.willUpdatePreference.bind(this));
+            this._manager.on(`willUpdatePreferences`, this.willUpdatePreferences.bind(this));
+            this._manager.on(`willUpdatePreference`, this.willUpdatePreference.bind(this));
         }
         this._manager.uiWillBecomeActive();
         this._manager.setUnchangedPreferences();
@@ -134,5 +139,10 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         } else {
             this.preferences().set(key, value);
         }
+    }
+
+    async setPreferenceDeferred(key, value) {
+        await Promise.resolve();
+        this.setPreference(key, value);
     }
 }

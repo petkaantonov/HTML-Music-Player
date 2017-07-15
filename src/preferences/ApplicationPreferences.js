@@ -27,6 +27,11 @@ export const Preferences = createPreferences({
             asValidValue: validBoolean
         },
 
+        enableSilenceTrimming: {
+            defaultValue: true,
+            asValidValue: validBoolean
+        },
+
         enableOffline: {
             defaultValue: true,
             asValidValue: validBoolean

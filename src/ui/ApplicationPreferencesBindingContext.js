@@ -18,6 +18,10 @@ const TEMPLATE = `<div class='settings-container preferences-popup-content-conta
     <p>
         Audio volume is adjusted in real-time to match reference levels. Disabling may improve performance.
     </p>
+    <div class='section-container trim-silence-container'></div>
+    <p>
+        Silent parts of audio are fast-forwarded instead of played. Requires loudness normalization to be enabled.
+    </p>
     <div class="inputs-container">
         <div class="label wide-label subtitle">Buffering</div>
     </div>
@@ -61,6 +65,12 @@ class PreferencesManager extends AbstractUiBindingManager {
             `enableLoudnessNormalization`,
             this
         )).
+        addBinding(new ToggleableValuePreferenceUiBinding(
+            this.$().find(`.trim-silence-container`),
+            new ToggleableValue({checkboxLabel: `Skip silence`}),
+            `enableSilenceTrimming`,
+            this
+        )).
         addBinding(new SlideableValuePreferenceUiBinding(
             this.$().find(`.buffer-length-container`),
             new SlideableValue({
@@ -88,7 +98,7 @@ class PreferencesManager extends AbstractUiBindingManager {
             this.$().find(`.decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
         });
 
-        bindingContext.on("decodingLatencyReset", () => {
+        bindingContext.on(`decodingLatencyReset`, () => {
             this.$().find(`.decoding-latency-avg, .decoding-latency-max`).setText(`N/A`);
         });
     }
@@ -104,6 +114,7 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         deps.mainMenu.on(`preferences`, this.openPopup.bind(this));
         this._decodingLatencyValues = new Float64Array(10);
         this._decodingLatencyValueIndex = 0;
+        this.on(`change`, this.changed.bind(this));
     }
 
     _createManager() {
@@ -134,20 +145,28 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         }
     }
 
-    willUpdatePreference(key) {
-        if (key === "bufferLengthMilliSeconds") {
+    willUpdatePreference(key, oldValue, newValue) {
+        if (key === `bufferLengthMilliSeconds`) {
             this.bufferLengthChanged();
+        } else if (key === "enableSilenceTrimming" && newValue) {
+            this.setPreferenceDeferred(`enableLoudnessNormalization`, true);
+        }
+    }
+
+    changed() {
+        if (!this.getPreference(`enableLoudnessNormalization`)) {
+            this.setPreferenceDeferred(`enableSilenceTrimming`, false);
         }
     }
 
     bufferLengthChanged() {
-        this.emit("decodingLatencyReset");
+        this.emit(`decodingLatencyReset`);
     }
 
     decodingLatencyValue(latencyValue) {
         const bufferLengthMs = this.preferences().getBufferLengthMilliSeconds();
         if (bufferLengthMs < 1.5 * latencyValue) {
-            this.setPreference("bufferLengthMilliSeconds", 2 * latencyValue);
+            this.setPreference(`bufferLengthMilliSeconds`, 2 * latencyValue);
         }
 
         const index = this._decodingLatencyValueIndex++;

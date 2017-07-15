@@ -310,7 +310,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 const destinationBuffers = this._getDestinationBuffers();
                 this._loudnessAnalyzer.setEnabled(this.backend.loudnessNormalization);
                 this._audioPipeline.setBufferTime(this.backend.bufferTime);
-                const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount
+                const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
                 this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
                 const bufferDescriptor = await this._decodeNextBuffer(destinationBuffers,
                                                                       this._bufferFillCancellationToken,
@@ -323,7 +323,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 if (!bufferDescriptor) {
                     break;
                 }
-
 
                 let {loudness} = bufferDescriptor;
                 if (!trackMetadata.establishedGain &&
