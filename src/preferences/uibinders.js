@@ -8,7 +8,7 @@ class SimpleValuePreferenceUiBinding {
         this._template = template;
         this._parent = parent;
         const {preferences} = parent;
-
+        this._preferenceValueKey = preferenceValueKey;
         this._valueGetter = preferences[`get${titleCase(preferenceValueKey)}`];
         this._valueSetter = preferences[`set${titleCase(preferenceValueKey)}`];
         template.renderTo(container);
@@ -16,6 +16,9 @@ class SimpleValuePreferenceUiBinding {
 
     _valueChanged(value) {
         const {preferences} = this._parent;
+        this._parent.willUpdate(this._preferenceValueKey,
+                                this._valueGetter.call(preferences),
+                                value);
         this._valueSetter.call(preferences, value);
         this._parent.preferencesUpdated(true);
     }
@@ -62,6 +65,7 @@ export class ToggleableValuePreferenceUiBinding {
         this._parent = parent;
         const {preferences} = parent;
 
+        this._preferenceToggleKey = preferenceToggleKey;
         this._toggleGetter = preferences[`get${titleCase(preferenceToggleKey)}`];
         this._toggleSetter = preferences[`set${titleCase(preferenceToggleKey)}`];
         this._toggleableValue.renderTo(container);
@@ -69,6 +73,9 @@ export class ToggleableValuePreferenceUiBinding {
 
     _toggleChanged(toggle) {
         const {preferences} = this._parent;
+        this._parent.willUpdate(this._preferenceToggleKey,
+                                this._toggleGetter.call(preferences),
+                                toggle);
         this._toggleSetter.call(preferences, toggle);
         this._parent.preferencesUpdated(true);
     }
@@ -97,6 +104,9 @@ export class ToggleableSlideableValuePreferenceUiBinding {
         this._parent = parent;
         const {preferences} = parent;
 
+        this._preferenceValueKey = preferenceValueKey;
+        this._preferenceToggleKey = preferenceToggleKey;
+
         this._toggleGetter = preferences[`get${titleCase(preferenceToggleKey)}`];
         this._toggleSetter = preferences[`set${titleCase(preferenceToggleKey)}`];
         this._valueGetter = preferences[`get${titleCase(preferenceValueKey)}`];
@@ -106,6 +116,10 @@ export class ToggleableSlideableValuePreferenceUiBinding {
 
     _valueChanged(value) {
         const {preferences} = this._parent;
+        this._parent.willUpdate(this._preferenceValueKey,
+            this._valueGetter.call(preferences), value);
+        this._parent.willUpdate(this._preferenceToggleKey,
+            this._toggleGetter.call(preferences), true);
         this._valueSetter.call(preferences, value);
         this._toggleSetter.call(preferences, true);
         this._parent.preferencesUpdated(true);
@@ -113,6 +127,7 @@ export class ToggleableSlideableValuePreferenceUiBinding {
 
     _toggleChanged(toggle) {
         const {preferences} = this._parent;
+        this._parent.willUpdate(this._preferenceToggleKey, toggle);
         this._toggleSetter.call(preferences, toggle);
         this._parent.preferencesUpdated(true);
     }

@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import {_} from "util";
+import {equals} from "preferences/PreferenceCreator";
 
 export default class AbstractUiBindingManager extends EventEmitter {
     constructor(rootSelector, bindingContext, defaultPreferences) {
@@ -31,9 +32,16 @@ export default class AbstractUiBindingManager extends EventEmitter {
     }
 
     applyPreferencesFrom(preferences) {
+        this.emit("willUpdatePreferences", this.preferences, preferences);
         this.preferences.copyFrom(preferences);
         this.bindings.forEach(_.update);
         this.preferencesUpdated();
+    }
+
+    willUpdate(key, oldValue, newValue) {
+        if (!equals(oldValue, newValue)) {
+            this.emit("willUpdatePreference", key, oldValue, newValue);
+        }
     }
 
     preferencesUpdated() {
@@ -54,9 +62,12 @@ export default class AbstractUiBindingManager extends EventEmitter {
         this.applyPreferencesFrom(this.unchangedPreferences);
     }
 
-    setUnchangedPreferences() {
-        this.unchangedPreferences = this.preferences.snapshot();
+    uiWillBecomeActive() {
         this.update();
         this.bindings.forEach(_.update);
+    }
+
+    setUnchangedPreferences() {
+        this.unchangedPreferences = this.preferences.snapshot();
     }
 }

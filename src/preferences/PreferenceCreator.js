@@ -24,7 +24,7 @@ const valueFunction = function(value) {
 };
 
 /* eslint-disable no-use-before-define */
-const equals = function(a, b) {
+export const equals = function(a, b) {
     if (Array.isArray(a) || Array.isArray(b)) {
         return arrayEquals(a, b);
     }

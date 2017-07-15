@@ -46,7 +46,10 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         if (!this._manager) {
             this._manager = this._createManager();
             this._manager.on(`update`, this.savePreferences.bind(this));
+            this._manager.on("willUpdatePreferences", this.willUpdatePreferences.bind(this));
+            this._manager.on("willUpdatePreference", this.willUpdatePreference.bind(this));
         }
+        this._manager.uiWillBecomeActive();
         this._manager.setUnchangedPreferences();
     }
 
@@ -103,6 +106,14 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
     savePreferences() {
         this.emit(`change`, this.preferences());
         this._db.set(this._storageKey, this.preferences().toJSON());
+    }
+
+    willUpdatePreferences() {
+        // NOOP
+    }
+
+    willUpdatePreference() {
+        // NOOP
     }
 
     setResetDefaultsEnabled(value) {

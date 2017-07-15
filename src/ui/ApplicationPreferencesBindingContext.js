@@ -88,6 +88,10 @@ class PreferencesManager extends AbstractUiBindingManager {
             this.$().find(`.decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
         });
 
+        bindingContext.on("decodingLatencyReset", () => {
+            this.$().find(`.decoding-latency-avg, .decoding-latency-max`).setText(`N/A`);
+        });
+
         this.update();
     }
 }
@@ -114,10 +118,32 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
 
     getDecodingLatencyAvg() {
         let sum = 0;
+        let j = 0;
         for (let i = 0; i < this._decodingLatencyValues.length; ++i) {
-            sum += this._decodingLatencyValues[i];
+            const value = this._decodingLatencyValues[i];
+            if (value !== 0) {
+                sum += value;
+                j++;
+            }
         }
-        return sum / this._decodingLatencyValues.length;
+        return sum / j;
+    }
+
+    willUpdatePreferences(oldPreferences, newPreferences) {
+        if (oldPreferences.getBufferLengthMilliSeconds() !==
+            newPreferences.getBufferLengthMilliSeconds()) {
+            this.bufferLengthChanged();
+        }
+    }
+
+    willUpdatePreference(key) {
+        if (key === "bufferLengthMilliSeconds") {
+            this.bufferLengthChanged();
+        }
+    }
+
+    bufferLengthChanged() {
+        this.emit("decodingLatencyReset");
     }
 
     decodingLatencyValue(latencyValue) {
