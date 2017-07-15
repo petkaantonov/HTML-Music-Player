@@ -38,8 +38,10 @@ const TEMPLATE = `<div class='settings-container preferences-popup-content-conta
     <div class="inputs-container">
         <div class="label wide-label subtitle">Network</div>
     </div>
-    <div class='section-container cellular-network-sync-container'></div>
     <div class='section-container offline-use-container'></div>
+    <p>
+        Automatically prepare any online streamed audio to be played offline later on. Disabling may reduce network usage.
+    </p>
 </div>`;
 
 class PreferencesManager extends AbstractUiBindingManager {
@@ -70,12 +72,6 @@ class PreferencesManager extends AbstractUiBindingManager {
                 sliderContext: bindingContext.sliderContext()
             }),
             `bufferLengthMilliSeconds`,
-            this
-        )).
-        addBinding(new ToggleableValuePreferenceUiBinding(
-            this.$().find(`.cellular-network-sync-container`),
-            new ToggleableValue({checkboxLabel: `Enable cellular network syncing`}),
-            `enableMobileNetwork`,
             this
         )).
         addBinding(new ToggleableValuePreferenceUiBinding(

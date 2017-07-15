@@ -17,10 +17,6 @@ const validBoolean = function(val) {
 export const Preferences = createPreferences({
     methods: {},
     preferences: {
-        enableMobileNetwork: {
-            defaultValue: false,
-            asValidValue: validBoolean
-        },
         enableAlbumArt: {
             defaultValue: true,
             asValidValue: validBoolean
