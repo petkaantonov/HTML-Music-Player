@@ -4,7 +4,7 @@ const windowMs = 400;
 const windowS = windowMs / 1000;
 
 export default class LoudnessAnalyzer {
-    constructor(wasm, channelCount, sampleRate) {
+    constructor(wasm, channelCount, sampleRate, enabled) {
         this._maxHistoryMs = maxHistoryMs;
         this._sampleRate = sampleRate;
         this._channelCount = channelCount;
@@ -14,6 +14,7 @@ export default class LoudnessAnalyzer {
         this._previousGain = NaN;
         this._framesAdded = 0;
         this._windowIndex = 0;
+        this._enabled = enabled;
 
         const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, maxHistoryMs);
         if (err) {
@@ -22,9 +23,17 @@ export default class LoudnessAnalyzer {
         this._ptr = ptr;
     }
 
+    setEnabled(enabled) {
+        this._enabled = enabled;
+    }
+
     getLoudness(samplePtr, audioFrameCount) {
         if (!this._ptr) {
             throw new Error(`not allocated`);
+        }
+
+        if (!this._enabled) {
+            return 0;
         }
 
         const err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, audioFrameCount);

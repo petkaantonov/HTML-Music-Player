@@ -4,8 +4,6 @@ function randomClass(base) {
     return `${slugTitle(base).slice(0, 30)}-${Date.now()}`;
 }
 
-
-
 export class SingleSelectableValue {
     constructor({label, valueTextMap, onValueChange}) {
         this.label = label;
@@ -251,6 +249,90 @@ export class ToggleableSlideableValue {
         } else {
             this.$slider().addClass(`slider-inactive`);
         }
+        this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue));
+    }
+}
+
+export class SlideableValue {
+    constructor({sliderLabel,
+        onSlide, minValue, maxValue, valueFormatter}, deps) {
+        this.sliderContext = deps.sliderContext;
+        this.sliderLabel = sliderLabel;
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+        this.valueFormatter = valueFormatter;
+        this.onSlide = onSlide;
+
+        this._domNode = null;
+        this._sliderValueNode = null;
+        this._sliderNode = null;
+        this._slider = null;
+        this._renderedValue = -1;
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    $sliderValue() {
+        return this._sliderValueNode;
+    }
+
+    $slider() {
+        return this._sliderNode;
+    }
+
+
+    renderTo(domNode) {
+        this._domNode = domNode;
+
+        const {sliderLabel} = this;
+        const labelSlug = randomClass(sliderLabel);
+
+        const sliderClass = `${labelSlug}-slider`;
+        const sliderValueClass = `${labelSlug}-slider-value`;
+
+        const html = `
+
+        <div class='inputs-container'>
+            <div class='label'>${sliderLabel}</div>
+            <div class='${sliderClass} slider horizontal-slider'>
+                <div class='slider-knob'></div>
+                <div class='slider-background'>
+                    <div class='slider-fill'></div>
+                </div>
+            </div>
+            <div class='${sliderValueClass} slider-value-indicator'></div>
+        </div>`;
+
+        this.$().setHtml(html);
+
+
+        this._sliderValueNode = this.$().find(`.${sliderValueClass}`);
+        this._sliderNode = this.$().find(`.${sliderClass}`);
+        this._slider = this.sliderContext.createSlider({
+            target: this.$slider()
+        });
+        this._slider.on(`slide`, (p) => {
+            const value = p * (this.maxValue - this.minValue) + this.minValue;
+            this._updateSlider(value, true);
+            this.onSlide(value);
+        });
+    }
+
+    setValue(value) {
+        if (value !== this._renderedValue) {
+            this._updateSlider(value);
+        }
+    }
+
+    layoutUpdated() {
+        this._slider.setHeight(this.$slider().parent().innerHeight());
+    }
+
+    _updateSlider(value) {
+        this._renderedValue = value;
+        this.$sliderValue().setText(this.valueFormatter(value));
         this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue));
     }
 }

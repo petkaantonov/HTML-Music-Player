@@ -22,7 +22,7 @@
         z-index: 5;
         background: #fafafa;
 
-        font-size: 14px;
+        font-size: $text-size;
         padding: 8px 16px;
 
         .search-input-container {
@@ -52,7 +52,7 @@
                 @include calc(width, "100% - 34px - 1px");
                 height: $track-item-height - 16px;
                 line-height: $track-item-height - 16px;
-                font-size: 14px;
+                font-size: $text-size;
             }
 
             .search-next-tab-focus {

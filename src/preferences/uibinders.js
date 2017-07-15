@@ -1,18 +1,17 @@
 import {titleCase} from "util";
 
-export class SingleSelectableValuePreferenceUiBinding {
+class SimpleValuePreferenceUiBinding {
     constructor(container,
-                singleSelectableValue,
+                template,
                 preferenceValueKey,
                 parent) {
-        this._singleSelectableValue = singleSelectableValue;
-        singleSelectableValue.onValueChange = this._valueChanged.bind(this);
+        this._template = template;
         this._parent = parent;
         const {preferences} = parent;
 
         this._valueGetter = preferences[`get${titleCase(preferenceValueKey)}`];
         this._valueSetter = preferences[`set${titleCase(preferenceValueKey)}`];
-        singleSelectableValue.renderTo(container);
+        template.renderTo(container);
     }
 
     _valueChanged(value) {
@@ -24,11 +23,32 @@ export class SingleSelectableValuePreferenceUiBinding {
     update() {
         const {preferences} = this._parent;
         const value = this._valueGetter.call(preferences);
-        this._singleSelectableValue.setValue(value);
+        this._template.setValue(value);
     }
 
     layoutUpdated() {
-        // NOOP
+        this._template.layoutUpdated();
+    }
+}
+
+export class SlideableValuePreferenceUiBinding extends SimpleValuePreferenceUiBinding {
+    constructor(container,
+                slideableValue,
+                preferenceValueKey,
+                parent) {
+        super(container, slideableValue, preferenceValueKey, parent);
+        this._template.onSlide = this._valueChanged.bind(this);
+    }
+}
+
+
+export class SingleSelectableValuePreferenceUiBinding extends SimpleValuePreferenceUiBinding {
+    constructor(container,
+                singleSelectableValue,
+                preferenceValueKey,
+                parent) {
+        super(container, singleSelectableValue, preferenceValueKey, parent);
+        this._template.onValueChange = this._valueChanged.bind(this);
     }
 }
 

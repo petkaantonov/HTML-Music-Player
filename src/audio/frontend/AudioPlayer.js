@@ -7,8 +7,9 @@ import {PLAYER_READY_EVENT_NAME} from "audio/backend/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
 import AudioPlayerSourceNode from "audio/frontend/AudioPlayerSourceNode";
 import {FLOAT32_BYTES, WEB_AUDIO_BLOCK_SIZE,
-        SUSTAINED_BUFFER_COUNT, SCHEDULE_AHEAD_RATIO,
-        TARGET_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
+        SCHEDULE_AHEAD_RATIO,
+        SUSTAINED_BUFFERED_AUDIO_RATIO,
+        MIN_SUSTAINED_AUDIO_SECONDS} from "audio/frontend/buffering";
 
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 
@@ -73,26 +74,29 @@ export default class AudioPlayer extends WorkerFrontend {
 
         this._audioContext = null;
         this._unprimedAudioContext = null;
+
         this._silentBuffer = null;
+
         this._previousAudioContextTime = -1;
+
         this._outputSampleRate = -1;
         this._outputChannelCount = -1;
+
         this._scheduleAheadTime = -1;
-        this._arrayBufferPool = [];
-        this._audioBufferPool = [];
         this._sourceNodes = [];
         this._bufferFrameCount = 0;
         this._playedAudioBuffersNeededForVisualization = 0;
-        this._arrayBufferByteLength = 0;
-        this._maxAudioBuffers = 0;
-        this._maxArrayBuffers = 0;
+
+
         this._audioBufferTime = -1;
-        this._audioBuffersAllocated = 0;
-        this._arrayBuffersAllocated = 0;
+
         this._suspensionTimeoutMs = SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS * 1000;
         this._currentStateModificationAction = null;
         this._lastAudioContextRefresh = 0;
-
+        this._targetBufferLengthSeconds = -1;
+        this._sustainedBufferedAudioSeconds = -1;
+        this._sustainedBufferCount = -1;
+        this._minBuffersToRequest = -1;
         this._playbackStoppedTime = performance.now();
 
         this._suspend = this._suspend.bind(this);
@@ -101,9 +105,14 @@ export default class AudioPlayer extends WorkerFrontend {
 
         this.effectPreferencesBindingContext.on(`change`, async () => {
             await this.ready();
-            this.setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
+            this._setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
         });
-
+        this.applicationPreferencesBindingContext.on(`change`, async () => {
+            await this.ready();
+            const preferences = this.applicationPreferencesBindingContext.preferences();
+            this._setBufferSize(preferences.getBufferLengthMilliSeconds());
+            this._setLoudnessNormalization(preferences.getEnableLoudnessNormalization());
+        });
 
         this.page.addDocumentListener(`touchend`, this._touchended.bind(this), true);
 
@@ -127,7 +136,43 @@ export default class AudioPlayer extends WorkerFrontend {
     }
 
     _bufferFrameCountForSampleRate(sampleRate) {
-        return TARGET_BUFFER_LENGTH_SECONDS * sampleRate;
+        return this._targetBufferLengthSeconds * sampleRate;
+    }
+
+    getTargetBufferLengthSeconds() {
+        return this._targetBufferLengthSeconds;
+    }
+
+    getSustainedBufferedAudioSeconds() {
+        return this._sustainedBufferedAudioSeconds;
+    }
+
+    getSustainedBufferCount() {
+        return this._sustainedBufferCount;
+    }
+
+    getMinBuffersToRequest() {
+        return this._minBuffersToRequest;
+    }
+
+    async _setBufferSize(bufferLengthMilliSecondsPreference, sourceNodeNeedsReset = false) {
+        const sampleRate = this._outputSampleRate;
+        const channelCount = this._outputChannelCount;
+        this._targetBufferLengthSeconds = bufferLengthMilliSecondsPreference / 1000;
+        this._sustainedBufferedAudioSeconds = Math.max(MIN_SUSTAINED_AUDIO_SECONDS,
+                                                     this._targetBufferLengthSeconds * SUSTAINED_BUFFERED_AUDIO_RATIO);
+        this._sustainedBufferCount = Math.ceil(this._sustainedBufferedAudioSeconds / this._targetBufferLengthSeconds);
+        this._minBuffersToRequest = Math.ceil(this._sustainedBufferCount / 4);
+        this._bufferFrameCount = this._bufferFrameCountForSampleRate(this._outputSampleRate);
+        this._audioBufferTime = this._bufferFrameCount / this._outputSampleRate;
+        this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
+        this._silentBuffer = this.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
+        await this._updateBackendConfig({bufferTime: this._audioBufferTime});
+        if (sourceNodeNeedsReset) {
+            for (const sourceNode of this._sourceNodes.slice()) {
+                sourceNode._resetAudioBuffers();
+            }
+        }
     }
 
     /* eslint-enable class-methods-use-this */
@@ -156,10 +201,11 @@ export default class AudioPlayer extends WorkerFrontend {
 
     async _initBackend() {
         await this.ready();
-        this.setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
+        this._setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
+        this._setLoudnessNormalization(this.applicationPreferencesBindingContext.preferences().getEnableLoudnessNormalization());
     }
 
-    async _audioContextChanged() {
+    _audioContextChanged() {
         const {_audioContext} = this;
         const {channelCount} = _audioContext.destination;
         const {sampleRate} = _audioContext;
@@ -167,19 +213,8 @@ export default class AudioPlayer extends WorkerFrontend {
         this._previousAudioContextTime = _audioContext.currentTime;
 
         if (this._setAudioOutputParameters({channelCount, sampleRate})) {
-            this._bufferFrameCount = this._bufferFrameCountForSampleRate(sampleRate);
-            this._audioBufferTime = this._bufferFrameCount / sampleRate;
-            this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
-            this._maxAudioBuffers = SUSTAINED_BUFFER_COUNT * 2 + this._playedAudioBuffersNeededForVisualization;
-            this._maxArrayBuffers = (this._maxAudioBuffers * channelCount * (channelCount + 1)) +
-                (SUSTAINED_BUFFER_COUNT + this._playedAudioBuffersNeededForVisualization) * channelCount;
-            this._arrayBufferByteLength = FLOAT32_BYTES * this._bufferFrameCount;
-
-            this._silentBuffer = this.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
-            await this._updateBackendConfig({bufferTime: this._audioBufferTime});
-            for (const sourceNode of this._sourceNodes.slice()) {
-                sourceNode._resetAudioBuffers();
-            }
+            this._setBufferSize(this.applicationPreferencesBindingContext.preferences().getBufferLengthMilliSeconds(),
+                                true);
         } else {
             for (const sourceNode of this._sourceNodes.slice()) {
                 sourceNode.adoptNewAudioContext(_audioContext);
@@ -374,7 +409,7 @@ export default class AudioPlayer extends WorkerFrontend {
         });
     }
 
-    setEffects(spec) {
+    _setEffects(spec) {
         if (!Array.isArray(spec)) spec = [spec];
         this.postMessage({
             nodeId: -1,
@@ -383,5 +418,9 @@ export default class AudioPlayer extends WorkerFrontend {
             },
             methodName: `setEffects`
         });
+    }
+
+    _setLoudnessNormalization(loudnessNormalization) {
+        this._updateBackendConfig({loudnessNormalization});
     }
 }

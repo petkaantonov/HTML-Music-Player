@@ -247,6 +247,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
+        this._loudnessAnalyzer.setEnabled(this.backend.loudnessNormalization);
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.metadata,
@@ -412,7 +413,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 targetBufferLengthAudioFrames
             });
             this._decoder.start(metadata);
-            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate);
+            this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate, this.backend.loudnessNormalization);
 
             this._audioPipeline = new AudioProcessingPipeline(wasm, {
                 sourceSampleRate: sampleRate,

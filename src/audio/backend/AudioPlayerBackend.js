@@ -14,6 +14,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
         this._audioSources = new Map();
         this._effects = new Effects();
         this._db = db;
+        this._loudnessNormalization = true;
         this._metadataParser = metadataParser;
     }
 
@@ -33,6 +34,10 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
     get effects() {
         return this._effects;
+    }
+
+    get loudnessNormalization() {
+        return this._loudnessNormalization;
     }
 
     sendMessage(nodeId, methodName, args, transferList) {
@@ -82,6 +87,9 @@ export default class AudioPlayerBackend extends AbstractBackend {
             if (methodName === `audioConfiguration`) {
                 if (`bufferTime` in args) {
                     this._bufferTime = args.bufferTime;
+                }
+                if (`loudnessNormalization` in args) {
+                    this._loudnessNormalization = args.loudnessNormalization;
                 }
             } else if (methodName === `register`) {
                 const audioSource = new AudioSource(this, args.id);

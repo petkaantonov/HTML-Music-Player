@@ -3,9 +3,6 @@ import {Float32Array, Blob, File, console, performance} from "platform/platform"
 import EventEmitter from "events";
 import {cancelAndHold} from "audio/frontend/AudioPlayer";
 import SourceDescriptor, {decibelToGain} from "audio/frontend/SourceDescriptor";
-import {SUSTAINED_BUFFER_COUNT,
-        TARGET_BUFFER_LENGTH_SECONDS,
-        MIN_BUFFERS_TO_REQUEST} from "audio/frontend/buffering";
 import {BUFFER_FILL_TYPE_SEEK,
         BUFFER_FILL_TYPE_REPLACEMENT} from "audio/backend/AudioSource";
 
@@ -15,8 +12,6 @@ const EXPENSIVE_CALL_THROTTLE_TIME = 100;
 export const FADE_MINIMUM_VOLUME = 0.2;
 export const CURVE_LENGTH = 8;
 export const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
-export const MAXIMUM_FADE_TIME_SECONDS = TARGET_BUFFER_LENGTH_SECONDS;
-export const MINIMUM_FADE_TIME_SECONDS = 0;
 
 const getCurve = function(v0, v1) {
     const t0 = 0;
@@ -193,6 +188,22 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._bufferQueue[i].started = prev.started + prev.duration;
             }
         }
+    }
+
+    getTargetBufferLengthSeconds() {
+        return this._player.getTargetBufferLengthSeconds();
+    }
+
+    getSustainedBufferedAudioSeconds() {
+        return this._player.getSustainedBufferedAudioSeconds();
+    }
+
+    getSustainedBufferCount() {
+        return this._player.getSustainedBufferCount();
+    }
+
+    getMinBuffersToRequest() {
+        return this._player.getMinBuffersToRequest();
     }
 
     _getCurrentAudioBufferBaseTimeDelta(now) {
@@ -513,9 +524,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
     _requestMoreBuffers() {
         if (!this._haveBlob || this._destroyed) return;
-        if (this._bufferQueue.length < SUSTAINED_BUFFER_COUNT) {
-            const count = SUSTAINED_BUFFER_COUNT - this._bufferQueue.length;
-            if (count >= MIN_BUFFERS_TO_REQUEST) {
+        if (this._bufferQueue.length < this.getSustainedBufferCount()) {
+            const count = this.getSustainedBufferCount() - this._bufferQueue.length;
+            if (count >= this.getMinBuffersToRequest()) {
                 this._player._message(this._id, `fillBuffers`, {count});
             }
         }
@@ -768,7 +779,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         const requestId = ++this._seekRequestId;
         this._player._message(this._id, `seek`, {
             requestId,
-            count: SUSTAINED_BUFFER_COUNT,
+            count: this.getSustainedBufferCount(),
             time,
             isUserSeek
         });
@@ -963,7 +974,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             blob,
             requestId,
             seekTime,
-            count: SUSTAINED_BUFFER_COUNT,
+            count: this.getSustainedBufferCount(),
             gaplessPreload: !!gaplessPreload,
             metadata
         });
