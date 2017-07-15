@@ -6,8 +6,7 @@ import {AudioParam, AudioContext, performance} from "platform/platform";
 import {PLAYER_READY_EVENT_NAME} from "audio/backend/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
 import AudioPlayerSourceNode from "audio/frontend/AudioPlayerSourceNode";
-import {FLOAT32_BYTES, WEB_AUDIO_BLOCK_SIZE,
-        SCHEDULE_AHEAD_RATIO,
+import {WEB_AUDIO_BLOCK_SIZE,
         SUSTAINED_BUFFERED_AUDIO_RATIO,
         MIN_SUSTAINED_AUDIO_SECONDS} from "audio/frontend/buffering";
 
@@ -239,18 +238,6 @@ export default class AudioPlayer extends WorkerFrontend {
 
     getScheduleAheadTime() {
         return this._scheduleAheadTime;
-    }
-
-    recordSchedulingTime(elapsedMs) {
-        const seconds = elapsedMs / 1000;
-        const scheduleAheadTime = this._scheduleAheadTime;
-        if (seconds * SCHEDULE_AHEAD_RATIO > scheduleAheadTime) {
-            const sampleRate = this._outputSampleRate;
-            let minScheduleAheadSamples = seconds * (1 / SCHEDULE_AHEAD_RATIO) * sampleRate;
-            minScheduleAheadSamples = Math.ceil(minScheduleAheadSamples / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE;
-            this._scheduleAheadTime = roundSampleTime(minScheduleAheadSamples, sampleRate) / sampleRate;
-            self.uiLog(`increased _scheduleAheadTime from ${scheduleAheadTime} to ${this._scheduleAheadTime} because operation took ${elapsedMs.toFixed(0)} ms`);
-        }
     }
 
     createBuffer(channelCount, length, sampleRate) {

@@ -655,7 +655,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             }
         }
 
-        const now = performance.now();
         if (currentSourcesShouldBeStopped) {
             scheduledStartTime = Math.max(scheduledStartTime, this.getCurrentTimeScheduledAhead());
             if (!this._sourceStopped) {
@@ -686,8 +685,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         for (let i = 0; i < afterScheduleKnownCallbacks.length; ++i) {
             afterScheduleKnownCallbacks[i].call(this, scheduledStartTime);
         }
-
-        this._player.recordSchedulingTime(performance.now() - now);
 
         if (isLastBuffer && !this._lastBufferLoadedEmitted) {
             this._lastBufferLoadedEmitted = true;
