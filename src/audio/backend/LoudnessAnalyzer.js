@@ -3,6 +3,8 @@ const maxHistoryMs = 8000;
 const windowMs = 400;
 const windowS = windowMs / 1000;
 
+export const SILENCE_THRESHOLD = 50;
+
 export default class LoudnessAnalyzer {
     constructor(wasm, channelCount, sampleRate, enabled) {
         this._maxHistoryMs = maxHistoryMs;

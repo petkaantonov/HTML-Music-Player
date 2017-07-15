@@ -154,6 +154,10 @@ export default class AudioPlayer extends WorkerFrontend {
         return this._minBuffersToRequest;
     }
 
+    shouldSkipSilence() {
+        return this.applicationPreferencesBindingContext.getPreference("enableSilenceTrimming");
+    }
+
     async _setBufferSize(bufferLengthMilliSecondsPreference, sourceNodeNeedsReset = false) {
         const sampleRate = this._outputSampleRate;
         const channelCount = this._outputChannelCount;

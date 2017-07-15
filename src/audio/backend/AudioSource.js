@@ -8,6 +8,7 @@ import getCodecName from "audio/backend/sniffer";
 import getCodec from "audio/backend/codec";
 import demuxer from "audio/backend/demuxer";
 import CancellableOperations from "utils/CancellationToken";
+import {SILENCE_THRESHOLD} from "audio/backend/LoudnessAnalyzer";
 
 export const BUFFER_FILL_TYPE_SEEK = `BUFFER_FILL_TYPE_SEEK`;
 export const BUFFER_FILL_TYPE_REPLACEMENT = `BUFFER_FILL_TYPE_REPLACEMENT`;
@@ -331,7 +332,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     this.backend.metadataParser.updateCachedMetadata(this.blob, trackMetadata);
                 } else if (trackMetadata.establishedGain &&
                            !this._loudnessAnalyzer.hasEstablishedGain()) {
-                    loudness = trackMetadata.establishedGain;
+                    loudness = loudness < SILENCE_THRESHOLD ? trackMetadata.establishedGain : loudness;
                 }
 
                 const decodingLatency = performance.now() - now;
