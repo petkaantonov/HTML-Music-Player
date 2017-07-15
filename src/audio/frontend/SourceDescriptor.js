@@ -29,6 +29,22 @@ export default class SourceDescriptor {
         return this.duration - this.playedSoFar;
     }
 
+    print() {
+        self.uiLog(`.buffer=${this.buffer}
+                    .playedSoFar=${this.playedSoFar}
+                    .startTime=${this.startTime}
+                    .endTime=${this.endTime}
+                    .length=${this.length}
+                    .sampleRate=${this.sampleRate}
+                    .channelCount=${this.channelCount}
+                    .duration=${this.duration}
+                    ._gain=${this._gain}
+                    .started=${this.started}
+                    .stopped=${this.stopped}
+                    .source=${this.source}
+                    .isLastForTrack=${this.isLastForTrack}`);
+    }
+
     destroy(stopTime = -1) {
         if (this.buffer === null) return;
         this._sourceNode = null;

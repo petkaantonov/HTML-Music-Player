@@ -557,8 +557,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             self.uiLog(e.stack);
         }
         for (let i = 0; i < this._bufferQueue.length; ++i) {
+            const sourceDescriptor = this._bufferQueue[i];
             try {
-                const sourceDescriptor = this._bufferQueue[i];
                 let {duration} = sourceDescriptor;
                 if (sourceDescriptor.playedSoFar > 0) {
                     duration = sourceDescriptor.getRemainingDuration() - this._player.getScheduleAheadTime();
@@ -569,7 +569,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
                 when += duration;
             } catch (e) {
-                self.uiLog(e.stack);
+                self.uiLog(`when=${when}`);
+                sourceDescriptor.print();
+                self.uiLog(e.message);
             }
         }
     }
