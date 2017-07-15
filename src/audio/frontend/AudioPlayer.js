@@ -10,8 +10,7 @@ import {FLOAT32_BYTES, WEB_AUDIO_BLOCK_SIZE,
         SUSTAINED_BUFFER_COUNT, SCHEDULE_AHEAD_RATIO,
         TARGET_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 
-const LOWEST_RESAMPLER_QUALITY = 2;
-const DESKTOP_RESAMPLER_QUALITY = 4;
+const RESAMPLER_QUALITY = 5;
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
 
 // TODO Make end user configurable
@@ -130,6 +129,10 @@ export default class AudioPlayer extends WorkerFrontend {
 
     _bufferFrameCountForSampleRate(sampleRate) {
         return TARGET_BUFFER_LENGTH_SECONDS * sampleRate;
+    }
+
+    _determineResamplerQuality() {
+        return RESAMPLER_QUALITY;
     }
     /* eslint-enable class-methods-use-this */
 
@@ -363,10 +366,6 @@ export default class AudioPlayer extends WorkerFrontend {
         }
         const buffer = new ArrayBuffer(this._arrayBufferByteLength);
         return new Float32Array(buffer, 0, size);
-    }
-
-    _determineResamplerQuality() {
-        return this.env.isMobile() ? LOWEST_RESAMPLER_QUALITY : DESKTOP_RESAMPLER_QUALITY;
     }
 
     _sourceNodeDestroyed(node) {
