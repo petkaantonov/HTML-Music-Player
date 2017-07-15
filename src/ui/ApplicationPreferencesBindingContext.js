@@ -1,6 +1,7 @@
 import {ToggleableValue, SlideableValue} from "ui/templates";
 import {ToggleableValuePreferenceUiBinding, SlideableValuePreferenceUiBinding} from "preferences/uibinders";
 import AbstractUiBindingManager from "ui/AbstractUiBindingManager";
+import {Float64Array} from "platform/platform";
 import {STORAGE_KEY, Preferences,
         minBufferLengthValue, maxBufferLengthValue} from "preferences/ApplicationPreferences";
 import AbstractPreferencesBindingContext from "ui/AbstractPreferencesBindingContext";
@@ -84,7 +85,7 @@ class PreferencesManager extends AbstractUiBindingManager {
             this
         ));
 
-        bindingContext.on("newDecodingLatencyValue", () => {
+        bindingContext.on(`newDecodingLatencyValue`, () => {
             const avg = bindingContext.getDecodingLatencyAvg();
             const max = bindingContext.getDecodingLatencyMax();
             this.$().find(`.decoding-latency-avg`).setText(`${avg.toFixed(0)}ms`);
@@ -128,7 +129,7 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         this._decodingLatencyValueIndex %= (this._decodingLatencyValues.length);
         this._decodingLatencyValues[index] = latencyValue;
         if (this.isActive()) {
-            this.emit("newDecodingLatencyValue");
+            this.emit(`newDecodingLatencyValue`);
         }
     }
 }

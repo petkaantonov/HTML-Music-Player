@@ -1,6 +1,6 @@
 import AudioSource from "audio/backend/AudioSource";
 import Effects from "audio/backend/Effects";
-import {ArrayBuffer, Map} from "platform/platform";
+import {Map} from "platform/platform";
 import AbstractBackend from "AbstractBackend";
 export const PLAYER_READY_EVENT_NAME = `playerReady`;
 
