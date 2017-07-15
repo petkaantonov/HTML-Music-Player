@@ -1,12 +1,13 @@
 import {Uint8Array} from "platform/platform";
-import {default as DecoderContext, MAXIMUM_BUFFER_TIME_SECONDS} from "audio/backend/DecoderContext";
+import DecoderContext from "audio/backend/DecoderContext";
+import {MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 const DECODER_DELAY = 529;
 const MAX_SAMPLE_RATE = 48000;
 const MAX_CHANNELS = 2;
 const MAX_AUDIO_FRAMES_PER_MP3_FRAME = 1152;
-const MAX_BUFFER_LENGTH_AUDIO_FRAMES = Math.ceil(MAXIMUM_BUFFER_TIME_SECONDS * MAX_SAMPLE_RATE / MAX_AUDIO_FRAMES_PER_MP3_FRAME) *
+const MAX_BUFFER_LENGTH_AUDIO_FRAMES = Math.ceil(MAX_BUFFER_LENGTH_SECONDS * MAX_SAMPLE_RATE / MAX_AUDIO_FRAMES_PER_MP3_FRAME) *
                                                 MAX_AUDIO_FRAMES_PER_MP3_FRAME;
 const MIN_BUFFER_LENGTH_AUDIO_FRAMES = MAX_AUDIO_FRAMES_PER_MP3_FRAME;
 const MAX_INVALID_FRAME_COUNT = 100;
@@ -61,10 +62,11 @@ export default class Mp3Context extends DecoderContext {
             }
 
             const maxAudioSamplesPerMp3Frame = MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS;
-            const maxAudioSamplesUntilFlush = (Math.ceil(this.targetBufferLengthAudioFrames * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
+            const maxAudioSamplesUntilFlush = (Math.ceil(MAX_BUFFER_LENGTH_SECONDS * MAX_SAMPLE_RATE * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
                                                                                             maxAudioSamplesPerMp3Frame) +
                                                                     (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
             const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
+
             this._srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
             this._srcBufferPtr = this._wasm.malloc(this._srcBufferMaxLength);
             this._samplesPtrMaxLength = byteLengthSamples;
@@ -231,7 +233,6 @@ export default class Mp3Context extends DecoderContext {
             this._audioFramesToSkip -= skipped;
             this._audioFramesSkipped += skipped;
         }
-
 
         if (audioFramesDecoded > 0) {
             const samplesPtr = this._samplesPtr;

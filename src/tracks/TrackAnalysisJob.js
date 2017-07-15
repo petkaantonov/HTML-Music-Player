@@ -6,7 +6,7 @@ import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} 
 import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import Fingerprinter from "audio/backend/Fingerprinter";
-import {MAXIMUM_BUFFER_TIME_SECONDS} from "audio/backend/DecoderContext";
+import {MAX_BUFFER_LENGTH_SECONDS as MAXIMUM_BUFFER_TIME_SECONDS} from "audio/frontend/buffering";
 import CancellableOperations from "utils/CancellationToken";
 
 const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;

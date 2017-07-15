@@ -1,5 +1,5 @@
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
-import {Blob, File, Float32Array} from "platform/platform";
+import {Blob, File, Float32Array, performance} from "platform/platform";
 import {allocDecoderContext, allocLoudnessAnalyzer, freeDecoderContext, freeLoudnessAnalyzer} from "audio/backend/pool";
 import EventEmitter from "events";
 import FileView from "platform/FileView";
@@ -103,6 +103,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             loudness: bufferDescriptor.loudness,
             sampleRate: bufferDescriptor.sampleRate,
             channelCount: bufferDescriptor.channelCount,
+            decodingLatency: bufferDescriptor.decodingLatency,
             fillTypeData
         };
         this._sendFilledBuffer(requestId,
@@ -248,6 +249,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
     async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
         this._loudnessAnalyzer.setEnabled(this.backend.loudnessNormalization);
+        this._audioPipeline.setBufferTime(this.backend.bufferTime);
+        this._decoder.targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.metadata,
@@ -307,9 +310,11 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             while (i < count) {
                 const buffersRemainingToDecode = count - i;
                 const destinationBuffers = this._getDestinationBuffers();
+                const now = performance.now();
                 const bufferDescriptor = await this._decodeNextBuffer(destinationBuffers,
                                                                       this._bufferFillCancellationToken,
                                                                       buffersRemainingToDecode);
+                const decodingLatency = performance.now() - now;
 
                 if (this._bufferFillCancellationToken.isCancelled()) {
                     this._bufferFillCancellationToken.signal();
@@ -335,7 +340,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     length: bufferDescriptor.length,
                     startTime: bufferDescriptor.startTime,
                     endTime: bufferDescriptor.endTime,
-                    loudness, sampleRate, channelCount,
+                    loudness, sampleRate, channelCount, decodingLatency,
                     fillTypeData: null
                 };
 

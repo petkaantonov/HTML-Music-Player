@@ -337,6 +337,10 @@ export default class Popup extends EventEmitter {
         this._rect = this._popupDom[0].getBoundingClientRect();
     }
 
+    isShown() {
+        return this._shown;
+    }
+
     open() {
         if (this._shown) return;
         this._activeElementBeforeOpen = this.page.activeElement();

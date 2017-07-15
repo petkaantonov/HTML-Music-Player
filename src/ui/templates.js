@@ -233,7 +233,7 @@ export class ToggleableSlideableValue {
     }
 
     layoutUpdated() {
-        this._slider.setHeight(this.$slider().parent().innerHeight());
+        this._slider.forceRelayout();
     }
 
     _updateCheckbox(toggle) {
@@ -327,7 +327,7 @@ export class SlideableValue {
     }
 
     layoutUpdated() {
-        this._slider.setHeight(this.$slider().parent().innerHeight());
+        this._slider.forceRelayout();
     }
 
     _updateSlider(value) {

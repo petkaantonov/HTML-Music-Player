@@ -844,14 +844,40 @@ input[type="checkbox"] {
 
   width: 100%;
 
+  .inline-label {
+    font-size: $text-size;
+    display: inline-block;
+  }
+
   .section-container {
       width: 100%;
       padding: 5px 10px;
   }
 
+  .fixed-width-small-label {
+    width: 46px;
+    max-width: 46px;
+    display: inline-block;
+  }
+
+  .inline-separator {
+    display: inline-block;
+    margin: 0px 36px;
+    width: 1px;
+    height: 1px;
+  }
+
+  .pull-right {
+    float: right;
+    display: inline-block;
+  }
+
   p {
     font-size: $text-size;
     margin: 0px;
+    &.inline {
+      display: inline-block;
+    }
   }
 
   .inputs-container {

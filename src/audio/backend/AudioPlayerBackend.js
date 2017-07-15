@@ -43,24 +43,12 @@ export default class AudioPlayerBackend extends AbstractBackend {
     sendMessage(nodeId, methodName, args, transferList) {
         if (transferList === undefined) transferList = [];
         args = Object(args);
-        transferList = transferList.map((v) => {
-            if (v.buffer) return v.buffer;
-            return v;
-        });
 
-        // Check for already neutered array buffers.
         if (transferList && transferList.length > 0) {
-            for (let i = 0; i < transferList.length; ++i) {
-                let item = transferList[i];
-
-                if (!(item instanceof ArrayBuffer)) {
-                    item = item.buffer;
-                }
-
-                if (item.byteLength === 0) {
-                    return;
-                }
-            }
+            transferList = transferList.map((v) => {
+                if (v.buffer) return v.buffer;
+                return v;
+            });
         }
 
         this.postMessage({

@@ -1,6 +1,3 @@
-// Keep in mind 0.8 is minimum for chromaprint.
-export const MAXIMUM_BUFFER_TIME_SECONDS = 1.6;
-
 let autoIncrementId = 0;
 export default class DecoderContext {
     constructor({targetBufferLengthAudioFrames}) {

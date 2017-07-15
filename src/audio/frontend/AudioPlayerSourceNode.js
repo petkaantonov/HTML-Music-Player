@@ -583,6 +583,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             return;
         }
 
+        this.emit(`decodingLatency`, descriptor.decodingLatency);
+
         let currentSourcesShouldBeStopped = false;
         let scheduledStartTime = 0;
         const afterScheduleKnownCallbacks = [];

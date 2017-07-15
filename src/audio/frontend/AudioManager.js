@@ -35,8 +35,10 @@ export default function AudioManager(player, track, implicitlyLoaded) {
 
     this.player.playlist.on(`nextTrackChange`, this.nextTrackChanged);
 
+    this.onDecodingLatency = this.onDecodingLatency.bind(this);
     this.sourceNode = this.player.audioPlayer.createSourceNode();
     this.sourceNode.on(`lastBufferQueued`, this.lastBufferQueued);
+    this.sourceNode.on(`decodingLatency`, this.onDecodingLatency);
     this.sourceNode.pause();
     this.setupNodes();
 }
@@ -65,6 +67,12 @@ AudioManager.prototype.setupNodes = function() {
     this.fadeInGain.connect(this.fadeOutGain);
     this.fadeOutGain.connect(audioCtx.destination);
     this.intendingToSeek = -1;
+};
+
+AudioManager.prototype.onDecodingLatency = function(decodingLatency) {
+    if (this.player) {
+        this.player.decodingLatencyValue(decodingLatency);
+    }
 };
 
 AudioManager.prototype.destroyVisualizer = function() {
@@ -424,6 +432,7 @@ AudioManager.prototype.destroy = function() {
     this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChanged);
     this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
     this.sourceNode.removeListener(`lastBufferQueued`, this.lastBufferQueued);
+    this.sourceNode.removeListener(`decodingLatency`, this.onDecodingLatency);
     this.filterNodes.forEach((node) => {
         node.disconnect();
     });

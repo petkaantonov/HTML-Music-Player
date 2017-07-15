@@ -25,6 +25,14 @@ const TEMPLATE = `<div class='settings-container preferences-popup-content-conta
             Bigger values mean longer reaction times to seeking, changing tracks and effect changes.
         </p>
     <div class='section-container buffer-length-container'></div>
+    <div class="clearfix">
+        <span class="inline-label">Current decoding latency</span>
+        <div class="inline-label pull-right">
+            <span class="decoding-latency-avg fixed-width-small-label">N/A</span>
+            <span class="inline-separator"> </span>
+            Max: <span class="decoding-latency-max fixed-width-small-label">N/A</span>
+        </div>
+    </div>
     <div class='section-separator'></div>
     <div class="inputs-container">
         <div class="label wide-label subtitle">Network</div>
@@ -76,6 +84,13 @@ class PreferencesManager extends AbstractUiBindingManager {
             this
         ));
 
+        bindingContext.on("newDecodingLatencyValue", () => {
+            const avg = bindingContext.getDecodingLatencyAvg();
+            const max = bindingContext.getDecodingLatencyMax();
+            this.$().find(`.decoding-latency-avg`).setText(`${avg.toFixed(0)}ms`);
+            this.$().find(`.decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
+        });
+
         this.update();
     }
 }
@@ -88,9 +103,32 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
             template: TEMPLATE
         });
         deps.mainMenu.on(`preferences`, this.openPopup.bind(this));
+        this._decodingLatencyValues = new Float64Array(10);
+        this._decodingLatencyValueIndex = 0;
     }
 
     _createManager() {
         return new PreferencesManager(this.popup().$(), this);
+    }
+
+    getDecodingLatencyMax() {
+        return Math.max(...this._decodingLatencyValues);
+    }
+
+    getDecodingLatencyAvg() {
+        let sum = 0;
+        for (let i = 0; i < this._decodingLatencyValues.length; ++i) {
+            sum += this._decodingLatencyValues[i];
+        }
+        return sum / this._decodingLatencyValues.length;
+    }
+
+    decodingLatencyValue(latencyValue) {
+        const index = this._decodingLatencyValueIndex++;
+        this._decodingLatencyValueIndex %= (this._decodingLatencyValues.length);
+        this._decodingLatencyValues[index] = latencyValue;
+        if (this.isActive()) {
+            this.emit("newDecodingLatencyValue");
+        }
     }
 }

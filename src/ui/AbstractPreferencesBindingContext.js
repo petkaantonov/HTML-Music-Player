@@ -84,6 +84,10 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         return this._preferences;
     }
 
+    isActive() {
+        return this._popup.isShown();
+    }
+
     popup() {
         return this._popup;
     }

@@ -87,6 +87,11 @@ export default class AudioProcessingPipeline {
         return !!this._filledBufferDescriptor;
     }
 
+    setBufferTime(bufferTime) {
+        this.bufferTime = bufferTime;
+        this.bufferAudioFrameCount = bufferTime * this.destinationSampleRate;
+    }
+
     dropFilledBuffer() {
         this._filledBufferDescriptor = null;
     }

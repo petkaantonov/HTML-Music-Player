@@ -59,6 +59,10 @@ Slider.prototype.shouldUpdateDom = function() {
     return this._shouldUpdateDom;
 };
 
+Slider.prototype.forceRelayout = function() {
+    this._onReLayout();
+};
+
 Slider.prototype.setWidth = function(px) {
     if (this._direction !== `vertical`) {
         throw new Error(`cannot set width of horizontal slider`);

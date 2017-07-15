@@ -159,6 +159,10 @@ Player.prototype.$previous = function() {
     return this._previousButtonDomNode;
 };
 
+Player.prototype.decodingLatencyValue = function(decodingLatency) {
+    this.applicationPreferencesBindingContext.decodingLatencyValue(decodingLatency);
+};
+
 Player.prototype.$next = function() {
     return this._nextButtonDomNode;
 };
