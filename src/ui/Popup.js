@@ -238,7 +238,7 @@ export default class Popup extends EventEmitter {
             } else {
                 const body = this.$().find(`.popup-body`);
                 if ($target.closest(body).length !== 0) {
-                    e.target.scrollIntoView();
+                    this._contentScroller.scrollIntoViewIfNotVisible(e.target);
                 }
             }
         }
