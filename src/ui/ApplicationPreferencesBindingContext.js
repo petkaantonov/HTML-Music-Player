@@ -91,8 +91,6 @@ class PreferencesManager extends AbstractUiBindingManager {
         bindingContext.on("decodingLatencyReset", () => {
             this.$().find(`.decoding-latency-avg, .decoding-latency-max`).setText(`N/A`);
         });
-
-        this.update();
     }
 }
 
@@ -147,6 +145,11 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     }
 
     decodingLatencyValue(latencyValue) {
+        const bufferLengthMs = this.preferences().getBufferLengthMilliSeconds();
+        if (bufferLengthMs < 1.5 * latencyValue) {
+            this.setPreference("bufferLengthMilliSeconds", 2 * latencyValue);
+        }
+
         const index = this._decodingLatencyValueIndex++;
         this._decodingLatencyValueIndex %= (this._decodingLatencyValues.length);
         this._decodingLatencyValues[index] = latencyValue;

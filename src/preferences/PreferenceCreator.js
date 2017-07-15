@@ -84,7 +84,7 @@ const objectEquals = function(a, b) {
 };
 
 const createPreferences = function(spec) {
-    spec = noUndefinedGet(spec);
+    spec = Object(spec);
     const preferenceNames = Object.keys(spec.preferences);
 
     const fieldsCode = preferenceNames.map((name) => {
@@ -140,6 +140,14 @@ const createPreferences = function(spec) {
         Constructor.prototype[inplaceSetterName] = new Function(`value`, inplaceSetterCode);
 
     });
+
+    Constructor.prototype.set = function(key, value) {
+        this[key] = spec.preferences[key].asValidValue(valueFunction(value));
+    };
+
+    Constructor.prototype.get = function(key) {
+        return valueFunction(this[key]);
+    };
 
     Constructor.prototype._equals = equals;
     Constructor.prototype._value = valueFunction;

@@ -123,4 +123,16 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
     setUndoChangesEnabled(value) {
         this.popup().setButtonEnabledState(UNDO_CHANGES_BUTTON, !!value);
     }
+
+    getPreference(key) {
+        return this.preferences().get(key);
+    }
+
+    setPreference(key, value) {
+        if (this._manager) {
+            this._manager.setPreference(key, value);
+        } else {
+            this.preferences().set(key, value);
+        }
+    }
 }
