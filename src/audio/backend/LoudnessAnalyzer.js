@@ -13,9 +13,7 @@ export default class LoudnessAnalyzer {
         this._wasm = wasm;
         this._ptr = 0;
         this._establishedGain = -1;
-        this._previousGain = NaN;
         this._framesAdded = 0;
-        this._windowIndex = 0;
         this._enabled = enabled;
 
         const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, maxHistoryMs);
@@ -43,30 +41,19 @@ export default class LoudnessAnalyzer {
             throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
         }
 
-        const windowIndex = this._windowIndex;
+
         this._framesAdded += audioFrameCount;
-        const currentWindowIndex = Math.floor(this._framesAdded / this._sampleRate / windowS);
 
-        if (currentWindowIndex > windowIndex) {
-            this._windowIndex = currentWindowIndex;
+        const [error, gain] = this.loudness_analyzer_get_gain(this._ptr);
+        if (error) {
+            throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
+        }
 
-            const [error, gain] = this.loudness_analyzer_get_gain(this._ptr);
-            if (error) {
-                throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
+        if (!this.hasEstablishedGain() && isFinite(gain)) {
+            const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
+            if (this._framesAdded >= neededFrames) {
+                this._establishedGain = gain;
             }
-
-            this._previousGain = gain;
-
-            if (!this.hasEstablishedGain()) {
-                const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
-                if (this._framesAdded >= neededFrames) {
-                    this._establishedGain = gain;
-                }
-            }
-
-            return gain;
-        } else {
-            return this._previousGain;
         }
     }
 
@@ -91,8 +78,6 @@ export default class LoudnessAnalyzer {
         }
         this._establishedGain = -1;
         this._framesAdded = 0;
-        this._windowIndex = 0;
-        this._previousGain = NaN;
         const err = this.loudness_analyzer_reset(this._ptr);
         if (err) {
             throw new Error(`ebur128: reset error ${err}`);
@@ -104,8 +89,6 @@ export default class LoudnessAnalyzer {
         this._sampleRate = sampleRate;
         this._establishedGain = -1;
         this._framesAdded = 0;
-        this._windowIndex = 0;
-        this._previousGain = NaN;
         if (!this._ptr) {
             const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
             if (err) {
