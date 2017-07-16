@@ -2,9 +2,9 @@ import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import {checkBoolean} from "errors/BooleanTypeError";
 
 const MAX_HISTORY_MS = 8000;
-const MOMENTARY_WINDOW_MS = 400;
 const INT16_BYTE_SIZE = 2;
 const SILENCE_THRESHOLD = 50;
+const MOMENTARY_WINDOW_MS = 400;
 
 export const defaultLoudnessInfo = Object.freeze({
     loudness: 0,
