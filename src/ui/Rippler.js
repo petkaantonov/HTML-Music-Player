@@ -210,7 +210,6 @@ export default class Rippler {
         opts = noUndefinedGet(opts);
         this._page = deps.page;
         this._domNode = this._page.$(opts.target);
-        this._freeRipples = [];
         this._ongoingRipples = [];
         this._shown = false;
         this._baseZIndex = opts.zIndex;
@@ -231,7 +230,6 @@ export default class Rippler {
         if (i >= 0) {
             this._ongoingRipples.splice(i, 1);
         }
-        this._freeRipples.push(ripple);
         if (this._ongoingRipples.length === 0) {
             this._shown = false;
         }
@@ -252,9 +250,9 @@ export default class Rippler {
         if (zIndex === null || typeof zIndex === `undefined`) zIndex = ``;
         if (zIndex !== ``) zIndex = `${+zIndex}`;
         if (zIndex === ``) zIndex = this._baseZIndex;
-        const ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+        const ripple = new Ripple(this);
         this.rippleStarted(ripple);
-        const ret = ripple.initBounded(x, y, rect, color, zIndex);
+        ripple.initBounded(x, y, rect, color, zIndex);
         ripple.id = id;
 
         for (let i = 0; i < this._ongoingRipples.length; ++i) {
@@ -282,7 +280,7 @@ export default class Rippler {
             }
         }
 
-        const ripple = this._freeRipples.length ? this._freeRipples.shift() : new Ripple(this);
+        const ripple = new Ripple(this);
         this.rippleStarted(ripple);
         ripple.initUnbounded(x, y, size, color);
     }

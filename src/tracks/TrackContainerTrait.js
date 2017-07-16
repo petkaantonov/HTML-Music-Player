@@ -1,6 +1,6 @@
 export default {
     _bindListEvents() {
-        const {page, env} = this;
+        const {page, env, rippler} = this;
 
         this.$().addEventListener(`click`, page.delegatedEventHandler((e) => {
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
@@ -24,7 +24,6 @@ export default {
             this.changeTrackExplicitly(trackView.track());
         }, `.track-container`));
 
-
         if (env.hasTouch()) {
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
@@ -36,13 +35,21 @@ export default {
                     this._selectable.addTrackView(trackView);
                     this._selectable.setPriorityTrackView(trackView);
                 }
-            }, `.track-selector-container`)).recognizeBubbledOn(this.$());
+                rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY);
+            }, `.track-control-select`)).recognizeBubbledOn(this.$());
 
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
                 if (!trackView) return;
                 this.changeTrackExplicitly(trackView.track());
             }, `.track-data`)).recognizeBubbledOn(this.$());
+
+            this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
+                const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
+                if (!trackView) return;
+                rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY);
+                this.openSingleTrackMenu(trackView, e.delegateTarget, e);
+            }, `.track-control-menu`)).recognizeBubbledOn(this.$());
         }
 
         if (this._draggable) {

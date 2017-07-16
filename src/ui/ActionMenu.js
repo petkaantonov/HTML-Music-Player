@@ -747,7 +747,8 @@ export class ButtonMenu extends EventEmitter {
         this._menu.globalEvents.on(`visibilityChange`, this.hide);
 
         this._tapRecognizer = null;
-        if (!opts.manualTrigger) {
+        this._manualTrigger = !!opts.manualTrigger;
+        if (!this._manualTrigger) {
             this.buttonClicked = this.buttonClicked.bind(this);
             this._tapRecognizer = this._menu.recognizerContext.createTapRecognizer(this.buttonClicked);
             this._tapRecognizer.recognizeBubbledOn(this.$target());
@@ -777,10 +778,12 @@ export class ButtonMenu extends EventEmitter {
 
     destroy() {
         this.hide();
-        if (this._tapRecognizer) {
-            this._tapRecognizer.unrecognizeBubbledOn(this.$target());
+        if (!this._manualTrigger) {
+            if (this._tapRecognizer) {
+                this._tapRecognizer.unrecognizeBubbledOn(this.$target());
+            }
+            this.$target().removeEventListener(`click`, this.buttonClicked, false);
         }
-        this.$target().removeEventListener(`click`, this.buttonClicked, false);
         this._menu.destroy();
     }
 
@@ -935,6 +938,24 @@ export class ButtonMenu extends EventEmitter {
         return menuMethod.call(this._menu, ...args);
     };
 });
+
+export class VirtualButtonMenu extends ButtonMenu {
+    constructor(opts, deps) {
+        opts.manualTrigger = true;
+        super(opts, deps);
+        this._coordsProvider = null;
+    }
+
+    show(e, coordsProvider) {
+        this._coordsProvider = coordsProvider;
+        super.show(e);
+    }
+
+    getCoords() {
+        const menuBox = this.$()[0].getBoundingClientRect();
+        return this._coordsProvider(menuBox);
+    }
+}
 
 export class ContextMenu extends ButtonMenu {
     constructor(opts, deps) {

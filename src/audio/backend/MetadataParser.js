@@ -162,7 +162,7 @@ export default class MetadataParser {
             try {
                 const response = await ajaxGet(url);
                 if (response &&
-                    response.status !== "error" &&
+                    response.status !== `error` &&
                     response.results &&
                     response.results.length > 0) {
                     fullResponse = response.results;

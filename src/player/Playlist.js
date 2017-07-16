@@ -8,7 +8,9 @@ import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackContainerTrait from "tracks/TrackContainerTrait";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
 import withDeps from "ApplicationDependencies";
+import TrackRater from "tracks/TrackRater";
 import EventEmitter from "events";
+import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
@@ -116,6 +118,7 @@ export default class Playlist extends EventEmitter {
     constructor(opts, deps) {
         super();
         this.page = deps.page;
+        this.menuContext = deps.menuContext;
         this.globalEvents = deps.globalEvents;
         this.recognizerContext = deps.recognizerContext;
         this.keyboardShortcuts = deps.keyboardShortcuts;
@@ -129,6 +132,14 @@ export default class Playlist extends EventEmitter {
 
         this._trackViews = [];
         this._unparsedTrackList = [];
+        this._trackRater = withDeps({
+            page: this.page,
+            recognizerContext: this.recognizerContext,
+            rippler: this.rippler
+        }, d => new TrackRater(d));
+        this._singleTrackViewSelected = null;
+        this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
+
 
         this._mode = Modes.hasOwnProperty(opts.mode) ? opts.mode : `normal`;
         this._currentTrack = null;
@@ -227,6 +238,58 @@ export default class Playlist extends EventEmitter {
         this._draggable.bindEvents();
     }
 
+    _createSingleTrackMenu() {
+        const menu = [];
+
+        menu.push({
+            id: `play`,
+            content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
+            onClick: () => {
+                this.changeTrackExplicitly(this._singleTrackViewSelected.track());
+                this._singleTrackMenu.hide();
+            }
+        });
+
+        menu.push({
+            id: `delete`,
+            content: this.menuContext.createMenuItem(`Delete`, `material-icons small-material-icon delete`),
+            onClick: () => {
+                this.removeTrackView(this._singleTrackViewSelected);
+                this._singleTrackMenu.hide();
+            }
+        });
+
+        menu.push({
+            divider: true
+        });
+
+        menu.push({
+            id: `track-rating`,
+            content: () => this._trackRater.$(),
+            onClick(e) {
+                e.preventDefault();
+            }
+        });
+
+        const ret = this.menuContext.createVirtualButtonMenu({menu, zIndex});
+        ret.on(`willHideMenu`, () => {
+            this._singleTrackViewSelected = null;
+        });
+        return ret;
+    }
+
+    openSingleTrackMenu(trackView, eventTarget, event) {
+        this._trackRater.enable(trackView.track());
+        this._singleTrackViewSelected = trackView;
+        this._singleTrackMenu.show(event, (menuBox) => {
+            const box = eventTarget.getBoundingClientRect();
+            return {
+                x: box.right,
+                y: box.top
+            };
+        });
+    }
+
     _windowLayoutChanged() {
         this.page.requestAnimationFrame(() => this._fixedItemListScroller.resize());
     }
@@ -236,6 +299,7 @@ export default class Playlist extends EventEmitter {
     }
 
     tabWillHide() {
+        this._singleTrackMenu.hide();
         this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
     }
 

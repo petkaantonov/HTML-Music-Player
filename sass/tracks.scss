@@ -3,6 +3,7 @@
 
 
 .track-container {
+    $track-duration-margin: 6px;
     left: 0px;
     contain: strict;
     position: absolute;
@@ -32,14 +33,34 @@
         @include transition-duration(0.22s);
     }
 
-    .track-selector-container {
-        width: $track-selector-width;
+    .track-left-controls {
+        width: $track-left-controls-width;
         padding: 0px 8px;
         height: 100%;
         text-align: center;
 
         .material-icons {
+            color: $text-color-lighter;
             margin-top: 10px;
+        }
+    }
+
+    .track-right-controls {
+        $track-controls-room: $track-right-controls-width - $track-controls-gutter;
+        padding-left: $track-controls-gutter;
+        height: 100%;
+        width: $track-right-controls-width;
+
+        .track-control-select,
+        .track-control-menu {
+            width: $track-controls-room / 2;
+            text-align: center;
+            height: 100%;
+        }
+
+        .material-icons {
+            margin-top: 10px;
+            color: $text-color-lighter;
             &.blank-checkbox {
                 color: $text-color-lighter;
             }
@@ -51,65 +72,54 @@
     }
 
     .track {
-        $track-duration-margin: 6px;
         color: $text-color;
         width: 100%;
         height: 100%;
+    }
 
-        .track-data {
-            @include calc(width, "100% - #{$track-controls-width + $track-selector-width}");
+    .track-data {
+        @include calc(width, "100% - #{$track-right-controls-width + $track-left-controls-width}");
+    }
+
+    .track-number {
+        width: $track-number-width;
+    }
+
+    .track-info {
+        @include calc(width, "100% - #{$track-duration-width + $track-number-width + $track-duration-margin}");
+        height: 100%;
+        overflow: hidden;
+        padding: 4px 0px 4px 6px;
+
+        .track-title,
+        .track-artist {
+            display: block;
         }
 
-        .track-number {
-            width: $track-number-width;
+        .track-title {
+            font-size: 15px;
         }
 
-        .track-info {
-            @include calc(width, "100% - #{$track-duration-width + $track-number-width + $track-duration-margin}");
-            height: 100%;
-            overflow: hidden;
-            padding: 4px 0px 4px 6px;
-
-            .track-title,
-            .track-artist {
-                display: block;
-            }
-
-            .track-title {
-                font-size: 15px;
-            }
-
-            .track-artist {
-                font-size: 13px;
-                color: $text-color-lighter;
-                margin-top: 2px;
-            }
+        .track-artist {
+            font-size: 13px;
+            color: $text-color-lighter;
+            margin-top: 2px;
         }
+    }
 
-        .track-duration {
-            width: $track-duration-width;
-            text-align: center;
-            margin-left: $track-duration-margin;
-            overflow: hidden;
-        }
+    .track-duration {
+        width: $track-duration-width;
+        text-align: center;
+        margin-left: $track-duration-margin;
+        overflow: hidden;
+    }
 
-        .track-duration,
-        .track-number {
-            font-size: $text-size;
-            line-height: 14px;
-            padding-top: 15px;
-            height: 100%;
-        }
-
-        .track-controls {
-            $track-controls-room: $track-controls-width - $track-controls-gutter;
-            $vertical-gutter: 2px;
-            $vertical-space-available: $track-item-height - 2px - $vertical-gutter * 2;
-
-            padding: $vertical-gutter 0px $vertical-gutter $track-controls-gutter;
-            height: 100%;
-            width: $track-controls-width;
-        }
+    .track-duration,
+    .track-number {
+        font-size: $text-size;
+        line-height: 14px;
+        padding-top: 15px;
+        height: 100%;
     }
 
     &.track-active {
@@ -134,7 +144,7 @@
 
 .no-touch {
     .track-container {
-        $left-padding: $track-selector-width/2;
+        $left-padding: $track-left-controls-width/2;
         padding-left: $left-padding;
         .track {
             .track-data {
@@ -142,11 +152,11 @@
             }
         }
 
-        .track-selector-container {
+        .track-left-controls {
             display: none;
         }
 
-        .track-controls {
+        .track-right-controls {
             display: none;
         }
     }

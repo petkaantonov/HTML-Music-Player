@@ -35,11 +35,11 @@ $track-controls-gutter: 10px;
 $track-controls-icon-size: 16px;
 $track-controls-icon-text-gutter: 5px;
 
-$track-selector-width: 44px;
+$track-left-controls-width: 44px;
 $track-number-width: 42px;
 $track-duration-width: 38px;
-$track-controls-width: 80px;
-$track-width-used: $track-info-gutter + $track-selector-width + $track-number-width + $track-duration-width + $track-controls-width;
+$track-right-controls-width: 80px;
+$track-width-used: $track-info-gutter + $track-left-controls-width + $track-number-width + $track-duration-width + $track-right-controls-width;
 
 $track-item-height: 44px;
 

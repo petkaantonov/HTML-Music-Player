@@ -105,7 +105,6 @@ export default class MainTabs {
         if (this.env.hasTouch()) {
             this.playlistContextMenu = this.menuContext.createButtonMenu(this.playlistActionSpec);
             this.searchContextMenu = this.menuContext.createButtonMenu(this.searchActionSpec);
-
             this.selectionStatus.on(`menuClick`, (e) => {
                 this.withActiveMenuInstance(_call.show(e));
             });

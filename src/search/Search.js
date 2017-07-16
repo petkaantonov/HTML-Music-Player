@@ -7,8 +7,10 @@ import TrackViewOptions from "tracks/TrackViewOptions";
 import SearchResultTrackView from "search/SearchResultTrackView";
 import {insert} from "search/sortedArrays";
 import {cmp} from "search/SearchResult";
+import TrackRater from "tracks/TrackRater";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
+import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 const cmpTrackView = function(a, b) {
     return cmp(a._result, b._result);
@@ -114,12 +116,22 @@ export default class Search extends WorkerFrontend {
         super(SEARCH_READY_EVENT_NAME, deps.workerWrapper);
         opts = noUndefinedGet(opts);
         this.page = deps.page;
+        this.rippler = deps.rippler;
         this.globalEvents = deps.globalEvents;
         this.env = deps.env;
+        this.menuContext = deps.menuContext;
         this.recognizerContext = deps.recognizerContext;
         this.db = deps.db;
         this.dbValues = deps.dbValues;
         this.keyboardShortcuts = deps.keyboardShortcuts;
+
+        this._trackRater = withDeps({
+            page: this.page,
+            recognizerContext: this.recognizerContext,
+            rippler: this.rippler
+        }, d => new TrackRater(d));
+        this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
+        this._singleTrackViewSelected = null;
 
         this._trackAnalyzer = deps.trackAnalyzer;
         this._domNode = this.page.$(opts.target).eq(0);
@@ -150,8 +162,8 @@ export default class Search extends WorkerFrontend {
             target: this.$(),
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
-            minPrerenderedItems: 15,
-            maxPrerenderedItems: 50
+            minPrerenderedItems: 6,
+            maxPrerenderedItems: 12
         });
 
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
@@ -216,6 +228,51 @@ export default class Search extends WorkerFrontend {
 
     }
 }
+
+Search.prototype._createSingleTrackMenu = function() {
+    const menu = [];
+
+    menu.push({
+        id: `play`,
+        content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
+        onClick: () => {
+            this.changeTrackExplicitly(this._singleTrackViewSelected.track());
+            this._singleTrackMenu.hide();
+        }
+    });
+
+    menu.push({
+        divider: true
+    });
+
+    menu.push({
+        id: `track-rating`,
+        content: () => this._trackRater.$(),
+        onClick(e) {
+            e.preventDefault();
+        }
+    });
+
+
+    const ret = this.menuContext.createVirtualButtonMenu({menu, zIndex});
+    ret.on(`willHideMenu`, () => {
+        this._singleTrackViewSelected = null;
+
+    });
+    return ret;
+};
+
+Search.prototype.openSingleTrackMenu = function(trackView, eventTarget, event) {
+    this._trackRater.enable(trackView.track());
+    this._singleTrackViewSelected = trackView;
+    this._singleTrackMenu.show(event, () => {
+        const box = eventTarget.getBoundingClientRect();
+        return {
+            x: box.right - 5,
+            y: box.top
+        };
+    });
+};
 
 Search.prototype.receiveMessage = function(event) {
     if (this._session) {

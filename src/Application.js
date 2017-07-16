@@ -315,7 +315,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         globalEvents,
         tooltipContext,
         keyboardShortcuts,
-        applicationPreferencesBindingContext
+        applicationPreferencesBindingContext,
+        menuContext
     }, d => new Playlist({
         target: `#app-playlist-container`,
         itemHeight: ITEM_HEIGHT
@@ -384,7 +385,9 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         keyboardShortcuts,
         tooltipContext,
         trackAnalyzer,
-        workerWrapper
+        workerWrapper,
+        rippler,
+        menuContext
     }, d => new Search({
         target: `.search-list-container`,
         itemHeight: ITEM_HEIGHT
