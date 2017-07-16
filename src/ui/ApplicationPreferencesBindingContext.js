@@ -173,9 +173,9 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
             if (avg !== -1 && avg > 3 * bufferLengthMs) {
                 this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 1.66667);
             }
-        } else if (bufferLengthMs > 5 * latencyValue) {
+        } else if (bufferLengthMs > 10 * latencyValue) {
             const avg = this.getDecodingLatencyAvgIfFilled();
-            if (avg !== -1 && bufferLengthMs > 10 * avg) {
+            if (avg !== -1 && bufferLengthMs > 30 * avg) {
                 this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 0.6);
             }
         }
