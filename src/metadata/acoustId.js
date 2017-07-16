@@ -29,12 +29,13 @@ const getBestRecordingGroup = function(recordings) {
 
             const {secondarytypes} = releasegroup;
             const type = releasegroup.type.toLowerCase();
+            const typeValue = groupTypeValue[type];
             groups.push({
                 indexI: i,
                 indexJ: j,
                 recording,
                 type,
-                typeValue: groupTypeValue[type] || 10,
+                typeValue: typeValue === undefined ? 10 : typeValue,
                 album: releasegroups[j],
                 secondarytypes: secondarytypes ? secondarytypes.map(v => v.toLowerCase()) : null
             });
