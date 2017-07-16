@@ -137,6 +137,18 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         return sum / j;
     }
 
+    getDecodingLatencyAvgIfFilled() {
+        let sum = 0;
+        for (let i = 0; i < this._decodingLatencyValues.length; ++i) {
+            const value = this._decodingLatencyValues[i];
+            if (value === 0) {
+                return -1;
+            }
+            sum += value;
+        }
+        return sum / this._decodingLatencyValues.length;;
+    }
+
     willUpdatePreferences(oldPreferences, newPreferences) {
         if (oldPreferences.getBufferLengthMilliSeconds() !==
             newPreferences.getBufferLengthMilliSeconds()) {
@@ -157,7 +169,15 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     decodingLatencyValue(latencyValue) {
         const bufferLengthMs = this.preferences().getBufferLengthMilliSeconds();
         if (bufferLengthMs < 1.5 * latencyValue) {
-            this.setPreference(`bufferLengthMilliSeconds`, 1.6 * latencyValue);
+            const avg = this.getDecodingLatencyAvgIfFilled();
+            if (avg !== -1 && avg > 3 * bufferLengthMs) {
+                this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 1.66667);
+            }
+        } else if (bufferLengthMs > 5 * latencyValue) {
+            const avg = this.getDecodingLatencyAvgIfFilled();
+            if (avg !== -1 && bufferLengthMs > 10 * avg) {
+                this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 0.6);
+            }
         }
 
         const index = this._decodingLatencyValueIndex++;
