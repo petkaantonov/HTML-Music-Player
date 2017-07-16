@@ -63,8 +63,7 @@ export default class LoudnessAnalyzer {
         let framesAdded = 0;
 
         while (framesAdded < audioFrameCount) {
-            const framesToAdd = Math.min(audioFrameCount - framesAdded, momentaryWindowFrameCount - framesAdded);
-
+            const framesToAdd = Math.min(audioFrameCount - framesAdded, momentaryWindowFrameCount);
             let err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, framesToAdd);
             if (err) {
                 throw new Error(`ebur128 error ${err} ${samplePtr} ${framesToAdd}`);

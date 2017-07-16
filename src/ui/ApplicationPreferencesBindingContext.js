@@ -157,7 +157,7 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     decodingLatencyValue(latencyValue) {
         const bufferLengthMs = this.preferences().getBufferLengthMilliSeconds();
         if (bufferLengthMs < 1.5 * latencyValue) {
-            this.setPreference(`bufferLengthMilliSeconds`, 2 * latencyValue);
+            this.setPreference(`bufferLengthMilliSeconds`, 1.6 * latencyValue);
         }
 
         const index = this._decodingLatencyValueIndex++;

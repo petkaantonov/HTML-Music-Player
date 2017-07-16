@@ -43,7 +43,7 @@ export const Preferences = createPreferences({
                 let ret = Math.max(minBufferLengthValue,
                                 Math.min(maxBufferLengthValue, + value));
                 ret = isFinite(ret) ? ret : defaultBufferLengthValue;
-                ret = Math.ceil(ret / 100) * 100;
+                ret = Math.round(ret / 100) * 100;
                 return ret;
             }
         }
