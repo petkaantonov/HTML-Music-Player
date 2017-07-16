@@ -419,6 +419,8 @@ int ebur128_prev_true_peak(ebur128_state* st,
  */
 int ebur128_relative_threshold(ebur128_state* st, double* out);
 
+int ebur128_loudness_from_last_block(ebur128_state* st, double* out);
+
 #ifdef __cplusplus
 }
 #endif

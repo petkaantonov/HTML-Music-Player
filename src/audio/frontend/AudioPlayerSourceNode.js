@@ -5,7 +5,6 @@ import {cancelAndHold} from "audio/frontend/AudioPlayer";
 import SourceDescriptor, {decibelToGain} from "audio/frontend/SourceDescriptor";
 import {BUFFER_FILL_TYPE_SEEK,
         BUFFER_FILL_TYPE_REPLACEMENT} from "audio/backend/AudioSource";
-import {SILENCE_THRESHOLD} from "audio/backend/LoudnessAnalyzer";
 
 const NO_THROTTLE = {};
 const EXPENSIVE_CALL_THROTTLE_TIME = 100;
@@ -189,6 +188,14 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._bufferQueue[i].started = prev.started + prev.duration;
             }
         }
+    }
+
+    get baseGain() {
+        const ret = this._baseGain;
+        if (isFinite(ret) && ret >= 0) {
+            return ret;
+        }
+        return 1;
     }
 
     getTargetBufferLengthSeconds() {
@@ -595,11 +602,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (!descriptor || this._destroyed) {
             return;
         }
-
+        const {loudnessInfo} = descriptor;
         this.emit(`decodingLatency`, descriptor.decodingLatency);
 
-        let skipBuffer = this._player.shouldSkipSilence() &&
-                         descriptor.loudness >= SILENCE_THRESHOLD;
+        const skipBuffer = loudnessInfo.isEntirelySilent;
         let currentSourcesShouldBeStopped = false;
         let scheduledStartTime = 0;
         const afterScheduleKnownCallbacks = [];
@@ -668,8 +674,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
 
         if (!skipBuffer &&
-            this._baseGain === 1 && !isNaN(descriptor.loudness)) {
-            this._baseGain = decibelToGain(descriptor.loudness);
+            this._baseGain === 1 && !isNaN(loudnessInfo.loudness)) {
+            this._baseGain = decibelToGain(loudnessInfo.loudness);
             if (!currentSourcesShouldBeStopped && !this._sourceStopped) {
                 this._rescheduleLoudness();
             }

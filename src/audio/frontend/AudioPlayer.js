@@ -1,7 +1,7 @@
 // Audio player implemented using AudioBuffers. Tracks are resampled and mixed
 // Manually to hardware specs to guarantee seamless playback between consecutive
 // Audiobuffers.
-import {roundSampleTime} from "util";
+import {roundSampleTime, ensureArray} from "util";
 import {AudioParam, AudioContext, performance} from "platform/platform";
 import {PLAYER_READY_EVENT_NAME} from "audio/backend/AudioPlayerBackend";
 import WorkerFrontend from "WorkerFrontend";
@@ -104,13 +104,18 @@ export default class AudioPlayer extends WorkerFrontend {
 
         this.effectPreferencesBindingContext.on(`change`, async () => {
             await this.ready();
-            this._setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
+            this._updateBackendConfig({
+                effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects())
+            });
         });
         this.applicationPreferencesBindingContext.on(`change`, async () => {
             await this.ready();
             const preferences = this.applicationPreferencesBindingContext.preferences();
             this._setBufferSize(preferences.getBufferLengthMilliSeconds());
-            this._setLoudnessNormalization(preferences.getEnableLoudnessNormalization());
+            this._updateBackendConfig({
+                loudnessNormalization: preferences.getEnableLoudnessNormalization(),
+                silenceTrimming: preferences.getEnableSilenceTrimming()
+            });
         });
 
         this.page.addDocumentListener(`touchend`, this._touchended.bind(this), true);
@@ -155,10 +160,13 @@ export default class AudioPlayer extends WorkerFrontend {
     }
 
     shouldSkipSilence() {
-        return this.applicationPreferencesBindingContext.getPreference("enableSilenceTrimming");
+        return this.applicationPreferencesBindingContext.getPreference(`enableSilenceTrimming`);
     }
 
     async _setBufferSize(bufferLengthMilliSecondsPreference, sourceNodeNeedsReset = false) {
+        if (this._targetBufferLengthSeconds / 1000 === bufferLengthMilliSecondsPreference) {
+            return;
+        }
         const sampleRate = this._outputSampleRate;
         const channelCount = this._outputChannelCount;
         this._targetBufferLengthSeconds = bufferLengthMilliSecondsPreference / 1000;
@@ -204,8 +212,12 @@ export default class AudioPlayer extends WorkerFrontend {
 
     async _initBackend() {
         await this.ready();
-        this._setEffects(this.effectPreferencesBindingContext.getAudioPlayerEffects());
-        this._setLoudnessNormalization(this.applicationPreferencesBindingContext.preferences().getEnableLoudnessNormalization());
+        const preferences = this.applicationPreferencesBindingContext.preferences();
+        this._updateBackendConfig({
+            loudnessNormalization: preferences.getEnableLoudnessNormalization(),
+            silenceTrimming: preferences.getEnableSilenceTrimming(),
+            effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects())
+        });
     }
 
     _audioContextChanged() {
@@ -398,20 +410,5 @@ export default class AudioPlayer extends WorkerFrontend {
             args: {},
             methodName: `ping`
         });
-    }
-
-    _setEffects(spec) {
-        if (!Array.isArray(spec)) spec = [spec];
-        this.postMessage({
-            nodeId: -1,
-            args: {
-                effects: spec
-            },
-            methodName: `setEffects`
-        });
-    }
-
-    _setLoudnessNormalization(loudnessNormalization) {
-        this._updateBackendConfig({loudnessNormalization});
     }
 }

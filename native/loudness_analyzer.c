@@ -59,6 +59,21 @@ EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
     return EBUR128_SUCCESS;
 }
 
+EXPORT int loudness_analyzer_get_momentary_gain(LoudnessAnalyzer* this, double* gain) {
+    *gain = NAN;
+    uint32_t frames_needed = (uint32_t)((double)this->st->samplerate * 0.4);
+    if (this->frames_added >= frames_needed) {
+        double result;
+        int err = ebur128_loudness_from_last_block(this->st, &result);
+        if (err) {
+            return err;
+        }
+        result = (REFERENCE_LUFS - result);
+        *gain = result;
+    }
+    return EBUR128_SUCCESS;
+}
+
 EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this) {
     return loudness_analyzer_reinitialize(this, this->st->channels, this->st->samplerate, this->max_history);
 }

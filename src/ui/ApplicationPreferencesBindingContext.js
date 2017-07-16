@@ -20,7 +20,7 @@ const TEMPLATE = `<div class='settings-container preferences-popup-content-conta
     </p>
     <div class='section-container trim-silence-container'></div>
     <p>
-        Silent parts of audio are fast-forwarded instead of played. Requires loudness normalization to be enabled.
+        Silent parts of audio are fast-forwarded instead of played. Disabling may improve performance.
     </p>
     <div class="inputs-container">
         <div class="label wide-label subtitle">Buffering</div>
@@ -114,7 +114,6 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         deps.mainMenu.on(`preferences`, this.openPopup.bind(this));
         this._decodingLatencyValues = new Float64Array(10);
         this._decodingLatencyValueIndex = 0;
-        this.on(`change`, this.changed.bind(this));
     }
 
     _createManager() {
@@ -148,14 +147,6 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     willUpdatePreference(key, oldValue, newValue) {
         if (key === `bufferLengthMilliSeconds`) {
             this.bufferLengthChanged();
-        } else if (key === "enableSilenceTrimming" && newValue) {
-            this.setPreferenceDeferred(`enableLoudnessNormalization`, true);
-        }
-    }
-
-    changed() {
-        if (!this.getPreference(`enableLoudnessNormalization`)) {
-            this.setPreferenceDeferred(`enableSilenceTrimming`, false);
         }
     }
 

@@ -13,7 +13,8 @@ export default class SourceDescriptor {
         this.sampleRate = descriptor.sampleRate;
         this.channelCount = descriptor.channelCount;
         this.duration = buffer.duration;
-        this._gain = isNaN(descriptor.loudness) ? NaN : decibelToGain(descriptor.loudness);
+        const {loudnessInfo} = descriptor;
+        this._gain = isNaN(loudnessInfo.loudness) ? NaN : decibelToGain(loudnessInfo.loudness);
         this.started = -1;
         this.stopped = -1;
         this.source = null;
@@ -22,7 +23,7 @@ export default class SourceDescriptor {
     }
 
     get gain() {
-        return isNaN(this._gain) ? this._sourceNode._baseGain : this._gain;
+        return !isFinite(this._gain) ? this._sourceNode.baseGain : this._gain;
     }
 
     getRemainingDuration() {

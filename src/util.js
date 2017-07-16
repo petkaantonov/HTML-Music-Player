@@ -44,6 +44,12 @@ export const toFunction = function(value) {
     };
 };
 
+export const ensureArray = function(val) {
+  if (!Array.isArray(val)) {
+    val = [val];
+  }
+  return val;
+};
 
 const bits = (function() {
     const masks = new Int32Array([0x0,

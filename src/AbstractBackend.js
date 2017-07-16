@@ -39,6 +39,7 @@ export default class AbstractBackend extends EventEmitter {
         if (VERBOSE_DEBUGGING) {
             console.info(`Receiving message from worker ${this._readyEventName}: ${JSON.stringify(args[0])}`);
         }
+        if (!transferList) transferList = undefined;
         self.postMessage({channel: this._channel, args}, transferList);
     }
 

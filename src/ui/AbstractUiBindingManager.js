@@ -80,5 +80,6 @@ export default class AbstractUiBindingManager extends EventEmitter {
 
     setUnchangedPreferences() {
         this.unchangedPreferences = this.preferences.snapshot();
+        this.bindingContext().setUndoChangesEnabled(!this.preferences.equals(this.unchangedPreferences));
     }
 }

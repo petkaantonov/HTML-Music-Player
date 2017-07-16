@@ -3,18 +3,26 @@ import Effects from "audio/backend/Effects";
 import {Map} from "platform/platform";
 import AbstractBackend from "AbstractBackend";
 export const PLAYER_READY_EVENT_NAME = `playerReady`;
+import {checkBoolean} from "errors/BooleanTypeError";
+import {checkNumberRange, checkNumberDivisible} from "errors/NumberTypeError";
+import {MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
+
+const emptyArray = [];
 
 export default class AudioPlayerBackend extends AbstractBackend {
     constructor(wasm, timers, db, metadataParser) {
         super(PLAYER_READY_EVENT_NAME);
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
-        this._bufferTime = 0;
         this._timers = timers;
         this._audioSources = new Map();
         this._effects = new Effects();
         this._db = db;
-        this._loudnessNormalization = true;
+        this._config = {
+            bufferTime: 0,
+            loudnessNormalization: true,
+            silenceTrimming: true
+        };
         this._metadataParser = metadataParser;
     }
 
@@ -26,25 +34,49 @@ export default class AudioPlayerBackend extends AbstractBackend {
         return this._wasm;
     }
 
-    get bufferTime() {
-        const ret = this._bufferTime;
-        if (!ret) throw new Error(`buffer time not set`);
-        return ret;
-    }
-
     get effects() {
         return this._effects;
     }
 
+    get bufferTime() {
+        const ret = this._config.bufferTime;
+        if (!ret) throw new Error(`buffer time not set`);
+        return ret;
+    }
+
     get loudnessNormalization() {
-        return this._loudnessNormalization;
+        return this._config.loudnessNormalization;
+    }
+
+    get silenceTrimming() {
+        return this._config.silenceTrimming;
+    }
+
+    set bufferTime(bufferTime) {
+        checkNumberRange(`bufferTime`, bufferTime, MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS);
+        checkNumberDivisible(`bufferTime`, bufferTime, 0.1);
+        this._config.bufferTime = bufferTime;
+    }
+
+    set loudnessNormalization(loudnessNormalization) {
+        checkBoolean(`loudnessNormalization`, loudnessNormalization);
+        this._config.loudnessNormalization = loudnessNormalization;
+    }
+
+    set silenceTrimming(silenceTrimming) {
+        checkBoolean(`silenceTrimming`, silenceTrimming);
+        this._config.silenceTrimming = silenceTrimming;
+    }
+
+    set effects(effects) {
+        this._effects.setEffects(effects);
     }
 
     sendMessage(nodeId, methodName, args, transferList) {
-        if (transferList === undefined) transferList = [];
+        if (!transferList) transferList = emptyArray;
         args = Object(args);
 
-        if (transferList && transferList.length > 0) {
+        if (transferList.length > 0) {
             transferList = transferList.map((v) => {
                 if (v.buffer) return v.buffer;
                 return v;
@@ -73,11 +105,12 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
         if (nodeId === -1) {
             if (methodName === `audioConfiguration`) {
-                if (`bufferTime` in args) {
-                    this._bufferTime = args.bufferTime;
-                }
-                if (`loudnessNormalization` in args) {
-                    this._loudnessNormalization = args.loudnessNormalization;
+                for (const key of Object.keys(args)) {
+                    if (this._config.hasOwnProperty(key) || key === `effects`) {
+                        this[key] = args[key];
+                    } else {
+                        throw new Error(`invalid configuration key: ${key}`);
+                    }
                 }
             } else if (methodName === `register`) {
                 const audioSource = new AudioSource(this, args.id);
@@ -87,8 +120,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
                     }
                 });
                 this._audioSources.set(args.id, audioSource);
-            } else if (methodName === `setEffects`) {
-                this._effects.setEffects(args.effects);
             } else if (methodName === `ping`) {
                 this._timers.tick();
             }

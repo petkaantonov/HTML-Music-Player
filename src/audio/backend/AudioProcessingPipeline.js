@@ -1,16 +1,17 @@
+import {defaultLoudnessInfo} from "audio/backend/LoudnessAnalyzer";
+
 const I16_BYTE_LENGTH = 2;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
-    constructor(length, startTime, endTime, channelData, loudness) {
+    constructor(length, startTime, endTime, channelData, loudnessInfo) {
         this.length = length;
         this.startTime = startTime;
         this.endTime = endTime;
         this.channelData = channelData;
-        this.loudness = loudness;
+        this.loudnessInfo = loudnessInfo;
     }
 }
-
 
 // TODO: Remove this comment after testing framework is in place and it will become unnecessary.
 /*
@@ -128,6 +129,7 @@ export default class AudioProcessingPipeline {
         let currentFilePosition = filePosition + totalBytesRead;
         while (dataRemaining > 0) {
             await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, paddingFactorHint);
+
             if (cancellationToken.isCancelled()) {
                 return 0;
             }
@@ -173,10 +175,10 @@ export default class AudioProcessingPipeline {
                 loudnessAnalyzer,
                 fingerprinter} = this;
 
-        let loudness = 0;
+        let loudnessInfo = defaultLoudnessInfo;
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
-            loudness = loudnessAnalyzer.getLoudness(samplePtr, audioFrameLength);
+            loudnessInfo = loudnessAnalyzer.getLoudnessInfo(samplePtr, audioFrameLength);
         }
 
         if (effects) {
@@ -240,6 +242,6 @@ export default class AudioProcessingPipeline {
         const length = audioFrameLength + paddingFrameLength;
         const startTime = Math.round(startAudioFrame / sourceSampleRate * 1e9) / 1e9;
         const endTime = Math.round((startTime + (length / destinationSampleRate)) * 1e9) / 1e9;
-        this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData, loudness);
+        this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData, loudnessInfo);
     }
 }

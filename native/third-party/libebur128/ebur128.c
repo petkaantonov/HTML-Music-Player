@@ -87,6 +87,7 @@ struct ebur128_state_internal {
   /** The maximum window duration in ms. */
   unsigned long window;
   unsigned long history;
+  double last_block_sum;
 };
 
 static double relative_gate = -10.0;
@@ -675,6 +676,7 @@ static int ebur128_calc_gating_block(ebur128_state* st, size_t frames_per_block,
     *optional_output = sum;
     return EBUR128_SUCCESS;
   } else if (sum >= histogram_energy_boundaries[0]) {
+    st->d->last_block_sum = sum;
     if (st->d->use_histogram) {
       ++st->d->block_energy_histogram[find_histogram_index(sum)];
     } else {
@@ -694,6 +696,7 @@ static int ebur128_calc_gating_block(ebur128_state* st, size_t frames_per_block,
     }
     return EBUR128_SUCCESS;
   } else {
+    st->d->last_block_sum = sum;
     return EBUR128_SUCCESS;
   }
 }
@@ -1327,4 +1330,18 @@ int ebur128_prev_true_peak(ebur128_state* st,
        ? st->d->prev_true_peak[channel_number]
        : st->d->prev_sample_peak[channel_number];
   return EBUR128_SUCCESS;
+}
+
+int ebur128_loudness_from_last_block(ebur128_state* st, double* out) {
+  if (st->d->block_list_size > 0) {
+    double energy = st->d->last_block_sum;
+    if (energy <= 0.0) {
+      *out = -HUGE_VAL;
+    } else {
+      *out = ebur128_energy_to_loudness(energy);
+    }
+    return EBUR128_SUCCESS;
+  } else {
+    return EBUR128_ERROR_INVALID_MODE;
+  }
 }

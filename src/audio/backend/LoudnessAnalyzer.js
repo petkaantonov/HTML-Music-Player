@@ -1,60 +1,121 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
-const maxHistoryMs = 8000;
-const windowMs = 400;
-const windowS = windowMs / 1000;
+import {checkBoolean} from "errors/BooleanTypeError";
 
-export const SILENCE_THRESHOLD = 50;
+const MAX_HISTORY_MS = 8000;
+const MOMENTARY_WINDOW_MS = 400;
+const INT16_BYTE_SIZE = 2;
+const SILENCE_THRESHOLD = 50;
+
+export const defaultLoudnessInfo = Object.freeze({
+    loudness: 0,
+    isEntirelySilent: false
+});
 
 export default class LoudnessAnalyzer {
-    constructor(wasm, channelCount, sampleRate, enabled) {
-        this._maxHistoryMs = maxHistoryMs;
+    constructor(wasm, channelCount, sampleRate, {
+        loudnessNormalizationEnabled = true,
+        silenceTrimmingEnabled = true
+    }) {
+        this._maxHistoryMs = MAX_HISTORY_MS;
         this._sampleRate = sampleRate;
         this._channelCount = channelCount;
         this._wasm = wasm;
         this._ptr = 0;
         this._establishedGain = -1;
         this._framesAdded = 0;
-        this._enabled = enabled;
+        this._loudnessNormalizationEnabled = loudnessNormalizationEnabled;
+        this._silenceTrimmingEnabled = silenceTrimmingEnabled;
 
-        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, maxHistoryMs);
+        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, MAX_HISTORY_MS);
         if (err) {
-            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${maxHistoryMs}`);
+            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${MAX_HISTORY_MS}`);
         }
         this._ptr = ptr;
     }
 
-    setEnabled(enabled) {
-        this._enabled = enabled;
+    setLoudnessNormalizationEnabled(enabled) {
+        checkBoolean("enabled", enabled);
+        this._loudnessNormalizationEnabled = enabled;
     }
 
-    getLoudness(samplePtr, audioFrameCount) {
+    setSilenceTrimmingEnabled(enabled) {
+        checkBoolean("enabled", enabled);
+        this._silenceTrimmingEnabled = enabled;
+    }
+
+    getLoudnessInfo(samplePtr, audioFrameCount) {
         if (!this._ptr) {
             throw new Error(`not allocated`);
         }
+        const ret = {
+            loudness: 0,
+            isEntirelySilent: false
+        };
+        const {_loudnessNormalizationEnabled, _silenceTrimmingEnabled} = this;
 
-        if (!this._enabled) {
-            return 0;
+        if (!_loudnessNormalizationEnabled && !_silenceTrimmingEnabled) {
+            return ret;
         }
 
-        const err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, audioFrameCount);
-        if (err) {
-            throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
-        }
 
+        const momentaryLoudnessSlices = [];
+        const momentaryWindowFrameCount = MOMENTARY_WINDOW_MS / 1000 * this._sampleRate | 0;
+        let framesAdded = 0;
 
-        this._framesAdded += audioFrameCount;
+        while (framesAdded < audioFrameCount) {
+            const framesToAdd = Math.min(audioFrameCount - framesAdded, momentaryWindowFrameCount - framesAdded);
 
-        const [error, gain] = this.loudness_analyzer_get_gain(this._ptr);
-        if (error) {
-            throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
-        }
-
-        if (!this.hasEstablishedGain() && isFinite(gain)) {
-            const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
-            if (this._framesAdded >= neededFrames) {
-                this._establishedGain = gain;
+            let err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, framesToAdd);
+            if (err) {
+                throw new Error(`ebur128 error ${err} ${samplePtr} ${framesToAdd}`);
             }
+
+            samplePtr += (INT16_BYTE_SIZE * this._channelCount * framesToAdd);
+            framesAdded += framesToAdd;
+            this._framesAdded += framesToAdd;
+
+            if (_silenceTrimmingEnabled &&
+                this._framesAdded > momentaryWindowFrameCount) {
+                const retVals = this.loudness_analyzer_get_momentary_gain(this._ptr);
+                err = retVals[0];
+                if (err) {
+                    throw new Error(`ebur128 error ${err} ${this._framesAdded}`);
+                }
+                const gain = retVals[1];
+                momentaryLoudnessSlices.push(gain);
+            }
+
         }
+
+        if (_loudnessNormalizationEnabled) {
+            const [error, gain] = this.loudness_analyzer_get_gain(this._ptr);
+            if (error) {
+                throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
+            }
+
+            if (!this.hasEstablishedGain() && isFinite(gain)) {
+                const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
+                if (this._framesAdded >= neededFrames) {
+                    this._establishedGain = gain;
+                }
+            }
+
+            ret.loudness = gain;
+        }
+
+        if (_silenceTrimmingEnabled &&
+            this._framesAdded > momentaryWindowFrameCount) {
+            let isEntirelySilent = true;
+            for (let i = 0; i < momentaryLoudnessSlices.length; ++i) {
+                if (momentaryLoudnessSlices[i] < SILENCE_THRESHOLD) {
+                    isEntirelySilent = false;
+                    break;
+                }
+            }
+            ret.isEntirelySilent = isEntirelySilent;
+        }
+
+        return ret;
     }
 
     hasEstablishedGain() {
@@ -116,8 +177,13 @@ moduleEvents.on(`main_afterInitialized`, (wasm, exports) => {
         name: `loudness_analyzer_get_gain`,
         unsafeJsStack: true
     }, `integer`, `double-retval`);
+    LoudnessAnalyzer.prototype.loudness_analyzer_get_momentary_gain = wasm.createFunctionWrapper({
+        name: `loudness_analyzer_get_momentary_gain`,
+        unsafeJsStack: true
+    }, `integer`, `double-retval`);
     LoudnessAnalyzer.prototype.loudness_analyzer_destroy = exports.loudness_analyzer_destroy;
     LoudnessAnalyzer.prototype.loudness_analyzer_reinitialize = exports.loudness_analyzer_reinitialize;
     LoudnessAnalyzer.prototype.loudness_analyzer_reset = exports.loudness_analyzer_reset;
     LoudnessAnalyzer.prototype.loudness_analyzer_add_frames = exports.loudness_analyzer_add_frames;
+
 });

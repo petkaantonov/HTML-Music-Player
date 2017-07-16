@@ -8,7 +8,6 @@ import getCodecName from "audio/backend/sniffer";
 import getCodec from "audio/backend/codec";
 import demuxer from "audio/backend/demuxer";
 import CancellableOperations from "utils/CancellationToken";
-import {SILENCE_THRESHOLD} from "audio/backend/LoudnessAnalyzer";
 
 export const BUFFER_FILL_TYPE_SEEK = `BUFFER_FILL_TYPE_SEEK`;
 export const BUFFER_FILL_TYPE_REPLACEMENT = `BUFFER_FILL_TYPE_REPLACEMENT`;
@@ -101,7 +100,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             length: bufferDescriptor.length,
             startTime: bufferDescriptor.startTime,
             endTime: bufferDescriptor.endTime,
-            loudness: bufferDescriptor.loudness,
+            loudnessInfo: bufferDescriptor.loudnessInfo,
             sampleRate: bufferDescriptor.sampleRate,
             channelCount: bufferDescriptor.channelCount,
             decodingLatency: bufferDescriptor.decodingLatency,
@@ -309,7 +308,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 const now = performance.now();
                 const buffersRemainingToDecode = count - i;
                 const destinationBuffers = this._getDestinationBuffers();
-                this._loudnessAnalyzer.setEnabled(this.backend.loudnessNormalization);
+                this._loudnessAnalyzer.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization);
+                this._loudnessAnalyzer.setSilenceTrimmingEnabled(this.backend.silenceTrimming);
                 this._audioPipeline.setBufferTime(this.backend.bufferTime);
                 const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
                 this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
@@ -325,14 +325,14 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     break;
                 }
 
-                let {loudness} = bufferDescriptor;
+                let {loudnessInfo} = bufferDescriptor;
                 if (!trackMetadata.establishedGain &&
                     this._loudnessAnalyzer.hasEstablishedGain()) {
                     trackMetadata.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
                     this.backend.metadataParser.updateCachedMetadata(this.blob, trackMetadata);
                 } else if (trackMetadata.establishedGain &&
                            !this._loudnessAnalyzer.hasEstablishedGain()) {
-                    loudness = loudness < SILENCE_THRESHOLD ? trackMetadata.establishedGain : loudness;
+                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: trackMetadata.establishedGain});
                 }
 
                 const decodingLatency = performance.now() - now;
@@ -340,7 +340,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     length: Math.min(bufferDescriptor.length, targetBufferLengthAudioFrames),
                     startTime: bufferDescriptor.startTime,
                     endTime: bufferDescriptor.endTime,
-                    loudness, sampleRate, channelCount, decodingLatency,
+                    loudnessInfo, sampleRate, channelCount, decodingLatency,
                     fillTypeData: null
                 };
 

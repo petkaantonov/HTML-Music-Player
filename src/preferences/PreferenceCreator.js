@@ -142,7 +142,7 @@ const createPreferences = function(spec) {
     });
 
     Constructor.prototype.set = function(key, value) {
-        this[key] = spec.preferences[key].asValidValue(valueFunction(value));
+        this[key] = spec.preferences[key].asValidValue.call(this, valueFunction(value));
     };
 
     Constructor.prototype.get = function(key) {
