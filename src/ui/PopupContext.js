@@ -10,7 +10,7 @@ const blockerAnimationKeyFrames = [
 
 const blockerShowAnimationOptions = {
     fill: `both`,
-    duration: 230,
+    duration: 300,
     easing: DECELERATE_CUBIC
 };
 
@@ -24,16 +24,17 @@ const popupOpacityAnimationKeyFrames = [
 
 const popupShowAnimationOptions = {
     fill: `none`,
-    duration: 230,
+    duration: 300,
     easing: DECELERATE_CUBIC
 };
 
 const popupHideAnimationOptions = Object.assign({direction: `reverse`}, popupShowAnimationOptions);
 
 const popupTranslateAnimationOptions = {
-    fill: `none`,
-    duration: 230,
-    easing: DECELERATE_CUBIC
+    fill: `both`,
+    duration: 450,
+    easing: DECELERATE_CUBIC,
+    noComposite: true
 };
 
 function toPreferenceKey(popupTitle) {
@@ -89,7 +90,7 @@ export default class PopupContext {
     }
 
     isMobile() {
-        return this.env.isMobileScreenSize();
+        return this.env.hasTouch();
     }
 
     closePopups() {
@@ -109,8 +110,7 @@ export default class PopupContext {
         this.blocker = this.page.createElement(`div`, {class: `popup-blocker`}).appendTo(`body`);
         this.blocker.addEventListener(`click`, this.closePopups);
         this.blockerTapRecognizer.recognizeBubbledOn(this.blocker);
-        this.blocker.animate(blockerAnimationKeyFrames,
-                             withDuration(blockerShowAnimationOptions, this.getAnimationDuration()));
+        this.blocker.animate(blockerAnimationKeyFrames, blockerShowAnimationOptions);
     }
 
     async hideBlocker() {
@@ -130,24 +130,22 @@ export default class PopupContext {
     }
 
     getDesktopTransitionIn($node) {
-        return animationPromisify($node.animate(
-                                    $node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
-                                    withDuration(popupShowAnimationOptions, this.getAnimationDuration())));
+        return animationPromisify($node.animate($node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
+                                                popupShowAnimationOptions));
     }
 
     getDesktopTransitionOut($node) {
         return animationPromisify($node.animate(popupOpacityAnimationKeyFrames,
-                                                withDuration(popupHideAnimationOptions, this.getAnimationDuration())));
+                                                popupHideAnimationOptions));
     }
 
     getMobileTransitionIn($node, rect) {
-        return animationPromisify($node.animate($node.getTranslateKeyFrames(-rect.width, 0, 0, 0),
-                                                withDuration(popupTranslateAnimationOptions, this.getAnimationDuration())));
+        return animationPromisify($node.animateTranslate(-rect.width, 0, 0, 0, popupTranslateAnimationOptions));
+
     }
 
     getMobileTransitionOut($node, rect) {
-        return animationPromisify($node.animate($node.getTranslateKeyFrames(0, 0, -rect.width, 0),
-                                                withDuration(popupTranslateAnimationOptions, this.getAnimationDuration())));
+        return animationPromisify($node.animateTranslate(0, 0, -rect.width, 0, popupTranslateAnimationOptions));
     }
 
     closeTopPopup() {
