@@ -244,7 +244,7 @@ export default class Rippler {
 
         for (let i = 0; i < this._ongoingRipples.length; ++i) {
             if (this._ongoingRipples[i].id === id) {
-                return Promise.resolve();
+                return this._ongoingRipples[i];
             }
         }
 
