@@ -1333,15 +1333,11 @@ int ebur128_prev_true_peak(ebur128_state* st,
 }
 
 int ebur128_loudness_from_last_block(ebur128_state* st, double* out) {
-  if (st->d->block_list_size > 0) {
-    double energy = st->d->last_block_sum;
-    if (energy <= 0.0) {
-      *out = -HUGE_VAL;
-    } else {
-      *out = ebur128_energy_to_loudness(energy);
-    }
-    return EBUR128_SUCCESS;
+  double energy = st->d->last_block_sum;
+  if (energy <= 0.0) {
+    *out = -HUGE_VAL;
   } else {
-    return EBUR128_ERROR_INVALID_MODE;
+    *out = ebur128_energy_to_loudness(energy);
   }
+  return EBUR128_SUCCESS;
 }

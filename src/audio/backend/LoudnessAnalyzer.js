@@ -79,9 +79,10 @@ export default class LoudnessAnalyzer {
                 err = retVals[0];
                 if (err) {
                     throw new Error(`ebur128 error ${err} ${this._framesAdded}`);
+                } else {
+                    const gain = retVals[1];
+                    momentaryLoudnessSlices.push(gain);
                 }
-                const gain = retVals[1];
-                momentaryLoudnessSlices.push(gain);
             }
 
         }
