@@ -2,7 +2,7 @@ import FileView from "platform/FileView";
 import demuxer from "audio/backend/demuxer";
 import getCodec from "audio/backend/codec";
 import getCodecName from "audio/backend/sniffer";
-import {allocResampler, allocDecoderContext, freeResampler, freeDecoderContext} from "audio/backend/pool";
+import {allocResampler, freeResampler} from "audio/backend/pool";
 import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import Fingerprinter from "audio/backend/Fingerprinter";
@@ -96,10 +96,9 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             return result;
         }
 
-        const decoder = this.decoder = allocDecoderContext(wasm, codecName, codec, {
+        const decoder = this.decoder = new codec(wasm, {
             targetBufferLengthAudioFrames: BUFFER_DURATION * sourceSampleRate
         });
-
         decoder.start(metadata);
 
 
@@ -153,7 +152,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         this.file = null;
         this.cancellationToken = null;
         if (this.decoder) {
-            freeDecoderContext(this.codecName, this.decoder);
+            this.decoder.destroy();
             this.decoder = null;
         }
 

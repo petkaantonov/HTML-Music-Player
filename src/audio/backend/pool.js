@@ -1,7 +1,6 @@
 import Resampler from "audio/backend/Resampler";
 import LoudnessAnalyzer from "audio/backend/LoudnessAnalyzer";
 
-const decoderPool = Object.create(null);
 const resamplers = Object.create(null);
 const loudnessAnalyzers = {
     allocationCount: 0,
@@ -58,30 +57,4 @@ export function freeResampler(resampler) {
     const {nb_channels, in_rate, out_rate, quality} = resampler._passedArgs;
     const key = `${nb_channels} ${in_rate} ${out_rate} ${quality}`;
     resamplers[key].instances.push(resampler);
-}
-
-export function allocDecoderContext(wasm, name, ContextConstructor, contextOpts) {
-    let entry = decoderPool[name];
-
-    if (!entry) {
-        entry = decoderPool[name] = {
-            allocationCount: 1,
-            instances: [new ContextConstructor(wasm, contextOpts)]
-        };
-    }
-
-    if (entry.instances.length === 0) {
-        entry.instances.push(new ContextConstructor(wasm, contextOpts));
-        entry.allocationCount++;
-        if (entry.allocationCount > 4) {
-            self.uiLog(`memory leak: ${entry.allocationCount} decoders allocated with key: ${name}`);
-        }
-    }
-
-    return entry.instances.shift().reinitialized(contextOpts);
-}
-
-export function freeDecoderContext(name, context) {
-    decoderPool[name].instances.push(context);
-    context.end();
 }

@@ -1,6 +1,6 @@
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import {Blob, File, Float32Array, performance} from "platform/platform";
-import {allocDecoderContext, allocLoudnessAnalyzer, freeDecoderContext, freeLoudnessAnalyzer} from "audio/backend/pool";
+import {allocLoudnessAnalyzer, freeLoudnessAnalyzer} from "audio/backend/pool";
 import EventEmitter from "events";
 import FileView from "platform/FileView";
 import seeker from "audio/backend/seeker";
@@ -214,7 +214,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.parent = null;
 
         if (this._decoder) {
-            freeDecoderContext(this.codecName, this._decoder);
+            this._decoder.destroy();
             this._decoder = null;
         }
 
@@ -414,7 +414,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this._filePosition = this.metadata.dataStart;
             const {sampleRate, channelCount, targetBufferLengthAudioFrames} = this;
 
-            this._decoder = allocDecoderContext(wasm, codecName, codec, {
+            this._decoder = new codec(wasm, {
                 targetBufferLengthAudioFrames
             });
             this._decoder.start(metadata);
@@ -537,7 +537,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             }
 
             if (this._decoder) {
-                freeDecoderContext(this.codecName, this._decoder);
+                this._decoder.destroy();
                 this._decoder = null;
             }
 
