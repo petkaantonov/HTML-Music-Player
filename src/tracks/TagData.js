@@ -387,9 +387,11 @@ TagData.prototype.shouldRetrieveAcoustIdImage = function() {
 };
 
 TagData.prototype.setAcoustId = function(acoustId) {
-    this.acoustId = acoustId;
-    this.updateFieldsFromAcoustId(acoustId);
-    this.track.tagDataUpdated();
+    if (acoustId) {
+        this.acoustId = acoustId;
+        this.updateFieldsFromAcoustId(acoustId);
+        this.track.tagDataUpdated();
+    }
 };
 
 TagData.prototype.hasBeenAnalyzed = function() {

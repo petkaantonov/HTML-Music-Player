@@ -216,7 +216,7 @@ TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResul
         }
 
         let acoustIdFilled = null;
-        if (result && !result.acoustId && result.fingerprint && result.duration) {
+        if (result && (!result.acoustId && result.acoustId !== null) && result.fingerprint && result.duration) {
             acoustIdFilled = this.fillInAcoustId(track, result.duration, result.fingerprint);
         }
 
