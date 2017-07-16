@@ -146,7 +146,7 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
             }
             sum += value;
         }
-        return sum / this._decodingLatencyValues.length;;
+        return sum / this._decodingLatencyValues.length;
     }
 
     willUpdatePreferences(oldPreferences, newPreferences) {
@@ -156,7 +156,7 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
         }
     }
 
-    willUpdatePreference(key, oldValue, newValue) {
+    willUpdatePreference(key) {
         if (key === `bufferLengthMilliSeconds`) {
             this.bufferLengthChanged();
         }

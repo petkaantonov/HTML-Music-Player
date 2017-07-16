@@ -1,4 +1,4 @@
-import {inherits, toFunction} from "util";
+import {inherits, toFunction, _} from "util";
 import EventEmitter from "events";
 import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
@@ -80,455 +80,456 @@ const alignMap = {
 };
 
 
-function ActionMenuItem(root, spec, children, level) {
-    this.root = root;
-    this.parent = null;
-    this.children = children;
-    this.id = spec.id;
-    this.divider = !!spec.divider;
-    this.disabled = !!spec.disabled;
-    this.handler = toFunction(spec.onClick);
-    this.enabledPredicate = spec.enabledPredicate;
+class ActionMenuItem {
+    constructor(root, spec, children, level) {
+        this.root = root;
+        this.parent = null;
+        this.children = children;
+        this.id = spec.id;
+        this.divider = !!spec.divider;
+        this.disabled = !!spec.disabled;
+        this.handler = toFunction(spec.onClick);
+        this.enabledPredicate = spec.enabledPredicate;
 
-    this._preferredHorizontalDirection = `end`;
-    this._preferredVerticalDirection = `end`;
-    this._delayTimerId = -1;
-    this._content = toFunction(spec.content);
-    this._containerDom = this.page().NULL();
-    this._domNode = this._createDom();
-
-    if (this.disabled) this.$().addClass(this.root.disabledClass);
-
-    this.itemMouseEntered = this.itemMouseEntered.bind(this);
-    this.itemMouseLeft = this.itemMouseLeft.bind(this);
-    this.containerMouseEntered = this.containerMouseEntered.bind(this);
-    this.containerMouseLeft = this.containerMouseLeft.bind(this);
-    this.itemClicked = this.itemClicked.bind(this);
-    this.positionSubMenu = this.positionSubMenu.bind(this);
-    this.itemTouchStarted = this.itemTouchStarted.bind(this);
-
-    this.containerTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.containerMouseEntered);
-    this.tapRecognizer = this.root.recognizerContext.createTapRecognizer(this.itemClicked);
-    this.itemTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.itemTouchStarted);
-
-    if (this.children) {
-        this._containerDom = this._createContainerDom(level);
-        this.children.forEach(function(child) {
-            child.setParent(this);
-        }, this);
-
-        this.$().addEventListener(`mouseenter`, this.itemMouseEntered);
-        this.$().addEventListener(`mouseleave`, this.itemMouseLeft);
-        this.$container().addEventListener(`mouseenter`, this.containerMouseEntered);
-        this.$container().addEventListener(`mouseleave`, this.containerMouseLeft);
-
-        this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
-    }
-
-    if (!this.divider) {
-        this.$().addEventListener(`click`, this.itemClicked);
-        this.tapRecognizer.recognizeBubbledOn(this.$());
-        this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
-    }
-}
-
-ActionMenuItem.prototype.page = function() {
-    return this.root.page;
-};
-
-ActionMenuItem.prototype.destroy = function() {
-    this._clearDelayTimer();
-    this.$().remove();
-    this.$container().remove();
-};
-
-ActionMenuItem.prototype._clearDelayTimer = function() {
-    this.page().clearTimeout(this._delayTimerId);
-    this._delayTimerId = -1;
-};
-
-ActionMenuItem.prototype.startHideTimer = function() {
-    this._clearDelayTimer();
-    this._delayTimerId = this.page().setTimeout(() => {
+        this._preferredHorizontalDirection = `end`;
+        this._preferredVerticalDirection = `end`;
         this._delayTimerId = -1;
-        this.hideContainer();
-    }, this.root.hideDelay);
-};
+        this._content = toFunction(spec.content);
+        this._containerDom = this.page().NULL();
+        this._domNode = this._createDom();
 
-ActionMenuItem.prototype.hideChildren = function(targetMenuItem) {
-    for (let i = 0; i < this.children.length; ++i) {
-        const child = this.children[i];
-        if (child.children) {
-            if (targetMenuItem && this.page().$(targetMenuItem).closest(child.$()).length) {
-                continue;
-            }
-            child.startHideTimer();
-            child.hideChildren();
+        if (this.disabled) this.$().addClass(this.root.disabledClass);
+
+        this.itemMouseEntered = this.itemMouseEntered.bind(this);
+        this.itemMouseLeft = this.itemMouseLeft.bind(this);
+        this.containerMouseEntered = this.containerMouseEntered.bind(this);
+        this.containerMouseLeft = this.containerMouseLeft.bind(this);
+        this.itemClicked = this.itemClicked.bind(this);
+        this.positionSubMenu = this.positionSubMenu.bind(this);
+        this.itemTouchStarted = this.itemTouchStarted.bind(this);
+        this.containerTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.containerMouseEntered);
+        this.tapRecognizer = this.root.recognizerContext.createTapRecognizer(this.itemClicked);
+        this.itemTouchedRecognizer = this.root.recognizerContext.createTouchdownRecognizer(this.itemTouchStarted);
+
+        if (this.children) {
+            this._containerDom = this._createContainerDom(level);
+            this.children.forEach(function(child) {
+                child.setParent(this);
+            }, this);
+
+            this.$().addEventListener(`mouseenter`, this.itemMouseEntered);
+            this.$().addEventListener(`mouseleave`, this.itemMouseLeft);
+            this.$container().addEventListener(`mouseenter`, this.containerMouseEntered);
+            this.$container().addEventListener(`mouseleave`, this.containerMouseLeft);
+
+            this.containerTouchedRecognizer.recognizeBubbledOn(this.$container());
+        }
+
+        if (!this.divider) {
+            this.$().addEventListener(`click`, this.itemClicked);
+            this.tapRecognizer.recognizeBubbledOn(this.$());
+            this.itemTouchedRecognizer.recognizeBubbledOn(this.$());
         }
     }
-};
 
-ActionMenuItem.prototype.menuItemTouchStarted = function(child) {
-    for (let i = 0; i < this.children.length; ++i) {
-        const otherChild = this.children[i];
-        if (child !== otherChild) {
-            otherChild.removeActiveClass();
-            otherChild.hideContainer();
-        }
-    }
-};
-
-ActionMenuItem.prototype.itemTouchStarted = function(e) {
-    this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
-    const parent = this.parent ? this.parent : this.root;
-    parent.menuItemTouchStarted(this);
-    if (this.children) {
-        this.initSubMenuShowing(0);
-    }
-};
-
-ActionMenuItem.prototype.initSubMenuShowing = function(delay) {
-    this.addActiveClass();
-    this.root.clearDelayTimer();
-    this._clearDelayTimer();
-    if (this.disabled) return;
-    if (this.isShown()) {
-        this.hideChildren();
-        return;
+    page() {
+        return this.root.page;
     }
 
-    this._delayTimerId = this.page().setTimeout(() => {
-        this._delayTimerId = -1;
-        this.showContainer();
-    }, delay);
-};
-
-ActionMenuItem.prototype.itemMouseEntered = function() {
-    this.initSubMenuShowing(this.root.showDelay);
-};
-
-ActionMenuItem.prototype.itemMouseLeft = function(e) {
-    this._clearDelayTimer();
-    if (this.disabled) return;
-    if (!this.page().$(e.relatedTarget).closest(this.$container()).length) {
-        this.removeActiveClass();
-        this.startHideTimer();
-    }
-};
-
-ActionMenuItem.prototype.zIndex = function() {
-    const container = this.parent ? this.parent.$container() : this.root.$();
-    return +container.style().zIndex;
-};
-
-ActionMenuItem.prototype.containerMouseLeft = function(e) {
-    if (this.disabled) return;
-    this._clearDelayTimer();
-    const $related = this.page().$(e.relatedTarget);
-    if ($related.closest(this.$()).length) {
-        return;
-    }
-
-    const container = this.parent ? this.parent.$container() : this.root.$();
-
-    if ($related.closest(container).length) {
-        this.startHideTimer();
-        return;
-    }
-    this.root.startHideTimer();
-};
-
-ActionMenuItem.prototype.containerMouseEntered = function(e) {
-    if (this.disabled) return;
-    this.root.clearDelayTimer();
-    this._clearDelayTimer();
-    this.addActiveClass();
-    if (this.isShown()) {
-        this.hideChildren(e.target);
-    }
-};
-
-ActionMenuItem.prototype.itemClicked = function(e) {
-    if (this.disabled) {
-        this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
-        return;
-    }
-    if (this.children) {
+    destroy() {
         this._clearDelayTimer();
-        if (!this.isShown()) {
-            this.showContainer();
-        }
-    } else {
-        let prevented = false;
-        try {
-            this.handler({
-                preventDefault() {
-                    prevented = true;
-                }
-            });
-        } finally {
-            if (!prevented) {
-                this.root.hideContainer();
-                this.root.emit(`itemClick`, this.id);
-            } else {
-                this.root.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this.zIndex() + 1);
-            }
-        }
-    }
-};
-
-ActionMenuItem.prototype.$ = function() {
-    return this._domNode;
-};
-
-ActionMenuItem.prototype.$container = function() {
-    return this._containerDom;
-};
-
-ActionMenuItem.prototype._createContainerDom = function(level) {
-    const levelClass = level <= 5 ? `action-menu-level-${level}`
-                                : `action-menu-level-too-deep`;
-
-    return this.page().createElement(`div`, {
-        class: `${this.root.containerClass} ${levelClass}`
-    }).setStyles({
-        position: `absolute`,
-        zIndex: Math.max(50, level * 100000)
-    });
-};
-
-ActionMenuItem.prototype._createDom = function() {
-    if (this.divider) {
-        const node = this.page().createElement(`div`, {class: this.root.dividerClass});
-        if (typeof this.divider === `function` && !this.divider()) {
-            node.hide();
-        }
-        return node;
-    } else {
-        const content = this._content(this);
-        const node = this.page().createElement(`div`, {class: this.root.itemClass});
-        if (typeof content === `string`) {
-            node.setHtml(content);
-        } else if (content === null || typeof content === `undefined`) {
-            node.hide();
-        } else {
-            node.empty().append(content);
-        }
-        return node;
-    }
-};
-
-ActionMenuItem.prototype.refresh = function() {
-    if (!this.isShown()) return;
-
-    if (this.divider) {
-        if (typeof this.divider === `function`) {
-            if (this.divider()) {
-                this.$().show();
-            } else {
-                this.$().hide();
-            }
-        }
-        return;
+        this.$().remove();
+        this.$container().remove();
     }
 
-    const content = this._content(this);
-
-    if (typeof content === `string`) {
-        this.$().setHtml(content).show();
-    } else if (content === null || typeof content === `undefined`) {
-        this.$().empty().hide();
-    } else {
-        this.$().show().empty().append(content);
-    }
-    if (this.parent) this.parent.positionSubMenu();
-};
-
-ActionMenuItem.prototype.setParent = function(parent) {
-    this.parent = parent;
-    this.$().appendTo(this.parent.$container());
-    this.parent.$().addClass(`action-menu-sub-menu-item`);
-};
-
-ActionMenuItem.prototype.setEnabledStateFromPredicate = function(args) {
-    if (typeof this.enabledPredicate === `function`) {
-        const enabled = this.enabledPredicate.apply(null, args);
-        if (enabled) {
-            this.enable();
-        } else {
-            this.disable();
-        }
-    }
-};
-
-ActionMenuItem.prototype.enable = function() {
-    if (!this.disabled) return;
-    this.disabled = false;
-    this.$().removeClass(this.root.disabledClass);
-};
-
-ActionMenuItem.prototype.disable = function() {
-    if (this.disabled) return;
-    this.disabled = true;
-    this.$().addClass(this.root.disabledClass);
-    this.hideContainer();
-};
-
-ActionMenuItem.prototype.isShown = function() {
-    if (this.$container() !== this.page().NULL()) {
-        return this.$container().parent().length > 0;
-    }
-    return this.$().parent().length > 0;
-};
-
-ActionMenuItem.prototype.getHorizontalDirection = function() {
-    return this.parent ? this.parent._preferredHorizontalDirection
-                       : this._preferredHorizontalDirection;
-};
-
-ActionMenuItem.prototype.getVerticalDirection = function() {
-    return this.parent ? this.parent._preferredVerticalDirection
-                       : this._preferredVerticalDirection;
-};
-
-ActionMenuItem.prototype.positionInDimension = function(preferredDirection,
-                                                        coordStart,
-                                                        coordEnd,
-                                                        dimensionValue,
-                                                        maxValue) {
-    const roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
-    const roomOnStart = coordStart + 3 - dimensionValue;
-    let ret = -1;
-
-    // Doesn't fit anywhere.
-    if (roomOnStart < 0 && roomOnEnd < 0) {
-        if (roomOnStart > roomOnEnd) {
-            preferredDirection = `end`;
-            ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-        } else {
-            preferredDirection = `start`;
-            ret = Math.max(0, coordEnd - 3);
-            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-        }
-    } else {
-        while (ret < 0 || ret + dimensionValue > maxValue) {
-            if (preferredDirection === `end`) {
-                ret = Math.max(0, coordEnd - 3);
-
-                if (ret + dimensionValue > maxValue) {
-                    ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-
-                    preferredDirection = `start`;
-                }
-            } else {
-                ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-                ret = Math.min(maxValue - dimensionValue, ret);
-
-                if (ret < 0) {
-                    ret = Math.max(0, coordEnd - 3);
-                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-                    preferredDirection = `end`;
-                }
-            }
-        }
+    _clearDelayTimer() {
+        this.page().clearTimeout(this._delayTimerId);
+        this._delayTimerId = -1;
     }
 
-    return {
-        coordStart: ret,
-        preferredDirection
-    };
-};
-
-ActionMenuItem.prototype.positionSubMenu = function() {
-    const origin = {x: 0, y: 0};
-    if (!this.isShown()) return origin;
-    const itemBox = this.$()[0].getBoundingClientRect();
-    const containerBox = this.$container()[0].getBoundingClientRect();
-    const xMax = this.page().width();
-    const yMax = this.page().height();
-
-
-    let left = -1;
-    let top = -1;
-
-    let preferredDirection = this.getHorizontalDirection();
-    let positionResult =
-        this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
-    left = positionResult.coordStart;
-    this._preferredHorizontalDirection = positionResult.preferredDirection;
-
-    preferredDirection = this.getVerticalDirection();
-    positionResult =
-        this.positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
-    top = positionResult.coordStart;
-    this._preferredVerticalDirection = positionResult.preferredDirection;
-
-    this.$container().setStyles({
-        top: `${top}px`,
-        left: `${left}px`
-    });
-
-    origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
-    origin.y = top > itemBox.top + 3 ? 0 : Math.max(itemBox.top - top, 0);
-
-    return origin;
-};
-
-ActionMenuItem.prototype.addActiveClass = function() {
-    if (this.disabled) return;
-    this.$().addClass(this.root.activeSubMenuClass);
-};
-
-ActionMenuItem.prototype.removeActiveClass = function() {
-    this.$().removeClass(this.root.activeSubMenuClass);
-};
-
-ActionMenuItem.prototype.showContainer = function() {
-    this.addActiveClass();
-    this.$container().setStyle(`willChange`, `transform`).
-                    removeClass([`transition-out`, `transition-in`, `initial`]).
-                    appendTo(`body`);
-    const origin = this.positionSubMenu();
-    this.$container().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`).
-                    detach().
-                    removeClass(`transition-out`).
-                    addClass([`initial`, `transition-in`]).
-                    appendTo(`body`).
-                    forceReflow();
-
-    this.page().changeDom(() => {
-        this.$container().removeClass(`initial`);
-        this.page().setTimeout(() => {
-            this.$container().setStyle(`willChange`, ``);
-        }, TRANSITION_IN_DURATION);
-    });
-};
-
-ActionMenuItem.prototype.hideContainer = function() {
-    this._preferredVerticalDirection = `end`;
-    this._preferredHorizontalDirection = `end`;
-    this._clearDelayTimer();
-    this.$container().setStyle(`willChange`, `transform`).
-                    removeClass(`transition-in`).
-                    addClass([`initial`, `transition-out`]).
-                    forceReflow();
-
-    this.page().changeDom(() => {
-        this.$container().removeClass(`initial`);
+    startHideTimer() {
+        this._clearDelayTimer();
         this._delayTimerId = this.page().setTimeout(() => {
             this._delayTimerId = -1;
-            this.$container().detach().setStyle(`willChange`, ``);
-        }, TRANSITION_OUT_DURATION);
-    });
-    this.removeActiveClass();
-    if (this.children) {
-        this.children.forEach((child) => {
-            child.hideContainer();
+            this.hideContainer();
+        }, this.root.hideDelay);
+    }
+
+    hideChildren(targetMenuItem) {
+        for (let i = 0; i < this.children.length; ++i) {
+            const child = this.children[i];
+            if (child.children) {
+                if (targetMenuItem && this.page().$(targetMenuItem).closest(child.$()).length) {
+                    continue;
+                }
+                child.startHideTimer();
+                child.hideChildren();
+            }
+        }
+    }
+
+    menuItemTouchStarted(child) {
+        for (let i = 0; i < this.children.length; ++i) {
+            const otherChild = this.children[i];
+            if (child !== otherChild) {
+                otherChild.removeActiveClass();
+                otherChild.hideContainer();
+            }
+        }
+    }
+
+    itemTouchStarted(e) {
+        this.root.rippleEventTarget(e, this.zIndex() + 1);
+        const parent = this.parent ? this.parent : this.root;
+        parent.menuItemTouchStarted(this);
+        if (this.children) {
+            this.initSubMenuShowing(0);
+        }
+    }
+
+    initSubMenuShowing(delay) {
+        this.addActiveClass();
+        this.root.clearDelayTimer();
+        this._clearDelayTimer();
+        if (this.disabled) return;
+        if (this.isShown()) {
+            this.hideChildren();
+            return;
+        }
+
+        this._delayTimerId = this.page().setTimeout(() => {
+            this._delayTimerId = -1;
+            this.showContainer();
+        }, delay);
+    }
+
+    itemMouseEntered() {
+        this.initSubMenuShowing(this.root.showDelay);
+    }
+
+    itemMouseLeft(e) {
+        this._clearDelayTimer();
+        if (this.disabled) return;
+        if (!this.page().$(e.relatedTarget).closest(this.$container()).length) {
+            this.removeActiveClass();
+            this.startHideTimer();
+        }
+    }
+
+    zIndex() {
+        const container = this.parent ? this.parent.$container() : this.root.$();
+        return +container.style().zIndex;
+    }
+
+    containerMouseLeft(e) {
+        if (this.disabled) return;
+        this._clearDelayTimer();
+        const $related = this.page().$(e.relatedTarget);
+        if ($related.closest(this.$()).length) {
+            return;
+        }
+
+        const container = this.parent ? this.parent.$container() : this.root.$();
+
+        if ($related.closest(container).length) {
+            this.startHideTimer();
+            return;
+        }
+        this.root.startHideTimer();
+    }
+
+    containerMouseEntered(e) {
+        if (this.disabled) return;
+        this.root.clearDelayTimer();
+        this._clearDelayTimer();
+        this.addActiveClass();
+        if (this.isShown()) {
+            this.hideChildren(e.target);
+        }
+    }
+
+    itemClicked(e) {
+        if (this.disabled) {
+            this.root.rippleEventTarget(e, this.zIndex() + 1);
+            return;
+        }
+        if (this.children) {
+            this._clearDelayTimer();
+            if (!this.isShown()) {
+                this.showContainer();
+            }
+        } else {
+            let prevented = false;
+            try {
+                this.handler({
+                    preventDefault() {
+                        prevented = true;
+                    }
+                });
+            } finally {
+                if (!prevented) {
+                    this.root.hideContainer();
+                    this.root.emit(`itemClick`, this.id);
+                } else {
+                    this.root.rippleEventTarget(e, this.zIndex() + 1);
+                }
+            }
+        }
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    $container() {
+        return this._containerDom;
+    }
+
+    _createContainerDom(level) {
+        const levelClass = level <= 5 ? `action-menu-level-${level}`
+                                    : `action-menu-level-too-deep`;
+
+        return this.page().createElement(`div`, {
+            class: `${this.root.containerClass} ${levelClass}`
+        }).setStyles({
+            position: `absolute`,
+            zIndex: Math.max(50, level * 100000)
         });
     }
-};
+
+    _createDom() {
+        if (this.divider) {
+            const node = this.page().createElement(`div`, {class: this.root.dividerClass});
+            if (typeof this.divider === `function` && !this.divider()) {
+                node.hide();
+            }
+            return node;
+        } else {
+            const content = this._content(this);
+            const node = this.page().createElement(`div`, {class: this.root.itemClass});
+            if (typeof content === `string`) {
+                node.setHtml(content);
+            } else if (content === null || typeof content === `undefined`) {
+                node.hide();
+            } else {
+                node.empty().append(content);
+            }
+            return node;
+        }
+    }
+
+    refresh() {
+        if (!this.isShown()) return;
+
+        if (this.divider) {
+            if (typeof this.divider === `function`) {
+                if (this.divider()) {
+                    this.$().show();
+                } else {
+                    this.$().hide();
+                }
+            }
+            return;
+        }
+
+        const content = this._content(this);
+
+        if (typeof content === `string`) {
+            this.$().setHtml(content).show();
+        } else if (content === null || typeof content === `undefined`) {
+            this.$().empty().hide();
+        } else {
+            this.$().show().empty().append(content);
+        }
+        if (this.parent) this.parent.positionSubMenu();
+    }
+
+    setParent(parent) {
+        this.parent = parent;
+        this.$().appendTo(this.parent.$container());
+        this.parent.$().addClass(`action-menu-sub-menu-item`);
+    }
+
+    setEnabledStateFromPredicate(args) {
+        if (typeof this.enabledPredicate === `function`) {
+            const enabled = this.enabledPredicate.apply(null, args);
+            if (enabled) {
+                this.enable();
+            } else {
+                this.disable();
+            }
+        }
+    }
+
+    enable() {
+        if (!this.disabled) return;
+        this.disabled = false;
+        this.$().removeClass(this.root.disabledClass);
+    }
+
+    disable() {
+        if (this.disabled) return;
+        this.disabled = true;
+        this.$().addClass(this.root.disabledClass);
+        this.hideContainer();
+    }
+
+    isShown() {
+        if (this.$container() !== this.page().NULL()) {
+            return this.$container().parent().length > 0;
+        }
+        return this.$().parent().length > 0;
+    }
+
+    getHorizontalDirection() {
+        return this.parent ? this.parent._preferredHorizontalDirection
+                           : this._preferredHorizontalDirection;
+    }
+
+    getVerticalDirection() {
+        return this.parent ? this.parent._preferredVerticalDirection
+                           : this._preferredVerticalDirection;
+    }
+
+    positionInDimension(preferredDirection,
+                        coordStart,
+                        coordEnd,
+                        dimensionValue,
+                        maxValue) {
+        const roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
+        const roomOnStart = coordStart + 3 - dimensionValue;
+        let ret = -1;
+
+        // Doesn't fit anywhere.
+        if (roomOnStart < 0 && roomOnEnd < 0) {
+            if (roomOnStart > roomOnEnd) {
+                preferredDirection = `end`;
+                ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+            } else {
+                preferredDirection = `start`;
+                ret = Math.max(0, coordEnd - 3);
+                ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+            }
+        } else {
+            while (ret < 0 || ret + dimensionValue > maxValue) {
+                if (preferredDirection === `end`) {
+                    ret = Math.max(0, coordEnd - 3);
+
+                    if (ret + dimensionValue > maxValue) {
+                        ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                        ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+
+                        preferredDirection = `start`;
+                    }
+                } else {
+                    ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                    ret = Math.min(maxValue - dimensionValue, ret);
+
+                    if (ret < 0) {
+                        ret = Math.max(0, coordEnd - 3);
+                        ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+                        preferredDirection = `end`;
+                    }
+                }
+            }
+        }
+
+        return {
+            coordStart: ret,
+            preferredDirection
+        };
+    }
+
+    positionSubMenu() {
+        const origin = {x: 0, y: 0};
+        if (!this.isShown()) return origin;
+        const itemBox = this.$()[0].getBoundingClientRect();
+        const containerBox = this.$container()[0].getBoundingClientRect();
+        const xMax = this.page().width();
+        const yMax = this.page().height();
+
+
+        let left = -1;
+        let top = -1;
+
+        let preferredDirection = this.getHorizontalDirection();
+        let positionResult =
+            this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
+        left = positionResult.coordStart;
+        this._preferredHorizontalDirection = positionResult.preferredDirection;
+
+        preferredDirection = this.getVerticalDirection();
+        positionResult =
+            this.positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
+        top = positionResult.coordStart;
+        this._preferredVerticalDirection = positionResult.preferredDirection;
+
+        this.$container().setStyles({
+            top: `${top}px`,
+            left: `${left}px`
+        });
+
+        origin.x = left > itemBox.left + 3 ? 0 : containerBox.width;
+        origin.y = top > itemBox.top + 3 ? 0 : Math.max(itemBox.top - top, 0);
+
+        return origin;
+    }
+
+    addActiveClass() {
+        if (this.disabled) return;
+        this.$().addClass(this.root.activeSubMenuClass);
+    }
+
+    removeActiveClass() {
+        this.$().removeClass(this.root.activeSubMenuClass);
+    }
+
+    showContainer() {
+        this.addActiveClass();
+        this.$container().setStyle(`willChange`, `transform`).
+                        removeClass([`transition-out`, `transition-in`, `initial`]).
+                        appendTo(`body`);
+        const origin = this.positionSubMenu();
+        this.$container().setTransformOrigin(`${origin.x}px ${origin.y}px 0px`).
+                        detach().
+                        removeClass(`transition-out`).
+                        addClass([`initial`, `transition-in`]).
+                        appendTo(`body`).
+                        forceReflow();
+
+        this.page().changeDom(() => {
+            this.$container().removeClass(`initial`);
+            this.page().setTimeout(() => {
+                this.$container().setStyle(`willChange`, ``);
+            }, TRANSITION_IN_DURATION);
+        });
+    }
+
+    hideContainer() {
+        this._preferredVerticalDirection = `end`;
+        this._preferredHorizontalDirection = `end`;
+        this._clearDelayTimer();
+        this.$container().setStyle(`willChange`, `transform`).
+                        removeClass(`transition-in`).
+                        addClass([`initial`, `transition-out`]).
+                        forceReflow();
+
+        this.page().changeDom(() => {
+            this.$container().removeClass(`initial`);
+            this._delayTimerId = this.page().setTimeout(() => {
+                this._delayTimerId = -1;
+                this.$container().detach().setStyle(`willChange`, ``);
+            }, TRANSITION_OUT_DURATION);
+        });
+        this.removeActiveClass();
+        if (this.children) {
+            this.children.forEach((child) => {
+                child.hideContainer();
+            });
+        }
+    }
+}
 
 function createMenuItem(root, spec, level) {
     let children = null;
@@ -539,164 +540,182 @@ function createMenuItem(root, spec, level) {
     return new ActionMenuItem(root, spec, children, level);
 }
 
-export default function ActionMenu(opts, deps) {
-    EventEmitter.call(this);
-    opts = Object(opts);
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.rippler = deps.rippler;
-    this.recognizerContext = deps.recognizerContext;
+export default class ActionMenu extends EventEmitter {
+    constructor(opts, deps) {
+        super();
+        opts = Object(opts);
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.rippler = deps.rippler;
+        this.recognizerContext = deps.recognizerContext;
 
-    this.rootClass = opts.rootClass;
-    this.containerClass = opts.containerClass;
-    this.itemClass = opts.itemClass;
-    this.disabledClass = opts.disabledClass;
-    this.dividerClass = opts.dividerClass;
-    this.activeSubMenuClass = opts.activeSubMenuClass;
-    this.showDelay = Math.min(1000, Math.max(0, opts.subMenuShowDelay));
-    this.hideDelay = Math.min(3000, Math.max(0, opts.subMenuHideDelay));
+        this.rootClass = opts.rootClass;
+        this.containerClass = opts.containerClass;
+        this.itemClass = opts.itemClass;
+        this.disabledClass = opts.disabledClass;
+        this.dividerClass = opts.dividerClass;
+        this.activeSubMenuClass = opts.activeSubMenuClass;
+        this.showDelay = Math.min(1000, Math.max(0, opts.subMenuShowDelay));
+        this.hideDelay = Math.min(3000, Math.max(0, opts.subMenuHideDelay));
 
-    this._delayTimerId = -1;
-    this._domNode = this.page.createElement(`div`, {
-        class: this.rootClass
-    });
+        this._delayTimerId = -1;
+        this._domNode = this.page.createElement(`div`, {
+            class: this.rootClass
+        });
 
-    this._menuItems = opts.menu.map(function(spec) {
-        return createMenuItem(this, spec, opts._initialLevel || 1);
-    }, this);
+        this._menuItems = opts.menu.map(function(spec) {
+            return createMenuItem(this, spec, opts._initialLevel || 1);
+        }, this);
 
-    this._menuItems.forEach(function(item) {
-        item.$().appendTo(this.$());
-    }, this);
+        this._menuItems.forEach(function(item) {
+            item.$().appendTo(this.$());
+        }, this);
 
-    this._idToItem = {};
-    this.forEach(function(item) {
-        if (item.divider) return;
-        if (!item.id) {
-            throw new Error(`unique id is required for menu item`);
+        this._currentRipple = null;
+        this._idToItem = {};
+        this.forEach(function(item) {
+            if (item.divider) return;
+            if (!item.id) {
+                throw new Error(`unique id is required for menu item`);
+            }
+            const id = `${item.id}`;
+
+            if (this._idToItem[id]) {
+                throw new Error(`unique id is required for menu item. ${id} is duplicate.`);
+            }
+
+            this._idToItem[id] = item;
+        }, this);
+    }
+
+    async rippleEventTarget(e, zIndex) {
+        const ripple = this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, zIndex);
+        this._currentRipple = ripple;
+        await ripple.finished();
+        if (this._currentRipple === ripple) {
+            this._currentRipple = null;
         }
-        const id = `${item.id}`;
+    }
 
-        if (this._idToItem[id]) {
-            throw new Error(`unique id is required for menu item. ${id} is duplicate.`);
+    cancelRipple() {
+        if (this._currentRipple) {
+            this._currentRipple.cancel();
+            this._currentRipple = null;
+        }
+    }
+
+    setEnabledStateFromPredicate(...args) {
+        this.forEach((item) => {
+            if (item.divider) return;
+            item.setEnabledStateFromPredicate(args);
+        });
+    }
+
+    destroy() {
+        this.cancelRipple();
+        this.clearDelayTimer();
+        this.forEach(_.destroy);
+        this.hideContainer();
+        this.$().remove();
+        this.removeAllListeners();
+    }
+
+    menuItemTouchStarted(child) {
+        for (let i = 0; i < this._menuItems.length; ++i) {
+            const otherChild = this._menuItems[i];
+            if (child !== otherChild) {
+                otherChild.removeActiveClass();
+                otherChild.hideContainer();
+            }
+        }
+    }
+
+    $containers() {
+        let ret = this.$();
+        this.forEach((item) => {
+            if (item.children && item.isShown()) {
+                ret = ret.add(item.$container()[0]);
+            }
+        });
+        return ret;
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    clearDelayTimer() {
+        this.page.clearTimeout(this._delayTimerId);
+        this._delayTimerId = -1;
+    }
+
+    startHideTimer() {
+        this.clearDelayTimer();
+        this._delayTimerId = this.page.setTimeout(() => {
+            this._delayTimerId = -1;
+            this.hideContainer();
+        }, this.hideDelay);
+    }
+
+    hideContainer() {
+        this.cancelRipple();
+        this._menuItems.forEach((item) => {
+            item.hideContainer();
+        });
+    }
+
+    forEach(fn, ctx) {
+        const items = this._menuItems.slice();
+        let index = 0;
+
+        while (items.length > 0) {
+            const item = items.shift();
+
+            if (item.children) {
+                items.push(...item.children);
+            }
+
+            if (fn.call(ctx || item, item, index) === false) return;
+            index++;
+        }
+    }
+
+    refreshAll() {
+        this.forEach(ActionMenuItem.prototype.refresh);
+    }
+
+    disableAll() {
+        this.forEach(ActionMenuItem.prototype.disable);
+        this.emit(`activationChange`, this);
+    }
+
+    enableAll() {
+        this.forEach(ActionMenuItem.prototype.enable);
+        this.emit(`activationChange`, this);
+    }
+
+    disable(actions) {
+        if (!Array.isArray(actions)) {
+            actions = [actions];
         }
 
-        this._idToItem[id] = item;
-    }, this);
+        actions.forEach(function(action) {
+            this._idToItem[action].disable();
+        }, this);
+        this.emit(`activationChange`, this);
+    }
+
+    enable(actions) {
+        if (!Array.isArray(actions)) {
+            actions = [actions];
+        }
+        actions.forEach(function(action) {
+            this._idToItem[action].enable();
+        }, this);
+        this.emit(`activationChange`, this);
+    }
 
 }
-inherits(ActionMenu, EventEmitter);
-
-ActionMenu.prototype.setEnabledStateFromPredicate = function(...args) {
-    this.forEach((item) => {
-        if (item.divider) return;
-        item.setEnabledStateFromPredicate(args);
-    });
-};
-
-ActionMenu.prototype.destroy = function() {
-    this.clearDelayTimer();
-    this.forEach((child) => {
- child.destroy();
-});
-    this.hideContainer();
-    this.$().remove();
-    this.removeAllListeners();
-};
-
-ActionMenu.prototype.menuItemTouchStarted = function(child) {
-    for (let i = 0; i < this._menuItems.length; ++i) {
-        const otherChild = this._menuItems[i];
-        if (child !== otherChild) {
-            otherChild.removeActiveClass();
-            otherChild.hideContainer();
-        }
-    }
-};
-
-ActionMenu.prototype.$containers = function() {
-    let ret = this.$();
-    this.forEach((item) => {
-        if (item.children && item.isShown()) {
-            ret = ret.add(item.$container()[0]);
-        }
-    });
-    return ret;
-};
-
-ActionMenu.prototype.$ = function() {
-    return this._domNode;
-};
-
-ActionMenu.prototype.clearDelayTimer = function() {
-    this.page.clearTimeout(this._delayTimerId);
-    this._delayTimerId = -1;
-};
-
-ActionMenu.prototype.startHideTimer = function() {
-    this.clearDelayTimer();
-    this._delayTimerId = this.page.setTimeout(() => {
-        this._delayTimerId = -1;
-        this.hideContainer();
-    }, this.hideDelay);
-};
-
-ActionMenu.prototype.hideContainer = function() {
-    this._menuItems.forEach((item) => {
-        item.hideContainer();
-    });
-};
-
-ActionMenu.prototype.forEach = function(fn, ctx) {
-    const items = this._menuItems.slice();
-    let index = 0;
-
-    while (items.length > 0) {
-        const item = items.shift();
-
-        if (item.children) {
-            items.push(...item.children);
-        }
-
-        if (fn.call(ctx || item, item, index) === false) return;
-        index++;
-    }
-};
-
-ActionMenu.prototype.refreshAll = function() {
-    this.forEach(ActionMenuItem.prototype.refresh);
-};
-
-ActionMenu.prototype.disableAll = function() {
-    this.forEach(ActionMenuItem.prototype.disable);
-    this.emit(`activationChange`, this);
-};
-
-ActionMenu.prototype.enableAll = function() {
-    this.forEach(ActionMenuItem.prototype.enable);
-    this.emit(`activationChange`, this);
-};
-
-ActionMenu.prototype.disable = function(actions) {
-    if (!Array.isArray(actions)) {
-        actions = [actions];
-    }
-
-    actions.forEach(function(action) {
-        this._idToItem[action].disable();
-    }, this);
-    this.emit(`activationChange`, this);
-};
-
-ActionMenu.prototype.enable = function(actions) {
-    if (!Array.isArray(actions)) {
-        actions = [actions];
-    }
-    actions.forEach(function(action) {
-        this._idToItem[action].enable();
-    }, this);
-    this.emit(`activationChange`, this);
-};
 
 export class ButtonMenu extends EventEmitter {
     constructor(opts, deps) {
@@ -853,7 +872,7 @@ export class ButtonMenu extends EventEmitter {
     }
 
     buttonClicked(e) {
-        this._menu.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, this._zIndex);
+        this._menu.rippleEventTarget(e, this._zIndex);
         if (this._shown) {
             this.hide();
         } else {

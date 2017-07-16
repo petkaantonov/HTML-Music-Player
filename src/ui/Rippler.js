@@ -1,4 +1,4 @@
-import {noUndefinedGet, animationPromisify} from "util";
+import {noUndefinedGet, animationPromisify, _} from "util";
 import {DECELERATE_QUINT, LINEAR} from "ui/animation/easing";
 
 const BOUNDED_OPACITY_DURATION = 850;
@@ -63,6 +63,11 @@ class Ripple {
         this.type = `unbounded`;
         this.id = null;
         this.end = this.end.bind(this);
+        this._promise = null;
+    }
+
+    finished() {
+        return Promise.resolve(this._promise);
     }
 
     $bounder() {
@@ -144,7 +149,8 @@ class Ripple {
         this.animations = [opacityAnimation, scaleAnimation];
 
         try {
-            await Promise.all(this.animations.map(animationPromisify));
+            this._promise = Promise.all(this.animations.map(animationPromisify));
+            await this._promise;
         } finally {
             this.end();
         }
@@ -169,13 +175,23 @@ class Ripple {
                                                       unboundedScaleAnimationOptions);
         this.animations = [opacityAnimation, scaleAnimation];
         try {
-            await Promise.all(this.animations.map(animationPromisify));
+            this._promise = Promise.all(this.animations.map(animationPromisify));
+            await this._promise;
         } finally {
             this.end();
         }
     }
 
+    cancel() {
+        if (this.animations) {
+            this.animations.forEach(_.cancel);
+            this.$bounder().remove();
+            this.$ripple().remove();
+        }
+    }
+
     end() {
+        this._promise = null;
         this.animations = null;
         this.$bounder().remove();
         this.$ripple().remove();
@@ -249,7 +265,7 @@ export default class Rippler {
                 }
             }
         }
-        return ret;
+        return ripple;
     }
 
     rippleAt(x, y, size, color = `#777`) {

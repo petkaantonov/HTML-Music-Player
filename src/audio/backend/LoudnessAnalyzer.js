@@ -34,12 +34,12 @@ export default class LoudnessAnalyzer {
     }
 
     setLoudnessNormalizationEnabled(enabled) {
-        checkBoolean("enabled", enabled);
+        checkBoolean(`enabled`, enabled);
         this._loudnessNormalizationEnabled = enabled;
     }
 
     setSilenceTrimmingEnabled(enabled) {
-        checkBoolean("enabled", enabled);
+        checkBoolean(`enabled`, enabled);
         this._silenceTrimmingEnabled = enabled;
     }
 

@@ -112,9 +112,10 @@ export default class MainTabs {
 
             this.selectionStatus.on(`unselectAll`,
                                     this.withActiveContentInstance.bind(this, _call.clearSelection()));
-
             this.selectionStatus.on(`selectAll`,
                                     this.withActiveContentInstance.bind(this, _call.selectAll()));
+            this.selectionStatus.on(`emptySelection`,
+                                    this.withActiveMenuInstance.bind(this, _call.hide()));
         } else {
             this.playlistContextMenu = this.menuContext.createContextMenu(this.playlistActionSpec);
             this.searchContextMenu = this.menuContext.createContextMenu(this.searchActionSpec);
