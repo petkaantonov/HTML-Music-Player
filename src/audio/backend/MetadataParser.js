@@ -157,9 +157,16 @@ export default class MetadataParser {
 
         let result;
         let retries = 0;
+        let fullResponse = null;
         while (retries < 5) {
             try {
                 const response = await ajaxGet(url);
+                if (response &&
+                    response.status !== "error" &&
+                    response.results &&
+                    response.results.length > 0) {
+                    fullResponse = response.results;
+                }
                 result = parseAcoustId(response);
                 break;
             } catch (e) {
@@ -169,7 +176,7 @@ export default class MetadataParser {
                 retries++;
             }
         }
-        this._tagDatabase.updateAcoustId(uid, result);
+        this._tagDatabase.updateAcoustId(uid, result, fullResponse);
         return result;
 
     }

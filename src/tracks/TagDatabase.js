@@ -117,7 +117,7 @@ const fieldUpdater = function(...fieldNames) {
     };
 };
 
-TagDatabase.prototype.updateAcoustId = fieldUpdater(`acoustId`).method;
+TagDatabase.prototype.updateAcoustId = fieldUpdater(`acoustId`, `acoustIdFullResponse`).method;
 TagDatabase.prototype.updateRating = fieldUpdater(`rating`).method;
 TagDatabase.prototype.updateHasCoverArt = fieldUpdater(`hasCoverArt`).method;
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater(`playthroughCounter`, `lastPlayed`).method;
