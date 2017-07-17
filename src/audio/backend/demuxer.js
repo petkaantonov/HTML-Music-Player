@@ -1,7 +1,8 @@
 import {Uint16Array, Uint8Array} from "platform/platform";
 
+export const MINIMUM_DURATION = 3;
+
 const SAMPLES_PER_FRAME_DEFAULT = 1152;
-const MINIMUM_DURATION = 3;
 const MP3_DECODER_DELAY = 529;
 const mp3_freq_tab = new Uint16Array([44100, 48000, 32000]);
 const mp3_bitrate_tab = new Uint16Array([

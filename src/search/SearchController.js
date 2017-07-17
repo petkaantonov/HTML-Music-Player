@@ -1,16 +1,13 @@
-import withDeps from "ApplicationDependencies";
-import TrackContainerTrait from "tracks/TrackContainerTrait";
-import {buildConsecutiveRanges, indexMapper, normalizeQuery, throttle, noUndefinedGet} from "util";
-import Selectable from "ui/Selectable";
+import {buildConsecutiveRanges, indexMapper, normalizeQuery, throttle} from "util";
 import {byTransientId} from "tracks/Track";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import SearchResultTrackView from "search/SearchResultTrackView";
 import {insert} from "search/sortedArrays";
 import {cmp} from "search/SearchResult";
-import TrackRater from "tracks/TrackRater";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
+import TrackContainerController from "tracks/TrackContainerController";
 
 const cmpTrackView = function(a, b) {
     return cmp(a._result, b._result);
@@ -82,7 +79,7 @@ class SearchSession {
     }
 
     update() {
-        this._search.postMessage({
+        this._search._searchFrontend.postMessage({
             action: `search`,
             args: {
                 sessionId: this._id,
@@ -115,39 +112,32 @@ class SearchSession {
     }
 }
 
-export default class Search extends WorkerFrontend {
-    constructor(opts, deps) {
+class SearchFrontend extends WorkerFrontend {
+    constructor(searchController, deps) {
         super(SEARCH_READY_EVENT_NAME, deps.workerWrapper);
-        opts = noUndefinedGet(opts);
-        this.page = deps.page;
-        this.rippler = deps.rippler;
-        this.globalEvents = deps.globalEvents;
-        this.env = deps.env;
-        this.menuContext = deps.menuContext;
-        this.recognizerContext = deps.recognizerContext;
-        this.db = deps.db;
-        this.dbValues = deps.dbValues;
-        this.keyboardShortcuts = deps.keyboardShortcuts;
+        this.searchController = searchController;
+    }
 
-        this._trackRater = withDeps({
-            page: this.page,
-            recognizerContext: this.recognizerContext,
-            rippler: this.rippler
-        }, d => new TrackRater({zIndex}, d));
-        this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
-        this._singleTrackViewSelected = null;
+    receiveMessage(event) {
+        const {_session} = this.searchController;
+        if (_session) {
+            _session._messaged(event);
+        }
+    }
+}
 
+export default class SearchController extends TrackContainerController {
+    constructor(opts, deps) {
+        opts.trackRaterZIndex = zIndex;
+        super(opts, deps);
         this._trackAnalyzer = deps.trackAnalyzer;
-        this._domNode = this.page.$(opts.target).eq(0);
-        this._trackContainer = this.$().find(`.tracklist-transform-container`);
+        this._searchFrontend = new SearchFrontend(this, deps);
         this._inputNode = this.$().find(`.search-input-box`);
         this._dataListNode = this.$().find(`.search-history`);
         this._inputContainerNode = this.$().find(`.search-input-container`);
-        this._trackViews = [];
         this._searchHistory = [];
         this._session = null;
         this._playlist = deps.playlist;
-        this._selectable = withDeps({page: this.page}, d => new Selectable({listView: this}, d));
         this._trackViewOptions = new TrackViewOptions(false,
                                                       opts.itemHeight,
                                                       this._playlist,
@@ -162,61 +152,7 @@ export default class Search extends WorkerFrontend {
         this._dirty = false;
         this._nextSessionId = 0;
 
-        this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
-            target: this.$(),
-            itemList: this._trackViews,
-            contentContainer: this.$trackContainer(),
-            minPrerenderedItems: 6,
-            maxPrerenderedItems: 12
-        });
-
-        this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
-        this._keyboardShortcutContext.addShortcut(`ctrl+f`, this._focusInput.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+a`, this.selectAll.bind(this));
-        this._keyboardShortcutContext.addShortcut(`Enter`, this.playPrioritySelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`ArrowUp`, this.selectPrev.bind(this));
-        this._keyboardShortcutContext.addShortcut(`ArrowDown`, this.selectNext.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+ArrowUp`, this.selectPrevAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+ArrowDown`, this.selectNextAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+ArrowDown`, this.removeTopmostSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+ArrowUp`, this.removeBottommostSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+ArrowUp`, this.moveSelectionUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+ArrowDown`, this.moveSelectionDown.bind(this));
-        this._keyboardShortcutContext.addShortcut(`PageUp`, this.selectPagePrev.bind(this));
-        this._keyboardShortcutContext.addShortcut(`PageDown`, this.selectPageNext.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+PageUp`, this.selectPagePrevAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+PageDown`, this.selectPageNextAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+PageDown`, this.removeTopmostPageSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+PageUp`, this.removeBottommostPageSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+PageUp`, this.moveSelectionPageUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+PageDown`, this.moveSelectionPageDown.bind(this));
-        this._keyboardShortcutContext.addShortcut(`Home`, this.selectFirst.bind(this));
-        this._keyboardShortcutContext.addShortcut(`End`, this.selectLast.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+Home`, this.selectAllUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+End`, this.selectAllDown.bind(this));
-
-        [1, 2, 3, 4, 5].forEach((ratingValue) => {
-            this._keyboardShortcutContext.addShortcut(`alt+${ratingValue}`, () => {
-                if (this._selectable.getSelectedItemViewCount() !== 1) return;
-                const trackView = this._selectable.first();
-                if (trackView) {
-                    trackView.track().rate(ratingValue);
-                }
-            });
-        });
-
-        this._keyboardShortcutContext.addShortcut(`alt+0`, () => {
-            if (this._selectable.getSelectedItemViewCount() !== 1) return;
-            const trackView = this._selectable.first();
-            if (trackView) trackView.track().rate(-1);
-        });
-
-        this._bindListEvents();
-
         this.metadataUpdated = this.metadataUpdated.bind(this);
-
-        this.globalEvents.on(`resize`, this._windowLayoutChanged.bind(this));
-        this.globalEvents.on(`clear`, this.clearSelection.bind(this));
         this._trackAnalyzer.on(`metadataUpdate`, this.metadataUpdated);
         this._playlist.on(`lengthChange`, this.metadataUpdated);
 
@@ -229,7 +165,11 @@ export default class Search extends WorkerFrontend {
         if (SEARCH_HISTORY_KEY in this.dbValues) {
             this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
         }
+    }
 
+    bindKeyboardShortcuts() {
+        super.bindKeyboardShortcuts();
+        this._keyboardShortcutContext.addShortcut(`ctrl+f`, this._focusInput.bind(this));
     }
 
     _createSingleTrackMenu() {
@@ -265,30 +205,8 @@ export default class Search extends WorkerFrontend {
         return ret;
     }
 
-    openSingleTrackMenu(trackView, eventTarget, event) {
-        this._trackRater.enable(trackView.track());
-        this._singleTrackViewSelected = trackView;
-        this._singleTrackMenu.show(event, () => {
-            const box = eventTarget.getBoundingClientRect();
-            return {
-                x: box.right - 5,
-                y: box.top
-            };
-        });
-    }
-
-    getTrackRater() {
-        return this._trackRater;
-    }
-
-    receiveMessage(event) {
-        if (this._session) {
-            this._session._messaged(event);
-        }
-    }
-
     updateSearchIndex(track, metadata) {
-        this.postMessage({
+        this._searchFrontend.postMessage({
             action: `updateSearchIndex`,
             args: {
                 transientId: track.transientId(),
@@ -298,18 +216,10 @@ export default class Search extends WorkerFrontend {
     }
 
     removeFromSearchIndex(track) {
-        this.postMessage({
+        this._searchFrontend.postMessage({
             action: `removeFromSearchIndex`,
             args: {transientId: track.transientId()}
         });
-    }
-
-    $() {
-        return this._domNode;
-    }
-
-    $trackContainer() {
-        return this._trackContainer;
     }
 
     $input() {
@@ -329,18 +239,11 @@ export default class Search extends WorkerFrontend {
     }
 
     tabWillHide() {
+        super.tabWillHide();
         this._visible = false;
         this.$input().blur();
         this.$().find(`.search-next-tab-focus`).hide();
         this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
-    }
-
-    tabDidHide() {
-        // Noop
-    }
-
-    tabWillShow() {
-        // Noop
     }
 
     tabDidShow() {
@@ -350,7 +253,7 @@ export default class Search extends WorkerFrontend {
         if (!this.env.isMobile() || !this._session || !this._session._resultCount) {
             this.$input().focus();
         }
-        this._fixedItemListScroller.resize();
+        super.tabDidShow();
         this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
 
         if (this._dirty && this._session) {
@@ -479,10 +382,6 @@ export default class Search extends WorkerFrontend {
         }
     }
 
-    _windowLayoutChanged() {
-        this.page.requestAnimationFrame(() => this._fixedItemListScroller.resize());
-    }
-
     _inputKeydowned(e) {
         if (e.key === `Enter`) {
             e.target.blur();
@@ -601,14 +500,8 @@ export default class Search extends WorkerFrontend {
         if (first) first = first.track();
         this.changeTrackExplicitly(first);
     }
-
-    get length() {
-        return this._trackViews.length;
-    }
-
 }
 
-Search.prototype.updateResults = throttle(Search.prototype.updateResults, 50);
-Search.prototype._gotInput = throttle(Search.prototype._gotInput, 33);
-Search.prototype.saveHistory = throttle(Search.prototype.saveHistory, 1000);
-Object.assign(Search.prototype, TrackContainerTrait);
+SearchController.prototype.updateResults = throttle(SearchController.prototype.updateResults, 50);
+SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);
+SearchController.prototype.saveHistory = throttle(SearchController.prototype.saveHistory, 1000);

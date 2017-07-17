@@ -1,15 +1,12 @@
 import {buildConsecutiveRanges, indexMapper} from "util";
-import Selectable from "ui/Selectable";
+import withDeps from "ApplicationDependencies";
 import DraggableSelection from "ui/DraggableSelection";
 import Track from "tracks/Track";
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
-import TrackContainerTrait from "tracks/TrackContainerTrait";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import withDeps from "ApplicationDependencies";
-import TrackRater from "tracks/TrackRater";
-import EventEmitter from "events";
+import TrackContainerController from "tracks/TrackContainerController";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
@@ -114,39 +111,24 @@ class TrackListDeletionUndo {
     }
 }
 
-export default class Playlist extends EventEmitter {
+export default class PlaylistController extends TrackContainerController {
     constructor(opts, deps) {
-        super();
-        this.page = deps.page;
-        this.menuContext = deps.menuContext;
-        this.globalEvents = deps.globalEvents;
-        this.recognizerContext = deps.recognizerContext;
-        this.keyboardShortcuts = deps.keyboardShortcuts;
-        this.env = deps.env;
-        this.db = deps.db;
-        this.dbValues = deps.dbValues;
-        this.rippler = deps.rippler;
+        opts.trackRaterZIndex = zIndex;
+        super(opts, deps);
         this.snackbar = deps.snackbar;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.tooltipContext = deps.tooltipContext;
 
-        this._trackViews = [];
-        this._unparsedTrackList = [];
-        this._trackRater = withDeps({
-            page: this.page,
-            recognizerContext: this.recognizerContext,
-            rippler: this.rippler
-        }, d => new TrackRater({zIndex}, d));
-        this._singleTrackViewSelected = null;
-        this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
 
+
+
+        this._unparsedTrackList = [];
 
         this._mode = Modes.hasOwnProperty(opts.mode) ? opts.mode : `normal`;
         this._currentTrack = null;
         this._trackListDeletionUndo = null;
         this._currentPlayId = -1;
         this._trackHistory = [];
-        this._selectable = withDeps({page: this.page}, d => new Selectable({listView: this}, d));
 
         this._trackViewOptions = new TrackViewOptions(true,
                                                       opts.itemHeight,
@@ -157,17 +139,10 @@ export default class Playlist extends EventEmitter {
                                                       null,
                                                       this.env.hasTouch());
         this._errorCount = 0;
-        this._$domNode = this.page.$(opts.target);
-        this._$trackContainer = this.$().find(`.tracklist-transform-container`);
+
         this._nextTrack = null;
 
-        this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
-            target: this.$(),
-            itemList: this._trackViews,
-            contentContainer: this.$trackContainer(),
-            minPrerenderedItems: 6,
-            maxPrerenderedItems: 12
-        });
+
 
         this._draggable = withDeps({
             recognizerContext: this.recognizerContext,
@@ -182,60 +157,21 @@ export default class Playlist extends EventEmitter {
         }, d));
         this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
 
-        this.globalEvents.on(`resize`, this._windowLayoutChanged.bind(this));
-        this.globalEvents.on(`clear`, this.clearSelection.bind(this));
 
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
         }
 
-        this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
-        this._keyboardShortcutContext.addShortcut(`mod+a`, this.selectAll.bind(this));
-        this._keyboardShortcutContext.addShortcut(`Enter`, this.playPrioritySelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`Delete`, this.removeSelected.bind(this));
-        this._keyboardShortcutContext.addShortcut(`ArrowUp`, this.selectPrev.bind(this));
-        this._keyboardShortcutContext.addShortcut(`ArrowDown`, this.selectNext.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+ArrowUp`, this.selectPrevAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+ArrowDown`, this.selectNextAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+ArrowDown`, this.removeTopmostSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+ArrowUp`, this.removeBottommostSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+ArrowUp`, this.moveSelectionUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+ArrowDown`, this.moveSelectionDown.bind(this));
-        this._keyboardShortcutContext.addShortcut(`PageUp`, this.selectPagePrev.bind(this));
-        this._keyboardShortcutContext.addShortcut(`PageDown`, this.selectPageNext.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+PageUp`, this.selectPagePrevAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+PageDown`, this.selectPageNextAppend.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+PageDown`, this.removeTopmostPageSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`alt+PageUp`, this.removeBottommostPageSelection.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+PageUp`, this.moveSelectionPageUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`mod+PageDown`, this.moveSelectionPageDown.bind(this));
-        this._keyboardShortcutContext.addShortcut(`Home`, this.selectFirst.bind(this));
-        this._keyboardShortcutContext.addShortcut(`End`, this.selectLast.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+Home`, this.selectAllUp.bind(this));
-        this._keyboardShortcutContext.addShortcut(`shift+End`, this.selectAllDown.bind(this));
-
-        [1, 2, 3, 4, 5].forEach((ratingValue) => {
-            this._keyboardShortcutContext.addShortcut(`alt+${ratingValue}`, () => {
-                if (this._selectable.getSelectedItemViewCount() !== 1) return;
-                const trackView = this._selectable.first();
-                if (trackView) {
-                    trackView.track().rate(ratingValue);
-                }
-            });
-        });
-
-        this._keyboardShortcutContext.addShortcut(`alt+0`, () => {
-            if (this._selectable.getSelectedItemViewCount() !== 1) return;
-            const trackView = this._selectable.first();
-            if (trackView) trackView.track().rate(-1);
-        });
-
         if (!this.length) {
             this.showPlaylistEmptyIndicator();
         }
 
-        this._bindListEvents();
         this._draggable.bindEvents();
+    }
+
+    bindKeyboardShortcuts() {
+        super.bindKeyboardShortcuts();
+        this._keyboardShortcutContext.addShortcut(`Delete`, this.removeSelected.bind(this));
     }
 
     _createSingleTrackMenu() {
@@ -279,42 +215,18 @@ export default class Playlist extends EventEmitter {
         return ret;
     }
 
-    openSingleTrackMenu(trackView, eventTarget, event) {
-        this._trackRater.enable(trackView.track());
-        this._singleTrackViewSelected = trackView;
-        this._singleTrackMenu.show(event, () => {
-            const box = eventTarget.getBoundingClientRect();
-            return {
-                x: box.right,
-                y: box.top
-            };
-        });
-    }
-
-    getTrackRater() {
-        return this._trackRater;
-    }
-
-    _windowLayoutChanged() {
-        this.page.requestAnimationFrame(() => this._fixedItemListScroller.resize());
-    }
-
     _listContentsChanged() {
         this._fixedItemListScroller.resize();
     }
 
     tabWillHide() {
-        this._singleTrackMenu.hide();
+        super.tabWillHide();
         this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
     }
 
     tabDidShow() {
-        this._fixedItemListScroller.resize();
+        super.tabDidShow();
         this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
-    }
-
-    $trackContainer() {
-        return this._$trackContainer;
     }
 
     _updateNextTrack(forced) {
@@ -346,7 +258,6 @@ export default class Playlist extends EventEmitter {
     _highlyRelevantTrackMetadataUpdated() {
         this.emit(`highlyRelevantTrackMetadataUpdate`);
     }
-
 
     _changeTrack(track, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
         if (track === undefined || track === null || this._errorCount >= MAX_ERRORS) {
@@ -404,10 +315,6 @@ export default class Playlist extends EventEmitter {
 
     getItemHeight() {
         return this._fixedItemListScroller.itemHeight();
-    }
-
-    $() {
-        return this._$domNode;
     }
 
     hidePlaylistEmptyIndicator() {
@@ -767,11 +674,6 @@ export default class Playlist extends EventEmitter {
         this.trackIndexChanged();
         this.emit(`trackOrderChange`);
     }
-
-    get length() {
-        return this._trackViews.length;
-    }
 }
 
-Object.assign(Playlist.prototype, TrackSorterTrait);
-Object.assign(Playlist.prototype, TrackContainerTrait);
+Object.assign(PlaylistController.prototype, TrackSorterTrait);

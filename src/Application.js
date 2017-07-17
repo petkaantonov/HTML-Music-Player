@@ -25,9 +25,9 @@ import SliderContext from "ui/SliderContext";
 import MenuContext from "ui/MenuContext";
 import ScrollerContext from "ui/scrolling/ScrollerContext";
 import FileInputContext from "platform/FileInputContext";
-import Player from "player/Player";
-import Playlist from "player/Playlist";
-import Search from "search/Search";
+import PlayerController from "player/PlayerController";
+import PlaylistController from "player/PlaylistController";
+import SearchController from "search/SearchController";
 import ApplicationPreferencesBindingContext from "ui/ApplicationPreferencesBindingContext";
 import EffectPreferencesBindingContext from "ui/EffectPreferencesBindingContext";
 import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingContext";
@@ -317,7 +317,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         keyboardShortcuts,
         applicationPreferencesBindingContext,
         menuContext
-    }, d => new Playlist({
+    }, d => new PlaylistController({
         target: `#app-playlist-container`,
         itemHeight: ITEM_HEIGHT
     }, d));
@@ -354,7 +354,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         localFileHandler,
         workerWrapper,
         timers
-    }, d => new Player({
+    }, d => new PlayerController({
         target: `.app-player-controls`,
         playButtonDom: `.play-button`,
         pauseButtonDom: `.pause-button`,
@@ -388,7 +388,7 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
         workerWrapper,
         rippler,
         menuContext
-    }, d => new Search({
+    }, d => new SearchController({
         target: `.search-list-container`,
         itemHeight: ITEM_HEIGHT
     }, d));

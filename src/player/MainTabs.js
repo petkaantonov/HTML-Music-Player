@@ -1,6 +1,5 @@
 import {noUndefinedGet, _call} from "util";
 import TabController from "ui/TabController";
-import TrackRater from "tracks/TrackRater";
 import withDeps from "ApplicationDependencies";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
@@ -54,9 +53,6 @@ export default class MainTabs {
         this.itemHeight = opts.itemHeight;
         this.tabHeight = opts.tabHeight;
         this.tabHolder = this.page.$(opts.tabHolder);
-
-        this.playlistTrackRater = this.playlist.getTrackRater();
-        this.searchTrackRater = this.search.getTrackRater();
 
         this.contentInstancesByTabId = Object.create(null);
         this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;
@@ -285,7 +281,7 @@ export default class MainTabs {
                 id: `track-rating`,
                 enabledPredicate: exactly1Selected,
                 content: function() {
-                    return this.playlistTrackRater.$();
+                    return this.playlist.getTrackRater().$();
                 }.bind(this),
                 onClick(e) {
                     e.preventDefault();
@@ -345,7 +341,7 @@ export default class MainTabs {
                 id: `track-rating`,
                 enabledPredicate: exactly1Selected,
                 content: function() {
-                    return this.searchTrackRater.$();
+                    return this.search.getTrackRater().$();
                 }.bind(this),
                 onClick(e) {
                     e.preventDefault();
@@ -393,9 +389,9 @@ export default class MainTabs {
         const selectedCount = this.playlist.getSelectedItemViewCount();
         this.selectionStatus.setSelectionCount(selectedCount, this.playlist.length);
         if (selectedCount === 1) {
-            this.playlistTrackRater.enable(this.playlist.getSelectable().first().track());
+            this.playlist.getTrackRater().enable(this.playlist.getSelectable().first().track());
         } else {
-            this.playlistTrackRater.disable();
+            this.playlist.getTrackRater().disable();
         }
         this.playlistContextMenu.setEnabledStateFromPredicate(selectedCount, this.playlist.length);
     }
@@ -404,18 +400,18 @@ export default class MainTabs {
         const selectedCount = this.search.getSelectedItemViewCount();
         this.selectionStatus.setSelectionCount(selectedCount, this.search.length);
         if (selectedCount === 1) {
-            this.searchTrackRater.enable(this.search.getSelectable().first().track());
+            this.search.getTrackRater().enable(this.search.getSelectable().first().track());
         } else {
-            this.searchTrackRater.disable();
+            this.search.getTrackRater().disable();
         }
         this.searchContextMenu.setEnabledStateFromPredicate(selectedCount, this.search.length);
     }
 
     beforePlaylistContextMenuOpen() {
-        this.playlistTrackRater.update();
+        this.playlist.getTrackRater().update();
     }
 
     beforeSearchContextMenuOpen() {
-        this.searchTrackRater.update();
+        this.search.getTrackRater().update();
     }
 }

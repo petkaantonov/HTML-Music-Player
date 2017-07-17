@@ -1,6 +1,7 @@
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 import {cancelAndHold} from "audio/frontend/AudioPlayer";
+import {MINIMUM_DURATION} from "audio/backend/demuxer";
 
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
@@ -370,7 +371,7 @@ AudioManager.prototype.getFadeInTime = function() {
 
     const duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getInTime(),
-            duration - this.player.MINIMUM_DURATION - preferences.getOutTime()));
+            duration - MINIMUM_DURATION - preferences.getOutTime()));
 };
 
 AudioManager.prototype.getFadeOutTime = function() {
@@ -388,7 +389,7 @@ AudioManager.prototype.getFadeOutTime = function() {
 
     const duration = this.getDuration();
     return Math.max(0, Math.min(preferences.getOutTime(),
-            duration - this.player.MINIMUM_DURATION - preferences.getInTime()));
+            duration - MINIMUM_DURATION - preferences.getInTime()));
 };
 
 AudioManager.prototype.updateSchedules = function(forceReset) {
