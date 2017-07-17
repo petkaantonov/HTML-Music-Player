@@ -131,10 +131,9 @@ function positionInDimension(preferredDirection,
 }
 
 class MenuItemClickEvent {
-    constructor(zIndex) {
+    constructor() {
         this.defaultPrevented = false;
         this.ripplePrevented = false;
-        this.zIndex = zIndex;
     }
 
     preventDefault() {
@@ -333,7 +332,7 @@ class ActionMenuItem {
             } finally {
                 if (!menuItemClickEvent.defaultPrevented) {
                     this.root.hideContainer();
-                    this.root.emit(`itemClick`, this.id, ripplePrevented);
+                    this.root.emit(`itemClick`, this.id);
                 } else if (!menuItemClickEvent.ripplePrevented) {
                     this.root.rippleEventTarget(e, this.zIndex() + 1);
                 }
