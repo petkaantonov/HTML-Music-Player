@@ -5,7 +5,7 @@
     background-color: #fff;
     border: 1px solid #F4F4F4;
     padding: 10px 0px;
-    min-width: 150px;
+    min-width: 180px;
     box-sizing: border-box;
 }
 
@@ -35,13 +35,19 @@
     word-wrap: break-word;
 }
 
-.action-menu-item:hover .icon,
+
 .action-menu-item.action-menu-sub-menu-item.action-menu-active .icon {
-    color: #BE7306;
+    color: $action-menu-active-color;
+}
+
+.no-touch {
+    .action-menu-item:hover .icon {
+        color: $action-menu-active-color;
+    }
 }
 
 .action-menu-item, .action-menu-item.action-menu-disabled:hover .icon {
-    color: #5B616A;
+    color: $action-menu-disabled-color;
 }
 
 .action-menu-item {
