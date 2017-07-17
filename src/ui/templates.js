@@ -58,9 +58,11 @@ export class SingleSelectableValue {
         this._updateSelect(value);
     }
 
+    /* eslint-disable class-methods-use-this */
     layoutUpdated() {
         // NOOP
     }
+    /* eslint-enable class-methods-use-this */
 
     _updateSelect(value) {
         this.$select().setValue(value);
@@ -116,10 +118,11 @@ export class ToggleableValue {
         this._updateCheckbox(toggle);
     }
 
+    /* eslint-disable class-methods-use-this */
     layoutUpdated() {
         // NOOP
     }
-
+    /* eslint-enable class-methods-use-this */
     _updateCheckbox(toggle) {
         this.$checkbox().setProperty(`checked`, toggle);
     }

@@ -1038,7 +1038,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         const fillRequestId = ++this._replacementRequestId;
         this._player._message(this._id, `loadBlob`, {
             blob,
-            requestId: fillRequestId,
+            requestId: fillRequestId
         });
     }
 

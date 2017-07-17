@@ -1,5 +1,5 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
-import {indexedDB} from "platform/platform";
+import {indexedDB, IDBKeyRange} from "platform/platform";
 
 const VERSION = 10;
 const NAME = `TagDatabase`;
@@ -15,57 +15,52 @@ const trackInfoIndexSpec = {
     album: {
         unique: false,
         multiEntry: false,
-        keyPath: "album"
+        keyPath: `album`
     },
     albumArtist: {
         unique: false,
         multiEntry: false,
-        keyPath: "albumArtist"
+        keyPath: `albumArtist`
     },
     artist: {
         unique: false,
         multiEntry: false,
-        keyPath: "artist"
+        keyPath: `artist`
     },
     genres: {
         unique: false,
         multiEntry: true,
-        keyPath: "genres"
+        keyPath: `genres`
     },
     year: {
         unique: false,
         multiEntry: false,
-        keyPath: "year"
+        keyPath: `year`
     },
     lastPlayed: {
         unique: false,
         multiEntry: false,
-        keyPath: "lastPlayed"
+        keyPath: `lastPlayed`
     },
     playthroughCounter: {
         unique: false,
         multiEntry: false,
-        keyPath: "playthroughCounter"
+        keyPath: `playthroughCounter`
     },
     rating: {
         unique: false,
         multiEntry: false,
-        keyPath: "rating"
+        keyPath: `rating`
     },
     skipCounter: {
         unique: false,
         multiEntry: false,
-        keyPath: "skipCounter"
+        keyPath: `skipCounter`
     },
     title: {
         unique: false,
         multiEntry: false,
-        keyPath: "title"
-    },
-    year: {
-        unique: false,
-        multiEntry: false,
-        keyPath: "year"
+        keyPath: `title`
     }
 };
 
@@ -73,73 +68,69 @@ export default class TagDatabase {
     constructor() {
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
-        request.onupgradeneeded = this._onUpgradeNeeded.bind(this);
-    }
+        request.onupgradeneeded = (event) => {
+            const expectedStoreNames = new Set([TRACK_INFO_TABLE_NAME, COVERART_TABLE_NAME]);
+            const {target} = event;
+            const {transaction} = target;
+            const {db} = transaction;
 
-    _onUpgradeNeeded(event) {
-        const expectedStoreNames = new Set([TRACK_INFO_TABLE_NAME, COVERART_TABLE_NAME]);
-        const {oldVersion, newVersion, target} = event;
-        const {transaction} = target;
-        const {db} = transaction;
+            const storeNames = [].slice.call(transaction.objectStoreNames);
 
-        const storeNames = [].slice.call(transaction.objectStoreNames);
-        const promises = [];
-
-        for (const storeName of storeNames) {
-            if (!expectedStoreNames.has(storeName)) {
-                db.deleteObjectStore(storeName);
+            for (const storeName of storeNames) {
+                if (!expectedStoreNames.has(storeName)) {
+                    db.deleteObjectStore(storeName);
+                }
             }
-        }
 
-        let trackInfoStore;
-        if (storeNames.indexOf(TRACK_INFO_TABLE_NAME) === -1) {
-            trackInfoStore = db.createObjectStore(TRACK_INFO_TABLE_NAME, {keyPath: TRACK_INFO_PRIMARY_KEY_NAME});
-        } else {
-            trackInfoStore = transaction.objectStore(TRACK_INFO_TABLE_NAME);
-        }
-
-        const indexNames = new Set([].slice.call(trackInfoStore.indexNames));
-
-        for (const indexName of Object.keys(trackInfoIndexSpec)) {
-            if (!indexNames.has(indexName)) {
-                const spec = trackInfoIndexSpec[indexName];
-                trackInfoStore.createIndex(indexName, spec.keyPath, spec);
+            let trackInfoStore;
+            if (storeNames.indexOf(TRACK_INFO_TABLE_NAME) === -1) {
+                trackInfoStore = db.createObjectStore(TRACK_INFO_TABLE_NAME, {keyPath: TRACK_INFO_PRIMARY_KEY_NAME});
+            } else {
+                trackInfoStore = transaction.objectStore(TRACK_INFO_TABLE_NAME);
             }
-        }
 
-        for (const indexName of indexNames) {
-            if (!trackInfoIndexSpec.hasOwnProperty(indexName)) {
-                trackInfoStore.deleteIndex(indexName);
+            const indexNames = new Set([].slice.call(trackInfoStore.indexNames));
+
+            for (const indexName of Object.keys(trackInfoIndexSpec)) {
+                if (!indexNames.has(indexName)) {
+                    const spec = trackInfoIndexSpec[indexName];
+                    trackInfoStore.createIndex(indexName, spec.keyPath, spec);
+                }
             }
-        }
 
-        let coverartStore;
-        if (storeNames.indexOf(COVERART_TABLE_NAME) === -1) {
-            coverartStore = db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
-        } else {
-            coverartStore = transaction.objectStore(COVERART_TABLE_NAME);
-        }
+            for (const indexName of indexNames) {
+                if (!trackInfoIndexSpec.hasOwnProperty(indexName)) {
+                    trackInfoStore.deleteIndex(indexName);
+                }
+            }
+
+            if (storeNames.indexOf(COVERART_TABLE_NAME) === -1) {
+                db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
+            }
+        };
     }
 
     async _getTrackInfoByCursor(onlyKeys, keyName,
-                                {before = null, after = null, exactly = null, limit}) {
+                                {before = null, after = null, limit}) {
         const db = await this.db;
         const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
         const index = store.index(keyName);
 
         let range = null;
         if (after && before) {
-            range = IDBKeyRange.bound(after, before, true, true)
+            range = IDBKeyRange.bound(after, before, true, true);
         } else if (after) {
-            range = IDBKeyRange.lowerBound(after, true)
+            range = IDBKeyRange.lowerBound(after, true);
         } else if (before) {
-            range = IDBKeyRange.upperBound(before, true)
+            range = IDBKeyRange.upperBound(before, true);
         }
 
         const opts = limit ? {limit} : {};
         if (onlyKeys) {
-            const cursor = index.openKeyCursor(range, "nextunique");
+            const cursor = index.openKeyCursor(range, `nextunique`);
             return promisifyKeyCursorContinue(cursor, opts);
+        } else {
+            throw new Error(`only keys`);
         }
     }
 
@@ -155,7 +146,7 @@ export default class TagDatabase {
         const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
         const index = store.index(indexName);
         const keyRange = IDBKeyRange.only(keyValue);
-        const cursor = index.openCursor(keyRange, "next");
+        const cursor = index.openCursor(keyRange, `next`);
         const result = await promisifyCursorContinuePrimaryKey(cursor, {keyValue, primaryKeyValue, limit});
         return result;
     }
@@ -165,27 +156,27 @@ export default class TagDatabase {
     }
 
     getAlbums(opts = {}) {
-        return this._getTrackInfoKeys("album", opts);
+        return this._getTrackInfoKeys(`album`, opts);
     }
 
     getArtists(opts = {}) {
-        return this._getTrackInfoKeys("artist", opts);
+        return this._getTrackInfoKeys(`artist`, opts);
     }
 
     getGenres(opts = {}) {
-        return this._getTrackInfoKeys("genres", opts);
+        return this._getTrackInfoKeys(`genres`, opts);
     }
 
     getTrackInfosHavingAlbum(album, opts = {}) {
-        return this._getTrackInfosHavingKey(album, "album", opts);
+        return this._getTrackInfosHavingKey(album, `album`, opts);
     }
 
     getTrackInfosHavingArtist(artist, opts = {}) {
-        return this._getTrackInfosHavingKey(artist, "artist", opts);
+        return this._getTrackInfosHavingKey(artist, `artist`, opts);
     }
 
     getTrackInfosHavingGenre(genre, opts) {
-        return this._getTrackInfosHavingKey(genre, "genres", opts);
+        return this._getTrackInfosHavingKey(genre, `genres`, opts);
     }
 
     async getTrackInfoByTrackUid(trackUid) {

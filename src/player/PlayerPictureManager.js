@@ -1,5 +1,5 @@
 import jdenticon from "jdenticon";
-import {addLegacyListener, noUndefinedGet, hexString} from "util";
+import {noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
 import CancellableOperations from "utils/CancellationToken";
 
@@ -18,13 +18,13 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this._defaultImageSrc = opts.defaultImageSrc;
 
         this._enabled = true;
-        this._currentImage = this.$().find("img")[0] || null;
+        this._currentImage = this.$().find(`img`)[0] || null;
         this._currentTrack = null;
 
         this.imageErrored = this.imageErrored.bind(this);
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
 
-        this._playlist.on("trackPlayingStatusChange", this._trackChanged.bind(this));
+        this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
 
         const size = this.size();
         const canvas = this._page.createElement(`canvas`, {
@@ -42,9 +42,9 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this._jdenticonCtx = canvas.getContext(`2d`);
 
         const preferenceChangeHandler = () => {
-            this._preferenceChanged(this._applicationPreferencesBindingContext.getPreference("enableAlbumArt"));
+            this._preferenceChanged(this._applicationPreferencesBindingContext.getPreference(`enableAlbumArt`));
         };
-        this._applicationPreferencesBindingContext.on("change", preferenceChangeHandler);
+        this._applicationPreferencesBindingContext.on(`change`, preferenceChangeHandler);
     }
 }
 
@@ -68,13 +68,13 @@ const isSameImage = function(a, b) {
     }
 };
 
-PlayerPictureManager.prototype.imageErrored = function(e) {
+PlayerPictureManager.prototype.imageErrored = function() {
     this.cancelAllImageUpdateOperations();
     const cancellationToken = this.cancellationTokenForImageUpdateOperation();
     this.applyCurrentTrackImage(cancellationToken);
 };
 
-PlayerPictureManager.prototype.updateImage = function(image, cancellationToken) {
+PlayerPictureManager.prototype.updateImage = function(image) {
     if (!image) return;
 
     if (this._currentImage && isSameImage(this._currentImage, image)) {
@@ -82,13 +82,13 @@ PlayerPictureManager.prototype.updateImage = function(image, cancellationToken) 
     }
 
     if (this._currentImage) {
-        this._page.$(this._currentImage).removeEventListener("error", this.imageErrored).remove();
+        this._page.$(this._currentImage).removeEventListener(`error`, this.imageErrored).remove();
         this._currentImage = null;
     }
 
     this._currentImage = image;
     this.$().append(this._currentImage);
-    this._page.$(this._currentImage).addEventListener("error", this.imageErrored);
+    this._page.$(this._currentImage).addEventListener(`error`, this.imageErrored);
 };
 
 

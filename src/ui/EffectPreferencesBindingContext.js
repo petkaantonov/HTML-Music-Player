@@ -54,62 +54,6 @@ const TEMPLATE = `<div class='settings-container equalizer-popup-content-contain
             </div>`;
 
 
-const frequencyToIndexMap = Object.create(null);
-
-equalizerBands.forEach((band, index) => {
-    frequencyToIndexMap[band[0]] = index;
-});
-
-export default class EffectPreferencesBindingContext extends AbstractPreferencesBindingContext {
-    constructor(deps) {
-        super(new Preferences(), deps, {
-            storageKey: STORAGE_KEY,
-            title: `Effects`,
-            template: TEMPLATE
-        });
-        deps.mainMenu.on(`effects`, this.openPopup.bind(this));
-    }
-
-    /* eslint-disable no-use-before-define */
-    _createManager() {
-        return new EffectManager(`.equalizer-popup-content-container`, this);
-    }
-    /* eslint-enable no-use-before-define */
-
-    amplitudeRatioToDecibelChange(ratio) {
-        if (!isFinite(+ratio)) throw new Error(`ratio must be a number`);
-        return 20 * Math.log(ratio) * Math.LOG10E;
-    }
-
-    decibelChangeToAmplitudeRatio(decibel) {
-        if (!isFinite(+decibel)) return 1;
-        return Math.pow(10, (decibel / 20));
-    }
-
-    frequencyToIndex(freq) {
-        return frequencyToIndexMap[freq];
-    }
-
-    indexToFrequency(index) {
-        return equalizerBands[index][0];
-    }
-
-    getEqualizerSetup() {
-        return {
-            specs: equalizerBands,
-            gains: this.preferences().getEqualizer()
-        };
-    }
-
-    getAudioPlayerEffects() {
-        const pref = this.preferences();
-        return [{
-            name: `noise-sharpening`,
-            effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
-        }];
-    }
-}
-
 class EqualizerUiBinding {
     constructor(effectsManager) {
         this._effectsManager = effectsManager;
@@ -219,3 +163,32 @@ class EffectManager extends AbstractUiBindingManager {
     }
 }
 
+export default class EffectPreferencesBindingContext extends AbstractPreferencesBindingContext {
+    constructor(deps) {
+        super(new Preferences(), deps, {
+            storageKey: STORAGE_KEY,
+            title: `Effects`,
+            template: TEMPLATE
+        });
+        deps.mainMenu.on(`effects`, this.openPopup.bind(this));
+    }
+
+    _createManager() {
+        return new EffectManager(`.equalizer-popup-content-container`, this);
+    }
+
+    getEqualizerSetup() {
+        return {
+            specs: equalizerBands,
+            gains: this.preferences().getEqualizer()
+        };
+    }
+
+    getAudioPlayerEffects() {
+        const pref = this.preferences();
+        return [{
+            name: `noise-sharpening`,
+            effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
+        }];
+    }
+}

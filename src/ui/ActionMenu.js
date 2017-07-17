@@ -1,4 +1,4 @@
-import {inherits, toFunction, _} from "util";
+import {toFunction, _} from "util";
 import EventEmitter from "events";
 import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
@@ -35,13 +35,13 @@ const alignMap = {
             y: buttonBox.top - menuBox.height
         };
     },
-    [ALIGN_RIGHT_SIDE_AT_TOP](buttonBox, menuBox) {
+    [ALIGN_RIGHT_SIDE_AT_TOP](buttonBox) {
         return {
             x: buttonBox.right,
             y: buttonBox.top
         };
     },
-    [ALIGN_RIGHT_SIDE_AT_BOTTOM](buttonBox, menuBox) {
+    [ALIGN_RIGHT_SIDE_AT_BOTTOM](buttonBox) {
         return {
             x: buttonBox.right,
             y: buttonBox.bottom
@@ -53,7 +53,7 @@ const alignMap = {
             y: buttonBox.top - menuBox.height
         };
     },
-    [ALIGN_LEFT_TOP_CORNER](buttonBox, menuBox) {
+    [ALIGN_LEFT_TOP_CORNER](buttonBox) {
         return {
             x: buttonBox.left,
             y: buttonBox.top
@@ -79,6 +79,56 @@ const alignMap = {
     }
 };
 
+
+function positionInDimension(preferredDirection,
+                             coordStart,
+                             coordEnd,
+                             dimensionValue,
+                             maxValue) {
+    const roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
+    const roomOnStart = coordStart + 3 - dimensionValue;
+    let ret = -1;
+
+    // Doesn't fit anywhere.
+    if (roomOnStart < 0 && roomOnEnd < 0) {
+        if (roomOnStart > roomOnEnd) {
+            preferredDirection = `end`;
+            ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+        } else {
+            preferredDirection = `start`;
+            ret = Math.max(0, coordEnd - 3);
+            ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+        }
+    } else {
+        while (ret < 0 || ret + dimensionValue > maxValue) {
+            if (preferredDirection === `end`) {
+                ret = Math.max(0, coordEnd - 3);
+
+                if (ret + dimensionValue > maxValue) {
+                    ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+
+                    preferredDirection = `start`;
+                }
+            } else {
+                ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
+                ret = Math.min(maxValue - dimensionValue, ret);
+
+                if (ret < 0) {
+                    ret = Math.max(0, coordEnd - 3);
+                    ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
+                    preferredDirection = `end`;
+                }
+            }
+        }
+    }
+
+    return {
+        coordStart: ret,
+        preferredDirection
+    };
+}
 
 class ActionMenuItem {
     constructor(root, spec, children, level) {
@@ -391,56 +441,6 @@ class ActionMenuItem {
                            : this._preferredVerticalDirection;
     }
 
-    positionInDimension(preferredDirection,
-                        coordStart,
-                        coordEnd,
-                        dimensionValue,
-                        maxValue) {
-        const roomOnEnd = maxValue - (coordEnd - 3 + dimensionValue);
-        const roomOnStart = coordStart + 3 - dimensionValue;
-        let ret = -1;
-
-        // Doesn't fit anywhere.
-        if (roomOnStart < 0 && roomOnEnd < 0) {
-            if (roomOnStart > roomOnEnd) {
-                preferredDirection = `end`;
-                ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-                ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-            } else {
-                preferredDirection = `start`;
-                ret = Math.max(0, coordEnd - 3);
-                ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-            }
-        } else {
-            while (ret < 0 || ret + dimensionValue > maxValue) {
-                if (preferredDirection === `end`) {
-                    ret = Math.max(0, coordEnd - 3);
-
-                    if (ret + dimensionValue > maxValue) {
-                        ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-                        ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-
-                        preferredDirection = `start`;
-                    }
-                } else {
-                    ret = Math.min(maxValue, coordStart + 3) - dimensionValue;
-                    ret = Math.min(maxValue - dimensionValue, ret);
-
-                    if (ret < 0) {
-                        ret = Math.max(0, coordEnd - 3);
-                        ret = Math.max(0, Math.min(maxValue - dimensionValue, ret));
-                        preferredDirection = `end`;
-                    }
-                }
-            }
-        }
-
-        return {
-            coordStart: ret,
-            preferredDirection
-        };
-    }
-
     positionSubMenu() {
         const origin = {x: 0, y: 0};
         if (!this.isShown()) return origin;
@@ -454,14 +454,12 @@ class ActionMenuItem {
         let top = -1;
 
         let preferredDirection = this.getHorizontalDirection();
-        let positionResult =
-            this.positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
+        let positionResult = positionInDimension(preferredDirection, itemBox.left, itemBox.right, containerBox.width, xMax);
         left = positionResult.coordStart;
         this._preferredHorizontalDirection = positionResult.preferredDirection;
 
         preferredDirection = this.getVerticalDirection();
-        positionResult =
-            this.positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
+        positionResult = positionInDimension(preferredDirection, itemBox.top + 3, itemBox.top + 3, containerBox.height, yMax);
         top = positionResult.coordStart;
         this._preferredVerticalDirection = positionResult.preferredDirection;
 

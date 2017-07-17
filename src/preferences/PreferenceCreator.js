@@ -1,4 +1,4 @@
-import {titleCase, noUndefinedGet} from "util";
+import {titleCase} from "util";
 
 const isObject = function(val) {
     return typeof val === `object` && val !== null;

@@ -364,7 +364,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    async _gotCodec(codec, requestId) {
+    async _gotCodec(DecoderContext, requestId) {
         const {wasm,
                 effects,
                 metadataParser,
@@ -382,7 +382,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             if (!metadata) {
                 this.fileView = this.blob = null;
-                this._errored(new Error(`Invalid ${codec.name} file`));
+                this._errored(new Error(`Invalid ${DecoderContext.name} file`));
                 return;
             }
 
@@ -404,7 +404,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this._filePosition = this.metadata.dataStart;
             const {sampleRate, channelCount, targetBufferLengthAudioFrames} = this;
 
-            this._decoder = new codec(wasm, {
+            this._decoder = new DecoderContext(wasm, {
                 targetBufferLengthAudioFrames
             });
             this._decoder.start(metadata);

@@ -46,6 +46,24 @@ function withDuration(opts, duration) {
     return opts;
 }
 
+function getDesktopTransitionIn($node) {
+    return animationPromisify($node.animate($node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
+                                            popupShowAnimationOptions));
+}
+
+function getDesktopTransitionOut($node) {
+    return animationPromisify($node.animate(popupOpacityAnimationKeyFrames,
+                                            popupHideAnimationOptions));
+}
+
+function getMobileTransitionIn($node, rect) {
+    return animationPromisify($node.animateTranslate(-rect.width, 0, 0, 0, popupTranslateAnimationOptions));
+}
+
+function getMobileTransitionOut($node, rect) {
+    return animationPromisify($node.animateTranslate(0, 0, -rect.width, 0, popupTranslateAnimationOptions));
+}
+
 export default class PopupContext {
     constructor(opts, deps) {
         opts = noUndefinedGet(opts);
@@ -129,25 +147,6 @@ export default class PopupContext {
         }
     }
 
-    getDesktopTransitionIn($node) {
-        return animationPromisify($node.animate($node.getScaleKeyFrames(0.95, 0.95, 1, 1, popupOpacityAnimationKeyFrames),
-                                                popupShowAnimationOptions));
-    }
-
-    getDesktopTransitionOut($node) {
-        return animationPromisify($node.animate(popupOpacityAnimationKeyFrames,
-                                                popupHideAnimationOptions));
-    }
-
-    getMobileTransitionIn($node, rect) {
-        return animationPromisify($node.animateTranslate(-rect.width, 0, 0, 0, popupTranslateAnimationOptions));
-
-    }
-
-    getMobileTransitionOut($node, rect) {
-        return animationPromisify($node.animateTranslate(0, 0, -rect.width, 0, popupTranslateAnimationOptions));
-    }
-
     closeTopPopup() {
         if (this.shownPopups.length > 0) {
             this.shownPopups.last().close();
@@ -183,12 +182,12 @@ export default class PopupContext {
 
     getTransitionInHandler() {
         return (($node, rect) =>
-            (this.isMobile() ? this.getMobileTransitionIn($node, rect) : this.getDesktopTransitionIn($node, rect)));
+            (this.isMobile() ? getMobileTransitionIn($node, rect) : getDesktopTransitionIn($node, rect)));
     }
 
     getTransitionOutHandler() {
         return (($node, rect) =>
-            (this.isMobile() ? this.getMobileTransitionOut($node, rect) : this.getDesktopTransitionOut($node, rect)));
+            (this.isMobile() ? getMobileTransitionOut($node, rect) : getDesktopTransitionOut($node, rect)));
     }
 
     makePopup(title, body, footerButtons) {

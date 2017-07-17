@@ -71,7 +71,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
 
     async _analyze() {
         const {sourceSampleRate, sourceChannelCount, metadata,
-                shouldComputeFingerprint, fileView, file, codec} = this;
+                shouldComputeFingerprint, fileView, file, codec: DecoderContext} = this;
         const {wasm} = this.backend;
         const {demuxData} = metadata;
         const {duration, dataStart, dataEnd} = demuxData;
@@ -89,7 +89,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             return result;
         }
 
-        const decoder = this.decoder = new codec(wasm, {
+        const decoder = this.decoder = new DecoderContext(wasm, {
             targetBufferLengthAudioFrames: BUFFER_DURATION * sourceSampleRate
         });
         decoder.start(demuxData);

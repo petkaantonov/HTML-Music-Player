@@ -1,9 +1,48 @@
-import {noUndefinedGet} from "util";
 import {File, Uint8Array, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
 import Track from "tracks/Track";
 
 const MAX_FILE_COUNT = 75000;
+
+function _dragEntered(e) {
+    e.preventDefault();
+    return false;
+}
+
+function _dragLeft(e) {
+    e.preventDefault();
+    return false;
+}
+
+function _dragOvered(e) {
+    e.preventDefault();
+    return false;
+}
+
+function generateSilentWavFile() {
+    const seconds = 10;
+    const sampleRate = 8000;
+    const samples = sampleRate * seconds;
+    const format = 1;
+    const bytesPerSample = 2;
+    const channels = 1;
+    const buffer = new ArrayBuffer(44 + samples * bytesPerSample);
+    const view = new DataView(buffer);
+    view.setUint32(0, 0x52494646, false);
+    view.setUint32(4, 36 + samples * bytesPerSample, true);
+    view.setUint32(8, 0x57415645, false);
+    view.setUint32(12, 0x666d7420, false);
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+    view.setUint16(32, channels * bytesPerSample, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    view.setUint32(36, 0x64617461, false);
+    view.setUint32(40, samples * channels * bytesPerSample, true);
+    return new File([buffer], `thefile.wav`, {type: `audio/wav`});
+}
 
 export default class LocalFileHandler {
     constructor(deps) {
@@ -36,9 +75,9 @@ export default class LocalFileHandler {
         });
         this.mainMenu.on(`addFiles`, () => this.filesFileInput.trigger());
 
-        this.page.addDocumentListener(`dragenter`, this._dragEntered.bind(this));
-        this.page.addDocumentListener(`dragleave`, this._dragLeft.bind(this));
-        this.page.addDocumentListener(`dragover`, this._dragOvered.bind(this));
+        this.page.addDocumentListener(`dragenter`, _dragEntered);
+        this.page.addDocumentListener(`dragleave`, _dragLeft);
+        this.page.addDocumentListener(`dragover`, _dragOvered);
         this.page.addDocumentListener(`drop`, this._dropped.bind(this));
     }
 
@@ -59,21 +98,6 @@ export default class LocalFileHandler {
 
     gotFilesAndDirectories(filesAndDirs) {
         this.receiveFiles(this.localFiles.fileEmitterFromFilesAndDirs(filesAndDirs, MAX_FILE_COUNT));
-    }
-
-    _dragEntered(e) {
-        e.preventDefault();
-        return false;
-    }
-
-    _dragLeft(e) {
-        e.preventDefault();
-        return false;
-    }
-
-    _dragOvered(e) {
-        e.preventDefault();
-        return false;
     }
 
     async _dropped(e) {
@@ -99,31 +123,6 @@ export default class LocalFileHandler {
         } else if (dt.files && dt.files.length > 0) {
             this.gotFiles(dt.files);
         }
-    }
-
-    generateSilentWavFile() {
-        const seconds = 10;
-        const sampleRate = 8000;
-        const samples = sampleRate * seconds;
-        const format = 1;
-        const bytesPerSample = 2;
-        const channels = 1;
-        const buffer = new ArrayBuffer(44 + samples * bytesPerSample);
-        const view = new DataView(buffer);
-        view.setUint32(0, 0x52494646, false);
-        view.setUint32(4, 36 + samples * bytesPerSample, true);
-        view.setUint32(8, 0x57415645, false);
-        view.setUint32(12, 0x666d7420, false);
-        view.setUint32(16, 16, true);
-        view.setUint16(20, format, true);
-        view.setUint16(22, channels, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, sampleRate * channels * bytesPerSample, true);
-        view.setUint16(32, channels * bytesPerSample, true);
-        view.setUint16(34, bytesPerSample * 8, true);
-        view.setUint32(36, 0x64617461, false);
-        view.setUint32(40, samples * channels * bytesPerSample, true);
-        return new File([buffer], `thefile.wav`, {type: `audio/wav`});
     }
 
     generateFakeFiles(count) {
@@ -166,7 +165,7 @@ export default class LocalFileHandler {
             files[i] = new File(parts, `file ${i}.mp3`, {type: `audio/mp3`});
         }
 
-        files.unshift(this.generateSilentWavFile());
+        files.unshift(generateSilentWavFile());
         this.page.setTimeout(() => {
             this.addFilesToPlaylist(files);
         }, 100);

@@ -281,7 +281,7 @@ export default class Playlist extends EventEmitter {
     openSingleTrackMenu(trackView, eventTarget, event) {
         this._trackRater.enable(trackView.track());
         this._singleTrackViewSelected = trackView;
-        this._singleTrackMenu.show(event, (menuBox) => {
+        this._singleTrackMenu.show(event, () => {
             const box = eventTarget.getBoundingClientRect();
             return {
                 x: box.right,

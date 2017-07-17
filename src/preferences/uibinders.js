@@ -86,9 +86,11 @@ export class ToggleableValuePreferenceUiBinding {
         this._toggleableValue.setToggle(toggle);
     }
 
+    /* eslint-disable class-methods-use-this */
     layoutUpdated() {
         // NOOP
     }
+    /* eslint-enable class-methods-use-this */
 }
 
 

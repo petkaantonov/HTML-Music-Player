@@ -113,6 +113,7 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         this._db.set(this._storageKey, this.preferences().toJSON());
     }
 
+    /* eslint-disable class-methods-use-this */
     willUpdatePreferences() {
         // NOOP
     }
@@ -120,6 +121,7 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
     willUpdatePreference() {
         // NOOP
     }
+    /* eslint-enable class-methods-use-this */
 
     setResetDefaultsEnabled(value) {
         this.popup().setButtonEnabledState(RESTORE_DEFAULTS_BUTTON, !!value);

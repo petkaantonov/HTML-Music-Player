@@ -4,8 +4,8 @@ import {DEFAULT_BUFFER_LENGTH_SECONDS,
         MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 
 
-export const minBufferLengthValue = MIN_BUFFER_LENGTH_SECONDS * 1000 | 0;
-export const maxBufferLengthValue = MAX_BUFFER_LENGTH_SECONDS * 1000 | 0;
+export const minBufferLengthValue = MIN_BUFFER_LENGTH_SECONDS * 1000 | 0;
+export const maxBufferLengthValue = MAX_BUFFER_LENGTH_SECONDS * 1000 | 0;
 export const defaultBufferLengthValue = DEFAULT_BUFFER_LENGTH_SECONDS * 1000 | 0;
 
 export const STORAGE_KEY = `application-preferences`;

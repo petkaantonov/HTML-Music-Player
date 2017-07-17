@@ -25,6 +25,17 @@ const moreThan1Selected = function(selectedCount, totalCount) {
     return selectedCount > 1 && totalCount > 1;
 };
 
+const actionHandler = function(preventDefault, contentInstance, method) {
+    if (!contentInstance[method]) {
+        throw new Error(`no such method: ${method}`);
+    }
+
+    return function(e) {
+        if (preventDefault) e.preventDefault();
+        contentInstance[method]();
+    };
+};
+
 export default class MainTabs {
     constructor(opts, deps) {
         opts = noUndefinedGet(opts);
@@ -174,17 +185,6 @@ export default class MainTabs {
         }.bind(this);
     }
 
-    actionHandler(preventDefault, contentInstance, method) {
-        if (!contentInstance[method]) {
-            throw new Error(`no such method: ${method}`);
-        }
-
-        return function(e) {
-            if (preventDefault) e.preventDefault();
-            contentInstance[method]();
-        };
-    }
-
     getPlaylistActionSpec() {
         const haveTouch = this.env.hasTouch();
         const target = haveTouch ? this.selectionStatus.$menuButton() : this.playlist.$trackContainer();
@@ -195,7 +195,7 @@ export default class MainTabs {
                 id: `play`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
-                onClick: this.actionHandler(false, this.playlist, `playPrioritySelection`),
+                onClick: actionHandler(false, this.playlist, `playPrioritySelection`),
                 enabledPredicate: moreThan0Selected
             });
         }
@@ -204,7 +204,7 @@ export default class MainTabs {
             id: `delete`,
             disabled: true,
             content: this.menuContext.createMenuItem(`Delete`, `material-icons small-material-icon delete`),
-            onClick: this.actionHandler(false, this.playlist, `removeSelected`),
+            onClick: actionHandler(false, this.playlist, `removeSelected`),
             enabledPredicate: moreThan0Selected
         });
 
@@ -217,7 +217,7 @@ export default class MainTabs {
                 id: `clear-selection`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Select none`, `material-icons small-material-icon crop_square`),
-                onClick: this.actionHandler(true, this.playlist, `clearSelection`),
+                onClick: actionHandler(true, this.playlist, `clearSelection`),
                 enabledPredicate: moreThan0Selected
             });
 
@@ -225,7 +225,7 @@ export default class MainTabs {
                 id: `select-all`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Select all`, `material-icons small-material-icon select_all`),
-                onClick: this.actionHandler(true, this.playlist, `selectAll`),
+                onClick: actionHandler(true, this.playlist, `selectAll`),
                 enabledPredicate: lessThanAllSelected
             });
         }
@@ -238,48 +238,48 @@ export default class MainTabs {
             children: [{
                 id: `sort-by-album`,
                 content: this.menuContext.createMenuItem(`Album`, `material-icons small-material-icon album`),
-                onClick: this.actionHandler(true, this.playlist, `sortByAlbum`),
+                onClick: actionHandler(true, this.playlist, `sortByAlbum`),
                 enabledPredicate: moreThan1Selected
             }, {
                 id: `sort-by-artist`,
                 content: this.menuContext.createMenuItem(`Artist`, `material-icons small-material-icon mic`),
-                onClick: this.actionHandler(true, this.playlist, `sortByArtist`),
+                onClick: actionHandler(true, this.playlist, `sortByArtist`),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: `sort-by-album-artist`,
                 content: this.menuContext.createMenuItem(`Album artist`, `material-icons small-material-icon perm_camera_mic`),
-                onClick: this.actionHandler(true, this.playlist, `sortByAlbumArtist`),
+                onClick: actionHandler(true, this.playlist, `sortByAlbumArtist`),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: `sort-by-title`,
                 content: this.menuContext.createMenuItem(`Title`, `material-icons small-material-icon music_note`),
-                onClick: this.actionHandler(true, this.playlist, `sortByTitle`),
+                onClick: actionHandler(true, this.playlist, `sortByTitle`),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: `sort-by-rating`,
                 content: this.menuContext.createMenuItem(`Rating`, `material-icons small-material-icon grade`),
-                onClick: this.actionHandler(true, this.playlist, `sortByRating`),
+                onClick: actionHandler(true, this.playlist, `sortByRating`),
                 enabledPredicate: moreThan1Selected
 
             }, {
                 id: `sort-by-duration`,
                 content: this.menuContext.createMenuItem(`Duration`, `material-icons small-material-icon access_time`),
-                onClick: this.actionHandler(true, this.playlist, `sortByDuration`),
+                onClick: actionHandler(true, this.playlist, `sortByDuration`),
                 enabledPredicate: moreThan1Selected
             }, {
                 divider: true
             }, {
                 id: `sort-by-shuffling`,
                 content: this.menuContext.createMenuItem(`Shuffle`, `material-icons small-material-icon shuffle`),
-                onClick: this.actionHandler(true, this.playlist, `sortByShuffling`),
+                onClick: actionHandler(true, this.playlist, `sortByShuffling`),
                 enabledPredicate: moreThan1Selected
             }, {
                 id: `sort-by-reverse-order`,
                 content: this.menuContext.createMenuItem(`Reverse order`, `material-icons small-material-icon undo`),
-                onClick: this.actionHandler(true, this.playlist, `sortByReverseOrder`),
+                onClick: actionHandler(true, this.playlist, `sortByReverseOrder`),
                 enabledPredicate: moreThan1Selected
             }]
         });
@@ -321,7 +321,7 @@ export default class MainTabs {
                 id: `play`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
-                onClick: this.actionHandler(false, this.search, `playPrioritySelection`),
+                onClick: actionHandler(false, this.search, `playPrioritySelection`),
                 enabledPredicate: moreThan0Selected
             });
 
@@ -333,7 +333,7 @@ export default class MainTabs {
                 id: `clear-selection`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Select none`, `material-icons small-material-icon crop_square`),
-                onClick: this.actionHandler(true, this.search, `clearSelection`),
+                onClick: actionHandler(true, this.search, `clearSelection`),
                 enabledPredicate: moreThan0Selected
             });
 
@@ -341,7 +341,7 @@ export default class MainTabs {
                 id: `select-all`,
                 disabled: true,
                 content: this.menuContext.createMenuItem(`Select all`, `material-icons small-material-icon select_all`),
-                onClick: this.actionHandler(true, this.search, `selectAll`),
+                onClick: actionHandler(true, this.search, `selectAll`),
                 enabledPredicate: lessThanAllSelected
             });
 

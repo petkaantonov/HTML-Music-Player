@@ -1,4 +1,8 @@
-import {indexedDB} from "platform/platform";
+import {console, Uint8Array, Uint16Array, Uint32Array,
+         Int32Array, Float32Array, Float64Array,
+         FileReader, FileReaderSync, DataView, TextDecoder, TextEncoder, crypto,
+         performance, Proxy, Symbol, indexedDB} from "platform/platform";
+
 /* eslint-disable no-invalid-this */
 
 let isDevelopment = true;
@@ -9,13 +13,9 @@ export const setIsDevelopment = function(isIt) {
 };
 
 export const setTimers = function(theTimers) {
-  timers = theTimers;
+    timers = theTimers;
 };
 
-import {console, Uint8Array, Uint16Array, Uint32Array,
-         Int32Array, Float32Array, Float64Array,
-         FileReader, FileReaderSync, DataView, TextDecoder, TextEncoder, crypto,
-         performance, Proxy, Symbol} from "platform/platform";
 
 export const queryString = function(obj) {
     return Object.keys(obj).map(key => `${key}=${obj[key]}`).join(`&`);
@@ -46,10 +46,10 @@ export const toFunction = function(value) {
 };
 
 export const ensureArray = function(val) {
-  if (!Array.isArray(val)) {
-    val = [val];
-  }
-  return val;
+    if (!Array.isArray(val)) {
+        val = [val];
+    }
+    return val;
 };
 
 const bits = (function() {
@@ -214,7 +214,7 @@ Array.prototype.toKeysObj = function() {
 };
 
 export const IDENTITY = function(v) {
- return v;
+    return v;
 };
 
 export const buildConsecutiveRanges = function(array, callback) {
@@ -1158,7 +1158,7 @@ export function setterProxyHandlers(setter) {
 }
 
 export function ownPropOr(obj, prop, defaultValue) {
-  return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;
+    return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;
 }
 
 const isNoUndefinedProxySymbol = Symbol();
@@ -1190,78 +1190,84 @@ export function gcd(a, b) {
     return gcd(b, a % b);
 }
 
-export const _ = new Proxy(new Map(), {get(cache, name) {
-  const cached = cache.get(name);
-  if (cached) {
-    return cached;
-  }
+export const _ = new Proxy(new Map(), {
+    get(cache, name) {
+        const cached = cache.get(name);
+        if (cached) {
+            return cached;
+        }
 
-  const code = `
-    const val = v.${name};
-    return typeof val === "function" ? v.${name}() : val;`;
-  const ret = new Function(`v`, code);
-  cache.set(name, ret);
-  return ret;
-}});
+        const code = `
+            const val = v.${name};
+            return typeof val === "function" ? v.${name}() : val;`;
+        const ret = new Function(`v`, code);
+        cache.set(name, ret);
+        return ret;
+    }
+});
 
-export const _call = new Proxy(new Map(), {get(cache, name) {
-  const cached = cache.get(name);
-  if (cached) {
-    return cached;
-  }
+export const _call = new Proxy(new Map(), {
+    get(cache, name) {
+        const cached = cache.get(name);
+        if (cached) {
+            return cached;
+        }
 
-  const code = `
-    return function(v) {
-      return v.${name}(...args);
-    };
-  `;
+        const code = `
+            return function(v) {
+              return v.${name}(...args);
+            };
+        `;
 
-  const ret = new Function(`...args`, code);
-  cache.set(name, ret);
-  return ret;
-}});
+        const ret = new Function(`...args`, code);
+        cache.set(name, ret);
+        return ret;
+    }
+});
 
-export const _set = new Proxy(new Map(), {get(cache, name) {
-  const cached = cache.get(name);
-  if (cached) {
-    return cached;
-  }
+export const _set = new Proxy(new Map(), {
+    get(cache, name) {
+        const cached = cache.get(name);
+        if (cached) {
+            return cached;
+        }
 
-  const code = `
-    return function(v) {
-      v.${name} = value;
-    };
-  `;
+        const code = `
+            return function(v) {
+              v.${name} = value;
+            };
+        `;
 
-  const ret = new Function(`value`, code);
-  cache.set(name, ret);
-  return ret;
-}});
+        const ret = new Function(`value`, code);
+        cache.set(name, ret);
+        return ret;
+    }
+});
 
 export const _equals = new Proxy(new Map(), {
-  get(cache, name) {
-    const cached = cache.get(name);
-    if (cached) {
-      return cached;
+    get(cache, name) {
+        const cached = cache.get(name);
+        if (cached) {
+            return cached;
+        }
+
+        const code = `
+            return function(v) {
+                const val = v.${name};
+                return (typeof val === "function" ? v.${name}() : val) === rhs
+            };
+        `;
+
+        const ret = new Function(`rhs`, code);
+        cache.set(name, ret);
+        return ret;
     }
-
-    const code = `
-      return function(v) {
-        const val = v.${name};
-        return (typeof val === "function" ? v.${name}() : val) === rhs
-      };
-    `;
-
-    const ret = new Function(`rhs`, code);
-    cache.set(name, ret);
-    return ret;
-  }
 });
 
 export const equals = function(arg) {
-  return function(v) {
-    return v === arg;
-  };
+    return function(v) {
+        return v === arg;
+    };
 };
 
 export const delay = function(ms) {

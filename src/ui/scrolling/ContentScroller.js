@@ -52,7 +52,8 @@ export default class ContentScroller {
 
     scrollIntoViewIfNotVisible(element) {
         const bounds = element.getBoundingClientRect();
-        let {top, left, right, bottom} = this._rect;
+        let {top} = this._rect;
+        const {left, right, bottom} = this._rect;
         top += this.getScrollTop();
         const isVisible = (!(right < bounds.left || left > bounds.right || bottom < bounds.top || top > bounds.bottom));
 

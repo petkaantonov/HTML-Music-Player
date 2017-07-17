@@ -195,7 +195,7 @@ export default class MetadataParser {
         const trackInfo = await this._tagDatabase.getTrackInfoByTrackUid(trackUid);
         if (trackInfo) {
             cachedMetadata = Object.assign(trackInfo.cachedMetadata || {},
-                                                 cachedMetadata || {});
+                                                 cachedMetadata || {});
             trackInfo.cachedMetadata = cachedMetadata;
             await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
         }
