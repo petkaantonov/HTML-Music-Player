@@ -342,8 +342,8 @@ export default class MetadataParser {
         });
 
         try {
-            await ret;
-            return ret;
+            const value = await ret;
+            return value;
         } finally {
             this._nextImageFetch();
         }
