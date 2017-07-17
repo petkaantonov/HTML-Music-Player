@@ -1,7 +1,7 @@
 import {iDbPromisify} from "util";
 import {indexedDB} from "platform/platform";
 
-const VERSION = 5;
+const VERSION = 6;
 const NAME = `TagDatabase`;
 const KEY_NAME = `trackUid`;
 const ALBUM_KEY_NAME = `album`;
@@ -25,6 +25,19 @@ export default class TagDatabase {
 
         try {
             objectStore = db.createObjectStore(TABLE_NAME, {keyPath: KEY_NAME});
+
+            objectStore.createIndex("album", "album", { unique: false });
+            objectStore.createIndex("albumArtist", "albumArtist", { unique: false });
+            objectStore.createIndex("artist", "artist", { unique: false });
+            objectStore.createIndex("genres", "genres", { unique: false, multiEntry: true });
+            objectStore.createIndex("year", "year", { unique: false });
+            objectStore.createIndex("lastPlayed", "lastPlayed", { unique: false });
+            objectStore.createIndex("playthroughCounter", "playthroughCounter", { unique: false });
+            objectStore.createIndex("rating", "rating", { unique: false });
+            objectStore.createIndex("skipCounter", "skipCounter", { unique: false });
+            objectStore.createIndex("title", "title", { unique: false });
+            objectStore.createIndex("year", "year", { unique: false });
+
             objectStore = iDbPromisify(objectStore.transaction);
         } catch (e) {
             // NOOP
@@ -105,6 +118,5 @@ const fieldUpdater = function(...fieldNames) {
 
 TagDatabase.prototype.setAcoustIdResponse = fieldUpdater(`acoustIdFullResponse`).method;
 TagDatabase.prototype.updateRating = fieldUpdater(`rating`).method;
-TagDatabase.prototype.updateHasCoverArt = fieldUpdater(`hasCoverArt`).method;
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater(`playthroughCounter`, `lastPlayed`).method;
 TagDatabase.prototype.updateSkipCounter = fieldUpdater(`skipCounter`, `lastPlayed`).method;
