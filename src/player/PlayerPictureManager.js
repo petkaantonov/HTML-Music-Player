@@ -10,6 +10,7 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this._page = deps.page;
         this._player = deps.player;
         this._player.setPictureManager(this);
+        this._playlist = deps.playlist;
         this._domNode = this._page.$(opts.target);
 
         this._imageDimensions = opts.imageDimensions;
@@ -24,11 +25,10 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
 
         this.imageErrored = this.imageErrored.bind(this);
         this.imageLoaded = this.imageLoaded.bind(this);
-        this.newTrackLoaded = this.newTrackLoaded.bind(this);
         this.updateImage = this.updateImage.bind(this);
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
 
-        this._player.on(`newTrackLoad`, this.newTrackLoaded);
+        this._playlist.on("trackPlayingStatusChange", this._trackChanged.bind(this));
 
         if (this._enabledMediaMatcher) {
             addLegacyListener(this._enabledMediaMatcher, `change`, this._enabledMediaMatchChanged);
@@ -133,18 +133,23 @@ PlayerPictureManager.prototype.receiveImage = async function(imagePromise) {
 
 PlayerPictureManager.prototype._trackTagDataUpdated = function() {
     this.cancelAllImageUpdateOperations();
+    this._cancellationToken = this.cancellationTokenForImageUpdateOperation();
     this.receiveImage(this._currentTrack.getImage(this));
 };
 
-PlayerPictureManager.prototype.newTrackLoaded = function(track) {
+PlayerPictureManager.prototype._trackChanged = function(track) {
+    if (track === this._currentTrack) {
+        return;
+    }
+
     this._cancellationToken = this.cancellationTokenForImageUpdateOperation();
     if (this._currentTrack) {
-        this._currentTrack.removeListener(`tagDataUpdated`, this._trackTagDataUpdated);
+        this._currentTrack.removeListener(`tagDataUpdate`, this._trackTagDataUpdated);
         this._currentTrack = null;
     }
     if (track) {
         this._currentTrack = track;
-        this._currentTrack.on(`tagDataUpdated`, this._trackTagDataUpdated);
+        this._currentTrack.on(`tagDataUpdate`, this._trackTagDataUpdated);
         this.receiveImage(track.getImage(this));
     }
 };

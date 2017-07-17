@@ -429,7 +429,8 @@ export default function Application(deps, loadingIndicatorShowerTimeoutId) {
 
     const playerPictureManager = this.playerPictureManager = withDeps({
         page,
-        player
+        player,
+        playlist
     }, d => new PlayerPictureManager({
         target: `.picture-container`,
         imageDimensions: IMAGE_DIMENSIONS,
