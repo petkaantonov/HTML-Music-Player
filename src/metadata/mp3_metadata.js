@@ -490,10 +490,11 @@ export default async function parseMp3Metadata(tagData, fileView) {
     if (demuxData) {
         tagData.demuxData = demuxData;
     } else {
-        // TODO Deduplicate code
-        const e = new Error(`codec not supported`);
-        e.name = `CodecNotSupportedError`;
-        throw e;
+        tagData.demuxData = {
+            duration: 0,
+            sampleRate: 44100,
+            channels: 2
+        };
     }
     const length = 16384;
     await fileView.readBlockOfSizeAt(length, 0);

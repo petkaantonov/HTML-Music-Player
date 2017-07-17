@@ -1,3 +1,4 @@
+import {indexedDB} from "platform/platform";
 /* eslint-disable no-invalid-this */
 
 let isDevelopment = true;
@@ -743,6 +744,66 @@ export const iDbPromisify = function(ee) {
         };
         ee.oncomplete = resolve;
     });
+};
+
+const MAX_LIMIT = Math.pow(2, 31);
+
+const _promisifyCursor = function(ee, onlyKeys,
+                                                {limit = MAX_LIMIT, includePrimaryKey = false, primaryKeyValue = null, keyValue = null} =
+                                                {limit: MAX_LIMIT,
+                                                  includePrimaryKey: false,
+                                                  primaryKeyValue: null,
+                                                  keyValue: null}) {
+    const results = [];
+    return new Promise((resolve, reject) => {
+        ee.onerror = function(event) {
+            reject(asError(event.target.transaction.error || ee.error));
+        };
+        ee.onsuccess = function(event) {
+            try {
+              const {result} = event.target;
+              if (!result || results.length >= limit) {
+                resolve(results);
+              } else {
+                if (onlyKeys) {
+                  if (includePrimaryKey) {
+                    const {key, primaryKey} = result;
+                    results.push({key, primaryKey});
+                  } else {
+                    results.push(result.key);
+                  }
+                  result.continue();
+                } else {
+
+                  if (primaryKeyValue !== null) {
+                    const cmp = indexedDB.cmp(primaryKeyValue, result.primaryKey);
+                    if (cmp > 0) {
+                      result.continuePrimaryKey(keyValue, primaryKeyValue);
+                    } else if (cmp === 0) {
+                      result.continue();
+                    } else {
+                      results.push(result.value);
+                      result.continue();
+                    }
+                  } else {
+                    results.push(result.value);
+                    result.continue();
+                  }
+                }
+              }
+            } catch (e) {
+              reject(e);
+            }
+        };
+    });
+};
+
+export const promisifyCursorContinuePrimaryKey = function(ee, opts) {
+    return _promisifyCursor(ee, false, opts);
+};
+
+export const promisifyKeyCursorContinue = function(ee, opts) {
+    return _promisifyCursor(ee, true, opts);
 };
 
 export const animationPromisify = function(animation) {

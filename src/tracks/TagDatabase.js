@@ -1,72 +1,215 @@
-import {iDbPromisify} from "util";
+import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB} from "platform/platform";
 
-const VERSION = 6;
+const VERSION = 9;
 const NAME = `TagDatabase`;
-const KEY_NAME = `trackUid`;
+const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const ALBUM_KEY_NAME = `album`;
-const TABLE_NAME = `trackInfo`;
+const TRACK_INFO_TABLE_NAME = `trackInfo`;
 const COVERART_TABLE_NAME = `coverart`;
 
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
 
+const trackInfoIndexSpec = {
+    album: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "album"
+    },
+    albumArtist: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "albumArtist"
+    },
+    artist: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "artist"
+    },
+    genres: {
+        unique: false,
+        multiEntry: true,
+        keyPath: "genres"
+    },
+    year: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "year"
+    },
+    lastPlayed: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "lastPlayed"
+    },
+    playthroughCounter: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "playthroughCounter"
+    },
+    rating: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "rating"
+    },
+    skipCounter: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "skipCounter"
+    },
+    title: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "title"
+    },
+    year: {
+        unique: false,
+        multiEntry: false,
+        keyPath: "year"
+    },
+
+    artistsInGenre: {
+        unique: false,
+        multiEntry: false,
+        keyPath: ["genres", "artist"]
+    },
+
+    albumsInArtistsInGenre: {
+        unique: false,
+        multiEntry: false,
+        keyPath: ["genres", "artist", "album"]
+    },
+
+    titlesInAlbumsInArtistsInGenre: {
+        unique: false,
+        multiEntry: false,
+        keyPath: ["genres", "artist", "album", "title"]
+    }
+};
+
 export default class TagDatabase {
     constructor() {
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
-        request.onupgradeneeded = event => this._onUpgradeNeeded(event);
+        request.onupgradeneeded = this._onUpgradeNeeded.bind(this);
     }
 
     _onUpgradeNeeded(event) {
-        const db = event.target.result;
-        let objectStore = Promise.resolve();
-        let albumStore = Promise.resolve();
+        const expectedStoreNames = new Set([TRACK_INFO_TABLE_NAME, COVERART_TABLE_NAME]);
+        const {oldVersion, newVersion, target} = event;
+        const {transaction} = target;
+        const {db} = transaction;
 
-        try {
-            objectStore = db.createObjectStore(TABLE_NAME, {keyPath: KEY_NAME});
+        const storeNames = [].slice.call(transaction.objectStoreNames);
+        const promises = [];
 
-            objectStore.createIndex("album", "album", { unique: false });
-            objectStore.createIndex("albumArtist", "albumArtist", { unique: false });
-            objectStore.createIndex("artist", "artist", { unique: false });
-            objectStore.createIndex("genres", "genres", { unique: false, multiEntry: true });
-            objectStore.createIndex("year", "year", { unique: false });
-            objectStore.createIndex("lastPlayed", "lastPlayed", { unique: false });
-            objectStore.createIndex("playthroughCounter", "playthroughCounter", { unique: false });
-            objectStore.createIndex("rating", "rating", { unique: false });
-            objectStore.createIndex("skipCounter", "skipCounter", { unique: false });
-            objectStore.createIndex("title", "title", { unique: false });
-            objectStore.createIndex("year", "year", { unique: false });
-
-            objectStore = iDbPromisify(objectStore.transaction);
-        } catch (e) {
-            // NOOP
+        for (const storeName of storeNames) {
+            if (!expectedStoreNames.has(storeName)) {
+                db.deleteObjectStore(storeName);
+            }
         }
 
-        try {
-            albumStore = db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
-            albumStore = iDbPromisify(albumStore.transaction);
-        } catch (e) {
-            // NOOP
+        let trackInfoStore;
+        if (storeNames.indexOf(TRACK_INFO_TABLE_NAME) === -1) {
+            trackInfoStore = db.createObjectStore(TRACK_INFO_TABLE_NAME, {keyPath: TRACK_INFO_PRIMARY_KEY_NAME});
+        } else {
+            trackInfoStore = transaction.objectStore(TRACK_INFO_TABLE_NAME);
         }
 
+        const indexNames = new Set([].slice.call(trackInfoStore.indexNames));
 
-        this.db = (async () => {
-            await Promise.all([objectStore, albumStore]);
-            return db;
-        })();
+        for (const indexName of Object.keys(trackInfoIndexSpec)) {
+            if (!indexNames.has(indexName)) {
+                const spec = trackInfoIndexSpec[indexName];
+                trackInfoStore.createIndex(indexName, spec.keyPath, spec);
+            }
+        }
+
+        let coverartStore;
+        if (storeNames.indexOf(COVERART_TABLE_NAME) === -1) {
+            coverartStore = db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
+        } else {
+            coverartStore = transaction.objectStore(COVERART_TABLE_NAME);
+        }
+    }
+
+    async _getTrackInfoByCursor(onlyKeys, keyName,
+                                {before = null, after = null, exactly = null, limit}) {
+        const db = await this.db;
+        const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
+        const index = store.index(keyName);
+
+        let range = null;
+        if (after && before) {
+            range = IDBKeyRange.bound(after, before, true, true)
+        } else if (after) {
+            range = IDBKeyRange.lowerBound(after, true)
+        } else if (before) {
+            range = IDBKeyRange.upperBound(before, true)
+        }
+
+        const opts = limit ? {limit} : {};
+        if (onlyKeys) {
+            const cursor = index.openKeyCursor(range, "nextunique");
+            return promisifyKeyCursorContinue(cursor, opts);
+        }
+    }
+
+    async _getTrackInfosHavingKey(keyValue, indexName, opts = {}) {
+        const db = await this.db;
+        let primaryKeyValue = null;
+        const {limit} = opts;
+
+        if (opts.after) {
+            primaryKeyValue = opts.after;
+        }
+
+        const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
+        const index = store.index(indexName);
+        const keyRange = IDBKeyRange.only(keyValue);
+        const cursor = index.openCursor(keyRange, "next");
+        const result = await promisifyCursorContinuePrimaryKey(cursor, {keyValue, primaryKeyValue, limit});
+        return result;
+    }
+
+    _getTrackInfoKeys(keyName, opts) {
+        return this._getTrackInfoByCursor(true, keyName, opts);
+    }
+
+    getAlbums(opts = {}) {
+        return this._getTrackInfoKeys("album", opts);
+    }
+
+    getArtists(opts = {}) {
+        return this._getTrackInfoKeys("artist", opts);
+    }
+
+    getGenres(opts = {}) {
+        return this._getTrackInfoKeys("genres", opts);
+    }
+
+    getTrackInfosHavingAlbum(album, opts = {}) {
+        return this._getTrackInfosHavingKey(album, "album", opts);
+    }
+
+    getTrackInfosHavingArtist(artist, opts = {}) {
+        return this._getTrackInfosHavingKey(artist, "artist", opts);
+    }
+
+    getTrackInfosHavingGenre(genre, opts) {
+        return this._getTrackInfosHavingKey(genre, "genres", opts);
     }
 
     async getTrackInfoByTrackUid(trackUid) {
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME).objectStore(TABLE_NAME);
+        const store = db.transaction(TRACK_INFO_TABLE_NAME).objectStore(TRACK_INFO_TABLE_NAME);
         return iDbPromisify(store.get(trackUid));
     }
 
     async getAlbumImage(album) {
         if (!album) return null;
         const db = await this.db;
-        const store = db.transaction(COVERART_TABLE_NAME).objectStore(COVERART_TABLE_NAME);
+        const store = db.transaction(COVERART_TABLE_NAME, READ_ONLY).objectStore(COVERART_TABLE_NAME);
         return iDbPromisify(store.get(album));
     }
 
@@ -82,16 +225,16 @@ export default class TagDatabase {
     async replaceTrackInfo(trackUid, trackInfo) {
         trackInfo.trackUid = trackUid;
         const db = await this.db;
-        const tx = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        const tx = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE).objectStore(TRACK_INFO_TABLE_NAME);
         return iDbPromisify(tx.put(trackInfo));
     }
 
     async addTrackInfo(trackUid, trackInfo) {
         trackInfo.trackUid = trackUid;
         const db = await this.db;
-        const tx1 = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+        const tx1 = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
         const previousTrackInfo = await iDbPromisify(tx1.get(trackUid));
-        const tx2 = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        const tx2 = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE).objectStore(TRACK_INFO_TABLE_NAME);
         const newTrackInfo = Object.assign({}, previousTrackInfo || {}, trackInfo);
         await iDbPromisify(tx2.put(newTrackInfo));
         return newTrackInfo;
@@ -102,9 +245,9 @@ const fieldUpdater = function(...fieldNames) {
     return {
         async method(trackUid, ...values) {
             const db = await this.db;
-            const tx1 = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+            const tx1 = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
             const data = Object(await iDbPromisify(tx1.get(trackUid)));
-            const tx2 = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+            const tx2 = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE).objectStore(TRACK_INFO_TABLE_NAME);
             data.trackUid = trackUid;
             for (let i = 0; i < fieldNames.length; ++i) {
                 const name = fieldNames[i];
