@@ -1,7 +1,7 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB} from "platform/platform";
 
-const VERSION = 9;
+const VERSION = 10;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const ALBUM_KEY_NAME = `album`;
@@ -66,24 +66,6 @@ const trackInfoIndexSpec = {
         unique: false,
         multiEntry: false,
         keyPath: "year"
-    },
-
-    artistsInGenre: {
-        unique: false,
-        multiEntry: false,
-        keyPath: ["genres", "artist"]
-    },
-
-    albumsInArtistsInGenre: {
-        unique: false,
-        multiEntry: false,
-        keyPath: ["genres", "artist", "album"]
-    },
-
-    titlesInAlbumsInArtistsInGenre: {
-        unique: false,
-        multiEntry: false,
-        keyPath: ["genres", "artist", "album", "title"]
     }
 };
 
@@ -122,6 +104,12 @@ export default class TagDatabase {
             if (!indexNames.has(indexName)) {
                 const spec = trackInfoIndexSpec[indexName];
                 trackInfoStore.createIndex(indexName, spec.keyPath, spec);
+            }
+        }
+
+        for (const indexName of indexNames) {
+            if (!trackInfoIndexSpec.hasOwnProperty(indexName)) {
+                trackInfoStore.deleteIndex(indexName);
             }
         }
 
