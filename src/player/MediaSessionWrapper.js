@@ -102,7 +102,7 @@ export default class MediaSessionWrapper extends CancellableOperations(null, `im
             if (cancellationToken.isCancelled()) return;
             imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
 
-            const info = track.getTrackInfo();
+            const info = track.getArtistAndTitle();
             const title = `${track.getIndex() + 1}. ${info.title}`;
             const {artist} = info;
             const album = track.formatTime();

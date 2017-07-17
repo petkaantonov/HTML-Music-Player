@@ -1,10 +1,8 @@
-
-
 import EventEmitter from "events";
 import {inherits} from "util";
-import {trackInfoFromFileName} from "tracks/TagData";
-import {calculateUid, getSearchTerm} from "search/searchUtil";
+import {getSearchTerm} from "search/searchUtil";
 import {URL} from "platform/platform";
+import {getFileCacheKey} from "audio/backend/MetadataParser";
 
 export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
 export const FILESYSTEM_ACCESS_ERROR = `Access to the file was denied. It has probably been moved or altered after being added to the playlist.`;
@@ -63,10 +61,9 @@ Track.prototype.transientId = function() {
     return this._transientId;
 };
 
-Track.prototype.getTrackInfo = function() {
+Track.prototype.getArtistAndTitle = function() {
     if (!this.tagData) {
-        const {artist, title} = trackInfoFromFileName(this.getFileName());
-        return {artist, title};
+        return {artist: `Unknown artist`, title: `Unknown title`};
     } else {
         return {artist: this.tagData.getArtist(), title: this.tagData.getTitle()};
     }
@@ -290,11 +287,8 @@ Track.prototype.formatFullName = function() {
 };
 
 Track.prototype.formatName = function() {
-    if (this.tagData !== null) {
-        return this.tagData.formatName();
-    }
-    const artistAndTitle = trackInfoFromFileName(this.getFileName());
-    return `${artistAndTitle.artist} - ${artistAndTitle.title}`;
+    const {artist, title} = this.getArtistAndTitle();
+    return `${artist} - ${title}`;
 };
 
 Track.prototype.formatTime = function() {
@@ -308,12 +302,8 @@ Track.prototype.needsParsing = function() {
     return (this.tagData === null || !this.tagData.hasBeenAnalyzed()) && !this._error;
 };
 
-Track.prototype.getBasicInfo = function() {
-    return this.tagData ? this.tagData.basicInfo : {
-        channels: 2,
-        sampleRate: 44100,
-        duration: NaN
-    };
+Track.prototype.getDuration = function() {
+    return this.tagData ? this.tagData.duration : 0;
 };
 
 Track.prototype.rate = function(value) {
@@ -348,13 +338,9 @@ Track.prototype.tagDataUpdated = function() {
 };
 
 Track.prototype.uid = async function() {
-    if (this.tagData) {
-        if (this._uid) return this._uid;
-        this._uid = await calculateUid(this.file, this.tagData, true);
-        return this._uid;
-    } else {
-        throw new Error(`cannot get uid before having tagData`);
-    }
+    if (this._uid) return this._uid;
+    this._uid = await getFileCacheKey(this.file);
+    return this._uid;
 };
 
 Track.prototype.comesBeforeInSameAlbum = function(otherTrack) {

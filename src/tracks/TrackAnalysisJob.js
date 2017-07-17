@@ -1,7 +1,5 @@
 import FileView from "platform/FileView";
-import demuxer from "audio/backend/demuxer";
 import getCodec from "audio/backend/codec";
-import getCodecName from "audio/backend/sniffer";
 import {allocResampler, freeResampler} from "audio/backend/pool";
 import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
@@ -19,14 +17,13 @@ export class TrackAnalysisError extends Error {
 }
 
 export default class TrackAnalysisJob extends CancellableOperations(null, `analysisOperation`) {
-    constructor(backend, file) {
+    constructor(backend, file, uid) {
         super();
+        this.uid = uid;
         this.backend = backend;
         this.file = file;
-
         this.cancellationToken = null;
         this.decoder = null;
-        this.codecName = null;
         this.resampler = null;
         this.decodedChannelData = null;
         this.fingerprinter = null;
@@ -38,60 +35,56 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
     }
 
     get sourceSampleRate() {
-        return this.metadata.sampleRate;
+        return this.metadata.demuxData.sampleRate;
     }
 
     get sourceChannelCount() {
-        return this.metadata.channels;
+        return this.metadata.demuxData.channels;
     }
 
     get shouldComputeFingerprint() {
-        return this.metadata.duration >= 7;
+        return this.metadata.demuxData.duration >= 7;
     }
 
     async analyze() {
         this.cancellationToken = this.cancellationTokenForAnalysisOperation();
-        const {file} = this;
+        const {file, backend} = this;
+        const {metadataParser} = backend;
         const fileView = new FileView(file);
         this.fileView = fileView;
-        const codecName = await getCodecName(fileView);
-        this.cancellationToken.check();
-        if (!codecName) {
-            throw new TrackAnalysisError(`file type not supported`);
-        }
-        this.codecName = codecName;
-
-        const codec = await getCodec(codecName);
-        this.cancellationToken.check();
-        if (!codec) {
-            throw new TrackAnalysisError(`no codec for ${codecName}`);
-        }
-        this.codec = codec;
-
-        const metadata = await demuxer(codecName, fileView);
+        const metadata = await metadataParser.getCachedMetadata(file);
         this.cancellationToken.check();
         if (!metadata) {
             throw new TrackAnalysisError(`file type not supported`);
         }
         this.metadata = metadata;
+
+        const codec = await getCodec(metadata.codecName);
+        this.cancellationToken.check();
+        if (!codec) {
+            throw new TrackAnalysisError(`no codec for ${metadata.codecName}`);
+        }
+        this.codec = codec;
+
         return this._analyze();
     }
 
     async _analyze() {
         const {sourceSampleRate, sourceChannelCount, metadata,
-                shouldComputeFingerprint, fileView, file,
-                codecName, codec} = this;
+                shouldComputeFingerprint, fileView, file, codec} = this;
         const {wasm} = this.backend;
+        const {demuxData} = metadata;
+        const {duration, dataStart, dataEnd} = demuxData;
+
         const result = {
-            fingerprint: null,
-            duration: metadata.duration
+            fingerprint: null
         };
 
         if (!shouldComputeFingerprint) {
             return result;
         }
 
-        const tooLongToScan = metadata.duration ? metadata.duration > 30 * 60 : file.size > 100 * 1024 * 1024;
+        const tooLongToScan = duration ? duration > 30 * 60 : file.size > 100 * 1024 * 1024;
         if (tooLongToScan) {
             return result;
         }
@@ -99,7 +92,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         const decoder = this.decoder = new codec(wasm, {
             targetBufferLengthAudioFrames: BUFFER_DURATION * sourceSampleRate
         });
-        decoder.start(metadata);
+        decoder.start(demuxData);
 
 
         this.fingerprinter = new Fingerprinter(wasm);
@@ -122,13 +115,13 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
             fingerprinter: this.fingerprinter
         });
 
-        const fileStartPosition = metadata.dataStart;
+        const fileStartPosition = dataStart;
         let filePosition = fileStartPosition;
-        const fileEndPosition = metadata.dataEnd;
+        const fileEndPosition = dataEnd;
         while (filePosition < fileEndPosition && this.fingerprinter.needFrames()) {
             const bytesRead = await this.audioPipeline.decodeFromFileViewAtOffset(fileView,
                                                                                   filePosition,
-                                                                                  metadata,
+                                                                                  demuxData,
                                                                                   this.cancellationToken);
             this.cancellationToken.check();
             this.audioPipeline.consumeFilledBuffer();
@@ -137,10 +130,7 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         }
         result.fingerprint = this.fingerprinter.calculateFingerprint();
 
-        return {
-            duration: result.duration,
-            fingerprint: result.fingerprint
-        };
+        return result;
     }
 
     abort() {

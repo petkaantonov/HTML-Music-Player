@@ -274,10 +274,9 @@ Player.prototype.getFadeInTimeForNextTrack = function() {
         return 0;
     }
 
-    const {duration} = nextTrack.getBasicInfo();
-
-    return isNaN(duration) ? fadeInTime
-                           : Math.max(Math.min(duration - MINIMUM_DURATION - preferences.getOutTime(), fadeInTime), 0);
+    const duration = nextTrack.getDuration();
+    return !duration ? fadeInTime
+                     : Math.max(Math.min(duration - MINIMUM_DURATION - preferences.getOutTime(), fadeInTime), 0);
 };
 
 Player.prototype.audioManagerSeekIntent = function(audioManager, time) {
@@ -330,7 +329,7 @@ Player.prototype.getSampleRate = function() {
     if (!track) return 44100;
     const tagData = track.getTagData();
     if (!tagData) return 44100;
-    return tagData.basicInfo.sampleRate;
+    return tagData.sampleRate;
 };
 
 Player.prototype.pause = function() {
@@ -591,10 +590,7 @@ Player.prototype.getProbableDuration = function() {
     const ret = this.currentAudioManager.getDuration();
     if (ret) return ret;
     const track = this.playlist.getCurrentTrack();
-    if (track.tagData && track.tagData.basicInfo) {
-        return track.tagData.basicInfo.duration || 0;
-    }
-    return 0;
+    return track.getDuration();
 };
 
 Player.prototype.getVolume = function() {

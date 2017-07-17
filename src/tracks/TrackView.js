@@ -175,7 +175,7 @@ export default class TrackView {
     }
 
     renderTrackInfo() {
-        const artistAndTitle = this._track.getTrackInfo();
+        const artistAndTitle = this._track.getArtistAndTitle();
 
         this.$().find(`.track-title`).setText(artistAndTitle.title);
         this.$().find(`.track-artist`).setText(artistAndTitle.artist);

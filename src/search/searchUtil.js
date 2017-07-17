@@ -1,23 +1,8 @@
 
 
-import {normalizeQuery, sha1HexString} from "util";
+import {normalizeQuery} from "util";
 const EMPTY_ARRAY = [];
 const rext = /\.[a-zA-Z0-9_-]+$/;
-
-export const calculateUid = function(file, metadata, useTagged) {
-    let title, album, artist;
-    if (useTagged) {
-        title = metadata.taggedTitle || undefined;
-        album = metadata.taggedAlbum || undefined;
-        artist = metadata.taggedArtist || undefined;
-    } else {
-        title = metadata.title || undefined;
-        album = metadata.album || undefined;
-        artist = metadata.artist || undefined;
-    }
-    const {name, size} = file;
-    return sha1HexString(`${album}${title}${artist}${name}${size}`);
-};
 
 export const getSearchTerm = function(metadata, file) {
     const title = normalizeQuery(metadata.taggedTitle || metadata.title || ``);

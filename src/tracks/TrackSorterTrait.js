@@ -23,13 +23,7 @@ const compareArtist = function(a, b) {
 };
 
 const compareDuration = function(a, b) {
-    const aDuration = a.basicInfo.duration;
-    const bDuration = b.basicInfo.duration;
-
-    if (!aDuration) return bDuration ? -1 : 0;
-    else if (!bDuration) return 1;
-
-    return aDuration - bDuration;
+    return a.duration - b.duration;
 };
 
 const compareRating = function(a, b) {

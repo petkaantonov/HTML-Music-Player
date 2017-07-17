@@ -103,8 +103,7 @@ AudioManager.prototype._updateNextGaplessTrack = function() {
     if (this.gaplessPreloadTrack) {
         this.sourceNode.replace(this.gaplessPreloadTrack.getFile(),
                                 0,
-                                true,
-                                this.gaplessPreloadTrack.playerMetadata());
+                                true);
     }
 };
 
@@ -159,7 +158,7 @@ AudioManager.prototype.replaceTrack = function(track, explicitlyLoaded) {
         this.resume();
     });
     this.currentTime = 0;
-    this.sourceNode.replace(track.getFile(), this.currentTime, false, track.playerMetadata());
+    this.sourceNode.replace(track.getFile(), this.currentTime, false);
 };
 
 AudioManager.prototype.nextTrackChanged = function() {
@@ -313,8 +312,7 @@ AudioManager.prototype.start = function() {
     this.sourceNode.on(`error`, this.errored);
     this.sourceNode.on(`initialPlaythrough`, this.initialPlaythrough);
     this.sourceNode.load(this.track.getFile(),
-                         0,
-                         this.track.playerMetadata());
+                         0);
     this.sourceNode.play();
 };
 

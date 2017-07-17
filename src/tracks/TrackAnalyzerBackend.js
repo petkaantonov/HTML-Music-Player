@@ -33,11 +33,11 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 }
             },
 
-            async parseMetadata({file, transientId, id}) {
-                const promise = this.metadataParser.parse(file);
+            async parseMetadata({file, transientId, id, uid}) {
+                const promise = this.metadataParser.parse(file, uid);
                 const metadata = await this.promiseMessageSuccessErrorHandler(id, promise, `metadata`);
                 if (metadata) {
-                    this.emit(`metadataParsed`, {file, metadata, transientId});
+                    this.emit(`metadataParsed`, {file, metadata, transientId, uid});
                 }
 
             },
@@ -52,8 +52,8 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 this.promiseMessageSuccessErrorHandler(id, promise, `acoustId`);
             },
 
-            fetchAcoustIdImage({id, albumKey, acoustId}) {
-                const promise = this.metadataParser.fetchAcoustIdImage(acoustId, albumKey);
+            fetchAcoustIdImage({id, albumKey, acoustIdCoverArt}) {
+                const promise = this.metadataParser.fetchAcoustIdImage(acoustIdCoverArt, albumKey);
                 this.promiseMessageSuccessErrorHandler(id, promise, `acoustIdImage`);
             }
         };
@@ -125,12 +125,12 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
 
         const jobArgs = this.analysisQueue.shift();
         const {id, uid, file} = jobArgs;
-        const job = new TrackAnalysisJob(this, file);
+        const job = new TrackAnalysisJob(this, file, uid);
         this.currentJob = job;
 
         try {
-            const result = await job.analyze();
-            await this.db.insert(uid, result);
+            let result = await job.analyze();
+            result = await this.db.addTrackInfo(uid, result);
             this.reportSuccess(id, result);
         } catch (e) {
             if (e && e instanceof CancellationError) {

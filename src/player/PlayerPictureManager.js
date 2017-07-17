@@ -1,5 +1,5 @@
 import jdenticon from "jdenticon";
-import {addLegacyListener, noUndefinedGet} from "util";
+import {addLegacyListener, noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
 import CancellableOperations from "utils/CancellationToken";
 
@@ -158,6 +158,6 @@ PlayerPictureManager.prototype.generateImageForTrack = async function(track) {
     ctx.fillRect(0, 0, size, size);
     ctx.restore();
     const uid = await track.uid();
-    jdenticon.drawIcon(ctx, uid, size);
+    jdenticon.drawIcon(ctx, hexString(uid), size);
     return canvasToImage(this._jdenticonCanvas, this._page);
 };

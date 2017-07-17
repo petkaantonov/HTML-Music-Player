@@ -127,6 +127,7 @@ export default function parseAcoustId(data) {
         type: `release`
     };
     let album = null;
+    let albumArtist = null;
 
     if (bestRecordingGroup.album) {
         album = {
@@ -134,6 +135,11 @@ export default function parseAcoustId(data) {
             mbid: bestRecordingGroup.album.id,
             type: `release-group`
         };
+
+        const isCompilation = bestRecordingGroup.secondarytypes &&
+                              (`${bestRecordingGroup.secondarytypes}`).indexOf(`compilation`) >= 0;
+
+        albumArtist = isCompilation ? {name: `Various Artists`} : album;
     }
 
     let artist = null;
@@ -148,6 +154,7 @@ export default function parseAcoustId(data) {
     return {
         title,
         album,
+        albumArtist,
         artist
     };
 }

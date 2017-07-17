@@ -991,10 +991,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._applySeek(baseTime);
     }
 
-    _actualReplace(blob, seekTime, gaplessPreload, metadata) {
+    _actualReplace(blob, seekTime, gaplessPreload) {
         if (this._destroyed) return;
         if (!this._haveBlob) {
-            this.load(blob, seekTime, metadata);
+            this.load(blob, seekTime);
             return;
         }
 
@@ -1010,25 +1010,24 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             requestId,
             seekTime,
             count: this.getSustainedBufferCount(),
-            gaplessPreload: !!gaplessPreload,
-            metadata
+            gaplessPreload: !!gaplessPreload
         });
     }
 
-    replace(blob, seekTime, gaplessPreload, metadata) {
+    replace(blob, seekTime, gaplessPreload) {
         if (this._destroyed) return;
         if (seekTime === undefined) seekTime = 0;
         this._loadingNext = true;
         const now = performance.now();
         if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-            this._actualReplace(blob, seekTime, gaplessPreload, metadata);
+            this._actualReplace(blob, seekTime, gaplessPreload);
         } else {
-            this._replaceThrottled(blob, seekTime, gaplessPreload, metadata);
+            this._replaceThrottled(blob, seekTime, gaplessPreload);
         }
         this._lastExpensiveCall = now;
     }
 
-    _actualLoad(blob, seekTime, metadata) {
+    _actualLoad(blob, seekTime) {
         if (this._destroyed) return;
         if (seekTime === undefined) {
             seekTime = 0;
@@ -1040,11 +1039,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._player._message(this._id, `loadBlob`, {
             blob,
             requestId: fillRequestId,
-            metadata
         });
     }
 
-    load(blob, seekTime, metadata) {
+    load(blob, seekTime) {
         if (this._destroyed) return;
         if (seekTime === undefined) seekTime = 0;
         if (!(blob instanceof Blob) && !(blob instanceof File)) {
@@ -1054,9 +1052,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         const now = performance.now();
         this._loadingNext = true;
         if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-            this._actualLoad(blob, seekTime, metadata);
+            this._actualLoad(blob, seekTime);
         } else {
-            this._loadThrottled(blob, seekTime, metadata);
+            this._loadThrottled(blob, seekTime);
         }
         this._lastExpensiveCall = now;
     }
@@ -1065,12 +1063,12 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._seek(time, true);
     }
 
-    _replaceThrottled(blob, seekTime, gaplessPreload, metadata) {
-        this._actualReplace(blob, seekTime, gaplessPreload, metadata);
+    _replaceThrottled(blob, seekTime, gaplessPreload) {
+        this._actualReplace(blob, seekTime, gaplessPreload);
     }
 
-    _loadThrottled(blob, seekTime, metadata) {
-        this._actualLoad(blob, seekTime, metadata);
+    _loadThrottled(blob, seekTime) {
+        this._actualLoad(blob, seekTime);
     }
 
 }

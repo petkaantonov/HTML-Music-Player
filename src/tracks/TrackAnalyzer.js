@@ -146,7 +146,7 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = async function(track) {
         track.tagData && track.shouldRetrieveAcoustIdImage()) {
         track.tagData.fetchAcoustIdImageStarted();
         const albumKey = track.tagData.albumNameKey();
-        const {acoustId} = track.tagData;
+        const {acoustIdCoverArt} = track.tagData;
 
         const id = ++this._nextJobId;
         this._acoustIdImageFetchingTracks[id] = {
@@ -165,7 +165,7 @@ TrackAnalyzer.prototype.fetchAcoustIdImage = async function(track) {
                 uid,
                 transientId: track.transientId(),
                 albumKey,
-                acoustId
+                acoustIdCoverArt
             }
         });
     }
@@ -177,9 +177,9 @@ TrackAnalyzer.prototype.fillInAcoustId = async function(track, duration, fingerp
         this.prioritize(track);
     }
 
-    let acoustId;
+    let acoustIdResult;
     try {
-        acoustId = await this.fetchTrackAcoustId(track, {duration, fingerprint});
+        acoustIdResult = await this.fetchTrackAcoustId(track, {duration, fingerprint});
         if (track.isDetachedFromPlaylist()) {
             return;
         }
@@ -188,38 +188,38 @@ TrackAnalyzer.prototype.fillInAcoustId = async function(track, duration, fingerp
             throw e;
         }
     }
-    track.tagData.setAcoustId(acoustId);
+    track.tagData.setAcoustIdCoverArt(acoustIdResult.acoustIdCoverArt);
     if (this._playlist.isTrackHighlyRelevant(track)) {
         this.fetchAcoustIdImage(track);
     }
 
+    if (acoustIdResult.metadataUpdated) {
+        track.tagData.setDataFromTagDatabase(acoustIdResult.metadata);
+        this.emit(`metadataUpdate`);
+    }
 };
 
-TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, dbResult, error) {
+TrackAnalyzer.prototype.trackAnalysisDataFetched = async function(track, result, error) {
     if (error && this._env.isDevelopment()) {
         console.error(error);
     }
 
-    const result = dbResult && dbResult.duration ? dbResult : null;
     if (!track.isDetachedFromPlaylist() && !error) {
-        this.emit(`metadataUpdate`);
+        track.tagData.setDataFromTagDatabase(result);
         let needFingerprint = !track.tagData.hasSufficientMetadata();
+        let acoustIdFilled = null;
+        needFingerprint = needFingerprint ? !result.fingerprint : false;
 
-        if (result) {
-            needFingerprint = needFingerprint ? !result.fingerprint : false;
-
-            track.tagData.setDataFromTagDatabase(result);
-
-            if (result.fingerprint && this._playlist.isTrackHighlyRelevant(track)) {
-                this.fetchAcoustIdImage(track);
-            }
+        if (result.fingerprint && this._playlist.isTrackHighlyRelevant(track)) {
+            this.fetchAcoustIdImage(track);
         }
 
-        let acoustIdFilled = null;
-        if (result && (!result.acoustId && result.acoustId !== null) && result.fingerprint && result.duration) {
+        if (!result.acoustIdCoverArt && result.acoustIdCoverArt !== null &&
+            result.fingerprint && result.duration) {
             acoustIdFilled = this.fillInAcoustId(track, result.duration, result.fingerprint);
         }
 
+        this.emit(`metadataUpdate`);
         if (needFingerprint) {
             try {
                 const analysis = await this.analyzeTrack(track);
@@ -363,7 +363,7 @@ TrackAnalyzer.prototype.abortJobForTrack = function(track) {
     }
 };
 
-TrackAnalyzer.prototype.parseMetadata = function(track) {
+TrackAnalyzer.prototype.parseMetadata = async function(track) {
     const id = ++this._nextJobId;
     this._metadataParsingTracks[id] = {
         track,
@@ -372,10 +372,12 @@ TrackAnalyzer.prototype.parseMetadata = function(track) {
         }
     };
     track.once(`destroy`, this._metadataParsingTracks[id].destroyHandler);
+    const uid = await track.uid();
     this.postMessage({
         action: `parseMetadata`,
         args: {
             id,
+            uid,
             file: track.getFile(),
             transientId: track.transientId()
         }

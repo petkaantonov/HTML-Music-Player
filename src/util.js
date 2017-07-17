@@ -1023,24 +1023,37 @@ export function noop() {
 const textEncoder = new TextEncoder(`utf-8`);
 const padding = [`00000000`, `0000000`, `000000`, `00000`, `0000`, `000`, `00`, `0`, ``];
 export async function sha1HexString(text) {
-    const buffer = textEncoder.encode(text);
-    const hash = await crypto.subtle.digest(`SHA-1`, buffer);
-    const view = new DataView(hash);
-    const a = view.getUint32(0, false).toString(16);
-    const b = view.getUint32(4, false).toString(16);
-    const c = view.getUint32(8, false).toString(16);
-    const d = view.getUint32(12, false).toString(16);
-    const e = view.getUint32(16, false).toString(16);
-    return (padding[a.length] + a) +
-            (padding[b.length] + b) +
-            (padding[c.length] + c) +
-            (padding[d.length] + d) +
-            (padding[e.length] + e);
+    const hash = await sha1Binary(text);
+    return hexString(hash);
 }
 
 export function sha1Binary(text) {
   const buffer = textEncoder.encode(text);
   return crypto.subtle.digest(`SHA-1`, buffer);
+}
+
+export function hexString(arrayBuffer) {
+    if (arrayBuffer.byteLength === 20) {
+        const view = new DataView(arrayBuffer);
+        const a = view.getUint32(0, false).toString(16);
+        const b = view.getUint32(4, false).toString(16);
+        const c = view.getUint32(8, false).toString(16);
+        const d = view.getUint32(12, false).toString(16);
+        const e = view.getUint32(16, false).toString(16);
+        return (padding[a.length] + a) +
+              (padding[b.length] + b) +
+              (padding[c.length] + c) +
+              (padding[d.length] + d) +
+              (padding[e.length] + e);
+    } else {
+        let ret = ``;
+        const view = new Uint8Array(arrayBuffer);
+        for (let i = 0; i < view.length; ++i) {
+            const byte = view[i].toString(16);
+            ret += (padding[byte.length] + byte);
+        }
+        return ret;
+    }
 }
 
 const thrower = function() {
@@ -1081,6 +1094,10 @@ export function setterProxyHandlers(setter) {
         apply: thrower,
         constructr: thrower
     };
+}
+
+export function ownPropOr(obj, prop, defaultValue) {
+  return obj.hasOwnProperty(prop) ? obj[prop] : defaultValue;
 }
 
 const isNoUndefinedProxySymbol = Symbol();

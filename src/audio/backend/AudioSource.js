@@ -364,7 +364,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    async _gotCodec(codec, requestId, playerMetadata) {
+    async _gotCodec(codec, requestId) {
         const {wasm,
                 effects,
                 metadataParser,
@@ -384,16 +384,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this.fileView = this.blob = null;
                 this._errored(new Error(`Invalid ${codec.name} file`));
                 return;
-            }
-
-            if (playerMetadata) {
-                if (playerMetadata.encoderDelay !== -1) {
-                    metadata.encoderDelay = playerMetadata.encoderDelay;
-                }
-
-                if (playerMetadata.encoderPadding !== -1) {
-                    metadata.encoderPadding = playerMetadata.encoderPadding;
-                }
             }
 
             const trackMetadata = await metadataParser.getCachedMetadata(blob);
@@ -578,7 +568,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     return;
                 }
 
-                await this._gotCodec(codec, args.requestId, args.metadata);
+                await this._gotCodec(codec, args.requestId);
 
                 if (this.destroyed) {
                     return;

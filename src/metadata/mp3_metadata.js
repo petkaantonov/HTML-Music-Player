@@ -341,11 +341,10 @@ const getMainFlags = function(fileView, offset) {
     };
 };
 
-const parseBasicInfo = async function(fileView) {
-    const metadata = await demux(`mp3`, fileView, true, 262144);
-    if (!metadata) return null;
-    const {sampleRate, channels, duration} = metadata;
-    return {sampleRate, channels, duration};
+const getDemuxData = async function(fileView) {
+    const demuxData = await demux(`mp3`, fileView, true, 262144);
+    if (!demuxData) return null;
+    return demuxData;
 };
 
 const parseId3v2Data = async function(data, fileView, offset) {
@@ -458,9 +457,9 @@ const parseId3v1Data = async function(data, fileView) {
         const year = decoder.decode(new Uint8Array(buffer.buffer, offset - fileView.start, 4));
         offset += 4;
         const comment = fileView.getUint16(offset + 28);
-        let trackIndex = -1;
+        let albumIndex = -1;
         if ((comment & 0xFF00) === 0) {
-            trackIndex = comment & 0xFF;
+            albumIndex = comment & 0xFF;
         }
         offset += 30;
         const genre = id3v1Genres[fileView.getUint8(offset)];
@@ -479,16 +478,23 @@ const parseId3v1Data = async function(data, fileView) {
             data.year = +year;
         }
 
-        if (trackIndex !== -1) {
-            data.trackIndex = trackIndex;
+        if (albumIndex !== -1) {
+            data.albumIndex = albumIndex;
         }
         data.genres = Array.isArray(genre) ? genre.slice() : [genre];
     }
 };
 
 export default async function parseMp3Metadata(tagData, fileView) {
-    const basicInfo = await parseBasicInfo(fileView);
-    if (basicInfo) tagData.basicInfo = basicInfo;
+    const demuxData = await getDemuxData(fileView);
+    if (demuxData) {
+        tagData.demuxData = demuxData;
+    } else {
+        // TODO Deduplicate code
+        const e = new Error(`codec not supported`);
+        e.name = `CodecNotSupportedError`;
+        throw e;
+    }
     const length = 16384;
     await fileView.readBlockOfSizeAt(length, 0);
     if (fileView.end < length) return null;
