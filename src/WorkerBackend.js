@@ -27,7 +27,7 @@ self.onerror = function(...args) {
 };
 
 if (self.addEventListener) {
-    self.addEventListener("unhandledrejection", function(event) {
+    self.addEventListener(`unhandledrejection`, (event) => {
         self.uiLog(event.reason.stack);
     });
 }

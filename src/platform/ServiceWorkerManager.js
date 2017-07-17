@@ -155,6 +155,7 @@ ServiceWorkerManager.prototype.start = function() {
             } else {
                 console.warn(e);
             }
+            return null;
         }
     })();
 
