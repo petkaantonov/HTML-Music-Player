@@ -130,6 +130,22 @@ function positionInDimension(preferredDirection,
     };
 }
 
+class MenuItemClickEvent {
+    constructor(zIndex) {
+        this.defaultPrevented = false;
+        this.ripplePrevented = false;
+        this.zIndex = zIndex;
+    }
+
+    preventDefault() {
+        this.defaultPrevented = true;
+    }
+
+    preventRipple() {
+        this.ripplePrevented = true;
+    }
+}
+
 class ActionMenuItem {
     constructor(root, spec, children, level) {
         this.root = root;
@@ -229,7 +245,9 @@ class ActionMenuItem {
     }
 
     itemTouchStarted(e) {
-        this.root.rippleEventTarget(e, this.zIndex() + 1);
+        if (this.children && this.children.length) {
+            this.root.rippleEventTarget(e, this.zIndex() + 1);
+        }
         const parent = this.parent ? this.parent : this.root;
         parent.menuItemTouchStarted(this);
         if (this.children) {
@@ -309,18 +327,14 @@ class ActionMenuItem {
                 this.showContainer();
             }
         } else {
-            let prevented = false;
+            const menuItemClickEvent = new MenuItemClickEvent(this.zIndex() + 1);
             try {
-                this.handler({
-                    preventDefault() {
-                        prevented = true;
-                    }
-                });
+                this.handler(menuItemClickEvent);
             } finally {
-                if (!prevented) {
+                if (!menuItemClickEvent.defaultPrevented) {
                     this.root.hideContainer();
-                    this.root.emit(`itemClick`, this.id);
-                } else {
+                    this.root.emit(`itemClick`, this.id, ripplePrevented);
+                } else if (!menuItemClickEvent.ripplePrevented) {
                     this.root.rippleEventTarget(e, this.zIndex() + 1);
                 }
             }

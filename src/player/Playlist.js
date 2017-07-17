@@ -136,7 +136,7 @@ export default class Playlist extends EventEmitter {
             page: this.page,
             recognizerContext: this.recognizerContext,
             rippler: this.rippler
-        }, d => new TrackRater(d));
+        }, d => new TrackRater({zIndex}, d));
         this._singleTrackViewSelected = null;
         this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
 
@@ -268,6 +268,7 @@ export default class Playlist extends EventEmitter {
             content: () => this._trackRater.$(),
             onClick(e) {
                 e.preventDefault();
+                e.preventRipple();
             }
         });
 
@@ -288,6 +289,10 @@ export default class Playlist extends EventEmitter {
                 y: box.top
             };
         });
+    }
+
+    getTrackRater() {
+        return this._trackRater;
     }
 
     _windowLayoutChanged() {

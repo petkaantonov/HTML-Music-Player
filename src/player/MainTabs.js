@@ -55,17 +55,8 @@ export default class MainTabs {
         this.tabHeight = opts.tabHeight;
         this.tabHolder = this.page.$(opts.tabHolder);
 
-        this.playlistTrackRater = withDeps({
-            page: this.page,
-            recognizerContext: this.recognizerContext,
-            rippler: this.rippler
-        }, d => new TrackRater(d));
-
-        this.searchTrackRater = withDeps({
-            page: this.page,
-            recognizerContext: this.recognizerContext,
-            rippler: this.rippler
-        }, d => new TrackRater(d));
+        this.playlistTrackRater = this.playlist.getTrackRater();
+        this.searchTrackRater = this.search.getTrackRater();
 
         this.contentInstancesByTabId = Object.create(null);
         this.contentInstancesByTabId[PLAYLIST_TAB_ID] = this.playlist;

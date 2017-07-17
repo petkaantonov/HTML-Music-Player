@@ -8,7 +8,7 @@ const HTML = `<div class='track-rating'>                                        
         <div data-rating='5' class='rating-input'><span class='glyphicon glyphicon-star'></span></div> \
     </div>`;
 
-export default function TrackRater(deps) {
+export default function TrackRater(opts, deps) {
     this.page = deps.page;
     this.recognizerContext = deps.recognizerContext;
     this.rippler = deps.rippler;
@@ -21,11 +21,15 @@ export default function TrackRater(deps) {
     this._tapRecognizer = this.recognizerContext.createTapRecognizer(this._clicked);
     this._update(-1);
     this._enabled = false;
-
+    this._rippleZIndex = opts.zIndex;
 }
 
 TrackRater.prototype.$ = function() {
     return this._domNode;
+};
+
+TrackRater.prototype.setRippleZIndex = function(rippleZIndex) {
+    this._rippleZIndex = rippleZIndex;
 };
 
 TrackRater.prototype._addClassToRatingsAtLeast = function(inputs, value, className) {
@@ -85,7 +89,7 @@ TrackRater.prototype.enable = function(track) {
 
 
 TrackRater.prototype._clicked = function(e) {
-    this.rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY);
+    this.rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY, null, this._rippleZIndex);
     this._ratingInputClicked(e.delegateTarget);
 };
 

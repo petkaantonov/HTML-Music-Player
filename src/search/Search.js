@@ -129,7 +129,7 @@ export default class Search extends WorkerFrontend {
             page: this.page,
             recognizerContext: this.recognizerContext,
             rippler: this.rippler
-        }, d => new TrackRater(d));
+        }, d => new TrackRater({zIndex}, d));
         this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
         this._singleTrackViewSelected = null;
 
@@ -272,6 +272,10 @@ Search.prototype.openSingleTrackMenu = function(trackView, eventTarget, event) {
             y: box.top
         };
     });
+};
+
+Search.prototype.getTrackRater = function() {
+    return this._trackRater;
 };
 
 Search.prototype.receiveMessage = function(event) {
