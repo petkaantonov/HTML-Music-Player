@@ -19,7 +19,7 @@ function _dragOvered(e) {
     return false;
 }
 
-function generateSilentWavFile() {
+export function generateSilentWavFile() {
     const seconds = 10;
     const sampleRate = 8000;
     const samples = sampleRate * seconds;

@@ -6,6 +6,7 @@ import {inherits, noUndefinedGet} from "util";
 import {URL} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
 import {FILESYSTEM_ACCESS_ERROR, DECODE_ERROR} from "tracks/Track";
+import {generateSilentWavFile} from "platform/LocalFileHandler";
 
 const MINIMUM_DURATION = 3;
 
@@ -98,7 +99,7 @@ export default function Player(opts, deps) {
         this.mediaFocusAudioElement = this.page.createElement(`audio`, {
             loop: true,
             controls: false,
-            src: URL.createObjectURL(this.localFileHandler.generateSilentWavFile())
+            src: URL.createObjectURL(generateSilentWavFile())
         })[0];
 
     }

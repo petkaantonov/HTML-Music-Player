@@ -26,6 +26,12 @@ self.onerror = function(...args) {
     self.uiLog(...args);
 };
 
+if (self.addEventListener) {
+    self.addEventListener("unhandledrejection", function(event) {
+        self.uiLog(event.reason.stack);
+    });
+}
+
 (async () => {
     const timers = new Timers(self);
     setTimers(timers);

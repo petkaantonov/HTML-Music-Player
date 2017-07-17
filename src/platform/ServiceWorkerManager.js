@@ -130,24 +130,32 @@ ServiceWorkerManager.prototype.start = function() {
     if (this._started || !this._page.navigator().serviceWorker) return;
     this._started = true;
     this._registration = (async () => {
-        const reg = await this._page.navigator().serviceWorker.register(`/sw.js`);
-        if (!this._page.navigator().serviceWorker.controller) return reg;
+        try {
+            const reg = await this._page.navigator().serviceWorker.register(`/sw.js`);
+            if (!this._page.navigator().serviceWorker.controller) return reg;
 
-        if (reg.waiting) {
-            this._updateAvailable(reg.waiting);
-        } else if (reg.installing) {
-            this._updateFound(reg.installing);
-        } else {
-            reg.addEventListener(`updatefound`, () => {
+            if (reg.waiting) {
+                this._updateAvailable(reg.waiting);
+            } else if (reg.installing) {
                 this._updateFound(reg.installing);
-            });
-        }
+            } else {
+                reg.addEventListener(`updatefound`, () => {
+                    this._updateFound(reg.installing);
+                });
+            }
 
-        this._page.navigator().serviceWorker.addEventListener(`message`, this._messaged);
-        this._page.navigator().serviceWorker.addEventListener(`ServiceWorkerMessageEvent`, this._messaged);
-        this._page.addWindowListener(`message`, this._messaged);
-        this._page.addWindowListener(`ServiceWorkerMessageEvent`, this._messaged);
-        return reg;
+            this._page.navigator().serviceWorker.addEventListener(`message`, this._messaged);
+            this._page.navigator().serviceWorker.addEventListener(`ServiceWorkerMessageEvent`, this._messaged);
+            this._page.addWindowListener(`message`, this._messaged);
+            this._page.addWindowListener(`ServiceWorkerMessageEvent`, this._messaged);
+            return reg;
+        } catch (e) {
+            if (!this._env.isDevelopment()) {
+                throw e;
+            } else {
+                console.warn(e);
+            }
+        }
     })();
 
     let reloading = false;
