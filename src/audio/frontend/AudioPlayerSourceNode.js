@@ -294,18 +294,17 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             }
 
             if (!sourceDescriptor) {
-                descriptor.destroy();
                 self.uiLog(new Date().toISOString(), `!sourceDescriptor`,
                              `ended emitted`, this._endedEmitted,
                              `prelen`, length,
                              `postlen`, this._bufferQueue.length,
                              `referencedStart`, descriptor.startTime,
                              `referencedEnd`, descriptor.endTime);
-                this._ended();
-                return;
+                sourceDescriptor = descriptor;
             }
 
             if (sourceDescriptor !== descriptor) {
+                sourceDescriptor = descriptor;
                 self.uiLog(new Date().toISOString(), `sourceDescriptor !== descriptor`,
                              `ended emitted`, this._endedEmitted,
                              `prelen`, length,
@@ -314,10 +313,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                              `queuedEnd`, sourceDescriptor.endTime,
                              `referencedStart`, descriptor.startTime,
                              `referencedEnd`, descriptor.endTime);
-                descriptor.destroy();
-                sourceDescriptor.destroy();
-                this._ended();
-                return;
             }
             source.descriptor = null;
             source.onended = null;
