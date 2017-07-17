@@ -11,29 +11,20 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this._player = deps.player;
         this._player.setPictureManager(this);
         this._playlist = deps.playlist;
+        this._applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this._domNode = this._page.$(opts.target);
 
         this._imageDimensions = opts.imageDimensions;
         this._defaultImageSrc = opts.defaultImageSrc;
-        this._enabledMediaMatcher = opts.enabledMediaMatcher || null;
-        this._enabled = true;
-        this._currentImage = null;
 
-        this._enabledMediaMatchChanged = this._enabledMediaMatchChanged.bind(this);
+        this._enabled = true;
+        this._currentImage = this.$().find("img")[0] || null;
         this._currentTrack = null;
-        this._cancellationToken = null;
 
         this.imageErrored = this.imageErrored.bind(this);
-        this.imageLoaded = this.imageLoaded.bind(this);
-        this.updateImage = this.updateImage.bind(this);
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
 
         this._playlist.on("trackPlayingStatusChange", this._trackChanged.bind(this));
-
-        if (this._enabledMediaMatcher) {
-            addLegacyListener(this._enabledMediaMatcher, `change`, this._enabledMediaMatchChanged);
-            this._enabledMediaMatchChanged();
-        }
 
         const size = this.size();
         const canvas = this._page.createElement(`canvas`, {
@@ -49,6 +40,11 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
 
         this._jdenticonCanvas = canvas;
         this._jdenticonCtx = canvas.getContext(`2d`);
+
+        const preferenceChangeHandler = () => {
+            this._preferenceChanged(this._applicationPreferencesBindingContext.getPreference("enableAlbumArt"));
+        };
+        this._applicationPreferencesBindingContext.on("change", preferenceChangeHandler);
     }
 }
 
@@ -64,20 +60,6 @@ PlayerPictureManager.prototype.defaultImage = function() {
     return this._defaultImage;
 };
 
-PlayerPictureManager.prototype._enabledMediaMatchChanged = function() {
-    const wasEnabled = !!this._enabled;
-    this._enabled = !!this._enabledMediaMatcher.matches;
-    if (this._enabled && !wasEnabled) {
-        if (this._currentImage) {
-            this.$().append(this._currentImage);
-        }
-    } else if (!this._enabled && wasEnabled) {
-        if (this._currentImage) {
-            this._page.$(this._currentImage).detach();
-        }
-    }
-};
-
 const isSameImage = function(a, b) {
     if (a.tag !== undefined && b.tag !== undefined) {
         return a.tag === b.tag;
@@ -87,54 +69,55 @@ const isSameImage = function(a, b) {
 };
 
 PlayerPictureManager.prototype.imageErrored = function(e) {
-    e.target.removeEventListener(`load`, this.imageLoaded);
-    e.target.removeEventListener(`error`, this.imageErrored);
-    if (e.target === this._currentImage) {
-        e.target.classList.add(`erroneous-image`);
-    }
+    this.cancelAllImageUpdateOperations();
+    const cancellationToken = this.cancellationTokenForImageUpdateOperation();
+    this.applyCurrentTrackImage(cancellationToken);
 };
 
-PlayerPictureManager.prototype.imageLoaded = function(e) {
-    e.target.removeEventListener(`load`, this.imageLoaded);
-    e.target.removeEventListener(`error`, this.imageErrored);
-};
-
-PlayerPictureManager.prototype.updateImage = function(image) {
+PlayerPictureManager.prototype.updateImage = function(image, cancellationToken) {
     if (!image) return;
 
     if (this._currentImage && isSameImage(this._currentImage, image)) {
         return;
     }
 
-    this.$().find(`img`).
-        removeEventListener(`load`, this.imageLoaded).
-        removeEventListener(`error`, this.imageErrored).
-        remove();
+    if (this._currentImage) {
+        this._page.$(this._currentImage).removeEventListener("error", this.imageErrored).remove();
+        this._currentImage = null;
+    }
 
     this._currentImage = image;
-
-    if (this._enabled) {
-        this.$().append(this._currentImage);
-    }
-
-    if (!image.complete) {
-        this._page.$(image).
-            addEventListener(`error`, this.imageErrored).
-            addEventListener(`load`, this.imageLoaded);
-    }
+    this.$().append(this._currentImage);
+    this._page.$(this._currentImage).addEventListener("error", this.imageErrored);
 };
 
-PlayerPictureManager.prototype.receiveImage = async function(imagePromise) {
-    const image = await imagePromise;
-    if (!this._cancellationToken.isCancelled()) {
-        this.updateImage(image);
+
+PlayerPictureManager.prototype.applyCurrentTrackImage = async function(cancellationToken) {
+    if (!this._currentTrack || !this._isEnabled()) {
+        return;
+    }
+    const image = await this._currentTrack.getImage(this);
+    if (!cancellationToken.isCancelled()) {
+        this.updateImage(image, cancellationToken);
     }
 };
 
 PlayerPictureManager.prototype._trackTagDataUpdated = function() {
     this.cancelAllImageUpdateOperations();
-    this._cancellationToken = this.cancellationTokenForImageUpdateOperation();
-    this.receiveImage(this._currentTrack.getImage(this));
+    const cancellationToken = this.cancellationTokenForImageUpdateOperation();
+    this.applyCurrentTrackImage(cancellationToken);
+};
+
+PlayerPictureManager.prototype._isEnabled = function() {
+    return this._enabled;
+};
+
+PlayerPictureManager.prototype._preferenceChanged = function(enabled) {
+    this._enabled = enabled;
+    this.cancelAllImageUpdateOperations();
+    const cancellationToken = this.cancellationTokenForImageUpdateOperation();
+    // TODO: Change dom dimensions
+    this.applyCurrentTrackImage(cancellationToken);
 };
 
 PlayerPictureManager.prototype._trackChanged = function(track) {
@@ -142,7 +125,7 @@ PlayerPictureManager.prototype._trackChanged = function(track) {
         return;
     }
 
-    this._cancellationToken = this.cancellationTokenForImageUpdateOperation();
+    const cancellationToken = this.cancellationTokenForImageUpdateOperation();
     if (this._currentTrack) {
         this._currentTrack.removeListener(`tagDataUpdate`, this._trackTagDataUpdated);
         this._currentTrack = null;
@@ -150,7 +133,7 @@ PlayerPictureManager.prototype._trackChanged = function(track) {
     if (track) {
         this._currentTrack = track;
         this._currentTrack.on(`tagDataUpdate`, this._trackTagDataUpdated);
-        this.receiveImage(track.getImage(this));
+        this.applyCurrentTrackImage(cancellationToken);
     }
 };
 
