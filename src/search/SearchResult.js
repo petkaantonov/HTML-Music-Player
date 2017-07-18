@@ -8,7 +8,9 @@ export function cmp(a, b) {
     return ret;
 }
 
-export default function SearchResult(transientId, distance) {
-    this.transientId = transientId;
-    this.distance = distance;
+export default class SearchResult {
+    constructor(transientId, distance) {
+        this.transientId = transientId;
+        this.distance = distance;
+    }
 }

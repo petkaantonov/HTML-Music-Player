@@ -401,97 +401,98 @@ export default function(codecName, fileView, noSeekTable, maxSize) {
 }
 
 // TODO: code is ruthlessly duplicated from above.
-export function Mp3SeekTable() {
-    this.frames = 0;
-    this.tocFilledUntil = 0;
-    this.table = new Array(128);
-    this.lastFrameSize = 0;
-    this.framesPerEntry = 1;
-    this.isFromMetaData = false;
-}
-
-Mp3SeekTable.prototype.closestFrameOf = function(frame) {
-    frame = Math.min(this.frames, frame);
-    return Math.round(frame / this.framesPerEntry) * this.framesPerEntry;
-};
-
-Mp3SeekTable.prototype.offsetOfFrame = function(frame) {
-    frame = this.closestFrameOf(frame);
-    const index = frame / this.framesPerEntry;
-    return this.table[index];
-};
-
-Mp3SeekTable.prototype.fillUntil = async function(time, metadata, fileView) {
-    if (this.tocFilledUntil >= time) return;
-    let position = metadata.dataStart;
-    const dataEndPosition = metadata.dataEnd;
-
-    // Var bufferSize = metadata.maxByteSizePerAudioFrame * metadata.samplesPerFrame | 0;
-    const maxFrames = Math.ceil(time * (metadata.sampleRate / (1152 >> metadata.lsf)));
-    // Var lsf = metadata.lsf ? 1 : 0;
-
-    const {table} = this;
-    let frames;
-    if (this.frames > 0) {
-        ({frames} = this);
-        position = table[this.frames - 1] + this.lastFrameSize;
-    } else {
-        frames = 0;
-        position = metadata.dataStart;
+export class Mp3SeekTable {
+    constructor() {
+        this.frames = 0;
+        this.tocFilledUntil = 0;
+        this.table = new Array(128);
+        this.lastFrameSize = 0;
+        this.framesPerEntry = 1;
+        this.isFromMetaData = false;
     }
 
-    let header = 0;
-    let maxFilePosition = 0;
-    do {
-        await fileView.readBlockOfSizeAt(BLOCK_SIZE, position, 10);
+    closestFrameOf(frame) {
+        frame = Math.min(this.frames, frame);
+        return Math.round(frame / this.framesPerEntry) * this.framesPerEntry;
+    }
 
-        maxFilePosition = Math.min(dataEndPosition, position + BLOCK_SIZE / 2);
-        const buffer = fileView.block();
+    offsetOfFrame(frame) {
+        frame = this.closestFrameOf(frame);
+        const index = frame / this.framesPerEntry;
+        return this.table[index];
+    }
 
-        while (position < maxFilePosition && frames < maxFrames) {
-            const i = position - fileView.start;
-            header = ((header << 8) | buffer[i]) | 0;
+    async fillUntil(time, metadata, fileView) {
+        if (this.tocFilledUntil >= time) return;
+        let position = metadata.dataStart;
+        const dataEndPosition = metadata.dataEnd;
 
-            if (!probablyMp3Header(header)) {
-                position++;
-                continue;
-            }
+        // Var bufferSize = metadata.maxByteSizePerAudioFrame * metadata.samplesPerFrame | 0;
+        const maxFrames = Math.ceil(time * (metadata.sampleRate / (1152 >> metadata.lsf)));
+        // Var lsf = metadata.lsf ? 1 : 0;
 
-            let lsf, mpeg25;
-            if ((header & (1 << 20)) !== 0) {
-                lsf = (header & (1 << 19)) !== 0 ? 0 : 1;
-                mpeg25 = 0;
-            } else {
-                lsf = 1;
-                mpeg25 = 1;
-            }
-
-
-            const sampleRateIndex = ((header >> 10) & 3);
-            if (sampleRateIndex < 0 || sampleRateIndex >= mp3_freq_tab.length) {
-                position++;
-                continue;
-            }
-            const sampleRate = mp3_freq_tab[((header >> 10) & 3)] >> (lsf + mpeg25);
-
-            const bitRateIndex = (lsf * 15) + ((header >> 12) & 0xf);
-            if (bitRateIndex < 0 || bitRateIndex >= mp3_bitrate_tab.length) {
-                position++;
-                continue;
-            }
-            const bitRate = mp3_bitrate_tab[bitRateIndex] * 1000;
-
-            table[frames] = (position - 3);
-            frames++;
-
-            const padding = (header >> 9) & 1;
-            const frame_size = (((bitRate / 1000) * 144000) / ((sampleRate << lsf)) | 0) + padding;
-            this.lastFrameSize = frame_size;
-            position += (frame_size - 4);
+        const {table} = this;
+        let frames;
+        if (this.frames > 0) {
+            ({frames} = this);
+            position = table[this.frames - 1] + this.lastFrameSize;
+        } else {
+            frames = 0;
+            position = metadata.dataStart;
         }
-    } while (frames < maxFrames && maxFilePosition < fileView.file.size);
-    this.frames = frames;
-    this.tocFilledUntil = ((metadata.samplesPerFrame || SAMPLES_PER_FRAME_DEFAULT) / metadata.sampleRate) * frames;
-};
 
+        let header = 0;
+        let maxFilePosition = 0;
+        do {
+            await fileView.readBlockOfSizeAt(BLOCK_SIZE, position, 10);
+
+            maxFilePosition = Math.min(dataEndPosition, position + BLOCK_SIZE / 2);
+            const buffer = fileView.block();
+
+            while (position < maxFilePosition && frames < maxFrames) {
+                const i = position - fileView.start;
+                header = ((header << 8) | buffer[i]) | 0;
+
+                if (!probablyMp3Header(header)) {
+                    position++;
+                    continue;
+                }
+
+                let lsf, mpeg25;
+                if ((header & (1 << 20)) !== 0) {
+                    lsf = (header & (1 << 19)) !== 0 ? 0 : 1;
+                    mpeg25 = 0;
+                } else {
+                    lsf = 1;
+                    mpeg25 = 1;
+                }
+
+
+                const sampleRateIndex = ((header >> 10) & 3);
+                if (sampleRateIndex < 0 || sampleRateIndex >= mp3_freq_tab.length) {
+                    position++;
+                    continue;
+                }
+                const sampleRate = mp3_freq_tab[((header >> 10) & 3)] >> (lsf + mpeg25);
+
+                const bitRateIndex = (lsf * 15) + ((header >> 12) & 0xf);
+                if (bitRateIndex < 0 || bitRateIndex >= mp3_bitrate_tab.length) {
+                    position++;
+                    continue;
+                }
+                const bitRate = mp3_bitrate_tab[bitRateIndex] * 1000;
+
+                table[frames] = (position - 3);
+                frames++;
+
+                const padding = (header >> 9) & 1;
+                const frame_size = (((bitRate / 1000) * 144000) / ((sampleRate << lsf)) | 0) + padding;
+                this.lastFrameSize = frame_size;
+                position += (frame_size - 4);
+            }
+        } while (frames < maxFrames && maxFilePosition < fileView.file.size);
+        this.frames = frames;
+        this.tocFilledUntil = ((metadata.samplesPerFrame || SAMPLES_PER_FRAME_DEFAULT) / metadata.sampleRate) * frames;
+    }
+}
 
