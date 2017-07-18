@@ -138,8 +138,14 @@ const rgenre = /\((\d+)\)/g;
 tagMap[0x54434f | 0] = tagMap[0x54434f4e | 0] = id3v2String((tagData, result) => {
     const genres = {};
     let lastRIndex = -1;
-    let m;
-    while (m = rgenre.exec(result)) {
+    let m = rgenre.exec(result);
+
+    if (!m) {
+        tagData.genres = [result];
+        return;
+    }
+
+    while (m) {
         lastRIndex = rgenre.lastIndex;
         let genre = id3v1Genres[+m[1]];
 
@@ -150,6 +156,8 @@ tagMap[0x54434f | 0] = tagMap[0x54434f4e | 0] = id3v2String((tagData, result) =>
         for (let i = 0; i < genre.length; ++i) {
             genres[genre[i].toLowerCase()] = genre[i];
         }
+
+        m = rgenre.exec(result);
     }
 
     const rest = result.slice(lastRIndex).trim();
