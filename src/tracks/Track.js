@@ -2,6 +2,7 @@ import EventEmitter from "events";
 import {getSearchTerm} from "search/searchUtil";
 import {URL} from "platform/platform";
 import {getFileCacheKey} from "audio/backend/MetadataParser";
+import {hexString} from "util";
 
 export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
 export const FILESYSTEM_ACCESS_ERROR = `Access to the file was denied. It has probably been moved or altered after being added to the playlist.`;
@@ -26,6 +27,7 @@ const FORMATS = [
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const QUARTER_HOUR_MS = 15 * 60 * 1000;
 
+const uidsToTrack = new Map();
 const transientIdToTrack = Object.create(null);
 let nextTransientId = 10000;
 
@@ -165,6 +167,11 @@ export default class Track extends EventEmitter {
         }
 
         this.removeAllListeners();
+
+        if (this._uid) {
+            uidsToTrack.delete(hexString(this._uid));
+            this._uid = null;
+        }
     }
 
     async getImage(pictureManager) {
@@ -234,10 +241,6 @@ export default class Track extends EventEmitter {
     }
 
     setError(message) {
-        if (this._error) {
-            this._error = null;
-            this.emit(`viewUpdate`, `viewUpdateHideErrorStatus`);
-        }
         this._error = message;
         this.emit(`viewUpdate`, `viewUpdateShowErrorStatus`);
         this._weightChanged();
@@ -298,6 +301,22 @@ export default class Track extends EventEmitter {
         return ``;
     }
 
+    setHasAcoustIdBeenFetched() {
+        this.tagData.setHasAcoustIdBeenFetched();
+    }
+
+    setHasBeenAnalyzed() {
+        this.tagData.setHasBeenAnalyzed();
+    }
+
+    hasAcoustIdBeenFetched() {
+        return this.tagData ? this.tagData.hasAcoustIdBeenFetched() : false;
+    }
+
+    hasBeenAnalyzed() {
+        return this.tagData ? this.tagData.hasBeenAnalyzed() : false;
+    }
+
     needsParsing() {
         return (this.tagData === null || !this.tagData.hasBeenAnalyzed()) && !this._error;
     }
@@ -340,6 +359,7 @@ export default class Track extends EventEmitter {
     async uid() {
         if (this._uid) return this._uid;
         this._uid = await getFileCacheKey(this.file);
+        uidsToTrack.set(hexString(this._uid), this);
         return this._uid;
     }
 
@@ -484,4 +504,8 @@ export default class Track extends EventEmitter {
 
 export const byTransientId = function(transientId) {
     return transientIdToTrack[transientId];
+};
+
+export const byUid = function(uid) {
+    return uidsToTrack.get(hexString(uid));
 };

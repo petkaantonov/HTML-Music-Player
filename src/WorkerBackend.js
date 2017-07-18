@@ -53,7 +53,7 @@ if (self.addEventListener) {
     const metadataParser = new MetadataParser(db);
 
     self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, db, metadataParser).start();
-    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataParser).start();
+    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataParser, timers).start();
     self.searchBackend = new SearchBackend(self.trackAnalyzerBackend).start();
     self.usageDataBackend = new UsageDataBackend().start();
 })();

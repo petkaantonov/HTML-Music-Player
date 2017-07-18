@@ -1,6 +1,6 @@
-import {throttle, delay} from "util";
+import {throttle} from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
-import {default as Track, DECODE_ERROR, FILESYSTEM_ACCESS_ERROR} from "tracks/Track";
+import {default as Track, byUid as trackByUid} from "tracks/Track";
 import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";
 import {console} from "platform/platform";
 import WorkerFrontend from "WorkerFrontend";
@@ -29,6 +29,10 @@ const removeFromQueue = function(queue, track) {
     }
 };
 
+function acoustIdImageFetched(track, image, error) {
+    track.tagData.fetchAcoustIdImageEnded(image, error);
+}
+
 export default class TrackAnalyzer extends WorkerFrontend {
     constructor(deps) {
         super(ANALYZER_READY_EVENT_NAME, deps.workerWrapper);
@@ -39,14 +43,10 @@ export default class TrackAnalyzer extends WorkerFrontend {
         this._tagDataContext = deps.tagDataContext;
         this._globalEvents = deps.globalEvents;
         this._analyzerJobs = [];
-        this._acoustIdJobs = [];
         this._nextJobId = 0;
         this._analysisQueue = [];
-        this._acoustIdQueue = [];
         this._currentlyAnalysing = false;
-        this._currentlyFetchingAcoustId = false;
         this._metadataParsingTracks = {};
-        this._analysisFetchingTracks = {};
         this._acoustIdImageFetchingTracks = {};
 
         this._playlist.on(`nextTrackChange`, this.nextTrackChanged.bind(this));
@@ -58,14 +58,15 @@ export default class TrackAnalyzer extends WorkerFrontend {
 
     receiveMessage(event) {
         if (!event.data) return;
-        if (!event.data.jobType) return;
-        const {id, jobType, result, error, type, value} = event.data;
+        const {id, jobType, result, error, type} = event.data;
 
         if (error && this._env.isDevelopment()) {
             console.error(error.stack);
         }
 
-        if (jobType === `metadata`) {
+        if (type === `acoustIdDataFetched`) {
+            this.acoustIdDataFetched(result);
+        } else if (jobType === `metadata`) {
             const info = this._metadataParsingTracks[id];
             if (info) {
                 const {track} = info;
@@ -73,31 +74,19 @@ export default class TrackAnalyzer extends WorkerFrontend {
                 delete this._metadataParsingTracks[id];
                 this.trackMetadataParsed(track, result, error);
             }
-        } else if (jobType === `analysisData`) {
-            const info = this._analysisFetchingTracks[id];
-            if (info) {
-                const {track} = info;
-                track.removeListener(`destroy`, info.destroyHandler);
-                delete this._analysisFetchingTracks[id];
-                this.trackAnalysisDataFetched(track, result, error);
-            }
         } else if (jobType === `acoustIdImage`) {
             const info = this._acoustIdImageFetchingTracks[id];
             if (info) {
                 const {track} = info;
                 track.removeListener(`destroy`, info.destroyHandler);
                 delete this._acoustIdImageFetchingTracks[id];
-                this.acoustIdImageFetched(track, result, error);
+                acoustIdImageFetched(track, result, error);
             }
         } else if (jobType === `analyze`) {
             for (let i = 0; i < this._analyzerJobs.length; ++i) {
                 if (this._analyzerJobs[i].id === id) {
                     const job = this._analyzerJobs[i];
                     switch (type) {
-                        case `progress`:
-                            job.track.analysisProgress(value);
-                        break;
-
                         case `error`: {
                             this._analyzerJobs.splice(i, 1);
                             const e = new Error(error.message);
@@ -113,29 +102,8 @@ export default class TrackAnalyzer extends WorkerFrontend {
                         break;
 
                         case `success`:
-                            job.resolve(result);
+                            job.resolve();
                             this._analyzerJobs.splice(i, 1);
-                        break;
-                    }
-                    return;
-                }
-            }
-        } else if (jobType === `acoustId`) {
-            for (let i = 0; i < this._acoustIdJobs.length; ++i) {
-                if (this._acoustIdJobs[i].id === id) {
-                    const job = this._acoustIdJobs[i];
-
-                    switch (type) {
-                        case `error`: {
-                            this._acoustIdJobs.splice(i, 1);
-                            const e = new Error(error.message);
-                            e.stack = error.stack;
-                            job.reject(e);
-                            break;
-                        }
-                        case `success`:
-                            job.resolve(result);
-                            this._acoustIdJobs.splice(i, 1);
                         break;
                     }
                     return;
@@ -150,17 +118,13 @@ export default class TrackAnalyzer extends WorkerFrontend {
             const track = tracks[i];
 
             if (!track.isDetachedFromPlaylist() && !track.hasError()) {
-                if (track.tagData) {
-                    this.fetchAnalysisData(track);
-                } else {
+                if (!track.tagData) {
                     this.parseMetadata(track);
+                } else if (!track.hasBeenAnalyzed()) {
+                    this.analyzeTrack(track);
                 }
             }
         }
-    }
-
-    acoustIdImageFetched(track, image, error) {
-        track.tagData.fetchAcoustIdImageEnded(image, error);
     }
 
     async fetchAcoustIdImage(track) {
@@ -193,126 +157,48 @@ export default class TrackAnalyzer extends WorkerFrontend {
         }
     }
 
-    async fillInAcoustId(track, duration, fingerprint) {
-        if (this._playlist.isTrackHighlyRelevant(track)) {
-            this.prioritize(track);
+    acoustIdDataFetched(acoustIdResult) {
+        const {trackInfo, trackInfoUpdated} = acoustIdResult;
+        const {trackUid} = trackInfo;
+
+        const track = trackByUid(trackUid);
+        if (!track) {
+            return;
+        }
+        track.setHasAcoustIdBeenFetched();
+
+        if (trackInfoUpdated) {
+            track.tagData.updateFields(trackInfo);
+            track.tagDataUpdated();
+            this.emit(`metadataUpdate`);
         }
 
-        let acoustIdResult;
-        try {
-            acoustIdResult = await this.fetchTrackAcoustId(track, {duration, fingerprint});
-            if (track.isDetachedFromPlaylist()) {
-                return;
-            }
-        } catch (e) {
-            if (!(e instanceof TrackWasRemovedError)) {
-                throw e;
-            }
-        }
-        track.tagData.setAcoustIdCoverArt(acoustIdResult.acoustIdCoverArt);
         if (this._playlist.isTrackHighlyRelevant(track)) {
             this.fetchAcoustIdImage(track);
         }
-
-        if (acoustIdResult.metadataUpdated) {
-            track.tagData.setDataFromTagDatabase(acoustIdResult.metadata);
-            this.emit(`metadataUpdate`);
-        }
     }
 
-    async trackAnalysisDataFetched(track, result, error) {
+    trackMetadataParsed(track, trackInfo, error) {
         if (error && this._env.isDevelopment()) {
             console.error(error);
         }
 
-        if (!track.isDetachedFromPlaylist() && !error) {
-            track.tagData.setDataFromTagDatabase(result);
-            let needFingerprint = !track.tagData.hasSufficientMetadata();
-            let acoustIdFilled = null;
-            needFingerprint = needFingerprint ? !result.fingerprint : false;
-
-            if (result.fingerprint && this._playlist.isTrackHighlyRelevant(track)) {
-                this.fetchAcoustIdImage(track);
-            }
-
-            if (!result.acoustIdCoverArt && result.acoustIdCoverArt !== null &&
-                result.fingerprint && result.duration) {
-                acoustIdFilled = this.fillInAcoustId(track, result.duration, result.fingerprint);
-            }
-
-            this.emit(`metadataUpdate`);
-            if (needFingerprint) {
-                try {
-                    const analysis = await this.analyzeTrack(track);
-                    const {duration} = analysis;
-                    let {fingerprint} = analysis;
-
-                    if (result) {
-                        fingerprint = needFingerprint ? fingerprint : result.fingerprint || null;
-                    } else {
-                        track.tagData.setDataFromTagDatabase(analysis);
-                    }
-
-                    if (needFingerprint && !acoustIdFilled) {
-                        this.fillInAcoustId(track, duration, fingerprint);
-                    }
-                    this.emit(`metadataUpdate`);
-                } catch (e) {
-                    if (!(e instanceof TrackWasRemovedError)) {
-                        let trackError;
-                        if (e.name === `TrackAnalysisError`) {
-                            trackError = DECODE_ERROR;
-                        } else if (e.name === `NotFoundError` || e.name === `NotReadableError`) {
-                            trackError = FILESYSTEM_ACCESS_ERROR;
-                        } else {
-                            throw e;
-                        }
-                        track.setError(trackError);
-                    }
+        if (!track.isDetachedFromPlaylist()) {
+            if (error) {
+                track.setError(error && error.message || `${error}`);
+            } else {
+                const tagData = this._tagDataContext.create(track, trackInfo);
+                track.setTagData(tagData);
+                this.emit(`metadataUpdate`);
+                if (!track.hasBeenAnalyzed()) {
+                    this.analyzeTrack(track);
                 }
             }
         }
     }
 
-    async fetchAnalysisData(track) {
-        if (track.tagData.hasBeenAnalyzed()) return;
-        const id = ++this._nextJobId;
-        this._analysisFetchingTracks[id] = {
-            track,
-            destroyHandler: () => {
-                delete this._analysisFetchingTracks[id];
-            }
-        };
-
-        track.once(`destroy`, this._analysisFetchingTracks[id].destroyHandler);
-        const uid = await track.uid();
-        this.postMessage({
-            action: `fetchAnalysisData`,
-            args: {
-                id,
-                uid,
-                transientId: track.transientId(),
-                albumKey: track.tagData.albumNameKey()
-            }
-        });
-    }
-
-    trackMetadataParsed(track, data, error) {
-        if (error && this._env.isDevelopment()) {
-            console.error(error);
-        }
-
-        if (!track.isDetachedFromPlaylist() && !error) {
-            const tagData = this._tagDataContext.create(track, data);
-            track.setTagData(tagData);
-            this.emit(`metadataUpdate`);
-            this.fetchAnalysisData(track);
-        }
-    }
-
     trackRemovedWhileInQueue(track) {
         removeFromQueue(this._analysisQueue, track);
-        removeFromQueue(this._acoustIdQueue, track);
     }
 
     _next(queue, statusProp, method) {
@@ -343,7 +229,6 @@ export default class TrackAnalyzer extends WorkerFrontend {
     prioritize(track) {
         if (track instanceof Track && track.tagData) {
             prioritizeQueue(track, this._analysisQueue);
-            prioritizeQueue(track, this._acoustIdQueue);
         }
     }
 
@@ -381,103 +266,60 @@ export default class TrackAnalyzer extends WorkerFrontend {
         });
     }
 
-    async fetchTrackAcoustId(track, opts) {
-        if (this._currentlyFetchingAcoustId) {
-            track.once(`destroy`, this.trackRemovedWhileInQueue);
-            return new Promise((resolve, reject) => {
-                this._acoustIdQueue.push({
-                    track,
-                    resolve,
-                    reject,
-                    opts
-                });
-
-                if (this._playlist.isTrackHighlyRelevant(track)) {
-                    this.prioritize(track);
-                }
-            });
-        }
-
-        const uid = await track.uid();
-        this._currentlyFetchingAcoustId = true;
-        const id = ++this._nextJobId;
-        try {
-            return await new Promise((resolve, reject) => {
-                if (track.isDetachedFromPlaylist()) {
-                    throw new TrackWasRemovedError();
-                }
-
-                this._acoustIdJobs.push({
-                    id,
-                    track,
-                    resolve,
-                    reject
-                });
-
-                this.postMessage({
-                    action: `fetchAcoustId`,
-                    args: {
-                        id,
-                        duration: opts.duration,
-                        fingerprint: opts.fingerprint,
-                        uid,
-                        transientId: track.transientId()
-                    }
-                });
-            });
-        } finally {
-            await delay(1000);
-            this._next(this._acoustIdQueue, `_currentlyFetchingAcoustId`, this.fetchTrackAcoustId);
-        }
-    }
-
     async analyzeTrack(track) {
-        if (this._currentlyAnalysing) {
-            track.once(`destroy`, this.trackRemovedWhileInQueue);
-            return new Promise((resolve, reject) => {
-                this._analysisQueue.push({
-                    track,
-                    resolve,
-                    reject,
-                    opts: null
-                });
-
-                if (this._playlist.isTrackHighlyRelevant(track)) {
-                    this.prioritize(track);
-                }
-            });
-        }
-
-        const uid = await track.uid();
-        this._currentlyAnalysing = true;
-        const id = ++this._nextJobId;
-        track.once(`destroy`, this.abortJobForTrack);
         try {
-            return await new Promise((resolve, reject) => {
-                if (track.isDetachedFromPlaylist()) {
-                    throw new TrackWasRemovedError();
-                }
+            if (this._currentlyAnalysing) {
+                track.once(`destroy`, this.trackRemovedWhileInQueue);
+                await new Promise((resolve, reject) => {
+                    this._analysisQueue.push({
+                        track,
+                        resolve,
+                        reject,
+                        opts: null
+                    });
 
-                this._analyzerJobs.push({
-                    id,
-                    track,
-                    resolve,
-                    reject
-                });
-
-                this.postMessage({
-                    action: `analyze`,
-                    args: {
-                        id,
-                        file: track.getFile(),
-                        uid,
-                        transientId: track.transientId()
+                    if (this._playlist.isTrackHighlyRelevant(track)) {
+                        this.prioritize(track);
                     }
                 });
-            });
-        } finally {
-            track.removeListener(`destroy`, this.abortJobForTrack);
-            this._next(this._analysisQueue, `_currentlyAnalysing`, this.analyzeTrack);
+                return;
+            }
+            const uid = await track.uid();
+            this._currentlyAnalysing = true;
+            const id = ++this._nextJobId;
+            track.once(`destroy`, this.abortJobForTrack);
+            try {
+                await new Promise((resolve, reject) => {
+                    if (track.isDetachedFromPlaylist()) {
+                        throw new TrackWasRemovedError();
+                    }
+
+                    this._analyzerJobs.push({
+                        id,
+                        track,
+                        resolve,
+                        reject
+                    });
+
+                    this.postMessage({
+                        action: `analyze`,
+                        args: {
+                            id,
+                            file: track.getFile(),
+                            uid,
+                            transientId: track.transientId()
+                        }
+                    });
+                });
+                track.setHasBeenAnalyzed();
+            } finally {
+                track.removeListener(`destroy`, this.abortJobForTrack);
+                this._next(this._analysisQueue, `_currentlyAnalysing`, this.analyzeTrack);
+            }
+        } catch (e) {
+            if (!(e instanceof TrackWasRemovedError)) {
+                throw e;
+            }
         }
     }
 

@@ -74,7 +74,7 @@ export default class MediaSessionWrapper {
         this.player.pause();
     }
 
-    async stateChanged() {
+    stateChanged() {
         if (!this.enabled) return;
         const {isPlaying, isPaused} = this.player;
         const track = this.playlist.getCurrentTrack();

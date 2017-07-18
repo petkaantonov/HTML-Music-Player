@@ -28,22 +28,22 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         this.decodedChannelData = null;
         this.fingerprinter = null;
         this.channelMixer = null;
-        this.metadata = null;
+        this.trackInfo = null;
         this.fileView = null;
         this.codec = null;
         this.audioPipeline = null;
     }
 
     get sourceSampleRate() {
-        return this.metadata.demuxData.sampleRate;
+        return this.trackInfo.demuxData.sampleRate;
     }
 
     get sourceChannelCount() {
-        return this.metadata.demuxData.channels;
+        return this.trackInfo.demuxData.channels;
     }
 
     get shouldComputeFingerprint() {
-        return this.metadata.demuxData.duration >= 7;
+        return this.trackInfo.demuxData.duration >= 7;
     }
 
     async analyze() {
@@ -52,17 +52,17 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
         const {metadataParser} = backend;
         const fileView = new FileView(file);
         this.fileView = fileView;
-        const metadata = await metadataParser.getCachedMetadata(file);
+        const trackInfo = await metadataParser.getTrackInfoByFile(file);
         this.cancellationToken.check();
-        if (!metadata) {
+        if (!trackInfo) {
             throw new TrackAnalysisError(`file type not supported`);
         }
-        this.metadata = metadata;
+        this.trackInfo = trackInfo;
 
-        const codec = await getCodec(metadata.codecName);
+        const codec = await getCodec(trackInfo.codecName);
         this.cancellationToken.check();
         if (!codec) {
-            throw new TrackAnalysisError(`no codec for ${metadata.codecName}`);
+            throw new TrackAnalysisError(`no codec for ${trackInfo.codecName}`);
         }
         this.codec = codec;
 
@@ -70,14 +70,15 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
     }
 
     async _analyze() {
-        const {sourceSampleRate, sourceChannelCount, metadata,
+        const {sourceSampleRate, sourceChannelCount, trackInfo,
                 shouldComputeFingerprint, fileView, file, codec: DecoderContext} = this;
         const {wasm} = this.backend;
-        const {demuxData} = metadata;
+        const {demuxData} = trackInfo;
         const {duration, dataStart, dataEnd} = demuxData;
 
         const result = {
-            fingerprint: null
+            fingerprint: null,
+            duration
         };
 
         if (!shouldComputeFingerprint) {

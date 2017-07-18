@@ -4,14 +4,54 @@ import {CancellationError} from "utils/CancellationToken";
 
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
+class AcoustIdDataFetcher {
+    constructor(backend, db, metadataParser, timers) {
+        this.backend = backend;
+        this.db = db;
+        this.metadataParser = metadataParser;
+        this.timerId = -1;
+        this.timers = timers;
+        this._idle = this._idle.bind(this);
+        this._idle();
+    }
+
+    async _idle() {
+        this.timerId = -1;
+        let waitLongTime = false;
+        const job = await this.db.getAcoustIdFetchJob();
+        if (job) {
+            const {trackUid, fingerprint, duration, jobId} = job;
+            try {
+                const result = await this.metadataParser.fetchAcoustId(trackUid, fingerprint, duration);
+                await this.db.completeAcoustIdFetchJob(jobId);
+                this.backend.reportAcoustIdDataFetched(result);
+            } catch (e) {
+                self.uiLog(e.stack);
+                await this.db.setAcoustIdFetchJobError(jobId, e);
+            } finally {
+                this.timerId = this.timers.setTimeout(this._idle, waitLongTime ? 60000 : 1000);
+            }
+        }
+    }
+
+    async postJob(uid, fingerprint, duration) {
+        await this.db.addAcoustIdFetchJob(uid, fingerprint, duration);
+        if (this.timerId === -1) {
+            this._idle();
+        }
+    }
+}
+
 export default class TrackAnalyzerBackend extends AbstractBackend {
-    constructor(wasm, db, metadataParser) {
+    constructor(wasm, db, metadataParser, timers) {
         super(ANALYZER_READY_EVENT_NAME);
         this.db = db;
+        this.timers = timers;
         this.metadataParser = metadataParser;
         this.wasm = wasm;
         this.analysisQueue = [];
         this.currentJob = null;
+        this.acoustIdDataFetcher = new AcoustIdDataFetcher(this, this.db, metadataParser, timers);
         this.actions = {
             analyze(args) {
                 this.analysisQueue.push(args);
@@ -28,7 +68,7 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                         const job = this.analysisQueue[index];
                         job.destroy();
                         this.analysisQueue.splice(index, 1);
-                        this.reportAbort(job.id);
+                        this.reportAnalyzerAbort(job.id);
                     }
                 }
             },
@@ -42,16 +82,6 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
 
             },
 
-            fetchAnalysisData({uid, albumKey, id}) {
-                const promise = this.metadataParser.fetchAnalysisData(uid, albumKey);
-                this.promiseMessageSuccessErrorHandler(id, promise, `analysisData`);
-            },
-
-            fetchAcoustId({id, uid, fingerprint, duration}) {
-                const promise = this.metadataParser.fetchAcoustId(uid, fingerprint, duration);
-                this.promiseMessageSuccessErrorHandler(id, promise, `acoustId`);
-            },
-
             fetchAcoustIdImage({id, albumKey, acoustIdCoverArt}) {
                 const promise = this.metadataParser.fetchAcoustIdImage(acoustIdCoverArt, albumKey);
                 this.promiseMessageSuccessErrorHandler(id, promise, `acoustIdImage`);
@@ -63,24 +93,15 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         return !!this.currentJob;
     }
 
-    reportAbort(id) {
-        this.postMessage({
-            id,
-            type: `abort`,
-            jobType: `analyze`
-        });
+    reportAcoustIdDataFetched(result) {
+        this.postMessage({type: `acoustIdDataFetched`, result});
     }
 
-    reportProgress(id, value) {
-        this.postMessage({
-            id,
-            type: `progress`,
-            value,
-            jobType: `analyze`
-        });
+    reportAnalyzerAbort(id) {
+        this.postMessage({id, type: `abort`, jobType: `analyze`});
     }
 
-    reportError(id, e) {
+    reportAnalyzerError(id, e) {
         this.postMessage({
             id,
             type: `error`,
@@ -93,13 +114,8 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         });
     }
 
-    reportSuccess(id, result) {
-        this.postMessage({
-            id,
-            type: `success`,
-            jobType: `analyze`,
-            result
-        });
+    reportAnalyzerSuccess(id) {
+        this.postMessage({id, type: `success`, jobType: `analyze`});
     }
 
     async promiseMessageSuccessErrorHandler(id, p, jobType) {
@@ -129,14 +145,15 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         this.currentJob = job;
 
         try {
-            let result = await job.analyze();
-            result = await this.db.addTrackInfo(uid, result);
-            this.reportSuccess(id, result);
+            const result = await job.analyze();
+            this.acoustIdDataFetcher.postJob(uid, result.fingerprint, result.duration);
+            this.db.updateHasBeenAnalyzed(uid, true);
+            this.reportAnalyzerSuccess(id);
         } catch (e) {
             if (e && e instanceof CancellationError) {
-                this.reportAbort(id);
+                this.reportAnalyzerAbort(id);
             } else {
-                this.reportError(id, e);
+                this.reportAnalyzerError(id, e);
             }
         } finally {
             try {

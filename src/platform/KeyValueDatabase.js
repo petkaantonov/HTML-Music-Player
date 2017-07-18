@@ -8,7 +8,7 @@ const TABLE_NAME = `keyValueDatabase2`;
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
 
-const LOG_TABLE = "logTable";
+const LOG_TABLE = `logTable`;
 
 export default class KeyValueDatabase {
     constructor() {
@@ -35,7 +35,7 @@ export default class KeyValueDatabase {
             }
 
             if (!storeNames.has(LOG_TABLE)) {
-                db.createObjectStore(LOG_TABLE, {autoIncrement: true, keyPath: "id"});
+                db.createObjectStore(LOG_TABLE, {autoIncrement: true, keyPath: `id`});
             }
         };
         this.initialValues = this.getAll();
@@ -50,15 +50,15 @@ export default class KeyValueDatabase {
             const keySetter = {
                 async method(value) {
                     const db = await this.db;
-                    const tx1 = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
-                    const existingData = await iDbPromisify(tx1.get(key));
-                    const tx2 = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+                    const transaction = db.transaction(TABLE_NAME, READ_WRITE);
+                    const store = transaction.objectStore(TABLE_NAME);
+                    const existingData = await iDbPromisify(store.get(key));
                     if (existingData) {
                         existingData.value = value;
-                        return iDbPromisify(tx2.put(existingData));
+                        return iDbPromisify(store.put(existingData));
                     } else {
                         const data = {key, value};
-                        return iDbPromisify(tx2.add(data));
+                        return iDbPromisify(store.add(data));
                     }
                 }
             };
@@ -72,7 +72,7 @@ export default class KeyValueDatabase {
     }
 
     uiLogOverwrite(...args) {
-        this.storeLog(args.join(" "));
+        this.storeLog(args.join(` `));
         this._uiLogRef(...args);
     }
 

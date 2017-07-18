@@ -742,7 +742,6 @@ export const iDbPromisify = function(ee) {
         ee.onsuccess = function(event) {
             resolve(event.target.result);
         };
-        ee.oncomplete = resolve;
     });
 };
 

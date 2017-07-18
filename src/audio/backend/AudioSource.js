@@ -299,7 +299,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
         this._bufferFillCancellationToken = this.cancellationTokenForBufferFillOperation();
 
-        const {trackMetadata} = this.metadata;
+        const {trackInfo} = this.metadata;
         const {sampleRate, channelCount} = this;
         let i = 0;
         let currentBufferFillType = bufferFillType;
@@ -326,13 +326,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 }
 
                 let {loudnessInfo} = bufferDescriptor;
-                if (!trackMetadata.establishedGain &&
+                if (!trackInfo.establishedGain &&
                     this._loudnessAnalyzer.hasEstablishedGain()) {
-                    trackMetadata.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
-                    this.backend.metadataParser.updateCachedMetadata(this.blob, trackMetadata);
-                } else if (trackMetadata.establishedGain &&
+                    trackInfo.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
+                    this.backend.metadataParser.setEstablishedGain(trackInfo.trackUid, trackInfo.establishedGain);
+                } else if (trackInfo.establishedGain &&
                            !this._loudnessAnalyzer.hasEstablishedGain()) {
-                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: trackMetadata.establishedGain});
+                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: trackInfo.establishedGain});
                 }
 
                 const decodingLatency = performance.now() - now;
@@ -386,14 +386,14 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 return;
             }
 
-            const trackMetadata = await metadataParser.getCachedMetadata(blob);
+            const trackInfo = await metadataParser.getTrackInfoByFile(blob);
 
             if (this.destroyed) {
                 return;
             }
 
-            if (trackMetadata) {
-                metadata.trackMetadata = trackMetadata;
+            if (trackInfo) {
+                metadata.trackInfo = trackInfo;
             }
 
             if (this._loudnessAnalyzer || this._decoder) {
