@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import {inherits, noUndefinedGet} from "util";
+import {noUndefinedGet} from "util";
 import {isTouchEvent} from "platform/dom/Page";
 
 export default class Slider extends EventEmitter {

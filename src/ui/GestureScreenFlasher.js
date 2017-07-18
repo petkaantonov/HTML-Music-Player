@@ -5,14 +5,14 @@ const fadeInAnimationOptions = {
     fill: `both`,
     easing: DECELERATE_CUBIC,
     duration: 250
-}
+};
 
 const fadeOutAnimationOptions = {
     fill: `both`,
     easing: DECELERATE_CUBIC,
     duration: 250,
     direction: `reverse`
-}
+};
 
 const fadeKeyFrames = [{
     opacity: 0
@@ -22,14 +22,14 @@ const fadeKeyFrames = [{
 
 const gestureIcon = function(icon) {
     return `<div class="gesture-flash"><span class="gesture-flash-icon ${icon}"></span></div>`;
-}
+};
 
 const gestureNameMap = {
     play: gestureIcon(`glyphicon glyphicon-play`),
     pause: gestureIcon(`glyphicon glyphicon-pause`),
     next: gestureIcon(`glyphicon glyphicon-step-forward`),
     previous: gestureIcon(`glyphicon glyphicon-step-backward`)
-}
+};
 
 export default class GestureScreenFlasher {
     constructor(deps) {

@@ -530,7 +530,7 @@ Selectable.moveSelectedItemViewsDownBy = function(trackViews, selection, distanc
             bumpedTrackView.setIndex(bumpedTrackNewIndex);
         }
     }
-}
+};
 
 Selectable.moveSelectedItemViewsUpBy = function(trackViews, selection, distance) {
     const selectedTrackRanges = buildConsecutiveRanges(selection, indexMapper);
@@ -550,4 +550,4 @@ Selectable.moveSelectedItemViewsUpBy = function(trackViews, selection, distance)
             bumpedTrackView.setIndex(bumpedTrackNewIndex);
         }
     }
-}
+};

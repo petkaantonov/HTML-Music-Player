@@ -9,7 +9,7 @@ const isSameImage = function(a, b) {
     } else {
         return false;
     }
-}
+};
 
 export default class PlayerPictureManager extends CancellableOperations(null, `imageUpdateOperation`) {
     constructor(opts, deps) {

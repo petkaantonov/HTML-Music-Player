@@ -32,7 +32,7 @@ const compareStrings = function(a, b) {
     } else {
         return 1;
     }
-}
+};
 
 const compareStringsLcp = function(ref, a, b) {
     const aLen = a.length;
@@ -60,7 +60,7 @@ const compareStringsLcp = function(ref, a, b) {
     } else {
         return 1;
     }
-}
+};
 
 class Node {
     constructor(word) {

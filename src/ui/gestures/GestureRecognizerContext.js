@@ -34,183 +34,185 @@ export const TOUCH_EVENTS = [TOUCH_START, TOUCH_MOVE, TOUCH_CANCEL, TOUCH_END];
 export const TOUCH_EVENTS_NO_MOVE = [TOUCH_START, TOUCH_CANCEL, TOUCH_END];
 export const PASSIVE_TOUCH_EVENTS = {[TOUCH_START]: TOUCH_START, [TOUCH_MOVE]: TOUCH_MOVE};
 
-export default function GestureRecognizerContext(deps) {
-    this.env = deps.env;
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.modifierTouch = null;
-    this.documentActives = new ActiveTouchList();
-    this.singleTapTimeouts = [];
-    this.checkTouchPropagation = this.checkTouchPropagation.bind(this);
-    this.updateModifierTouch = this.updateModifierTouch.bind(this);
+export default class GestureRecognizerContext {
+    constructor(deps) {
+        this.env = deps.env;
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.modifierTouch = null;
+        this.documentActives = new ActiveTouchList();
+        this.singleTapTimeouts = [];
+        this.checkTouchPropagation = this.checkTouchPropagation.bind(this);
+        this.updateModifierTouch = this.updateModifierTouch.bind(this);
 
-    if (this.isTouchSupported()) {
-        this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, {capture: true, passive: true});
-        this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, {capture: true, passive: false});
-        this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, {capture: true, passive: true});
-        this.page.addDocumentListener(`gesturestart`, preventDefaultHandler);
-        this.page.addDocumentListener(`gesturechange`, preventDefaultHandler);
-        this.page.addDocumentListener(`gestureend`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureStart`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureEnd`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureTap`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureHold`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSGestureChange`, preventDefaultHandler);
-        this.page.addDocumentListener(`MSInertiaStart`, preventDefaultHandler);
-    }
-}
-
-
-GestureRecognizerContext.prototype.isTouchSupported = function() {
-    return this.env.hasTouch();
-};
-
-GestureRecognizerContext.prototype.checkTouchPropagation = function(e) {
-    let node = e.target;
-    const activeElement = this.page.activeElement();
-    let matchesActive = false;
-    while (node !== null && typeof node !== `undefined`) {
-        if (!matchesActive) {
-            matchesActive = node === activeElement;
-        }
-
-        if (isAnyInputElement(node)) {
-            return;
-        }
-        node = node.parentNode;
-    }
-
-    if (activeElement && !matchesActive) {
-        activeElement.blur();
-    }
-
-    if (e.type === TOUCH_END && e.cancelable) {
-        e.preventDefault();
-    }
-};
-
-GestureRecognizerContext.prototype.updateModifierTouch = function(e) {
-    const {changedTouches} = e;
-    this.documentActives.update(e, changedTouches);
-
-    if (this.documentActives.length() > 1 && this.singleTapTimeouts.length > 0) {
-        for (let i = 0; i < this.singleTapTimeouts.length; ++i) {
-            this.singleTapTimeouts[i].clear();
+        if (this.isTouchSupported()) {
+            this.page.addDocumentListener(TOUCH_START, this.updateModifierTouch, {capture: true, passive: true});
+            this.page.addDocumentListener(TOUCH_END, this.updateModifierTouch, {capture: true, passive: true});
+            this.page.addDocumentListener(TOUCH_MOVE, this.updateModifierTouch, {capture: true, passive: true});
+            this.page.addDocumentListener(TOUCH_CANCEL, this.updateModifierTouch, {capture: true, passive: true});
+            this.page.addDocumentListener(TOUCH_START, this.checkTouchPropagation, {capture: true, passive: true});
+            this.page.addDocumentListener(TOUCH_END, this.checkTouchPropagation, {capture: true, passive: false});
+            this.page.addDocumentListener(TOUCH_CANCEL, this.checkTouchPropagation, {capture: true, passive: true});
+            this.page.addDocumentListener(`gesturestart`, preventDefaultHandler);
+            this.page.addDocumentListener(`gesturechange`, preventDefaultHandler);
+            this.page.addDocumentListener(`gestureend`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSGestureStart`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSGestureEnd`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSGestureTap`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSGestureHold`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSGestureChange`, preventDefaultHandler);
+            this.page.addDocumentListener(`MSInertiaStart`, preventDefaultHandler);
         }
     }
 
-    if (e.type === TOUCH_START) {
-        if (this.modifierTouch === null) {
-            this.modifierTouch = this.documentActives.first();
-            this.modifierTouch.started = e.timeStamp;
-        }
-    } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
-        if (!this.documentActives.contains(this.modifierTouch)) {
-            this.modifierTouch = null;
-        }
-    } else if (e.type === TOUCH_MOVE) {
-        if (this.modifierTouch !== null) {
-            for (let i = 0; i < changedTouches.length; ++i) {
-                const touch = changedTouches[i];
 
-                if (touch.identifier === this.modifierTouch.identifier) {
-                    const deltaX = Math.abs(this.modifierTouch.clientX - touch.clientX);
-                    const deltaY = Math.abs(this.modifierTouch.clientY - touch.clientY);
-                    if (deltaX > 35 || deltaY > 35) {
-                        this.modifierTouch = null;
+    isTouchSupported() {
+        return this.env.hasTouch();
+    }
+
+    checkTouchPropagation(e) {
+        let node = e.target;
+        const activeElement = this.page.activeElement();
+        let matchesActive = false;
+        while (node !== null && typeof node !== `undefined`) {
+            if (!matchesActive) {
+                matchesActive = node === activeElement;
+            }
+
+            if (isAnyInputElement(node)) {
+                return;
+            }
+            node = node.parentNode;
+        }
+
+        if (activeElement && !matchesActive) {
+            activeElement.blur();
+        }
+
+        if (e.type === TOUCH_END && e.cancelable) {
+            e.preventDefault();
+        }
+    }
+
+    updateModifierTouch(e) {
+        const {changedTouches} = e;
+        this.documentActives.update(e, changedTouches);
+
+        if (this.documentActives.length() > 1 && this.singleTapTimeouts.length > 0) {
+            for (let i = 0; i < this.singleTapTimeouts.length; ++i) {
+                this.singleTapTimeouts[i].clear();
+            }
+        }
+
+        if (e.type === TOUCH_START) {
+            if (this.modifierTouch === null) {
+                this.modifierTouch = this.documentActives.first();
+                this.modifierTouch.started = e.timeStamp;
+            }
+        } else if (e.type === TOUCH_END || e.type === TOUCH_CANCEL) {
+            if (!this.documentActives.contains(this.modifierTouch)) {
+                this.modifierTouch = null;
+            }
+        } else if (e.type === TOUCH_MOVE) {
+            if (this.modifierTouch !== null) {
+                for (let i = 0; i < changedTouches.length; ++i) {
+                    const touch = changedTouches[i];
+
+                    if (touch.identifier === this.modifierTouch.identifier) {
+                        const deltaX = Math.abs(this.modifierTouch.clientX - touch.clientX);
+                        const deltaY = Math.abs(this.modifierTouch.clientY - touch.clientY);
+                        if (deltaX > 35 || deltaY > 35) {
+                            this.modifierTouch = null;
+                        }
+                        return;
                     }
-                    return;
                 }
             }
         }
     }
-};
 
-GestureRecognizerContext.prototype.singleTapTimeoutRemoved = function(singleTapTimeout) {
-    const i = this.singleTapTimeouts.indexOf(singleTapTimeout);
-    if (i >= 0) {
-        this.singleTapTimeouts.splice(i, 1);
+    singleTapTimeoutRemoved(singleTapTimeout) {
+        const i = this.singleTapTimeouts.indexOf(singleTapTimeout);
+        if (i >= 0) {
+            this.singleTapTimeouts.splice(i, 1);
+        }
     }
-};
 
-GestureRecognizerContext.prototype.createSingleTapTimeout = function(successHandler, clearHandler, timeout) {
-    const ret = new SingleTapTimeout(this, successHandler, clearHandler, timeout);
-    this.singleTapTimeouts.push(ret);
-    return ret;
-};
+    createSingleTapTimeout(successHandler, clearHandler, timeout) {
+        const ret = new SingleTapTimeout(this, successHandler, clearHandler, timeout);
+        this.singleTapTimeouts.push(ret);
+        return ret;
+    }
 
-GestureRecognizerContext.prototype.haveSettledModifierTouch = function(now) {
-    return this.haveModifierTouch() && (now - this.modifierTouch.started > TAP_TIME * 0.5);
-};
+    haveSettledModifierTouch(now) {
+        return this.haveModifierTouch() && (now - this.modifierTouch.started > TAP_TIME * 0.5);
+    }
 
-GestureRecognizerContext.prototype.haveModifierTouch = function() {
-    return this.modifierTouch !== null;
-};
+    haveModifierTouch() {
+        return this.modifierTouch !== null;
+    }
 
-GestureRecognizerContext.prototype.createTapRecognizer = function(fn) {
-    return new TapRecognizer(this, fn);
-};
+    createTapRecognizer(fn) {
+        return new TapRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createTouchdownRecognizer = function(fn) {
-    return new TouchdownRecognizer(this, fn);
-};
+    createTouchdownRecognizer(fn) {
+        return new TouchdownRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createHoverRecognizer = function(startFn, endFn) {
-    return new HoverRecognizer(this, startFn, endFn);
-};
+    createHoverRecognizer(startFn, endFn) {
+        return new HoverRecognizer(this, startFn, endFn);
+    }
 
-GestureRecognizerContext.prototype.createTargetHoverRecognizer = function(startFn, endFn) {
-    return new TargetHoverRecognizer(this, startFn, endFn);
-};
+    createTargetHoverRecognizer(startFn, endFn) {
+        return new TargetHoverRecognizer(this, startFn, endFn);
+    }
 
-GestureRecognizerContext.prototype.createTwoFingerTapRecognizer = function(fn) {
-    return new TwoFingerTapRecognizer(this, fn);
-};
+    createTwoFingerTapRecognizer(fn) {
+        return new TwoFingerTapRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createModifierTapRecognizer = function(fn) {
-    return new ModifierTapRecognizer(this, fn);
-};
+    createModifierTapRecognizer(fn) {
+        return new ModifierTapRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createModifierDragRecognizer = function(fnMove, fnEnd) {
-    return new ModifierDragRecognizer(this, fnMove, fnEnd);
-};
+    createModifierDragRecognizer(fnMove, fnEnd) {
+        return new ModifierDragRecognizer(this, fnMove, fnEnd);
+    }
 
-GestureRecognizerContext.prototype.createModifierTouchdownRecognizer = function(fn) {
-    return new ModifierTouchdownRecognizer(this, fn);
-};
+    createModifierTouchdownRecognizer(fn) {
+        return new ModifierTouchdownRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createDragRecognizer = function(fnMove, fnEnd) {
-    return new DragRecognizer(this, fnMove, fnEnd);
-};
+    createDragRecognizer(fnMove, fnEnd) {
+        return new DragRecognizer(this, fnMove, fnEnd);
+    }
 
-GestureRecognizerContext.prototype.createVerticalDragRecognizer = function(fnStart, fnMove, fnEnd) {
-    return new VerticalDragRecognizer(this, fnStart, fnMove, fnEnd);
-};
+    createVerticalDragRecognizer(fnStart, fnMove, fnEnd) {
+        return new VerticalDragRecognizer(this, fnStart, fnMove, fnEnd);
+    }
 
-GestureRecognizerContext.prototype.createHorizontalDragRecognizer = function(fnStart, fnMove, fnEnd) {
-    return new HorizontalDragRecognizer(this, fnStart, fnMove, fnEnd);
-};
+    createHorizontalDragRecognizer(fnStart, fnMove, fnEnd) {
+        return new HorizontalDragRecognizer(this, fnStart, fnMove, fnEnd);
+    }
 
-GestureRecognizerContext.prototype.createVerticalPinchRecognizer = function(fn) {
-    return new VerticalPinchRecognizer(this, fn);
-};
+    createVerticalPinchRecognizer(fn) {
+        return new VerticalPinchRecognizer(this, fn);
+    }
 
-GestureRecognizerContext.prototype.createHorizontalSwipeRecognizer = function(fn, direction) {
-    return new HorizontalSwipeRecognizer(this, fn, direction);
-};
+    createHorizontalSwipeRecognizer(fn, direction) {
+        return new HorizontalSwipeRecognizer(this, fn, direction);
+    }
 
-GestureRecognizerContext.prototype.createHorizontalTwoFingerSwipeRecognizer = function(fn, direction) {
-    return new HorizontalTwoFingerSwipeRecognizer(this, fn, direction);
-};
+    createHorizontalTwoFingerSwipeRecognizer(fn, direction) {
+        return new HorizontalTwoFingerSwipeRecognizer(this, fn, direction);
+    }
 
-GestureRecognizerContext.prototype.createLongTapRecognizer = function(fn, noTrigger) {
-    return new LongTapRecognizer(this, fn, noTrigger);
-};
+    createLongTapRecognizer(fn, noTrigger) {
+        return new LongTapRecognizer(this, fn, noTrigger);
+    }
 
-GestureRecognizerContext.prototype.createDoubleTapRecognizer = function(fn) {
-    return new DoubleTapRecognizer(this, fn);
-};
+    createDoubleTapRecognizer(fn) {
+        return new DoubleTapRecognizer(this, fn);
+    }
+}

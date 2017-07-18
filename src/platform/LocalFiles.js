@@ -7,7 +7,7 @@ const MAX_FILE_COUNT = Math.pow(2, 31);
 const rext = /\.([A-Z_a-z0-9-]+)$/;
 const getExtension = function(name) {
     return name.match(rext);
-}
+};
 
 export default class LocalFiles {
     constructor(env) {

@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import {delay, inherits, toFunction, noUndefinedGet} from "util";
+import {delay, toFunction, noUndefinedGet} from "util";
 
 const getDirection = function(value) {
     value = (`${value}`).trim().toLowerCase();
@@ -8,7 +8,7 @@ const getDirection = function(value) {
     if (value === `up`) return `up`;
     if (value === `down`) return `down`;
     throw new Error(`invalid direction ${value}`);
-}
+};
 
 const getArrowAlign = function(value) {
     value = (`${value}`).trim().toLowerCase();
@@ -16,7 +16,7 @@ const getArrowAlign = function(value) {
     if (value === `end`) return `end`;
     if (value === `middle`) return `middle`;
     throw new Error(`invalid align ${value}`);
-}
+};
 
 const getActivationStyle = function(value) {
     value = (`${value}`).trim().toLowerCase();
@@ -27,7 +27,7 @@ const getActivationStyle = function(value) {
         return value;
     }
     throw new Error(`invalid activation ${value}`);
-}
+};
 
 const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     let arrowAligns, directions;
@@ -60,7 +60,7 @@ const getConfigurationsToTryInOrder = function(direction, arrowAlign) {
     }
 
     return ret;
-}
+};
 
 export default class Tooltip extends EventEmitter {
     constructor(opts, deps) {

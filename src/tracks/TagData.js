@@ -19,7 +19,7 @@ const clearPicture = function(picture) {
     }
 
     picture.blobUrl = picture.blob = picture.image = null;
-}
+};
 
 const tagDatasHoldingPictures = [];
 
@@ -31,14 +31,14 @@ const addPictureHoldingTagData = function(tagData) {
             tagDatasHoldingPictures.shift().reclaimPictures();
         }
     }
-}
+};
 
 const removePictureHoldingTagData = function(tagData) {
     const i = tagDatasHoldingPictures.indexOf(tagData);
     if (i >= 0) {
         tagDatasHoldingPictures.splice(i, 1);
     }
-}
+};
 
 class TagData {
     constructor(track, data, context) {

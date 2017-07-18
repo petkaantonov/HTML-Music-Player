@@ -23,4 +23,4 @@ export default class SearchTreeEntry {
 
 SearchTreeEntry.comparer = function(a, b) {
     return a._transientId - b._transientId;
-}
+};
