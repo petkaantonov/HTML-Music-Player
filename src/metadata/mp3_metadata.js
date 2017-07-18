@@ -361,7 +361,7 @@ const parseId3v2Data = async function(data, fileView, offset) {
     const mainFlags = getMainFlags(fileView, offset);
 
     if (!(2 <= version && version <= 4) || mainFlags.invalidBits) {
-        return;
+        return false;
     }
 
     if (offset + id3MetadataSize + 10 + 3 > fileView.end) {
@@ -427,12 +427,13 @@ const parseId3v2Data = async function(data, fileView, offset) {
         const tag = fileView.getUint32(offset);
         if ((tag >>> 8) === ID3) {
             await parseId3v2Data(data, fileView, offset);
-            return;
+            return true;
         } else if (tag !== 0) {
             break;
         }
         offset += 4;
     }
+    return true;
 };
 
 const getId3v1String = function(fileView, offset) {
@@ -490,7 +491,10 @@ const parseId3v1Data = async function(data, fileView) {
         if (albumIndex !== -1) {
             data.albumIndex = albumIndex;
         }
-        data.genres = Array.isArray(genre) ? genre.slice() : [genre];
+
+        if (genre) {
+            data.genres = Array.isArray(genre) ? genre.slice() : [genre];
+        }
     }
 };
 
