@@ -30,10 +30,10 @@ const timers = new Timers(window);
 setTimers(timers);
 const page = new Page(document, window, timers);
 const ready = page.ready();
-const db = new KeyValueDatabase();
+const globalEvents = new GlobalEvents(page);
+const db = new KeyValueDatabase(globalEvents);
 const dbValuesPromise = db.getInitialValues();
 const env = new Env(page);
-const globalEvents = new GlobalEvents(page);
 const featureCheckResultsPromise = env.getRequiredPlatformFeatures();
 const loadingIndicatorShowerTimeoutId = page.setTimeout(() => {
     page.$(`.loader-container`).
