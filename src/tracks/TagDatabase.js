@@ -1,7 +1,7 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange} from "platform/platform";
 
-const VERSION = 10;
+const VERSION = 11;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const ALBUM_KEY_NAME = `album`;
@@ -106,6 +106,11 @@ export default class TagDatabase {
 
             if (storeNames.indexOf(COVERART_TABLE_NAME) === -1) {
                 db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
+            }
+
+            const wipeOutTrackInfo = event.oldVersion < 11;
+            if (wipeOutTrackInfo) {
+                trackInfoStore.clear();
             }
         };
     }
