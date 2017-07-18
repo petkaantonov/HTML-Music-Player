@@ -1,5 +1,4 @@
 import {MouseEvent, MediaMetadata} from "platform/platform";
-import {delay} from "util";
 
 const rTextarea = /^textarea$/i;
 const rInput = /^input$/i;
@@ -759,7 +758,12 @@ class Platform {
         return this._window.Notification.permission === `granted`;
     }
 
-    async setMediaState(opts) {
+    disableMediaState() {
+        this._window.navigator.mediaSession.metadata = null;
+        this._window.navigator.mediaSession.playbackState = `none`;
+    }
+
+    setMediaState(opts) {
         if (opts.isPlaying || opts.isPaused) {
             this._window.navigator.mediaSession.metadata = new MediaMetadata(opts);
             this._window.navigator.mediaSession.playbackState = opts.isPlaying ? `playing` : `paused`;
@@ -767,7 +771,6 @@ class Platform {
             this._window.navigator.mediaSession.metadata = null;
             this._window.navigator.mediaSession.playbackState = `none`;
         }
-        await delay(1000);
     }
 }
 

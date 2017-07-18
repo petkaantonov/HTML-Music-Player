@@ -76,7 +76,6 @@ class TagData {
         this._hasBeenAnalyzed = false;
 
         this._context = context;
-        this._stateId = INITIAL;
     }
 
     hasSufficientMetadata() {
@@ -84,10 +83,6 @@ class TagData {
                 this.artist !== null &&
                 this.title !== null &&
                 this.pictures.length > 0;
-    }
-
-    getStateId() {
-        return this._stateId;
     }
 
     formatTime() {

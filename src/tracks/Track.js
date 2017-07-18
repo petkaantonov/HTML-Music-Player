@@ -449,10 +449,6 @@ export default class Track extends EventEmitter {
         return this.tagData.playerMetadata();
     }
 
-    getTagStateId() {
-        return this.tagData ? this.tagData.getStateId() : -1;
-    }
-
     _weightChanged() {
         if (this.hasError()) {
             this._weight = 0;

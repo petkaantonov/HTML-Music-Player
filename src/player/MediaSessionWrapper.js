@@ -1,9 +1,23 @@
-import {URL} from "platform/platform";
-import CancellableOperations from "utils/CancellationToken";
+class MediaSessionRenderedState {
+    constructor(isPlaying, isPaused, track, imageSrc) {
+        this.isPlaying = isPlaying;
+        this.isPaused = isPaused;
+        this.track = track;
+        this.imageSrc = imageSrc;
+    }
 
-export default class MediaSessionWrapper extends CancellableOperations(null, `imageWaitOperation`) {
+    equals(other) {
+        return other.isPlaying === this.isPlaying &&
+               other.isPaused === this.isPaused &&
+               other.track === this.track &&
+               other.imageSrc === this.imageSrc;
+    }
+}
+
+const EMPTY_STATE = new MediaSessionRenderedState(false, false, null, null);
+
+export default class MediaSessionWrapper {
     constructor(deps) {
-        super();
         this.env = deps.env;
         this.page = deps.page;
         this.player = deps.player;
@@ -11,7 +25,7 @@ export default class MediaSessionWrapper extends CancellableOperations(null, `im
         this.pictureManager = deps.playerPictureManager;
 
         this.enabled = this.env.mediaSessionSupport();
-        this._currentState = {};
+        this._currentState = EMPTY_STATE;
 
         this.stateChanged = this.stateChanged.bind(this);
 
@@ -26,6 +40,7 @@ export default class MediaSessionWrapper extends CancellableOperations(null, `im
             this.player.on(`newTrackLoad`, this.stateChanged);
             this.playlist.on(`highlyRelevantTrackMetadataUpdate`, this.stateChanged);
             this.playlist.on(`nextTrackChange`, this.stateChanged);
+            this.pictureManager.on(`imageChange`, this.stateChanged);
         }
     }
 
@@ -59,69 +74,37 @@ export default class MediaSessionWrapper extends CancellableOperations(null, `im
         this.player.pause();
     }
 
-    _shouldRenderNewState(newState) {
-        const keys = Object.keys(newState);
-        const currentState = this._currentState;
-
-        for (let i = 0; i < keys.length; ++i) {
-            const key = keys[i];
-
-            if (currentState[key] !== newState[key]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     async stateChanged() {
         if (!this.enabled) return;
-        const isPausedOrStopped = (this.player.isPaused || this.player.isStopped);
-        const {isPlaying} = this.player;
-        const track = this.playlist.getCurrentTrack() || this.playlist.getNextTrack();
+        const {isPlaying, isPaused} = this.player;
+        const track = this.playlist.getCurrentTrack();
+
         if (!track) {
+            this._currentState = EMPTY_STATE;
+            this.page.platform().disableMediaState();
             return;
         }
 
-        const state = {
-            isPlaying,
-            isPausedOrStopped,
-            track,
-            tagDataState: track.getTagStateId()
-        };
+        const imageSrc = this.pictureManager.getCurrentImage().src;
 
-        if (!this._shouldRenderNewState(state)) {
+        const state = new MediaSessionRenderedState(isPlaying, isPaused, track, imageSrc);
+        if (state.equals(this._currentState)) {
             return;
         }
-
         this._currentState = state;
-        this.cancelAllImageWaitOperations();
-        const cancellationToken = this.cancellationTokenForImageWaitOperation();
-        let image, imageUrl;
-        try {
-            image = await track.getImage(this.pictureManager);
-            if (cancellationToken.isCancelled()) return;
-            imageUrl = image ? (image.isGenerated ? URL.createObjectURL(image.blob) : image.src) : null;
 
-            const info = track.getArtistAndTitle();
-            const title = `${track.getIndex() + 1}. ${info.title}`;
-            const {artist} = info;
-            const album = track.formatTime();
-            await this.page.platform().setMediaState({
-                title,
-                artist,
-                album,
-                artwork: [{src: imageUrl}],
-                isPlaying: this.player.isPlaying,
-                isPaused: this.player.isPaused
-            });
-        } finally {
-            if (imageUrl && image && image.isGenerated) {
-                try {
-                    URL.revokeObjectURL(imageUrl);
-                } catch (e) {
-                    // NOOP
-                }
-            }
-        }
+        const artwork = [{src: imageSrc}];
+        const info = track.getArtistAndTitle();
+        const title = `${track.getIndex() + 1}. ${info.title}`;
+        const {artist} = info;
+        const album = track.formatTime();
+        this.page.platform().setMediaState({
+            title,
+            artist,
+            album,
+            isPlaying,
+            isPaused,
+            artwork
+        });
     }
 }

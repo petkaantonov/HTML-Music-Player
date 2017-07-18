@@ -2,6 +2,7 @@ import jdenticon from "jdenticon";
 import {noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
 import CancellableOperations from "utils/CancellationToken";
+import EventEmitter from "events";
 
 const isSameImage = function(a, b) {
     if (a.tag !== undefined && b.tag !== undefined) {
@@ -11,7 +12,7 @@ const isSameImage = function(a, b) {
     }
 };
 
-export default class PlayerPictureManager extends CancellableOperations(null, `imageUpdateOperation`) {
+export default class PlayerPictureManager extends CancellableOperations(EventEmitter, `imageUpdateOperation`) {
     constructor(opts, deps) {
         super();
         opts = noUndefinedGet(opts);
@@ -30,6 +31,7 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this._currentTrack = null;
 
         this.imageErrored = this.imageErrored.bind(this);
+        this.imageLoaded = this.imageLoaded.bind(this);
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
 
         this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
@@ -63,6 +65,10 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         return this._domNode;
     }
 
+    getCurrentImage() {
+        return this._currentImage || this.defaultImage();
+    }
+
     defaultImage() {
         return this._defaultImage;
     }
@@ -73,6 +79,12 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         this.applyCurrentTrackImage(cancellationToken);
     }
 
+    imageLoaded(e) {
+        if (e.target === this._currentImage) {
+            this.emit(`imageChange`, e.target);
+        }
+    }
+
     updateImage(image) {
         if (!image) return;
 
@@ -81,13 +93,21 @@ export default class PlayerPictureManager extends CancellableOperations(null, `i
         }
 
         if (this._currentImage) {
-            this._page.$(this._currentImage).removeEventListener(`error`, this.imageErrored).remove();
+            this._page.$(this._currentImage).removeEventListener(`error`, this.imageErrored).
+                                            removeEventListener(`load`, this.imageLoaded).
+                                            remove();
             this._currentImage = null;
         }
 
         this._currentImage = image;
         this.$().append(this._currentImage);
         this._page.$(this._currentImage).addEventListener(`error`, this.imageErrored);
+
+        if (this._currentImage.complete) {
+            this.emit(`imageChange`, this._currentImage);
+        } else {
+            this._page.$(this._currentImage).addEventListener(`load`, this.imageLoaded);
+        }
     }
 
 
