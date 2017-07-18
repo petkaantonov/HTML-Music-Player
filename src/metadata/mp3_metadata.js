@@ -429,10 +429,11 @@ const parseId3v2Data = async function(data, fileView, offset) {
 
 const getId3v1String = function(fileView, offset) {
     const buffer = fileView.block();
-    let length = 30;
-    for (let i = 0; i < 30; ++i) {
-        if (buffer[offset + i - fileView.start] === 0) {
-            length = i;
+    let length = 0;
+    for (let i = 30 - 1; i >= 0; --i) {
+        const byteVal = buffer[offset + i - fileView.start];
+        if (byteVal > 32 && byteVal < 255) {
+            length = i + 1;
             break;
         }
     }
