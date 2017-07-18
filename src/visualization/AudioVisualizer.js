@@ -51,191 +51,193 @@ function makeBuffer(bufferSize) {
 
 const buffers = {};
 
-export default function AudioVisualizer(audioContext, sourceNode, visualizerCanvas, opts) {
-    opts = noUndefinedGet(opts);
-    this.visualizerCanvas = visualizerCanvas;
-    this.sampleRate = audioContext.sampleRate;
-    this.maxFrequency = opts.maxFrequency || 18500;
-    this.minFrequency = opts.minFrequency || 20;
-    this.bufferSize = 2;
-    this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
-    this.sourceNode = sourceNode;
-    this.bins = null;
-    this.binSizeChanged();
-
-    while (this.bufferSize * this.fps() < this.sampleRate) {
-        this.bufferSize *= 2;
-    }
-
-    if (this.bufferSize > 16384) {
-        throw new Error(`too low fps ${this.fps()} for sample rate${this.sampleRate}`);
-    }
-
-    let buffer = buffers[this.bufferSize];
-    if (!buffer) {
-        buffer = buffers[this.bufferSize] = makeBuffer(this.bufferSize);
-    }
-    this.buffer = buffer;
-    this.fillWindow();
-    this.destroyed = false;
-    this.paused = false;
-    this.gotFrame = this.gotFrame.bind(this);
-    this.frameId = this.page().requestAnimationFrame(this.gotFrame);
-    this.lastFrameTimeStamp = 0;
-    this.frameSkip = 1;
-    this.frameNumber = 0;
-}
-
-AudioVisualizer.prototype.page = function() {
-    return this.visualizerCanvas.page;
-};
-
-AudioVisualizer.prototype.binSizeChanged = function() {
-    this.bins = new Float32Array(this.binCount());
-};
-
-AudioVisualizer.prototype.binCount = function() {
-    return this.visualizerCanvas.getNumBins();
-};
-
-AudioVisualizer.prototype.fps = function() {
-    return this.visualizerCanvas.getTargetFps();
-};
-
-AudioVisualizer.prototype.pause = function() {
-    if (this.paused) return;
-    this.paused = true;
-};
-
-AudioVisualizer.prototype.resume = function() {
-    if (!this.paused) return;
-    this.paused = false;
-};
-
-AudioVisualizer.prototype.destroy = function() {
-    this.destroyed = true;
-    this.page().cancelAnimationFrame(this.frameId);
-    this.sourceNode = null;
-};
-
-
-AudioVisualizer.prototype.gotFrame = function(now) {
-    if (this.destroyed) return;
-    this.frameId = this.page().requestAnimationFrame(this.gotFrame);
-
-    if (!this.visualizerCanvas.needsToDraw()) return;
-
-    const elapsed = now - this.lastFrameTimeStamp;
-    const targetFps = this.fps();
-
-    if ((elapsed + 1) < (1000 / targetFps)) {
-        let screenFps = Math.ceil(1000 / elapsed);
-        let div = screenFps / targetFps;
-        if (div !== (div | 0)) div = 2;
-        let {frameSkip} = this;
-        while (screenFps / div >= targetFps) {
-            frameSkip *= div;
-            screenFps /= div;
-        }
-
-        this.frameSkip = frameSkip;
-    } else {
-        this.frameSkip = 1;
-    }
-    this.frameNumber++;
-
-    if (this.frameNumber % this.frameSkip !== 0) {
-        return;
-    }
-    this.lastFrameTimeStamp = now;
-
-    if (this.paused) {
-        this.visualizerCanvas.drawIdleBins(now);
-        return;
-    }
-
-    if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
-        return;
-    }
-
-    this.forwardFft();
-
-    if (this.bins.length !== this.binCount()) {
+export default class AudioVisualizer {
+    constructor(audioContext, sourceNode, visualizerCanvas, opts) {
+        opts = noUndefinedGet(opts);
+        this.visualizerCanvas = visualizerCanvas;
+        this.sampleRate = audioContext.sampleRate;
+        this.maxFrequency = opts.maxFrequency || 18500;
+        this.minFrequency = opts.minFrequency || 20;
+        this.bufferSize = 2;
+        this.baseSmoothingConstant = opts.baseSmoothingConstant || 0.00007;
+        this.sourceNode = sourceNode;
+        this.bins = null;
         this.binSizeChanged();
+
+        while (this.bufferSize * this.fps() < this.sampleRate) {
+            this.bufferSize *= 2;
+        }
+
+        if (this.bufferSize > 16384) {
+            throw new Error(`too low fps ${this.fps()} for sample rate${this.sampleRate}`);
+        }
+
+        let buffer = buffers[this.bufferSize];
+        if (!buffer) {
+            buffer = buffers[this.bufferSize] = makeBuffer(this.bufferSize);
+        }
+        this.buffer = buffer;
+        this.fillWindow();
+        this.destroyed = false;
+        this.paused = false;
+        this.gotFrame = this.gotFrame.bind(this);
+        this.frameId = this.page().requestAnimationFrame(this.gotFrame);
+        this.lastFrameTimeStamp = 0;
+        this.frameSkip = 1;
+        this.frameNumber = 0;
     }
 
-    this.calculateBins();
-    this.visualizerCanvas.drawBins(now, this.bins);
-};
+    page() {
+        return this.visualizerCanvas.page;
+    }
 
-AudioVisualizer.prototype.calculateBins = function() {
-    const X = this.buffer[0];
-    const imOffset = this.bufferSize >> 1;
-    const {bins} = this;
-    const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / this.sampleRate);
-    const inverseSmoothingConstant = 1 - smoothingConstant;
+    binSizeChanged() {
+        this.bins = new Float32Array(this.binCount());
+    }
 
-    const fftFreqs = Math.ceil(this.maxFrequency / (this.sampleRate / this.bufferSize));
-    const binSize = bins.length;
+    binCount() {
+        return this.visualizerCanvas.getNumBins();
+    }
 
-    let binFrequencyStart = 1;
-    let aWeightIndex = 2;
-    let previousEnd = 0;
-    for (let i = 0; i < binSize; ++i) {
-        let binFrequencyEnd = ((Math.pow((i + 1) / binSize, 2) * fftFreqs) | 0);
+    fps() {
+        return this.visualizerCanvas.getTargetFps();
+    }
 
-        if (binFrequencyEnd <= previousEnd) {
-            binFrequencyEnd = previousEnd + 1;
-        }
-        previousEnd = binFrequencyEnd;
-        binFrequencyEnd = Math.min(fftFreqs, binFrequencyEnd) + 1;
+    pause() {
+        if (this.paused) return;
+        this.paused = true;
+    }
 
-        const binWidth = Math.max(1, binFrequencyEnd - binFrequencyStart);
-        let maxPower = 0;
-        let binFrequency = 0;
+    resume() {
+        if (!this.paused) return;
+        this.paused = false;
+    }
 
-        for (let j = 0; j < binWidth; ++j) {
-            const re = X[binFrequencyStart + j];
-            const im = X[imOffset + binFrequencyStart + j];
-            const power = re * re + im * im;
-            if (power > maxPower) {
-                binFrequency = ((binFrequencyStart + j) * this.sampleRate / this.bufferSize) | 0;
-                maxPower = power;
+    destroy() {
+        this.destroyed = true;
+        this.page().cancelAnimationFrame(this.frameId);
+        this.sourceNode = null;
+    }
+
+
+    gotFrame(now) {
+        if (this.destroyed) return;
+        this.frameId = this.page().requestAnimationFrame(this.gotFrame);
+
+        if (!this.visualizerCanvas.needsToDraw()) return;
+
+        const elapsed = now - this.lastFrameTimeStamp;
+        const targetFps = this.fps();
+
+        if ((elapsed + 1) < (1000 / targetFps)) {
+            let screenFps = Math.ceil(1000 / elapsed);
+            let div = screenFps / targetFps;
+            if (div !== (div | 0)) div = 2;
+            let {frameSkip} = this;
+            while (screenFps / div >= targetFps) {
+                frameSkip *= div;
+                screenFps /= div;
             }
+
+            this.frameSkip = frameSkip;
+        } else {
+            this.frameSkip = 1;
+        }
+        this.frameNumber++;
+
+        if (this.frameNumber % this.frameSkip !== 0) {
+            return;
+        }
+        this.lastFrameTimeStamp = now;
+
+        if (this.paused) {
+            this.visualizerCanvas.drawIdleBins(now);
+            return;
         }
 
-        maxPower = Math.max(0, Math.log(maxPower));
+        if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
+            return;
+        }
 
-        for (let j = aWeightIndex; j < weights.length; j += 2) {
-            const weightFrequency = weights[j];
+        this.forwardFft();
 
-            if (binFrequency < weightFrequency) {
-                maxPower *= weights[j - 1];
-                aWeightIndex = j;
-                break;
+        if (this.bins.length !== this.binCount()) {
+            this.binSizeChanged();
+        }
+
+        this.calculateBins();
+        this.visualizerCanvas.drawBins(now, this.bins);
+    }
+
+    calculateBins() {
+        const X = this.buffer[0];
+        const imOffset = this.bufferSize >> 1;
+        const {bins} = this;
+        const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / this.sampleRate);
+        const inverseSmoothingConstant = 1 - smoothingConstant;
+
+        const fftFreqs = Math.ceil(this.maxFrequency / (this.sampleRate / this.bufferSize));
+        const binSize = bins.length;
+
+        let binFrequencyStart = 1;
+        let aWeightIndex = 2;
+        let previousEnd = 0;
+        for (let i = 0; i < binSize; ++i) {
+            let binFrequencyEnd = ((Math.pow((i + 1) / binSize, 2) * fftFreqs) | 0);
+
+            if (binFrequencyEnd <= previousEnd) {
+                binFrequencyEnd = previousEnd + 1;
             }
+            previousEnd = binFrequencyEnd;
+            binFrequencyEnd = Math.min(fftFreqs, binFrequencyEnd) + 1;
+
+            const binWidth = Math.max(1, binFrequencyEnd - binFrequencyStart);
+            let maxPower = 0;
+            let binFrequency = 0;
+
+            for (let j = 0; j < binWidth; ++j) {
+                const re = X[binFrequencyStart + j];
+                const im = X[imOffset + binFrequencyStart + j];
+                const power = re * re + im * im;
+                if (power > maxPower) {
+                    binFrequency = ((binFrequencyStart + j) * this.sampleRate / this.bufferSize) | 0;
+                    maxPower = power;
+                }
+            }
+
+            maxPower = Math.max(0, Math.log(maxPower));
+
+            for (let j = aWeightIndex; j < weights.length; j += 2) {
+                const weightFrequency = weights[j];
+
+                if (binFrequency < weightFrequency) {
+                    maxPower *= weights[j - 1];
+                    aWeightIndex = j;
+                    break;
+                }
+            }
+
+            maxPower = Math.min(0.97, bins[i] * smoothingConstant + inverseSmoothingConstant * maxPower * 0.24);
+
+            bins[i] = maxPower;
+            binFrequencyStart = binFrequencyEnd;
         }
-
-        maxPower = Math.min(0.97, bins[i] * smoothingConstant + inverseSmoothingConstant * maxPower * 0.24);
-
-        bins[i] = maxPower;
-        binFrequencyStart = binFrequencyEnd;
     }
-};
 
-AudioVisualizer.prototype.fillWindow = function() {
-    const window = this.buffer[1];
-    const N = window.length;
-    for (let n = 0; n < N; ++n) {
-        // Hamming window.
-        window[n] = (0.53836 - 0.46164 * Math.cos((2 * Math.PI * n) / (N - 1)));
+    fillWindow() {
+        const window = this.buffer[1];
+        const N = window.length;
+        for (let n = 0; n < N; ++n) {
+            // Hamming window.
+            window[n] = (0.53836 - 0.46164 * Math.cos((2 * Math.PI * n) / (N - 1)));
+        }
     }
-};
 
-AudioVisualizer.prototype.forwardFft = function() {
-    const [samples, window] = this.buffer;
-    for (let i = 0; i < samples.length; ++i) {
-        samples[i] = Math.fround(samples[i] * window[i]);
+    forwardFft() {
+        const [samples, window] = this.buffer;
+        for (let i = 0; i < samples.length; ++i) {
+            samples[i] = Math.fround(samples[i] * window[i]);
+        }
+        realFft(this.buffer[0]);
     }
-    realFft(this.buffer[0]);
-};
+}
