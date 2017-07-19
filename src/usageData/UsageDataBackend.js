@@ -13,11 +13,11 @@ export default class UsageDataBackend extends AbstractBackend {
             },
 
             setSkipCounter({uid, counter}) {
-                this.db.updateSkipCounter(uid, counter, Date.now());
+                this.db.updateSkipCounter(uid, counter, new Date());
             },
 
             setPlaythroughCounter({uid, counter}) {
-                this.db.updatePlaythroughCounter(uid, counter, Date.now());
+                this.db.updatePlaythroughCounter(uid, counter, new Date());
             }
         };
     }

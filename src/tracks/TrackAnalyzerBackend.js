@@ -2,6 +2,9 @@ import AbstractBackend from "AbstractBackend";
 import TrackAnalysisJob from "tracks/TrackAnalysisJob";
 import {CancellationError} from "utils/CancellationToken";
 
+export const JOB_STATE_INITIAL = "initial";
+export const JOB_STATE_DATA_FETCHED = "dataFetched";
+
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
 class AcoustIdDataFetcher {
@@ -15,28 +18,61 @@ class AcoustIdDataFetcher {
         this._idle();
     }
 
+    _setNextIdle(waitLongTime) {
+        this.timerId = this.timers.setTimeout(this._idle, waitLongTime ? 10000 : 1000);
+    }
+
     async _idle() {
         this.timerId = -1;
-        let waitLongTime = false;
         const job = await this.db.getAcoustIdFetchJob();
         if (job) {
             const {trackUid, fingerprint, duration, jobId} = job;
-            try {
-                const result = await this.metadataManager.fetchAcoustId(trackUid, fingerprint, duration);
-                await this.db.completeAcoustIdFetchJob(jobId);
-                this.backend.reportAcoustIdDataFetched(result);
-            } catch (e) {
-                waitLongTime = true;
-                self.uiLog(e.stack);
-                await this.db.setAcoustIdFetchJobError(jobId, e);
-            } finally {
-                this.timerId = this.timers.setTimeout(this._idle, waitLongTime ? 60000 : 1000);
+            let {acoustIdResult, state} = job;
+            let trackInfo;
+            let trackInfoUpdated = false;
+            let waitLongTime = !!job.lastError;
+
+            if (state === JOB_STATE_INITIAL) {
+                try {
+                   const result = await this.metadataManager.fetchAcoustId(trackUid, fingerprint, duration);
+                    ({acoustIdResult, trackInfo, trackInfoUpdated} = result);
+                    await this.db.updateAcoustIdFetchJobState(jobId, {
+                        acoustIdResult: acoustIdResult || null,
+                        state: JOB_STATE_DATA_FETCHED
+                    });
+                    state = JOB_STATE_DATA_FETCHED;
+                } catch (e) {
+                    await this.db.setAcoustIdFetchJobError(e);
+                    this._setNextIdle(waitLongTime);
+                    return;
+                }
             }
+
+            if (state === JOB_STATE_DATA_FETCHED && acoustIdResult) {
+                if (!trackInfo) {
+                    trackInfo = await this.db.getTrackInfoByTrackUid(trackUid);
+                }
+
+                try {
+                    const fetchedCoverArt = await this.metadataManager.fetchCoverArtInfo(acoustIdResult, trackInfo);
+                    if (!trackInfoUpdated) {
+                        trackInfoUpdated = fetchedCoverArt;
+                    }
+                } catch (e) {
+                    await this.db.setAcoustIdFetchJobError(e);
+                    this._setNextIdle(waitLongTime);
+                    return;
+                }
+                await this.db.completeAcoustIdFetchJob(jobId);
+            }
+
+            this.backend.reportAcoustIdDataFetched({trackInfo, trackInfoUpdated});
+            this._setNextIdle(waitLongTime);
         }
     }
 
     async postJob(uid, fingerprint, duration) {
-        await this.db.addAcoustIdFetchJob(uid, fingerprint, duration);
+        await this.db.addAcoustIdFetchJob(uid, fingerprint, duration, JOB_STATE_INITIAL);
         if (this.timerId === -1) {
             this._idle();
         }

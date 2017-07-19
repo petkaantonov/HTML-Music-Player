@@ -20,7 +20,7 @@ class TagData {
         this.rating = -1;
         this.skipCounter = 0;
         this.playthroughCounter = 0;
-        this.lastPlayed = 0;
+        this.lastPlayed = new Date(0);
         this._hasBeenAnalyzed = false;
         this._albumForSort = null;
 
@@ -140,13 +140,13 @@ class TagData {
 
     recordSkip() {
         this.skipCounter++;
-        this.lastPlayed = Date.now();
+        this.lastPlayed = new Date();
         this._context.usageData.setSkipCounter(this.track, this.skipCounter);
     }
 
     triggerPlaythrough() {
         this.playthroughCounter++;
-        this.lastPlayed = Date.now();
+        this.lastPlayed = new Date();
         this._context.usageData.setPlaythroughCounter(this.track, this.playthroughCounter);
     }
 }

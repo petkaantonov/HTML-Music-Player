@@ -1,7 +1,7 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange} from "platform/platform";
 
-const VERSION = 15;
+const VERSION = 16;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const TRACK_INFO_OBJECT_STORE_NAME = `trackInfo`;
@@ -78,6 +78,11 @@ const objectStoreSpec = {
                 unique: true,
                 multiEntry: false,
                 keyPath: TRACK_INFO_PRIMARY_KEY_NAME
+            },
+            lastTried: {
+                unique: false,
+                multiEntry: false,
+                keyPath: "lastTried"
             }
         }
     },
@@ -145,7 +150,7 @@ export default class TagDatabase {
             const {target} = event;
             const {transaction} = target;
             const stores = applyStoreSpec(transaction, objectStoreSpec);
-            const wipeOutTrackInfo = event.oldVersion < 15;
+            const wipeOutTrackInfo = event.oldVersion < 16;
             if (wipeOutTrackInfo) {
                 stores[TRACK_INFO_OBJECT_STORE_NAME].clear();
             }
@@ -264,8 +269,7 @@ export default class TagDatabase {
         const job = await iDbPromisify(store.get(IDBKeyRange.only(jobId)));
         job.lastTried = new Date();
         job.lastError = {
-            message: error.message,
-            stack: error.stack
+            message: error && error.message || `${error}`
         };
         return iDbPromisify(store.put(job));
     }
@@ -274,10 +278,25 @@ export default class TagDatabase {
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
-        return iDbPromisify(store.get(IDBKeyRange.lowerBound(0)));
+        const index = store.index("lastTried");
+        return iDbPromisify(index.get(IDBKeyRange.lowerBound(new Date(0))));
     }
 
-    async addAcoustIdFetchJob(trackUid, fingerprint, duration) {
+    async updateAcoustIdFetchJobState(trackUid, data) {
+        const db = await this.db;
+        const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
+        const uidIndex = store.index(`trackUid`);
+        const job = await iDbPromisify(uidIndex.get(IDBKeyRange.only(trackUid)));
+
+        if (!job) { 
+            return;
+        }
+        Object.assign(job, data);
+        await iDbPromisify(store.put(job));
+    }
+
+    async addAcoustIdFetchJob(trackUid, fingerprint, duration, state) {
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -291,7 +310,7 @@ export default class TagDatabase {
         await iDbPromisify(store.add({
             trackUid, created: new Date(),
             fingerprint, duration, lastError: null,
-            lastTried: -1
+            lastTried: new Date(0), state
         }));
     }
 
