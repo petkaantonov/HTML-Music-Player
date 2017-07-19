@@ -65,7 +65,7 @@ Promise.join(
                 origin: req.headers.origin
             },
             method: "GET",
-            timeout: 5000
+            timeout: 15000
         }).on("response", response => {
             const headers = Object.assign({}, response.headers, {
                 "Access-Control-Allow-Origin": "*"

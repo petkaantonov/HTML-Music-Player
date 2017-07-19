@@ -135,7 +135,19 @@ export default class Track extends EventEmitter {
         this.removeAllListeners();
 
         if (this._uid) {
-            uidsToTrack.delete(hexString(this._uid));
+            const key = hexString(this._uid);
+            const entry = uidsToTrack.get(key);
+            if (!Array.isArray(entry)) {
+                uidsToTrack.delete(entry);
+            } else {
+                const i = entry.indexOf(this);
+                if (i >= 0) {
+                    entry.splice(i, 1);
+                }
+                if (entry.length === 0) {
+                    uidsToTrack.delete(key);
+                }
+            }
             this._uid = null;
         }
     }
@@ -196,7 +208,9 @@ export default class Track extends EventEmitter {
     }
 
     setTagData(tagData) {
-        if (this.tagData !== null) throw new Error(`cannot set tagData again`);
+        if (this.tagData !== null) {
+            return;
+        }
         this.tagData = tagData;
         transientIdToTrack[this.transientId()] = this;
         this.tagDataUpdated();
@@ -230,16 +244,8 @@ export default class Track extends EventEmitter {
         return ``;
     }
 
-    setHasBeenAnalyzed() {
-        this.tagData.setHasBeenAnalyzed();
-    }
-
-    hasBeenAnalyzed() {
-        return this.tagData ? this.tagData.hasBeenAnalyzed() : false;
-    }
-
     needsParsing() {
-        return (this.tagData === null || !this.tagData.hasBeenAnalyzed()) && !this._error;
+        return (this.tagData === null && !this._error);
     }
 
     getDuration() {
@@ -285,7 +291,15 @@ export default class Track extends EventEmitter {
     async uid() {
         if (this._uid) return this._uid;
         this._uid = await getFileCacheKey(this.file);
-        uidsToTrack.set(hexString(this._uid), this);
+        const key = hexString(this._uid);
+        const entry = uidsToTrack.get(key);
+        if (!entry) {
+            uidsToTrack.set(key, this);
+        } else if (!Array.isArray(entry)) {
+            uidsToTrack.set(key, [entry, this]);
+        } else {
+            entry.push(this);
+        }
         return this._uid;
     }
 
@@ -421,6 +435,13 @@ export const byTransientId = function(transientId) {
     return transientIdToTrack[transientId];
 };
 
-export const byUid = function(uid) {
-    return uidsToTrack.get(hexString(uid));
+export const tracksByUid = function(uid) {
+    const entry = uidsToTrack.get(hexString(uid));
+    if (!entry) {
+        return [];
+    } else if (!Array.isArray(entry)) {
+        return [entry];
+    } else {
+        return entry;
+    }
 };

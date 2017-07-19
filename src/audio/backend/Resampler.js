@@ -33,7 +33,7 @@ export default class Resampler extends BufferAllocator {
         const err = this.get_error();
 
         if (err) {
-            throw err;
+            throw new Error(err);
         }
 
         return {
@@ -106,7 +106,7 @@ moduleEvents.on(`main_afterInitialized`, (wasm, exports) => {
             const ret = method(...args);
             const error = this.get_error();
             if (error) {
-                throw error;
+                throw new Error(error);
             }
             return ret;
         };

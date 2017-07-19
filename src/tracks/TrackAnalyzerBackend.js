@@ -1,83 +1,18 @@
 import AbstractBackend from "AbstractBackend";
-import TrackAnalysisJob from "tracks/TrackAnalysisJob";
-import {CancellationError} from "utils/CancellationToken";
+import JobProcessor from "utils/JobProcessor";
+import {delay} from "util";
+import FileView from "platform/FileView";
+import getCodec from "audio/backend/codec";
+import {allocResampler, freeResampler} from "audio/backend/pool";
+import ChannelMixer from "audio/backend/ChannelMixer";
+import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
+import Fingerprinter from "audio/backend/Fingerprinter";
+import {MAX_BUFFER_LENGTH_SECONDS as MAXIMUM_BUFFER_TIME_SECONDS} from "audio/frontend/buffering";
 
-export const JOB_STATE_INITIAL = "initial";
-export const JOB_STATE_DATA_FETCHED = "dataFetched";
-
+const BUFFER_DURATION = MAXIMUM_BUFFER_TIME_SECONDS;
+export const JOB_STATE_INITIAL = `initial`;
+export const JOB_STATE_DATA_FETCHED = `dataFetched`;
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
-
-class AcoustIdDataFetcher {
-    constructor(backend, db, metadataManager, timers) {
-        this.backend = backend;
-        this.db = db;
-        this.metadataManager = metadataManager;
-        this.timerId = -1;
-        this.timers = timers;
-        this._idle = this._idle.bind(this);
-        this._idle();
-    }
-
-    _setNextIdle(waitLongTime) {
-        this.timerId = this.timers.setTimeout(this._idle, waitLongTime ? 10000 : 1000);
-    }
-
-    async _idle() {
-        this.timerId = -1;
-        const job = await this.db.getAcoustIdFetchJob();
-        if (job) {
-            const {trackUid, fingerprint, duration, jobId} = job;
-            let {acoustIdResult, state} = job;
-            let trackInfo;
-            let trackInfoUpdated = false;
-            let waitLongTime = !!job.lastError;
-
-            if (state === JOB_STATE_INITIAL) {
-                try {
-                   const result = await this.metadataManager.fetchAcoustId(trackUid, fingerprint, duration);
-                    ({acoustIdResult, trackInfo, trackInfoUpdated} = result);
-                    await this.db.updateAcoustIdFetchJobState(jobId, {
-                        acoustIdResult: acoustIdResult || null,
-                        state: JOB_STATE_DATA_FETCHED
-                    });
-                    state = JOB_STATE_DATA_FETCHED;
-                } catch (e) {
-                    await this.db.setAcoustIdFetchJobError(e);
-                    this._setNextIdle(waitLongTime);
-                    return;
-                }
-            }
-
-            if (state === JOB_STATE_DATA_FETCHED && acoustIdResult) {
-                if (!trackInfo) {
-                    trackInfo = await this.db.getTrackInfoByTrackUid(trackUid);
-                }
-
-                try {
-                    const fetchedCoverArt = await this.metadataManager.fetchCoverArtInfo(acoustIdResult, trackInfo);
-                    if (!trackInfoUpdated) {
-                        trackInfoUpdated = fetchedCoverArt;
-                    }
-                } catch (e) {
-                    await this.db.setAcoustIdFetchJobError(e);
-                    this._setNextIdle(waitLongTime);
-                    return;
-                }
-                await this.db.completeAcoustIdFetchJob(jobId);
-            }
-
-            this.backend.reportAcoustIdDataFetched({trackInfo, trackInfoUpdated});
-            this._setNextIdle(waitLongTime);
-        }
-    }
-
-    async postJob(uid, fingerprint, duration) {
-        await this.db.addAcoustIdFetchJob(uid, fingerprint, duration, JOB_STATE_INITIAL);
-        if (this.timerId === -1) {
-            this._idle();
-        }
-    }
-}
 
 export default class TrackAnalyzerBackend extends AbstractBackend {
     constructor(wasm, db, metadataManager, timers) {
@@ -86,119 +21,161 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
         this.timers = timers;
         this.metadataManager = metadataManager;
         this.wasm = wasm;
-        this.analysisQueue = [];
-        this.currentJob = null;
-        this.acoustIdDataFetcher = new AcoustIdDataFetcher(this, this.db, metadataManager, timers);
+
+        this.acoustIdDataFetcher = new JobProcessor({delay: 1000, jobCallback: this.fetchAcoustIdData.bind(this)});
+        this.analyzer = new JobProcessor({jobCallback: this.analyze.bind(this)});
         this.actions = {
-            analyze(args) {
-                this.analysisQueue.push(args);
-                if (!this.processing) this.nextJob();
-            },
-
-            abort(args) {
-                const jobId = args.id;
-                if (this.currentJob.id === jobId) {
-                    this.currentJob.abort();
-                } else {
-                    const index = this.analysisQueue.findIndex(v => v.id === jobId);
-                    if (index >= 0) {
-                        const job = this.analysisQueue[index];
-                        job.destroy();
-                        this.analysisQueue.splice(index, 1);
-                        this.reportAnalyzerAbort(job.id);
-                    }
-                }
-            },
-
             async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
                 const albumArt = await this.metadataManager.getAlbumArt(trackUid, artist, album, preference);
                 const result = {albumArt, trackUid, preference, requestReason};
                 this.postMessage({type: `albumArtResult`, result});
             },
 
-            async parseMetadata({file, transientId, id, uid}) {
-                const promise = this.metadataManager.parse(file, uid);
-                const metadata = await this.promiseMessageSuccessErrorHandler(id, promise, `metadata`);
-                if (metadata) {
-                    this.emit(`metadataParsed`, {file, metadata, transientId, uid});
+            async parseMetadata({file, uid}) {
+                try {
+                    const trackInfo = await this.metadataManager.parseAudioFileMetadata(file, uid);
+                    const result = {trackInfo, trackUid: uid};
+                    this.postMessage({type: `metadataResult`, result});
+                    if (!trackInfo.hasBeenAnalyzed) {
+                        this.analyzer.postJob(file, uid);
+                    }
+                    // This.emit("metadataParsed")
+                } catch (e) {
+                    const result = {
+                        error: {
+                            message: e.message
+                        }
+                    };
+                    this.postMessage({type: `metadataResult`, result, error: result.error});
                 }
-
             }
         };
     }
 
-    get processing() {
-        return !!this.currentJob;
-    }
-
-    reportAcoustIdDataFetched(result) {
-        this.postMessage({type: `acoustIdDataFetched`, result});
-    }
-
-    reportAnalyzerAbort(id) {
-        this.postMessage({id, type: `abort`, jobType: `analyze`});
-    }
-
-    reportAnalyzerError(id, e) {
-        this.postMessage({
-            id,
-            type: `error`,
-            jobType: `analyze`,
-            error: {
-                message: e.message,
-                stack: e.stack,
-                name: e.name
-            }
-        });
-    }
-
-    reportAnalyzerSuccess(id) {
-        this.postMessage({id, type: `success`, jobType: `analyze`});
-    }
-
-    async promiseMessageSuccessErrorHandler(id, p, jobType) {
+    async analyze(job, file, uid) {
+        const {id, cancellationToken} = job;
+        let decoder, resampler, fingerprinter, channelMixer;
+        const {db, wasm} = this;
         try {
-            const result = await p;
-            const type = `success`;
-            this.postMessage({id, result, jobType, type});
-            return result;
-        } catch (e) {
-            const type = `error`;
-            const {message, stack} = e;
-            this.postMessage({id, type, jobType, error: {message, stack}});
-            return null;
+            const trackInfo = await db.getTrackInfoByTrackUid(uid);
+
+            if (!trackInfo || trackInfo.hasBeenAnalyzed) {
+                return;
+            }
+
+            const DecoderContext = await getCodec(trackInfo.codecName);
+
+            const {sampleRate, duration, channels, demuxData} = trackInfo;
+            const sourceSampleRate = sampleRate;
+            const sourceChannelCount = channels;
+            const {dataStart, dataEnd} = demuxData;
+            let fingerprint = null;
+
+            if (duration >= 15) {
+                decoder = new DecoderContext(wasm, {
+                    targetBufferLengthAudioFrames: BUFFER_DURATION * sampleRate
+                });
+                decoder.start(demuxData);
+
+                fingerprinter = new Fingerprinter(wasm);
+                const {destinationChannelCount, destinationSampleRate, resamplerQuality} = fingerprinter;
+                resampler = allocResampler(wasm,
+                                           destinationChannelCount,
+                                           sourceSampleRate,
+                                           destinationSampleRate,
+                                           resamplerQuality);
+                channelMixer = new ChannelMixer(wasm, {destinationChannelCount});
+                const audioPipeline = new AudioProcessingPipeline(wasm, {
+                    sourceSampleRate, sourceChannelCount,
+                    destinationSampleRate, destinationChannelCount,
+                    decoder, resampler, channelMixer, fingerprinter,
+                    bufferTime: BUFFER_DURATION,
+                    bufferAudioFrameCount: destinationSampleRate * BUFFER_DURATION
+                });
+
+                const fileStartPosition = dataStart;
+                let filePosition = fileStartPosition;
+                const fileEndPosition = dataEnd;
+                const fileView = new FileView(file);
+
+                while (filePosition < fileEndPosition && fingerprinter.needFrames()) {
+                    const bytesRead = await audioPipeline.decodeFromFileViewAtOffset(fileView,
+                                                                                     filePosition,
+                                                                                     demuxData,
+                                                                                     cancellationToken);
+                    audioPipeline.consumeFilledBuffer();
+                    filePosition += bytesRead;
+                }
+                fingerprint = fingerprinter.calculateFingerprint();
+            }
+
+            if (fingerprint) {
+                await this.db.addAcoustIdFetchJob(uid, fingerprint, duration, JOB_STATE_INITIAL);
+                this.acoustIdDataFetcher.postJob();
+                this.db.updateHasBeenAnalyzed(uid, true);
+            }
+        } finally {
+            if (decoder) decoder.destroy();
+            if (resampler) freeResampler(resampler);
+            if (fingerprinter) fingerprinter.destroy();
+            if (channelMixer) channelMixer.destroy();
         }
     }
 
-    async nextJob() {
-        this.currentJob = null;
-
-        if (this.analysisQueue.length === 0) {
+    async fetchAcoustIdData() {
+        const job = await this.db.getAcoustIdFetchJob();
+        if (!job) {
             return;
         }
 
-        const jobArgs = this.analysisQueue.shift();
-        const {id, uid, file} = jobArgs;
-        const job = new TrackAnalysisJob(this, file, uid);
-        this.currentJob = job;
+        const {trackUid, fingerprint, duration, jobId} = job;
+        let {acoustIdResult, state} = job;
+        let trackInfo;
+        let trackInfoUpdated = false;
+        const waitLongTime = !!job.lastError;
 
-        try {
-            const result = await job.analyze();
-            this.acoustIdDataFetcher.postJob(uid, result.fingerprint, result.duration);
-            this.db.updateHasBeenAnalyzed(uid, true);
-            this.reportAnalyzerSuccess(id);
-        } catch (e) {
-            if (e && e instanceof CancellationError) {
-                this.reportAnalyzerAbort(id);
-            } else {
-                this.reportAnalyzerError(id, e);
-            }
-        } finally {
+        if (state === JOB_STATE_INITIAL) {
             try {
-                job.destroy();
-            } finally {
-                this.nextJob();
+               const result = await this.metadataManager.fetchAcoustId(trackUid, fingerprint, duration);
+                ({acoustIdResult, trackInfo, trackInfoUpdated} = result);
+                await this.db.updateAcoustIdFetchJobState(jobId, {
+                    acoustIdResult: acoustIdResult || null,
+                    state: JOB_STATE_DATA_FETCHED
+                });
+                state = JOB_STATE_DATA_FETCHED;
+            } catch (e) {
+                await this.db.setAcoustIdFetchJobError(e);
+                if (waitLongTime) {
+                    await delay(10000);
+                }
+                return;
             }
+        }
+
+        if (state === JOB_STATE_DATA_FETCHED && acoustIdResult) {
+            if (!trackInfo) {
+                trackInfo = await this.db.getTrackInfoByTrackUid(trackUid);
+            }
+
+            try {
+                const fetchedCoverArt = await this.metadataManager.fetchCoverArtInfo(acoustIdResult, trackInfo);
+                if (!trackInfoUpdated) {
+                    trackInfoUpdated = fetchedCoverArt;
+                }
+            } catch (e) {
+                await this.db.setAcoustIdFetchJobError(e);
+                if (waitLongTime) {
+                    await delay(10000);
+                }
+                return;
+            }
+            await this.db.completeAcoustIdFetchJob(jobId);
+        }
+
+        // This.emit("metadataParsed")
+        this.postMessage({type: `acoustIdDataFetched`, result: {trackInfo, trackInfoUpdated}});
+        if (waitLongTime) {
+            await delay(10000);
         }
     }
 }

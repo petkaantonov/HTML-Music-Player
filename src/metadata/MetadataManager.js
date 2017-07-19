@@ -5,6 +5,7 @@ import parseAcoustId from "metadata/acoustId";
 import {sha1Binary, queryString, capitalize, toCorsUrl, _} from "util";
 import {XMLHttpRequest, URL, Blob} from "platform/platform";
 import HttpStatusError from "errors/HttpStatusError";
+import JobProcessor from "utils/JobProcessor";
 
 const IMAGE_TYPE_KEY = `imageType`;
 const IMAGE_TYPE_COVERARTARCHIVE = `coverartarchive`;
@@ -50,7 +51,7 @@ const codecNotSupportedError = function() {
 const ajaxGet = function(url) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.timeout = 5000;
+        xhr.timeout = 15000;
 
         function error() {
             reject(new HttpStatusError(408, `timeout`));
@@ -115,27 +116,18 @@ function buildTrackInfo(metadata, demuxData) {
 export default class MetadataManager {
     constructor(tagDatabase) {
         this._tagDatabase = tagDatabase;
-        this._maxParsersActive = 8;
-        this._parserQueue = [];
-        this._parsersActive = 0;
+        this._parser = new JobProcessor({
+            parallelJobs: 8,
+            jobCallback: this._parse.bind(this)
+        });
         this._blobUrls = [];
     }
 
-    _nextParse() {
-        this._parsersActive--;
-        if (this._parserQueue.length > 0) {
-            const item = this._parserQueue.shift();
-            this._parsersActive++;
-            this._parse(item.file, item.uid, item.resolve);
-        }
-    }
-
-    async _parse(file, trackUid, resolve) {
+    async _parse(job, file, trackUid) {
         let trackInfo = await this._tagDatabase.getTrackInfoByTrackUid(trackUid);
 
         if (trackInfo) {
-            resolve(trackInfo);
-            return;
+            return trackInfo;
         }
 
         const data = {
@@ -185,7 +177,7 @@ export default class MetadataManager {
 
         trackInfo = buildTrackInfo(data, data.demuxData);
         await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
-        resolve(trackInfo);
+        return trackInfo;
     }
 
     setEstablishedGain(trackUid, establishedGain) {
@@ -203,11 +195,9 @@ export default class MetadataManager {
         let mbid, type;
 
         if (album && album.mbid) {
-            mbid = album.mbid;
-            type = album.type;
+            ({mbid, type} = album);
         } else if (title && title.mbid) {
-            mbid = title.mbid;
-            type = title.type;
+            ({mbid, type} = title);
         } else {
             return false;
         }
@@ -293,24 +283,8 @@ export default class MetadataManager {
         };
     }
 
-    async parse(file, uid) {
-        try {
-            const ret = await new Promise((resolve) => {
-                if (this._parsersActive >= this._maxParsersActive) {
-                    this._parserQueue.push({
-                        file,
-                        resolve,
-                        uid
-                    });
-                } else {
-                    this._parsersActive++;
-                    this._parse(file, uid, resolve);
-                }
-            });
-            return ret;
-        } finally {
-            this._nextParse();
-        }
+    parseAudioFileMetadata(file, uid) {
+        return this._parser.postJob(file, uid).promise;
     }
 
     _checkBlobList() {
@@ -328,7 +302,7 @@ export default class MetadataManager {
 
     _mapToUrl(value) {
         if (typeof value === `string`) {
-            return value.replace(/^https?:\/\//i, "https://");
+            return value.replace(/^https?:\/\//i, `https://`);
         } else if (value instanceof Blob) {
             const url = URL.createObjectUrl(value);
             this._blobUrls.push(url);

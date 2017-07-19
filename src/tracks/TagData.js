@@ -21,16 +21,13 @@ class TagData {
         this.skipCounter = 0;
         this.playthroughCounter = 0;
         this.lastPlayed = new Date(0);
-        this._hasBeenAnalyzed = false;
         this._albumForSort = null;
 
         this.discNumber = 0;
         this.discCount = 1;
 
         this._formattedTime = null;
-        this._hasBeenAnalyzed = false;
         this._context = context;
-        this._album;
 
         this.updateFields(trackInfo);
     }
@@ -52,7 +49,6 @@ class TagData {
         this.skipCounter = trackInfo.skipCounter;
         this.playthroughCounter = trackInfo.playthroughCounter;
         this.lastPlayed = trackInfo.lastPlayed;
-        this._hasBeenAnalyzed = trackInfo.hasBeenAnalyzed;
         this._albumForSort = `${this.album} ${this.albumArtist}`.toLowerCase();
 
         this.discNumber = ownPropOr(trackInfo, `discNumber`, this.discNumber);
@@ -128,14 +124,6 @@ class TagData {
 
     getAlbumIndexForSort() {
         return this.albumIndex;
-    }
-
-    hasBeenAnalyzed() {
-        return this._hasBeenAnalyzed;
-    }
-
-    setHasBeenAnalyzed() {
-        this._hasBeenAnalyzed = true;
     }
 
     recordSkip() {

@@ -1,7 +1,7 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange} from "platform/platform";
 
-const VERSION = 16;
+const VERSION = 17;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const TRACK_INFO_OBJECT_STORE_NAME = `trackInfo`;
@@ -82,7 +82,7 @@ const objectStoreSpec = {
             lastTried: {
                 unique: false,
                 multiEntry: false,
-                keyPath: "lastTried"
+                keyPath: `lastTried`
             }
         }
     },
@@ -150,7 +150,7 @@ export default class TagDatabase {
             const {target} = event;
             const {transaction} = target;
             const stores = applyStoreSpec(transaction, objectStoreSpec);
-            const wipeOutTrackInfo = event.oldVersion < 16;
+            const wipeOutTrackInfo = event.oldVersion < 17;
             if (wipeOutTrackInfo) {
                 stores[TRACK_INFO_OBJECT_STORE_NAME].clear();
             }
@@ -278,7 +278,7 @@ export default class TagDatabase {
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
-        const index = store.index("lastTried");
+        const index = store.index(`lastTried`);
         return iDbPromisify(index.get(IDBKeyRange.lowerBound(new Date(0))));
     }
 
@@ -289,7 +289,7 @@ export default class TagDatabase {
         const uidIndex = store.index(`trackUid`);
         const job = await iDbPromisify(uidIndex.get(IDBKeyRange.only(trackUid)));
 
-        if (!job) { 
+        if (!job) {
             return;
         }
         Object.assign(job, data);
