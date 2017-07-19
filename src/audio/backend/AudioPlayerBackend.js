@@ -10,7 +10,7 @@ import {MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS} from "audio/fronte
 const emptyArray = [];
 
 export default class AudioPlayerBackend extends AbstractBackend {
-    constructor(wasm, timers, db, metadataParser) {
+    constructor(wasm, timers, db, metadataManager) {
         super(PLAYER_READY_EVENT_NAME);
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
@@ -23,11 +23,11 @@ export default class AudioPlayerBackend extends AbstractBackend {
             loudnessNormalization: true,
             silenceTrimming: true
         };
-        this._metadataParser = metadataParser;
+        this._metadataManager = metadataManager;
     }
 
-    get metadataParser() {
-        return this._metadataParser;
+    get metadataManager() {
+        return this._metadataManager;
     }
 
     get wasm() {

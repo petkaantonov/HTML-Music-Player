@@ -1,4 +1,4 @@
-import {setTimers} from "util";
+import {setTimers, setIsDevelopment} from "util";
 import AudioPlayerBackend from "audio/backend/AudioPlayerBackend";
 import TrackAnalyzerBackend from "tracks/TrackAnalyzerBackend";
 import SearchBackend from "search/SearchBackend";
@@ -6,12 +6,14 @@ import UsageDataBackend from "usageData/UsageDataBackend";
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import Timers from "platform/Timers";
-import MetadataParser from "audio/backend/MetadataParser";
+import MetadataManager from "metadata/MetadataManager";
 import TagDatabase from "tracks/TagDatabase";
+
+const isDevelopment = !(self.location.href.indexOf(`.min.js`) >= 0);
 
 self.env = {
     isDevelopment() {
-        return !(self.location.href.indexOf(`.min.js`) >= 0);
+        return isDevelopment;
     }
 };
 
@@ -35,6 +37,7 @@ if (self.addEventListener) {
 (async () => {
     const timers = new Timers(self);
     setTimers(timers);
+    setIsDevelopment(isDevelopment);
 
     const wasmBuild = self.env.isDevelopment() ? `debug` : `release`;
     const request = new Request(`wasm/main.${wasmBuild}.wasm`, {
@@ -50,10 +53,10 @@ if (self.addEventListener) {
     await self.mainWasmModule.start();
 
     const db = new TagDatabase();
-    const metadataParser = new MetadataParser(db);
+    const metadataManager = new MetadataManager(db);
 
-    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, db, metadataParser).start();
-    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataParser, timers).start();
+    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, db, metadataManager).start();
+    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataManager, timers).start();
     self.searchBackend = new SearchBackend(self.trackAnalyzerBackend).start();
     self.usageDataBackend = new UsageDataBackend().start();
 })();

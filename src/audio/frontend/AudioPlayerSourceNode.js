@@ -620,7 +620,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 scheduledStartTime = this._fadeOutEnded;
             }
         } else if (bufferFillType === BUFFER_FILL_TYPE_REPLACEMENT) {
-            const {metadata, gaplessPreload, requestId, baseTime} = descriptor.fillTypeData;
+            const {demuxData, gaplessPreload, requestId, baseTime} = descriptor.fillTypeData;
 
             if (requestId !== this._replacementRequestId) {
                 return;
@@ -629,11 +629,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
             if (gaplessPreload) {
                 afterScheduleKnownCallbacks.push(() => {
-                    this._gaplessPreloadArgs = {scheduledStartTime, metadata, baseTime};
+                    this._gaplessPreloadArgs = {scheduledStartTime, demuxData, baseTime};
                 });
             } else {
                 currentSourcesShouldBeStopped = true;
-                this._applyReplacementLoaded({metadata, baseTime});
+                this._applyReplacementLoaded({demuxData, baseTime});
                 afterScheduleKnownCallbacks.push(this._firstBufferFromDifferentTrackLoaded);
             }
         }
@@ -946,11 +946,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     _blobLoaded(args) {
         if (this._destroyed) return;
         if (this._replacementRequestId !== args.requestId) return;
-        const {metadata} = args;
+        const {demuxData} = args;
         this._loadingNext = false;
         this._haveBlob = true;
-        this._duration = metadata.duration;
-        this._baseGain = typeof metadata.establishedGain === `number` ? metadata.establishedGain : 1;
+        this._duration = demuxData.duration;
+        this._baseGain = typeof demuxData.establishedGain === `number` ? demuxData.establishedGain : 1;
         this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
         this._seek(this._currentTime, false);
         this._emitTimeUpdate(this._currentTime, this._duration);
@@ -979,10 +979,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._timeUpdate();
     }
 
-    _applyReplacementLoaded({metadata, baseTime}) {
+    _applyReplacementLoaded({demuxData, baseTime}) {
         if (this._destroyed) return;
-        this._duration = metadata.duration;
-        this._baseGain = typeof metadata.establishedGain === `number` ? metadata.establishedGain : 1;
+        this._duration = demuxData.duration;
+        this._baseGain = typeof demuxData.establishedGain === `number` ? demuxData.establishedGain : 1;
         this._applySeek(baseTime);
     }
 

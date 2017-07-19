@@ -23,7 +23,7 @@ export default class Mp3Context extends DecoderContext {
         this._invalidMp3FrameCount = 0;
         this._audioFramesToSkip = 0;
         this._audioFramesSkipped = 0;
-        this._metadata = null;
+        this._demuxData = null;
         this._currentMp3Frame = 0;
         this._currentUnflushedAudioFrameCount = 0;
 
@@ -77,7 +77,7 @@ export default class Mp3Context extends DecoderContext {
 
 
     getCurrentAudioFrame() {
-        const {samplesPerFrame: audioFramesPerMp3Frame} = this._metadata;
+        const {samplesPerFrame: audioFramesPerMp3Frame} = this._demuxData;
         return Math.max(0, audioFramesPerMp3Frame * this._currentMp3Frame +
                            (audioFramesPerMp3Frame - (this._currentUnflushedAudioFrameCount % audioFramesPerMp3Frame)) -
                            audioFramesPerMp3Frame -
@@ -130,17 +130,17 @@ export default class Mp3Context extends DecoderContext {
     }
 
 
-    start(metadata = null) {
+    start(demuxData = null) {
         super.start();
 
-        if (metadata) {
-            this._audioFramesToSkip = metadata.encoderDelay + DECODER_DELAY;
-            this._totalMp3Frames = metadata.frames;
+        if (demuxData) {
+            this._audioFramesToSkip = demuxData.encoderDelay + DECODER_DELAY;
+            this._totalMp3Frames = demuxData.frames;
         } else {
             this._audioFramesToSkip = DECODER_DELAY;
             this._totalMp3Frames = ((-1 >>> 1) | 0);
         }
-        this._metadata = metadata;
+        this._demuxData = demuxData;
     }
 
     decodeUntilFlush(src, flushCallback) {
@@ -214,13 +214,13 @@ export default class Mp3Context extends DecoderContext {
         let flushed = false;
         const currentFrameCount = this._currentUnflushedAudioFrameCount;
         const {targetBufferLengthAudioFrames} = this;
-        const metadata = this._metadata;
+        const demuxData = this._demuxData;
 
-        if (metadata !== null) {
+        if (demuxData !== null) {
             const frame = this._currentMp3Frame;
-            if (metadata.paddingStartFrame !== -1 && frame >= metadata.paddingStartFrame) {
-                if (frame === metadata.paddingStartFrame) {
-                    audioFramesDecoded -= (metadata.encoderPadding % metadata.samplesPerFrame);
+            if (demuxData.paddingStartFrame !== -1 && frame >= demuxData.paddingStartFrame) {
+                if (frame === demuxData.paddingStartFrame) {
+                    audioFramesDecoded -= (demuxData.encoderPadding % demuxData.samplesPerFrame);
                 } else {
                     return flushed;
                 }
@@ -293,7 +293,7 @@ export default class Mp3Context extends DecoderContext {
     _resetState() {
         super._resetState();
         this._totalMp3Frames = (-1 >>> 1) | 0;
-        this._metadata = null;
+        this._demuxData = null;
         this._resetDecodingState();
     }
 

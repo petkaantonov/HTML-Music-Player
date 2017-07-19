@@ -1,4 +1,3 @@
-import {throttle} from "util";
 import TrackWasRemovedError from "tracks/TrackWasRemovedError";
 import {default as Track, byUid as trackByUid} from "tracks/Track";
 import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";
@@ -29,10 +28,6 @@ const removeFromQueue = function(queue, track) {
     }
 };
 
-function acoustIdImageFetched(track, image, error) {
-    track.tagData.fetchAcoustIdImageEnded(image, error);
-}
-
 export default class TrackAnalyzer extends WorkerFrontend {
     constructor(deps) {
         super(ANALYZER_READY_EVENT_NAME, deps.workerWrapper);
@@ -47,7 +42,6 @@ export default class TrackAnalyzer extends WorkerFrontend {
         this._analysisQueue = [];
         this._currentlyAnalysing = false;
         this._metadataParsingTracks = {};
-        this._acoustIdImageFetchingTracks = {};
 
         this._playlist.on(`nextTrackChange`, this.nextTrackChanged.bind(this));
         this._playlist.on(`trackPlayingStatusChange`, this.currentTrackChanged.bind(this));
@@ -64,7 +58,9 @@ export default class TrackAnalyzer extends WorkerFrontend {
             console.error(error.stack);
         }
 
-        if (type === `acoustIdDataFetched`) {
+        if (type === `albumArtResult`) {
+            this.albumArtResultReceived(result);
+        } if (type === `acoustIdDataFetched`) {
             this.acoustIdDataFetched(result);
         } else if (jobType === `metadata`) {
             const info = this._metadataParsingTracks[id];
@@ -73,14 +69,6 @@ export default class TrackAnalyzer extends WorkerFrontend {
                 track.removeListener(`destroy`, info.destroyHandler);
                 delete this._metadataParsingTracks[id];
                 this.trackMetadataParsed(track, result, error);
-            }
-        } else if (jobType === `acoustIdImage`) {
-            const info = this._acoustIdImageFetchingTracks[id];
-            if (info) {
-                const {track} = info;
-                track.removeListener(`destroy`, info.destroyHandler);
-                delete this._acoustIdImageFetchingTracks[id];
-                acoustIdImageFetched(track, result, error);
             }
         } else if (jobType === `analyze`) {
             for (let i = 0; i < this._analyzerJobs.length; ++i) {
@@ -127,33 +115,24 @@ export default class TrackAnalyzer extends WorkerFrontend {
         }
     }
 
-    async fetchAcoustIdImage(track) {
-        if (track && !track.isDetachedFromPlaylist() &&
-            track.tagData && track.shouldRetrieveAcoustIdImage()) {
-            track.tagData.fetchAcoustIdImageStarted();
-            const albumKey = track.tagData.albumNameKey();
-            const {acoustIdCoverArt} = track.tagData;
+    async getAlbumArt(track, {artist, album, preference, requestReason}) {
+        const trackUid = await track.uid();
+        this.postMessage({
+            action: `getAlbumArt`,
+            args: {trackUid, artist, album, preference, requestReason}
+        });
+    }
 
-            const id = ++this._nextJobId;
-            this._acoustIdImageFetchingTracks[id] = {
-                track,
-                destroyHandler: () => {
-                    delete this._acoustIdImageFetchingTracks[id];
-                }
-            };
+    albumArtResultReceived(albumArtResult) {
+        const {trackUid, albumArt, requestReason} = albumArtResult;
 
-            track.once(`destroy`, this._acoustIdImageFetchingTracks[id].destroyHandler);
-            const uid = await track.uid();
-            this.postMessage({
-                action: `fetchAcoustIdImage`,
-                args: {
-                    id,
-                    uid,
-                    transientId: track.transientId(),
-                    albumKey,
-                    acoustIdCoverArt
-                }
-            });
+        const track = trackByUid(trackUid);
+        if (!track) {
+            return;
+        }
+
+        if (albumArt) {
+            this.emit(`albumArt`, trackUid, albumArt, requestReason);
         }
     }
 
@@ -165,16 +144,11 @@ export default class TrackAnalyzer extends WorkerFrontend {
         if (!track) {
             return;
         }
-        track.setHasAcoustIdBeenFetched();
 
         if (trackInfoUpdated) {
             track.tagData.updateFields(trackInfo);
             track.tagDataUpdated();
             this.emit(`metadataUpdate`);
-        }
-
-        if (this._playlist.isTrackHighlyRelevant(track)) {
-            this.fetchAcoustIdImage(track);
         }
     }
 
@@ -218,12 +192,10 @@ export default class TrackAnalyzer extends WorkerFrontend {
 
     currentTrackChanged(track) {
         this.prioritize(track);
-        this.fetchAcoustIdImage(track);
     }
 
     nextTrackChanged(track) {
         this.prioritize(track);
-        this.fetchAcoustIdImage(track);
     }
 
     prioritize(track) {
@@ -324,5 +296,3 @@ export default class TrackAnalyzer extends WorkerFrontend {
     }
 
 }
-
-TrackAnalyzer.prototype.fetchAcoustIdImage = throttle(TrackAnalyzer.prototype.fetchAcoustIdImage, 100);

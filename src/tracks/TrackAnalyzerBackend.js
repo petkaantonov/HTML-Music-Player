@@ -5,10 +5,10 @@ import {CancellationError} from "utils/CancellationToken";
 export const ANALYZER_READY_EVENT_NAME = `analyzerReady`;
 
 class AcoustIdDataFetcher {
-    constructor(backend, db, metadataParser, timers) {
+    constructor(backend, db, metadataManager, timers) {
         this.backend = backend;
         this.db = db;
-        this.metadataParser = metadataParser;
+        this.metadataManager = metadataManager;
         this.timerId = -1;
         this.timers = timers;
         this._idle = this._idle.bind(this);
@@ -22,10 +22,11 @@ class AcoustIdDataFetcher {
         if (job) {
             const {trackUid, fingerprint, duration, jobId} = job;
             try {
-                const result = await this.metadataParser.fetchAcoustId(trackUid, fingerprint, duration);
+                const result = await this.metadataManager.fetchAcoustId(trackUid, fingerprint, duration);
                 await this.db.completeAcoustIdFetchJob(jobId);
                 this.backend.reportAcoustIdDataFetched(result);
             } catch (e) {
+                waitLongTime = true;
                 self.uiLog(e.stack);
                 await this.db.setAcoustIdFetchJobError(jobId, e);
             } finally {
@@ -43,15 +44,15 @@ class AcoustIdDataFetcher {
 }
 
 export default class TrackAnalyzerBackend extends AbstractBackend {
-    constructor(wasm, db, metadataParser, timers) {
+    constructor(wasm, db, metadataManager, timers) {
         super(ANALYZER_READY_EVENT_NAME);
         this.db = db;
         this.timers = timers;
-        this.metadataParser = metadataParser;
+        this.metadataManager = metadataManager;
         this.wasm = wasm;
         this.analysisQueue = [];
         this.currentJob = null;
-        this.acoustIdDataFetcher = new AcoustIdDataFetcher(this, this.db, metadataParser, timers);
+        this.acoustIdDataFetcher = new AcoustIdDataFetcher(this, this.db, metadataManager, timers);
         this.actions = {
             analyze(args) {
                 this.analysisQueue.push(args);
@@ -73,18 +74,19 @@ export default class TrackAnalyzerBackend extends AbstractBackend {
                 }
             },
 
+            async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
+                const albumArt = await this.metadataManager.getAlbumArt(trackUid, artist, album, preference);
+                const result = {albumArt, trackUid, preference, requestReason};
+                this.postMessage({type: `albumArtResult`, result});
+            },
+
             async parseMetadata({file, transientId, id, uid}) {
-                const promise = this.metadataParser.parse(file, uid);
+                const promise = this.metadataManager.parse(file, uid);
                 const metadata = await this.promiseMessageSuccessErrorHandler(id, promise, `metadata`);
                 if (metadata) {
                     this.emit(`metadataParsed`, {file, metadata, transientId, uid});
                 }
 
-            },
-
-            fetchAcoustIdImage({id, albumKey, acoustIdCoverArt}) {
-                const promise = this.metadataParser.fetchAcoustIdImage(acoustIdCoverArt, albumKey);
-                this.promiseMessageSuccessErrorHandler(id, promise, `acoustIdImage`);
             }
         };
     }

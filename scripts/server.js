@@ -7,6 +7,7 @@ var pem = Promise.promisifyAll(require("pem"));
 var minimist = require("minimist");
 var argv = minimist(process.argv.slice(2));
 var serveStatic = require('serve-static')
+const request = require("request");
 
 function sanitizeHostname(hn) {
     return (hn + "").replace(/[^a-zA-Z0-9\.\-]+/g, "");
@@ -16,6 +17,7 @@ var port = +process.env.npm_package_config_devServerPort || +argv.port || proces
 var commonName = sanitizeHostname(process.env.npm_package_config_devServerName || argv.commonName || process.env.SOITA_COMMON_NAME || "localhost");
 var host = sanitizeHostname(process.env.npm_package_config_devServerHost || argv.host || process.env.SOITA_HOSTNAME || "0.0.0.0");
 var cwd = process.cwd();
+
 process.chdir("scripts");
 
 Promise.join(
@@ -53,6 +55,32 @@ Promise.join(
     process.chdir(cwd);
     var app = express();
     app.use(morgan("combined"));
+
+    app.get("/cors*", function(req, res, next) {
+        const url = req.query.url;
+        request({
+            url,
+            headers: {
+                accept: req.headers.accept,
+                origin: req.headers.origin
+            },
+            method: "GET",
+            timeout: 5000
+        }).on("response", response => {
+            const headers = Object.assign({}, response.headers, {
+                "Access-Control-Allow-Origin": "*"
+            });
+            delete headers["set-cookie"];
+            delete headers["set-cookie2"];
+            headers.connection = "Keep-Alive";
+            res.writeHead(response.statusCode, headers);
+        }).on("error", error => {
+            res.writeHead(500, {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            });
+        }).pipe(res);
+    });
 
     app.use("/", serveStatic(cwd, {
         dotfiles: "deny",

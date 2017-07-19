@@ -44,12 +44,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._audioPipeline = null;
         this.codecName = ``;
         this.destroyed = false;
-        this.metadata = null;
+        this.demuxData = null;
         this.fileView = null;
         this.replacementSource = null;
         this.replacementSpec = null;
         this.parent = parent || null;
         this.messageQueue = [];
+        this.trackInfo = null;
         this._processingMessage = false;
 
         this._errored = this._errored.bind(this);
@@ -57,17 +58,17 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     get sampleRate() {
-        if (!this.metadata) {
-            throw new Error(`no metadata set`);
+        if (!this.demuxData) {
+            throw new Error(`no demuxData set`);
         }
-        return this.metadata.sampleRate;
+        return this.demuxData.sampleRate;
     }
 
     get channelCount() {
-        if (!this.metadata) {
-            throw new Error(`no metadata set`);
+        if (!this.demuxData) {
+            throw new Error(`no demuxData set`);
         }
-        return this.metadata.channels;
+        return this.demuxData.channels;
     }
 
     get targetBufferLengthAudioFrames() {
@@ -92,10 +93,10 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     _passReplacementBuffer(spec, args, destinationBuffers) {
-        const {metadata, gaplessPreload, requestId} = spec;
+        const {demuxData, gaplessPreload, requestId} = spec;
         const {descriptor: bufferDescriptor} = args;
         const {baseTime} = bufferDescriptor.fillTypeData;
-        const fillTypeData = {metadata, gaplessPreload, requestId, baseTime};
+        const fillTypeData = {demuxData, gaplessPreload, requestId, baseTime};
         const descriptor = {
             length: bufferDescriptor.length,
             startTime: bufferDescriptor.startTime,
@@ -162,7 +163,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         break;
 
         case `_blobLoaded`:
-            this.replacementSpec.metadata = args.metadata;
+            this.replacementSpec.demuxData = args.demuxData;
             this.replacementSource.seek({
                 requestId: args.requestId,
                 count: this.replacementSpec.preloadBufferCount,
@@ -227,8 +228,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this.codecName = ``;
         this.blob = null;
         this._filePosition = 0;
+        this.trackInfo = null;
         this._audioPipeline = null;
-        this.metadata = null;
+        this.demuxData = null;
         this.ended = false;
         this.emit(`destroy`);
         this.removeAllListeners();
@@ -250,7 +252,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
         const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
-                                                                               this.metadata,
+                                                                               this.demuxData,
                                                                                cancellationToken,
                                                                                {channelData: destinationBuffers},
                                                                                 buffersRemainingToDecode);
@@ -259,10 +261,10 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             return null;
         }
         this._filePosition += bytesRead;
-        this.ended = this._filePosition >= this.metadata.dataEnd;
+        this.ended = this._filePosition >= this.demuxData.dataEnd;
         if (!this._audioPipeline.hasFilledBuffer) {
             this.ended = true;
-            this._filePosition = this.metadata.dataEnd;
+            this._filePosition = this.demuxData.dataEnd;
             return null;
         }
         return this._audioPipeline.consumeFilledBuffer();
@@ -299,7 +301,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
         this._bufferFillCancellationToken = this.cancellationTokenForBufferFillOperation();
 
-        const {trackInfo} = this.metadata;
+        let {establishedGain} = this.demuxData;
         const {sampleRate, channelCount} = this;
         let i = 0;
         let currentBufferFillType = bufferFillType;
@@ -326,13 +328,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 }
 
                 let {loudnessInfo} = bufferDescriptor;
-                if (!trackInfo.establishedGain &&
+                if (!establishedGain &&
                     this._loudnessAnalyzer.hasEstablishedGain()) {
-                    trackInfo.establishedGain = this._loudnessAnalyzer.getEstablishedGain();
-                    this.backend.metadataParser.setEstablishedGain(trackInfo.trackUid, trackInfo.establishedGain);
-                } else if (trackInfo.establishedGain &&
+                    establishedGain = this._loudnessAnalyzer.getEstablishedGain();
+                    this.backend.metadataManager.setEstablishedGain(this.trackInfo.trackUid, establishedGain);
+                } else if (establishedGain &&
                            !this._loudnessAnalyzer.hasEstablishedGain()) {
-                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: trackInfo.establishedGain});
+                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: establishedGain});
                 }
 
                 const decodingLatency = performance.now() - now;
@@ -367,47 +369,50 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     async _gotCodec(DecoderContext, requestId) {
         const {wasm,
                 effects,
-                metadataParser,
+                metadataManager,
                 bufferTime} = this.backend;
         const {codecName, blob} = this;
         try {
             if (this.destroyed) {
                 return;
             }
-            const metadata = await demuxer(codecName, this.fileView);
+            const demuxData = await demuxer(codecName, this.fileView);
 
             if (this.destroyed) {
                 return;
             }
 
-            if (!metadata) {
+            if (!demuxData) {
                 this.fileView = this.blob = null;
                 this._errored(new Error(`Invalid ${DecoderContext.name} file`));
                 return;
             }
 
-            const trackInfo = await metadataParser.getTrackInfoByFile(blob);
+            const trackInfo = await metadataManager.getTrackInfoByFile(blob);
 
             if (this.destroyed) {
                 return;
             }
 
             if (trackInfo) {
-                metadata.trackInfo = trackInfo;
+                this.trackInfo = trackInfo;
+                demuxData.establishedGain = trackInfo.establishedGain || undefined;
+            } else {
+                this.trackInfo = null;
             }
 
             if (this._loudnessAnalyzer || this._decoder) {
                 self.uiLog(`memory leak: unfreed loudnessAnalyzer/decoder`);
             }
 
-            this.metadata = metadata;
-            this._filePosition = this.metadata.dataStart;
+            this.demuxData = demuxData;
+            this._filePosition = this.demuxData.dataStart;
             const {sampleRate, channelCount, targetBufferLengthAudioFrames} = this;
 
             this._decoder = new DecoderContext(wasm, {
                 targetBufferLengthAudioFrames
             });
-            this._decoder.start(metadata);
+            this._decoder.start(demuxData);
             this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate, this.backend.loudnessNormalization);
 
             this._audioPipeline = new AudioProcessingPipeline(wasm, {
@@ -420,7 +425,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 bufferAudioFrameCount: targetBufferLengthAudioFrames,
                 effects, bufferTime
             });
-            this.sendMessage(`_blobLoaded`, {requestId, metadata});
+            this.sendMessage(`_blobLoaded`, {requestId, demuxData});
         } catch (e) {
             this.passError(e.message, e.stack, e.name);
         }
@@ -462,7 +467,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 requestId: args.requestId,
                 blob: args.blob,
                 seekTime: args.seekTime,
-                metadata: null,
+                demuxData: null,
                 preloadBufferCount: args.count,
                 gaplessPreload: args.gaplessPreload,
                 cancellationToken
@@ -494,7 +499,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this.cancelAllOperations();
 
             const cancellationToken = this.cancellationTokenForSeekOperation();
-            const seekerResult = await seeker(this.codecName, time, this.metadata, this._decoder, this.fileView);
+            const seekerResult = await seeker(this.codecName, time, this.demuxData, this._decoder, this.fileView);
             if (cancellationToken.isCancelled()) {
                 return;
             }
@@ -537,7 +542,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             }
 
             this.ended = false;
-            this.fileView = this.blob = this.metadata = null;
+            this.fileView = this.blob = this.demuxData = null;
             this._filePosition = 0;
             this.codecName = ``;
 

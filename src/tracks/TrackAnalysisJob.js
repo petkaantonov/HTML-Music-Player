@@ -49,10 +49,10 @@ export default class TrackAnalysisJob extends CancellableOperations(null, `analy
     async analyze() {
         this.cancellationToken = this.cancellationTokenForAnalysisOperation();
         const {file, backend} = this;
-        const {metadataParser} = backend;
+        const {metadataManager} = backend;
         const fileView = new FileView(file);
         this.fileView = fileView;
-        const trackInfo = await metadataParser.getTrackInfoByFile(file);
+        const trackInfo = await metadataManager.getTrackInfoByFile(file);
         this.cancellationToken.check();
         if (!trackInfo) {
             throw new TrackAnalysisError(`file type not supported`);

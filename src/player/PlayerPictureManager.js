@@ -1,18 +1,17 @@
 import jdenticon from "jdenticon";
 import {noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
-import CancellableOperations from "utils/CancellationToken";
 import EventEmitter from "events";
+import {ALBUM_ART_PREFERENCE_SMALLEST as preference} from "metadata/MetadataManager";
+import {Image} from "platform/platform";
+
+const requestReason = `PlayerPictureManager`;
 
 const isSameImage = function(a, b) {
-    if (a.tag !== undefined && b.tag !== undefined) {
-        return a.tag === b.tag;
-    } else {
-        return false;
-    }
+    return a.src === b.src;
 };
 
-export default class PlayerPictureManager extends CancellableOperations(EventEmitter, `imageUpdateOperation`) {
+export default class PlayerPictureManager extends EventEmitter {
     constructor(opts, deps) {
         super();
         opts = noUndefinedGet(opts);
@@ -20,6 +19,7 @@ export default class PlayerPictureManager extends CancellableOperations(EventEmi
         this._player = deps.player;
         this._player.setPictureManager(this);
         this._playlist = deps.playlist;
+        this._trackAnalyzer = deps.trackAnalyzer;
         this._applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this._domNode = this._page.$(opts.target);
 
@@ -33,8 +33,11 @@ export default class PlayerPictureManager extends CancellableOperations(EventEmi
         this.imageErrored = this.imageErrored.bind(this);
         this.imageLoaded = this.imageLoaded.bind(this);
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
+        this._onAlbumArt = this._onAlbumArt.bind(this);
 
+        this._trackAnalyzer.on(`albumArt`, this._onAlbumArt);
         this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
+        this._generatedImages = new Map();
 
         const size = this.size();
         const canvas = this._page.createElement(`canvas`, {
@@ -73,10 +76,17 @@ export default class PlayerPictureManager extends CancellableOperations(EventEmi
         return this._defaultImage;
     }
 
-    imageErrored() {
-        this.cancelAllImageUpdateOperations();
-        const cancellationToken = this.cancellationTokenForImageUpdateOperation();
-        this.applyCurrentTrackImage(cancellationToken);
+    async imageErrored(e) {
+        if (e.target === this._currentImage) {
+            e.target.albumArtTrackUid = null;
+            const track = this._currentTrack;
+            if (track) {
+                const image = await this.generateImageForTrack(this._currentTrack);
+                if (this._currentTrack === track) {
+                    this.updateImage(image);
+                }
+            }
+        }
     }
 
     imageLoaded(e) {
@@ -101,30 +111,61 @@ export default class PlayerPictureManager extends CancellableOperations(EventEmi
 
         this._currentImage = image;
         this.$().append(this._currentImage);
-        this._page.$(this._currentImage).addEventListener(`error`, this.imageErrored);
 
-        if (this._currentImage.complete) {
-            this.emit(`imageChange`, this._currentImage);
-        } else {
+        if (!this._currentImage.isGenerated) {
+            this._page.$(this._currentImage).addEventListener(`error`, this.imageErrored);
             this._page.$(this._currentImage).addEventListener(`load`, this.imageLoaded);
+
+            if (this._currentImage.complete) {
+                this.emit(`imageChange`, this._currentImage);
+            }
+        } else {
+            this.emit(`imageChange`, this._currentImage);
         }
     }
 
+    async _onAlbumArt(trackUid, albumArt, reason) {
+        if (!this._isEnabled()) return;
 
-    async applyCurrentTrackImage(cancellationToken) {
-        if (!this._currentTrack || !this._isEnabled()) {
-            return;
+        if (requestReason === reason) {
+            if (this._currentImage && this._currentImage.src === albumArt) {
+                return;
+            }
+
+            if (!this._currentTrack) {
+                return;
+            }
+
+            const equalsCurrent = await this._currentTrack.uidEquals(trackUid);
+
+            if (!equalsCurrent) {
+                return;
+            }
+
+            const image = new Image();
+            image.src = albumArt;
+            image.albumArtTrackUid = trackUid;
+            this.updateImage(image);
         }
-        const image = await this._currentTrack.getImage(this);
-        if (!cancellationToken.isCancelled()) {
-            this.updateImage(image, cancellationToken);
+    }
+
+    async _fetchCurrentTrackAlbumArt() {
+        if (!this._isEnabled() || !this._currentTrack) return;
+        const track = this._currentTrack;
+        const {tagData} = track;
+        if (tagData) {
+            if (await this.isCurrentImageAlbumArtForCurrentTrack()) {
+                return;
+            }
+            const {album, artist} = tagData;
+            this._trackAnalyzer.getAlbumArt(track, {
+                album, artist, preference, requestReason
+            });
         }
     }
 
     _trackTagDataUpdated() {
-        this.cancelAllImageUpdateOperations();
-        const cancellationToken = this.cancellationTokenForImageUpdateOperation();
-        this.applyCurrentTrackImage(cancellationToken);
+        this._fetchCurrentTrackAlbumArt();
     }
 
     _isEnabled() {
@@ -133,40 +174,84 @@ export default class PlayerPictureManager extends CancellableOperations(EventEmi
 
     _preferenceChanged(enabled) {
         this._enabled = enabled;
-        this.cancelAllImageUpdateOperations();
-        const cancellationToken = this.cancellationTokenForImageUpdateOperation();
-        // TODO: Change dom dimensions
-        this.applyCurrentTrackImage(cancellationToken);
+        this._fetchCurrentTrackAlbumArt();
+        // TODO: Change dom dimensions and hide element
     }
 
-    _trackChanged(track) {
+    async _trackChanged(track) {
         if (track === this._currentTrack) {
             return;
         }
 
-        const cancellationToken = this.cancellationTokenForImageUpdateOperation();
         if (this._currentTrack) {
             this._currentTrack.removeListener(`tagDataUpdate`, this._trackTagDataUpdated);
             this._currentTrack = null;
         }
         if (track) {
             this._currentTrack = track;
+            this._fetchCurrentTrackAlbumArt();
             this._currentTrack.on(`tagDataUpdate`, this._trackTagDataUpdated);
-            this.applyCurrentTrackImage(cancellationToken);
+            const generatedImage = await this.generateImageForTrack(track);
+            if (track === this._currentTrack) {
+                if (await this.isCurrentImageAlbumArtForCurrentTrack()) {
+                    return;
+                }
+                this.updateImage(generatedImage);
+            }
+        }
+    }
+
+    isCurrentImageAlbumArtForCurrentTrack() {
+        if (this._currentImage && this._currentTrack) {
+            if (!this._currentImage.albumArtTrackUid) {
+                return false;
+            }
+            return this._currentTrack.uidEquals(this._currentImage.albumArtTrackUid);
+        } else {
+            return false;
         }
     }
 
     async generateImageForTrack(track) {
+        const uid = await track.uid();
         const size = this.size();
+
+        const key = `${uid}-${size}`;
+
+        const ret = this._generatedImages.get(key);
+
+        if (ret) {
+            return ret;
+        }
+
+        if (this._generatedImages.size > 50) {
+            const keys = this._generatedImages.keys();
+            let j = 0;
+            for (const cachedKey of keys) {
+                if (j > 25) {
+                    break;
+                }
+                const image = this._generatedImages.get(cachedKey);
+                if (this._currentImage && this._currentImage.src === image.src) {
+                    continue;
+                }
+                image.blob.close();
+                image.blob = null;
+                this._generatedImages.delete(cachedKey);
+                j++;
+            }
+        }
+
         const ctx = this._jdenticonCtx;
         ctx.clearRect(0, 0, size, size);
         ctx.save();
         ctx.fillStyle = `rgba(255, 255, 255, 255)`;
         ctx.fillRect(0, 0, size, size);
         ctx.restore();
-        const uid = await track.uid();
         jdenticon.drawIcon(ctx, hexString(uid), size);
-        return canvasToImage(this._jdenticonCanvas, this._page);
+        const image = canvasToImage(this._jdenticonCanvas, this._page);
+        this._generatedImages.set(key, image);
+        return image;
     }
 
 }

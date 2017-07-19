@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import {getSearchTerm} from "search/searchUtil";
-import {URL} from "platform/platform";
-import {getFileCacheKey} from "audio/backend/MetadataParser";
+import {indexedDB} from "platform/platform";
+import {getFileCacheKey} from "metadata/MetadataManager";
 import {hexString} from "util";
 
 export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
@@ -50,8 +50,6 @@ export default class Track extends EventEmitter {
         this._error = null;
         this._uid = null;
         this._transientId = ++nextTransientId;
-        this._generatedImage = null;
-        this._isBeingAnalyzed = false;
         this._isDisplayedAsSearchResult = false;
         this._searchTerm = null;
         this._weight = 3;
@@ -97,35 +95,8 @@ export default class Track extends EventEmitter {
         return false;
     }
 
-    getTrackGain() {
-        if (!this.tagData) return 0;
-        return this.tagData.getTrackGain();
-    }
-
-    getAlbumGain() {
-        if (!this.tagData) return 0;
-        return this.tagData.getAlbumGain();
-    }
-
-    getTrackPeak() {
-        if (!this.tagData) return 1;
-        return this.tagData.getTrackPeak();
-    }
-
-    getAlbumPeak() {
-        if (!this.tagData) return 1;
-        return this.tagData.getAlbumPeak();
-    }
-
     willBeReplaced() {
-        if (this._generatedImage) {
-            try {
-                URL.revokeObjectURL(this._generatedImage.src);
-            } catch (e) {
-                // NOOP
-            }
-            this._generatedImage = null;
-        }
+        // NOOP
     }
 
     stageRemoval() {
@@ -150,11 +121,6 @@ export default class Track extends EventEmitter {
         this.emit(`viewUpdate`, `viewUpdateDestroyed`);
         this.emit(`destroy`, this);
 
-        if (this._generatedImage) {
-            URL.revokeObjectURL(this._generatedImage.src);
-            this._generatedImage = null;
-        }
-
         if (this.tagData) {
             delete transientIdToTrack[this.transientId()];
             this.tagData.destroy();
@@ -172,43 +138,6 @@ export default class Track extends EventEmitter {
             uidsToTrack.delete(hexString(this._uid));
             this._uid = null;
         }
-    }
-
-    async getImage(pictureManager) {
-        let image;
-        if (this.tagData) {
-            image = this.tagData.getImage();
-        }
-        if (!image) {
-            image = this._generatedImage;
-        }
-        if (!image) {
-            if (!this.tagData) {
-                return pictureManager.defaultImage();
-            }
-            const result = await pictureManager.generateImageForTrack(this);
-            this._generatedImage = result;
-            result.tag = await this.uid();
-            return result;
-        }
-
-        if (image.promise) {
-            try {
-                await image.promise;
-                return image;
-            } catch (e) {
-                image.src = ``;
-                if (image.blob) {
-                    image.blob.close();
-                    image.blob = null;
-                }
-                const result = await pictureManager.generateImageForTrack(this);
-                this._generatedImage = result;
-                result.tag = await this.uid();
-                return this._generatedImage;
-            }
-        }
-        return image;
     }
 
     isDetachedFromPlaylist() {
@@ -301,16 +230,8 @@ export default class Track extends EventEmitter {
         return ``;
     }
 
-    setHasAcoustIdBeenFetched() {
-        this.tagData.setHasAcoustIdBeenFetched();
-    }
-
     setHasBeenAnalyzed() {
         this.tagData.setHasBeenAnalyzed();
-    }
-
-    hasAcoustIdBeenFetched() {
-        return this.tagData ? this.tagData.hasAcoustIdBeenFetched() : false;
     }
 
     hasBeenAnalyzed() {
@@ -354,6 +275,11 @@ export default class Track extends EventEmitter {
         this.emit(`tagDataUpdate`, this);
         this.emit(`viewUpdate`, `viewUpdateTagDataChange`);
         this._weightChanged();
+    }
+
+    async uidEquals(uid) {
+        const thisUid = await this.uid();
+        return indexedDB.cmp(thisUid, uid) === 0;
     }
 
     async uid() {
@@ -432,10 +358,6 @@ export default class Track extends EventEmitter {
         return this.getLastPlayed() >= time;
     }
 
-    shouldRetrieveAcoustIdImage() {
-        return !!(this.tagData && this.tagData.shouldRetrieveAcoustIdImage());
-    }
-
     getFormat(initialBytes) {
         const type = this.file.type.toLowerCase();
         let matches;
@@ -460,13 +382,6 @@ export default class Track extends EventEmitter {
         } else {
             return UNKNOWN_FORMAT;
         }
-    }
-
-    playerMetadata() {
-        if (!this.tagData) {
-            return null;
-        }
-        return this.tagData.playerMetadata();
     }
 
     _weightChanged() {

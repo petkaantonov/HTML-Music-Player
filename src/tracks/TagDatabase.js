@@ -1,77 +1,95 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange} from "platform/platform";
 
-const VERSION = 12;
+const VERSION = 15;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
-const ALBUM_KEY_NAME = `album`;
-const TRACK_INFO_TABLE_NAME = `trackInfo`;
-const COVERART_TABLE_NAME = `coverart`;
+const TRACK_INFO_OBJECT_STORE_NAME = `trackInfo`;
 
-const ACOUST_ID_JOB_TABLE = `acoustIdJobs`;
-const ACOUST_ID_JOB_ID = `jobId`;
+const ACOUST_ID_JOB_OBJECT_STORE_NAME = `acoustIdJobs`;
+const ACOUST_ID_JOB_PRIMARY_KEY_NAME = `jobId`;
+
+const ALBUM_ART_OBJECT_STORE_NAME = `albumArt`;
 
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
 
-const acoustIdJobsIndexSpec = {
-    trackUid: {
-        unique: true,
-        multiEntry: false,
-        keyPath: `trackUid`
-    }
-};
-
-const trackInfoIndexSpec = {
-    album: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `album`
+const objectStoreSpec = {
+    [TRACK_INFO_OBJECT_STORE_NAME]: {
+        keyPath: TRACK_INFO_PRIMARY_KEY_NAME,
+        indexSpec: {
+            album: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `album`
+            },
+            albumArtist: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `albumArtist`
+            },
+            artist: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `artist`
+            },
+            genres: {
+                unique: false,
+                multiEntry: true,
+                keyPath: `genres`
+            },
+            year: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `year`
+            },
+            lastPlayed: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `lastPlayed`
+            },
+            playthroughCounter: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `playthroughCounter`
+            },
+            rating: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `rating`
+            },
+            skipCounter: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `skipCounter`
+            },
+            title: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `title`
+            }
+        }
     },
-    albumArtist: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `albumArtist`
+    [ACOUST_ID_JOB_OBJECT_STORE_NAME]: {
+        keyPath: ACOUST_ID_JOB_PRIMARY_KEY_NAME,
+        autoIncrement: true,
+        indexSpec: {
+            [TRACK_INFO_PRIMARY_KEY_NAME]: {
+                unique: true,
+                multiEntry: false,
+                keyPath: TRACK_INFO_PRIMARY_KEY_NAME
+            }
+        }
     },
-    artist: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `artist`
-    },
-    genres: {
-        unique: false,
-        multiEntry: true,
-        keyPath: `genres`
-    },
-    year: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `year`
-    },
-    lastPlayed: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `lastPlayed`
-    },
-    playthroughCounter: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `playthroughCounter`
-    },
-    rating: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `rating`
-    },
-    skipCounter: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `skipCounter`
-    },
-    title: {
-        unique: false,
-        multiEntry: false,
-        keyPath: `title`
+    [ALBUM_ART_OBJECT_STORE_NAME]: {
+        keyPath: TRACK_INFO_PRIMARY_KEY_NAME,
+        indexSpec: {
+            artistAlbum: {
+                unique: false,
+                multiEntry: false,
+                keyPath: [`album`, `artist`]
+            }
+        }
     }
 };
 
@@ -92,52 +110,44 @@ function applyIndexSpecToStore(store, indexSpec) {
     }
 }
 
+export function applyStoreSpec(transaction, storeSpec) {
+    const {db} = transaction;
+    const storeNames = new Set([].slice.call(transaction.objectStoreNames));
+    const ret = {};
+
+    for (const storeName of Object.keys(storeSpec)) {
+        const spec = storeSpec[storeName];
+        if (!storeNames.has(storeName)) {
+            ret[storeName] = db.createObjectStore(storeName, spec);
+        } else {
+            ret[storeName] = transaction.objectStore(storeName);
+        }
+        if (spec.indexSpec) {
+            applyIndexSpecToStore(ret[storeName], spec.indexSpec);
+        }
+    }
+
+    for (const storeName of storeNames) {
+        if (!storeSpec.hasOwnProperty(storeName)) {
+            db.deleteObjectStore(storeName);
+        }
+    }
+
+    return ret;
+}
+
+
 export default class TagDatabase {
     constructor() {
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
         request.onupgradeneeded = (event) => {
-            const expectedStoreNames = new Set([TRACK_INFO_TABLE_NAME, COVERART_TABLE_NAME, ACOUST_ID_JOB_TABLE]);
             const {target} = event;
             const {transaction} = target;
-            const {db} = transaction;
-
-            const storeNames = [].slice.call(transaction.objectStoreNames);
-
-            for (const storeName of storeNames) {
-                if (!expectedStoreNames.has(storeName)) {
-                    db.deleteObjectStore(storeName);
-                }
-            }
-
-            let trackInfoStore;
-            if (storeNames.indexOf(TRACK_INFO_TABLE_NAME) === -1) {
-                trackInfoStore = db.createObjectStore(TRACK_INFO_TABLE_NAME, {keyPath: TRACK_INFO_PRIMARY_KEY_NAME});
-            } else {
-                trackInfoStore = transaction.objectStore(TRACK_INFO_TABLE_NAME);
-            }
-
-            applyIndexSpecToStore(trackInfoStore, trackInfoIndexSpec);
-
-            if (storeNames.indexOf(COVERART_TABLE_NAME) === -1) {
-                db.createObjectStore(COVERART_TABLE_NAME, {keyPath: ALBUM_KEY_NAME});
-            }
-
-            let acoustIdJobStore;
-            if (storeNames.indexOf(ACOUST_ID_JOB_TABLE) === -1) {
-                acoustIdJobStore = db.createObjectStore(ACOUST_ID_JOB_TABLE, {
-                    keyPath: ACOUST_ID_JOB_ID,
-                    autoIncrement: true
-                });
-            } else {
-                acoustIdJobStore = transaction.objectStore(ACOUST_ID_JOB_TABLE);
-            }
-
-            applyIndexSpecToStore(acoustIdJobStore, acoustIdJobsIndexSpec);
-
-            const wipeOutTrackInfo = event.oldVersion < 12;
+            const stores = applyStoreSpec(transaction, objectStoreSpec);
+            const wipeOutTrackInfo = event.oldVersion < 15;
             if (wipeOutTrackInfo) {
-                trackInfoStore.clear();
+                stores[TRACK_INFO_OBJECT_STORE_NAME].clear();
             }
         };
     }
@@ -145,7 +155,7 @@ export default class TagDatabase {
     async _getTrackInfoByCursor(onlyKeys, keyName,
                                 {before = null, after = null, limit}) {
         const db = await this.db;
-        const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         const index = store.index(keyName);
 
         let range = null;
@@ -175,7 +185,7 @@ export default class TagDatabase {
             primaryKeyValue = opts.after;
         }
 
-        const store = db.transaction(TRACK_INFO_TABLE_NAME, READ_ONLY).objectStore(TRACK_INFO_TABLE_NAME);
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         const index = store.index(indexName);
         const keyRange = IDBKeyRange.only(keyValue);
         const cursor = index.openCursor(keyRange, `next`);
@@ -213,38 +223,22 @@ export default class TagDatabase {
 
     async getTrackInfoByTrackUid(trackUid) {
         const db = await this.db;
-        const store = db.transaction(TRACK_INFO_TABLE_NAME).objectStore(TRACK_INFO_TABLE_NAME);
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(trackUid));
-    }
-
-    async getAlbumImage(album) {
-        if (!album) return null;
-        const db = await this.db;
-        const store = db.transaction(COVERART_TABLE_NAME, READ_ONLY).objectStore(COVERART_TABLE_NAME);
-        return iDbPromisify(store.get(album));
-    }
-
-    async setAlbumImage(album, url) {
-        if (!album) return null;
-        album = album.toLowerCase();
-        const db = await this.db;
-        const store = db.transaction(COVERART_TABLE_NAME, READ_WRITE).objectStore(COVERART_TABLE_NAME);
-        const obj = {album, url};
-        return iDbPromisify(store.put(obj));
     }
 
     async replaceTrackInfo(trackUid, trackInfo) {
         trackInfo.trackUid = trackUid;
         const db = await this.db;
-        const tx = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE).objectStore(TRACK_INFO_TABLE_NAME);
+        const tx = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         return iDbPromisify(tx.put(trackInfo));
     }
 
     async addTrackInfo(trackUid, trackInfo) {
         trackInfo.trackUid = trackUid;
         const db = await this.db;
-        const transaction = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE);
-        const store = transaction.objectStore(TRACK_INFO_TABLE_NAME);
+        const transaction = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE);
+        const store = transaction.objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         const previousTrackInfo = await iDbPromisify(store.get(trackUid));
         const newTrackInfo = Object.assign({}, previousTrackInfo || {}, trackInfo);
         await iDbPromisify(store.put(newTrackInfo));
@@ -253,28 +247,20 @@ export default class TagDatabase {
 
     async completeAcoustIdFetchJob(jobId) {
         const db = await this.db;
-        const tx = db.transaction([ACOUST_ID_JOB_TABLE, TRACK_INFO_TABLE_NAME], READ_WRITE);
-        const trackInfoStore = tx.objectStore(TRACK_INFO_TABLE_NAME);
-        const acoustIdStore = tx.objectStore(ACOUST_ID_JOB_TABLE);
+        const tx = db.transaction([ACOUST_ID_JOB_OBJECT_STORE_NAME], READ_WRITE);
+        const acoustIdStore = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
         const job = await iDbPromisify(acoustIdStore.get(IDBKeyRange.only(jobId)));
         if (!job) {
             return;
         }
-        const trackInfo = await iDbPromisify(trackInfoStore.get(IDBKeyRange.only(job.trackUid)));
-        if (!trackInfo) {
-            return;
-        }
-        trackInfo.acoustIdFetched = true;
-        const trackInfoUpdated = iDbPromisify(trackInfoStore.put(trackInfo));
         const jobDeleted = iDbPromisify(acoustIdStore.delete(IDBKeyRange.only(jobId)));
-
-        return Promise.all([trackInfoUpdated, jobDeleted]);
+        await jobDeleted;
     }
 
     async setAcoustIdFetchJobError(jobId, error) {
         const db = await this.db;
-        const tx = db.transaction(ACOUST_ID_JOB_TABLE, READ_WRITE);
-        const store = tx.objectStore(ACOUST_ID_JOB_TABLE);
+        const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
         const job = await iDbPromisify(store.get(IDBKeyRange.only(jobId)));
         job.lastTried = new Date();
         job.lastError = {
@@ -286,15 +272,15 @@ export default class TagDatabase {
 
     async getAcoustIdFetchJob() {
         const db = await this.db;
-        const tx = db.transaction(ACOUST_ID_JOB_TABLE, READ_ONLY);
-        const store = tx.objectStore(ACOUST_ID_JOB_TABLE);
+        const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_ONLY);
+        const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(IDBKeyRange.lowerBound(0)));
     }
 
     async addAcoustIdFetchJob(trackUid, fingerprint, duration) {
         const db = await this.db;
-        const tx = db.transaction(ACOUST_ID_JOB_TABLE, READ_WRITE);
-        const store = tx.objectStore(ACOUST_ID_JOB_TABLE);
+        const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
         const uidIndex = store.index(`trackUid`);
         const key = await iDbPromisify(uidIndex.getKey(IDBKeyRange.only(trackUid)));
 
@@ -308,14 +294,61 @@ export default class TagDatabase {
             lastTried: -1
         }));
     }
+
+    async getAlbumArtData(trackUid, artist, album) {
+        const db = await this.db;
+        const tx = db.transaction(ALBUM_ART_OBJECT_STORE_NAME, READ_ONLY);
+        const store = tx.objectStore(ALBUM_ART_OBJECT_STORE_NAME);
+        const result = await iDbPromisify(store.get(IDBKeyRange.only(trackUid)));
+
+        if (result) {
+            return result;
+        }
+        const index = store.index(`artistAlbum`);
+        return iDbPromisify(index.get(IDBKeyRange.only([artist, album])));
+    }
+
+    async addAlbumArtData(trackUid, albumArtData) {
+        const db = await this.db;
+        const tx = db.transaction(ALBUM_ART_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(ALBUM_ART_OBJECT_STORE_NAME);
+        const storedData = store.get(IDBKeyRange.only(trackUid));
+
+        if (storedData && storedData.images && storedData.images.length > 0) {
+            const storedImages = storedData.images;
+            const newImages = albumArtData.images;
+            for (let i = 0; i < newImages.length; ++i) {
+                const newImage = newImages[i];
+                const {imageType, image} = newImage;
+                let shouldBeAdded = true;
+                for (let j = 0; j < storedImages.length; ++j) {
+                    const storedImage = storedImages[j];
+                    if (storedImage.imageType === imageType &&
+                        storedImage.image === image) {
+                        shouldBeAdded = false;
+                        break;
+                    }
+                }
+
+                if (shouldBeAdded) {
+                    storedImages.push(newImage);
+                }
+            }
+            storedData.images = storedImages;
+            return iDbPromisify(store.put(storedData));
+        } else {
+            albumArtData.trackUid = trackUid;
+            return iDbPromisify(store.put(albumArtData));
+        }
+    }
 }
 
 const fieldUpdater = function(...fieldNames) {
     return {
         async method(trackUid, ...values) {
             const db = await this.db;
-            const tx = db.transaction(TRACK_INFO_TABLE_NAME, READ_WRITE);
-            const store = tx.objectStore(TRACK_INFO_TABLE_NAME);
+            const tx = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE);
+            const store = tx.objectStore(TRACK_INFO_OBJECT_STORE_NAME);
             let data = await iDbPromisify(store.get(trackUid));
             data = Object(data);
             data.trackUid = trackUid;

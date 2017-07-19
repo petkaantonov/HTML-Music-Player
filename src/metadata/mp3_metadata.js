@@ -1,5 +1,5 @@
 import {Uint8Array, Blob, TextDecoder} from "platform/platform";
-import {readBit, sha1HexString} from "util";
+import {readBit} from "util";
 import demux from "audio/backend/demuxer";
 
 const ID3 = 0x494433 | 0;
@@ -173,7 +173,7 @@ tagMap[0x54434f | 0] = tagMap[0x54434f4e | 0] = id3v2String((tagData, result) =>
     tagData.genres = Object.keys(genres).map(key => genres[key]);
 });
 
-tagMap[0x504943 | 0] = tagMap[0x41504943 | 0] = async function(offset, fileView, flags, version, size, tagData) {
+tagMap[0x504943 | 0] = tagMap[0x41504943 | 0] = function(offset, fileView, flags, version, size, tagData) {
     const originalOffset = offset;
     const encoding = fileView.getUint8(offset);
     offset++;
@@ -244,14 +244,8 @@ tagMap[0x504943 | 0] = tagMap[0x41504943 | 0] = async function(offset, fileView,
         data = new Uint8Array(buffer.buffer, offset - fileView.start, dataLength);
     }
 
-    const tag = await sha1HexString(data);
-    const dataBlob = new Blob([data], {type});
-
     pictures.push({
-        tag,
-        blob: dataBlob,
-        blobUrl: null,
-        image: null,
+        image: new Blob([data], {type}),
         pictureKind: pictureKinds[pictureKind],
         description
     });

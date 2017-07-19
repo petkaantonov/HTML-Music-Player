@@ -1281,3 +1281,7 @@ export function roundSampleTime(sample, sampleRate) {
     }
     return sample;
 }
+
+export function toCorsUrl(url) {
+  return `${self.location.origin}/cors?url=${encodeURIComponent(url)}`;
+}

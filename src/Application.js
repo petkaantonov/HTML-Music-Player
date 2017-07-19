@@ -432,7 +432,8 @@ export default class Application {
             page,
             player,
             playlist,
-            applicationPreferencesBindingContext
+            applicationPreferencesBindingContext,
+            trackAnalyzer
         }, d => new PlayerPictureManager({
             target: `.picture-container`,
             imageDimensions: IMAGE_DIMENSIONS,
