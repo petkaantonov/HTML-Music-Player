@@ -156,7 +156,7 @@ self.addEventListener(`fetch`, (e) => {
     }
 
     const requestURL = new URL(request.url);
-    const isCors = location.origin !== requestURL.origin;
+    const isCors = location.origin !== requestURL.origin || `${request.url}`.indexOf("cors?url=") >= 0;
     const isHttp = requestURL.protocol.toLowerCase().indexOf(`http`) >= 0;
     const isCoverArt = COVER_ART_HOSTNAME === requestURL.hostname;
     const isQuery = requestURL.search && requestURL.search.length > 1 && isCors;
