@@ -62,7 +62,8 @@ const imageDescriptionWeights = {
     Front: 0,
     Back: 1,
     Tray: 2,
-    Booklet: 3
+    Booklet: 3,
+    Medium: 4
 };
 
 function getDescriptionWeight(image) {
@@ -72,7 +73,7 @@ function getDescriptionWeight(image) {
             return -1;
         }
         return weight;
-    } else if (image.types && Array.isArray(image.types)) {
+    } else if (Array.isArray(image.types)) {
         const weight = imageDescriptionWeights[image.types.join(``)];
         if (typeof weight !== `number`) {
             return imageDescriptionWeights.Booklet + 1;
@@ -470,13 +471,13 @@ export default class MetadataManagerBackend extends AbstractBackend {
             if (preference !== ALBUM_ART_PREFERENCE_ALL) {
                 if (images.length > 0) {
                     images.sort((a, b) => {
-                        const aTypeWeight = imageTypeKeyWeights[a[IMAGE_TYPE_KEY]];
-                        const bTypeWeight = imageTypeKeyWeights[b[IMAGE_TYPE_KEY]];
-                        const cmp = aTypeWeight - bTypeWeight;
+                        let cmp = getDescriptionWeight(a) - getDescriptionWeight(b);
                         if (cmp !== 0) {
                             return cmp;
                         }
-                        return getDescriptionWeight(a) - getDescriptionWeight(b);
+                        const aTypeWeight = imageTypeKeyWeights[a[IMAGE_TYPE_KEY]];
+                        const bTypeWeight = imageTypeKeyWeights[b[IMAGE_TYPE_KEY]];
+                        return aTypeWeight - bTypeWeight;
                     });
 
                     const image = images[0];
