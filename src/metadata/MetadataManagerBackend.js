@@ -3,7 +3,7 @@ import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
 import parseAcoustId from "metadata/acoustId";
 import AbstractBackend from "AbstractBackend";
-import JobProcessor from "utils/JobProcessor";
+import JobProcessor, {JOB_COMPLETE_EVENT} from "utils/JobProcessor";
 import {delay, sha1Binary, queryString,
         toCorsUrl, _, trackInfoFromFileName, ajaxGet} from "util";
 import getCodec from "audio/backend/codec";
@@ -30,6 +30,8 @@ export const getFileCacheKey = function(file) {
     return sha1Binary(`${file.lastModified}-${file.name}-${file.size}-${file.type}`);
 };
 
+const NO_JOBS_FOUND_TOKEN = {};
+
 const MAX_BLOB_URL_SIZE = 1024 * 1024 * 2;
 
 const IMAGE_TYPE_KEY = `imageType`;
@@ -54,6 +56,32 @@ const isUnknown = function(value) {
     }
     return runknown.test(`${value}`);
 };
+
+const imageDescriptionWeights = {
+    Front: 0,
+    Back: 1,
+    Tray: 2,
+    Booklet: 3
+};
+
+function getDescriptionWeight(image) {
+    if (image.description) {
+        const weight = imageDescriptionWeights[image.description];
+        if (typeof weight !== "number") {
+            return -1;
+        }
+        return weight;
+    } else if (image.types && Array.isArray(image.types)) {
+        const weight = imageDescriptionWeights[image.types.join("")];
+        if (typeof weight !== "number") {
+            return imageDescriptionWeights.Booklet + 1;
+        }
+        return weight;
+    } else {
+        return -1;
+    }
+}
+
 
 function buildTrackInfo(metadata, demuxData) {
     const {title = null, album = null, artist = null, albumArtist = null,
@@ -112,6 +140,12 @@ export default class MetadataManagerBackend extends AbstractBackend {
                 }
             }
         };
+        this._acoustIdDataFetcher.on(JOB_COMPLETE_EVENT, async (job) => {
+            const result = await job.promise;
+            if (result !== NO_JOBS_FOUND_TOKEN) {
+                this._acoustIdDataFetcher.postJob();
+            }
+        });
         this._acoustIdDataFetcher.postJob();
     }
 
@@ -196,7 +230,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     async _fetchAcoustIdDataJob({cancellationToken}) {
         const job = await this._tagDatabase.getAcoustIdFetchJob();
         if (!job) {
-            return;
+            return NO_JOBS_FOUND_TOKEN;
         }
 
         const {trackUid, fingerprint, duration, jobId} = job;
@@ -434,7 +468,11 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     images.sort((a, b) => {
                         const aTypeWeight = imageTypeKeyWeights[a[IMAGE_TYPE_KEY]];
                         const bTypeWeight = imageTypeKeyWeights[b[IMAGE_TYPE_KEY]];
-                        return aTypeWeight - bTypeWeight;
+                        let cmp = aTypeWeight - bTypeWeight;
+                        if (cmp !== 0) {
+                            return cmp;
+                        }
+                        return getDescriptionWeight(a) - getDescriptionWeight(b);
                     });
 
                     const image = images[0];

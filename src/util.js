@@ -1317,11 +1317,15 @@ export function ajaxGet(url, cancellationToken,
             }
 
             if (xhr.status === 0 || xhr.status > 299) {
-                reject(new HttpStatusError(xhr.status, xhr.responseText));
+                reject(new HttpStatusError(xhr.status, xhr.response));
                 return;
             }
 
-            resolve(xhr.response);
+            if (xhr.response) {
+              resolve(xhr.response);
+            } else {
+              reject(new HttpStatusError(500, "wrong .responseType"));
+            }
         }, false);
 
         xhr.addEventListener(`abort`, () => {

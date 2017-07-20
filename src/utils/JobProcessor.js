@@ -1,5 +1,9 @@
 import {delay as promiseDelay} from "util";
 import {CancellationToken, CancellationError} from "utils/CancellationToken";
+import EventEmitter from "events";
+
+export const JOB_COMPLETE_EVENT = "jobComplete";
+export const ALL_JOBS_COMPLETE_EVENT = "allJobsComplete";
 
 class Job {
     constructor(id, resolve, reject, args) {
@@ -21,12 +25,13 @@ class Job {
     }
 }
 
-export default class JobProcessor {
+export default class JobProcessor extends EventEmitter {
     constructor({
         parallelJobs = 1,
         delay = 0,
         jobCallback
     }) {
+        super();
         this._jobId = 0;
         this._delay = delay;
         this._parallelJobs = parallelJobs;
@@ -85,7 +90,12 @@ export default class JobProcessor {
                     job.reject(new CancellationError());
                 }
             }
+            this.emit(JOB_COMPLETE_EVENT, job);
             this._next();
+        }
+
+        if (this._activeJobs === 0 && this._queuedJobs === 0) {
+            this.emit(ALL_JOBS_COMPLETE_EVENT);
         }
     }
 

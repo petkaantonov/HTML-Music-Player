@@ -129,6 +129,15 @@ export default function parseAcoustId(data) {
     let album = null;
     let albumArtist = null;
 
+    let artist = null;
+    if (recording.artists && recording.artists.length) {
+        artist = {
+            name: formatArtist(recording.artists),
+            mbid: recording.artists[0].id,
+            type: `artist`
+        };
+    }
+
     if (bestRecordingGroup.album) {
         album = {
             name: bestRecordingGroup.album.title,
@@ -139,16 +148,7 @@ export default function parseAcoustId(data) {
         const isCompilation = bestRecordingGroup.secondarytypes &&
                               (`${bestRecordingGroup.secondarytypes}`).indexOf(`compilation`) >= 0;
 
-        albumArtist = isCompilation ? {name: `Various Artists`} : album;
-    }
-
-    let artist = null;
-    if (recording.artists && recording.artists.length) {
-        artist = {
-            name: formatArtist(recording.artists),
-            mbid: recording.artists[0].id,
-            type: `artist`
-        };
+        albumArtist = isCompilation ? {name: `Various Artists`} : artist;
     }
 
     return {
