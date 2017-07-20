@@ -396,7 +396,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             if (trackInfo) {
                 this.trackInfo = trackInfo;
-                demuxData.establishedGain = trackInfo.establishedGain || undefined;
+                demuxData.establishedGain = trackInfo.establishedGain || undefined;
             } else {
                 this.trackInfo = null;
             }

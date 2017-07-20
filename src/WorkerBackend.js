@@ -1,12 +1,11 @@
 import {setTimers, setIsDevelopment} from "util";
 import AudioPlayerBackend from "audio/backend/AudioPlayerBackend";
-import TrackAnalyzerBackend from "tracks/TrackAnalyzerBackend";
+import MetadataManagerBackend from "metadata/MetadataManagerBackend";
 import SearchBackend from "search/SearchBackend";
 import UsageDataBackend from "usageData/UsageDataBackend";
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import Timers from "platform/Timers";
-import MetadataManager from "metadata/MetadataManager";
 import TagDatabase from "tracks/TagDatabase";
 
 const isDevelopment = !(self.location.href.indexOf(`.min.js`) >= 0);
@@ -53,10 +52,9 @@ if (self.addEventListener) {
     await self.mainWasmModule.start();
 
     const db = new TagDatabase();
-    const metadataManager = new MetadataManager(db);
 
-    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, db, metadataManager).start();
-    self.trackAnalyzerBackend = new TrackAnalyzerBackend(self.mainWasmModule, db, metadataManager, timers).start();
-    self.searchBackend = new SearchBackend(self.trackAnalyzerBackend).start();
-    self.usageDataBackend = new UsageDataBackend().start();
+    self.metadataManagerBackend = new MetadataManagerBackend(self.mainWasmModule, db, timers).start();
+    self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, self.metadataManagerBackend).start();
+    self.searchBackend = new SearchBackend().start();
+    self.usageDataBackend = new UsageDataBackend(db).start();
 })();

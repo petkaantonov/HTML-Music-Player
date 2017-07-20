@@ -6,9 +6,20 @@ export default class Default2dImageRenderer {
         this.width = this.height = 0;
     }
 
+    /* eslint-disable class-methods-use-this */
     destroy() {
         // NOOP
     }
+
+
+    drawScene() {
+        // DrawImage calls already drew it.
+    }
+
+    usesHardwareAcceleration() {
+        return false;
+    }
+    /* eslint-enable class-methods-use-this */
 
     init(width, height) {
         this.setDimensions(width, height);
@@ -17,10 +28,6 @@ export default class Default2dImageRenderer {
     initScene() {
         this.context.fillStyle = `rgba(255, 255, 255, 255)`;
         this.context.fillRect(0, 0, this.width, this.height);
-    }
-
-    drawScene() {
-        // DrawImage calls already drew it.
     }
 
     drawCaps(bins) {
@@ -78,10 +85,6 @@ export default class Default2dImageRenderer {
     setDimensions(width, height) {
         this.width = width;
         this.height = height;
-    }
-
-    usesHardwareAcceleration() {
-        return false;
     }
 }
 

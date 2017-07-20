@@ -131,9 +131,11 @@ export default class PlayerController extends EventEmitter {
         });
     }
 
+    /* eslint-disable class-methods-use-this */
     applicationPreferencesChanged() {
         // EMPTYFORNOW
     }
+    /* eslint-enable class-methods-use-this */
 
     setVisualizerCanvas(value) {
         this.visualizerCanvas = value;

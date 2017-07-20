@@ -403,9 +403,11 @@ export default class VisualizerCanvas extends EventEmitter {
         }
     }
 
+    /* eslint-disable class-methods-use-this */
     objectsPerBin() {
         return 3;
     }
+    /* eslint-enable class-methods-use-this */
 
     needsToDraw() {
         return this.needToDraw || (this.isEnabled() && this.isSupported());

@@ -1,7 +1,8 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange} from "platform/platform";
 
-const VERSION = 17;
+const VERSION = 19;
+const DATA_WIPE_VERSION = 19;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const TRACK_INFO_OBJECT_STORE_NAME = `trackInfo`;
@@ -150,9 +151,10 @@ export default class TagDatabase {
             const {target} = event;
             const {transaction} = target;
             const stores = applyStoreSpec(transaction, objectStoreSpec);
-            const wipeOutTrackInfo = event.oldVersion < 17;
-            if (wipeOutTrackInfo) {
-                stores[TRACK_INFO_OBJECT_STORE_NAME].clear();
+            if (event.oldVersion < DATA_WIPE_VERSION) {
+                for (const key of Object.keys(stores)) {
+                    stores[key].clear();
+                }
             }
         };
     }
@@ -269,7 +271,7 @@ export default class TagDatabase {
         const job = await iDbPromisify(store.get(IDBKeyRange.only(jobId)));
         job.lastTried = new Date();
         job.lastError = {
-            message: error && error.message || `${error}`
+            message: error && error.message || `${error}`
         };
         return iDbPromisify(store.put(job));
     }
@@ -381,7 +383,7 @@ const fieldUpdater = function(...fieldNames) {
     };
 };
 
-TagDatabase.prototype.updateHasBeenAnalyzed = fieldUpdater(`hasBeenAnalyzed`).method;
+TagDatabase.prototype.updateHasBeenFingerprinted = fieldUpdater(`hasBeenFingerprinted`).method;
 TagDatabase.prototype.updateEstablishedGain = fieldUpdater(`establishedGain`).method;
 TagDatabase.prototype.updateRating = fieldUpdater(`rating`).method;
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater(`playthroughCounter`, `lastPlayed`).method;

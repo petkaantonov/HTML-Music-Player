@@ -1,5 +1,6 @@
 
 
+
 import SearchTree from "search/SearchTree";
 import SearchTreeEntry from "search/SearchTreeEntry";
 import SearchResultRater from "search/SearchResultRater";
@@ -10,7 +11,7 @@ import {getFirstWord, getLastWord, reverseString} from "util";
 
 export default class TrackSearchIndex {
     constructor() {
-        this._transientIdToEntry = {};
+        this._transientIdToEntry = new Map();
         this._prefixSearchTree = new SearchTree(SearchTreeEntry.comparer);
         this._suffixSearchTree = new SearchTree(SearchTreeEntry.comparer);
     }
@@ -51,20 +52,30 @@ export default class TrackSearchIndex {
         return ret;
     }
 
-    add(file, metadata, transientId) {
-        if (this._transientIdToEntry[transientId]) return;
-        this._transientIdToEntry[transientId] = this._addToSearchTree(transientId, metadata, file);
+    remove(transientId) {
+        const entry = this._transientIdToEntry.get(transientId);
+        if (!entry) return;
+        this._removeFromSearchTree(entry);
+        this._transientIdToEntry.delete(transientId);
     }
 
     update(transientId, metadata) {
-        const entry = this._transientIdToEntry[transientId];
-        if (!entry) return;
+        const entry = this._transientIdToEntry.get(transientId);
+        if (!entry) {
+            this._add(transientId, metadata);
+            return;
+        }
         this._removeFromSearchTree(entry);
-        this._transientIdToEntry[transientId] = this._addToSearchTree(transientId, metadata, null);
+        this._transientIdToEntry.set(transientId, this._addToSearchTree(transientId, metadata, null));
     }
 
-    _addToSearchTree(transientId, metadata, file) {
-        const entry = new SearchTreeEntry(transientId, getSearchTerm(metadata, file));
+    _add(transientId, metadata) {
+        this._transientIdToEntry.set(transientId, this._addToSearchTree(transientId, metadata));
+    }
+
+
+    _addToSearchTree(transientId, metadata) {
+        const entry = new SearchTreeEntry(transientId, getSearchTerm(metadata));
         const keywords = entry.keywords();
         for (let i = 0; i < keywords.length; ++i) {
             const keyword = keywords[i];
@@ -81,12 +92,5 @@ export default class TrackSearchIndex {
             this._prefixSearchTree.remove(keyword, entry);
             this._suffixSearchTree.remove(reverseString(keyword), entry);
         }
-    }
-
-    remove(transientId) {
-        const entry = this._transientIdToEntry[transientId];
-        if (!entry) return;
-        this._removeFromSearchTree(entry);
-        delete this._transientIdToEntry[transientId];
     }
 }

@@ -69,7 +69,11 @@ export default class JobProcessor {
             } catch (e) {
                 const i = this._activeJobs.indexOf(job);
                 this._activeJobs.splice(i, 1);
-                job.reject(e);
+                if (!job.isCancelled()) {
+                    job.reject(e);
+                } else {
+                    job.reject(new CancellationError());
+                }
             }
             this._next();
         }

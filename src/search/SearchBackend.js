@@ -4,7 +4,7 @@ import TrackSearchIndex from "search/TrackSearchIndex";
 export const SEARCH_READY_EVENT_NAME = `searchReady`;
 
 export default class SearchBackend extends AbstractBackend {
-    constructor(trackAnalyzerBackend) {
+    constructor() {
         super(SEARCH_READY_EVENT_NAME);
         this.searchIndex = new TrackSearchIndex();
         this.actions = {
@@ -25,9 +25,5 @@ export default class SearchBackend extends AbstractBackend {
                 this.searchIndex.remove(transientId);
             }
         };
-
-        trackAnalyzerBackend.on(`metadataParsed`, ({file, metadata, transientId}) => {
-            this.searchIndex.add(file, metadata, transientId);
-        });
     }
 }

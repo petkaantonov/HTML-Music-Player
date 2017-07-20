@@ -9,6 +9,14 @@ const getExtension = function(name) {
     return name.match(rext);
 };
 
+function readEntries(reader) {
+    return new Promise(resolve => reader.readEntries(resolve, () => resolve(null)));
+}
+
+function entryToFile(entry) {
+    return new Promise(resolve => entry.file(resolve, () => resolve(null)));
+}
+
 export default class LocalFiles {
     constructor(env) {
         this.env = env;
@@ -37,19 +45,11 @@ export default class LocalFiles {
         return false;
     }
 
-    readEntries(reader) {
-        return new Promise(resolve => reader.readEntries(resolve, () => resolve(null)));
-    }
-
-    entryToFile(entry) {
-        return new Promise(resolve => entry.file(resolve, () => resolve(null)));
-    }
-
     async traverseEntries(entries, ee, context) {
         for (let i = 0; i < entries.length && context.currentFileCount < context.maxFileCount; ++i) {
             const entry = entries[i];
             if (entry.isFile) {
-                const file = await this.entryToFile(entry);
+                const file = await entryToFile(entry);
                 if (file && context.filter(file)) {
                     context.currentFileCount++;
                     if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
@@ -61,7 +61,7 @@ export default class LocalFiles {
                 const reader = entry.createReader();
                 let results;
                 do {
-                    results = await this.readEntries(reader);
+                    results = await readEntries(reader);
                     await this.traverseEntries(results, ee, context);
                 } while (results.length > 0 && context.currentFileCount < context.maxFileCount);
             }

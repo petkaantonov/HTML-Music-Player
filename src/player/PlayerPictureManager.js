@@ -2,8 +2,10 @@ import jdenticon from "jdenticon";
 import {noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
 import EventEmitter from "events";
-import {ALBUM_ART_PREFERENCE_SMALLEST as preference} from "metadata/MetadataManager";
+import {ALBUM_ART_PREFERENCE_SMALLEST as preference} from "metadata/MetadataManagerBackend";
 import {Image} from "platform/platform";
+
+export const IMAGE_CHANGE_EVENT = `imageChange`;
 
 const requestReason = `PlayerPictureManager`;
 
@@ -19,7 +21,7 @@ export default class PlayerPictureManager extends EventEmitter {
         this._player = deps.player;
         this._player.setPictureManager(this);
         this._playlist = deps.playlist;
-        this._trackAnalyzer = deps.trackAnalyzer;
+        this._metadataManager = deps.metadataManager;
         this._applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this._domNode = this._page.$(opts.target);
 
@@ -35,7 +37,7 @@ export default class PlayerPictureManager extends EventEmitter {
         this._trackTagDataUpdated = this._trackTagDataUpdated.bind(this);
         this._onAlbumArt = this._onAlbumArt.bind(this);
 
-        this._trackAnalyzer.on(`albumArt`, this._onAlbumArt);
+        this._metadataManager.on(`albumArt`, this._onAlbumArt);
         this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
         this._generatedImages = new Map();
 
@@ -91,7 +93,7 @@ export default class PlayerPictureManager extends EventEmitter {
 
     imageLoaded(e) {
         if (e.target === this._currentImage) {
-            this.emit(`imageChange`, e.target);
+            this.emit(IMAGE_CHANGE_EVENT, e.target);
         }
     }
 
@@ -117,10 +119,10 @@ export default class PlayerPictureManager extends EventEmitter {
             this._page.$(this._currentImage).addEventListener(`load`, this.imageLoaded);
 
             if (this._currentImage.complete) {
-                this.emit(`imageChange`, this._currentImage);
+                this.emit(IMAGE_CHANGE_EVENT, this._currentImage);
             }
         } else {
-            this.emit(`imageChange`, this._currentImage);
+            this.emit(IMAGE_CHANGE_EVENT, this._currentImage);
         }
     }
 
@@ -158,7 +160,7 @@ export default class PlayerPictureManager extends EventEmitter {
                 return;
             }
             const {album, artist} = tagData;
-            this._trackAnalyzer.getAlbumArt(track, {
+            this._metadataManager.getAlbumArt(track, {
                 album, artist, preference, requestReason
             });
         }

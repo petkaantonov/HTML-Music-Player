@@ -1,4 +1,4 @@
-import {inherits, delay} from "util";
+import {delay} from "util";
 import {DISMISSED, TIMED_OUT, ACTION_CLICKED} from "ui/Snackbar";
 import EventEmitter from "events";
 
@@ -155,7 +155,7 @@ export default class ServiceWorkerManager extends EventEmitter {
                 if (!this._env.isDevelopment()) {
                     throw e;
                 } else {
-                    console.warn(e);
+                    self.uiLog(e.message);
                 }
                 return null;
             }

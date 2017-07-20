@@ -130,7 +130,7 @@ export default class SearchController extends TrackContainerController {
     constructor(opts, deps) {
         opts.trackRaterZIndex = zIndex;
         super(opts, deps);
-        this._trackAnalyzer = deps.trackAnalyzer;
+        this._metadataManager = deps.metadataManager;
         this._searchFrontend = new SearchFrontend(this, deps);
         this._inputNode = this.$().find(`.search-input-box`);
         this._dataListNode = this.$().find(`.search-history`);
@@ -152,9 +152,8 @@ export default class SearchController extends TrackContainerController {
         this._dirty = false;
         this._nextSessionId = 0;
 
-        this.metadataUpdated = this.metadataUpdated.bind(this);
-        this._trackAnalyzer.on(`metadataUpdate`, this.metadataUpdated);
-        this._playlist.on(`lengthChange`, this.metadataUpdated);
+        this._metadataManager.on(`metadataUpdate`, this.metadataUpdated.bind(this));
+        this._playlist.on(`lengthChange`, this.lengthChanged.bind(this));
 
         this.$input().addEventListener(`input`, this._gotInput.bind(this)).
                      addEventListener(`focus`, this._inputFocused.bind(this)).
@@ -266,13 +265,25 @@ export default class SearchController extends TrackContainerController {
         this._session.update();
     }
 
-
-    metadataUpdated() {
+    _resultsStale() {
         if (this._session && this._visible) {
             this.updateResults();
         } else {
             this._dirty = true;
         }
+    }
+
+    lengthChanged() {
+        this._resultsStale();
+    }
+
+    metadataUpdated(tracks) {
+        for (const track of tracks) {
+            const {genres, album, artist, title, albumArtist} = track.tagData;
+            this.updateSearchIndex(track, {genres, album, artist, title, albumArtist});
+        }
+
+        this._resultsStale();
     }
 
     tryLoadHistory(values) {

@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import {getSearchTerm} from "search/searchUtil";
 import {indexedDB} from "platform/platform";
-import {getFileCacheKey} from "metadata/MetadataManager";
+import {getFileCacheKey} from "metadata/MetadataManagerBackend";
 import {hexString} from "util";
 
 export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
@@ -52,6 +52,7 @@ export default class Track extends EventEmitter {
         this._transientId = ++nextTransientId;
         this._isDisplayedAsSearchResult = false;
         this._searchTerm = null;
+        this._offline = true;
         this._weight = 3;
         this._weightDeadline = -1;
     }
@@ -73,30 +74,8 @@ export default class Track extends EventEmitter {
         return !this.isDetachedFromPlaylist() && this.tagData && !this._isDisplayedAsSearchResult;
     }
 
-    matches(matchers) {
-        if (!this.tagData) return false;
-
-        if (!this._searchTerm) {
-            this._searchTerm = getSearchTerm(this.tagData, this.file);
-        }
-        for (let i = 0; i < matchers.length; ++i) {
-            if (!matchers[i].test(this._searchTerm)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     isAvailableOffline() {
-        return true;
-    }
-
-    isSyncedToCloud() {
-        return false;
-    }
-
-    willBeReplaced() {
-        // NOOP
+        return this._offline;
     }
 
     stageRemoval() {

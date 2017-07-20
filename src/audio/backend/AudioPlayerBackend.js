@@ -10,14 +10,13 @@ import {MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS} from "audio/fronte
 const emptyArray = [];
 
 export default class AudioPlayerBackend extends AbstractBackend {
-    constructor(wasm, timers, db, metadataManager) {
+    constructor(wasm, timers, metadataManager) {
         super(PLAYER_READY_EVENT_NAME);
         this._wasm = wasm;
         this._hardwareSampleRate = 0;
         this._timers = timers;
         this._audioSources = new Map();
         this._effects = new Effects();
-        this._db = db;
         this._config = {
             bufferTime: 0,
             loudnessNormalization: true,

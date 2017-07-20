@@ -110,9 +110,17 @@ export default class WebGl2dImageRenderer {
         this.init(this.width, this.height);
     }
 
+    /* eslint-disable class-methods-use-this */
     contextCreationErrored() {
         // Noop
     }
+
+
+    usesHardwareAcceleration() {
+        return true;
+    }
+    /* eslint-enable class-methods-use-this*/
+
 
     destroy() {
         this.visualizerCanvas.canvas.removeEventListener(`webglcontextlost`, this.contextLost, false);
@@ -128,10 +136,6 @@ export default class WebGl2dImageRenderer {
         newCanvas.addEventListener(`webglcontextlost`, this.contextLost, false);
         newCanvas.addEventListener(`webglcontextrestored`, this.contextRestored, false);
         newCanvas.addEventListener(`webglcontextcreationerror`, this.contextCreationErrored, false);
-    }
-
-    usesHardwareAcceleration() {
-        return true;
     }
 
     init(width, height) {

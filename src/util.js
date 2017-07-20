@@ -1,7 +1,9 @@
 import {console, Uint8Array, Uint16Array, Uint32Array,
          Int32Array, Float32Array, Float64Array,
          FileReader, FileReaderSync, DataView, TextDecoder, TextEncoder, crypto,
-         performance, Proxy, Symbol, indexedDB} from "platform/platform";
+         performance, Proxy, Symbol, indexedDB, XMLHttpRequest} from "platform/platform";
+import HttpStatusError from "errors/HttpStatusError";
+import {CancellationError} from "utils/CancellationToken";
 
 /* eslint-disable no-invalid-this */
 
@@ -1285,3 +1287,81 @@ export function roundSampleTime(sample, sampleRate) {
 export function toCorsUrl(url) {
   return `${self.location.origin}/cors?url=${encodeURIComponent(url)}`;
 }
+
+export function ajaxGet(url, cancellationToken) {
+    return new Promise(((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.timeout = 15000;
+
+        function error() {
+            if (cancellationToken.isCancelled()) {
+              reject(new CancellationError());
+              return;
+            }
+            reject(new HttpStatusError(408, `timeout`));
+        }
+
+        xhr.addEventListener(`progress`, () => {
+            if (cancellationToken.isCancelled()) {
+              xhr.abort();
+              reject(new CancellationError());
+
+            }
+        });
+        xhr.addEventListener(`load`, () => {
+            if (cancellationToken.isCancelled()) {
+              reject(new CancellationError());
+              return;
+            }
+            if (xhr.status === 0 || xhr.status > 299) {
+                reject(new HttpStatusError(xhr.status, xhr.responseText));
+                return;
+            }
+
+            try {
+              const result = JSON.parse(xhr.responseText);
+              resolve(result);
+            } catch (e) {
+              reject(new HttpStatusError(500, xhr.responseText));
+            }
+        }, false);
+
+        xhr.addEventListener(`abort`, () => {
+          reject(new CancellationError());
+        });
+        xhr.addEventListener(`timeout`, error);
+        xhr.addEventListener(`error`, () => {
+            if (cancellationToken.isCancelled()) {
+              reject(new CancellationError());
+              return;
+            }
+            reject(new HttpStatusError(0, `network error`));
+        });
+
+        xhr.open(`GET`, url);
+        xhr.setRequestHeader(`Accept`, `application/json`);
+        xhr.send(null);
+    }));
+}
+
+const UNKNOWN = `Unknown`;
+const separatorPattern = /(.+)\s*-\s*(.+)/;
+export const stripExtensionPattern = new RegExp(`\\.(?:[a-z0-9_\\-]{1,8})$`, `i`);
+export const trackInfoFromFileName = function(inputFileName) {
+    const fileName = inputFileName.replace(stripExtensionPattern, ``);
+    const matches = fileName.match(separatorPattern);
+    let artist, title;
+
+    if (!matches) {
+        title = capitalize(fileName);
+        artist = UNKNOWN;
+    } else {
+        artist = capitalize(matches[1]) || UNKNOWN;
+        title = capitalize(matches[2]) || UNKNOWN;
+    }
+
+    return {
+        artist,
+        title
+    };
+};

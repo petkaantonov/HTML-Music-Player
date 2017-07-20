@@ -130,9 +130,11 @@ export default class KeyboardShortcuts extends EventEmitter {
         }
     }
 
+    /* eslint-disable class-methods-use-this */
     createContext() {
         return new KeyboardShortcutContext();
     }
+    /* eslint-enable class-methods-use-this */
 
     disable() {
         if (!this._enabled) return;

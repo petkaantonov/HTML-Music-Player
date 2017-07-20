@@ -221,6 +221,77 @@ const mkNode = function(word, value, comparer) {
 const NULL = new Node(``);
 NULL.color = BLACK;
 
+function rebalanceLeft(root, node) {
+    const {parent} = node;
+    let sibling = parent.right;
+
+    if (sibling.color === RED) {
+        sibling.color = BLACK;
+        parent.color = RED;
+        parent.rotateLeft();
+        sibling = parent.right;
+    }
+
+    if (sibling.left.color === BLACK && sibling.right.color === BLACK) {
+        sibling.color = RED;
+        return node.parent;
+    } else {
+        if (sibling.right.color === BLACK) {
+            sibling.left.color = BLACK;
+            sibling.color = RED;
+            sibling.rotateRight();
+            sibling = node.parent.right;
+        }
+
+        sibling.color = node.parent.color;
+        node.parent.color = BLACK;
+        sibling.right.color = BLACK;
+        node.parent.rotateLeft();
+        return root;
+    }
+}
+
+function rebalanceRight(root, node) {
+    const {parent} = node;
+    let sibling = parent.left;
+
+    if (sibling.color === RED) {
+        sibling.color = BLACK;
+        parent.color = RED;
+        parent.rotateRight();
+        sibling = parent.left;
+    }
+
+    if (sibling.right.color === BLACK && sibling.left.color === BLACK) {
+        sibling.color = RED;
+        return node.parent;
+    } else {
+        if (sibling.left.color === BLACK) {
+            sibling.right.color = BLACK;
+            sibling.color = RED;
+            sibling.rotateLeft();
+            sibling = node.parent.left;
+        }
+
+        sibling.color = node.parent.color;
+        node.parent.color = BLACK;
+        sibling.left.color = BLACK;
+        node.parent.rotateRight();
+        return root;
+    }
+}
+
+function rebalanceTree(root, node) {
+    while (node.color === BLACK && node !== root) {
+        if (node.isLeftChild()) {
+            node = rebalanceLeft(root, node);
+        } else {
+            node = rebalanceRight(root, node);
+        }
+    }
+    node.color = BLACK;
+}
+
 export default class SearchTree {
     constructor(valueComparer) {
         this._length = 0;
@@ -410,77 +481,6 @@ export default class SearchTree {
         this._root.color = BLACK;
     }
 
-    _rebalanceLeft(root, node) {
-        const {parent} = node;
-        let sibling = parent.right;
-
-        if (sibling.color === RED) {
-            sibling.color = BLACK;
-            parent.color = RED;
-            parent.rotateLeft();
-            sibling = parent.right;
-        }
-
-        if (sibling.left.color === BLACK && sibling.right.color === BLACK) {
-            sibling.color = RED;
-            return node.parent;
-        } else {
-            if (sibling.right.color === BLACK) {
-                sibling.left.color = BLACK;
-                sibling.color = RED;
-                sibling.rotateRight();
-                sibling = node.parent.right;
-            }
-
-            sibling.color = node.parent.color;
-            node.parent.color = BLACK;
-            sibling.right.color = BLACK;
-            node.parent.rotateLeft();
-            return root;
-        }
-    }
-
-    _rebalanceRight(root, node) {
-        const {parent} = node;
-        let sibling = parent.left;
-
-        if (sibling.color === RED) {
-            sibling.color = BLACK;
-            parent.color = RED;
-            parent.rotateRight();
-            sibling = parent.left;
-        }
-
-        if (sibling.right.color === BLACK && sibling.left.color === BLACK) {
-            sibling.color = RED;
-            return node.parent;
-        } else {
-            if (sibling.left.color === BLACK) {
-                sibling.right.color = BLACK;
-                sibling.color = RED;
-                sibling.rotateLeft();
-                sibling = node.parent.left;
-            }
-
-            sibling.color = node.parent.color;
-            node.parent.color = BLACK;
-            sibling.left.color = BLACK;
-            node.parent.rotateRight();
-            return root;
-        }
-    }
-
-    _rebalanceTree(root, node) {
-        while (node.color === BLACK && node !== root) {
-            if (node.isLeftChild()) {
-                node = this._rebalanceLeft(root, node);
-            } else {
-                node = this._rebalanceRight(root, node);
-            }
-        }
-        node.color = BLACK;
-    }
-
     _removeNode(node) {
         this._length--;
         const newRoot = this._doRemoveNode(node);
@@ -521,7 +521,7 @@ export default class SearchTree {
             node.left = node.right = NULL;
 
             if (node.color === BLACK) {
-                this._rebalanceTree(parent !== null ? root : current, current);
+                rebalanceTree(parent !== null ? root : current, current);
             }
 
             if (parent === null) {
@@ -530,7 +530,7 @@ export default class SearchTree {
             }
         } else if (node.parent !== null) {
             if (node.color === BLACK) {
-                this._rebalanceTree(root, node);
+                rebalanceTree(root, node);
             }
 
             if (node.isLeftChild()) {

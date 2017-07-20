@@ -1,45 +1,27 @@
 import {tracksByUid} from "tracks/Track";
-import {ANALYZER_READY_EVENT_NAME} from "tracks/TrackAnalyzerBackend";
-import {console} from "platform/platform";
+import {METADATA_MANAGER_READY_EVENT_NAME,
+            ALBUM_ART_RESULT_MESSAGE,
+            ACOUST_ID_DATA_RESULT_MESSAGE,
+            METADATA_RESULT_MESSAGE} from "metadata/MetadataManagerBackend";
 import WorkerFrontend from "WorkerFrontend";
 
-export default class TrackAnalyzer extends WorkerFrontend {
+export default class MetadataManagerFrontend extends WorkerFrontend {
     constructor(deps) {
-        super(ANALYZER_READY_EVENT_NAME, deps.workerWrapper);
+        super(METADATA_MANAGER_READY_EVENT_NAME, deps.workerWrapper);
         this._env = deps.env;
-        this._page = deps.page;
-        this._playlist = deps.playlist;
-        this._player = deps.player;
         this._tagDataContext = deps.tagDataContext;
-        this._globalEvents = deps.globalEvents;
-        this._playlist.on(`unparsedTracksAvailable`, this.unparsedTracksAvailable.bind(this));
     }
 
     receiveMessage(event) {
         if (!event.data) return;
-        const {result, error, type} = event.data;
+        const {result, type} = event.data;
 
-        if (error && this._env.isDevelopment()) {
-            console.error(error.stack);
-        }
-
-        if (type === `albumArtResult`) {
+        if (type === ALBUM_ART_RESULT_MESSAGE) {
             this.albumArtResultReceived(result);
-        } else if (type === `acoustIdDataFetched`) {
+        } else if (type === ACOUST_ID_DATA_RESULT_MESSAGE) {
             this.acoustIdDataFetched(result);
-        } else if (type === `metadataResult`) {
+        } else if (type === METADATA_RESULT_MESSAGE) {
             this.trackMetadataParsed(result);
-        }
-    }
-
-    unparsedTracksAvailable() {
-        const tracks = this._playlist.getUnparsedTracks();
-        for (let i = 0; i < tracks.length; ++i) {
-            const track = tracks[i];
-
-            if (!track.isDetachedFromPlaylist() && !track.hasError() && !track.tagData) {
-                this.parseMetadata(track);
-            }
         }
     }
 
@@ -70,7 +52,7 @@ export default class TrackAnalyzer extends WorkerFrontend {
                 track.tagData.updateFields(trackInfo);
                 track.tagDataUpdated();
             }
-            this.emit(`metadataUpdate`);
+            this.emit(`metadataUpdate`, tracks);
         }
     }
 
@@ -92,7 +74,7 @@ export default class TrackAnalyzer extends WorkerFrontend {
         }
 
         if (!error) {
-            this.emit(`metadataUpdate`);
+            this.emit(`metadataUpdate`, tracks);
         }
     }
 
@@ -105,6 +87,9 @@ export default class TrackAnalyzer extends WorkerFrontend {
     }
 
     async parseMetadata(track) {
+        if (!track.needsParsing()) {
+            return;
+        }
         const uid = await track.uid();
         this.postMessage({
             action: `parseMetadata`,

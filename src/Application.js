@@ -18,7 +18,7 @@ import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "keyboard/DefaultShortcuts";
 import PopupContext from "ui/PopupContext";
 import TooltipContext from "ui/TooltipContext";
-import TrackAnalyzer from "tracks/TrackAnalyzer";
+import MetadataManagerFrontend from "metadata/MetadataManagerFrontend";
 import GestureEducator from "player/GestureEducator";
 import GestureRecognizerContext from "ui/gestures/GestureRecognizerContext";
 import SliderContext from "ui/SliderContext";
@@ -51,6 +51,12 @@ const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 const MAIN_TOOLBAR_INDEX = 0;
 const SELECTION_TOOLBAR_INDEX = 1;
 
+function selectStarted(e) {
+    if (!isTextInputElement(e.target)) {
+        e.preventDefault();
+    }
+}
+
 export default class Application {
     constructor(deps, loadingIndicatorShowerTimeoutId) {
         const bootstrapStart = performance.now();
@@ -81,6 +87,8 @@ export default class Application {
             toolbars.push(`#selection-toolbar`);
         }
 
+        const tagDataContext = this.tagDataContext = new TagDataContext();
+
         const toolbarManager = this.toolbarManager = withDeps({
             page, globalEvents
         }, d => new ToolbarManager({
@@ -92,6 +100,12 @@ export default class Application {
         const workerWrapper = this.workerWrapper = withDeps({
             page
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
+
+        const metadataManager = this.metadataManager = withDeps({
+            env,
+            tagDataContext,
+            workerWrapper
+        }, d => new MetadataManagerFrontend(d));
 
         const recognizerContext = this.recognizerContext = withDeps({
             page,
@@ -317,7 +331,8 @@ export default class Application {
             tooltipContext,
             keyboardShortcuts,
             applicationPreferencesBindingContext,
-            menuContext
+            menuContext,
+            metadataManager
         }, d => new PlaylistController({
             target: `#app-playlist-container`,
             itemHeight: ITEM_HEIGHT
@@ -326,8 +341,6 @@ export default class Application {
         const usageData = this.usageData = withDeps({
             workerWrapper
         }, d => new UsageData(d));
-
-        const tagDataContext = this.tagDataContext = new TagDataContext();
 
         const localFileHandler = this.localFileHandler = withDeps({
             page,
@@ -364,16 +377,6 @@ export default class Application {
             nextButtonDom: `.next-button`
         }, d));
 
-        const trackAnalyzer = this.trackAnalyzer = withDeps({
-            page,
-            env,
-            playlist,
-            globalEvents,
-            workerWrapper,
-            tagDataContext,
-            player
-        }, d => new TrackAnalyzer(d));
-
         const search = this.search = withDeps({
             env,
             page,
@@ -385,7 +388,7 @@ export default class Application {
             scrollerContext,
             keyboardShortcuts,
             tooltipContext,
-            trackAnalyzer,
+            metadataManager,
             workerWrapper,
             rippler,
             menuContext
@@ -433,7 +436,7 @@ export default class Application {
             player,
             playlist,
             applicationPreferencesBindingContext,
-            trackAnalyzer
+            metadataManager
         }, d => new PlayerPictureManager({
             target: `.picture-container`,
             imageDimensions: IMAGE_DIMENSIONS,
@@ -541,7 +544,7 @@ export default class Application {
         this.globalEvents.on(`longPressEnd`, this.longTapEnded.bind(this));
         this.globalEvents.addBeforeUnloadListener(this.beforeUnload.bind(this));
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
-        this.page.addDocumentListener(`selectstart`, this.selectStarted.bind(this));
+        this.page.addDocumentListener(`selectstart`, selectStarted);
         this.player.on(`stop`, this.playerStopped.bind(this));
 
         this.page.changeDom(() => {
@@ -569,12 +572,6 @@ export default class Application {
             trackTimerTick(now);
         } finally {
             this.page.setTimeout(this.tickLongTimers, 60 * 1000);
-        }
-    }
-
-    selectStarted(e) {
-        if (!isTextInputElement(e.target)) {
-            e.preventDefault();
         }
     }
 

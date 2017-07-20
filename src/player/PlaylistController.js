@@ -118,11 +118,7 @@ export default class PlaylistController extends TrackContainerController {
         this.snackbar = deps.snackbar;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.tooltipContext = deps.tooltipContext;
-
-
-
-
-        this._unparsedTrackList = [];
+        this.metadataManager = deps.metadataManager;
 
         this._mode = Modes.hasOwnProperty(opts.mode) ? opts.mode : `normal`;
         this._currentTrack = null;
@@ -274,7 +270,6 @@ export default class PlaylistController extends TrackContainerController {
         const currentTrack = this.getCurrentTrack();
 
         if (currentTrack && currentTrack !== DUMMY_TRACK) {
-            currentTrack.willBeReplaced();
             if (!doNotRecordHistory) {
                 if (this._trackHistory.push(currentTrack) > MAX_HISTORY) {
                     this._trackHistory.shift();
@@ -346,20 +341,6 @@ export default class PlaylistController extends TrackContainerController {
         }
     }
 
-    getUnparsedTracks() {
-        const tracks = this._unparsedTrackList;
-        if (!tracks.length) return EMPTY_ARRAY;
-        const ret = new Array(tracks.length);
-        ret.length = 0;
-        while (tracks.length > 0) {
-            const track = tracks.shift();
-            if (!track.isDetachedFromPlaylist() && track.needsParsing()) {
-                ret.push(track);
-            }
-        }
-        return ret;
-    }
-
     removeTrackView(trackView) {
         this.removeTrackViews([trackView]);
     }
@@ -409,7 +390,7 @@ export default class PlaylistController extends TrackContainerController {
         for (let i = 0; i < this._trackViews.length; ++i) {
             const trackView = this._trackViews[i];
             if (trackView.isDetachedFromPlaylist()) {
-                this._unparsedTrackList.push(trackView.track());
+                this.metadataManager.parseMetadata(trackView.track());
             }
             trackView.setIndex(i);
         }
@@ -428,7 +409,6 @@ export default class PlaylistController extends TrackContainerController {
             const mid = selectionIndices[selectionIndices.length / 2 | 0];
             this.centerOnTrackView(this._trackViews[mid]);
         }
-        this.emit(`unparsedTracksAvailable`);
     }
 
     async removeTrackViews(trackViews) {
@@ -507,14 +487,13 @@ export default class PlaylistController extends TrackContainerController {
         tracks.forEach(function(track) {
             const view = new TrackView(track, this._trackViewOptions);
             const len = this._trackViews.push(view);
-            this._unparsedTrackList.push(track);
+            this.metadataManager.parseMetadata(track);
             view.setIndex(len - 1);
         }, this);
 
         this.emit(`lengthChange`, this.length, oldLength);
         this._updateNextTrack();
         this._listContentsChanged();
-        this.emit(`unparsedTracksAvailable`);
     }
 
     stop() {
@@ -594,8 +573,7 @@ export default class PlaylistController extends TrackContainerController {
         const currentTrack = this.getCurrentTrack();
         if (currentTrack && currentTrack.hasError()) {
             currentTrack.unsetError();
-            this._unparsedTrackList.push(currentTrack);
-            this.emit(`unparsedTracksAvailable`);
+            this.metadataManager.parseMetadata(currentTrack);
         }
         this._errorCount = 0;
     }

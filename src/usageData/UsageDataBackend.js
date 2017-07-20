@@ -1,12 +1,11 @@
 import AbstractBackend from "AbstractBackend";
-import TagDatabase from "tracks/TagDatabase";
 
 export const USAGE_DATA_READY_EVENT_NAME = `usageDataReady`;
 
 export default class UsageDataBackend extends AbstractBackend {
-    constructor() {
+    constructor(db) {
         super(USAGE_DATA_READY_EVENT_NAME);
-        this.db = new TagDatabase();
+        this.db = db;
         this.actions = {
             rateTrack({uid, rating}) {
                 this.db.updateRating(uid, rating);

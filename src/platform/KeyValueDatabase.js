@@ -1,4 +1,4 @@
-import {delay, iDbPromisify, throttle} from "util";
+import {iDbPromisify, throttle} from "util";
 import {indexedDB, self} from "platform/platform";
 
 const VERSION = 3;
