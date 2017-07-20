@@ -258,7 +258,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
                 state = JOB_STATE_DATA_FETCHED;
             } catch (e) {
-                await this._tagDatabase.setAcoustIdFetchJobError(e);
+                await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
                 if (waitLongTime) {
                     await delay(10000);
                 }
@@ -278,7 +278,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                         trackInfoUpdated = fetchedCoverArt;
                     }
                 } catch (e) {
-                    await this._tagDatabase.setAcoustIdFetchJobError(e);
+                    await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
                     if (waitLongTime) {
                         await delay(10000);
                     }
