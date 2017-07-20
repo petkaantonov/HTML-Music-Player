@@ -31,6 +31,7 @@ export const getFileCacheKey = function(file) {
 };
 
 const NO_JOBS_FOUND_TOKEN = {};
+const JOBS_FOUND_TOKEN = {};
 
 const MAX_BLOB_URL_SIZE = 1024 * 1024 * 2;
 
@@ -67,13 +68,13 @@ const imageDescriptionWeights = {
 function getDescriptionWeight(image) {
     if (image.description) {
         const weight = imageDescriptionWeights[image.description];
-        if (typeof weight !== "number") {
+        if (typeof weight !== `number`) {
             return -1;
         }
         return weight;
     } else if (image.types && Array.isArray(image.types)) {
-        const weight = imageDescriptionWeights[image.types.join("")];
-        if (typeof weight !== "number") {
+        const weight = imageDescriptionWeights[image.types.join(``)];
+        if (typeof weight !== `number`) {
             return imageDescriptionWeights.Booklet + 1;
         }
         return weight;
@@ -254,7 +255,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                 if (waitLongTime) {
                     await delay(10000);
                 }
-                return;
+                return JOBS_FOUND_TOKEN;
             }
         }
 
@@ -274,7 +275,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     if (waitLongTime) {
                         await delay(10000);
                     }
-                    return;
+                    return JOBS_FOUND_TOKEN;
                 }
             }
             await this._tagDatabase.completeAcoustIdFetchJob(jobId);
@@ -284,6 +285,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         if (waitLongTime) {
             await delay(10000);
         }
+        return JOBS_FOUND_TOKEN;
     }
 
    async _parseMetadataJob(job, file, trackUid) {
@@ -438,7 +440,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _downloadCoverArtJob({cancellationToken}, url) {
-        return ajaxGet(toCorsUrl(url), cancellationToken, {responseType: "blob"});
+        return ajaxGet(toCorsUrl(url), cancellationToken, {responseType: `blob`});
     }
 
     async _maybeDownloadCoverArt(url) {
@@ -468,7 +470,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     images.sort((a, b) => {
                         const aTypeWeight = imageTypeKeyWeights[a[IMAGE_TYPE_KEY]];
                         const bTypeWeight = imageTypeKeyWeights[b[IMAGE_TYPE_KEY]];
-                        let cmp = aTypeWeight - bTypeWeight;
+                        const cmp = aTypeWeight - bTypeWeight;
                         if (cmp !== 0) {
                             return cmp;
                         }
@@ -486,7 +488,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     }
 
                     let blobResult;
-                    if (typeof result === "string") {
+                    if (typeof result === `string`) {
                         blobResult = await this._maybeDownloadCoverArt(result);
                     }
 
@@ -497,7 +499,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                             images: [{
                                 [IMAGE_TYPE_KEY]: IMAGE_TYPE_BLOB,
                                 image: blobResult,
-                                description: `${Array.isArray(image.types) ? image.types.join(", ") : `none` }`
+                                description: `${Array.isArray(image.types) ? image.types.join(`, `) : `none`}`
                             }],
                             album,
                             artist

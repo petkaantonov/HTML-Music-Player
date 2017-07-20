@@ -218,7 +218,7 @@ export default class PlayerPictureManager extends EventEmitter {
         const uid = await track.uid();
         const size = this.size();
 
-        const key = `${uid}-${size}`;
+        const key = `${hexString(uid)}-${size}`;
 
         const ret = this._generatedImages.get(key);
 

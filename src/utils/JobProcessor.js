@@ -2,8 +2,8 @@ import {delay as promiseDelay} from "util";
 import {CancellationToken, CancellationError} from "utils/CancellationToken";
 import EventEmitter from "events";
 
-export const JOB_COMPLETE_EVENT = "jobComplete";
-export const ALL_JOBS_COMPLETE_EVENT = "allJobsComplete";
+export const JOB_COMPLETE_EVENT = `jobComplete`;
+export const ALL_JOBS_COMPLETE_EVENT = `allJobsComplete`;
 
 class Job {
     constructor(id, resolve, reject, args) {

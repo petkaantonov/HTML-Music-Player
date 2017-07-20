@@ -325,8 +325,12 @@ export default class TagDatabase {
         if (result) {
             return result;
         }
-        const index = store.index(`artistAlbum`);
-        return iDbPromisify(index.get(IDBKeyRange.only([artist, album])));
+
+        if (artist && album) {
+            const index = store.index(`artistAlbum`);
+            return iDbPromisify(index.get(IDBKeyRange.only([artist, album])));
+        }
+        return null;
     }
 
     async addAlbumArtData(trackUid, albumArtData) {

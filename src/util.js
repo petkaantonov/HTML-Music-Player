@@ -1289,7 +1289,7 @@ export function toCorsUrl(url) {
 }
 
 export function ajaxGet(url, cancellationToken,
-                            {responseType = "json"} = {responseType: "json"}) {
+                            {responseType = `json`} = {responseType: `json`}) {
     return new Promise(((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.timeout = 15000;
@@ -1324,7 +1324,7 @@ export function ajaxGet(url, cancellationToken,
             if (xhr.response) {
               resolve(xhr.response);
             } else {
-              reject(new HttpStatusError(500, "wrong .responseType"));
+              reject(new HttpStatusError(500, `wrong .responseType`));
             }
         }, false);
 
@@ -1341,7 +1341,7 @@ export function ajaxGet(url, cancellationToken,
         });
 
         xhr.open(`GET`, url);
-        if (responseType === "json") {
+        if (responseType === `json`) {
           xhr.setRequestHeader(`Accept`, `application/json`);
         }
         xhr.send(null);
