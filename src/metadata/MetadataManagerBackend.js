@@ -471,7 +471,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
             if (preference !== ALBUM_ART_PREFERENCE_ALL) {
                 if (images.length > 0) {
                     images.sort((a, b) => {
-                        let cmp = getDescriptionWeight(a) - getDescriptionWeight(b);
+                        const cmp = getDescriptionWeight(a) - getDescriptionWeight(b);
                         if (cmp !== 0) {
                             return cmp;
                         }
