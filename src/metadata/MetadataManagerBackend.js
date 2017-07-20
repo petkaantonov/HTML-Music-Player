@@ -117,8 +117,16 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this._fingerprinter = new JobProcessor({jobCallback: this._fingerprintJob.bind(this)});
         this._metadataParser = new JobProcessor({jobCallback: this._parseMetadataJob.bind(this), parallelJobs: 8});
         this._coverArtDownloader = new JobProcessor({
-            jobCallback({cancellationToken}, url) {
-                return ajaxGet(toCorsUrl(url), cancellationToken, {responseType: `blob`});
+            async jobCallback({cancellationToken}, url) {
+                while (!cancellationToken.isCancelled()) {
+                    try {
+                        const result = await ajaxGet(toCorsUrl(url), cancellationToken, {responseType: `blob`});
+                        return result;
+                    } catch (e) {
+                        await delay(10000);
+                    }
+                }
+                return null;
             },
             parallelJobs: 3
         });
