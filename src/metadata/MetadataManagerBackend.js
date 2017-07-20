@@ -84,6 +84,7 @@ function getDescriptionWeight(image) {
 }
 
 
+
 function buildTrackInfo(metadata, demuxData) {
     const {title = null, album = null, artist = null, albumArtist = null,
            year = null, albumIndex = 0, trackCount = 1,
@@ -114,7 +115,12 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this._acoustIdDataFetcher = new JobProcessor({delay: 1000, jobCallback: this._fetchAcoustIdDataJob.bind(this)});
         this._fingerprinter = new JobProcessor({jobCallback: this._fingerprintJob.bind(this)});
         this._metadataParser = new JobProcessor({jobCallback: this._parseMetadataJob.bind(this), parallelJobs: 8});
-        this._coverArtDownloader = new JobProcessor({jobCallback: this._downloadCoverArtJob.bind(this), parallelJobs: 3});
+        this._coverArtDownloader = new JobProcessor({
+            jobCallback({cancellationToken}, url) {
+                return ajaxGet(toCorsUrl(url), cancellationToken, {responseType: `blob`});
+            },
+            parallelJobs: 3
+        });
 
         this.actions = {
             async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
@@ -437,10 +443,6 @@ export default class MetadataManagerBackend extends AbstractBackend {
             }
         }
         return false;
-    }
-
-    async _downloadCoverArtJob({cancellationToken}, url) {
-        return ajaxGet(toCorsUrl(url), cancellationToken, {responseType: `blob`});
     }
 
     async _maybeDownloadCoverArt(url) {

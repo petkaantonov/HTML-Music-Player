@@ -17,7 +17,6 @@ const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
-const EMPTY_ARRAY = Object.freeze([]);
 
 const DUMMY_TRACK = {
     getIndex() {

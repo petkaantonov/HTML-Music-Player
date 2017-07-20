@@ -2,7 +2,6 @@
 
 import {normalizeQuery} from "util";
 const EMPTY_ARRAY = [];
-const rext = /\.[a-zA-Z0-9_-]+$/;
 
 export const getSearchTerm = function(metadata) {
     const title = normalizeQuery(metadata.title || ``);

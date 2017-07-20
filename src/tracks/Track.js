@@ -1,5 +1,4 @@
 import EventEmitter from "events";
-import {getSearchTerm} from "search/searchUtil";
 import {indexedDB} from "platform/platform";
 import {getFileCacheKey} from "metadata/MetadataManagerBackend";
 import {hexString} from "util";
