@@ -35,6 +35,10 @@ export default class JobProcessor {
         this._jobCallback = jobCallback;
     }
 
+    get parallelJobs() {
+        return this._parallelJobs;
+    }
+
     get jobsActive() {
         return this._activeJobs.length;
     }
@@ -56,6 +60,10 @@ export default class JobProcessor {
             if (this._delay > 0) {
                 await promiseDelay(this._delay);
             }
+            if (job.isCancelled()) {
+                job.cancellationToken.signal();
+                job.reject(new CancellationError());
+            }
             try {
                 const resultPromise = Promise.resolve(this._jobCallback(job, ...job.args));
                 const result = await resultPromise;
@@ -64,6 +72,7 @@ export default class JobProcessor {
                 if (!job.isCancelled()) {
                     job.resolve(result);
                 } else {
+                    job.cancellationToken.signal();
                     job.reject(new CancellationError());
                 }
             } catch (e) {
@@ -72,6 +81,7 @@ export default class JobProcessor {
                 if (!job.isCancelled()) {
                     job.reject(e);
                 } else {
+                    job.cancellationToken.signal();
                     job.reject(new CancellationError());
                 }
             }
@@ -79,16 +89,30 @@ export default class JobProcessor {
         }
     }
 
-    cancelActiveJobs() {
+    async cancelActiveJobs() {
+        const ret = [];
         for (const job of this._activeJobs) {
+            ret.push(job.cancellationToken.getSignal());
             job.cancel();
+        }
+        await Promise.all(ret);
+    }
+
+    async cancelOldestJob() {
+        if (this.jobsActive > 0) {
+            const job = this._activeJobs[0];
+            const signal = job.cancellationToken.getSignal();
+            job.cancel();
+            await signal;
         }
     }
 
-    cancelJobOfId(jobId) {
+    async cancelJobOfId(jobId) {
         for (const job of this._activeJobs) {
             if (job.id === jobId) {
+                const signal = job.cancellationToken.getSignal();
                 job.cancel();
+                await signal;
                 return;
             }
         }

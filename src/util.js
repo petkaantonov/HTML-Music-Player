@@ -1288,10 +1288,12 @@ export function toCorsUrl(url) {
   return `${self.location.origin}/cors?url=${encodeURIComponent(url)}`;
 }
 
-export function ajaxGet(url, cancellationToken) {
+export function ajaxGet(url, cancellationToken,
+                            {responseType = "json"} = {responseType: "json"}) {
     return new Promise(((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.timeout = 15000;
+        xhr.responseType = responseType;
 
         function error() {
             if (cancellationToken.isCancelled()) {
@@ -1313,17 +1315,13 @@ export function ajaxGet(url, cancellationToken) {
               reject(new CancellationError());
               return;
             }
+
             if (xhr.status === 0 || xhr.status > 299) {
                 reject(new HttpStatusError(xhr.status, xhr.responseText));
                 return;
             }
 
-            try {
-              const result = JSON.parse(xhr.responseText);
-              resolve(result);
-            } catch (e) {
-              reject(new HttpStatusError(500, xhr.responseText));
-            }
+            resolve(xhr.response);
         }, false);
 
         xhr.addEventListener(`abort`, () => {
@@ -1339,7 +1337,9 @@ export function ajaxGet(url, cancellationToken) {
         });
 
         xhr.open(`GET`, url);
-        xhr.setRequestHeader(`Accept`, `application/json`);
+        if (responseType === "json") {
+          xhr.setRequestHeader(`Accept`, `application/json`);
+        }
         xhr.send(null);
     }));
 }

@@ -333,11 +333,12 @@ export default class TagDatabase {
         const db = await this.db;
         const tx = db.transaction(ALBUM_ART_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ALBUM_ART_OBJECT_STORE_NAME);
-        const storedData = store.get(IDBKeyRange.only(trackUid));
+        const storedData = await iDbPromisify(store.get(IDBKeyRange.only(trackUid)));
 
         if (storedData && storedData.images && storedData.images.length > 0) {
             const storedImages = storedData.images;
             const newImages = albumArtData.images;
+
             for (let i = 0; i < newImages.length; ++i) {
                 const newImage = newImages[i];
                 const {imageType, image} = newImage;
