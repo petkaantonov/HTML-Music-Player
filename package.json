@@ -1,6 +1,6 @@
 {
   "name": "html-music-player",
-  "version": "0.1.36",
+  "version": "0.1.37",
   "description": "HTML music player",
   "main": "index.js",
   "scripts": {
