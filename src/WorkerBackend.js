@@ -53,8 +53,8 @@ if (self.addEventListener) {
 
     const db = new TagDatabase();
 
-    self.metadataManagerBackend = new MetadataManagerBackend(self.mainWasmModule, db, timers).start();
+    self.searchBackend = new SearchBackend(db).start();
+    self.metadataManagerBackend = new MetadataManagerBackend(self.mainWasmModule, db, self.searchBackend).start();
     self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, self.metadataManagerBackend).start();
-    self.searchBackend = new SearchBackend().start();
     self.usageDataBackend = new UsageDataBackend(db).start();
 })();

@@ -3,14 +3,13 @@ import {byTransientId} from "tracks/Track";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import SearchResultTrackView from "search/SearchResultTrackView";
 import {insert} from "search/sortedArrays";
-import {cmp} from "search/SearchResult";
-import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
+import {SEARCH_READY_EVENT_NAME, trackSearchIndexResultCmp} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import TrackContainerController from "tracks/TrackContainerController";
 
 const cmpTrackView = function(a, b) {
-    return cmp(a._result, b._result);
+    return trackSearchIndexResultCmp(a._result, b._result);
 };
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
@@ -205,20 +204,9 @@ export default class SearchController extends TrackContainerController {
     }
 
     updateSearchIndex(track, metadata) {
-        this._searchFrontend.postMessage({
-            action: `updateSearchIndex`,
-            args: {
-                transientId: track.transientId(),
-                metadata
-            }
-        });
     }
 
     removeFromSearchIndex(track) {
-        this._searchFrontend.postMessage({
-            action: `removeFromSearchIndex`,
-            args: {transientId: track.transientId()}
-        });
     }
 
     $input() {

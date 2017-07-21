@@ -112,10 +112,10 @@ function buildTrackInfo(metadata, demuxData) {
 }
 
 export default class MetadataManagerBackend extends AbstractBackend {
-    constructor(wasm, tagDatabase, _timers) {
+    constructor(wasm, tagDatabase, searchBackend) {
         super(METADATA_MANAGER_READY_EVENT_NAME);
         this._tagDatabase = tagDatabase;
-        this._timers = _timers;
+        this._searchBackend = searchBackend;
         this._wasm = wasm;
         this._blobUrls = [];
         this._blobUrlSize = 0;
@@ -283,6 +283,9 @@ export default class MetadataManagerBackend extends AbstractBackend {
                 });
 
                 state = JOB_STATE_DATA_FETCHED;
+                if (trackInfoUpdated) {
+                    this._searchBackend.addTrackToSearchIndex(trackInfo);
+                }
             } catch (e) {
                 await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
                 if (waitLongTime) {
@@ -326,10 +329,13 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _parseMetadataJob(job, trackUid, fileReference) {
-        await this._tagDatabase.ensureFileStored(trackUid, fileReference);
+        const filePersisted = await this._tagDatabase.ensureFileStored(trackUid, fileReference);
         let trackInfo = await this.getTrackInfoByTrackUid(trackUid);
 
         if (trackInfo) {
+            if (filePersisted) {
+                this._searchBackend.addTrackToSearchIndex(trackInfo);
+            }
             return trackInfo;
         }
 
@@ -379,6 +385,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         }
 
         trackInfo = buildTrackInfo(data, data.demuxData);
+        this._searchBackend.addTrackToSearchIndex(trackInfo);
         await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
         return trackInfo;
     }

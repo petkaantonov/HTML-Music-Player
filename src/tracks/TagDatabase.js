@@ -1,7 +1,7 @@
-import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
+import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
-const VERSION = 20;
+const VERSION = 22;
 const DATA_WIPE_VERSION = 19;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
@@ -13,6 +13,15 @@ const ACOUST_ID_JOB_PRIMARY_KEY_NAME = `jobId`;
 const ALBUM_ART_OBJECT_STORE_NAME = `albumArt`;
 
 const TRACK_PAYLOAD_OBJECT_STORE_NAME = `trackPayload`;
+
+const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex`;
+const TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME = `searchId`;
+
+export const trackSearchIndexCmp = new Function(`a`, `b`, `
+    return a.${TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME} - b.${TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME};
+`);
+
+export const stopWords = new Set([`a`, `an`, `and`, `are`, `as`, `at`, `be`, `by`, `for`, `has`, `in`, `is`, `it`, `its`, `of`, `on`, `that`, `the`, `to`, `was`, `will`, `with`]);
 
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
@@ -108,6 +117,27 @@ const objectStoreSpec = {
                 unique: false,
                 multiEntry: false,
                 keyPath: `payloadType`
+            }
+        }
+    },
+    [TRACK_SEARCH_INDEX_OBJECT_STORE_NAME]: {
+        keyPath: TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME,
+        autoIncrement: true,
+        indexSpec: {
+            [TRACK_INFO_PRIMARY_KEY_NAME]: {
+                unique: false,
+                multiEntry: false,
+                keyPath: TRACK_INFO_PRIMARY_KEY_NAME
+            },
+            suffixMulti: {
+                unique: false,
+                multiEntry: true,
+                keyPath: `keywordsReversed`
+            },
+            prefixMulti: {
+                unique: false,
+                multiEntry: true,
+                keyPath: `keywords`
             }
         }
     }
@@ -424,7 +454,46 @@ export default class TagDatabase {
         } else {
             throw new Error(`invalid fileReference`);
         }
+    }
 
+    async searchPrefixes(firstPrefixKeyword) {
+        const db = await this.db;
+        const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_ONLY);
+        const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
+        const index = store.index(`prefixMulti`);
+        const key = IDBKeyRange.bound(firstPrefixKeyword, `${firstPrefixKeyword}\uffff`, false, false);
+        return iDbPromisify(index.getAll(key));
+    }
+
+    async searchSuffixes(firstSuffixKeyword) {
+        const db = await this.db;
+        const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_ONLY);
+        const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
+        const index = store.index(`suffixMulti`);
+        const key = IDBKeyRange.bound(firstSuffixKeyword, `${firstSuffixKeyword}\uffff`, false, false);
+        return iDbPromisify(index.getAll(key));
+    }
+
+    async removeSearchEntriesForTrackUid(trackUid) {
+        const db = await this.db;
+        const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
+        const index = store.index(TRACK_INFO_PRIMARY_KEY_NAME);
+        const key = IDBKeyRange.only(trackUid);
+        const cursor = index.openCursor(key, `next`);
+        await iDbPromisifyCursor(cursor, async (result) => {
+            console.log(`deleting ${result.primaryKey} ${result.value.value}`);
+            await iDbPromisify(result.delete());
+            console.log(`delete complete`);
+            result.continue(key);
+        });
+    }
+
+    async addToSearchIndex(entry) {
+        const db = await this.db;
+        const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
+        await store.add(entry);
     }
 }
 
