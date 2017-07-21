@@ -1,3 +1,5 @@
+import {ITEM_ORDER_CHANGE_EVENT} from "tracks/TrackContainerController";
+
 const compareAlbum = function(a, b) {
     return a.getAlbumForSort().localeCompare(b.getAlbumForSort());
 };
@@ -111,5 +113,25 @@ export default {
                 tracks[index] = tmp;
             }
         });
+    },
+
+    changeTrackOrderWithinSelection(callback) {
+        const selectedTrackViews = this.getSelection();
+        if (selectedTrackViews.length <= 1) return;
+
+        const indices = selectedTrackViews.map(v => v.getIndex());
+        callback(selectedTrackViews);
+
+        for (let i = 0; i < selectedTrackViews.length; ++i) {
+            const trackView = selectedTrackViews[i];
+            const index = indices[i];
+            this._trackViews[index] = trackView;
+            trackView.setIndex(index);
+        }
+        this._selectable.updateOrder(selectedTrackViews);
+        this._fixedItemListScroller.refresh();
+        this._edited();
+        this.trackIndexChanged();
+        this.emit(ITEM_ORDER_CHANGE_EVENT);
     }
 };

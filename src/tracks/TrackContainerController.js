@@ -4,6 +4,9 @@ import TrackContainerTrait from "tracks/TrackContainerTrait";
 import Selectable from "ui/Selectable";
 import TrackRater from "tracks/TrackRater";
 
+export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
+export const LENGTH_CHANGE_EVENT = `lengthChange`;
+
 export default class TrackContainerController extends EventEmitter {
     constructor(opts, deps) {
         super();

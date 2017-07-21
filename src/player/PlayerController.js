@@ -1,3 +1,7 @@
+import {NEXT_TRACK_CHANGE_EVENT,
+        HISTORY_CHANGE_EVENT,
+        PLAYLIST_STOPPED_EVENT,
+        CURRENT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
 import withDeps from "ApplicationDependencies";
 import AudioPlayer from "audio/frontend/AudioPlayer";
 import AudioManager from "audio/frontend/AudioManager";
@@ -76,10 +80,10 @@ export default class PlayerController extends EventEmitter {
         this._nextTooltip = this.tooltipContext.createTooltip(this.$next(), `Next track`);
         this._previousTooltip = this.tooltipContext.createTooltip(this.$previous(), `Previous track`);
 
-        this.playlist.on(`currentTrackChange`, this.loadTrack.bind(this));
-        this.playlist.on(`playlistEmpty`, this.stop.bind(this));
-        this.playlist.on(`nextTrackChange`, this.nextTrackChanged);
-        this.playlist.on(`historyChange`, this.historyChanged.bind(this));
+        this.playlist.on(CURRENT_TRACK_CHANGE_EVENT, this.loadTrack.bind(this));
+        this.playlist.on(PLAYLIST_STOPPED_EVENT, this.stop.bind(this));
+        this.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
+        this.playlist.on(HISTORY_CHANGE_EVENT, this.historyChanged.bind(this));
 
         if (VOLUME_KEY in this.dbValues) {
             this.setVolume(this.dbValues[VOLUME_KEY]);

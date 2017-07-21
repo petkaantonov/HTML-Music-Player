@@ -3,7 +3,9 @@ import {noUndefinedGet, hexString} from "util";
 import {canvasToImage} from "platform/dom/util";
 import EventEmitter from "events";
 import {ALBUM_ART_PREFERENCE_SMALLEST as preference} from "metadata/MetadataManagerBackend";
+import {TAG_DATA_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 import {Image} from "platform/platform";
+import {TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
 
 export const IMAGE_CHANGE_EVENT = `imageChange`;
 
@@ -38,7 +40,9 @@ export default class PlayerPictureManager extends EventEmitter {
         this._onAlbumArt = this._onAlbumArt.bind(this);
 
         this._metadataManager.on(`albumArt`, this._onAlbumArt);
-        this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
+        this._playlist.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, (playlistTrack) => {
+            this._trackChanged(playlistTrack.track());
+        });
         this._generatedImages = new Map();
 
         const size = this.size();
@@ -126,7 +130,7 @@ export default class PlayerPictureManager extends EventEmitter {
         }
     }
 
-    async _onAlbumArt(trackUid, albumArt, reason) {
+    _onAlbumArt(trackUid, albumArt, reason) {
         if (!this._isEnabled()) return;
 
         if (requestReason === reason) {
@@ -138,7 +142,7 @@ export default class PlayerPictureManager extends EventEmitter {
                 return;
             }
 
-            const equalsCurrent = await this._currentTrack.uidEquals(trackUid);
+            const equalsCurrent = this._currentTrack.uidEquals(trackUid);
 
             if (!equalsCurrent) {
                 return;
@@ -151,19 +155,18 @@ export default class PlayerPictureManager extends EventEmitter {
         }
     }
 
-    async _fetchCurrentTrackAlbumArt() {
+    _fetchCurrentTrackAlbumArt() {
         if (!this._isEnabled() || !this._currentTrack) return;
         const track = this._currentTrack;
-        const {tagData} = track;
-        if (tagData) {
-            if (await this.isCurrentImageAlbumArtForCurrentTrack()) {
-                return;
-            }
-            const {album, artist} = tagData;
-            this._metadataManager.getAlbumArt(track, {
-                album, artist, preference, requestReason
-            });
+
+        if (this.isCurrentImageAlbumArtForCurrentTrack()) {
+            return;
         }
+
+        const {_album: album, _artist: artist} = track;
+        this._metadataManager.getAlbumArt(track, {
+            album, artist, preference, requestReason
+        });
     }
 
     _trackTagDataUpdated() {
@@ -186,16 +189,16 @@ export default class PlayerPictureManager extends EventEmitter {
         }
 
         if (this._currentTrack) {
-            this._currentTrack.removeListener(`tagDataUpdate`, this._trackTagDataUpdated);
+            this._currentTrack.removeListener(TAG_DATA_UPDATE_EVENT, this._trackTagDataUpdated);
             this._currentTrack = null;
         }
         if (track) {
             this._currentTrack = track;
             this._fetchCurrentTrackAlbumArt();
-            this._currentTrack.on(`tagDataUpdate`, this._trackTagDataUpdated);
+            this._currentTrack.on(TAG_DATA_UPDATE_EVENT, this._trackTagDataUpdated);
             const generatedImage = await this.generateImageForTrack(track);
             if (track === this._currentTrack) {
-                if (await this.isCurrentImageAlbumArtForCurrentTrack()) {
+                if (this.isCurrentImageAlbumArtForCurrentTrack()) {
                     return;
                 }
                 this.updateImage(generatedImage);
@@ -215,7 +218,7 @@ export default class PlayerPictureManager extends EventEmitter {
     }
 
     async generateImageForTrack(track) {
-        const uid = await track.uid();
+        const uid = track.uid();
         const size = this.size();
 
         const key = `${hexString(uid)}-${size}`;
@@ -251,7 +254,7 @@ export default class PlayerPictureManager extends EventEmitter {
         ctx.fillRect(0, 0, size, size);
         ctx.restore();
         jdenticon.drawIcon(ctx, hexString(uid), size);
-        const image = canvasToImage(this._jdenticonCanvas, this._page);
+        const image = await canvasToImage(this._jdenticonCanvas, this._page);
         this._generatedImages.set(key, image);
         return image;
     }

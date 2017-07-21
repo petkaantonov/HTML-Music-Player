@@ -1,7 +1,9 @@
 import {noUndefinedGet} from "util";
-import Selectable from "ui/Selectable";
 import EventEmitter from "events";
 import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
+import {ITEM_ORDER_CHANGE_EVENT,
+        LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import Selectable, {ITEMS_SELECTED_EVENT} from "ui/Selectable";
 
 const DRAG_START_DELAY_MS = 300;
 
@@ -120,9 +122,9 @@ export default class DraggableSelection extends EventEmitter {
         this._globalEvents.removeListener(`resize`, this._onReLayout);
         this._dragRecognizer.unrecognizeBubbledOn(this._page.document());
 
-        this._listView.removeListener(`tracksSelected`, this._restart);
-        this._listView.removeListener(`lengthChange`, this._restart);
-        this._listView.removeListener(`trackOrderChange`, this._restart);
+        this._listView.removeListener(ITEMS_SELECTED_EVENT, this._restart);
+        this._listView.removeListener(LENGTH_CHANGE_EVENT, this._restart);
+        this._listView.removeListener(ITEM_ORDER_CHANGE_EVENT, this._restart);
 
         this._holdingStartedY = this._currentReferenceItemView = this._previousRawY = -1;
         this._clearScrollInterval();
@@ -276,8 +278,8 @@ export default class DraggableSelection extends EventEmitter {
         this._page.addDocumentListener(`mouseup`, this._onMouseRelease);
         this._globalEvents.on(`resize`, this._onReLayout);
         this._dragRecognizer.recognizeBubbledOn(this._page.document());
-        this._listView.on(`tracksSelected`, this._restart);
-        this._listView.on(`lengthChange`, this._restart);
-        this._listView.on(`trackOrderChange`, this._restart);
+        this._listView.on(ITEMS_SELECTED_EVENT, this._restart);
+        this._listView.on(LENGTH_CHANGE_EVENT, this._restart);
+        this._listView.on(ITEM_ORDER_CHANGE_EVENT, this._restart);
     }
 }

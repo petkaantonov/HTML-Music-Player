@@ -3,6 +3,8 @@ import TabController from "ui/TabController";
 import withDeps from "ApplicationDependencies";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
+import {ITEMS_SELECTED_EVENT} from "ui/Selectable";
+import {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 
 export const PLAYLIST_TAB_ID = `playlist`;
 export const SEARCH_TAB_ID = `search`;
@@ -123,10 +125,10 @@ export default class MainTabs {
         this.menuInstancesByTabId[SEARCH_TAB_ID] = this.searchContextMenu;
 
 
-        this.playlist.on(`tracksSelected`, this.updatePlaylistContextMenuEnabledStates.bind(this));
-        this.playlist.on(`lengthChange`, this.updatePlaylistContextMenuEnabledStates.bind(this));
-        this.search.on(`tracksSelected`, this.updateSearchContextMenuEnabledStates.bind(this));
-        this.search.on(`lengthChange`, this.updateSearchContextMenuEnabledStates.bind(this));
+        this.playlist.on(ITEMS_SELECTED_EVENT, this.updatePlaylistContextMenuEnabledStates.bind(this));
+        this.playlist.on(LENGTH_CHANGE_EVENT, this.updatePlaylistContextMenuEnabledStates.bind(this));
+        this.search.on(ITEMS_SELECTED_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
+        this.search.on(LENGTH_CHANGE_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
         this.globalEvents.on(`resize`, this.layoutChanged.bind(this));
     }
 

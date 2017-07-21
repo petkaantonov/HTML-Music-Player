@@ -1,4 +1,6 @@
 import {noUndefinedGet} from "util";
+import {TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
+import {TAG_DATA_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 
 export default class TrackDisplay {
     constructor(opts, deps) {
@@ -15,7 +17,7 @@ export default class TrackDisplay {
         this._currentDelayId = -1;
         this._direction = `normal`;
         this._currentAnimation = null;
-        this._currentTrack = null;
+        this._currentPlaylistTrack = null;
 
         this._containerWidth = -1;
         this._contentWidth = -1;
@@ -24,8 +26,7 @@ export default class TrackDisplay {
         this._windowResized = this._windowResized.bind(this);
         this._globalEvents.on(`foreground`, this._windowResized);
         this._globalEvents.on(`resize`, this._windowResized);
-        this._playlist.on(`trackPlayingStatusChange`, this._trackChanged.bind(this));
-
+        this._playlist.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._setPlaylistTrack.bind(this));
         this._update();
     }
 
@@ -37,13 +38,15 @@ export default class TrackDisplay {
         return this._containerNode;
     }
 
-    _updateText() {
-        const track = this._currentTrack;
+    _equalsCurrentTrack(playlistTrack) {
+        return !!(this._currentPlaylistTrack && this._currentPlaylistTrack.track() === playlistTrack.track());
+    }
 
-        if (track) {
-            const index = track.getIndex();
-            const trackNumber = index >= 0 ? `${index + 1}. ` : ``;
-            const title = trackNumber + track.formatFullName();
+    _updateText() {
+        const playlistTrack = this._currentPlaylistTrack;
+
+        if (playlistTrack) {
+            const title = `${playlistTrack.formatIndex()}${playlistTrack.formatFullName()}`;
             this.$().setText(title);
             this._page.setTitle(title);
         } else {
@@ -55,11 +58,6 @@ export default class TrackDisplay {
     _update() {
         this._updateText();
         this._reset();
-    }
-
-    _trackChanged(track) {
-        if (!track) track = null;
-        this.setTrack(track);
     }
 
     _windowResized() {
@@ -127,17 +125,22 @@ export default class TrackDisplay {
         }
     }
 
-    setTrack(track) {
-        if (this._currentTrack === track) return;
-        if (this._currentTrack) {
-            this._currentTrack.removeListener(`indexChange`, this._update);
-            this._currentTrack.removeListener(`tagDataUpdate`, this._update);
-        }
-        this._currentTrack = track;
+    _getCurrentTrack() {
+        return this._currentPlaylistTrack.track();
+    }
 
-        if (track) {
-            this._currentTrack.on(`indexChange`, this._update);
-            this._currentTrack.on(`tagDataUpdate`, this._update);
+    _setPlaylistTrack(playlistTrack) {
+        if (this._equalsCurrentTrack(playlistTrack)) return;
+
+        let currentTrack = this._getCurrentTrack();
+        if (currentTrack) {
+            currentTrack.removeListener(TAG_DATA_UPDATE_EVENT, this._update);
+        }
+        this._currentPlaylistTrack = playlistTrack;
+        currentTrack = this._getCurrentTrack();
+
+        if (currentTrack) {
+            currentTrack.on(TAG_DATA_UPDATE_EVENT, this._update);
         }
         this._update();
     }

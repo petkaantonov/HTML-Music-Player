@@ -1,13 +1,19 @@
 import {buildConsecutiveRanges, indexMapper} from "util";
 import withDeps from "ApplicationDependencies";
 import DraggableSelection from "ui/DraggableSelection";
-import Track from "tracks/Track";
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import TrackContainerController from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
+
+export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
+export const CURRENT_TRACK_CHANGE_EVENT = `currentTrackChange`;
+export const TRACK_PLAYING_STATUS_CHANGE_EVENT = `trackPlayingStatusChange`;
+export const HISTORY_CHANGE_EVENT = `historyChange`;
+export const MODE_CHANGE_EVENT = `modeChange`;
+export const PLAYLIST_STOPPED_EVENT = `playlistStopped`;
 
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
@@ -18,7 +24,7 @@ const KIND_EXPLICIT = 1;
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
 
-class PlayingTrack {
+class PlaylistTrack {
     constructor(track = null,
                 trackView = null) {
         this._track = track;
@@ -37,20 +43,28 @@ class PlayingTrack {
         return this._trackView ? this._trackView.getIndex() : -1;
     }
 
+    formatIndex() {
+        return this.getIndex() <= 0 ? `` : `${this.getIndex() + 1}. `;
+    }
+
+    formatFullName() {
+        return this.track() ? this.track().formatFullName() : ``;
+    }
+
     hasError() {
         return this._track ? this._track.hasError() : false;
     }
 
     isDummy() {
-        return !this._track && !this._trackView
+        return !this._track && !this._trackView;
     }
 }
 
-const DUMMY_TRACK = new PlayingTrack();
+const DUMMY_PLAYLIST_TRACK = new PlaylistTrack();
 
 const Modes = {
-    normal(playingTrack) {
-        let index = playingTrack.getIndex() + 1;
+    normal(playlistTrack) {
+        let index = playlistTrack.getIndex() + 1;
 
         let ret;
         let trials = 0;
@@ -63,19 +77,19 @@ const Modes = {
 
             const trackView = this._trackViews[index];
             if (trackView) {
-                ret = new PlayingTrack(trackView.track(), trackView);
+                ret = new PlaylistTrack(trackView.track(), trackView);
             }
             index++;
             trials++;
         } while (ret && ret.hasError() && trials <= this.length);
-        return ret || DUMMY_TRACK;
+        return ret || DUMMY_PLAYLIST_TRACK;
     },
 
-    shuffle(playingTrack) {
-        const nextPlayingTrack = this.getNextPlayingTrack();
+    shuffle(playlistTrack) {
+        const nextPlaylistTrack = this.getNextPlaylistTrack();
         const trackViews = this.getTrackViews();
-        const currentTrack = nextPlayingTrack.track();
-        const nextTrack = nextPlayingTrack.track();
+        const currentTrack = playlistTrack.track();
+        const nextTrack = nextPlaylistTrack.track();
 
         let maxWeight = 0;
         for (let i = 0; i < trackViews.length; ++i) {
@@ -97,16 +111,16 @@ const Modes = {
         const view = trackViews[target];
 
         if (view && view.track()) {
-            return new PlayingTrack(view.track(), view);
+            return new PlaylistTrack(view.track(), view);
         }
-        return nextPlayingTrack || currentPlayingTrack || DUMMY_TRACK;
+        return nextPlaylistTrack;
     },
 
-    repeat(currentPlayingTrack) {
-        if (currentPlayingTrack.hasError()) {
-            return Modes.normal.call(this, currentPlayingTrack);
+    repeat(currentPlaylistTrack) {
+        if (currentPlaylistTrack.hasError()) {
+            return Modes.normal.call(this, currentPlaylistTrack);
         }
-        return currentPlayingTrack || DUMMY_TRACK;
+        return currentPlaylistTrack || DUMMY_PLAYLIST_TRACK;
     }
 };
 
@@ -123,8 +137,8 @@ export default class PlaylistController extends TrackContainerController {
 
         this._mode = Modes.hasOwnProperty(opts.mode) ? opts.mode : `normal`;
 
-        this._currentPlayingTrack = DUMMY_TRACK;
-        this._nextPlayingTrack = DUMMY_TRACK;
+        this._currentPlaylistTrack = DUMMY_PLAYLIST_TRACK;
+        this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
 
         this._trackListDeletionUndo = null;
         this._currentPlayId = -1;
@@ -153,8 +167,6 @@ export default class PlaylistController extends TrackContainerController {
             mustNotMatchSelector: `.track-rating`,
             mustMatchSelector: `.track-container`
         }, d));
-        this._highlyRelevantTrackMetadataUpdated = this._highlyRelevantTrackMetadataUpdated.bind(this);
-
 
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
@@ -213,10 +225,6 @@ export default class PlaylistController extends TrackContainerController {
         return ret;
     }
 
-    _listContentsChanged() {
-        this._fixedItemListScroller.resize();
-    }
-
     tabWillHide() {
         super.tabWillHide();
         this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
@@ -227,88 +235,71 @@ export default class PlaylistController extends TrackContainerController {
         this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
     }
 
-    getCurrentPlayingTrack() {
-        return this._currentPlayingTrack;
+    getCurrentPlaylistTrack() {
+        return this._currentPlaylistTrack;
     }
 
-    getNextPlayingTrack() {
-        return this._nextPlayingTrack;
+    getNextPlaylistTrack() {
+        return this._nextPlaylistTrack;
     }
 
-    _setNextPlayingTrack(playingTrack) {
-        if (!(playingTrack instanceof PlayingTrack)) {
-            throw new Error("invalid playingTrack");
+    _setNextPlaylistTrack(playlistTrack) {
+        if (!(playlistTrack instanceof PlaylistTrack)) {
+            throw new Error(`invalid playlistTrack`);
         }
-        this._nextPlayingTrack = playingTrack;
+        this._nextPlaylistTrack = playlistTrack;
     }
 
-    _setCurrentPlayingTrack(playingTrack) {
-        if (!(playingTrack instanceof PlayingTrack)) {
-            throw new Error("invalid playingTrack");
+    _setCurrentPlaylistTrack(playlistTrack) {
+        if (!(playlistTrack instanceof PlaylistTrack)) {
+            throw new Error(`invalid playlistTrack`);
         }
-        this._currentPlayingTrack = playingTrack;
+        this._currentPlaylistTrack = playlistTrack;
     }
 
-    _updateNextTrack(forced) {
-        const currentPlayingTrack = this.getCurrentPlayingTrack();
-        const nextPlayingTrack = this.getNextPlayingTrack();
+    _updateNextTrack() {
+        this._setNextPlaylistTrack(Modes[this._mode].call(this.getCurrentPlaylistTrack()));
 
-        if (!forced && !nextPlayingTrack.isDummy() && this._isUsingShuffleMode()) {
-            return;
-        }
-
-        if (!nextPlayingTrack.isDummy()) {
-            nextPlayingTrack.track().removeListener(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
+        if (this.getNextPlaylistTrack().hasError()) {
+            this._setNextPlaylistTrack(DUMMY_PLAYLIST_TRACK);
         }
 
-        this._setNextPlayingTrack(Modes[this._mode].call(this._currentPlayingTrack));
-
-        if (this.getNextPlayingTrack().hasError()) {
-            this._setNextPlayingTrack(DUMMY_TRACK);
-        } else if (!this.getNextPlayingTrack().isDummy()) {
-            this.getNextPlayingTrack().track().on("tagDataUpdate", this._highlyRelevantTrackMetadataUpdated);
-        }
-
-        this.emit(`nextTrackChange`, this.getNextPlayingTrack().track(), this.getNextPlayingTrack().trackView());
+        this.emit(NEXT_TRACK_CHANGE_EVENT);
     }
 
-    _highlyRelevantTrackMetadataUpdated() {
-        this.emit(`highlyRelevantTrackMetadataUpdate`);
-    }
-
-    _changeTrack(playingTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
-        if (!playingTrack || playingTrack.isDummy() || this._errorCount >= MAX_ERRORS) {
+    _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
+        if (!playlistTrack || playlistTrack.isDummy() || this._errorCount >= MAX_ERRORS) {
             this._errorCount = 0;
-            this._setCurrentTrack(DUMMY_TRACK, trackChangeKind);
-            this.emit(`playlistEmpty`);
+            this._setCurrentTrack(DUMMY_PLAYLIST_TRACK, trackChangeKind);
+            this.emit(PLAYLIST_STOPPED_EVENT);
             return false;
         }
-        const currentPlayingTrack = this.getCurrentPlayingTrack();
+        const currentPlaylistTrack = this.getCurrentPlaylistTrack();
 
-        if (!currentPlayingTrack.isDummy()) {
+        if (!currentPlaylistTrack.isDummy()) {
             if (!doNotRecordHistory) {
-                if (this._trackHistory.push(currentPlayingTrack) > MAX_HISTORY) {
+                if (this._trackHistory.push(currentPlaylistTrack) > MAX_HISTORY) {
                     this._trackHistory.shift();
                 }
-                this.emit(`historyChange`);
+                this.emit(HISTORY_CHANGE_EVENT);
             }
         }
 
-        this._setCurrentTrack(playingTrack, trackChangeKind);
-        const trackHasError = playingTrack.hasError();
+        this._setCurrentTrack(playlistTrack, trackChangeKind);
+        const trackHasError = playlistTrack.hasError();
         if (trackHasError && trackChangeKind === KIND_IMPLICIT) {
             this._errorCount++;
             if (this._mode === `repeat` && this.length > 1) {
-                playingTrack = Modes.normal.call(this, playingTrack);
-                this._setCurrentTrack(playingTrack, KIND_IMPLICIT);
+                playlistTrack = Modes.normal.call(this, playlistTrack);
+                this._setCurrentTrack(playlistTrack, KIND_IMPLICIT);
             } else {
                 return this.next(false);
             }
         }
 
         this._currentPlayId = nextPlayId++;
-        this.emit(`trackPlayingStatusChange`, playingTrack);
-        this.emit(`currentTrackChange`, playingTrack.track(), playingTrack.trackView(), !!isUserInitiatedSkip);
+        this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, playlistTrack);
+        this.emit(CURRENT_TRACK_CHANGE_EVENT, playlistTrack.track(), !!isUserInitiatedSkip);
         return true;
     }
 
@@ -347,12 +338,12 @@ export default class PlaylistController extends TrackContainerController {
             this.changeTrackExplicitly(firstSelectedTrackView.track(), firstSelectedTrackView);
             return;
         }
-        const nextPlayingTrack = this.getNextPlayingTrack();
+        const nextPlaylistTrack = this.getNextPlaylistTrack();
 
-        if (!nextPlayingTrack.isDummy()) {
-            this.changeTrackExplicitly(nextPlayingTrack.track(), nextPlayingTrack.trackView());
+        if (!nextPlaylistTrack.isDummy()) {
+            this.changeTrackExplicitly(nextPlaylistTrack.track(), nextPlaylistTrack.trackView());
         } else {
-            let firstView = this._trackViews.first();
+            const firstView = this._trackViews.first();
             if (firstView) {
                 this.changeTrackExplicitly(firstView.track(), firstView);
             }
@@ -376,51 +367,11 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     _restoreStateForUndo() {
-        if (!this._trackListDeletionUndo) return;
         // TODO
     }
 
-    async removeTrackViews(trackViews) {
-        if (trackViews.length === 0) return;
-        const oldLength = this.length;
-        const tracksIndexRanges = buildConsecutiveRanges(trackViews.map(indexMapper));
-
-        this._edited();
-        this._saveStateForUndo();
-
-        this._selectable.removeIndices(trackViews.map(indexMapper));
-
-        for (let i = 0; i < trackViews.length; ++i) {
-            trackViews[i].destroy();
-        }
-
-        this.removeTracksBySelectionRanges(tracksIndexRanges);
-        this.emit(`lengthChange`, this.length, oldLength);
-
-        if (!this.length) {
-            this.showPlaylistEmptyIndicator();
-        }
-
-        this.emit(`trackPlayingStatusChange`, this.getCurrentPlayingTrack());
-        this._updateNextTrack();
-        this._fixedItemListScroller.refresh();
-        this._listContentsChanged();
-        const tracksRemoved = oldLength - this.length;
-
-        const tracksWord = tracksRemoved === 1 ? `track` : `tracks`;
-
-        this.emit(`tracksRemoved`);
-        const outcome = await this.snackbar.show(`Removed ${tracksRemoved} ${tracksWord} from the playlist`, {
-            action: `undo`,
-            visibilityTime: 10000,
-            tag: PLAYLIST_TRACKS_REMOVED_TAG
-        });
-
-        if (outcome === ACTION_CLICKED) {
-            this._restoreStateForUndo();
-        } else if (this._trackListDeletionUndo) {
-            this._trackListDeletionUndo.destroy();
-        }
+    removeTrackViews(trackViews) {
+        // TODO
     }
 
     removeSelected() {
@@ -446,74 +397,72 @@ export default class PlaylistController extends TrackContainerController {
             view.setIndex(len - 1);
         }, this);
 
-        this.emit(`lengthChange`, this.length, oldLength);
+        this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
         this._updateNextTrack();
-        this._listContentsChanged();
+        this._fixedItemListScroller.resize();
     }
 
     stop() {
-        this._setCurrentTrack(DUMMY_TRACK, KIND_EXPLICIT);
+        this._setCurrentTrack(DUMMY_PLAYLIST_TRACK, KIND_EXPLICIT);
         this._errorCount = 0;
         this._updateNextTrack();
-        this.emit(`playlistEmpty`);
+        this.emit(PLAYLIST_STOPPED_EVENT);
     }
 
     trackIndexChanged() {
         this._edited();
-        this.emit(`trackPlayingStatusChange`, this.getCurrentPlayingTrack());
+        this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, this.getCurrentPlaylistTrack());
         this._updateNextTrack();
     }
 
-    _setCurrentTrack(playingTrack, trackChangeKind) {
-        const currentPlayingTrack = this.getCurrentPlayingTrack();
+    _setCurrentTrack(playlistTrack, trackChangeKind) {
+        const currentPlaylistTrack = this.getCurrentPlaylistTrack();
 
-        if (!currentPlayingTrack.isDummy()) {
-            currentPlayingTrack.track().stopPlaying();
-            currentPlayingTrack.track().removeListener(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
+        if (!currentPlaylistTrack.isDummy()) {
+            currentPlaylistTrack.track().stopPlaying();
         }
 
-        this._setCurrentPlayingTrack(playingTrack);
+        this._setCurrentPlaylistTrack(playlistTrack);
 
-        if (!playingTrack.isDummy()) {
-            playingTrack.track().on(`tagDataUpdate`, this._highlyRelevantTrackMetadataUpdated);
-            playingTrack.track().startPlaying();
+        if (!playlistTrack.isDummy()) {
+            playlistTrack.track().startPlaying();
         }
 
         if (this._isUsingShuffleMode() &&
             trackChangeKind === KIND_EXPLICIT &&
-            !this._nextTrackIsSameAs(playingTrack)) {
+            !this._nextTrackIsSameAs(playlistTrack)) {
             return;
         }
-        this._updateNextTrack(true);
+        this._updateNextTrack();
     }
 
-    _nextTrackIsSameAs(playingTrack) {
-        const nextPlayingTrack = this.getNextPlayingTrack();
-        if (nextPlayingTrack.isDummy()) {
-            return playingTrack.isDummy();
+    _nextTrackIsSameAs(playlistTrack) {
+        const nextPlaylistTrack = this.getNextPlaylistTrack();
+        if (nextPlaylistTrack.isDummy()) {
+            return playlistTrack.isDummy();
         }
-        return nextPlayingTrack.track() === playingTrack.track();
+        return nextPlaylistTrack.track() === playlistTrack.track();
     }
 
     _isUsingShuffleMode() {
         return this._mode === SHUFFLE_MODE;
     }
 
-    _changeTrackImplicitly(playingTrack, doNotRecordHistory, isUserInitiatedSkip) {
-        return this._changeTrack(playingTrack, !!doNotRecordHistory, KIND_IMPLICIT, !!isUserInitiatedSkip);
+    _changeTrackImplicitly(playlistTrack, doNotRecordHistory, isUserInitiatedSkip) {
+        return this._changeTrack(playlistTrack, !!doNotRecordHistory, KIND_IMPLICIT, !!isUserInitiatedSkip);
     }
 
     changeTrackExplicitly(track, trackView, doNotRecordHistory = false) {
-        const playingTrack = new PlayingTrack(track, trackView);
-        return this._changeTrack(playingTrack, !!doNotRecordHistory, KIND_EXPLICIT);
+        const playlistTrack = new PlaylistTrack(track, trackView);
+        return this._changeTrack(playlistTrack, !!doNotRecordHistory, KIND_EXPLICIT);
     }
 
     getCurrentTrack() {
-        return this.getCurrentPlayingTrack().track();
+        return this.getCurrentPlaylistTrack().track();
     }
 
     getNextTrack() {
-        return this.getNextPlayingTrack().track();
+        return this.getNextPlaylistTrack().track();
     }
 
     getPreviousTrack() {
@@ -528,12 +477,6 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     trackPlayedSuccessfully() {
-        const currentPlayingTrack = this.getCurrentPlayingTrack();
-
-        if (!currentPlayingTrack.isDummy() && currentPlayingTrack.hasError()) {
-            currentPlayingTrack.track().unsetError();
-            this.metadataManager.parseMetadata(currentPlayingTrack.track());
-        }
         this._errorCount = 0;
     }
 
@@ -545,37 +488,37 @@ export default class PlaylistController extends TrackContainerController {
         const history = this._trackHistory;
         const {length} = history;
         if (length > 0) {
-            let playingTrack;
+            let playlistTrack;
             while (history.length > 0) {
-                playingTrack = this._trackHistory.pop();
-                if (playingTrack.hasError()) {
-                    playingTrack = null;
+                playlistTrack = this._trackHistory.pop();
+                if (playlistTrack.hasError()) {
+                    playlistTrack = null;
                 } else {
                     break;
                 }
             }
 
             if (length !== history.length) {
-                this.emit(`historyChange`);
+                this.emit(HISTORY_CHANGE_EVENT);
             }
 
-            if (!playingTrack) {
+            if (!playlistTrack) {
                 this.prev();
             } else {
-                this.changeTrackExplicitly(playingTrack.track(), playingTrack.trackView(), true);
+                this.changeTrackExplicitly(playlistTrack.track(), playlistTrack.trackView(), true);
             }
         } else {
-            this.emit(`historyChange`);
+            this.emit(HISTORY_CHANGE_EVENT);
         }
     }
 
     next(userInitiated) {
-        const nextPlayingTrack = this.getNextPlayingTrack();
-        if (nextPlayingTrack.isDummy()) {
+        const nextPlaylistTrack = this.getNextPlaylistTrack();
+        if (nextPlaylistTrack.isDummy()) {
             return this.stop();
         }
 
-        return this._changeTrackImplicitly(nextPlayingTrack, false, userInitiated);
+        return this._changeTrackImplicitly(nextPlaylistTrack, false, userInitiated);
     }
 
     tryChangeMode(mode) {
@@ -584,8 +527,8 @@ export default class PlaylistController extends TrackContainerController {
         } else if (Modes.hasOwnProperty(mode)) {
             const oldMode = this._mode;
             this._mode = mode;
-            this.emit(`modeChange`, mode, oldMode);
-            this._updateNextTrack(true);
+            this.emit(MODE_CHANGE_EVENT, mode, oldMode);
+            this._updateNextTrack();
             this.db.set(PLAYLIST_MODE_KEY, mode);
             return true;
         }
@@ -594,26 +537,6 @@ export default class PlaylistController extends TrackContainerController {
 
     getMode() {
         return this._mode;
-    }
-
-    changeTrackOrderWithinSelection(callback) {
-        const selectedTrackViews = this.getSelection();
-        if (selectedTrackViews.length <= 1) return;
-
-        const indices = selectedTrackViews.map(v => v.getIndex());
-        callback(selectedTrackViews);
-
-        for (let i = 0; i < selectedTrackViews.length; ++i) {
-            const trackView = selectedTrackViews[i];
-            const index = indices[i];
-            this._trackViews[index] = trackView;
-            trackView.setIndex(index);
-        }
-        this._selectable.updateOrder(selectedTrackViews);
-        this._fixedItemListScroller.refresh();
-        this._edited();
-        this.trackIndexChanged();
-        this.emit(`trackOrderChange`);
     }
 }
 

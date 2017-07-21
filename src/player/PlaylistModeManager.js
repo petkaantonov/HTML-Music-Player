@@ -1,4 +1,5 @@
 import {noUndefinedGet} from "util";
+import {MODE_CHANGE_EVENT} from "player/PlaylistController";
 
 const SHUFFLE = `shuffle`;
 const NORMAL = `normal`;
@@ -29,7 +30,7 @@ export default class PlaylistModeManager {
         this.repeatClicked = this.repeatClicked.bind(this);
         this.update = this.update.bind(this);
 
-        this.playlist.on(`modeChange`, this.update);
+        this.playlist.on(MODE_CHANGE_EVENT, this.update);
 
         this.$shuffle().addEventListener(`click`, this.shuffleClicked);
         this.$repeat().addEventListener(`click`, this.repeatClicked);

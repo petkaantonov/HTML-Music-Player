@@ -2,7 +2,6 @@ import {setTimers, setIsDevelopment} from "util";
 import AudioPlayerBackend from "audio/backend/AudioPlayerBackend";
 import MetadataManagerBackend from "metadata/MetadataManagerBackend";
 import SearchBackend from "search/SearchBackend";
-import UsageDataBackend from "usageData/UsageDataBackend";
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import Timers from "platform/Timers";
@@ -56,5 +55,4 @@ if (self.addEventListener) {
     self.searchBackend = new SearchBackend(db).start();
     self.metadataManagerBackend = new MetadataManagerBackend(self.mainWasmModule, db, self.searchBackend).start();
     self.audioPlayerBackend = new AudioPlayerBackend(self.mainWasmModule, timers, self.metadataManagerBackend).start();
-    self.usageDataBackend = new UsageDataBackend(db).start();
 })();

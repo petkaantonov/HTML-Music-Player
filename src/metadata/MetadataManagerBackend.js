@@ -142,15 +142,15 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this.actions = {
             setRating({trackUid, rating}) {
                 this._tagDatabase.updateRating(trackUid, rating);
-            }
+            },
 
             setSkipCounter({trackUid, counter, lastPlayed}) {
                 this._tagDatabase.updateSkipCounter(trackUid, counter, lastPlayed);
-            }
+            },
 
             setPlaythroughCounter({trackUid, counter, lastPlayed}) {
                 this._tagDatabase.updatePlaythroughCounter(trackUid, counter, lastPlayed);
-            }
+            },
 
             async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
                 const albumArt = await this._getAlbumArt(trackUid, artist, album, preference);
@@ -290,12 +290,9 @@ export default class MetadataManagerBackend extends AbstractBackend {
             try {
                const result = await this._fetchAcoustId(cancellationToken, trackUid, fingerprint, duration);
                 ({acoustIdResult, trackInfo, trackInfoUpdated} = result);
-                await this._tagDatabase.updateAcoustIdFetchJobState(jobId, {
-                    acoustIdResult: acoustIdResult || null,
-                    state: JOB_STATE_DATA_FETCHED
-                });
-
                 state = JOB_STATE_DATA_FETCHED;
+                await this._tagDatabase.updateAcoustIdFetchJobState(jobId, {acoustIdResult, state});
+
                 if (trackInfoUpdated) {
                     this._searchBackend.updateTrackToSearchIndex(trackInfo);
                 }

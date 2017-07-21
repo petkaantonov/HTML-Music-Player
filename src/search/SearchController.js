@@ -1,16 +1,10 @@
 import {buildConsecutiveRanges, indexMapper, normalizeQuery, throttle} from "util";
-import {byTransientId} from "tracks/Track";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
-import {insert} from "search/sortedArrays";
-import {SEARCH_READY_EVENT_NAME, trackSearchIndexResultCmp} from "search/SearchBackend";
+import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
-import TrackContainerController from "tracks/TrackContainerController";
-
-const cmpTrackView = function(a, b) {
-    return trackSearchIndexResultCmp(a._result, b._result);
-};
+import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -192,12 +186,6 @@ export default class SearchController extends TrackContainerController {
         return ret;
     }
 
-    updateSearchIndex(track, metadata) {
-    }
-
-    removeFromSearchIndex(track) {
-    }
-
     $input() {
         return this._inputNode;
     }
@@ -238,27 +226,6 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
-    updateResults() {
-        this._session.update();
-    }
-
-    _resultsStale() {
-        if (this._session && this._visible) {
-            this.updateResults();
-        } else {
-            this._dirty = true;
-        }
-    }
-
-    metadataUpdated(tracks) {
-        for (const track of tracks) {
-            const {genres, album, artist, title, albumArtist} = track.tagData;
-            this.updateSearchIndex(track, {genres, album, artist, title, albumArtist});
-        }
-
-        this._resultsStale();
-    }
-
     tryLoadHistory(values) {
         if (Array.isArray(values) && values.length <= MAX_SEARCH_HISTORY_ENTRIES) {
             this._searchHistory = values.map(function(query) {
@@ -291,6 +258,8 @@ export default class SearchController extends TrackContainerController {
             return;
         }
         this._dirty = false;
+        console.log(results);
+        // TODO
     }
 
     clear() {
@@ -377,7 +346,7 @@ export default class SearchController extends TrackContainerController {
 
         this.removeTracksBySelectionRanges(tracksIndexRanges);
         if (this.length !== oldLength && !silent) {
-            this.emit(`lengthChange`, this.length, oldLength);
+            this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
             this._fixedItemListScroller.resize();
         }
     }
@@ -421,6 +390,5 @@ export default class SearchController extends TrackContainerController {
     }
 }
 
-SearchController.prototype.updateResults = throttle(SearchController.prototype.updateResults, 50);
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);
 SearchController.prototype.saveHistory = throttle(SearchController.prototype.saveHistory, 1000);

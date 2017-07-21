@@ -1,3 +1,4 @@
+import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
 import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 import {cancelAndHold} from "audio/frontend/AudioPlayer";
@@ -35,7 +36,7 @@ export default class AudioManager {
         this.lastBufferQueued = this.lastBufferQueued.bind(this);
         this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
-        this.player.playlist.on(`nextTrackChange`, this.nextTrackChanged);
+        this.player.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
 
         this.onDecodingLatency = this.onDecodingLatency.bind(this);
         this.sourceNode = this.player.audioPlayer.createSourceNode();
@@ -124,14 +125,14 @@ export default class AudioManager {
 
 
         if (shouldPreload) {
-            this.player.playlist.on(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+            this.player.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
             this._updateNextGaplessTrack();
         }
     }
 
     async replaceTrack(track, explicitlyLoaded) {
         if (this.destroyed || this.player.currentAudioManager !== this) return;
-        this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         const {gaplessPreloadTrack} = this;
         this.gaplessPreloadTrack = null;
 
@@ -248,7 +249,7 @@ export default class AudioManager {
 
     ended(haveGaplessPreloadPending) {
         if (this.destroyed) return;
-        this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         this.player.audioManagerEnded(this, haveGaplessPreloadPending);
     }
 
@@ -267,7 +268,7 @@ export default class AudioManager {
         const shouldHandleEnding = !willEmitEnded && !endedHasBeenEmitted;
 
         if (currentTime >= duration && shouldHandleEnding) {
-            this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+            this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         }
         if (!this.tickCounter.hasTriggered() &&
             this.track &&
@@ -429,8 +430,8 @@ export default class AudioManager {
 
     destroy() {
         if (this.destroyed) return;
-        this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChanged);
-        this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
+        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
+        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         this.sourceNode.removeListener(`lastBufferQueued`, this.lastBufferQueued);
         this.sourceNode.removeListener(`decodingLatency`, this.onDecodingLatency);
         this.filterNodes.forEach((node) => {

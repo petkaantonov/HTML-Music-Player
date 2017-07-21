@@ -1,3 +1,5 @@
+import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
+
 const TEMPLATE = `<div class='track'>
     <div class='track-control-reorder track-left-controls'>
         <div class='material-icons large-material-icon reorder'></div>
@@ -34,7 +36,7 @@ export default class TrackView {
         this._dragged = false;
         this._offset = 0;
         this._viewUpdated = this._viewUpdated.bind(this);
-        this._track.on(`viewUpdate`, this._viewUpdated);
+        this._track.on(VIEW_UPDATE_EVENT, this._viewUpdated);
     }
 
     selectable() {
@@ -131,7 +133,7 @@ export default class TrackView {
 
     destroy() {
         if (this._isDestroyed) return false;
-        this._track.removeListener(`viewUpdate`, this._viewUpdated);
+        this._track.removeListener(VIEW_UPDATE_EVENT, this._viewUpdated);
         this.setIndex(-1);
         this._isDestroyed = true;
         return true;
@@ -208,10 +210,6 @@ export default class TrackView {
         } else {
             this.$trackSelectionIndicator().addClass(`blank-checkbox`).removeClass(`checked-checkbox`);
         }
-    }
-
-    viewUpdateDestroyed() {
-        this.destroy();
     }
 
     viewUpdatePlayingStatusChange(playingStatus) {

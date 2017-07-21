@@ -18,7 +18,7 @@ import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "keyboard/DefaultShortcuts";
 import PopupContext from "ui/PopupContext";
 import TooltipContext from "ui/TooltipContext";
-import MetadataManagerFrontend from "metadata/MetadataManagerFrontend";
+import MetadataManagerFrontend, {timerTick as trackTimerTick} from "metadata/MetadataManagerFrontend";
 import GestureEducator from "player/GestureEducator";
 import GestureRecognizerContext from "ui/gestures/GestureRecognizerContext";
 import SliderContext from "ui/SliderContext";
@@ -33,8 +33,6 @@ import EffectPreferencesBindingContext from "ui/EffectPreferencesBindingContext"
 import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingContext";
 import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
-import UsageData from "usageData/UsageData";
-import {timerTick as trackTimerTick} from "tracks/Track";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
 import ToolbarManager from "ui/ToolbarManager";
@@ -333,10 +331,6 @@ export default class Application {
             itemHeight: ITEM_HEIGHT
         }, d));
 
-        const usageData = this.usageData = withDeps({
-            workerWrapper
-        }, d => new UsageData(d));
-
         const localFileHandler = this.localFileHandler = withDeps({
             page,
             fileInputContext,
@@ -344,7 +338,6 @@ export default class Application {
             playlist,
             mainMenu
         }, d => new LocalFileHandler(d));
-
 
         const player = this.player = withDeps({
             page,

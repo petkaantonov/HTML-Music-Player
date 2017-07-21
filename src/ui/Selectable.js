@@ -3,6 +3,8 @@ import EventEmitter from "events";
 import {noUndefinedGet, TRACK_SORTER, buildConsecutiveRanges, indexMapper} from "util";
 import {SortedSet} from "DataStructures";
 
+export const ITEMS_SELECTED_EVENT = `itemsSelected`;
+
 export default class Selectable extends EventEmitter {
     constructor(opts, deps) {
         super();
@@ -60,7 +62,7 @@ export default class Selectable extends EventEmitter {
             this._clearSelection();
             this._add(idx);
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     trackViewClick(e, trackView) {
@@ -68,7 +70,7 @@ export default class Selectable extends EventEmitter {
             this._resetPointers();
             this._clearSelection();
             this._add(trackView.getIndex());
-            this._listView.emit(`tracksSelected`, this);
+            this._listView.emit(ITEMS_SELECTED_EVENT, this);
         }
     }
 
@@ -199,7 +201,7 @@ export default class Selectable extends EventEmitter {
         const index = trackView.getIndex();
         if (index >= 0) {
             this._remove(index);
-            this._listView.emit(`tracksSelected`, this);
+            this._listView.emit(ITEMS_SELECTED_EVENT, this);
         }
     }
 
@@ -210,7 +212,7 @@ export default class Selectable extends EventEmitter {
                 return false;
             }
             this._add(index);
-            this._listView.emit(`tracksSelected`, this);
+            this._listView.emit(ITEMS_SELECTED_EVENT, this);
             return true;
         }
         return false;
@@ -258,7 +260,7 @@ export default class Selectable extends EventEmitter {
             }
 
             this._selectionPointer = this._selection.first().getIndex();
-            this._listView.emit(`tracksSelected`, this);
+            this._listView.emit(ITEMS_SELECTED_EVENT, this);
             this._moveToMiddleOfSelection();
         }
     }
@@ -276,7 +278,7 @@ export default class Selectable extends EventEmitter {
             }
 
             this._selectionPointer = this._selection.last().getIndex();
-            this._listView.emit(`tracksSelected`, this);
+            this._listView.emit(ITEMS_SELECTED_EVENT, this);
             this._moveToMiddleOfSelection();
         }
     }
@@ -300,7 +302,7 @@ export default class Selectable extends EventEmitter {
             this._add(0);
             this._selectionPointer = 0;
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -323,7 +325,7 @@ export default class Selectable extends EventEmitter {
             this._add(0);
             this._selectionPointer = 0;
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -342,7 +344,7 @@ export default class Selectable extends EventEmitter {
             this._add(0);
             this._selectionPointer = 0;
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -360,7 +362,7 @@ export default class Selectable extends EventEmitter {
             this._add(0);
             this._selectionPointer = 0;
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -369,7 +371,7 @@ export default class Selectable extends EventEmitter {
         this._clearSelection();
         this._add(this._listView.length - 1);
         this._selectionPointer = this._listView.length - 1;
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -378,7 +380,7 @@ export default class Selectable extends EventEmitter {
         this._clearSelection();
         this._add(0);
         this._selectionPointer = 0;
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
         this._moveToMiddleOfSelection();
     }
 
@@ -390,14 +392,14 @@ export default class Selectable extends EventEmitter {
         for (let i = 0; i < indices.length; ++i) {
             this._remove(indices[i]);
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     addIndices(indices) {
         for (let i = 0; i < indices.length; ++i) {
             this._add(indices[i]);
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     selectIndices(indices) {
@@ -423,7 +425,7 @@ export default class Selectable extends EventEmitter {
     clearSelection() {
         this._resetPointers();
         this._clearSelection();
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     getSelection() {
@@ -442,7 +444,7 @@ export default class Selectable extends EventEmitter {
         if (index >= 0) {
             if (!this._selection.contains(trackView)) {
                 this._add(index);
-                this._listView.emit(`tracksSelected`, this);
+                this._listView.emit(ITEMS_SELECTED_EVENT, this);
             }
             this._prioritySelection = trackView;
         }
@@ -483,7 +485,7 @@ export default class Selectable extends EventEmitter {
         this._lastEnd = end;
         this._lastStart = start;
         this._selectionPointer = end;
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     first() {
@@ -501,7 +503,7 @@ export default class Selectable extends EventEmitter {
         for (let i = 0; i < trackViews.length; ++i) {
             this._add(i);
         }
-        this._listView.emit(`tracksSelected`, this);
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
     }
 
     remove(trackView) {
