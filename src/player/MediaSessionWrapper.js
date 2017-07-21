@@ -77,16 +77,16 @@ export default class MediaSessionWrapper {
     stateChanged() {
         if (!this.enabled) return;
         const {isPlaying, isPaused} = this.player;
-        const track = this.playlist.getCurrentTrack();
+        const playingTrack = this.playlist.getCurrentPlayingTrack();
 
-        if (!track) {
+        if (!playingTrack.track()) {
             this._currentState = EMPTY_STATE;
             this.page.platform().disableMediaState();
             return;
         }
 
+        const track = playingTrack.track();
         const imageSrc = this.pictureManager.getCurrentImage().src;
-
         const state = new MediaSessionRenderedState(isPlaying, isPaused, track, imageSrc);
         if (state.equals(this._currentState)) {
             return;
@@ -95,7 +95,7 @@ export default class MediaSessionWrapper {
 
         const artwork = [{src: imageSrc}];
         const info = track.getArtistAndTitle();
-        const title = `${track.getIndex() + 1}. ${info.title}`;
+        const title = `${playingTrack.getIndex() + 1}. ${info.title}`;
         const {artist} = info;
         const album = track.formatTime();
         this.page.platform().setMediaState({

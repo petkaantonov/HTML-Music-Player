@@ -71,6 +71,20 @@ class SearchResultRater {
     }
 }
 
+function buildEntry(trackInfo) {
+    const keywords = getKeywords(getSearchTerm(trackInfo));
+    if (!keywords.length) {
+        return null;
+    }
+    const searchTerm = keywords.join(` `);
+    const {trackUid} = trackInfo;
+    return {
+        keywords,
+        keywordsReversed: keywords.map(reverseString),
+        trackUid,
+        searchTerm
+    };
+}
 
 export default class SearchBackend extends AbstractBackend {
     constructor(tagDatabase) {
@@ -90,28 +104,16 @@ export default class SearchBackend extends AbstractBackend {
         };
     }
 
-    async addTrackToSearchIndex(trackInfo) {
-        const {trackUid} = trackInfo;
-        await this._removeTrackFromSearchIndex(trackUid);
-        await this._addTrackToSearchIndex(trackUid, trackInfo);
+    async addTrackToSearchIndexIfNotPresent(trackInfo) {
+        const entry = buildEntry(trackInfo);
+        if (!entry) return;
+        await this._tagDatabase.addSearchIndexEntryForTrackIfNotPresent(entry);
     }
 
-    async _addTrackToSearchIndex(trackUid, trackInfo) {
-        const keywords = getKeywords(getSearchTerm(trackInfo));
-        if (!keywords.length) {
-            return;
-        }
-        const searchTerm = keywords.join(` `);
-        await this._tagDatabase.addToSearchIndex({
-            keywords,
-            keywordsReversed: keywords.map(reverseString),
-            trackUid,
-            searchTerm
-        });
-    }
-
-    async _removeTrackFromSearchIndex(trackUid) {
-        await this._tagDatabase.removeSearchEntriesForTrackUid(trackUid);
+    async updateTrackToSearchIndex(trackInfo) {
+        const entry = buildEntry(trackInfo);
+        if (!entry) return;
+        await this._tagDatabase.updateSearchIndexEntryForTrack(entry);
     }
 
     async _search(normalizedQuery) {

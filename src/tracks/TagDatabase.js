@@ -1,7 +1,7 @@
-import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
+import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
-const VERSION = 22;
+const VERSION = 23;
 const DATA_WIPE_VERSION = 19;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
@@ -14,14 +14,15 @@ const ALBUM_ART_OBJECT_STORE_NAME = `albumArt`;
 
 const TRACK_PAYLOAD_OBJECT_STORE_NAME = `trackPayload`;
 
-const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex`;
-const TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME = `searchId`;
+const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex2`;
 
-export const trackSearchIndexCmp = new Function(`a`, `b`, `
-    return a.${TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME} - b.${TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME};
-`);
+export const trackSearchIndexCmp = function(a, b) {
+    return indexedDB.cmp(a.trackUid, b.trackUid);
+};
 
-export const stopWords = new Set([`a`, `an`, `and`, `are`, `as`, `at`, `be`, `by`, `for`, `has`, `in`, `is`, `it`, `its`, `of`, `on`, `that`, `the`, `to`, `was`, `will`, `with`]);
+export const stopWords = new Set([`a`, `an`, `and`, `are`, `as`, `at`, `be`, `by`,
+                                  `for`, `has`, `in`, `is`, `it`, `its`, `of`, `on`, `that`, `the`,
+                                  `to`, `was`, `will`, `with`]);
 
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
@@ -121,14 +122,8 @@ const objectStoreSpec = {
         }
     },
     [TRACK_SEARCH_INDEX_OBJECT_STORE_NAME]: {
-        keyPath: TRACK_SEARCH_INDEX_PRIMARY_KEY_NAME,
-        autoIncrement: true,
+        keyPath: TRACK_INFO_PRIMARY_KEY_NAME,
         indexSpec: {
-            [TRACK_INFO_PRIMARY_KEY_NAME]: {
-                unique: false,
-                multiEntry: false,
-                keyPath: TRACK_INFO_PRIMARY_KEY_NAME
-            },
             suffixMulti: {
                 unique: false,
                 multiEntry: true,
@@ -474,26 +469,27 @@ export default class TagDatabase {
         return iDbPromisify(index.getAll(key));
     }
 
-    async removeSearchEntriesForTrackUid(trackUid) {
+    async addSearchIndexEntryForTrackIfNotPresent(entry) {
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
-        const index = store.index(TRACK_INFO_PRIMARY_KEY_NAME);
+        const {trackUid} = entry;
         const key = IDBKeyRange.only(trackUid);
-        const cursor = index.openCursor(key, `next`);
-        await iDbPromisifyCursor(cursor, async (result) => {
-            console.log(`deleting ${result.primaryKey} ${result.value.value}`);
-            await iDbPromisify(result.delete());
-            console.log(`delete complete`);
-            result.continue(key);
-        });
+
+        const result = await iDbPromisify(store.getKey(key));
+
+        if (result) {
+            return;
+        }
+
+        await iDbPromisify(store.add(entry));
     }
 
-    async addToSearchIndex(entry) {
+    async updateSearchIndexEntryForTrack(entry) {
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
-        await store.add(entry);
+        await iDbPromisify(store.put(entry));
     }
 }
 

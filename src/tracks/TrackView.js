@@ -49,10 +49,6 @@ export default class TrackView {
         return this._opts.hasTouch;
     }
 
-    shouldUpdateTrackIndex() {
-        return this._opts.updateTrackIndex;
-    }
-
     playlist() {
         return this._opts.playlist;
     }
@@ -136,13 +132,9 @@ export default class TrackView {
     destroy() {
         if (this._isDestroyed) return false;
         this._track.removeListener(`viewUpdate`, this._viewUpdated);
-        this._index = -1;
+        this.setIndex(-1);
         this._isDestroyed = true;
         return true;
-    }
-
-    isDetachedFromPlaylist() {
-        return !this._track || this._track.isDetachedFromPlaylist();
     }
 
     isVisible() {
@@ -155,10 +147,6 @@ export default class TrackView {
             if (this._shouldUpdateDom()) {
                 this._updateTranslate();
             }
-        }
-
-        if (this.shouldUpdateTrackIndex() && this._track) {
-            this._track.setIndex(index);
         }
     }
 
@@ -182,7 +170,7 @@ export default class TrackView {
     }
 
     renderTrackNumber() {
-        this.$trackNumber().setText(`${this._track.getIndex() + 1}.`);
+        this.$trackNumber().setText(`${this.getIndex() + 1}.`);
     }
 
     renderTrackDuration() {

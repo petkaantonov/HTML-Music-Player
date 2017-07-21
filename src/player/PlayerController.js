@@ -322,9 +322,7 @@ export default class PlayerController extends EventEmitter {
     getSampleRate() {
         const track = this.playlist.getCurrentTrack();
         if (!track) return 44100;
-        const tagData = track.getTagData();
-        if (!tagData) return 44100;
-        return tagData.sampleRate;
+        return track.getSampleRate();
     }
 
     pause() {

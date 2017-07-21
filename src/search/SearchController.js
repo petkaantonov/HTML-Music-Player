@@ -1,7 +1,7 @@
 import {buildConsecutiveRanges, indexMapper, normalizeQuery, throttle} from "util";
 import {byTransientId} from "tracks/Track";
+import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
-import SearchResultTrackView from "search/SearchResultTrackView";
 import {insert} from "search/sortedArrays";
 import {SEARCH_READY_EVENT_NAME, trackSearchIndexResultCmp} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
@@ -52,7 +52,6 @@ class SearchSession {
         this._search = search;
         this._rawQuery = rawQuery;
         this._normalizedQuery = normalizedQuery;
-        this._initialResultsPosted = false;
         this._resultCount = 0;
         this._destroyed = false;
         this._started = false;
@@ -99,15 +98,7 @@ class SearchSession {
 
     _gotResults(results) {
         if (this._destroyed) return;
-
-        if (!this._initialResultsPosted) {
-            this._initialResultsPosted = true;
-            this._resultCount = results.length;
-            this._search.newResults(this, results);
-        } else {
-            this._resultCount = Math.max(this._resultCount, results.length);
-            this._search.replaceResults(this, results);
-        }
+        this._search.newResults(this, results);
     }
 }
 
@@ -137,8 +128,7 @@ export default class SearchController extends TrackContainerController {
         this._searchHistory = [];
         this._session = null;
         this._playlist = deps.playlist;
-        this._trackViewOptions = new TrackViewOptions(false,
-                                                      opts.itemHeight,
+        this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
                                                       this._playlist,
                                                       this.page,
                                                       deps.tooltipContext,
@@ -152,7 +142,6 @@ export default class SearchController extends TrackContainerController {
         this._nextSessionId = 0;
 
         this._metadataManager.on(`metadataUpdate`, this.metadataUpdated.bind(this));
-        this._playlist.on(`lengthChange`, this.lengthChanged.bind(this));
 
         this.$input().addEventListener(`input`, this._gotInput.bind(this)).
                      addEventListener(`focus`, this._inputFocused.bind(this)).
@@ -261,10 +250,6 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
-    lengthChanged() {
-        this._resultsStale();
-    }
-
     metadataUpdated(tracks) {
         for (const track of tracks) {
             const {genres, album, artist, title, albumArtist} = track.tagData;
@@ -300,77 +285,12 @@ export default class SearchController extends TrackContainerController {
         this.$input().focus();
     }
 
-    replaceResults(session, results) {
-        if (this._session !== session) {
-            session.destroy();
-            return;
-        }
-        this._dirty = false;
-
-        const oldLength = this.length;
-        const trackViews = this._trackViews;
-
-        for (let i = 0; i < results.length; ++i) {
-            const result = results[i];
-            const track = byTransientId(result.transientId);
-            if (!track || !track.shouldDisplayAsSearchResult()) {
-                continue;
-            }
-            const view = new SearchResultTrackView(track, result, this._trackViewOptions);
-            insert(cmpTrackView, trackViews, view);
-        }
-
-        const indicesToRemove = [];
-        for (let i = 0; i < trackViews.length; ++i) {
-            const view = trackViews[i];
-            if (view.isDetachedFromPlaylist()) {
-                view.destroy();
-                indicesToRemove.push(i);
-            }
-        }
-
-
-        if (indicesToRemove.length > 0) {
-            this._selectable.removeIndices(indicesToRemove);
-            const tracksIndexRanges = buildConsecutiveRanges(indicesToRemove);
-            this.removeTracksBySelectionRanges(tracksIndexRanges);
-        }
-
-        for (let i = 0; i < trackViews.length; ++i) {
-            trackViews[i].setIndex(i);
-        }
-
-        if (this.length !== oldLength) {
-            this.emit(`lengthChange`, this.length, oldLength);
-            this._fixedItemListScroller.resize();
-        }
-    }
-
     newResults(session, results) {
         if (this._session !== session) {
             session.destroy();
             return;
         }
         this._dirty = false;
-
-        const trackViews = this._trackViews;
-        const oldLength = this.length;
-        this.removeTrackViews(trackViews, true);
-        for (let i = 0; i < results.length; ++i) {
-            const result = results[i];
-            const track = byTransientId(result.transientId);
-            if (!track || !track.shouldDisplayAsSearchResult()) {
-                continue;
-            }
-            const view = new SearchResultTrackView(track, result, this._trackViewOptions);
-            const len = trackViews.push(view);
-            view.setIndex(len - 1);
-        }
-
-        if (this.length !== oldLength) {
-            this.emit(`lengthChange`, this.length, oldLength);
-        }
-        this._fixedItemListScroller.resize();
     }
 
     clear() {

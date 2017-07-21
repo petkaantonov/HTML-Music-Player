@@ -1,7 +1,5 @@
 export default class TrackViewOptions {
-    constructor(updateTrackIndex,
-        itemHeight, playlist, page, tooltipContext, selectable, search, hasTouch) {
-        this.updateTrackIndex = updateTrackIndex;
+    constructor(itemHeight, playlist, page, tooltipContext, selectable, search, hasTouch) {
         this.itemHeight = itemHeight;
         this.playlist = playlist;
         this.page = page;

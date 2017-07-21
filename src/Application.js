@@ -34,7 +34,6 @@ import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingCo
 import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
 import UsageData from "usageData/UsageData";
-import TagDataContext from "tracks/TagData";
 import {timerTick as trackTimerTick} from "tracks/Track";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
@@ -87,8 +86,6 @@ export default class Application {
             toolbars.push(`#selection-toolbar`);
         }
 
-        const tagDataContext = this.tagDataContext = new TagDataContext();
-
         const toolbarManager = this.toolbarManager = withDeps({
             page, globalEvents
         }, d => new ToolbarManager({
@@ -102,9 +99,7 @@ export default class Application {
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
 
         const metadataManager = this.metadataManager = withDeps({
-            env,
-            tagDataContext,
-            workerWrapper
+            env, workerWrapper
         }, d => new MetadataManagerFrontend(d));
 
         const recognizerContext = this.recognizerContext = withDeps({
@@ -396,10 +391,6 @@ export default class Application {
             target: `.search-list-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
-
-        withDeps({
-            usageData, search
-        }, d => tagDataContext.setDeps(d));
 
         const queue = this.queue = null;
 

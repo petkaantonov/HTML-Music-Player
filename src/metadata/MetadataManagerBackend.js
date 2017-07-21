@@ -138,7 +138,20 @@ export default class MetadataManagerBackend extends AbstractBackend {
             parallelJobs: 3
         });
 
+
         this.actions = {
+            setRating({trackUid, rating}) {
+                this._tagDatabase.updateRating(trackUid, rating);
+            }
+
+            setSkipCounter({trackUid, counter, lastPlayed}) {
+                this._tagDatabase.updateSkipCounter(trackUid, counter, lastPlayed);
+            }
+
+            setPlaythroughCounter({trackUid, counter, lastPlayed}) {
+                this._tagDatabase.updatePlaythroughCounter(trackUid, counter, lastPlayed);
+            }
+
             async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
                 const albumArt = await this._getAlbumArt(trackUid, artist, album, preference);
                 const result = {albumArt, trackUid, preference, requestReason};
@@ -284,7 +297,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
                 state = JOB_STATE_DATA_FETCHED;
                 if (trackInfoUpdated) {
-                    this._searchBackend.addTrackToSearchIndex(trackInfo);
+                    this._searchBackend.updateTrackToSearchIndex(trackInfo);
                 }
             } catch (e) {
                 await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
@@ -329,13 +342,11 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _parseMetadataJob(job, trackUid, fileReference) {
-        const filePersisted = await this._tagDatabase.ensureFileStored(trackUid, fileReference);
+        await this._tagDatabase.ensureFileStored(trackUid, fileReference);
         let trackInfo = await this.getTrackInfoByTrackUid(trackUid);
 
         if (trackInfo) {
-            if (filePersisted) {
-                this._searchBackend.addTrackToSearchIndex(trackInfo);
-            }
+            this._searchBackend.addTrackToSearchIndexIfNotPresent(trackInfo);
             return trackInfo;
         }
 
@@ -385,7 +396,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         }
 
         trackInfo = buildTrackInfo(data, data.demuxData);
-        this._searchBackend.addTrackToSearchIndex(trackInfo);
+        this._searchBackend.updateTrackToSearchIndex(trackInfo);
         await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
         return trackInfo;
     }

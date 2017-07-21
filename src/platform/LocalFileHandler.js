@@ -1,6 +1,5 @@
 import {File, Uint8Array, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
-import Track from "tracks/Track";
 
 const MAX_FILE_COUNT = 75000;
 
@@ -50,6 +49,7 @@ export default class LocalFileHandler {
         this.env = deps.env;
         this.mainMenu = deps.mainMenu;
         this.fileInputContext = deps.fileInputContext;
+        this.metadataManager = deps.metadataManager;
         this.playlist = deps.playlist;
         this.localFiles = new LocalFiles(this.env);
 
@@ -190,7 +190,7 @@ export default class LocalFileHandler {
     }
 
     addFilesToPlaylist(files) {
-        this.playlist.add(files.map(file => new Track(file)));
+        this.playlist.add(files.map(file => this.metadataManager.getTrackByFileReference(file)));
     }
 
     filterFiles(files) {
