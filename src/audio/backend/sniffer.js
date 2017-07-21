@@ -56,14 +56,14 @@ export default async function getCodecName(fileView) {
             i < end - 12 &&
             fileView.getInt32(i + 8) === WAVE) {
             return refine(`wav`, fileView, i);
-        } else if ((value >>> 8) === ID3 || probablyMp3Header(value)) {
-            return refine(`mp3`, fileView, i);
         } else if ((value >>> 16) === AAC_1 || (value >>> 16) === AAC_2) {
             return refine(`aac`, fileView, i);
         } else if (value === WEBM) {
             return refine(`webm`, fileView, i);
         } else if (value === OGGS) {
             return refine(`ogg`, fileView, i);
+        } else if ((value >>> 8) === ID3 || probablyMp3Header(value)) {
+            return refine(`mp3`, fileView, i);
         }
     }
 
