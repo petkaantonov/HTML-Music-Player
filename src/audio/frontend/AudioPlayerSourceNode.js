@@ -1,5 +1,5 @@
 import {throttle} from "util";
-import {Float32Array, Blob, File, console, performance} from "platform/platform";
+import {Float32Array, performance} from "platform/platform";
 import EventEmitter from "events";
 import {cancelAndHold} from "audio/frontend/AudioPlayer";
 import SourceDescriptor, {decibelToGain} from "audio/frontend/SourceDescriptor";
@@ -93,7 +93,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
         this._player = player;
         this._audioContext = audioContext;
-        this._haveBlob = false;
+        this._haveLoadedInitialAudioData = false;
         this._sourceStopped = true;
         this._normalizerNode = audioContext.createGain();
         this._fadeInOutNode = audioContext.createGain();
@@ -237,7 +237,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (this._destroyed || this._loadingNext) return;
         const currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
         const currentTime = this._baseTime + currentBufferPlayedSoFar;
-        this._currentTime = this._haveBlob ? Math.min(this._duration, currentTime) : currentTime;
+        this._currentTime = this._haveLoadedInitialAudioData ? Math.min(this._duration, currentTime) : currentTime;
         this._emitTimeUpdate(this._currentTime, this._duration);
     }
 
@@ -536,7 +536,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     _requestMoreBuffers() {
-        if (!this._haveBlob || this._destroyed) return;
+        if (!this._haveLoadedInitialAudioData || this._destroyed) return;
         if (this._bufferQueue.length < this.getSustainedBufferCount()) {
             const count = this.getSustainedBufferCount() - this._bufferQueue.length;
             if (count >= this.getMinBuffersToRequest()) {
@@ -774,7 +774,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             return;
         }
         this._paused = false;
-        if (this._bufferQueue.length > 0 && this._sourceStopped && this._haveBlob) {
+        if (this._bufferQueue.length > 0 && this._sourceStopped && this._haveLoadedInitialAudioData) {
             this._player.playbackStarted();
             this._player.resume();
             const scheduledStartTime = Math.max(this.getCurrentTimeScheduledAhead(), this._fadeOutEnded);
@@ -823,7 +823,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._fadeOutEnded = 0;
         this._fadeInStarted = 0;
         this._fadeInStartedWithLength = 0;
-        if (this.isSeekable() && this._haveBlob) {
+        if (this.isSeekable() && this._haveLoadedInitialAudioData) {
             this.setCurrentTime(this._currentTime, true);
         } else {
             this.destroy();
@@ -874,7 +874,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             throw new Error(`time is not finite`);
         }
         time = Math.max(0, time);
-        if (this._haveBlob) {
+        if (this._haveLoadedInitialAudioData) {
             time = Math.min(this._player.getMaximumSeekTime(this._duration), time);
         }
 
@@ -882,7 +882,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._baseTime = this._currentTime - this._getCurrentAudioBufferBaseTimeDelta();
         this._timeUpdate();
 
-        if (!this._haveBlob || !this.isSeekable()) {
+        if (!this._haveLoadedInitialAudioData || !this.isSeekable()) {
             return;
         }
 
@@ -907,7 +907,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._gaplessPreloadArgs = null;
         this._nullifyPendingRequests();
         this._currentTime = this._duration = this._baseTime = 0;
-        this._haveBlob = false;
+        this._haveLoadedInitialAudioData = false;
         this._seeking = false;
         this._initialPlaythroughEmitted = false;
         this._currentSeekEmitted = false;
@@ -929,26 +929,20 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         return !(this._destroyed || this._lastBufferLoadedEmitted) && !this._loadingNext;
     }
 
-    _error(args) {
+    _error({message}) {
         if (this._destroyed) {
             return;
         }
-        const e = new Error(args.message);
-        e.name = args.name;
-        e.stack = args.stack;
-        if (this._player.env.isDevelopment()) {
-            console.error(e.stack);
-        }
         this.unload();
-        this.emit(`error`, e);
+        this.emit(`error`, {message});
     }
 
-    _blobLoaded(args) {
+    _initialAudioDataLoaded(args) {
         if (this._destroyed) return;
         if (this._replacementRequestId !== args.requestId) return;
         const {demuxData} = args;
         this._loadingNext = false;
-        this._haveBlob = true;
+        this._haveLoadedInitialAudioData = true;
         this._duration = demuxData.duration;
         this._baseGain = typeof demuxData.establishedGain === `number` ? demuxData.establishedGain : 1;
         this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
@@ -986,10 +980,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._applySeek(baseTime);
     }
 
-    _actualReplace(blob, seekTime, gaplessPreload) {
+    _actualReplace(fileReference, seekTime, gaplessPreload) {
         if (this._destroyed) return;
-        if (!this._haveBlob) {
-            this.load(blob, seekTime);
+        if (!this._haveLoadedInitialAudioData) {
+            this.load(fileReference, seekTime);
             return;
         }
 
@@ -1001,7 +995,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
         const requestId = ++this._replacementRequestId;
         this._player._message(this._id, `loadReplacement`, {
-            blob,
+            fileReference,
             requestId,
             seekTime,
             count: this.getSustainedBufferCount(),
@@ -1009,20 +1003,20 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         });
     }
 
-    replace(blob, seekTime, gaplessPreload) {
+    replace(fileReference, seekTime, gaplessPreload) {
         if (this._destroyed) return;
         if (seekTime === undefined) seekTime = 0;
         this._loadingNext = true;
         const now = performance.now();
         if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-            this._actualReplace(blob, seekTime, gaplessPreload);
+            this._actualReplace(fileReference, seekTime, gaplessPreload);
         } else {
-            this._replaceThrottled(blob, seekTime, gaplessPreload);
+            this._replaceThrottled(fileReference, seekTime, gaplessPreload);
         }
         this._lastExpensiveCall = now;
     }
 
-    _actualLoad(blob, seekTime) {
+    _actualLoad(fileReference, seekTime) {
         if (this._destroyed) return;
         if (seekTime === undefined) {
             seekTime = 0;
@@ -1030,26 +1024,26 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
         this.unload();
         this._currentTime = this._baseTime = seekTime;
-        const fillRequestId = ++this._replacementRequestId;
-        this._player._message(this._id, `loadBlob`, {
-            blob,
-            requestId: fillRequestId
+        const requestId = ++this._replacementRequestId;
+        this._player._message(this._id, `loadInitialAudioData`, {
+            fileReference,
+            requestId
         });
     }
 
-    load(blob, seekTime) {
+    load(fileReference, seekTime) {
         if (this._destroyed) return;
         if (seekTime === undefined) seekTime = 0;
-        if (!(blob instanceof Blob) && !(blob instanceof File)) {
-            throw new Error(`blob must be a blob`);
+        if (!fileReference) {
+            throw new Error(`fileReference cannot be null`);
         }
         this._nullifyPendingRequests();
         const now = performance.now();
         this._loadingNext = true;
         if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-            this._actualLoad(blob, seekTime);
+            this._actualLoad(fileReference, seekTime);
         } else {
-            this._loadThrottled(blob, seekTime);
+            this._loadThrottled(fileReference, seekTime);
         }
         this._lastExpensiveCall = now;
     }
@@ -1058,12 +1052,12 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._seek(time, true);
     }
 
-    _replaceThrottled(blob, seekTime, gaplessPreload) {
-        this._actualReplace(blob, seekTime, gaplessPreload);
+    _replaceThrottled(fileReference, seekTime, gaplessPreload) {
+        this._actualReplace(fileReference, seekTime, gaplessPreload);
     }
 
-    _loadThrottled(blob, seekTime) {
-        this._actualLoad(blob, seekTime);
+    _loadThrottled(fileReference, seekTime) {
+        this._actualLoad(fileReference, seekTime);
     }
 
 }

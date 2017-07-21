@@ -5,7 +5,6 @@ import EventEmitter from "events";
 import {noUndefinedGet} from "util";
 import {URL} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
-import {FILESYSTEM_ACCESS_ERROR, DECODE_ERROR} from "tracks/Track";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";
 
@@ -223,13 +222,7 @@ export default class PlayerController extends EventEmitter {
 
     audioManagerErrored(audioManager, e) {
         if (audioManager.track) {
-            let trackError;
-            if (e.name === `NotFoundError` || e.name === `NotReadableError`) {
-                trackError = FILESYSTEM_ACCESS_ERROR;
-            } else {
-                trackError = DECODE_ERROR;
-            }
-            audioManager.track.setError(trackError);
+            audioManager.track.setError(e.message);
         }
         this.destroyAudioManagers();
         this.currentAudioManager = null;

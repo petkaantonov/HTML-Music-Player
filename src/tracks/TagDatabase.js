@@ -1,7 +1,7 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
-import {indexedDB, IDBKeyRange} from "platform/platform";
+import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
-const VERSION = 19;
+const VERSION = 20;
 const DATA_WIPE_VERSION = 19;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
@@ -12,8 +12,12 @@ const ACOUST_ID_JOB_PRIMARY_KEY_NAME = `jobId`;
 
 const ALBUM_ART_OBJECT_STORE_NAME = `albumArt`;
 
+const TRACK_PAYLOAD_OBJECT_STORE_NAME = `trackPayload`;
+
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
+
+const CONSTRAINT_ERROR = `ConstraintError`;
 
 const objectStoreSpec = {
     [TRACK_INFO_OBJECT_STORE_NAME]: {
@@ -94,6 +98,16 @@ const objectStoreSpec = {
                 unique: false,
                 multiEntry: false,
                 keyPath: [`album`, `artist`]
+            }
+        }
+    },
+    [TRACK_PAYLOAD_OBJECT_STORE_NAME]: {
+        keyPath: TRACK_INFO_PRIMARY_KEY_NAME,
+        indexSpec: {
+            payloadType: {
+                unique: false,
+                multiEntry: false,
+                keyPath: `payloadType`
             }
         }
     }
@@ -366,6 +380,51 @@ export default class TagDatabase {
             albumArtData.trackUid = trackUid;
             return iDbPromisify(store.put(albumArtData));
         }
+    }
+
+    async fileByFileReference(fileReference) {
+        if (fileReference instanceof File) {
+            return fileReference;
+        } else if (fileReference instanceof ArrayBuffer) {
+            const trackUid = fileReference;
+            const db = await this.db;
+            const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_ONLY);
+            const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
+            const result = await iDbPromisify(store.get(IDBKeyRange.only(trackUid)));
+            if (!result) {
+                return result;
+            }
+            return result.file;
+        } else {
+            throw new Error(`invalid fileReference`);
+        }
+    }
+
+    async ensureFileStored(trackUid, fileReference) {
+        if (fileReference instanceof ArrayBuffer) {
+            return false;
+        } else if (fileReference instanceof File) {
+            const db = await this.db;
+            const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_WRITE);
+            const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
+            const data = {
+                payloadType: `localFile`,
+                trackUid,
+                file: fileReference
+            };
+            try {
+                await iDbPromisify(store.add(data));
+                return true;
+            } catch (e) {
+                if (e.name !== CONSTRAINT_ERROR) {
+                    throw e;
+                }
+                return false;
+            }
+        } else {
+            throw new Error(`invalid fileReference`);
+        }
+
     }
 }
 

@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
-import {getFileCacheKey} from "metadata/MetadataManagerBackend";
+import {fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import {hexString} from "util";
 
 export const DECODE_ERROR = `The file could not be decoded. Check that the codec is supported and the file is not corrupted.`;
@@ -12,16 +12,6 @@ export const AAC = 2;
 export const WEBM = 3;
 export const OGG = 4;
 export const UNKNOWN_FORMAT = 9999;
-const rType =
-    /(?:(RIFF....WAVE)|(ID3|\xFF[\xF0-\xFF][\x02-\xEF][\x00-\xFF])|(\xFF\xF1|\xFF\xF9)|(\x1A\x45\xDF\xA3)|(OggS))/;
-
-const FORMATS = [
-    [/^(audio\/vnd.wave|audio\/wav|audio\/wave|audio\/x-wav)$/, WAV],
-    [/^(audio\/mpeg|audio\/mp3)$/, MP3],
-    [/^(audio\/aac|audio\/aacp|audio\/3gpp|audio\/3gpp2|audio\/mp4|audio\/MP4A-LATM|audio\/mpeg4-generic)$/, AAC],
-    [/^(audio\/webm)$/, WEBM],
-    [/^(audio\/ogg|application\/ogg|audio\/x-ogg|application\/x-ogg)$/, OGG]
-];
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const QUARTER_HOUR_MS = 15 * 60 * 1000;
@@ -41,11 +31,11 @@ export function timerTick(now) {
 }
 
 export default class Track extends EventEmitter {
-    constructor(audioFile) {
+    constructor(fileReference, tagData = null) {
         super();
-        this.file = audioFile;
-        this.tagData = null;
+        this.tagData = tagData;
         this.index = -1;
+        this._fileReference = fileReference;
         this._error = null;
         this._uid = null;
         this._transientId = ++nextTransientId;
@@ -103,11 +93,6 @@ export default class Track extends EventEmitter {
             delete transientIdToTrack[this.transientId()];
             this.tagData.destroy();
             this.tagData = null;
-        }
-
-        if (this.file) {
-            this.file.close();
-            this.file = null;
         }
 
         this.removeAllListeners();
@@ -169,16 +154,9 @@ export default class Track extends EventEmitter {
         return !!this._error;
     }
 
-    getFileName() {
-        return this.file.name;
-    }
-
-    getFileSize() {
-        return this.file.size;
-    }
-
-    getFile() {
-        return this.file;
+    async getFileReference() {
+        await this._ensureUidComputed();
+        return this._fileReference;
     }
 
     getTagData() {
@@ -266,9 +244,9 @@ export default class Track extends EventEmitter {
         return indexedDB.cmp(thisUid, uid) === 0;
     }
 
-    async uid() {
-        if (this._uid) return this._uid;
-        this._uid = await getFileCacheKey(this.file);
+    async _ensureUidComputed() {
+        if (this._uid) return;
+        this._uid = await fileReferenceToTrackUid(this._fileReference);
         const key = hexString(this._uid);
         const entry = uidsToTrack.get(key);
         if (!entry) {
@@ -278,6 +256,11 @@ export default class Track extends EventEmitter {
         } else {
             entry.push(this);
         }
+
+    }
+
+    async uid() {
+        await this._ensureUidComputed();
         return this._uid;
     }
 
@@ -348,32 +331,6 @@ export default class Track extends EventEmitter {
 
     hasBeenPlayedWithin(time) {
         return this.getLastPlayed() >= time;
-    }
-
-    getFormat(initialBytes) {
-        const type = this.file.type.toLowerCase();
-        let matches;
-        if (type) {
-            matches = FORMATS.filter(v => v[0].test(type));
-        }
-
-        if (type && matches.length) {
-            return matches[0][1];
-        } else if (!type) {
-            const match = rType.exec(initialBytes);
-
-            if (match) {
-                for (let i = 0; i < FORMATS.length; ++i) {
-                    if (match[FORMATS[i][1] + 1] !== undefined) {
-                        return FORMATS[i][1];
-                    }
-                }
-            }
-
-            return UNKNOWN_FORMAT;
-        } else {
-            return UNKNOWN_FORMAT;
-        }
     }
 
     _weightChanged() {

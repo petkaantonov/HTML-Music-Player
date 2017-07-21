@@ -90,13 +90,10 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         if (!track.needsParsing()) {
             return;
         }
-        const uid = await track.uid();
+        const fileReference = await track.getFileReference();
         this.postMessage({
             action: `parseMetadata`,
-            args: {
-                uid,
-                file: track.getFile()
-            }
+            args: {fileReference}
         });
     }
 }

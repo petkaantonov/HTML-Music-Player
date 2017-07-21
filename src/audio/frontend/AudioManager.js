@@ -100,12 +100,11 @@ export default class AudioManager {
         return this.sourceNode.hasGaplessPreload();
     }
 
-    _updateNextGaplessTrack() {
+    async _updateNextGaplessTrack() {
         this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
         if (this.gaplessPreloadTrack) {
-            this.sourceNode.replace(this.gaplessPreloadTrack.getFile(),
-                                    0,
-                                    true);
+            const fileReference = await this.gaplessPreloadTrack.getFileReference();
+            this.sourceNode.replace(fileReference, 0, true);
         }
     }
 
@@ -130,7 +129,7 @@ export default class AudioManager {
         }
     }
 
-    replaceTrack(track, explicitlyLoaded) {
+    async replaceTrack(track, explicitlyLoaded) {
         if (this.destroyed || this.player.currentAudioManager !== this) return;
         this.player.playlist.removeListener(`nextTrackChange`, this.nextTrackChangedWhilePreloading);
         const {gaplessPreloadTrack} = this;
@@ -160,7 +159,8 @@ export default class AudioManager {
             this.resume();
         });
         this.currentTime = 0;
-        this.sourceNode.replace(track.getFile(), this.currentTime, false);
+        const fileReference = await track.getFileReference();
+        this.sourceNode.replace(fileReference, this.currentTime, false);
     }
 
     nextTrackChanged() {
@@ -304,7 +304,7 @@ export default class AudioManager {
         }
     }
 
-    start() {
+    async start() {
         if (this.destroyed || this.started) return;
         this.tickCounter.reset();
         this.intendingToSeek = -1;
@@ -313,8 +313,8 @@ export default class AudioManager {
         this.sourceNode.on(`ended`, this.ended);
         this.sourceNode.on(`error`, this.errored);
         this.sourceNode.on(`initialPlaythrough`, this.initialPlaythrough);
-        this.sourceNode.load(this.track.getFile(),
-                             0);
+        const fileReference = await this.track.getFileReference();
+        this.sourceNode.load(fileReference, 0);
         this.sourceNode.play();
     }
 
