@@ -14,6 +14,7 @@ export const TRACK_PLAYING_STATUS_CHANGE_EVENT = `trackPlayingStatusChange`;
 export const HISTORY_CHANGE_EVENT = `historyChange`;
 export const MODE_CHANGE_EVENT = `modeChange`;
 export const PLAYLIST_STOPPED_EVENT = `playlistStopped`;
+export const NO_NEXT_TRACK_AVAILABLE_EVENT = `noNextTrackAvailable`;
 export const SHUFFLE_MODE = `shuffle`;
 export const NORMAL_MODE = `normal`;
 export const REPEAT_MODE = `repeat`;
@@ -303,7 +304,16 @@ export default class PlaylistController extends TrackContainerController {
     next(userInitiated) {
         const nextPlaylistTrack = this.getNextPlaylistTrack();
         if (nextPlaylistTrack.isDummy()) {
-            return this.stop();
+            let nextTrack = null;
+            this.emit(NO_NEXT_TRACK_AVAILABLE_EVENT, (track) => {
+                nextTrack = track;
+            });
+            if (nextTrack) {
+                return this._changeTrackImplicitly(new PlaylistTrack(nextTrack),
+                                                   false,
+                                                   userInitiated);
+            }
+            return userInitiated ? null : this.stop();
         }
 
         return this._changeTrackImplicitly(nextPlaylistTrack, false, userInitiated);
@@ -332,6 +342,7 @@ export default class PlaylistController extends TrackContainerController {
 
         this._mode = mode;
         this.emit(MODE_CHANGE_EVENT, mode, oldMode);
+        this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
         this._updateNextTrack();
         this.db.set(PLAYLIST_MODE_KEY, mode);
         return true;

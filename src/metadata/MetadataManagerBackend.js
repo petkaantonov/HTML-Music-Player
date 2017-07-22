@@ -191,11 +191,11 @@ export default class MetadataManagerBackend extends AbstractBackend {
         if (fileReference instanceof File) {
             return new FileView(fileReference);
         } else if (fileReference instanceof ArrayBuffer) {
-            const result = await this._tagDatabase.fileByFileReference(fileReference);
-            if (!(result instanceof File)) {
+            const file = await this._tagDatabase.fileByFileReference(fileReference);
+            if (!(file instanceof File)) {
                 throw new Error(`fileReference has been deleted`);
             }
-            return new FileView(fileReference);
+            return new FileView(file);
         } else {
             throw new Error(`invalid fileReference`);
         }
