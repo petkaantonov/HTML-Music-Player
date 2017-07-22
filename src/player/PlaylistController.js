@@ -14,7 +14,7 @@ export const TRACK_PLAYING_STATUS_CHANGE_EVENT = `trackPlayingStatusChange`;
 export const HISTORY_CHANGE_EVENT = `historyChange`;
 export const MODE_CHANGE_EVENT = `modeChange`;
 export const PLAYLIST_STOPPED_EVENT = `playlistStopped`;
-export const NO_NEXT_TRACK_AVAILABLE_EVENT = `noNextTrackAvailable`;
+export const CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT = `noNextTrackAvailable`;
 export const SHUFFLE_MODE = `shuffle`;
 export const NORMAL_MODE = `normal`;
 export const REPEAT_MODE = `repeat`;
@@ -140,6 +140,14 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     getNextPlaylistTrack() {
+        if (this._nextPlaylistTrack.isDummy()) {
+            const nextTrack = this._maybeGetNextTrackFromOutsideSource();
+            if (nextTrack) {
+                this._nextPlaylistTrack = new PlaylistTrack(nextTrack);
+                return this._nextPlaylistTrack;
+            }
+            return DUMMY_PLAYLIST_TRACK;
+        }
         return this._nextPlaylistTrack;
     }
 
@@ -304,18 +312,8 @@ export default class PlaylistController extends TrackContainerController {
     next(userInitiated) {
         const nextPlaylistTrack = this.getNextPlaylistTrack();
         if (nextPlaylistTrack.isDummy()) {
-            let nextTrack = null;
-            this.emit(NO_NEXT_TRACK_AVAILABLE_EVENT, (track) => {
-                nextTrack = track;
-            });
-            if (nextTrack) {
-                return this._changeTrackImplicitly(new PlaylistTrack(nextTrack),
-                                                   false,
-                                                   userInitiated);
-            }
             return userInitiated ? null : this.stop();
         }
-
         return this._changeTrackImplicitly(nextPlaylistTrack, false, userInitiated);
     }
 
@@ -350,6 +348,20 @@ export default class PlaylistController extends TrackContainerController {
 
     getMode() {
         return this._mode;
+    }
+
+    _maybeGetNextTrackFromOutsideSource() {
+        const nextTrackCandidates = [];
+        this.emit(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT, (track, priority) => {
+            nextTrackCandidates.push({track, priority});
+        });
+        if (nextTrackCandidates.length > 1) {
+            nextTrackCandidates.sort((a, b) => a.priority - b.priority);
+        }
+        if (nextTrackCandidates.length > 0) {
+            return nextTrackCandidates[0].track;
+        }
+        return null;
     }
 
     _nextPlaylistTrackFromNormalMode(playlistTrack) {
@@ -402,6 +414,7 @@ export default class PlaylistController extends TrackContainerController {
         if (view && view.track()) {
             return new PlaylistTrack(view.track(), view);
         }
+
         return nextPlaylistTrack;
     }
 

@@ -5,6 +5,7 @@ import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "player/PlaylistController";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -134,6 +135,10 @@ export default class SearchController extends TrackContainerController {
         this._dirty = false;
         this._nextSessionId = 0;
 
+        this._candidateTrackIndex = -1;
+        this._playlist.on(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT,
+                          this._candidateTracksNeeded.bind(this));
+
         this.$input().addEventListener(`input`, this._gotInput.bind(this)).
                      addEventListener(`focus`, this._inputFocused.bind(this)).
                      addEventListener(`blur`, this._inputBlurred.bind(this)).
@@ -157,7 +162,7 @@ export default class SearchController extends TrackContainerController {
             id: `play`,
             content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
             onClick: () => {
-                this.changeTrackExplicitly(this._singleTrackViewSelected.track());
+                this.changeTrackExplicitly(this._singleTrackViewSelected.track(), this._singleTrackViewSelected);
                 this._singleTrackMenu.hide();
             }
         });
@@ -241,7 +246,20 @@ export default class SearchController extends TrackContainerController {
         this.db.set(SEARCH_HISTORY_KEY, json);
     }
 
-    changeTrackExplicitly(track) {
+    _candidateTracksNeeded(submitCandidate) {
+        if (this.length > 0) {
+            const priority = this._visible ? 0 : 1;
+            const index = ((++this._candidateTrackIndex) % this.length);
+            this._candidateTrackIndex %= this.length;
+
+            submitCandidate(this._trackViews[index].track(), priority);
+        }
+    }
+
+    changeTrackExplicitly(track, trackView) {
+        if (trackView) {
+            this._candidateTrackIndex = trackView.getIndex();
+        }
         this._playlist.changeTrackExplicitly(track);
     }
 
@@ -250,6 +268,7 @@ export default class SearchController extends TrackContainerController {
     }
 
     newResults(session, results) {
+        this._candidateTrackIndex = -1;
         if (this._session !== session) {
             session.destroy();
             return;
@@ -377,13 +396,14 @@ export default class SearchController extends TrackContainerController {
         if (!this.length) return;
         const firstSelectedTrack = this._selectable.first();
         if (firstSelectedTrack) {
-            this.changeTrackExplicitly(firstSelectedTrack.track());
+            this.changeTrackExplicitly(firstSelectedTrack.track(), firstSelectedTrack);
             return;
         }
 
-        let first = this._trackViews.first();
-        if (first) first = first.track();
-        this.changeTrackExplicitly(first);
+        const firstView = this._trackViews.first();
+        if (firstView) {
+            this.changeTrackExplicitly(firstView.track(), firstView);
+        }
     }
 }
 
