@@ -438,7 +438,8 @@ export default class Application {
             playlist,
             page,
             env,
-            playerPictureManager
+            playerPictureManager,
+            globalEvents
         }, d => new MediaSessionWrapper(d));
 
         const visualizerCanvas = this.visualizerCanvas = withDeps({

@@ -250,7 +250,7 @@ export default class SearchController extends TrackContainerController {
         if (this.length > 0) {
             const priority = this._visible ? 0 : 1;
             const index = ((++this._candidateTrackIndex) % this.length);
-            this._candidateTrackIndex %= this.length;
+            this._candidateTrackIndex = index;
 
             submitCandidate(this._trackViews[index].track(), priority);
         }

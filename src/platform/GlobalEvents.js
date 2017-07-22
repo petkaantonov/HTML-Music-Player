@@ -2,6 +2,8 @@ import {isTextInputElement} from "platform/dom/Page";
 import EventEmitter from "events";
 import {throttle} from "util";
 
+export const FOREGROUND_EVENT = `foreground`;
+
 export default class GlobalEvents extends EventEmitter {
     constructor(page) {
         super();
@@ -61,7 +63,7 @@ export default class GlobalEvents extends EventEmitter {
         if (this.isWindowBackgrounded()) {
             this.emit(`background`);
         } else {
-            this.emit(`foreground`);
+            this.emit(FOREGROUND_EVENT);
         }
         this.emit(`visibilityChange`);
     }
@@ -143,7 +145,7 @@ export default class GlobalEvents extends EventEmitter {
 
     windowWasForegrounded() {
         return new Promise((resolve) => {
-            this.once(`foreground`, resolve);
+            this.once(FOREGROUND_EVENT, resolve);
         });
     }
 }
