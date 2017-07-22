@@ -9,9 +9,12 @@ import {FOREGROUND_EVENT} from "platform/GlobalEvents";
 const PLAYBACK_STATE_NONE = `none`;
 const PLAYBACK_STATE_PLAYING = `playing`;
 const PLAYBACK_STATE_PAUSED = `paused`;
-
-
-
+const ACTION_HANDLER_PLAY = "play";
+const ACTION_HANDLER_PAUSE = "pause";
+const ACTION_HANDLER_SEEKBACKWARD = "seekbackward";
+const ACTION_HANDLER_SEEKFORWARD = "seekforward";
+const ACTION_HANDLER_PREVIOUSTRACK = "previoustrack";
+const ACTION_HANDLER_NEXTTRACK = "nexttrack";
 
 function getPlaybackState(isPlaying, isPaused) {
     let state;
@@ -50,12 +53,12 @@ export default class MediaSessionWrapper {
             this._mediaSession = this.page.window().navigator.mediaSession;
             this._mediaSession.playbackState = PLAYBACK_STATE_NONE;
             this._mediaSession.metadata = new MediaMetadata();
-            this._mediaSession.setActionHandler(`play`, this._actionPlay.bind(this));
-            this._mediaSession.setActionHandler(`pause`, this._actionPause.bind(this));
-            this._mediaSession.setActionHandler(`seekbackward`, this._actionBackward.bind(this));
-            this._mediaSession.setActionHandler(`seekforward`, this._actionForward.bind(this));
-            this._mediaSession.setActionHandler(`previoustrack`, this._actionPrev.bind(this));
-            this._mediaSession.setActionHandler(`nexttrack`, this._actionNext.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_PLAY, this._actionPlay.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_PAUSE, this._actionPause.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_SEEKBACKWARD, this._actionBackward.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_SEEKFORWARD, this._actionForward.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_PREVIOUSTRACK, this._actionPrev.bind(this));
+            this._mediaSession.setActionHandler(ACTION_HANDLER_NEXTTRACK, this._actionNext.bind(this));
             this.playlist.on(NEXT_TRACK_CHANGE_EVENT, this._stateChanged);
             this.playlist.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._stateChanged);
             this.player.on(PLAYBACK_STATE_CHANGE_EVENT, this._stateChanged);

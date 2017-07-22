@@ -58,6 +58,8 @@ const getBestRecordingGroup = function(recordings, actualDuration) {
             continue;
         }
 
+        const durationDiff = Math.abs(recording.duration - actualDuration);
+
         for (let j = 0; j < releasegroups.length; ++j) {
             const releasegroup = releasegroups[j];
             if (!releasegroup) {
@@ -81,7 +83,8 @@ const getBestRecordingGroup = function(recordings, actualDuration) {
                 type,
                 typeValue: typeValue === undefined ? 10 : typeValue,
                 album: releasegroups[j],
-                secondaryTypeWeight
+                secondaryTypeWeight,
+                durationDiff
             });
         }
     }
@@ -94,6 +97,12 @@ const getBestRecordingGroup = function(recordings, actualDuration) {
         }
 
         valueDiff = aGroup.secondaryTypeWeight - bGroup.secondaryTypeWeight;
+
+        if (valueDiff !== 0) {
+            return valueDiff;
+        }
+
+        valueDiff = aGroup.durationDiff - bGroup.durationDiff;
 
         if (valueDiff !== 0) {
             return valueDiff;
