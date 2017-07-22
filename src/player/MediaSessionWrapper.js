@@ -9,12 +9,12 @@ import {FOREGROUND_EVENT} from "platform/GlobalEvents";
 const PLAYBACK_STATE_NONE = `none`;
 const PLAYBACK_STATE_PLAYING = `playing`;
 const PLAYBACK_STATE_PAUSED = `paused`;
-const ACTION_HANDLER_PLAY = "play";
-const ACTION_HANDLER_PAUSE = "pause";
-const ACTION_HANDLER_SEEKBACKWARD = "seekbackward";
-const ACTION_HANDLER_SEEKFORWARD = "seekforward";
-const ACTION_HANDLER_PREVIOUSTRACK = "previoustrack";
-const ACTION_HANDLER_NEXTTRACK = "nexttrack";
+const ACTION_HANDLER_PLAY = `play`;
+const ACTION_HANDLER_PAUSE = `pause`;
+const ACTION_HANDLER_SEEKBACKWARD = `seekbackward`;
+const ACTION_HANDLER_SEEKFORWARD = `seekforward`;
+const ACTION_HANDLER_PREVIOUSTRACK = `previoustrack`;
+const ACTION_HANDLER_NEXTTRACK = `nexttrack`;
 
 function getPlaybackState(isPlaying, isPaused) {
     let state;

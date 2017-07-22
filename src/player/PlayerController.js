@@ -472,10 +472,10 @@ export default class PlayerController extends EventEmitter {
 
         if (this.playlist.getNextTrack()) {
             this.$next().removeClass(`disabled`);
+        }
 
-            if (this.playlist.hasHistory()) {
-                this.$previous().removeClass(`disabled`);
-            }
+        if (this.playlist.hasHistory()) {
+            this.$previous().removeClass(`disabled`);
         }
 
         if (!this.isStopped) {

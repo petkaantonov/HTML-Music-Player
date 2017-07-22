@@ -30,6 +30,7 @@ class Track extends EventEmitter {
         this._uid = uid;
         this._fileReference = fileReference;
         this._error = null;
+        this._isPlaying = false;
         this._offline = true;
         this._weight = 3;
         this._weightDeadline = -1;
@@ -116,22 +117,28 @@ class Track extends EventEmitter {
     }
 
     stopPlaying() {
-        this.emit(VIEW_UPDATE_EVENT, `viewUpdatePlayingStatusChange`, false);
+        this._isPlaying = false;
+        this.emit(VIEW_UPDATE_EVENT, `viewUpdatePlayingStatusChange`);
     }
 
     startPlaying() {
-        this.emit(VIEW_UPDATE_EVENT, `viewUpdatePlayingStatusChange`, true);
+        this._isPlaying = true;
+        this.emit(VIEW_UPDATE_EVENT, `viewUpdatePlayingStatusChange`);
+    }
+
+    isPlaying() {
+        return this._isPlaying;
     }
 
     unsetError() {
         this._error = null;
-        this.emit(VIEW_UPDATE_EVENT, `viewUpdateHideErrorStatus`);
+        this.emit(VIEW_UPDATE_EVENT, `viewUpdateErrorStatusChange`);
         this._weightChanged();
     }
 
     setError(message) {
         this._error = message;
-        this.emit(VIEW_UPDATE_EVENT, `viewUpdateShowErrorStatus`);
+        this.emit(VIEW_UPDATE_EVENT, `viewUpdateErrorStatusChange`);
         this._weightChanged();
     }
 

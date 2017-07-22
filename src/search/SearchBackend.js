@@ -4,7 +4,6 @@ import {trackSearchIndexCmp, stopWords} from "tracks/TagDatabase";
 import {merge, insert} from "search/sortedArrays";
 import {indexedDB} from "platform/platform";
 
-const {cmp: iDBCmp} = indexedDB;
 const MAX_SEARCH_RESULTS = 2500;
 const EMPTY_ARRAY = Object.freeze([]);
 
@@ -33,7 +32,7 @@ export function getKeywords(searchTerm) {
 export function trackSearchIndexResultCmp(a, b) {
     const cmp = a.distance - b.distance;
     if (cmp === 0) {
-        return iDBCmp(a.trackUid, b.trackUid);
+        return indexedDB.cmp(a.trackUid, b.trackUid);
     }
     return cmp;
 }

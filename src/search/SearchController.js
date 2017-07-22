@@ -1,11 +1,12 @@
-import {buildConsecutiveRanges, indexMapper, normalizeQuery, throttle} from "util";
+import {normalizeQuery, throttle} from "util";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
-import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT, PlayedTrackOrigin} from "tracks/TrackContainerController";
 import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "player/PlaylistController";
+import {indexedDB} from "platform/platform";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -114,6 +115,7 @@ class SearchFrontend extends WorkerFrontend {
 export default class SearchController extends TrackContainerController {
     constructor(opts, deps) {
         opts.trackRaterZIndex = zIndex;
+        opts.playedTrackOriginUsesTrackViewIndex = false;
         super(opts, deps);
         this._metadataManager = deps.metadataManager;
         this._searchFrontend = new SearchFrontend(this, deps);
@@ -132,7 +134,6 @@ export default class SearchController extends TrackContainerController {
 
         this._topHistoryEntry = null;
         this._visible = false;
-        this._dirty = false;
         this._nextSessionId = 0;
 
         this._candidateTrackIndex = -1;
@@ -162,7 +163,10 @@ export default class SearchController extends TrackContainerController {
             id: `play`,
             content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
             onClick: () => {
-                this.changeTrackExplicitly(this._singleTrackViewSelected.track(), this._singleTrackViewSelected);
+                this.changeTrackExplicitly(this._singleTrackViewSelected.track(), {
+                    trackView: this._singleTrackViewSelected,
+                    origin: this.getPlayedTrackOrigin()
+                });
                 this._singleTrackMenu.hide();
             }
         });
@@ -221,11 +225,7 @@ export default class SearchController extends TrackContainerController {
         }
         super.tabDidShow();
         this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
-
-        if (this._dirty && this._session) {
-            this._dirty = false;
-            this._session.update();
-        }
+        this.globalEvents.setLastShownPlayedTrackOrigin(this.getPlayedTrackOrigin());
     }
 
     tryLoadHistory(values) {
@@ -248,38 +248,94 @@ export default class SearchController extends TrackContainerController {
 
     _candidateTracksNeeded(submitCandidate) {
         if (this.length > 0) {
-            const priority = this._visible ? 0 : 1;
-            const index = ((++this._candidateTrackIndex) % this.length);
+            const priority = this._visible ? 0
+                                           : this.globalEvents.getLastShownPlayedTrackOrigin() === this.getPlayedTrackOrigin()
+                                                ? 1
+                                                : 2;
+            const index = ((this._candidateTrackIndex + 1) % this.length);
+            const trackView = this._trackViews[index];
             this._candidateTrackIndex = index;
-
-            submitCandidate(this._trackViews[index].track(), priority);
+            submitCandidate(trackView.track(), trackView, this.getPlayedTrackOrigin(), priority);
         }
     }
 
-    changeTrackExplicitly(track, trackView) {
-        if (trackView) {
-            this._candidateTrackIndex = trackView.getIndex();
+    changeTrackExplicitly(track, {trackView, origin}) {
+        this._candidateTrackIndex = trackView.getIndex();
+        this._playlist.changeTrackExplicitly(track, {
+            trackView,
+            origin
+        });
+    }
+
+    candidatePlaylistTrackWillPlay(playlistTrack) {
+        const index = playlistTrack.trackView().getIndex();
+        if (this._candidateTrackIndex === -1 &&
+            index >= 0 && index < this.length &&
+            this._trackViews[index] === playlistTrack.trackView()) {
+            this._candidateTrackIndex = index;
         }
-        this._playlist.changeTrackExplicitly(track);
     }
 
     _focusInput() {
         this.$input().focus();
     }
 
-    newResults(session, results) {
-        this._candidateTrackIndex = -1;
+    async newResults(session, results) {
         if (this._session !== session) {
             session.destroy();
             return;
         }
-        this._dirty = false;
-        console.log(results);
-        // TODO
+
+        let diff = false;
+        if (results.length !== this._trackViews.length) {
+            diff = true;
+        } else {
+            for (let i = 0; i < results.length; ++i) {
+                if (indexedDB.cmp(results[i].trackUid, this._trackViews[i].track().uid()) !== 0) {
+                    diff = true;
+                    break;
+                }
+            }
+        }
+
+        if (!diff) {
+            return;
+        }
+        const oldLength = this.length;
+        const newLength = results.length;
+        this.destroyTrackViews();
+        let candidateTrackIndex = -1;
+        if (results.length > 0) {
+            const {_metadataManager} = this;
+
+            const tracks =
+                await Promise.all(results.map(result => _metadataManager.getTrackByFileReferenceAsync(result.trackUid)));
+
+            for (let i = 0; i < tracks.length; ++i) {
+                const track = tracks[i];
+                this._trackViews[i] = new TrackView(track, i, this._trackViewOptions);
+                if (track.isPlaying()) {
+                    candidateTrackIndex = i;
+                }
+            }
+        }
+
+        this.emit(LENGTH_CHANGE_EVENT, newLength, oldLength);
+        this._fixedItemListScroller.resize();
+        this._candidateTrackIndex = candidateTrackIndex;
+        this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
+        if (!this._playlist.hasNextTrack() && this.length > 0) {
+            const index = ((++this._candidateTrackIndex) % this.length);
+            this._candidateTrackIndex = index;
+            const trackView = this._trackViews[index];
+            this._playlist.playlistTrackCandidateFromOrigin(trackView.track(),
+                                                            trackView,
+                                                            this.getPlayedTrackOrigin());
+        }
     }
 
     clear() {
-        this.removeTrackViews(this._trackViews);
+        this.destroyTrackViews();
         if (this._session) {
             this._session.destroy();
             this._session = null;
@@ -348,23 +404,20 @@ export default class SearchController extends TrackContainerController {
         this.$inputContainer().addClass(`focused`);
     }
 
-    removeTrackViews(trackViews, silent) {
-        if (trackViews.length === 0) return;
-        const oldLength = this.length;
-        const indices = trackViews.map(indexMapper);
-        const tracksIndexRanges = buildConsecutiveRanges(indices);
+    destroyTrackViews() {
+        this._candidateTrackIndex = -1;
+        this.clearSelection();
 
-        this._selectable.removeIndices(indices);
+        const {length} = this;
 
-        for (let i = 0; i < trackViews.length; ++i) {
-            trackViews[i].destroy();
+        for (let i = 0; i < length; ++i) {
+            this._trackViews[i].destroy();
         }
-
-        this.removeTracksBySelectionRanges(tracksIndexRanges);
-        if (this.length !== oldLength && !silent) {
-            this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
-            this._fixedItemListScroller.resize();
+        this._trackViews.length = 0;
+        if (length !== 0) {
+            this.emit(LENGTH_CHANGE_EVENT, 0, length);
         }
+        this._fixedItemListScroller.resize();
     }
 
     _gotInput() {
@@ -382,6 +435,7 @@ export default class SearchController extends TrackContainerController {
 
         if (normalized.length <= 1) {
             this.clear();
+            this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
             return;
         }
 
@@ -396,13 +450,19 @@ export default class SearchController extends TrackContainerController {
         if (!this.length) return;
         const firstSelectedTrack = this._selectable.first();
         if (firstSelectedTrack) {
-            this.changeTrackExplicitly(firstSelectedTrack.track(), firstSelectedTrack);
+            this.changeTrackExplicitly(firstSelectedTrack.track(), {
+                trackView: firstSelectedTrack,
+                origin: this.getPlayedTrackOrigin()
+            });
             return;
         }
 
         const firstView = this._trackViews.first();
         if (firstView) {
-            this.changeTrackExplicitly(firstView.track(), firstView);
+            this.changeTrackExplicitly(firstView.track(), {
+                trackView: firstView,
+                origin: this.getPlayedTrackOrigin()
+            });
         }
     }
 }

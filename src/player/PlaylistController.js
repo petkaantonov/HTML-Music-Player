@@ -5,7 +5,7 @@ import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT, PlayedTrackOrigin} from "tracks/TrackContainerController";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
@@ -22,30 +22,58 @@ export const REPEAT_MODE = `repeat`;
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
 
-
-
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
 const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
 
+const dummyTrack = {};
+
 class PlaylistTrack {
-    constructor(track = null,
-                trackView = null) {
+    constructor(track, trackView, origin) {
+        if (!track) throw new Error("track cannot be null");
+        if (!trackView) throw new Error("trackView cannot be null");
+        if (!origin) throw new Error("origin cannot be null");
+
         this._track = track;
         this._trackView = trackView;
+        this._origin = origin;
+    }
+
+    isDummy() {
+        return this._track === dummyTrack;
     }
 
     track() {
+        if (this.isDummy()) {
+            return null;
+        }
         return this._track;
     }
 
     trackView() {
+        if (this.isDummy()) {
+            return null;
+        }
         return this._trackView;
     }
 
+    origin() {
+        if (this.isDummy()) {
+            return null;
+        }
+        return this._origin;
+    }
+
+    isFromOrigin(origin) {
+        return this.origin() === origin;
+    }
+
     getIndex() {
-        return this._trackView ? this._trackView.getIndex() : -1;
+        if (this.isDummy()) {
+            return -1;
+        }
+        return this.origin().usesTrackViewIndex() ? this.trackView().getIndex() : -1;
     }
 
     formatIndex() {
@@ -53,25 +81,29 @@ class PlaylistTrack {
     }
 
     formatFullName() {
-        return this.track() ? this.track().formatFullName() : ``;
+        return this.isDummy() ? "" : this.track().formatFullName();
     }
 
     hasError() {
-        return this._track ? this._track.hasError() : false;
+        return this.isDummy() ? false : this.track().hasError();
     }
 
-    isDummy() {
-        return !this._track && !this._trackView;
+    startedPlay() {
+        if (this.isDummy()) {
+            return;
+        }
+        this.origin().startedPlay(this);
     }
 }
 
-const DUMMY_PLAYLIST_TRACK = new PlaylistTrack();
+const DUMMY_PLAYLIST_TRACK = new PlaylistTrack(dummyTrack, dummyTrack, dummyTrack);
 
 let nextPlayId = 10;
 
 export default class PlaylistController extends TrackContainerController {
     constructor(opts, deps) {
         opts.trackRaterZIndex = zIndex;
+        opts.playedTrackOriginUsesTrackViewIndex = true;
         super(opts, deps);
         this.snackbar = deps.snackbar;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
@@ -139,16 +171,35 @@ export default class PlaylistController extends TrackContainerController {
         return this._currentPlaylistTrack;
     }
 
+    hasNextTrack() {
+        return !this._nextPlaylistTrack.isDummy();
+    }
+
     getNextPlaylistTrack() {
         if (this._nextPlaylistTrack.isDummy()) {
-            const nextTrack = this._maybeGetNextTrackFromOutsideSource();
-            if (nextTrack) {
-                this._nextPlaylistTrack = new PlaylistTrack(nextTrack);
+            const nextPlaylistTrack = this._maybeGetNextPlaylistTrackFromOutsideSource();
+            if (nextPlaylistTrack) {
+                this._nextPlaylistTrack = nextPlaylistTrack;
                 return this._nextPlaylistTrack;
             }
             return DUMMY_PLAYLIST_TRACK;
         }
         return this._nextPlaylistTrack;
+    }
+
+    playlistTrackCandidateFromOrigin(track, trackView, origin) {
+        if (this._nextPlaylistTrack.isDummy()) {
+            const playlistTrack = new PlaylistTrack(track, trackView, origin);
+            this._nextPlaylistTrack = playlistTrack;
+            this.emit(NEXT_TRACK_CHANGE_EVENT);
+        }
+    }
+
+    invalidateNextPlaylistTrackFromOrigin(origin) {
+        if (this._nextPlaylistTrack.isFromOrigin(origin)) {
+            this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
+            this._updateNextTrack();
+        }
     }
 
     selectionContainsAnyItemViewsBetween(startY, endY) {
@@ -183,17 +234,26 @@ export default class PlaylistController extends TrackContainerController {
         if (!this.length) return;
         const firstSelectedTrackView = this._selectable.first();
         if (firstSelectedTrackView) {
-            this.changeTrackExplicitly(firstSelectedTrackView.track(), firstSelectedTrackView);
+            this.changeTrackExplicitly(firstSelectedTrackView.track(), {
+                trackView: firstSelectedTrackView,
+                origin: this.getPlayedTrackOrigin()
+            });
             return;
         }
         const nextPlaylistTrack = this.getNextPlaylistTrack();
 
         if (!nextPlaylistTrack.isDummy()) {
-            this.changeTrackExplicitly(nextPlaylistTrack.track(), nextPlaylistTrack.trackView());
+            this.changeTrackExplicitly(nextPlaylistTrack.track(), {
+                trackView: nextPlaylistTrack.trackView(),
+                origin: nextPlaylistTrack.origin()
+            });
         } else {
             const firstView = this._trackViews.first();
             if (firstView) {
-                this.changeTrackExplicitly(firstView.track(), firstView);
+                this.changeTrackExplicitly(firstView.track(), {
+                    trackView: firstView,
+                    origin: this.getPlayedTrackOrigin()
+                });
             }
         }
     }
@@ -224,9 +284,9 @@ export default class PlaylistController extends TrackContainerController {
         const oldLength = this.length;
 
         tracks.forEach(function(track) {
-            const view = new TrackView(track, this._trackViewOptions);
-            const len = this._trackViews.push(view);
-            view.setIndex(len - 1);
+            const len = this._trackViews.length;
+            const view = new TrackView(track, len, this._trackViewOptions);
+            this._trackViews.push(view);
         }, this);
 
         this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
@@ -237,7 +297,7 @@ export default class PlaylistController extends TrackContainerController {
 
 
     stop() {
-        this._setCurrentTrack(DUMMY_PLAYLIST_TRACK, KIND_EXPLICIT);
+        this._setCurrentTrack(DUMMY_PLAYLIST_TRACK);
         this._errorCount = 0;
         this._updateNextTrack();
         this.emit(PLAYLIST_STOPPED_EVENT);
@@ -249,8 +309,18 @@ export default class PlaylistController extends TrackContainerController {
         this._updateNextTrack();
     }
 
-    changeTrackExplicitly(track, trackView, doNotRecordHistory = false) {
-        const playlistTrack = new PlaylistTrack(track, trackView);
+    /*eslint-enable class-methods-use-this */
+    candidatePlaylistTrackWillPlay() {
+        // NOOP
+    }
+    /*eslint-disable class-methods-use-this */
+
+    changeTrackExplicitly(track, {
+        doNotRecordHistory = false,
+        trackView = null,
+        origin = null
+    }) {
+        const playlistTrack = new PlaylistTrack(track, trackView, origin);
         return this._changeTrack(playlistTrack, !!doNotRecordHistory, KIND_EXPLICIT);
     }
 
@@ -302,7 +372,11 @@ export default class PlaylistController extends TrackContainerController {
             if (!playlistTrack) {
                 this.prev();
             } else {
-                this.changeTrackExplicitly(playlistTrack.track(), playlistTrack.trackView(), true);
+                this.changeTrackExplicitly(playlistTrack.track(), {
+                    trackView: playlistTrack.trackView(),
+                    origin: playlistTrack.origin(),
+                    doNotRecordHistory: true
+                });
             }
         } else {
             this.emit(HISTORY_CHANGE_EVENT);
@@ -350,16 +424,18 @@ export default class PlaylistController extends TrackContainerController {
         return this._mode;
     }
 
-    _maybeGetNextTrackFromOutsideSource() {
+    _maybeGetNextPlaylistTrackFromOutsideSource() {
         const nextTrackCandidates = [];
-        this.emit(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT, (track, priority) => {
-            nextTrackCandidates.push({track, priority});
+        this.emit(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT, (track, trackView, origin, priority) => {
+            nextTrackCandidates.push({track, trackView, origin, priority});
         });
         if (nextTrackCandidates.length > 1) {
             nextTrackCandidates.sort((a, b) => a.priority - b.priority);
         }
         if (nextTrackCandidates.length > 0) {
-            return nextTrackCandidates[0].track;
+            const [nextTrackCandidate] = nextTrackCandidates;
+            const {trackView, track, origin} = nextTrackCandidate;
+            return new PlaylistTrack(track, trackView, origin);
         }
         return null;
     }
@@ -378,7 +454,7 @@ export default class PlaylistController extends TrackContainerController {
 
             const trackView = this._trackViews[index];
             if (trackView) {
-                ret = new PlaylistTrack(trackView.track(), trackView);
+                ret = new PlaylistTrack(trackView.track(), trackView, this.getPlayedTrackOrigin());
             }
             index++;
             trials++;
@@ -412,7 +488,7 @@ export default class PlaylistController extends TrackContainerController {
         const view = trackViews[target];
 
         if (view && view.track()) {
-            return new PlaylistTrack(view.track(), view);
+            return new PlaylistTrack(view.track(), view, this.getPlayedTrackOrigin());
         }
 
         return nextPlaylistTrack;
@@ -441,7 +517,7 @@ export default class PlaylistController extends TrackContainerController {
         // TODO
     }
 
-    _setCurrentTrack(playlistTrack, trackChangeKind) {
+    _setCurrentTrack(playlistTrack) {
         const currentPlaylistTrack = this.getCurrentPlaylistTrack();
 
         if (!currentPlaylistTrack.isDummy()) {
@@ -454,11 +530,6 @@ export default class PlaylistController extends TrackContainerController {
             playlistTrack.track().startPlaying();
         }
 
-        if (this._isUsingShuffleMode() &&
-            trackChangeKind === KIND_EXPLICIT &&
-            !this._nextTrackIsSameAs(playlistTrack)) {
-            return;
-        }
         this._updateNextTrack();
     }
 
@@ -505,7 +576,7 @@ export default class PlaylistController extends TrackContainerController {
     _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
         if (!playlistTrack || playlistTrack.isDummy() || this._errorCount >= MAX_ERRORS) {
             this._errorCount = 0;
-            this._setCurrentTrack(DUMMY_PLAYLIST_TRACK, trackChangeKind);
+            this._setCurrentTrack(DUMMY_PLAYLIST_TRACK);
             this.emit(PLAYLIST_STOPPED_EVENT);
             return false;
         }
@@ -520,13 +591,13 @@ export default class PlaylistController extends TrackContainerController {
             }
         }
 
-        this._setCurrentTrack(playlistTrack, trackChangeKind);
+        this._setCurrentTrack(playlistTrack);
         const trackHasError = playlistTrack.hasError();
         if (trackHasError && trackChangeKind === KIND_IMPLICIT) {
             this._errorCount++;
             if (this._mode === `repeat` && this.length > 1) {
                 playlistTrack = this._nextPlaylistTrackFromNormalMode(playlistTrack);
-                this._setCurrentTrack(playlistTrack, KIND_IMPLICIT);
+                this._setCurrentTrack(playlistTrack);
             } else {
                 return this.next(false);
             }
@@ -535,6 +606,7 @@ export default class PlaylistController extends TrackContainerController {
         this._currentPlayId = nextPlayId++;
         this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, playlistTrack);
         this.emit(CURRENT_TRACK_CHANGE_EVENT, playlistTrack.track(), !!isUserInitiatedSkip);
+        playlistTrack.startedPlay();
         return true;
     }
 
@@ -545,7 +617,10 @@ export default class PlaylistController extends TrackContainerController {
             id: `play`,
             content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
             onClick: () => {
-                this.changeTrackExplicitly(this._singleTrackViewSelected.track(), this._singleTrackViewSelected);
+                this.changeTrackExplicitly(this._singleTrackViewSelected.track(), {
+                    trackView: this._singleTrackViewSelected,
+                    origin: this.getPlayedTrackOrigin()
+                });
                 this._singleTrackMenu.hide();
             }
         });

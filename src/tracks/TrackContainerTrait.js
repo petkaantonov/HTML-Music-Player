@@ -21,7 +21,10 @@ export default {
         this.$().addEventListener(`dblclick`, page.delegatedEventHandler((e) => {
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
             if (!trackView) return;
-            this.changeTrackExplicitly(trackView.track(), trackView);
+            this.changeTrackExplicitly(trackView.track(), {
+                trackView,
+                origin: this.getPlayedTrackOrigin()
+            });
         }, `.track-container`));
 
         if (env.hasTouch()) {
@@ -41,7 +44,10 @@ export default {
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
                 if (!trackView) return;
-                this.changeTrackExplicitly(trackView.track(), trackView);
+                this.changeTrackExplicitly(trackView.track(), {
+                    trackView,
+                    origin: this.getPlayedTrackOrigin()
+                });
             }, `.track-data`)).recognizeBubbledOn(this.$());
 
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
@@ -237,7 +243,10 @@ export default {
             this.playFirstSelected();
             return;
         }
-        this.changeTrackExplicitly(trackView.track(), trackView);
+        this.changeTrackExplicitly(trackView.track(), {
+            trackView,
+            origin: this.getPlayedTrackOrigin()
+        });
     },
 
     playFirstSelected() {
@@ -245,7 +254,10 @@ export default {
 
         const firstTrackView = this._selectable.first();
         if (!firstTrackView) return;
-        this.changeTrackExplicitly(firstTrackView.track(), firstTrackView);
+        this.changeTrackExplicitly(firstTrackView.track(), {
+            trackView: firstTrackView,
+            origin: this.getPlayedTrackOrigin()
+        });
     },
 
     getTrackViews() {

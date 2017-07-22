@@ -24,12 +24,12 @@ const TEMPLATE = `<div class='track'>
 </div>`;
 
 export default class TrackView {
-    constructor(track, opts) {
+    constructor(track, index, opts) {
         opts = Object(opts);
         this._opts = opts;
         this._track = track;
         this._isDestroyed = false;
-        this._index = -1;
+        this._index = index;
         this._error = null;
         this._domNode = null;
         this._isAttached = false;
@@ -107,14 +107,8 @@ export default class TrackView {
         }
 
         this.viewUpdateTagDataChange();
-        this.viewUpdatePlayingStatusChange(this.playlist().getCurrentTrack() === this._track);
-
-
-        if (this._track.hasError()) {
-            this.viewUpdateShowErrorStatus();
-        } else {
-            this.viewUpdateHideErrorStatus();
-        }
+        this.viewUpdatePlayingStatusChange();
+        this.viewUpdateErrorStatusChange();
 
         this._updateTranslate();
 
@@ -128,11 +122,15 @@ export default class TrackView {
     }
 
     destroy() {
-        if (this._isDestroyed) return false;
+        if (this._isDestroyed) return null;
         this._track.removeListener(VIEW_UPDATE_EVENT, this._viewUpdated);
-        this.setIndex(-1);
         this._isDestroyed = true;
-        return true;
+        const ret = this.detach();
+        if (ret) {
+            ret.remove();
+        }
+        this.setIndex(-1);
+        return ret;
     }
 
     isVisible() {
@@ -210,30 +208,22 @@ export default class TrackView {
         }
     }
 
-    viewUpdatePlayingStatusChange(playingStatus) {
+    viewUpdatePlayingStatusChange() {
         if (!this._shouldUpdateDom()) return;
-        if (playingStatus) {
+        if (this._track.isPlaying()) {
             this.$().addClass(`track-playing`);
         } else {
             this.$().removeClass(`track-playing`);
         }
     }
 
-    viewUpdateShowErrorStatus() {
+    viewUpdateErrorStatusChange() {
         if (!this._shouldUpdateDom()) return;
-        this.$().addClass(`track-error`).removeClass(`available-offline`);
-        // This.$trackStatus().find(`.track-error-status`).show(`inline-block`);
-    }
-
-    viewUpdateHideErrorStatus() {
-        if (!this._shouldUpdateDom()) return;
-        this.$().removeClass(`track-error`);
-        // This.$trackStatus().find(`.track-error-status`).hide();
-    }
-
-    viewUpdatePositionChange() {
-        if (!this._shouldUpdateDom()) return;
-        this.renderTrackNumber();
+        if (this._track.hasError()) {
+            this.$().addClass(`track-error`);
+        } else {
+            this.$().removeClass(`track-error`);
+        }
     }
 
     viewUpdateTagDataChange() {

@@ -14,6 +14,7 @@ export default class GlobalEvents extends EventEmitter {
         this._pendingSizeChange = false;
         this._beforeUnloadListener = null;
         this._history = page.window().history;
+        this._lastShownPlayedTrackOrigin = null;
 
         this._triggerSizeChange = this._triggerSizeChange.bind(this);
         this._firePendingSizeChangeEvent = this._firePendingSizeChangeEvent.bind(this);
@@ -114,6 +115,8 @@ export default class GlobalEvents extends EventEmitter {
         }
     }
 
+
+
     disableBeforeUnloadHandler() {
         this._beforeUnloadListener = null;
     }
@@ -147,6 +150,14 @@ export default class GlobalEvents extends EventEmitter {
         return new Promise((resolve) => {
             this.once(FOREGROUND_EVENT, resolve);
         });
+    }
+
+    setLastShownPlayedTrackOrigin(origin) {
+        this._lastShownPlayedTrackOrigin = origin;
+    }
+
+    getLastShownPlayedTrackOrigin() {
+        return this._lastShownPlayedTrackOrigin;
     }
 }
 

@@ -7,6 +7,27 @@ import TrackRater from "tracks/TrackRater";
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
 
+export class PlayedTrackOrigin {
+    constructor(name, controller, {usesTrackViewIndex}) {
+        this._name = name;
+        this._controller = controller;
+        this._usesTrackViewIndex = usesTrackViewIndex;
+    }
+
+    toString() {
+        return `Played track originating from ${this._name}`;
+    }
+
+    usesTrackViewIndex() {
+        return this._usesTrackViewIndex;
+    }
+
+    startedPlay(playlistTrack) {
+        this._controller.candidatePlaylistTrackWillPlay(playlistTrack);
+    }
+}
+
+
 export default class TrackContainerController extends EventEmitter {
     constructor(opts, deps) {
         super();
@@ -26,6 +47,9 @@ export default class TrackContainerController extends EventEmitter {
             rippler: this.rippler
         }, d => new TrackRater({zIndex: opts.trackRaterZIndex}, d));
 
+        this._playedTrackOrigin = new PlayedTrackOrigin(this.constructor.name, this, {
+            usesTrackViewIndex: opts.playedTrackOriginUsesTrackViewIndex
+        });
         this._domNode = this.page.$(opts.target);
         this._trackContainer = this.$().find(`.tracklist-transform-container`);
         this._trackViews = [];
@@ -53,6 +77,10 @@ export default class TrackContainerController extends EventEmitter {
 
     $trackContainer() {
         return this._trackContainer;
+    }
+
+    getPlayedTrackOrigin() {
+        return this._playedTrackOrigin;
     }
 
     bindKeyboardShortcuts() {
