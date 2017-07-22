@@ -40,7 +40,7 @@ export function trackSearchIndexResultCmp(a, b) {
 
 class SearchResultRater {
     constructor(normalizedQuery) {
-        const matchers = getKeywords(normalizedQuery.split(` `));
+        const matchers = getKeywords(normalizedQuery);
         normalizedQuery = matchers.join(` `);
         for (let i = 0; i < matchers.length; ++i) {
             matchers[i] = new RegExp(`\\b${matchers[i]}|${matchers[i]}\\b`, `g`);

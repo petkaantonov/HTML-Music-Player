@@ -742,7 +742,6 @@ export class DomWrapper {
     get length() {
         return this._length;
     }
-
 }
 
 class Platform {
@@ -1026,10 +1025,6 @@ export default class Page {
         if (typeof name !== `string`) throw new TypeError(`name must be string`);
         if (typeof handler !== `function`) throw new TypeError(`handler must be a function`);
         this._window.removeEventListener(name, handler, !!useCapture);
-    }
-
-    addMediaActionListener(name, handler) {
-        this._navigator.mediaSession.setActionHandler(name, handler);
     }
 
     setTitle(val) {

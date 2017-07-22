@@ -1,4 +1,6 @@
 import {noUndefinedGet} from "util";
+import {VOLUME_CHANGE_EVENT,
+        VOLUME_MUTE_EVENT} from "player/PlayerController";
 
 export default class PlayerVolumeManager {
     constructor(opts, deps) {
@@ -8,14 +10,12 @@ export default class PlayerVolumeManager {
         this.recognizerContext = deps.recognizerContext;
         this.rippler = deps.rippler;
         this.player = deps.player;
-        this.tooltipContext = deps.tooltipContext;
         this.volumeSlider = deps.sliderContext.createSlider({
             target: opts.volumeSlider
         });
 
         this._domNode = this.page.$(opts.target);
         this._muteDom = this.$().find(opts.muteDom);
-        this._muteTooltip = this.tooltipContext.createTooltip(this.$mute(), () => (this.player.isMuted() ? `Unmute volume.` : `Mute volume.`));
 
         this.slided = this.slided.bind(this);
         this.volumeChanged = this.volumeChanged.bind(this);
@@ -23,8 +23,8 @@ export default class PlayerVolumeManager {
         this.muteChanged = this.muteChanged.bind(this);
 
         this.volumeSlider.on(`slide`, this.slided);
-        this.player.on(`volumeChange`, this.volumeChanged);
-        this.player.on(`muted`, this.muteChanged);
+        this.player.on(VOLUME_CHANGE_EVENT, this.volumeChanged);
+        this.player.on(VOLUME_MUTE_EVENT, this.muteChanged);
 
         this.$mute().addEventListener(`click`, this.muteClicked);
         this.recognizerContext.createTapRecognizer(this.muteClicked).recognizeBubbledOn(this.$mute());
@@ -72,6 +72,5 @@ export default class PlayerVolumeManager {
                     removeClass(`glyphicon-volume-off`);
             elems.removeClass(`slider-inactive`);
         }
-        this._muteTooltip.refresh();
     }
 }

@@ -1,7 +1,9 @@
-import {File, Uint8Array, DataView, ArrayBuffer} from "platform/platform";
+import {File, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
+import {delay} from "util";
 
 const MAX_FILE_COUNT = 75000;
+const BATCH_SIZE = 25;
 
 function _dragEntered(e) {
     e.preventDefault();
@@ -88,8 +90,16 @@ export default class LocalFileHandler {
         });
     }
 
-    gotFiles(files) {
-        this.addFilesToPlaylist(this.filterFiles(files));
+    async gotFiles(files) {
+        const {length} = files;
+        let i = 0;
+
+        while (i < length) {
+            const filtered = this.filterFiles(files.slice(i, Math.min(i + BATCH_SIZE, length)));
+            await this.addFilesToPlaylist(filtered);
+            await delay(500);
+            i += BATCH_SIZE;
+        }
     }
 
     gotEntries(entries) {
@@ -115,64 +125,19 @@ export default class LocalFileHandler {
             const entry = item.getAsEntry || item.webkitGetAsEntry;
             if (!entry) {
                 const files = await Promise.resolve(dt.files);
-                this.gotFiles(files);
+                this.gotFiles(Array.from(files));
             } else {
-                const entries = [].map.call(dt.items, v => entry.call(v));
+                const entries = Array.from(dt.items).map(v => entry.call(v));
                 this.gotEntries(entries);
             }
         } else if (dt.files && dt.files.length > 0) {
-            this.gotFiles(dt.files);
+            this.gotFiles(Array.from(dt.files));
         }
-    }
-
-    generateFakeFiles(count) {
-        const id3v1String = function(value) {
-            const ret = new Uint8Array(30);
-            for (let i = 0; i < value.length; ++i) {
-                ret[i] = value.charCodeAt(i);
-            }
-            return ret;
-        };
-
-        const files = new Array(+count);
-        const dummy = new Uint8Array(256 * 1024);
-        const sync = new Uint8Array(4);
-        sync[0] = 0xFF;
-        sync[1] = 0xFB;
-        sync[2] = 0xB4;
-        sync[3] = 0x00;
-        for (let i = 0; i < dummy.length; i += 4) {
-            dummy[i] = sync[0];
-            dummy[i + 1] = sync[1];
-            dummy[i + 2] = sync[2];
-            dummy[i + 3] = sync[3];
-        }
-        for (let i = 0; i < files.length; ++i) {
-            const tag = new Uint8Array(3);
-            tag[0] = 84;
-            tag[1] = 65;
-            tag[2] = 71;
-            const title = id3v1String(`Track ${i}`);
-            const artist = id3v1String(`Artist`);
-            const album = id3v1String(`Album`);
-            const year = new Uint8Array(4);
-            const comment = id3v1String(`Comment`);
-            const genre = new Uint8Array(1);
-
-            const parts = [sync, dummy, tag, title, artist, album, year, comment, genre];
-
-
-            files[i] = new File(parts, `file ${i}.mp3`, {type: `audio/mp3`});
-        }
-
-        files.unshift(generateSilentWavFile());
-        this.page.setTimeout(() => {
-            this.addFilesToPlaylist(files);
-        }, 100);
     }
 
     fileInputChanged(e) {
-        this.gotFiles(e.target.files);
+        const files = Array.from(e.target.files);
+        this.gotFiles(files);
         this.filesFileInput.resetFiles();
     }
 
@@ -189,8 +154,9 @@ export default class LocalFileHandler {
         this.directoryFileInput.resetFiles();
     }
 
-    addFilesToPlaylist(files) {
-        this.playlist.add(files.map(file => this.metadataManager.getTrackByFileReference(file)));
+    async addFilesToPlaylist(files) {
+        const tracks = await Promise.all(files.map(file => this.metadataManager.getTrackByFileReferenceAsync(file)));
+        this.playlist.add(tracks);
     }
 
     filterFiles(files) {

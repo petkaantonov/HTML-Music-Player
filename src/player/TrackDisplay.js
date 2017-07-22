@@ -126,7 +126,10 @@ export default class TrackDisplay {
     }
 
     _getCurrentTrack() {
-        return this._currentPlaylistTrack.track();
+        if (this._currentPlaylistTrack) {
+            return this._currentPlaylistTrack.track();
+        }
+        return null;
     }
 
     _setPlaylistTrack(playlistTrack) {

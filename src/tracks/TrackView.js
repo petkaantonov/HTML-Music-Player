@@ -59,10 +59,6 @@ export default class TrackView {
         return this._opts.itemHeight;
     }
 
-    tooltipContext() {
-        return this._opts.tooltipContext;
-    }
-
     $() {
         return this._domNode;
     }
@@ -165,14 +161,16 @@ export default class TrackView {
     }
 
     renderTrackInfo() {
-        const artistAndTitle = this._track.getArtistAndTitle();
+        const {artist, title} = this._track;
 
-        this.$().find(`.track-title`).setText(artistAndTitle.title);
-        this.$().find(`.track-artist`).setText(artistAndTitle.artist);
+        this.$().find(`.track-title`).setText(title);
+        this.$().find(`.track-artist`).setText(artist);
     }
 
     renderTrackNumber() {
-        this.$trackNumber().setText(`${this.getIndex() + 1}.`);
+        const index = this.getIndex();
+        const trackNumber = index >= 0 ? `${index + 1}.` : ``;
+        this.$trackNumber().setText(trackNumber);
     }
 
     renderTrackDuration() {

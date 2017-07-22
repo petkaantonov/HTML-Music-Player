@@ -5,6 +5,7 @@ import Default2dImageRenderer from "visualization/Default2dImageRenderer";
 import WebGl2dImageRenderer from "visualization/WebGl2dImageRenderer";
 import EventEmitter from "events";
 import {ACCELERATE_QUAD_INTERPOLATOR} from "ui/animation/easing";
+import {PLAYBACK_STOP_EVENT, PLAYBACK_PLAY_EVENT} from "player/PlayerController";
 
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = `rgb(11,32,53)`;
@@ -226,8 +227,8 @@ export default class VisualizerCanvas extends EventEmitter {
         }
 
         this.globalEvents.on(`resize`, this.binSizeMediaMatchChanged);
-        this.player.on(`stop`, this.playerStopped);
-        this.player.on(`play`, this.playerStarted);
+        this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped);
+        this.player.on(PLAYBACK_PLAY_EVENT, this.playerStarted);
 
         this.source = new GraphicsSource(this);
         this.enabled = this.env.isDesktop();

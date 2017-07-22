@@ -1,8 +1,8 @@
 import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
-const VERSION = 23;
-const DATA_WIPE_VERSION = 19;
+const VERSION = 24;
+const DATA_WIPE_VERSION = 24;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
 const TRACK_INFO_OBJECT_STORE_NAME = `trackInfo`;
@@ -310,7 +310,8 @@ export default class TagDatabase {
         const job = await iDbPromisify(store.get(IDBKeyRange.only(jobId)));
         job.lastTried = new Date();
         job.lastError = {
-            message: error && error.message || `${error}`
+            message: error && error.message || `${error}`,
+            stack: error && error.stack || null
         };
         return iDbPromisify(store.put(job));
     }

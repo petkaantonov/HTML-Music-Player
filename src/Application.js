@@ -17,7 +17,6 @@ import KeyboardShortcuts from "keyboard/KeyboardShortcuts";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "keyboard/DefaultShortcuts";
 import PopupContext from "ui/PopupContext";
-import TooltipContext from "ui/TooltipContext";
 import MetadataManagerFrontend, {timerTick as trackTimerTick} from "metadata/MetadataManagerFrontend";
 import GestureEducator from "player/GestureEducator";
 import GestureRecognizerContext from "ui/gestures/GestureRecognizerContext";
@@ -25,7 +24,7 @@ import SliderContext from "ui/SliderContext";
 import MenuContext from "ui/MenuContext";
 import ScrollerContext from "ui/scrolling/ScrollerContext";
 import FileInputContext from "platform/FileInputContext";
-import PlayerController from "player/PlayerController";
+import PlayerController, {PLAYBACK_STOP_EVENT} from "player/PlayerController";
 import PlaylistController from "player/PlaylistController";
 import SearchController from "search/SearchController";
 import ApplicationPreferencesBindingContext from "ui/ApplicationPreferencesBindingContext";
@@ -189,22 +188,6 @@ export default class Application {
             itemHeight: ITEM_HEIGHT
         }, d));
 
-        const tooltipContext = this.tooltipContext = withDeps({
-            page,
-            recognizerContext,
-            globalEvents
-        }, d => new TooltipContext({
-            activation: `hover`,
-            transitionClass: `fade-in`,
-            preferredDirection: `up`,
-            preferredAlign: `middle`,
-            arrow: false,
-            delay: 600,
-            classPrefix: `app-tooltip autosized-tooltip minimal-size-tooltip`,
-            container: this.page.$(`body`),
-            gap: 0
-        }, d));
-
         const snackbar = this.snackbar = withDeps({
             page,
             recognizerContext,
@@ -321,7 +304,6 @@ export default class Application {
             rippler,
             snackbar,
             globalEvents,
-            tooltipContext,
             keyboardShortcuts,
             applicationPreferencesBindingContext,
             menuContext,
@@ -336,6 +318,7 @@ export default class Application {
             fileInputContext,
             env,
             playlist,
+            metadataManager,
             mainMenu
         }, d => new LocalFileHandler(d));
 
@@ -352,7 +335,6 @@ export default class Application {
             crossfadePreferencesBindingContext,
             effectPreferencesBindingContext,
             applicationPreferencesBindingContext,
-            tooltipContext,
             localFileHandler,
             workerWrapper,
             timers
@@ -375,7 +357,6 @@ export default class Application {
             recognizerContext,
             scrollerContext,
             keyboardShortcuts,
-            tooltipContext,
             metadataManager,
             workerWrapper,
             rippler,
@@ -409,11 +390,6 @@ export default class Application {
             activeTabIndicator: `.active-tab-indicator`
         }, d));
 
-        /* eslint-disable no-constant-condition */
-        if (false && env.isDevelopment()) {
-            this.localFileHandler.generateFakeFiles(30);
-        }
-        /* eslint-enable no-constant-condition */
 
         const playerPictureManager = this.playerPictureManager = withDeps({
             page,
@@ -450,8 +426,7 @@ export default class Application {
             player,
             recognizerContext,
             sliderContext,
-            rippler,
-            tooltipContext
+            rippler
         }, d => new PlayerVolumeManager({
             target: `.volume-controls-container`,
             volumeSlider: `.volume-slider`,
@@ -517,8 +492,7 @@ export default class Application {
             playlist,
             page,
             recognizerContext,
-            rippler,
-            tooltipContext
+            rippler
         }, d => new PlaylistModeManager({
             target: `.playlist-controls-container`
         }, d));
@@ -529,7 +503,7 @@ export default class Application {
         this.globalEvents.addBeforeUnloadListener(this.beforeUnload.bind(this));
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
         this.page.addDocumentListener(`selectstart`, selectStarted);
-        this.player.on(`stop`, this.playerStopped.bind(this));
+        this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped.bind(this));
 
         this.page.changeDom(() => {
             page.$(`#app-loader`).remove();

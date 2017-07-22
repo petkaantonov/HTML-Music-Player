@@ -125,7 +125,6 @@ export default class SearchController extends TrackContainerController {
         this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
                                                       this._playlist,
                                                       this.page,
-                                                      deps.tooltipContext,
                                                       this._selectable,
                                                       this,
                                                       this.env.hasTouch());
@@ -134,8 +133,6 @@ export default class SearchController extends TrackContainerController {
         this._visible = false;
         this._dirty = false;
         this._nextSessionId = 0;
-
-        this._metadataManager.on(`metadataUpdate`, this.metadataUpdated.bind(this));
 
         this.$input().addEventListener(`input`, this._gotInput.bind(this)).
                      addEventListener(`focus`, this._inputFocused.bind(this)).

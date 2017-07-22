@@ -12,6 +12,16 @@ import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";
 
+export const PLAYBACK_STATE_CHANGE_EVENT = `playbackStateChange`;
+export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
+export const PLAYBACK_PAUSE_EVENT = `pause`;
+export const PLAYBACK_PLAY_EVENT = `play`;
+export const PLAYBACK_STOP_EVENT = `stop`;
+export const VOLUME_CHANGE_EVENT = `volumeChange`;
+export const VOLUME_MUTE_EVENT = `muted`;
+export const TRACK_PLAYING_EVENT = `trackPlaying`;
+export const NEW_TRACK_LOAD_EVENT = `newTrackLoad`;
+export const PROGRESS_EVENT = `progress`;
 
 let loadId = 0;
 const VOLUME_KEY = `volume`;
@@ -33,7 +43,6 @@ export default class PlayerController extends EventEmitter {
         this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.gestureEducator = deps.gestureEducator;
-        this.tooltipContext = deps.tooltipContext;
         this.playlist = deps.playlist;
 
         this._domNode = this.page.$(opts.target);
@@ -73,12 +82,6 @@ export default class PlayerController extends EventEmitter {
         this.recognizerContext.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
         this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
         this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
-
-        this._playTooltip = this.tooltipContext.createTooltip(this.$play(), () => (this.isPlaying ? `Pause playback`
-                                : (this.isPaused ? `Resume playback` : `Start playback`)));
-
-        this._nextTooltip = this.tooltipContext.createTooltip(this.$next(), `Next track`);
-        this._previousTooltip = this.tooltipContext.createTooltip(this.$previous(), `Previous track`);
 
         this.playlist.on(CURRENT_TRACK_CHANGE_EVENT, this.loadTrack.bind(this));
         this.playlist.on(PLAYLIST_STOPPED_EVENT, this.stop.bind(this));
@@ -120,6 +123,7 @@ export default class PlayerController extends EventEmitter {
         if (this.currentAudioManager) {
             this.currentAudioManager.audioContextReset();
         }
+        this.emit(PLAYBACK_RESUME_AFTER_IDLE_EVENT);
     }
 
     effectPreferencesChanged() {
@@ -200,7 +204,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     nextTrackStartedPlaying() {
-        return new Promise(resolve => this.once(`trackPlaying`, resolve));
+        return new Promise(resolve => this.once(TRACK_PLAYING_EVENT, resolve));
     }
 
     async nextTrackImplicitly() {
@@ -280,7 +284,7 @@ export default class PlayerController extends EventEmitter {
 
     audioManagerSeekIntent(audioManager, time) {
         if (audioManager === this.currentAudioManager) {
-            this.emit(`progress`, time, audioManager.getDuration());
+            this.emit(PROGRESS_EVENT, time, audioManager.getDuration());
         }
     }
 
@@ -317,7 +321,7 @@ export default class PlayerController extends EventEmitter {
                 this.trackFinished();
                 return true;
             } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
-                this.emit(`progress`, currentTime, totalTime);
+                this.emit(PROGRESS_EVENT, currentTime, totalTime);
             }
         }
         return false;
@@ -342,7 +346,7 @@ export default class PlayerController extends EventEmitter {
 
     resume() {
         if (this.isPaused) {
-            this.emit(`trackPlaying`);
+            this.emit(TRACK_PLAYING_EVENT);
             this.play();
         }
     }
@@ -355,7 +359,7 @@ export default class PlayerController extends EventEmitter {
             return;
         }
 
-        this.emit(`trackPlaying`);
+        this.emit(TRACK_PLAYING_EVENT);
         this.isPaused = false;
         this.isStopped = false;
         this.isPlaying = true;
@@ -374,7 +378,7 @@ export default class PlayerController extends EventEmitter {
         this.currentAudioManager = null;
         this.destroyAudioManagers();
         this.playlist.stop();
-        this.emit(`progress`, 0, 0);
+        this.emit(PROGRESS_EVENT, 0, 0);
         this.stoppedPlay();
     }
 
@@ -419,8 +423,8 @@ export default class PlayerController extends EventEmitter {
             (explicit || this.currentAudioManager.hasGaplessPreload())) {
             this.currentAudioManager.replaceTrack(track, explicit);
             this.startedPlay();
-            this.emit(`trackPlaying`);
-            this.emit(`newTrackLoad`, track);
+            this.emit(TRACK_PLAYING_EVENT);
+            this.emit(NEW_TRACK_LOAD_EVENT, track);
             return;
         }
 
@@ -430,8 +434,8 @@ export default class PlayerController extends EventEmitter {
         this.currentAudioManager = new AudioManager(this, track, implicit);
         this.audioManagers.push(this.currentAudioManager);
         this.startedPlay();
-        this.emit(`trackPlaying`);
-        this.emit(`newTrackLoad`, track);
+        this.emit(TRACK_PLAYING_EVENT);
+        this.emit(NEW_TRACK_LOAD_EVENT, track);
         this.currentAudioManager.start();
     }
 
@@ -498,7 +502,6 @@ export default class PlayerController extends EventEmitter {
             }
         }
 
-        this._playTooltip.refresh();
     }
 
     startedPlay() {
@@ -510,7 +513,8 @@ export default class PlayerController extends EventEmitter {
                 this.env.logError(e);
             }
         }
-        this.emit(`play`);
+        this.emit(PLAYBACK_PLAY_EVENT);
+        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
     }
 
     stoppedPlay() {
@@ -522,7 +526,8 @@ export default class PlayerController extends EventEmitter {
                 this.env.logError(e);
             }
         }
-        this.emit(`stop`);
+        this.emit(PLAYBACK_STOP_EVENT);
+        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
     }
 
     pausedPlay() {
@@ -530,7 +535,8 @@ export default class PlayerController extends EventEmitter {
         if (this.mediaFocusAudioElement) {
             this.mediaFocusAudioElement.pause();
         }
-        this.emit(`pause`);
+        this.emit(PLAYBACK_PAUSE_EVENT);
+        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
     }
 
     seek(seconds, intent) {
@@ -562,13 +568,13 @@ export default class PlayerController extends EventEmitter {
     toggleMute() {
         this.isMutedValue = !this.isMutedValue;
         if (this.isMutedValue) {
-            this.emit(`muted`, true);
+            this.emit(VOLUME_MUTE_EVENT, true);
             this.forEachAudioManager((am) => {
                 am.mute();
             });
             this.db.set(MUTED_KEY, true);
         } else {
-            this.emit(`muted`, false);
+            this.emit(VOLUME_MUTE_EVENT, false);
             this.forEachAudioManager((am) => {
                 am.unmute();
             });
@@ -599,7 +605,7 @@ export default class PlayerController extends EventEmitter {
         this.forEachAudioManager((am) => {
             am.updateVolume(volume);
         });
-        this.emit(`volumeChange`);
+        this.emit(VOLUME_CHANGE_EVENT);
         this.db.set(VOLUME_KEY, volume);
         return this;
     }

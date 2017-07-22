@@ -1,4 +1,6 @@
 import {toTimeString, noUndefinedGet} from "util";
+import {PROGRESS_EVENT,
+        NEW_TRACK_LOAD_EVENT} from "player/PlayerController";
 
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
@@ -45,8 +47,8 @@ export default class PlayerTimeManager {
         this.seekSlider.on(`slideBegin`, this.slideBegun);
         this.seekSlider.on(`slideEnd`, this.slideEnded);
         this.seekSlider.on(`slide`, this.slided);
-        this.player.on(`progress`, this.playerTimeProgressed);
-        this.player.on(`newTrackLoad`, this.newTrackLoaded);
+        this.player.on(PROGRESS_EVENT, this.playerTimeProgressed);
+        this.player.on(NEW_TRACK_LOAD_EVENT, this.newTrackLoaded);
 
         this.$totalTime().addEventListener(`click`, this.containerClicked);
         this.recognizerContext.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());

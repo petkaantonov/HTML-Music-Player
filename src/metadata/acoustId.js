@@ -2,10 +2,44 @@ import AcoustIdApiError, {ERROR_INVALID_RESPONSE_SYNTAX} from "metadata/AcoustId
 
 const groupTypeValue = {
     single: 0,
-    album: 1
+    album: 1,
+    ep: 2,
+    broadcast: 3,
+    other: 4
 };
 
-const getBestRecordingGroup = function(recordings) {
+const secondaryTypeWeight = {
+    none: 0,
+    soundtrack: 1,
+    compilation: 2,
+    remix: 3,
+    "dj-mix": 4,
+    spokenword: 5,
+    interview: 6,
+    audiobook: 7,
+    live: 8,
+    "mixtape/street": 9
+};
+
+const getSecondaryTypeWeight = function(secondarytypes) {
+    if (!secondarytypes || !secondarytypes.length) {
+        return -1;
+    }
+    let lowestWeight = Math.pow(2, 31);
+    for (const secondarytype of secondarytypes) {
+        const key = `${secondarytype}`.toLowerCase();
+        if (secondaryTypeWeight.hasOwnProperty(key)) {
+            lowestWeight = Math.min(secondaryTypeWeight[key], lowestWeight);
+        }
+    }
+
+    if (lowestWeight === Math.pow(2, 31)) {
+        return secondaryTypeWeight.none;
+    }
+    return lowestWeight;
+};
+
+const getBestRecordingGroup = function(recordings, actualDuration) {
     const groups = [];
 
     for (let i = 0; i < recordings.length; ++i) {
@@ -17,6 +51,13 @@ const getBestRecordingGroup = function(recordings) {
         if (!releasegroups) {
             continue;
         }
+
+        if (!recording.duration ||
+            !isFinite(recording.duration) ||
+            Math.abs(recording.duration - actualDuration) > 20) {
+            continue;
+        }
+
         for (let j = 0; j < releasegroups.length; ++j) {
             const releasegroup = releasegroups[j];
             if (!releasegroup) {
@@ -30,6 +71,9 @@ const getBestRecordingGroup = function(recordings) {
             const {secondarytypes} = releasegroup;
             const type = releasegroup.type.toLowerCase();
             const typeValue = groupTypeValue[type];
+
+            const secondaryTypeWeight = getSecondaryTypeWeight(secondarytypes);
+
             groups.push({
                 indexI: i,
                 indexJ: j,
@@ -37,47 +81,31 @@ const getBestRecordingGroup = function(recordings) {
                 type,
                 typeValue: typeValue === undefined ? 10 : typeValue,
                 album: releasegroups[j],
-                secondarytypes: secondarytypes ? secondarytypes.map(v => v.toLowerCase()) : null
+                secondaryTypeWeight
             });
         }
     }
 
     groups.sort((aGroup, bGroup) => {
-        const valueDiff = aGroup.typeValue - bGroup.typeValue;
+        let valueDiff = aGroup.typeValue - bGroup.typeValue;
 
         if (valueDiff !== 0) {
             return valueDiff;
         }
 
-        const aSec = aGroup.secondarytypes;
-        const bSec = bGroup.secondarytypes;
+        valueDiff = aGroup.secondaryTypeWeight - bGroup.secondaryTypeWeight;
 
-        if (aSec && bSec) {
-            const aCompilation = aSec.indexOf(`compilation`) >= 0;
-            const bCompilation = bSec.indexOf(`compilation`) >= 0;
-
-            if (aCompilation && bCompilation) {
-                const diff = aGroup.indexI - bGroup.indexI;
-                if (diff !== 0) return diff;
-                return aGroup.indexJ - bGroup.indexJ;
-            } else if (aCompilation && !bCompilation) {
-                return 1;
-            } else if (!aCompilation && bCompilation) {
-                return -1;
-            } else {
-                const diff = aGroup.indexI - bGroup.indexI;
-                if (diff !== 0) return diff;
-                return aGroup.indexJ - bGroup.indexJ;
-            }
-        } else if (aSec && !bSec) {
-            return 1;
-        } else if (!aSec && bSec) {
-            return -1;
-        } else {
-            const diff = aGroup.indexI - bGroup.indexI;
-            if (diff !== 0) return diff;
-            return aGroup.indexJ - bGroup.indexJ;
+        if (valueDiff !== 0) {
+            return valueDiff;
         }
+
+        valueDiff = aGroup.indexI - bGroup.indexI;
+
+        if (valueDiff !== 0) {
+            return valueDiff;
+        }
+
+        return aGroup.indexJ - bGroup.indexJ;
     });
 
     if (!groups.length) {
@@ -104,7 +132,7 @@ const formatArtist = function(artists) {
     }
 };
 
-export default function parseAcoustId(data) {
+export default function parseAcoustId(data, actualDuration) {
     if (!data) {
         throw new AcoustIdApiError(`syntax error`, ERROR_INVALID_RESPONSE_SYNTAX);
     }
@@ -113,12 +141,34 @@ export default function parseAcoustId(data) {
         throw new AcoustIdApiError(data.error.message, data.error.code);
     }
 
-    const result = data.results && data.results[0] || null;
+    const {results} = data;
 
-    if (!result) return null;
-    if (!result.recordings || result.recordings.length === 0) return null;
-    const bestRecordingGroup = getBestRecordingGroup(result.recordings);
-    if (!bestRecordingGroup) return null;
+    if (!results || !results.length > 0) {
+        return null;
+    }
+
+    let bestRecordingGroup;
+    for (const result of results) {
+        if (result.score < 0.7 || !result.recordings || !result.recordings.length) {
+            continue;
+        }
+        bestRecordingGroup = getBestRecordingGroup(result.recordings, actualDuration);
+        if (!bestRecordingGroup) {
+            continue;
+        }
+
+        const {recording} = bestRecordingGroup;
+        if (!recording || !recording.title || !recording.artists) {
+            continue;
+        }
+
+        break;
+    }
+
+    if (!bestRecordingGroup || !bestRecordingGroup.recording) {
+        return null;
+    }
+
     const {recording} = bestRecordingGroup;
 
     const title = {

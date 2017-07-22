@@ -1,3 +1,8 @@
+import {SHUFFLE_MODE,
+        NORMAL_MODE,
+        REPEAT_MODE} from "player/PlaylistController";
+import {NEW_TRACK_LOAD_EVENT} from "player/PlayerController";
+
 export default class DefaultShortcuts {
     constructor(deps) {
         this.page = deps.page;
@@ -44,7 +49,7 @@ export default class DefaultShortcuts {
         this.rippleRecognizer =
             this.recognizerContext.createTapRecognizer(this.screenTapped);
 
-        this.player.on(`newTrackLoad`, this.playerLoadedNewTrack.bind(this));
+        this.player.on(NEW_TRACK_LOAD_EVENT, this.playerLoadedNewTrack.bind(this));
         this.keyboardShortcuts.defaultContext.addShortcut(`z`, this.shortcutPlay);
         this.keyboardShortcuts.defaultContext.addShortcut([`x`, `MediaStop`], this.shortcutPause);
         this.keyboardShortcuts.defaultContext.addShortcut([`mod+ArrowRight`, `MediaTrackNext`], this.shortcutNext);
@@ -121,15 +126,15 @@ export default class DefaultShortcuts {
     }
 
     shortcutPlaylistNormal() {
-        this.playlist.tryChangeMode(`normal`);
+        this.playlist.tryChangeMode(NORMAL_MODE);
     }
 
     shortcutPlaylistShuffle() {
-        this.playlist.tryChangeMode(`shuffle`);
+        this.playlist.tryChangeMode(SHUFFLE_MODE);
     }
 
     shortcutPlaylistRepeat() {
-        this.playlist.tryChangeMode(`repeat`);
+        this.playlist.tryChangeMode(REPEAT_MODE);
     }
 
     shortcutSeekBack(e) {

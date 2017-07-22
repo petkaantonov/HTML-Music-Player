@@ -1,11 +1,9 @@
 import {noUndefinedGet} from "util";
-import {MODE_CHANGE_EVENT} from "player/PlaylistController";
+import {MODE_CHANGE_EVENT,
+         SHUFFLE_MODE,
+         NORMAL_MODE,
+         REPEAT_MODE} from "player/PlaylistController";
 
-const SHUFFLE = `shuffle`;
-const NORMAL = `normal`;
-const REPEAT = `repeat`;
-const SHUFFLE_MODE_TOOLTIP = `The next track is randomly chosen. Higher rated tracks ` +
-        `and tracks that have not been recently played are more likely to be chosen.`;
 
 export default class PlaylistModeManager {
     constructor(opts, deps) {
@@ -13,17 +11,10 @@ export default class PlaylistModeManager {
         this.page = deps.page;
         this.recognizerContext = deps.recognizerContext;
         this.rippler = deps.rippler;
-        this.tooltipContext = deps.tooltipContext;
         this.playlist = deps.playlist;
         this._domNode = this.page.$(opts.target).eq(0);
         this._shuffleButton = this.$().find(`.shuffle-mode-button`);
         this._repeatButton = this.$().find(`.repeat-mode-button`);
-
-        this.shuffleTooltip = this.tooltipContext.createTooltip(this.$shuffle(), () => (this.getMode() === SHUFFLE ? `Disable shuffle mode`
-                                              : [`Enable shuffle mode`, SHUFFLE_MODE_TOOLTIP]));
-
-        this.repeatTooltip = this.tooltipContext.createTooltip(this.$repeat(), () => (this.getMode() === REPEAT ? `Disable repeat mode`
-                                             : `Enable repeat mode`));
 
         this.justDeactivatedMouseLeft = this.justDeactivatedMouseLeft.bind(this);
         this.shuffleClicked = this.shuffleClicked.bind(this);
@@ -37,7 +28,6 @@ export default class PlaylistModeManager {
         this.recognizerContext.createTapRecognizer(this.shuffleClicked).recognizeBubbledOn(this.$shuffle());
         this.recognizerContext.createTapRecognizer(this.repeatClicked).recognizeBubbledOn(this.$repeat());
         this.update();
-
     }
 
     $() {
@@ -64,9 +54,9 @@ export default class PlaylistModeManager {
     shuffleClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.$allButtons().removeClass(`just-deactivated`);
-        this.setMode(this.getMode() === SHUFFLE ? NORMAL : SHUFFLE);
+        this.setMode(this.getMode() === SHUFFLE_MODE ? NORMAL_MODE : SHUFFLE_MODE);
 
-        if (this.getMode() !== SHUFFLE) {
+        if (this.getMode() !== SHUFFLE_MODE) {
             this.$shuffle().addClass(`just-deactivated`);
         }
         this.$shuffle().addEventListener(`mouseleave`, this.justDeactivatedMouseLeft);
@@ -75,9 +65,9 @@ export default class PlaylistModeManager {
     repeatClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.$allButtons().removeClass(`just-deactivated`);
-        this.setMode(this.getMode() === REPEAT ? NORMAL : REPEAT);
+        this.setMode(this.getMode() === REPEAT_MODE ? NORMAL_MODE : REPEAT_MODE);
 
-        if (this.getMode() !== REPEAT) {
+        if (this.getMode() !== REPEAT_MODE) {
             this.$repeat().addClass(`just-deactivated`);
         }
 
@@ -100,10 +90,6 @@ export default class PlaylistModeManager {
             this.$repeat().addClass(`active`);
             break;
         }
-
-        this.shuffleTooltip.refresh();
-        this.repeatTooltip.refresh();
-
     }
 
     setMode(mode) {

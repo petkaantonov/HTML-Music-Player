@@ -130,7 +130,7 @@ export default class PlayerPictureManager extends EventEmitter {
         }
     }
 
-    _onAlbumArt(trackUid, albumArt, reason) {
+    _onAlbumArt(track, albumArt, reason) {
         if (!this._isEnabled()) return;
 
         if (requestReason === reason) {
@@ -141,8 +141,7 @@ export default class PlayerPictureManager extends EventEmitter {
             if (!this._currentTrack) {
                 return;
             }
-
-            const equalsCurrent = this._currentTrack.uidEquals(trackUid);
+            const equalsCurrent = this._currentTrack.uidEquals(track.uid());
 
             if (!equalsCurrent) {
                 return;
@@ -150,7 +149,9 @@ export default class PlayerPictureManager extends EventEmitter {
 
             const image = new Image();
             image.src = albumArt;
-            image.albumArtTrackUid = trackUid;
+
+            image.albumArtTrackUid = track.uid();
+
             this.updateImage(image);
         }
     }
@@ -158,7 +159,6 @@ export default class PlayerPictureManager extends EventEmitter {
     _fetchCurrentTrackAlbumArt() {
         if (!this._isEnabled() || !this._currentTrack) return;
         const track = this._currentTrack;
-
         if (this.isCurrentImageAlbumArtForCurrentTrack()) {
             return;
         }
