@@ -414,8 +414,6 @@ export default class PlaylistController extends TrackContainerController {
     /* eslint-enable class-methods-use-this */
 
     async _loadPersistedPlaylist(persistedPlaylist) {
-        // Let the ui load a bit first
-        await delay(50);
         const {trackUids} = persistedPlaylist;
         const tracks = await this.metadataManager.mapTrackUidsToTracks(trackUids);
         this.add(tracks, {noReport: true});
