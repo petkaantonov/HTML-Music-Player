@@ -360,7 +360,8 @@ export default class Application {
             metadataManager,
             workerWrapper,
             rippler,
-            menuContext
+            menuContext,
+            snackbar
         }, d => new SearchController({
             target: `.search-list-container`,
             itemHeight: ITEM_HEIGHT

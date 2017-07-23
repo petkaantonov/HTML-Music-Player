@@ -749,7 +749,11 @@ export class ButtonMenu extends EventEmitter {
         this._delayTimerId = -1;
         this._aligner = null;
 
+        this.hide = this.hide.bind(this);
+        this.position = this.position.bind(this);
         this.documentClicked = this.documentClicked.bind(this);
+        this.buttonClicked = this.buttonClicked.bind(this);
+
         this.documentTouchedRecognizer = this._menu.recognizerContext.createTouchdownRecognizer(this.documentClicked);
         this.documentTouchedRecognizer.recognizeCapturedOn(this.page().document());
         this.page().addDocumentListener(`mousedown`, this.documentClicked, true);
@@ -972,10 +976,8 @@ export class ContextMenu extends ButtonMenu {
     constructor(opts, deps) {
         opts.manualTrigger = true;
         super(opts, deps);
-        this.hide = this.hide.bind(this);
         this.rightClicked = this.rightClicked.bind(this);
         this.keypressed = this.keypressed.bind(this);
-        this.position = this.position.bind(this);
 
         this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
         this.preventDefault = preventDefaultHandler;

@@ -12,6 +12,7 @@ import {actionHandler, moreThan0Selected,
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
+const PLAYLIST_TRACKS_ADDED_TAG = `playlist-tracks-added`;
 
 class SearchHistoryEntry {
     constructor(page, query) {
@@ -129,6 +130,7 @@ export default class SearchController extends TrackContainerController {
         this._searchHistory = [];
         this._session = null;
         this._playlist = deps.playlist;
+        this._snackbar = deps.snackbar;
         this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
                                                       this._playlist,
                                                       this.page,
@@ -176,6 +178,15 @@ export default class SearchController extends TrackContainerController {
         });
 
         menu.push({
+            id: `add-to-playlist`,
+            content: this.menuContext.createMenuItem(`Add to playlist`, `material-icons small-material-icon add-to-playlist`),
+            onClick: () => {
+                this._addTracksToPlaylist([this._singleTrackViewSelected.track()]);
+                this._singleTrackMenu.hide();
+            }
+        });
+
+        menu.push({
             divider: true
         });
 
@@ -200,6 +211,14 @@ export default class SearchController extends TrackContainerController {
         const haveTouch = this.env.hasTouch();
         const menu = [];
 
+        const addToPlaylist = {
+            id: `add-to-playlist`,
+            disabled: false,
+            content: this.menuContext.createMenuItem(`Add to playlist`, `material-icons small-material-icon add-to-playlist`),
+            enabledPredicate: moreThan0Selected,
+            onClick: actionHandler(false, this, `_addSelectionToPlaylist`)
+        };
+
         if (!haveTouch) {
             menu.push({
                 id: `play`,
@@ -208,6 +227,8 @@ export default class SearchController extends TrackContainerController {
                 onClick: actionHandler(false, this, `playPrioritySelection`),
                 enabledPredicate: moreThan0Selected
             });
+
+            menu.push(addToPlaylist);
 
             menu.push({
                 divider: true
@@ -244,6 +265,8 @@ export default class SearchController extends TrackContainerController {
                     e.preventDefault();
                 }
             });
+        } else {
+            menu.push(addToPlaylist);
         }
 
         if (haveTouch) {
@@ -341,6 +364,21 @@ export default class SearchController extends TrackContainerController {
             this._trackViews[index] === playlistTrack.trackView()) {
             this._candidateTrackIndex = index;
         }
+    }
+
+    _addTracksToPlaylist(tracks) {
+        const addedTracksCount = tracks.length;
+        const tracksWord = addedTracksCount === 1 ? `track` : `tracks`;
+        this._playlist.add(tracks);
+        this._snackbar.show(`Added ${addedTracksCount} ${tracksWord} to the playlist`, {
+            visibilityTime: 3000,
+            tag: PLAYLIST_TRACKS_ADDED_TAG
+        });
+    }
+
+    _addSelectionToPlaylist() {
+        this._addTracksToPlaylist(this.getSelection().map(trackView => trackView.track()));
+        this.clearSelection();
     }
 
     _focusInput() {

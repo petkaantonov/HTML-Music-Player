@@ -262,7 +262,7 @@ export default class PlaylistController extends TrackContainerController {
         const tracksWord = tracksRemovedCount === 1 ? `track` : `tracks`;
         const outcome = await this.snackbar.show(`Removed ${tracksRemovedCount} ${tracksWord} from the playlist`, {
             action: `undo`,
-            visibilityTime: 10000,
+            visibilityTime: 5000,
             tag: PLAYLIST_TRACKS_REMOVED_TAG
         });
         return outcome === ACTION_CLICKED;
