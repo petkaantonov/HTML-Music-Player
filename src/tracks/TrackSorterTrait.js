@@ -57,23 +57,19 @@ const makeComparer = function(mainComparer) {
     const comparer = function(aTrackView, bTrackView) {
         const aTrack = aTrackView.track();
         const bTrack = bTrackView.track();
-        const aTagData = aTrack.getTagData();
-        const bTagData = bTrack.getTagData();
-        let comparison = 0;
+        let comparison;
 
-        if (!aTagData) {
-            return bTagData ? -1 : aTrack.formatName().localeCompare(bTrack.formatName());
-        } else if (!bTagData) {
-            return 1;
+        if (aTrack === bTrack) {
+            return 0;
         }
 
-        if ((comparison = mainComparer(aTagData, bTagData)) !== 0) {
+        if ((comparison = mainComparer(aTrack, bTrack)) !== 0) {
             return comparison;
         }
 
         for (let i = 0; i < length; ++i) {
             const theComparer = comparers[i];
-            if ((comparison = theComparer(aTagData, bTagData)) !== 0) {
+            if ((comparison = theComparer(aTrack, bTrack)) !== 0) {
                 return comparison;
             }
         }
@@ -129,8 +125,8 @@ export default {
             trackView.setIndex(index);
         }
         this._selectable.updateOrder(selectedTrackViews);
-        this._fixedItemListScroller.refresh();
-        this._edited();
+        this._fixedItemListScroller.resize();
+        this.edited();
         this.trackIndexChanged();
         this.emit(ITEM_ORDER_CHANGE_EVENT);
     }

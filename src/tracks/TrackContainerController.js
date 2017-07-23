@@ -66,7 +66,7 @@ export default class TrackContainerController extends EventEmitter {
         this._trackContainer = this.$().find(`.tracklist-transform-container`);
         this._trackViews = [];
         this._singleTrackViewSelected = null;
-        this._singleTrackMenu = this.env.hasTouch() ? this._createSingleTrackMenu() : null;
+        this._singleTrackMenu = this.env.hasTouch() ? this.createSingleTrackMenu() : null;
         this._selectable = withDeps({page: this.page}, d => new Selectable({listView: this}, d));
         this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
             target: this.$(),

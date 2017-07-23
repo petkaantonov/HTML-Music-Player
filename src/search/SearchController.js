@@ -3,9 +3,12 @@ import TrackViewOptions from "tracks/TrackViewOptions";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
+import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "player/PlaylistController";
 import {indexedDB} from "platform/platform";
+import {actionHandler, moreThan0Selected,
+        exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -157,7 +160,7 @@ export default class SearchController extends TrackContainerController {
         this._keyboardShortcutContext.addShortcut(`ctrl+f`, this._focusInput.bind(this));
     }
 
-    _createSingleTrackMenu() {
+    createSingleTrackMenu() {
         const menu = [];
 
         menu.push({
@@ -191,6 +194,71 @@ export default class SearchController extends TrackContainerController {
 
         });
         return ret;
+    }
+
+    createMultiSelectionMenuSpec(target) {
+        const haveTouch = this.env.hasTouch();
+        const menu = [];
+
+        if (!haveTouch) {
+            menu.push({
+                id: `play`,
+                disabled: true,
+                content: this.menuContext.createMenuItem(`Play`, `glyphicon glyphicon-play-circle`),
+                onClick: actionHandler(false, this, `playPrioritySelection`),
+                enabledPredicate: moreThan0Selected
+            });
+
+            menu.push({
+                divider: true
+            });
+
+            menu.push({
+                id: `clear-selection`,
+                disabled: true,
+                content: this.menuContext.createMenuItem(`Select none`, `material-icons small-material-icon crop_square`),
+                onClick: actionHandler(true, this, `clearSelection`),
+                enabledPredicate: moreThan0Selected
+            });
+
+            menu.push({
+                id: `select-all`,
+                disabled: true,
+                content: this.menuContext.createMenuItem(`Select all`, `material-icons small-material-icon select_all`),
+                onClick: actionHandler(true, this, `selectAll`),
+                enabledPredicate: lessThanAllSelected
+            });
+
+            menu.push({
+                divider: true
+            });
+
+            menu.push({
+                disabled: true,
+                id: `track-rating`,
+                enabledPredicate: exactly1Selected,
+                content: function() {
+                    return this.getTrackRater().$();
+                }.bind(this),
+                onClick(e) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        if (haveTouch) {
+            menu.push({
+                divider: true
+            });
+        }
+
+        return {
+            target,
+            menu,
+            zIndex,
+            align,
+            manualTrigger: true
+        };
     }
 
     $input() {

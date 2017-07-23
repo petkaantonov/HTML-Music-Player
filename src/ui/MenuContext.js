@@ -2,6 +2,33 @@ import {slugTitle} from "util";
 import ActionMenu, {ContextMenu, ButtonMenu, VirtualButtonMenu} from "ui/ActionMenu";
 import withDeps from "ApplicationDependencies";
 
+export const lessThanAllSelected = function(selectedCount, totalCount) {
+    return selectedCount < totalCount && totalCount > 0;
+};
+
+export const exactly1Selected = function(selectedCount, totalCount) {
+    return selectedCount === 1 && totalCount > 0;
+};
+
+export const moreThan0Selected = function(selectedCount, totalCount) {
+    return selectedCount > 0 && totalCount > 0;
+};
+
+export const moreThan1Selected = function(selectedCount, totalCount) {
+    return selectedCount > 1 && totalCount > 1;
+};
+
+export const actionHandler = function(preventDefault, contentInstance, method) {
+    if (!contentInstance[method]) {
+        throw new Error(`no such method: ${method}`);
+    }
+
+    return function(e) {
+        if (preventDefault) e.preventDefault();
+        contentInstance[method]();
+    };
+};
+
 export default class MenuContext {
     constructor(opts, deps) {
         this.rootClass = opts.rootClass;
