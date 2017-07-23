@@ -237,16 +237,23 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
-        const bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
+        let bytesRead;
+        try {
+            bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
                                                                                this._filePosition,
                                                                                this.demuxData,
                                                                                cancellationToken,
                                                                                {channelData: destinationBuffers},
                                                                                 buffersRemainingToDecode);
-        if (cancellationToken.isCancelled()) {
-            this._audioPipeline.dropFilledBuffer();
-            return null;
+        } catch (e) {
+            if (cancellationToken.isCancelled()) {
+                this._audioPipeline.dropFilledBuffer();
+                return null;
+            } else {
+                throw e;
+            }
         }
+
         this._filePosition += bytesRead;
         this.ended = this._filePosition >= this.demuxData.dataEnd;
         if (!this._audioPipeline.hasFilledBuffer) {
@@ -486,9 +493,14 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this.cancelAllOperations();
 
             const cancellationToken = this.cancellationTokenForSeekOperation();
-            const seekerResult = await seeker(this.codecName, time, this.demuxData, this._decoder, this.fileView);
-            if (cancellationToken.isCancelled()) {
-                return;
+            let seekerResult;
+            try {
+                seekerResult = await seeker(this.codecName, time, this.demuxData, this._decoder, this.fileView, cancellationToken);
+            } catch (e) {
+                if (cancellationToken.isCancelled()) {
+                    return;
+                }
+                throw e;
             }
 
             this._filePosition = seekerResult.offset;

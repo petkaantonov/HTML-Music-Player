@@ -343,13 +343,13 @@ const getMainFlags = function(fileView, offset) {
     };
 };
 
-const getDemuxData = async function(fileView) {
-    const demuxData = await demux(`mp3`, fileView, true, 262144);
+const getDemuxData = async function(fileView, cancellationToken) {
+    const demuxData = await demux(`mp3`, fileView, true, 262144, cancellationToken);
     if (!demuxData) return null;
     return demuxData;
 };
 
-const parseId3v2Data = async function(data, fileView, offset) {
+const parseId3v2Data = async function(data, fileView, offset, cancellationToken) {
     const id3MetadataSize = synchIntAt(fileView, offset + 6);
     const version = fileView.getUint8(offset + 3);
     const mainFlags = getMainFlags(fileView, offset);
@@ -359,7 +359,7 @@ const parseId3v2Data = async function(data, fileView, offset) {
     }
 
     if (offset + id3MetadataSize + 10 + 3 > fileView.end) {
-        await fileView.readBlockOfSizeAt(id3MetadataSize + 8192 + 3, offset);
+        await fileView.readBlockOfSizeAt(id3MetadataSize + 8192 + 3, offset, cancellationToken);
     }
 
     offset += 10;
@@ -444,9 +444,9 @@ const getId3v1String = function(fileView, offset) {
     return decoder.decode(new Uint8Array(buffer.buffer, offset - fileView.start, length));
 };
 
-const parseId3v1Data = async function(data, fileView) {
+const parseId3v1Data = async function(data, fileView, cancellationToken) {
     const start = fileView.file.size - 128;
-    await fileView.readBlockOfSizeAt(128, start);
+    await fileView.readBlockOfSizeAt(128, start, cancellationToken);
     let offset = start;
     const decoder = decoders[0];
     const buffer = fileView.block();
@@ -492,8 +492,8 @@ const parseId3v1Data = async function(data, fileView) {
     }
 };
 
-export default async function parseMp3Metadata(tagData, fileView) {
-    const demuxData = await getDemuxData(fileView);
+export default async function parseMp3Metadata(tagData, fileView, cancellationToken) {
+    const demuxData = await getDemuxData(fileView, cancellationToken);
     if (demuxData) {
         tagData.demuxData = demuxData;
     } else {
@@ -504,7 +504,7 @@ export default async function parseMp3Metadata(tagData, fileView) {
         };
     }
     const length = 16384;
-    await fileView.readBlockOfSizeAt(length, 0);
+    await fileView.readBlockOfSizeAt(length, 0, cancellationToken);
     if (fileView.end < length) return null;
     let header = 0;
     const buffer = fileView.block();
@@ -512,13 +512,13 @@ export default async function parseMp3Metadata(tagData, fileView) {
     for (let i = 0; i < length; ++i) {
         header = ((header << 8) | buffer[i]) | 0;
         if ((header >>> 8) === ID3) {
-            const maybeId3v2 = await parseId3v2Data(tagData, fileView, i - 3);
+            const maybeId3v2 = await parseId3v2Data(tagData, fileView, i - 3, cancellationToken);
             if (maybeId3v2) {
                 return maybeId3v2;
             }
         }
     }
 
-    await parseId3v1Data(tagData, fileView);
+    await parseId3v1Data(tagData, fileView, cancellationToken);
     return tagData;
 }

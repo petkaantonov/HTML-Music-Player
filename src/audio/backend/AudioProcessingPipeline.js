@@ -128,11 +128,9 @@ export default class AudioProcessingPipeline {
 
         let currentFilePosition = filePosition + totalBytesRead;
         while (dataRemaining > 0) {
-            await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, paddingFactorHint);
+            await fileView.readBlockOfSizeAt(bytesToRead, currentFilePosition, cancellationToken, paddingFactorHint);
+            cancellationToken.check();
 
-            if (cancellationToken.isCancelled()) {
-                return 0;
-            }
             const srcStart = currentFilePosition - fileView.start;
             const src = fileView.blockAtOffset(srcStart);
             const bytesRead = this.decoder.decodeUntilFlush(src, onFlush);

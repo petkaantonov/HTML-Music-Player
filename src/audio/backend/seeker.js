@@ -1,6 +1,6 @@
 import {Mp3SeekTable} from "audio/backend/demuxer";
 
-const seekMp3 = async (time, metadata, context, fileView) => {
+const seekMp3 = async (time, metadata, context, fileView, cancellationToken) => {
     time = Math.min(metadata.duration, Math.max(0, time));
     const frames = ((metadata.duration * metadata.sampleRate) / metadata.samplesPerFrame) | 0;
     let frame = (time / metadata.duration * frames) | 0;
@@ -28,7 +28,7 @@ const seekMp3 = async (time, metadata, context, fileView) => {
         if (!table) {
             table = metadata.seekTable = new Mp3SeekTable();
         }
-        await table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate), metadata, fileView);
+        await table.fillUntil(time + (metadata.samplesPerFrame / metadata.sampleRate), metadata, fileView, cancellationToken);
         // Trust that the seek offset given by VBRI metadata will not be to a frame that has bit
         // Reservoir. VBR should have little need for bit reservoir anyway.
         if (table.isFromMetaData) {
@@ -54,13 +54,13 @@ const seekMp3 = async (time, metadata, context, fileView) => {
     };
 };
 
-const doSeek = (type, time, metadata, context, fileView) => {
+const doSeek = (type, time, metadata, context, fileView, cancellationToken) => {
     if (type === `mp3`) {
-        return seekMp3(time, metadata, context, fileView);
+        return seekMp3(time, metadata, context, fileView, cancellationToken);
     }
     throw new Error(`unsupported type`);
 };
 
-export default function seek(type, time, metadata, context, fileView) {
-    return doSeek(type, time, metadata, context, fileView);
+export default function seek(type, time, metadata, context, fileView, cancellationToken) {
+    return doSeek(type, time, metadata, context, fileView, cancellationToken);
 }

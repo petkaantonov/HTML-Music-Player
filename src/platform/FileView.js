@@ -93,7 +93,7 @@ export default class FileView {
         }
     }
 
-    async readBlockOfSizeAt(size, startOffset, paddingFactor) {
+    async readBlockOfSizeAt(size, startOffset, cancellationToken, paddingFactor = 1) {
         if (this._readInProgress) {
             throw new Error(`invalid parallel read`);
         }
@@ -123,7 +123,7 @@ export default class FileView {
                     const blob = this.file.slice(this.start, this.end);
                     let result;
                     try {
-                        result = await readAsArrayBuffer(blob);
+                        result = await readAsArrayBuffer(blob, cancellationToken);
                     } finally {
                         blob.close();
                     }

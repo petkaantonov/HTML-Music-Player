@@ -1,6 +1,6 @@
 import {console, Uint8Array, Uint16Array, Uint32Array,
          Int32Array, Float32Array, Float64Array,
-         FileReader, FileReaderSync, DataView, TextDecoder, TextEncoder, crypto,
+         FileReader, DataView, TextDecoder, TextEncoder, crypto,
          performance, Proxy, Symbol, indexedDB, XMLHttpRequest} from "platform/platform";
 import HttpStatusError from "errors/HttpStatusError";
 import {CancellationError} from "utils/CancellationToken";
@@ -329,24 +329,21 @@ export const checkSize = function(expectedSize, resultSize) {
     return null;
 };
 
-export const readAsArrayBuffer = function(file) {
+export const readAsArrayBuffer = function(file, cancellationToken) {
     const expectedSize = file.size;
-    if (typeof FileReader !== `function`) {
-        return new Promise((resolve) => {
-            const reader = new FileReaderSync();
-            const result = reader.readAsArrayBuffer(file);
-            file = null;
-            const e = checkSize(expectedSize, result.byteLength);
-            if (e) {
-                throw e;
-            } else {
-                resolve(result);
-            }
-        });
-    }
 
     return new Promise((resolve, reject) => {
         let reader = new FileReader();
+
+        if (cancellationToken) {
+            reader.onprogress = function() {
+                if (cancellationToken.isCancelled()) {
+                  reject(new CancellationError());
+                  reader.abort();
+                }
+            };
+        }
+
         once(reader, `load`, (e) => {
             reader = null;
             file = null;

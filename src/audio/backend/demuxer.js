@@ -281,14 +281,14 @@ function parseXingHeader(metadata, header, fileOffset, fileView) {
     metadata.dataStart = position;
 }
 
-async function demuxMp3(fileView, noSeekTable, maxSize) {
+async function demuxMp3(fileView, noSeekTable, maxSize, cancellationToken) {
     const dataEnd = fileView.file.size;
 
     if (maxSize === undefined) {
         maxSize = LOCAL_FILE_MAX_BYTES_UNTIL_GIVEUP;
     }
 
-    await fileView.readBlockOfSizeAt(65536, 0);
+    await fileView.readBlockOfSizeAt(65536, 0, cancellationToken);
     if (fileView.end < 65536) {
         return null;
     }
@@ -305,7 +305,7 @@ async function demuxMp3(fileView, noSeekTable, maxSize) {
         dataStart = fileOffset;
     }
 
-    await fileView.readBlockOfSizeAt(BLOCK_SIZE, fileOffset, 4);
+    await fileView.readBlockOfSizeAt(BLOCK_SIZE, fileOffset, cancellationToken, 4);
 
     if (fileView.getInt32(dataStart, false) === RIFF &&
         fileView.getInt32(dataStart + 8, false) === WAVE) {
@@ -361,7 +361,7 @@ async function demuxMp3(fileView, noSeekTable, maxSize) {
         }
 
         fileOffset += i;
-        await fileView.readBlockOfSizeAt(BLOCK_SIZE, fileOffset, 4);
+        await fileView.readBlockOfSizeAt(BLOCK_SIZE, fileOffset, cancellationToken, 4);
     }
 
     if (!parsedMetadata) {
@@ -376,7 +376,7 @@ async function demuxMp3(fileView, noSeekTable, maxSize) {
         } else if (!noSeekTable) {
             // VBR without Xing or VBRI header = need to scan the entire file.
             parsedMetadata.seekTable = new Mp3SeekTable();
-            await parsedMetadata.seekTable.fillUntil(30 * 60, parsedMetadata, fileView);
+            await parsedMetadata.seekTable.fillUntil(30 * 60, parsedMetadata, fileView, cancellationToken);
             parsedMetadata.frames = parsedMetadata.seekTable.frames;
             parsedMetadata.duration = (parsedMetadata.frames * parsedMetadata.samplesPerFrame) / parsedMetadata.sampleRate;
         }
@@ -389,10 +389,10 @@ async function demuxMp3(fileView, noSeekTable, maxSize) {
     return parsedMetadata;
 }
 
-export default function(codecName, fileView, noSeekTable, maxSize) {
+export default function(codecName, fileView, noSeekTable, maxSize, cancellationToken) {
     try {
         if (codecName === `mp3`) {
-            return demuxMp3(fileView, noSeekTable, maxSize);
+            return demuxMp3(fileView, noSeekTable, maxSize, cancellationToken);
         }
     } catch (e) {
         return null;
@@ -422,7 +422,7 @@ export class Mp3SeekTable {
         return this.table[index];
     }
 
-    async fillUntil(time, metadata, fileView) {
+    async fillUntil(time, metadata, fileView, cancellationToken) {
         if (this.tocFilledUntil >= time) return;
         let position = metadata.dataStart;
         const dataEndPosition = metadata.dataEnd;
@@ -444,7 +444,7 @@ export class Mp3SeekTable {
         let header = 0;
         let maxFilePosition = 0;
         do {
-            await fileView.readBlockOfSizeAt(BLOCK_SIZE, position, 10);
+            await fileView.readBlockOfSizeAt(BLOCK_SIZE, position, cancellationToken, 10);
 
             maxFilePosition = Math.min(dataEndPosition, position + BLOCK_SIZE / 2);
             const buffer = fileView.block();

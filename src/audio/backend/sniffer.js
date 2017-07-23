@@ -46,8 +46,8 @@ function refine(type, fileView, index) {
     }
 }
 
-export default async function getCodecName(fileView) {
-    await fileView.readBlockOfSizeAt(8192 * 16, 0);
+export default async function getCodecName(fileView, cancellationToken) {
+    await fileView.readBlockOfSizeAt(8192 * 16, 0, cancellationToken);
     const {end, file} = fileView;
     for (let i = 0; i < end - 4; ++i) {
         const value = fileView.getInt32(i, false);
