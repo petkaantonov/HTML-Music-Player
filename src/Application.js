@@ -521,8 +521,13 @@ export default class Application {
                 this.visualizerCanvas.initialize();
                 this.globalEvents._triggerSizeChange();
                 console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
-                this.page.changeDom(() => {
+                this.page.changeDom(async () => {
                     this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
+                    await Promise.all([
+                        this.player.preferencesLoaded(),
+                        this.playlist.preferencesLoaded(),
+                        this.search.preferencesLoaded()
+                    ]);
                     this.page.$(`#app-container`).removeClass(`initial`);
                     this.globalEvents._triggerSizeChange();
                 });

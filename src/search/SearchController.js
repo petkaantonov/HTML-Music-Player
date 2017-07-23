@@ -162,7 +162,11 @@ export default class SearchController extends TrackContainerController {
 
         this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-        this._loadPreferences();
+        this._preferencesLoaded = this._loadPreferences();
+    }
+
+    preferencesLoaded() {
+        return this._preferencesLoaded;
     }
 
     bindKeyboardShortcuts() {
@@ -315,11 +319,12 @@ export default class SearchController extends TrackContainerController {
         this.$().find(`.search-next-tab-focus`).hide();
     }
 
-    tabDidShow() {
+    tabDidShow(thereWasNoPreviousTab) {
         this.$().find(`.search-next-tab-focus`).show();
         this._visible = true;
 
-        if (!this.env.isMobile() || !this._session || !this._session._resultCount) {
+        if ((!this.env.isMobile() || !this._session || !this._session._resultCount) &&
+            !thereWasNoPreviousTab) {
             this.$input().focus();
         }
         super.tabDidShow();

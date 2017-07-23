@@ -169,10 +169,14 @@ export default class PlaylistController extends TrackContainerController {
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-        this._loadPreferences();
+
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
+        this._preferencesLoaded = this._loadPreferences();
+    }
 
+    preferencesLoaded() {
+        return this._preferencesLoaded;
     }
 
     getCurrentPlaylistTrack() {
@@ -413,7 +417,7 @@ export default class PlaylistController extends TrackContainerController {
         this.getPlayedTrackOrigin().originInitialTracksLoaded();
 
         const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
-        this._loadPersistedHistory(playlistHistory);
+        await this._loadPersistedHistory(playlistHistory);
 
         this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
     }

@@ -111,7 +111,11 @@ export default class PlayerController extends EventEmitter {
         this.crossfadePreferencesBindingContext.on(`change`, this.crossfadePreferencesChanged.bind(this));
         this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-        this._checkDbValues();
+        this._preferencesLoaded = this._loadPreferences();
+    }
+
+    preferencesLoaded() {
+        return this._preferencesLoaded;
     }
 
     audioContextReset() {
@@ -602,7 +606,7 @@ export default class PlayerController extends EventEmitter {
         return this;
     }
 
-    async _checkDbValues() {
+    async _loadPreferences() {
         await Promise.all([this.ready, this.metadataManager.ready()]);
 
 

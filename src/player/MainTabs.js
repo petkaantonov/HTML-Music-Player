@@ -127,11 +127,11 @@ export default class MainTabs {
     }
 
     tabEventHandler(methodName) {
-        return function(tabId) {
+        return function(tabId, ...args) {
             const contentInstance = this.contentInstancesByTabId[tabId];
             if (contentInstance) {
                 if (contentInstance[methodName]) {
-                    contentInstance[methodName]();
+                    contentInstance[methodName](...args);
                 }
 
                 if (methodName === `tabWillShow`) {

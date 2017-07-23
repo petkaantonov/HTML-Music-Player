@@ -178,6 +178,7 @@ export default class TabController extends EventEmitter {
             await this._pendingAnimations;
         }
 
+        const initialTabLoad = !this._activeTab;
         const willChangeTabs = tab !== this._activeTab;
         if (!willChangeTabs && !force) return;
 
@@ -192,7 +193,7 @@ export default class TabController extends EventEmitter {
                 this._activeTab.deactivate();
                 this.emit(`tabWillDeactivate`, this._activeTab._id);
             }
-            this.emit(`tabWillActivate`, tab._id);
+            this.emit(`tabWillActivate`, tab._id, initialTabLoad);
             this._activeTab = tab;
             newActiveTabId = tab._id;
             tab.activate();
@@ -217,7 +218,7 @@ export default class TabController extends EventEmitter {
             this.emit(`tabDidDeactivate`, previousActiveTabId);
         }
         if (newActiveTabId) {
-            this.emit(`tabDidActivate`, newActiveTabId);
+            this.emit(`tabDidActivate`, newActiveTabId, initialTabLoad);
         }
 
         this._animationOptions.duration = ANIMATION_DURATION;
