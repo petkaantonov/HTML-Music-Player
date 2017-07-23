@@ -520,7 +520,8 @@ export default class Application {
                 mainTabs.tabController.activateTabById(this.dbValues[VISIBLE_TAB_PREFERENCE_KEY]);
                 this.visualizerCanvas.initialize();
                 this.globalEvents._triggerSizeChange();
-                console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);
+                const preferenceLoadStart = performance.now();
+                console.log(`bootstrap time:`, preferenceLoadStart - bootstrapStart, `ms`);
                 this.page.changeDom(async () => {
                     this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
                     await Promise.all([
@@ -530,6 +531,7 @@ export default class Application {
                     ]);
                     this.page.$(`#app-container`).removeClass(`initial`);
                     this.globalEvents._triggerSizeChange();
+                    console.log(`preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
                 });
             }, 10);
         });
