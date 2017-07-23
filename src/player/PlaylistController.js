@@ -3,7 +3,7 @@ import DraggableSelection from "ui/DraggableSelection";
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
+import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {throttle, delay} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
@@ -32,6 +32,11 @@ const MAX_ERRORS = 200;
 const MAX_HISTORY = 500;
 
 const dummyTrack = {};
+
+const playlistEmptyTemplate = `<div class='app-info-status-text'>Playlist empty</div>
+  <div class="playlist-empty-instructions">
+     <p>There <span class="media-library-size"></span> available in your media library.</p>
+</div>`;
 
 class PlaylistTrack {
     constructor(track, trackView, origin, {
@@ -156,6 +161,7 @@ export default class PlaylistController extends TrackContainerController {
         this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
+        this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
 
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
@@ -165,6 +171,9 @@ export default class PlaylistController extends TrackContainerController {
             const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
             this._loadPersistedPlaylist(persistedPlaylist);
         }
+
+        this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
+        this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
     }
 
     getCurrentPlaylistTrack() {
@@ -381,6 +390,11 @@ export default class PlaylistController extends TrackContainerController {
 
     getMode() {
         return this._mode;
+    }
+
+    _mediaLibrarySizeUpdated(count) {
+        const text = count === 1 ? `is 1 track` : `are ${count} tracks`;
+        this.$().find(`.playlist-empty .media-library-size`).setText(text);
     }
 
     /* eslint-disable class-methods-use-this */

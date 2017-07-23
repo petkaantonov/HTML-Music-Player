@@ -4,6 +4,7 @@ import {METADATA_MANAGER_READY_EVENT_NAME,
             METADATA_RESULT_MESSAGE,
             TRACKINFO_BATCH_RESULT_MESSAGE,
             ALL_FILES_PERSISTED_MESSAGE,
+            MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE,
         fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
@@ -26,6 +27,7 @@ export function timerTick(now) {
 export const VIEW_UPDATE_EVENT = `viewUpdate`;
 export const TAG_DATA_UPDATE_EVENT = `tagDataUpdate`;
 export const ALL_FILES_PERSISTED_EVENT = `allFilesPersisted`;
+export const MEDIA_LIBRARY_SIZE_CHANGE_EVENT = `mediaLibrarySizeChange`;
 
 class Track extends EventEmitter {
     constructor(fileReference, uid, metadataManager) {
@@ -240,11 +242,11 @@ class Track extends EventEmitter {
     rate(value) {
         if (value === -1) {
             this._rating = -1;
-            this._metadataManager.unrate(this);
+            this._metadataManager._unrate(this);
         } else {
             value = Math.max(1, Math.min(+value, 5));
             this._rating = value;
-            this._metadataManager.rate(this, value);
+            this._metadataManager._rate(this, value);
         }
     }
 
@@ -263,7 +265,7 @@ class Track extends EventEmitter {
     recordSkip() {
         this._skipCounter++;
         this._lastPlayed = new Date();
-        this._metadataManager.recordSkip(this);
+        this._metadataManager._recordSkip(this);
         this._weightChanged();
     }
 
@@ -273,7 +275,7 @@ class Track extends EventEmitter {
         }
         this._playthroughCounter++;
         this._lastPlayed = new Date();
-        this._metadataManager.recordPlaythrough(this);
+        this._metadataManager._recordPlaythrough(this);
         this._weightChanged();
     }
 
@@ -356,24 +358,90 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
 
         this._allFilesPersisted = true;
         this._persistentPermissionAsked = false;
+        this._mediaLibrarySize = 0;
         this._uidsToTrack = new Map();
+        this._messagesToMethods = {
+            [ALBUM_ART_RESULT_MESSAGE]: this._albumArtResultReceived.bind(this),
+            [ACOUST_ID_DATA_RESULT_MESSAGE]: this._acoustIdDataFetched.bind(this),
+            [METADATA_RESULT_MESSAGE]: this._trackMetadataParsed.bind(this),
+            [TRACKINFO_BATCH_RESULT_MESSAGE]: this._trackInfoBatchRetrieved.bind(this),
+            [ALL_FILES_PERSISTED_MESSAGE]: this._allFilesHaveBeenPersisted.bind(this),
+            [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this)
+        };
     }
 
     receiveMessage(event) {
         if (!event.data) return;
         const {result, type} = event.data;
+        this._messagesToMethods[type](result);
+    }
 
-        if (type === ALBUM_ART_RESULT_MESSAGE) {
-            this._albumArtResultReceived(result);
-        } else if (type === ACOUST_ID_DATA_RESULT_MESSAGE) {
-            this._acoustIdDataFetched(result);
-        } else if (type === METADATA_RESULT_MESSAGE) {
-            this._trackMetadataParsed(result);
-        } else if (type === TRACKINFO_BATCH_RESULT_MESSAGE) {
-            this._trackInfoBatchRetrieved(result);
-        } else if (type === ALL_FILES_PERSISTED_MESSAGE) {
-            this._allFilesHaveBeenPersisted();
+
+    getAlbumArt(track, {artist, album, preference, requestReason}) {
+        const trackUid = track.uid();
+        this.postMessage({
+            action: `getAlbumArt`,
+            args: {trackUid, artist, album, preference, requestReason}
+        });
+    }
+
+    async mapTrackUidsToTracks(trackUids) {
+        await this.ready();
+        const tracks = new Array(trackUids.length);
+        const trackUidsNeedingTrackInfo = [];
+
+        for (let i = 0; i < tracks.length; ++i) {
+            const trackUid = trackUids[i];
+            const key = hexString(trackUid);
+            const cached = this._uidsToTrack.get(key);
+            if (cached) {
+                tracks[i] = cached;
+            } else {
+                const track = new Track(trackUid, trackUid, this);
+                tracks[i] = track;
+                this._uidsToTrack.set(key, track);
+                trackUidsNeedingTrackInfo.push(trackUid);
+            }
         }
+
+        this._fetchTrackInfoForTracks(trackUidsNeedingTrackInfo);
+        return tracks;
+    }
+
+    getTrackByTrackUid(trackUid) {
+        return this._uidsToTrack.get(hexString(trackUid));
+    }
+
+    areAllFilesPersisted() {
+        return this._allFilesPersisted;
+    }
+
+    async getTrackByFileReferenceAsync(fileReference) {
+        if (!this._persistentPermissionAsked) {
+            this._persistentPermissionAsked = true;
+            this._persistStorage();
+        }
+
+        const trackUid = await fileReferenceToTrackUid(fileReference);
+        const key = hexString(trackUid);
+        const cached = this._uidsToTrack.get(key);
+        if (cached) {
+            return cached;
+        }
+        this._allFilesPersisted = false;
+        const track = new Track(fileReference, trackUid, this);
+        this._parseMetadata(fileReference);
+        this._uidsToTrack.set(key, track);
+        return track;
+    }
+
+    getMediaLibrarySize() {
+        return this._mediaLibrarySize;
+    }
+
+    _mediaLibrarySizeCounted(count) {
+        this._mediaLibrarySize = count;
+        this.emit(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, count);
     }
 
     _albumArtResultReceived(albumArtResult) {
@@ -418,12 +486,8 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         }
     }
 
-    getAlbumArt(track, {artist, album, preference, requestReason}) {
-        const trackUid = track.uid();
-        this.postMessage({
-            action: `getAlbumArt`,
-            args: {trackUid, artist, album, preference, requestReason}
-        });
+    _parseMetadata(fileReference) {
+        this.postMessage({action: `parseMetadata`, args: {fileReference}});
     }
 
     _allFilesHaveBeenPersisted() {
@@ -431,27 +495,19 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         this.emit(ALL_FILES_PERSISTED_EVENT);
     }
 
-    areAllFilesPersisted() {
-        return this._allFilesPersisted;
-    }
-
-    parseMetadata(fileReference) {
-        this.postMessage({action: `parseMetadata`, args: {fileReference}});
-    }
-
-    rate(track, rating) {
+    _rate(track, rating) {
         this.postMessage({action: `setRating`, args: {trackUid: track.uid(), rating}});
     }
 
-    unrate(track) {
+    _unrate(track) {
         this.postMessage({action: `setRating`, args: {trackUid: track.uid(), rating: -1}});
     }
 
-    recordSkip(track) {
+    _recordSkip(track) {
         this.postMessage({action: `setSkipCounter`, args: {trackUid: track.uid(), counter: track._skipCounter, lastPlayed: track._lastPlayed}});
     }
 
-    recordPlaythrough(track) {
+    _recordPlaythrough(track) {
         this.postMessage({action: `setPlaythroughCounter`, args: {trackUid: track.uid(), counter: track._playthroughCounter, lastPlayed: track._lastPlayed}});
     }
 
@@ -465,25 +521,6 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         }
     }
 
-    async getTrackByFileReferenceAsync(fileReference) {
-        if (!this._persistentPermissionAsked) {
-            this._persistentPermissionAsked = true;
-            this._persistStorage();
-        }
-
-        const trackUid = await fileReferenceToTrackUid(fileReference);
-        const key = hexString(trackUid);
-        const cached = this._uidsToTrack.get(key);
-        if (cached) {
-            return cached;
-        }
-        this._allFilesPersisted = false;
-        const track = new Track(fileReference, trackUid, this);
-        this.parseMetadata(fileReference);
-        this._uidsToTrack.set(key, track);
-        return track;
-    }
-
     async _fetchTrackInfoForTracks(trackUidsNeedingTrackInfo) {
         const BATCH_SIZE = 250;
         let i = 0;
@@ -494,32 +531,5 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             i += BATCH_SIZE;
             this.postMessage({action: `getTrackInfoBatch`, args: {batch}});
         } while (i < trackUidsNeedingTrackInfo.length);
-    }
-
-    async mapTrackUidsToTracks(trackUids) {
-        await this.ready();
-        const tracks = new Array(trackUids.length);
-        const trackUidsNeedingTrackInfo = [];
-
-        for (let i = 0; i < tracks.length; ++i) {
-            const trackUid = trackUids[i];
-            const key = hexString(trackUid);
-            const cached = this._uidsToTrack.get(key);
-            if (cached) {
-                tracks[i] = cached;
-            } else {
-                const track = new Track(trackUid, trackUid, this);
-                tracks[i] = track;
-                this._uidsToTrack.set(key, track);
-                trackUidsNeedingTrackInfo.push(trackUid);
-            }
-        }
-
-        this._fetchTrackInfoForTracks(trackUidsNeedingTrackInfo);
-        return tracks;
-    }
-
-    getTrackByTrackUid(trackUid) {
-        return this._uidsToTrack.get(hexString(trackUid));
     }
 }

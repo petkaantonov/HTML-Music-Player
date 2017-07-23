@@ -1,7 +1,8 @@
 import {iDbPromisify, throttle} from "util";
 import {indexedDB, self} from "platform/platform";
+import {applyStoreSpec} from "tracks/TagDatabase";
 
-const VERSION = 3;
+const VERSION = 4;
 const NAME = `KeyValueDatabase2`;
 const KEY_NAME = `key`;
 const TABLE_NAME = `keyValueDatabase2`;
@@ -10,33 +11,22 @@ const READ_ONLY = `readonly`;
 
 const LOG_TABLE = `logTable`;
 
+const objectStoreSpec = {
+    [TABLE_NAME]: {
+        keyPath: KEY_NAME
+    },
+    [LOG_TABLE]: {
+        keyPath: `id`,
+        autoIncrement: true
+    }
+};
+
 export default class KeyValueDatabase {
     constructor() {
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
         request.onupgradeneeded = (event) => {
-            const {target} = event;
-            const {transaction} = target;
-            const {db} = transaction;
-
-            const storeNames = new Set([].slice.call(transaction.objectStoreNames));
-
-            let objectStore;
-            if (!storeNames.has(TABLE_NAME)) {
-                objectStore = db.createObjectStore(TABLE_NAME, {keyPath: KEY_NAME});
-            } else {
-                objectStore = transaction.objectStore(TABLE_NAME);
-            }
-
-            const indexNames = new Set([].slice.call(objectStore.indexNames));
-
-            for (const indexName of indexNames) {
-                objectStore.deleteIndex(indexName);
-            }
-
-            if (!storeNames.has(LOG_TABLE)) {
-                db.createObjectStore(LOG_TABLE, {autoIncrement: true, keyPath: `id`});
-            }
+            applyStoreSpec(event.target.transaction, objectStoreSpec);
         };
         this.initialValues = this.getAll();
         this.keySetters = Object.create(null);

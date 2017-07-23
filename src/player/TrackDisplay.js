@@ -45,7 +45,7 @@ export default class TrackDisplay {
     _updateText() {
         const playlistTrack = this._currentPlaylistTrack;
 
-        if (playlistTrack) {
+        if (playlistTrack && !playlistTrack.isDummy()) {
             const title = `${playlistTrack.formatIndex()}${playlistTrack.formatFullName()}`;
             this.$().setText(title);
             this._page.setTitle(title);

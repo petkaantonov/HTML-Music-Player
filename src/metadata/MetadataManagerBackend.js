@@ -22,6 +22,7 @@ export const ALBUM_ART_RESULT_MESSAGE = `albumArtResult`;
 export const ACOUST_ID_DATA_RESULT_MESSAGE = `acoustIdDataFetched`;
 export const TRACKINFO_BATCH_RESULT_MESSAGE = `trackInfoBatchResult`;
 export const ALL_FILES_PERSISTED_MESSAGE = `allFilesPersisted`;
+export const MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE = `mediaLibrarySizeCounted`;
 export const METADATA_RESULT_MESSAGE = `metadataResult`;
 export const ALBUM_ART_PREFERENCE_SMALLEST = `smallest`;
 export const ALBUM_ART_PREFERENCE_BIGGEST = `biggest`;
@@ -122,6 +123,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this._wasm = wasm;
         this._blobUrls = [];
         this._blobUrlSize = 0;
+        this._trackInfoEntriesCount = 0;
 
         this._acoustIdDataFetcher = new JobProcessor({delay: 1000, jobCallback: this._fetchAcoustIdDataJob.bind(this)});
         this._fingerprinter = new JobProcessor({jobCallback: this._fingerprintJob.bind(this)});
@@ -186,6 +188,20 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this._metadataParser.on(ALL_JOBS_COMPLETE_EVENT, () => {
             this.postMessage({type: ALL_FILES_PERSISTED_MESSAGE});
         });
+        this._updateMediaLibrarySize();
+    }
+
+    _trackInfoEntriesCountUpdated() {
+        this.postMessage({
+            type: MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE,
+            result: this._trackInfoEntriesCount
+        });
+    }
+
+    async _updateMediaLibrarySize() {
+        const count = await this._tagDatabase.getTrackInfoCount();
+        this._trackInfoEntriesCount = count;
+        this._trackInfoEntriesCountUpdated();
     }
 
     async _parseMetadata(trackUid, fileReference) {
@@ -405,6 +421,8 @@ export default class MetadataManagerBackend extends AbstractBackend {
         trackInfo = buildTrackInfo(data, data.demuxData);
         this._searchBackend.updateTrackToSearchIndex(trackInfo);
         await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
+        this._trackInfoEntriesCount++;
+        this._trackInfoEntriesCountUpdated();
         return trackInfo;
     }
 

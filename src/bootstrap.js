@@ -10,7 +10,6 @@ import Page from "platform/dom/Page";
 import {noop, setIsDevelopment, setTimers} from "util";
 
 const defaultTitle = `Soita`;
-
 const TOO_LONG_TO_LOAD_MS = 300;
 
 try {

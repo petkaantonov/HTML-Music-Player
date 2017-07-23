@@ -171,9 +171,8 @@ export function applyStoreSpec(transaction, storeSpec) {
         } else {
             ret[storeName] = transaction.objectStore(storeName);
         }
-        if (spec.indexSpec) {
-            applyIndexSpecToStore(ret[storeName], spec.indexSpec);
-        }
+
+        applyIndexSpecToStore(ret[storeName], spec.indexSpec || {});
     }
 
     for (const storeName of storeNames) {
@@ -271,13 +270,19 @@ export default class TagDatabase {
         return this._getTrackInfosHavingKey(genre, `genres`, opts);
     }
 
+    async getTrackInfoCount() {
+        const db = await this.db;
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
+        return iDbPromisify(store.count());
+    }
+
     async trackUidsToTrackInfos(trackUids) {
         const ret = new Array(trackUids.length);
         ret.length = 0;
         trackUids.sort(indexedDBCmp);
         let i = 0;
         const db = await this.db;
-        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         const {length} = trackUids;
 
         if (i >= length) {
@@ -314,7 +319,7 @@ export default class TagDatabase {
 
     async getTrackInfoByTrackUid(trackUid) {
         const db = await this.db;
-        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(trackUid));
     }
 
