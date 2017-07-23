@@ -2,6 +2,7 @@ import {slugTitle, noUndefinedGet, animationPromisify, _} from "util";
 import {DECELERATE_CUBIC} from "ui/animation/easing";
 import Popup from "ui/Popup";
 import withDeps from "ApplicationDependencies";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 const blockerAnimationKeyFrames = [
     {opacity: 0},
@@ -89,6 +90,7 @@ export default class PopupContext {
         this.buttonDisabledClass = opts.buttonDisabledClass;
 
         this.shownPopups = [];
+        this.popups = [];
         this.blocker = this.page.NULL();
         this.animation = null;
 
@@ -99,6 +101,7 @@ export default class PopupContext {
 
         this.globalEvents.on(`clear`, this.closeTopPopup);
         this.globalEvents.on(`backbuttonPress`, this.closeTopPopup);
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
 
         this.blockerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closePopups);
     }
@@ -162,14 +165,19 @@ export default class PopupContext {
         }
     }
 
-    popupClosed(popup) {
-        if (!this.isMobile()) {
-            this.db.set(toPreferenceKey(popup.title), {
-                screenPosition: popup.getScreenPosition(),
-                scrollPosition: popup.getScrollPosition()
+    _shutdownSavePreferences(preferences) {
+        for (const popup of this.popups) {
+            preferences.push({
+                key: toPreferenceKey(popup.title),
+                value: {
+                    screenPosition: popup.getScreenPosition(),
+                    scrollPosition: popup.getScrollPosition()
+                }
             });
         }
+    }
 
+    popupClosed(popup) {
         const index = this.shownPopups.indexOf(popup);
         if (index >= 0) {
             this.shownPopups.splice(index, 1);
@@ -215,11 +223,14 @@ export default class PopupContext {
         popup.on(`open`, this.popupOpened);
         popup.on(`close`, this.popupClosed);
 
+        const preferenceKey = toPreferenceKey(popup.title);
+
         if (toPreferenceKey(popup.title) in this.dbValues) {
-            const data = Object(this.dbValues[toPreferenceKey(popup.title)]);
+            const data = Object(this.dbValues[preferenceKey]);
             popup.setScreenPosition(data.screenPosition);
             popup.setScrollPosition(data.scrollPosition);
         }
+        this.popups.push(popup);
 
         return popup;
     }

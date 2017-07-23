@@ -1,6 +1,7 @@
 import {delay} from "util";
 import {DISMISSED, TIMED_OUT, ACTION_CLICKED} from "ui/Snackbar";
 import EventEmitter from "events";
+import {SHUTDOWN_EVENT} from "platform/GlobalEvents";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
 const tabId = Math.floor(Date.now() + Math.random() * Date.now());
@@ -33,16 +34,17 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
         this._globalEvents.on(`foreground`, this._foregrounded);
         this._globalEvents.on(`background`, this._backgrounded);
-        this._globalEvents.on(`shutdown`, this._appClosed);
+        this._globalEvents.on(SHUTDOWN_EVENT, this._appClosed);
     }
 
-    _appClosed() {
+    _appClosed(preferences) {
         if (this._page.navigator().serviceWorker &&
             this._page.navigator().serviceWorker.controller) {
             try {
                 this._page.navigator().serviceWorker.controller.postMessage({
-                    action: `closeNotifications`,
-                    tabId
+                    action: `savePreferences`,
+                    tabId,
+                    preferences
                 });
             } catch (e) {
                 // NOOP
@@ -165,7 +167,6 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._page.navigator().serviceWorker.addEventListener(`controllerchange`, () => {
             if (reloading) return;
             reloading = true;
-            this._globalEvents.disableBeforeUnloadHandler();
             this._page.location().reload();
         });
     }

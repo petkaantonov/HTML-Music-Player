@@ -3,6 +3,8 @@ import EventEmitter from "events";
 import {throttle} from "util";
 
 export const FOREGROUND_EVENT = `foreground`;
+export const SHUTDOWN_SAVE_PREFERENCES_EVENT = `shutdownSavePreferences`;
+export const SHUTDOWN_EVENT = `shutdown`;
 
 export default class GlobalEvents extends EventEmitter {
     constructor(page) {
@@ -12,9 +14,9 @@ export default class GlobalEvents extends EventEmitter {
         this._blurred = undefined;
         this._fireSizeChangeEvents = true;
         this._pendingSizeChange = false;
-        this._beforeUnloadListener = null;
         this._history = page.window().history;
         this._lastShownPlayedTrackOrigin = null;
+        this._shutdownEmitted = false;
 
         this._triggerSizeChange = this._triggerSizeChange.bind(this);
         this._firePendingSizeChangeEvent = this._firePendingSizeChangeEvent.bind(this);
@@ -29,7 +31,7 @@ export default class GlobalEvents extends EventEmitter {
         this._page.addWindowListener(`blur`, this._windowBlurred.bind(this));
         this._page.addWindowListener(`focus`, this._windowFocused.bind(this));
         this._page.addWindowListener(`resize`, this._triggerSizeChange, true);
-        this._page.addWindowListener(`unload`, this.emit.bind(this, `shutdown`));
+        this._page.addWindowListener(`unload`, this._beforeUnload.bind(this));
         this._page.addWindowListener(`beforeunload`, this._beforeUnload.bind(this));
         this._page.addWindowListener(`popstate`, this._historyStatePopped.bind(this));
 
@@ -115,25 +117,16 @@ export default class GlobalEvents extends EventEmitter {
         }
     }
 
-
-
-    disableBeforeUnloadHandler() {
-        this._beforeUnloadListener = null;
+    _shutdown() {
+        if (this._shutdownEmitted) return;
+        this._shutdownEmitted = true;
+        const preferencesToSave = [];
+        this.emit(SHUTDOWN_SAVE_PREFERENCES_EVENT, preferencesToSave);
+        this.emit(SHUTDOWN_EVENT, preferencesToSave);
     }
 
-    addBeforeUnloadListener(fn) {
-        this._beforeUnloadListener = fn;
-    }
-
-    _beforeUnload(e) {
-        if (this._beforeUnloadListener) {
-            const ret = this._beforeUnloadListener(e);
-            if (ret) {
-                e.returnValue = ret;
-                return ret;
-            }
-        }
-        return null;
+    _beforeUnload() {
+        this._shutdown();
     }
 
     isWindowBlurred() {

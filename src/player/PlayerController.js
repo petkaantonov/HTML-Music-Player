@@ -11,6 +11,7 @@ import {URL} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 export const PLAYBACK_STATE_CHANGE_EVENT = `playbackStateChange`;
 export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
@@ -26,6 +27,8 @@ export const PROGRESS_EVENT = `progress`;
 let loadId = 0;
 const VOLUME_KEY = `volume`;
 const MUTED_KEY = `muted`;
+const CURRENT_TRACK_PROGRESS_KEY = `currentTrackProgress`;
+const CURRENT_PLAYLIST_TRACK_KEY = `currentPlaylistTrack`;
 
 export default class PlayerController extends EventEmitter {
     constructor(opts, deps) {
@@ -44,6 +47,7 @@ export default class PlayerController extends EventEmitter {
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.gestureEducator = deps.gestureEducator;
         this.playlist = deps.playlist;
+        this.metadataManager = deps.metadataManager;
 
         this._domNode = this.page.$(opts.target);
 
@@ -88,18 +92,8 @@ export default class PlayerController extends EventEmitter {
         this.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
         this.playlist.on(HISTORY_CHANGE_EVENT, this.historyChanged.bind(this));
 
-        if (VOLUME_KEY in this.dbValues) {
-            this.setVolume(this.dbValues[VOLUME_KEY]);
-        }
-
-        if (MUTED_KEY in this.dbValues) {
-            if (this.dbValues[MUTED_KEY]) {
-                this.toggleMute();
-            }
-        }
-
         this.ready = (async () => {
-            await this.audioPlayer.ready;
+            await this.audioPlayer.ready();
             this.ready = null;
         })();
 
@@ -116,7 +110,8 @@ export default class PlayerController extends EventEmitter {
         this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
         this.crossfadePreferencesBindingContext.on(`change`, this.crossfadePreferencesChanged.bind(this));
         this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
-
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
+        this._checkDbValues();
     }
 
     audioContextReset() {
@@ -572,13 +567,11 @@ export default class PlayerController extends EventEmitter {
             this.forEachAudioManager((am) => {
                 am.mute();
             });
-            this.db.set(MUTED_KEY, true);
         } else {
             this.emit(VOLUME_MUTE_EVENT, false);
             this.forEachAudioManager((am) => {
                 am.unmute();
             });
-            this.db.set(MUTED_KEY, false);
         }
     }
 
@@ -606,8 +599,63 @@ export default class PlayerController extends EventEmitter {
             am.updateVolume(volume);
         });
         this.emit(VOLUME_CHANGE_EVENT);
-        this.db.set(VOLUME_KEY, volume);
         return this;
+    }
+
+    async _checkDbValues() {
+        await Promise.all([this.ready, this.metadataManager.ready()]);
+
+
+        if (VOLUME_KEY in this.dbValues) {
+            this.setVolume(this.dbValues[VOLUME_KEY]);
+        }
+
+        if (MUTED_KEY in this.dbValues) {
+            if (this.dbValues[MUTED_KEY]) {
+                this.toggleMute();
+            }
+        }
+
+        if (CURRENT_PLAYLIST_TRACK_KEY in this.dbValues) {
+            const serializedPlaylistTrack = this.dbValues[CURRENT_PLAYLIST_TRACK_KEY];
+            const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack);
+            if (startedToPlayTrack) {
+                const {currentAudioManager} = this;
+                await currentAudioManager.durationKnown();
+                this.pause();
+                if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
+                    this.setProgress(this.dbValues[CURRENT_TRACK_PROGRESS_KEY]);
+                    this.emit(PROGRESS_EVENT,
+                              currentAudioManager.getCurrentTime(),
+                              currentAudioManager.getDuration());
+                }
+            }
+        }
+    }
+
+    _shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: VOLUME_KEY,
+            value: this.volume
+        });
+        preferences.push({
+            key: MUTED_KEY,
+            value: this.isMutedValue
+        });
+
+        const playlistTrack = this.playlist.getCurrentPlaylistTrack();
+
+        if (playlistTrack && !playlistTrack.isDummy() && this.metadataManager.areAllFilesPersisted()) {
+            preferences.push({
+                key: CURRENT_PLAYLIST_TRACK_KEY,
+                value: playlistTrack.toJSON()
+            });
+
+            preferences.push({
+                key: CURRENT_TRACK_PROGRESS_KEY,
+                value: this.getProgress()
+            });
+        }
     }
 
     // Supports deletion mid-iteration.

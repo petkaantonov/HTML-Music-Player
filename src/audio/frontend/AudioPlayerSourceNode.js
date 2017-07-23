@@ -605,6 +605,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         let scheduledStartTime = 0;
         const afterScheduleKnownCallbacks = [];
 
+
+
         if (bufferFillType === BUFFER_FILL_TYPE_SEEK) {
             const {requestId, baseTime, isUserSeek} = descriptor.fillTypeData;
 
@@ -894,8 +896,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             this._maybeFadeOut(this._player.getSeekFadeTime());
             const now = performance.now();
             if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
+
                 this._seek(this._currentTime, true);
             } else {
+
                 this._throttledSeek(this._currentTime);
             }
             this._lastExpensiveCall = now;

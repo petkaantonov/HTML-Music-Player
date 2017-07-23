@@ -1,5 +1,7 @@
 import EventEmitter from "events";
-import {throttle, noUndefinedGet} from "util";
+import {noUndefinedGet} from "util";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
+
 
 const RESTORE_DEFAULTS_BUTTON = `restore-defaults`;
 const UNDO_CHANGES_BUTTON = `undo-changes`;
@@ -15,6 +17,7 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
         this._db = deps.db;
         this._recognizerContext = deps.recognizerContext;
         this._sliderContext = deps.sliderContext;
+        this._globalEvents = deps.globalEvents;
 
         this._storageKey = opts.storageKey;
         this._popup = deps.popupContext.makePopup(opts.title, opts.template, [{
@@ -27,12 +30,12 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
             action: this.undoChangesClicked.bind(this)
         }]);
 
-        this.savePreferences = throttle(this.savePreferences, 250);
         this._manager = null;
 
         this._popup.on(`open`, this.popupOpened.bind(this));
         this._popup.on(`layoutUpdate`, this.layoutUpdated.bind(this));
         this.checkDbValues(deps.dbValues);
+        this._globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
     }
 
     async checkDbValues(dbValues) {
@@ -110,7 +113,6 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
 
     savePreferences() {
         this.emit(`change`, this.preferences());
-        this._db.set(this._storageKey, this.preferences().toJSON());
     }
 
     /* eslint-disable class-methods-use-this */
@@ -146,5 +148,12 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
     async setPreferenceDeferred(key, value) {
         await Promise.resolve();
         this.setPreference(key, value);
+    }
+
+    _shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: this._storageKey,
+            value: this.preferences().toJSON()
+        });
     }
 }

@@ -335,6 +335,12 @@ export default class AudioManager {
         this.updateSchedules(true);
     }
 
+    durationKnown() {
+        return new Promise(resolve => {
+            this.sourceNode.once(`timeUpdate`, resolve);
+        });
+    }
+
     mute() {
         if (this.destroyed) return;
         const scheduledTime = this.sourceNode.muteRequested();

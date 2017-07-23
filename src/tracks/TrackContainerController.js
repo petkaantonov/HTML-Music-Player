@@ -4,8 +4,14 @@ import TrackContainerTrait from "tracks/TrackContainerTrait";
 import Selectable from "ui/Selectable";
 import TrackRater from "tracks/TrackRater";
 import TrackView from "tracks/TrackView";
+import TrackViewOptions from "tracks/TrackViewOptions";
 import {buildConsecutiveRanges, indexMapper, buildInverseRanges} from "util";
 
+const namesToPlayedTrackOrigins = new Map();
+
+export function playedTrackOriginByName(name) {
+    return namesToPlayedTrackOrigins.get(name);
+}
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
 
@@ -14,6 +20,7 @@ export class PlayedTrackOrigin {
         this._name = name;
         this._controller = controller;
         this._usesTrackViewIndex = usesTrackViewIndex;
+        namesToPlayedTrackOrigins.set(this._name, this);
     }
 
     toString() {
@@ -22,6 +29,18 @@ export class PlayedTrackOrigin {
 
     usesTrackViewIndex() {
         return this._usesTrackViewIndex;
+    }
+
+    name() {
+        return this._name;
+    }
+
+    trackViewByIndex(index) {
+        const {_trackViews} = this._controller;
+        if (index >= 0 && index < _trackViews.length) {
+            return _trackViews[index];
+        }
+        return null;
     }
 
     startedPlay(playlistTrack) {
@@ -59,6 +78,7 @@ export default class TrackContainerController extends EventEmitter {
         this._trackListDeletionUndo = null;
         this._supportsRemove = opts.supportsRemove;
 
+
         this._playedTrackOrigin = new PlayedTrackOrigin(this.constructor.name, this, {
             usesTrackViewIndex: opts.playedTrackOriginUsesTrackViewIndex
         });
@@ -85,6 +105,8 @@ export default class TrackContainerController extends EventEmitter {
         if (!this.length) {
             this.listBecameEmpty();
         }
+
+        this._trackViewOptions = new TrackViewOptions(opts.itemHeight, this.page, this._selectable, this.env.hasTouch());
     }
 
     $() {

@@ -4,12 +4,13 @@ import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
 import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
-import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT, playedTrackOriginByName} from "tracks/TrackContainerController";
 import {throttle} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
 import {actionHandler, moreThan1Selected, moreThan0Selected,
     exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
 export const CURRENT_TRACK_CHANGE_EVENT = `currentTrackChange`;
@@ -26,6 +27,7 @@ const PLAYLIST_TRACKS_ADDED_TAG = `playlist-tracks-added`;
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
 const PLAYLIST_CONTENTS_KEY = `playlist-contents`;
+const PLAYLIST_HISTORY_KEY = `playlist-history`;
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -112,6 +114,17 @@ class PlaylistTrack {
         if (this.isDummy()) return false;
         return this._generatedFromShuffle && this.origin().isTrackViewValidInController(this.trackView());
     }
+
+    toJSON() {
+        if (this.isDummy()) {
+            return null;
+        }
+        return {
+            index: this.trackView().getIndex(),
+            trackUid: this.track().uid(),
+            origin: this.origin().name()
+        };
+    }
 }
 
 const DUMMY_PLAYLIST_TRACK = new PlaylistTrack(dummyTrack, dummyTrack, dummyTrack);
@@ -136,13 +149,6 @@ export default class PlaylistController extends TrackContainerController {
         this._trackListDeletionUndo = null;
         this._currentPlayId = -1;
         this._trackHistory = [];
-
-        this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
-                                                      this,
-                                                      this.page,
-                                                      this._selectable,
-                                                      null,
-                                                      this.env.hasTouch());
         this._errorCount = 0;
 
         this._draggable = withDeps({
@@ -163,6 +169,7 @@ export default class PlaylistController extends TrackContainerController {
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
 
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
@@ -173,8 +180,14 @@ export default class PlaylistController extends TrackContainerController {
             this._loadPersistedPlaylist(persistedPlaylist);
         }
 
+        if (PLAYLIST_HISTORY_KEY in this.dbValues) {
+            const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
+            this._loadPersistedHistory(playlistHistory);
+        }
+
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
+
     }
 
     getCurrentPlaylistTrack() {
@@ -291,6 +304,16 @@ export default class PlaylistController extends TrackContainerController {
     }
     /* eslint-enable class-methods-use-this */
 
+    async playSerializedPlaylistTrack(serializedPlaylistTrack) {
+        const playlistTrack = await this._deserializePlaylistTrack(serializedPlaylistTrack);
+
+        if (playlistTrack) {
+            this._changeTrack(playlistTrack, true, KIND_EXPLICIT);
+            return true;
+        }
+        return false;
+    }
+
     changeTrackExplicitly(track, {
         doNotRecordHistory = false,
         trackView = null,
@@ -392,12 +415,50 @@ export default class PlaylistController extends TrackContainerController {
         this.emit(MODE_CHANGE_EVENT, mode, oldMode);
         this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
         this._updateNextTrack();
-        this.db.set(PLAYLIST_MODE_KEY, mode);
         return true;
     }
 
     getMode() {
         return this._mode;
+    }
+
+    async _deserializePlaylistTrack(serializedPlaylistTrack) {
+        const {index, trackUid, origin: originName} = serializedPlaylistTrack;
+        const track = await this.metadataManager.getTrackByFileReferenceAsync(trackUid);
+
+        if (track) {
+            const origin = playedTrackOriginByName(originName);
+
+            if (origin) {
+                const trackView = origin.trackViewByIndex(index);
+
+                if (trackView && trackView.track() === track) {
+                    return new PlaylistTrack(track, trackView, origin);
+                }
+            }
+        }
+    }
+
+    _shutdownSavePreferences(preferences) {
+        if (this.metadataManager.areAllFilesPersisted()) {
+            if (this.length < 5000) {
+                const trackUids = this._trackViews.map(v => v.track().uid());
+                preferences.push({
+                    key: PLAYLIST_CONTENTS_KEY,
+                    value: {trackUids}
+                });
+            }
+
+            preferences.push({
+                key: PLAYLIST_HISTORY_KEY,
+                value: this._trackHistory.map(v => v.toJSON())
+            });
+        }
+
+        preferences.push({
+            key: PLAYLIST_MODE_KEY,
+            value: this._mode
+        });
     }
 
     _mediaLibrarySizeUpdated(count) {
@@ -410,6 +471,26 @@ export default class PlaylistController extends TrackContainerController {
         // NOOP
     }
     /* eslint-enable class-methods-use-this */
+
+    async _loadPersistedHistory(playlistHistory) {
+        await this.metadataManager.ready();
+        // TODO: Use same batch method as persist playlist uses
+        const unfilteredTrackHistory =
+            await Promise.all(playlistHistory.map(v => this._deserializePlaylistTrack(v)));
+
+        const filteredTrackHistory = unfilteredTrackHistory.filter(Boolean);
+
+        if (this._trackHistory.length > 0) {
+            filteredTrackHistory.push(...this._trackHistory);
+        }
+        this._trackHistory = filteredTrackHistory;
+
+        // TODO just slice it.
+        while (this._trackHistory.length > MAX_HISTORY) {
+            this._trackHistory.shift();
+        }
+        this.emit(HISTORY_CHANGE_EVENT);
+    }
 
     async _loadPersistedPlaylist(persistedPlaylist) {
         const {trackUids} = persistedPlaylist;

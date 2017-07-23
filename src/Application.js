@@ -267,6 +267,7 @@ export default class Application {
             rippler,
             popupContext,
             mainMenu,
+            globalEvents,
             env
         }, d => new ApplicationPreferencesBindingContext(d));
 
@@ -279,6 +280,7 @@ export default class Application {
             rippler,
             popupContext,
             mainMenu,
+            globalEvents,
             env
         }, d => new EffectPreferencesBindingContext(d));
 
@@ -291,6 +293,7 @@ export default class Application {
             rippler,
             mainMenu,
             popupContext,
+            globalEvents,
             env
         }, d => new CrossfadePreferencesBindingContext(d));
 
@@ -337,6 +340,7 @@ export default class Application {
             applicationPreferencesBindingContext,
             localFileHandler,
             workerWrapper,
+            metadataManager,
             timers
         }, d => new PlayerController({
             target: `.app-player-controls`,
@@ -410,8 +414,8 @@ export default class Application {
             recognizerContext,
             sliderContext,
             dbValues,
-            db,
-            rippler
+            rippler,
+            globalEvents
         }, d => new PlayerTimeManager({
             target: `.player-upper-container`,
             seekSlider: `.time-progress-container`,
@@ -501,7 +505,6 @@ export default class Application {
 
         this.globalEvents.on(`longPressStart`, this.longTapStarted.bind(this));
         this.globalEvents.on(`longPressEnd`, this.longTapEnded.bind(this));
-        this.globalEvents.addBeforeUnloadListener(this.beforeUnload.bind(this));
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
         this.page.addDocumentListener(`selectstart`, selectStarted);
         this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped.bind(this));
@@ -540,14 +543,6 @@ export default class Application {
 
     longTapEnded() {
         this.spinner.stop();
-    }
-
-    beforeUnload() {
-        if (!this.env.isDevelopment() && (this.playlist.length > 0 ||
-            ((this.player.isPlaying || this.player.isPaused) && !this.player.isStopped))) {
-            return `Are you sure you want to exit?`;
-        }
-        return null;
     }
 
     playerStopped() {

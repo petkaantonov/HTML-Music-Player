@@ -51,10 +51,6 @@ export default class TrackView {
         return this._opts.hasTouch;
     }
 
-    playlist() {
-        return this._opts.playlist;
-    }
-
     itemHeight() {
         return this._opts.itemHeight;
     }

@@ -1,6 +1,7 @@
 import {toTimeString, noUndefinedGet} from "util";
 import {PROGRESS_EVENT,
         NEW_TRACK_LOAD_EVENT} from "player/PlayerController";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
@@ -13,9 +14,9 @@ export default class PlayerTimeManager {
 
         this.page = deps.page;
         this.recognizerContext = deps.recognizerContext;
-        this.db = deps.db;
         this.rippler = deps.rippler;
         this.player = deps.player;
+        this.globalEvents = deps.globalEvents;
 
         this._domNode = this.page.$(opts.target).eq(0);
         this.displayMode = DISPLAY_REMAINING;
@@ -49,6 +50,7 @@ export default class PlayerTimeManager {
         this.seekSlider.on(`slide`, this.slided);
         this.player.on(PROGRESS_EVENT, this.playerTimeProgressed);
         this.player.on(NEW_TRACK_LOAD_EVENT, this.newTrackLoaded);
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
 
         this.$totalTime().addEventListener(`click`, this.containerClicked);
         this.recognizerContext.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());
@@ -229,13 +231,13 @@ export default class PlayerTimeManager {
         this._scheduleUpdate();
     }
 
+
     toggleDisplayMode() {
         if (this.displayMode === DISPLAY_ELAPSED) {
             this.displayMode = DISPLAY_REMAINING;
         } else {
             this.displayMode = DISPLAY_ELAPSED;
         }
-        this.db.set(TIME_DISPLAY_PREFERENCE_KEY, this.displayMode);
         this._updateDimensions();
         this.forceUpdate();
     }
@@ -243,6 +245,13 @@ export default class PlayerTimeManager {
     containerClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.toggleDisplayMode();
+    }
+
+    _shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: TIME_DISPLAY_PREFERENCE_KEY,
+            value: this.displayMode
+        });
     }
 
     _hide() {

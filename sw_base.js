@@ -171,18 +171,13 @@ self.addEventListener(`fetch`, (e) => {
     e.respondWith(getMatchedAsset(request));
 }, false);
 
+
 self.addEventListener(`message`, async (e) => {
-    const {action, tabId} = e.data;
+    const {action, tabId, preferences} = e.data;
     if (action === `skipWaiting`) {
         self.skipWaiting();
-    } else if (action === `closeNotifications`) {
-        if (self.registration && self.registration.getNotifications) {
-            const notifications = await self.registration.getNotifications();
-            notifications.filter(notification => notification.data.tabId === tabId).forEach((notification) => {
-                notification.data.forceClose = true;
-                notification.close();
-            });
-        }
+    } else if (action === `savePreferences`) {
+        savePreferences(preferences);
     }
 });
 
@@ -200,3 +195,33 @@ self.addEventListener(`notificationclick`, (event) => {
     const {action, notification} = event;
     event.waitUntil(handleNotificationClicked(action, notification));
 });
+
+const iDbPromisify = function(ee) {
+    return new Promise((resolve, reject) => {
+        ee.onerror = function(event) {
+            reject(event.target.transaction.error || ee.error);
+        };
+        ee.onsuccess = function(event) {
+            resolve(event.target.result);
+        };
+    });
+};
+
+let dbPromise;
+async function savePreferences(preferences) {
+    if (!dbPromise) {
+        const request = indexedDB.open(`KeyValueDatabase2`, 4);
+        request.onupgradeneeded = (event) => {
+            //?
+        };
+        dbPromise = iDbPromisify(request);
+    }
+
+    const db = await dbPromise;
+    const transaction = db.transaction(`keyValueDatabase2`, `readwrite`);
+    const store = transaction.objectStore(`keyValueDatabase2`);
+
+    for (const obj of preferences) {
+        await store.put(obj);
+    }
+}

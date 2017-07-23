@@ -1,5 +1,4 @@
 import {normalizeQuery, throttle} from "util";
-import TrackViewOptions from "tracks/TrackViewOptions";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
@@ -9,15 +8,16 @@ import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "pla
 import {indexedDB} from "platform/platform";
 import {actionHandler, moreThan0Selected,
         exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
+const SEARCH_QUERY_KEY = `search-query`;
 
 const noSearchResultsTemplate = `
   <div class="status-info-text search-text-container">
      <p>No tracks in your media library match the query <em class='search-query'></em>. Try online search.</p>
 </div>`;
-
 
 class SearchHistoryEntry {
     constructor(page, query) {
@@ -135,12 +135,6 @@ export default class SearchController extends TrackContainerController {
         this._searchHistory = [];
         this._session = null;
         this._playlist = deps.playlist;
-        this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
-                                                      this._playlist,
-                                                      this.page,
-                                                      this._selectable,
-                                                      this,
-                                                      this.env.hasTouch());
 
         this._topHistoryEntry = null;
         this._visible = false;
@@ -156,10 +150,17 @@ export default class SearchController extends TrackContainerController {
                      addEventListener(`keydown`, this._inputKeydowned.bind(this));
         this.$().find(`.search-next-tab-focus`).addEventListener(`focus`, this._searchNextTabFocused.bind(this));
 
+
+        this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
+
         if (SEARCH_HISTORY_KEY in this.dbValues) {
             this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
         }
-        this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
+
+        if (SEARCH_QUERY_KEY in this.dbValues) {
+            this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
+        }
     }
 
     bindKeyboardShortcuts() {
@@ -336,9 +337,21 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
-    saveHistory(historyEntries) {
-        const json = historyEntries.map(v => v.toJSON());
-        this.db.set(SEARCH_HISTORY_KEY, json);
+    async _tryLoadQuery(value) {
+        // TODO Validation
+        await this._metadataManager.ready();
+        this._performQuery(value);
+    }
+
+    _shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: SEARCH_HISTORY_KEY,
+            value: this._searchHistory.map(v => v.toJSON())
+        });
+        preferences.push({
+            key: SEARCH_QUERY_KEY,
+            value: this._getRawQuery()
+        });
     }
 
     _candidateTracksNeeded(submitCandidate) {
@@ -455,6 +468,10 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
+    _getRawQuery() {
+        return this._session ? this._session._rawQuery : ``;
+    }
+
     _inputBlurred() {
         this.$inputContainer().removeClass(`focused`);
         if (this._session && this._session.resultCount() > 0) {
@@ -472,7 +489,6 @@ export default class SearchController extends TrackContainerController {
                         searchHistory[0] = this._topHistoryEntry;
 
                         this.$historyDataList().prepend(this._topHistoryEntry.$());
-                        this.saveHistory(searchHistory);
                         return;
                     }
                 }
@@ -483,10 +499,8 @@ export default class SearchController extends TrackContainerController {
                 if (this._searchHistory.length > MAX_SEARCH_HISTORY_ENTRIES) {
                     this._searchHistory.pop().destroy();
                 }
-                this.saveHistory(this._searchHistory);
             } else {
                 this._topHistoryEntry.update(this._session._rawQuery);
-                this.saveHistory(this._searchHistory);
             }
         }
     }
@@ -518,8 +532,7 @@ export default class SearchController extends TrackContainerController {
         this._fixedItemListScroller.resize();
     }
 
-    _gotInput() {
-        const value = this.$input().value();
+    _performQuery(value) {
         this.$().find(`.search-query`).setText(value);
 
         if (value.length === 0) {
@@ -546,6 +559,11 @@ export default class SearchController extends TrackContainerController {
         }
         this._session = new SearchSession(this, value, normalized);
         this._session.start();
+    }
+
+    _gotInput() {
+        const value = this.$input().value();
+        this._performQuery(value);
     }
 
     playFirst() {
@@ -595,4 +613,3 @@ export default class SearchController extends TrackContainerController {
 
 SearchController.prototype._toggleEmptyResultsNotification = throttle(SearchController.prototype._toggleEmptyResultsNotification, 50);
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);
-SearchController.prototype.saveHistory = throttle(SearchController.prototype.saveHistory, 1000);
