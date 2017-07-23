@@ -2,13 +2,8 @@ import {noUndefinedGet, _equals, _, _call, animationPromisify} from "util";
 import EventEmitter from "events";
 import {SWIFT_OUT} from "ui/animation/easing";
 
-const animationOptions = {
-    easing: SWIFT_OUT,
-    duration: 220,
-    fill: `none`
-};
-
 const EMPTY_TRANSLATE = `translate3d(0, 0, 0)`;
+const ANIMATION_DURATION = 220;
 
 class Tab extends EventEmitter {
     constructor(spec, controller, index) {
@@ -50,7 +45,7 @@ class Tab extends EventEmitter {
             {transform: this.$content().getTransformForKeyFrame(EMPTY_TRANSLATE)},
             {transform: `translate3d(${newPosition}px, 0, 0)`}
         ];
-        const animation = this.$content().animate(keyFrames, animationOptions);
+        const animation = this.$content().animate(keyFrames, this._controller._getAnimationOptions());
         this._animation = animationPromisify(animation);
         await this._animation;
         this._animation = null;
@@ -128,18 +123,13 @@ export default class TabController extends EventEmitter {
         this._relayout = this._relayout.bind(this);
         this.globalEvents.on(`resize`, this._relayout);
 
-        this._dragStart = this._dragStart.bind(this);
-        this._dragMove = this._dragMove.bind(this);
-        this._dragEnd = this._dragEnd.bind(this);
-        this._dragStartTime = -1;
-        this._dragAnchorStart = -1;
-        this._dragAnchorEnd = -1;
         this._activeTabRect = null;
         this._pendingAnimations = null;
-
-        this.recognizerContext.
-            createHorizontalDragRecognizer(this._dragStart, this._dragMove, this._dragEnd).
-            recognizeBubbledOn(this.$());
+        this._animationOptions = {
+            easing: SWIFT_OUT,
+            duration: 0,
+            fill: `none`
+        };
     }
 
 
@@ -157,48 +147,6 @@ export default class TabController extends EventEmitter {
 
     $tabs() {
         return this.page.$(this._tabs.map(_.$));
-    }
-
-    _dragStart(gesture) {
-        this._dragAnchorStart = gesture.clientX;
-        this._dragStartTime = gesture.timeStamp;
-
-        this._tabs.forEach(_.updateRectCache);
-        this._activeTabRect = this._activeTab.contentRect();
-    }
-
-    _dragMove(gesture) {
-        const deltaX = -1 * (this._dragAnchorStart - gesture.clientX);
-        const activeIndex = this._activeTab.index();
-
-        if ((activeIndex === 0 && deltaX > 0) ||
-            (activeIndex === this._tabs.length - 1 && deltaX < 0) ||
-            this._pendingAnimations) {
-            return;
-        }
-
-        const contentWidth = this._activeTabRect.width;
-        const progress = deltaX / contentWidth;
-        this._tabs.forEach(_call.setPositionByProgress(activeIndex, progress, contentWidth));
-        this.$indicator().setTransform(`translate3d(${(activeIndex * 100) + (-1 * progress * 100)}%, 0, 0)`);
-        this._dragAnchorEnd = gesture.clientX;
-    }
-
-    _dragEnd(gesture) {
-        const delta = (this._dragAnchorEnd - this._dragAnchorStart) / this._activeTabRect.width;
-        const elapsed = gesture.timeStamp - this._dragStartTime;
-        const speed = delta / elapsed * 1000;
-
-        let newTab;
-        if ((delta < -0.3 || speed < -1.2) && this._activeTab.index() < this._tabs.length - 1) {
-            newTab = this._tabs[this._activeTab.index() + 1];
-        } else if ((delta > 0.3 || speed > 1.2) && this._activeTab.index() > 0) {
-            newTab = this._tabs[this._activeTab.index() - 1];
-        } else {
-            newTab = this._activeTab;
-        }
-
-        this._activateTab(newTab, true);
     }
 
     _relayout() {
@@ -219,6 +167,10 @@ export default class TabController extends EventEmitter {
 
     getActiveTabId() {
         return this.getActiveTab()._id;
+    }
+
+    _getAnimationOptions() {
+        return this._animationOptions;
     }
 
     async _activateTab(tab, force) {
@@ -254,7 +206,7 @@ export default class TabController extends EventEmitter {
             {transform: this.$indicator().getTransformForKeyFrame(EMPTY_TRANSLATE)},
             {transform: `translate3d(${100 * activeIndex}%, 0, 0)`}
         ];
-        const indicatorAnimation = this.$indicator().animate(indicatorKeyFrames, animationOptions);
+        const indicatorAnimation = this.$indicator().animate(indicatorKeyFrames, this._getAnimationOptions());
         animationsFinished.push(animationPromisify(indicatorAnimation));
         this._pendingAnimations = Promise.all(animationsFinished);
         await this._pendingAnimations;
@@ -267,9 +219,15 @@ export default class TabController extends EventEmitter {
         if (newActiveTabId) {
             this.emit(`tabDidActivate`, newActiveTabId);
         }
+
+        this._animationOptions.duration = ANIMATION_DURATION;
     }
 
     activateTabById(id) {
-        return this._activateTab(this._tabs.find(_equals._id(id)));
+        let tab = this._tabs.find(_equals._id(id));
+        if (!tab) {
+            tab = this._tabs[0];
+        }
+        return this._activateTab(tab);
     }
 }

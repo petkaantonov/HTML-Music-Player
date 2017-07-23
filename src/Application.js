@@ -5,7 +5,7 @@ import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
 import PermissionPrompt from "ui/PermissionPrompt";
 import TrackDisplay from "player/TrackDisplay";
-import {default as MainTabs, PLAYLIST_TAB_ID} from "player/MainTabs";
+import {default as MainTabs, VISIBLE_TAB_PREFERENCE_KEY} from "player/MainTabs";
 import PlaylistModeManager from "player/PlaylistModeManager";
 import PlayerTimeManager from "player/PlayerTimeManager";
 import PlayerVolumeManager from "player/PlayerVolumeManager";
@@ -23,6 +23,7 @@ import GestureRecognizerContext from "ui/gestures/GestureRecognizerContext";
 import SliderContext from "ui/SliderContext";
 import MenuContext from "ui/MenuContext";
 import ScrollerContext from "ui/scrolling/ScrollerContext";
+import {PlayedTrackOriginContext} from "tracks/TrackContainerController";
 import FileInputContext from "platform/FileInputContext";
 import PlayerController, {PLAYBACK_STOP_EVENT} from "player/PlayerController";
 import PlaylistController from "player/PlaylistController";
@@ -91,6 +92,8 @@ export default class Application {
         }, d));
 
         /* eslint-disable no-unused-vars */
+        const playedTrackOriginContext = this.playedTrackOriginContext = new PlayedTrackOriginContext();
+
         const workerWrapper = this.workerWrapper = withDeps({
             page
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
@@ -310,9 +313,10 @@ export default class Application {
             keyboardShortcuts,
             applicationPreferencesBindingContext,
             menuContext,
-            metadataManager
+            metadataManager,
+            playedTrackOriginContext
         }, d => new PlaylistController({
-            target: `#app-playlist-container`,
+            target: `.playlist-list-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
 
@@ -364,7 +368,8 @@ export default class Application {
             metadataManager,
             workerWrapper,
             rippler,
-            menuContext
+            menuContext,
+            playedTrackOriginContext
         }, d => new SearchController({
             target: `.search-list-container`,
             itemHeight: ITEM_HEIGHT
@@ -512,7 +517,7 @@ export default class Application {
         this.page.changeDom(() => {
             page.$(`#app-loader`).remove();
             this.page.setTimeout(() => {
-                mainTabs.tabController.activateTabById(PLAYLIST_TAB_ID);
+                mainTabs.tabController.activateTabById(this.dbValues[VISIBLE_TAB_PREFERENCE_KEY]);
                 this.visualizerCanvas.initialize();
                 this.globalEvents._triggerSizeChange();
                 console.log(`bootstrap time:`, performance.now() - bootstrapStart, `ms`);

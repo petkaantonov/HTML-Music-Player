@@ -1,12 +1,1 @@
 @import "variables";
-
-.tracks-list-container {
-    background-color: #FAFAFA;
-}
-
-#app-playlist-container {
-    overflow: hidden;
-    width: 100%;
-    transform: translate3d(0, 0, 0);
-    border-radius: $subtle-radius;
-}

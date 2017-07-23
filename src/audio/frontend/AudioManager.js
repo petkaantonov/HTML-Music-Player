@@ -336,7 +336,7 @@ export default class AudioManager {
     }
 
     durationKnown() {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             this.sourceNode.once(`timeUpdate`, resolve);
         });
     }

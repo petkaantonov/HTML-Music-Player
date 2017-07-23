@@ -7,20 +7,16 @@ import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import {buildConsecutiveRanges, indexMapper, buildInverseRanges} from "util";
 
-const namesToPlayedTrackOrigins = new Map();
-
-export function playedTrackOriginByName(name) {
-    return namesToPlayedTrackOrigins.get(name);
-}
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
+export const ALL_ORIGINS_READY_EVENT = `allOriginsReady`;
 
-export class PlayedTrackOrigin {
-    constructor(name, controller, {usesTrackViewIndex}) {
+class PlayedTrackOrigin {
+    constructor(name, controller, context, {usesTrackViewIndex}) {
         this._name = name;
         this._controller = controller;
         this._usesTrackViewIndex = usesTrackViewIndex;
-        namesToPlayedTrackOrigins.set(this._name, this);
+        this._context = context;
     }
 
     toString() {
@@ -53,12 +49,54 @@ export class PlayedTrackOrigin {
                index < this._controller.length &&
                this._controller._trackViews[index] === trackView;
     }
+
+    originInitialTracksLoaded() {
+        this._context._originReady(this);
+    }
+}
+
+export class PlayedTrackOriginContext extends EventEmitter {
+    constructor() {
+        super();
+        this._namesToPlayedTrackOrigins = new Map();
+        this._originsPendingReady = new Set();
+        this._allOriginsReadyEmitted = false;
+    }
+
+    createOrigin(name, controller, opts) {
+        const ret = new PlayedTrackOrigin(name, controller, this, opts);
+        this._namesToPlayedTrackOrigins.set(name, ret);
+        this._originsPendingReady.add(ret);
+        return ret;
+    }
+
+    originByName(name) {
+        return this._namesToPlayedTrackOrigins.get(name);
+    }
+
+    async allOriginsInitialTracksLoaded() {
+        if (this._allOriginsReadyEmitted) {
+            return;
+        }
+
+        await new Promise(resolve => this.once(ALL_ORIGINS_READY_EVENT, resolve));
+    }
+
+    _originReady(origin) {
+        this._originsPendingReady.delete(origin);
+        if (!this._originsPendingReady.size && !this._allOriginsReadyEmitted) {
+            this._allOriginsReadyEmitted = true;
+            this.emit(ALL_ORIGINS_READY_EVENT);
+        }
+    }
+
 }
 
 
 export default class TrackContainerController extends EventEmitter {
     constructor(opts, deps) {
         super();
+        this.playedTrackOriginContext = deps.playedTrackOriginContext;
         this.page = deps.page;
         this.rippler = deps.rippler;
         this.globalEvents = deps.globalEvents;
@@ -79,7 +117,7 @@ export default class TrackContainerController extends EventEmitter {
         this._supportsRemove = opts.supportsRemove;
 
 
-        this._playedTrackOrigin = new PlayedTrackOrigin(this.constructor.name, this, {
+        this._playedTrackOrigin = this.playedTrackOriginContext.createOrigin(this.constructor.name, this, {
             usesTrackViewIndex: opts.playedTrackOriginUsesTrackViewIndex
         });
         this._domNode = this.page.$(opts.target);

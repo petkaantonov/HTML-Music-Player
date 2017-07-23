@@ -61,6 +61,10 @@ class SearchSession {
         this._started = false;
         this._id = search.nextSessionId();
         this._messaged = this._messaged.bind(this);
+
+        this._resultsLoadedPromise = new Promise((resolve) => {
+            this._resultsLoadedResolve = resolve;
+        });
     }
 
     _messaged(event) {
@@ -100,10 +104,15 @@ class SearchSession {
         return this._resultCount;
     }
 
+    resultsLoaded() {
+        return this._resultsLoadedPromise;
+    }
+
     _gotResults(results) {
         if (this._destroyed) return;
         this._resultCount = results.length;
         this._search.newResults(this, results);
+        this._resultsLoadedResolve();
     }
 }
 
@@ -153,14 +162,7 @@ export default class SearchController extends TrackContainerController {
 
         this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-
-        if (SEARCH_HISTORY_KEY in this.dbValues) {
-            this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
-        }
-
-        if (SEARCH_QUERY_KEY in this.dbValues) {
-            this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
-        }
+        this._loadPreferences();
     }
 
     bindKeyboardShortcuts() {
@@ -325,7 +327,8 @@ export default class SearchController extends TrackContainerController {
     }
 
     tryLoadHistory(values) {
-        if (Array.isArray(values) && values.length <= MAX_SEARCH_HISTORY_ENTRIES) {
+        if (Array.isArray(values) && values.length > 0) {
+            values = values.slice(0, MAX_SEARCH_HISTORY_ENTRIES + 1);
             this._searchHistory = values.map(function(query) {
                 return new SearchHistoryEntry(this.page, query);
             }, this);
@@ -337,10 +340,19 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
+    async _loadPreferences() {
+        this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
+        await this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
+        this.getPlayedTrackOrigin().originInitialTracksLoaded();
+    }
+
     async _tryLoadQuery(value) {
-        // TODO Validation
+        if (!value) value = ``;
         await this._metadataManager.ready();
-        this._performQuery(value);
+        this.$input().setValue(value);
+        if (value) {
+            await this._performQuery(this.$input().value());
+        }
     }
 
     _shutdownSavePreferences(preferences) {
@@ -532,7 +544,7 @@ export default class SearchController extends TrackContainerController {
         this._fixedItemListScroller.resize();
     }
 
-    _performQuery(value) {
+    async _performQuery(value) {
         this.$().find(`.search-query`).setText(value);
 
         if (value.length === 0) {
@@ -559,6 +571,7 @@ export default class SearchController extends TrackContainerController {
         }
         this._session = new SearchSession(this, value, normalized);
         this._session.start();
+        await this._session.resultsLoaded();
     }
 
     _gotInput() {

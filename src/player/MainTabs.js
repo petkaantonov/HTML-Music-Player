@@ -1,6 +1,7 @@
 import {noUndefinedGet, _call} from "util";
 import TabController from "ui/TabController";
 import withDeps from "ApplicationDependencies";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 import {ITEMS_SELECTED_EVENT} from "ui/Selectable";
 import {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
@@ -8,6 +9,8 @@ import {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 export const PLAYLIST_TAB_ID = `playlist`;
 export const SEARCH_TAB_ID = `search`;
 export const QUEUE_TAB_ID = `queue`;
+
+export const VISIBLE_TAB_PREFERENCE_KEY = `visibleTabId`;
 
 export default class MainTabs {
     constructor(opts, deps) {
@@ -104,6 +107,7 @@ export default class MainTabs {
         this.search.on(ITEMS_SELECTED_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
         this.search.on(LENGTH_CHANGE_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
         this.globalEvents.on(`resize`, this.layoutChanged.bind(this));
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
     }
 
     withActiveMenuInstance(fn) {
@@ -197,5 +201,12 @@ export default class MainTabs {
 
     beforeSearchContextMenuOpen() {
         this.search.getTrackRater().update();
+    }
+
+    _shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: VISIBLE_TAB_PREFERENCE_KEY,
+            value: this.tabController.getActiveTabId()
+        });
     }
 }

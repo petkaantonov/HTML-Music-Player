@@ -1,10 +1,9 @@
 import withDeps from "ApplicationDependencies";
 import DraggableSelection from "ui/DraggableSelection";
 import {ACTION_CLICKED} from "ui/Snackbar";
-import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
 import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
-import TrackContainerController, {LENGTH_CHANGE_EVENT, playedTrackOriginByName} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {throttle} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
@@ -170,21 +169,7 @@ export default class PlaylistController extends TrackContainerController {
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-
-        if (PLAYLIST_MODE_KEY in this.dbValues) {
-            this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
-        }
-
-        if (PLAYLIST_CONTENTS_KEY in this.dbValues) {
-            const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
-            this._loadPersistedPlaylist(persistedPlaylist);
-        }
-
-        if (PLAYLIST_HISTORY_KEY in this.dbValues) {
-            const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
-            this._loadPersistedHistory(playlistHistory);
-        }
-
+        this._loadPreferences();
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
 
@@ -422,12 +407,24 @@ export default class PlaylistController extends TrackContainerController {
         return this._mode;
     }
 
+    async _loadPreferences() {
+        const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
+        await this._loadPersistedPlaylist(persistedPlaylist);
+        this.getPlayedTrackOrigin().originInitialTracksLoaded();
+
+        const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
+        this._loadPersistedHistory(playlistHistory);
+
+        this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
+    }
+
     async _deserializePlaylistTrack(serializedPlaylistTrack) {
+        await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
         const {index, trackUid, origin: originName} = serializedPlaylistTrack;
         const track = await this.metadataManager.getTrackByFileReferenceAsync(trackUid);
 
         if (track) {
-            const origin = playedTrackOriginByName(originName);
+            const origin = this.playedTrackOriginContext.originByName(originName);
 
             if (origin) {
                 const trackView = origin.trackViewByIndex(index);
@@ -437,10 +434,12 @@ export default class PlaylistController extends TrackContainerController {
                 }
             }
         }
+        return null;
     }
 
     _shutdownSavePreferences(preferences) {
         if (this.metadataManager.areAllFilesPersisted()) {
+            // TODO limit could be more on desktop
             if (this.length < 5000) {
                 const trackUids = this._trackViews.map(v => v.track().uid());
                 preferences.push({
@@ -473,7 +472,11 @@ export default class PlaylistController extends TrackContainerController {
     /* eslint-enable class-methods-use-this */
 
     async _loadPersistedHistory(playlistHistory) {
+        if (!playlistHistory || !playlistHistory.length) {
+            return;
+        }
         await this.metadataManager.ready();
+        await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
         // TODO: Use same batch method as persist playlist uses
         const unfilteredTrackHistory =
             await Promise.all(playlistHistory.map(v => this._deserializePlaylistTrack(v)));
@@ -493,6 +496,9 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     async _loadPersistedPlaylist(persistedPlaylist) {
+        if (!persistedPlaylist || !persistedPlaylist.trackUids || !persistedPlaylist.trackUids.length) {
+            return;
+        }
         const {trackUids} = persistedPlaylist;
         const tracks = await this.metadataManager.mapTrackUidsToTracks(trackUids);
         this.add(tracks, {noReport: true});
