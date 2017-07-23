@@ -101,10 +101,10 @@ export default class AudioManager {
         return this.sourceNode.hasGaplessPreload();
     }
 
-    async _updateNextGaplessTrack() {
+    _updateNextGaplessTrack() {
         this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
         if (this.gaplessPreloadTrack) {
-            const fileReference = await this.gaplessPreloadTrack.getFileReference();
+            const fileReference = this.gaplessPreloadTrack.getFileReference();
             this.sourceNode.replace(fileReference, 0, true);
         }
     }
@@ -130,7 +130,7 @@ export default class AudioManager {
         }
     }
 
-    async replaceTrack(track, explicitlyLoaded) {
+    replaceTrack(track, explicitlyLoaded) {
         if (this.destroyed || this.player.currentAudioManager !== this) return;
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         const {gaplessPreloadTrack} = this;
@@ -160,7 +160,7 @@ export default class AudioManager {
             this.resume();
         });
         this.currentTime = 0;
-        const fileReference = await track.getFileReference();
+        const fileReference = track.getFileReference();
         this.sourceNode.replace(fileReference, this.currentTime, false);
     }
 
@@ -305,7 +305,7 @@ export default class AudioManager {
         }
     }
 
-    async start() {
+    start() {
         if (this.destroyed || this.started) return;
         this.tickCounter.reset();
         this.intendingToSeek = -1;
@@ -314,7 +314,7 @@ export default class AudioManager {
         this.sourceNode.on(`ended`, this.ended);
         this.sourceNode.on(`error`, this.errored);
         this.sourceNode.on(`initialPlaythrough`, this.initialPlaythrough);
-        const fileReference = await this.track.getFileReference();
+        const fileReference = this.track.getFileReference();
         this.sourceNode.load(fileReference, 0);
         this.sourceNode.play();
     }

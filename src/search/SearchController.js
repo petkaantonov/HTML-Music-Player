@@ -159,7 +159,7 @@ export default class SearchController extends TrackContainerController {
         if (SEARCH_HISTORY_KEY in this.dbValues) {
             this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
         }
-        this.$().find(".search-empty").setHtml(noSearchResultsTemplate);
+        this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
     }
 
     bindKeyboardShortcuts() {
@@ -520,7 +520,7 @@ export default class SearchController extends TrackContainerController {
 
     _gotInput() {
         const value = this.$input().value();
-        this.$().find(".search-query").setText(value);
+        this.$().find(`.search-query`).setText(value);
 
         if (value.length === 0) {
             this._topHistoryEntry = null;
@@ -535,10 +535,10 @@ export default class SearchController extends TrackContainerController {
         if (normalized.length <= 1) {
             this.clear();
             this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
-            this.$().find(".search-empty .search-text-container").hide();
+            this.$().find(`.search-empty .search-text-container`).hide();
             return;
         } else {
-            this.$().find(".search-empty .search-text-container").show();
+            this.$().find(`.search-empty .search-text-container`).show();
         }
 
         if (this._session) {

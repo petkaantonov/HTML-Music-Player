@@ -5,7 +5,7 @@ import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
 import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
-import {throttle, delay} from "util";
+import {throttle} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
 import {actionHandler, moreThan1Selected, moreThan0Selected,
