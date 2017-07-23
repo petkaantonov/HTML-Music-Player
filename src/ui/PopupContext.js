@@ -168,7 +168,7 @@ export default class PopupContext {
     _shutdownSavePreferences(preferences) {
         for (const popup of this.popups) {
             preferences.push({
-                key: toPreferenceKey(popup.title),
+                key: toPreferenceKey(popup.title()),
                 value: {
                     screenPosition: popup.getScreenPosition(),
                     scrollPosition: popup.getScrollPosition()
@@ -223,9 +223,9 @@ export default class PopupContext {
         popup.on(`open`, this.popupOpened);
         popup.on(`close`, this.popupClosed);
 
-        const preferenceKey = toPreferenceKey(popup.title);
+        const preferenceKey = toPreferenceKey(popup.title());
 
-        if (toPreferenceKey(popup.title) in this.dbValues) {
+        if (preferenceKey in this.dbValues) {
             const data = Object(this.dbValues[preferenceKey]);
             popup.setScreenPosition(data.screenPosition);
             popup.setScrollPosition(data.scrollPosition);
