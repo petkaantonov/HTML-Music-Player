@@ -354,7 +354,7 @@ export default class PlayerController extends EventEmitter {
         if (this.isPlaying) return;
 
         if (!this.playlist.getCurrentTrack()) {
-            this.playlist.playFirst();
+            this.playlist.next(true);
             return;
         }
 
@@ -466,6 +466,10 @@ export default class PlayerController extends EventEmitter {
         }
     }
 
+    canPlayPause() {
+        return !this.isStopped || !!this.playlist.getNextTrack();
+    }
+
     checkButtonState() {
         this.$allButtons().addClass(`disabled`);
 
@@ -477,8 +481,11 @@ export default class PlayerController extends EventEmitter {
             this.$previous().removeClass(`disabled`);
         }
 
-        if (!this.isStopped) {
+        if (this.canPlayPause()) {
             this.$play().removeClass(`disabled`);
+        }
+
+        if (!this.isStopped) {
             if (this.isPlaying) {
                 this.$play().
                     find(`.play-pause-morph-icon`).
@@ -495,10 +502,6 @@ export default class PlayerController extends EventEmitter {
                     find(`.play-pause-morph-icon`).
                     removeClass(`pause`).
                     addClass(`play`);
-
-            if (this.playlist.getNextTrack()) {
-                this.$play().removeClass(`disabled`);
-            }
         }
 
     }

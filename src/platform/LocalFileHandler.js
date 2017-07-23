@@ -75,12 +75,16 @@ export default class LocalFileHandler {
             multiple: true,
             accept: this.env.supportedMimes().join(`,`)
         });
-        this.mainMenu.on(`addFiles`, () => this.filesFileInput.trigger());
+        this.mainMenu.on(`addFiles`, () => this.openFilePicker());
 
         this.page.addDocumentListener(`dragenter`, _dragEntered);
         this.page.addDocumentListener(`dragleave`, _dragLeft);
         this.page.addDocumentListener(`dragover`, _dragOvered);
         this.page.addDocumentListener(`drop`, this._dropped.bind(this));
+    }
+
+    openFilePicker() {
+        this.filesFileInput.trigger();
     }
 
     receiveFiles(fileEmitter) {
