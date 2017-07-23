@@ -5,11 +5,16 @@ import Selectable from "ui/Selectable";
 import TrackRater from "tracks/TrackRater";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
-import {buildConsecutiveRanges, indexMapper, buildInverseRanges} from "util";
+import {buildConsecutiveRanges, indexMapper, buildInverseRanges,
+        buildConsecutiveRangesCompressed} from "util";
+import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
 export const ALL_ORIGINS_READY_EVENT = `allOriginsReady`;
+
+const SCROLL_POSITION_KEY_SUFFIX = `_scrollPosition`;
+const SELECTED_INDEX_RANGES_SUFFIX = `_selectedIndexRanges`;
 
 class PlayedTrackOrigin {
     constructor(name, controller, context, {usesTrackViewIndex}) {
@@ -143,8 +148,39 @@ export default class TrackContainerController extends EventEmitter {
         if (!this.length) {
             this.listBecameEmpty();
         }
-
+        this._preferencesLoaded = Promise.resolve();
         this._trackViewOptions = new TrackViewOptions(opts.itemHeight, this.page, this._selectable, this.env.hasTouch());
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this.shutdownSavePreferences.bind(this));
+    }
+
+
+    preferencesLoaded() {
+        return this._preferencesLoaded;
+    }
+
+    loadPreferences() {
+        const {dbValues} = this;
+
+        const selectionRanges = dbValues[`${this.constructor.name}${SELECTED_INDEX_RANGES_SUFFIX}`];
+
+        if (Array.isArray(selectionRanges)) {
+            this._selectable.selectRanges(selectionRanges);
+        }
+
+        const scrollPosition = dbValues[`${this.constructor.name}${SCROLL_POSITION_KEY_SUFFIX}`];
+        this._fixedItemListScroller.setScrollTop(scrollPosition);
+    }
+
+    shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: `${this.constructor.name}${SELECTED_INDEX_RANGES_SUFFIX}`,
+            value: buildConsecutiveRangesCompressed(this.getSelection(), indexMapper)
+        });
+
+        preferences.push({
+            key: `${this.constructor.name}${SCROLL_POSITION_KEY_SUFFIX}`,
+            value: this._fixedItemListScroller.getScrollTop()
+        });
     }
 
     $() {

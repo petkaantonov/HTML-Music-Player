@@ -467,6 +467,41 @@ export default class Selectable extends EventEmitter {
         return false;
     }
 
+    selectRanges(selectionRanges) {
+        if (!Array.isArray(selectionRanges) || selectionRanges.length < 1) {
+            return;
+        }
+        const {length} = this._listView;
+
+        this._resetPointers();
+        this._clearSelection();
+
+        for (const range of selectionRanges) {
+            const [rangeStart, rangeEnd] = range;
+            if (0 <= rangeStart &&
+                rangeStart <= rangeEnd &&
+                rangeStart < length && rangeEnd < length) {
+                for (let i = rangeStart; i <= rangeEnd; ++i) {
+                    this._add(i);
+                }
+            }
+        }
+
+        const firstRange = selectionRanges[0];
+        const lastRange = selectionRanges[selectionRanges.length - 1];
+        const [first] = firstRange;
+        const [, last] = lastRange;
+
+        if (0 <= first && first <= last &&
+            first < length && last < length) {
+            this._lastStart = first;
+            this._lastEnd = last;
+            this._lastStart = first;
+            this._selectionPointer = last;
+        }
+        this._listView.emit(ITEMS_SELECTED_EVENT, this);
+    }
+
     selectRange(start, end) {
         const first = this.first();
         const last = this.last();

@@ -9,7 +9,6 @@ import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 import {ALIGN_RIGHT_SIDE_AT_TOP as align} from "ui/ActionMenu";
 import {actionHandler, moreThan1Selected, moreThan0Selected,
     exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
-import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
 export const CURRENT_TRACK_CHANGE_EVENT = `currentTrackChange`;
@@ -168,15 +167,46 @@ export default class PlaylistController extends TrackContainerController {
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
-        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
 
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
-        this._preferencesLoaded = this._loadPreferences();
+        this._preferencesLoaded = this.loadPreferences();
     }
 
-    preferencesLoaded() {
-        return this._preferencesLoaded;
+    shutdownSavePreferences(preferences) {
+        if (this.metadataManager.areAllFilesPersisted()) {
+            // TODO limit could be more on desktop
+            if (this.length < 5000) {
+                const trackUids = this._trackViews.map(v => v.track().uid());
+                preferences.push({
+                    key: PLAYLIST_CONTENTS_KEY,
+                    value: {trackUids}
+                });
+            }
+
+            preferences.push({
+                key: PLAYLIST_HISTORY_KEY,
+                value: this._trackHistory.map(v => v.toJSON())
+            });
+        }
+
+        preferences.push({
+            key: PLAYLIST_MODE_KEY,
+            value: this._mode
+        });
+        super.shutdownSavePreferences(preferences);
+    }
+
+    async loadPreferences() {
+        const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
+        await this._loadPersistedPlaylist(persistedPlaylist);
+        this.getPlayedTrackOrigin().originInitialTracksLoaded();
+
+        const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
+        await this._loadPersistedHistory(playlistHistory);
+
+        this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
+        await super.loadPreferences();
     }
 
     getCurrentPlaylistTrack() {
@@ -411,17 +441,6 @@ export default class PlaylistController extends TrackContainerController {
         return this._mode;
     }
 
-    async _loadPreferences() {
-        const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
-        await this._loadPersistedPlaylist(persistedPlaylist);
-        this.getPlayedTrackOrigin().originInitialTracksLoaded();
-
-        const playlistHistory = this.dbValues[PLAYLIST_HISTORY_KEY];
-        await this._loadPersistedHistory(playlistHistory);
-
-        this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
-    }
-
     async _deserializePlaylistTrack(serializedPlaylistTrack) {
         await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
         const {index, trackUid, origin: originName} = serializedPlaylistTrack;
@@ -441,28 +460,6 @@ export default class PlaylistController extends TrackContainerController {
         return null;
     }
 
-    _shutdownSavePreferences(preferences) {
-        if (this.metadataManager.areAllFilesPersisted()) {
-            // TODO limit could be more on desktop
-            if (this.length < 5000) {
-                const trackUids = this._trackViews.map(v => v.track().uid());
-                preferences.push({
-                    key: PLAYLIST_CONTENTS_KEY,
-                    value: {trackUids}
-                });
-            }
-
-            preferences.push({
-                key: PLAYLIST_HISTORY_KEY,
-                value: this._trackHistory.map(v => v.toJSON())
-            });
-        }
-
-        preferences.push({
-            key: PLAYLIST_MODE_KEY,
-            value: this._mode
-        });
-    }
 
     _mediaLibrarySizeUpdated(count) {
         const text = count === 1 ? `is 1 track` : `are ${count} tracks`;

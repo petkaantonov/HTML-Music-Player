@@ -8,7 +8,6 @@ import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "pla
 import {indexedDB} from "platform/platform";
 import {actionHandler, moreThan0Selected,
         exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
-import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -108,10 +107,10 @@ class SearchSession {
         return this._resultsLoadedPromise;
     }
 
-    _gotResults(results) {
+    async _gotResults(results) {
         if (this._destroyed) return;
         this._resultCount = results.length;
-        this._search.newResults(this, results);
+        await this._search.newResults(this, results);
         this._resultsLoadedResolve();
     }
 }
@@ -161,13 +160,30 @@ export default class SearchController extends TrackContainerController {
 
 
         this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
-        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
-        this._preferencesLoaded = this._loadPreferences();
+        this._preferencesLoaded = this.loadPreferences();
+        this._preferencesHaveBeenLoaded = false;
     }
 
-    preferencesLoaded() {
-        return this._preferencesLoaded;
+    shutdownSavePreferences(preferences) {
+        preferences.push({
+            key: SEARCH_HISTORY_KEY,
+            value: this._searchHistory.map(v => v.toJSON())
+        });
+        preferences.push({
+            key: SEARCH_QUERY_KEY,
+            value: this._getRawQuery()
+        });
+        super.shutdownSavePreferences(preferences);
     }
+
+    async loadPreferences() {
+        this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
+        await this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
+        this.getPlayedTrackOrigin().originInitialTracksLoaded();
+        await super.loadPreferences();
+        this._preferencesHaveBeenLoaded = true;
+    }
+
 
     bindKeyboardShortcuts() {
         super.bindKeyboardShortcuts();
@@ -345,12 +361,6 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
-    async _loadPreferences() {
-        this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
-        await this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
-        this.getPlayedTrackOrigin().originInitialTracksLoaded();
-    }
-
     async _tryLoadQuery(value) {
         if (!value) value = ``;
         await this._metadataManager.ready();
@@ -358,17 +368,6 @@ export default class SearchController extends TrackContainerController {
         if (value) {
             await this._performQuery(this.$input().value());
         }
-    }
-
-    _shutdownSavePreferences(preferences) {
-        preferences.push({
-            key: SEARCH_HISTORY_KEY,
-            value: this._searchHistory.map(v => v.toJSON())
-        });
-        preferences.push({
-            key: SEARCH_QUERY_KEY,
-            value: this._getRawQuery()
-        });
     }
 
     _candidateTracksNeeded(submitCandidate) {
@@ -605,14 +604,21 @@ export default class SearchController extends TrackContainerController {
     }
 
     listBecameEmpty() {
-        this._toggleEmptyResultsNotification(true);
+        if (this._preferencesHaveBeenLoaded) {
+            this._toggleEmptyResultsNotificationThrottled(true);
+        } else {
+            this._toggleEmptyResultsNotification(true);
+        }
     }
 
     listBecameNonEmpty() {
-        this._toggleEmptyResultsNotification(false);
+        if (this._preferencesHaveBeenLoaded) {
+            this._toggleEmptyResultsNotificationThrottled(false);
+        } else {
+            this._toggleEmptyResultsNotification(false);
+        }
     }
 
-    /* eslint-disable class-methods-use-this */
     _toggleEmptyResultsNotification(empty) {
         if (empty) {
             this.$().find(`.search-empty`).show();
@@ -623,11 +629,16 @@ export default class SearchController extends TrackContainerController {
         }
     }
 
+    _toggleEmptyResultsNotificationThrottled(empty) {
+        this._toggleEmptyResultsNotification(empty);
+    }
+
+    /* eslint-disable class-methods-use-this */
     didAddTracksToView() {
         // NOOP
     }
     /* eslint-enable class-methods-use-this */
 }
 
-SearchController.prototype._toggleEmptyResultsNotification = throttle(SearchController.prototype._toggleEmptyResultsNotification, 50);
+SearchController.prototype._toggleEmptyResultsNotificationThrottled = throttle(SearchController.prototype._toggleEmptyResultsNotificationThrottled, 50);
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);

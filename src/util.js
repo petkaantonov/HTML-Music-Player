@@ -18,7 +18,6 @@ export const setTimers = function(theTimers) {
     timers = theTimers;
 };
 
-
 export const queryString = function(obj) {
     return Object.keys(obj).map(key => `${key}=${obj[key]}`).join(`&`);
 };
@@ -219,6 +218,33 @@ export const IDENTITY = function(v) {
     return v;
 };
 
+export const buildConsecutiveRangesCompressed = function(array, callback) {
+    if (typeof callback !== `function`) callback = IDENTITY;
+    if (!array.length) return [];
+    if (array.length === 1) {
+        const val = callback(array[0]);
+        return [[val, val]];
+    }
+    const ranges = [];
+    let lastValue = callback(array[0]);
+    let currentRange = [lastValue, lastValue];
+    for (let i = 1; i < array.length; ++i) {
+        const currentValue = callback(array[i]);
+        if (currentValue === lastValue) continue;
+        if (currentValue - 1 !== lastValue) {
+            currentRange[1] = lastValue;
+            ranges.push(currentRange);
+            currentRange = [currentValue, currentValue];
+        }
+        lastValue = currentValue;
+    }
+    currentRange[1] = lastValue;
+    ranges.push(currentRange);
+    return ranges;
+};
+
+// TODO Broken if callback provided
+// TODO Bad name, output is not in ranges
 export const buildConsecutiveRanges = function(array, callback) {
     if (typeof callback !== `function`) callback = IDENTITY;
     if (!array.length) return [];

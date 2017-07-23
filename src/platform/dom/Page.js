@@ -523,10 +523,14 @@ export class DomWrapper {
 
     closest(selector) {
         const ret = new DomWrapper(null, null, this._page);
-        for (let i = 0; i < this._length; ++i) {
-            const closest = this[i].closest(selector);
-            if (closest) {
-                ret._insert(closest);
+        mainLoop: for (let i = 0; i < this._length; ++i) {
+            let elem = this[i];
+            while (elem !== null && typeof elem !== `undefined`) {
+                if (this._matches(elem, selector)) {
+                    ret._insert(elem);
+                    continue mainLoop;
+                }
+                elem = elem.parentElement;
             }
         }
         return ret;
