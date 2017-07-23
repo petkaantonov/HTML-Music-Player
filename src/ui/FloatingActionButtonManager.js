@@ -4,10 +4,10 @@ import {NEXT_TRACK_CHANGE_EVENT,
         TRACK_PLAYING_STATUS_CHANGE_EVENT,
         PLAYLIST_STOPPED_EVENT} from "player/PlaylistController";
 
-const UNKNOWN_STATE = "unknown-state";
-const PLAY_BUTTON_STATE = "play-button-state";
-const PAUSE_BUTTON_STATE = "pause-button-state";
-const ADD_BUTTON_STATE = "add-button-state";
+const UNKNOWN_STATE = `unknown-state`;
+const PLAY_BUTTON_STATE = `play-button-state`;
+const PAUSE_BUTTON_STATE = `pause-button-state`;
+const ADD_BUTTON_STATE = `add-button-state`;
 
 export default class FloatingActionButtonManager {
     constructor(deps) {

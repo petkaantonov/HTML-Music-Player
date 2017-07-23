@@ -329,20 +329,11 @@ export const checkSize = function(expectedSize, resultSize) {
     return null;
 };
 
-export const readAsArrayBuffer = function(file, cancellationToken) {
+export const readAsArrayBuffer = function(file/* , cancellationToken*/) {
     const expectedSize = file.size;
 
     return new Promise((resolve, reject) => {
         let reader = new FileReader();
-
-        if (cancellationToken) {
-            reader.onprogress = function() {
-                if (cancellationToken.isCancelled()) {
-                  reject(new CancellationError());
-                  reader.abort();
-                }
-            };
-        }
 
         once(reader, `load`, (e) => {
             reader = null;
