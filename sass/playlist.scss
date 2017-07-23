@@ -1,30 +1,5 @@
 @import "variables";
 
-.playlist-spacer {
-    width: 100%;
-    position: absolute;
-    top: 0px;
-    left: 0px;
-}
-
-.app-empty-playlist-suggest {
-    margin: 2px 0px;
-}
-
-ul.app-empty-playlist-ul {
-    padding-left: 15px;
-    list-style: disc;
-}
-
-ul.app-empty-playlist-ul li {
-    margin-top: 6px;
-}
-
-#app-playlists-table {
-    height: 185px;
-    overflow: auto;
-}
-
 .tracks-list-container {
     background-color: #FAFAFA;
 }
@@ -34,38 +9,4 @@ ul.app-empty-playlist-ul li {
     width: 100%;
     transform: translate3d(0, 0, 0);
     border-radius: $subtle-radius;
-}
-
-.playlist-empty {
-    box-sizing: border-box;
-    display: block;
-    width: 100%;
-    position: absolute;
-    top: 10px;
-    left: 0px;
-    padding-left: 40px;
-}
-
-.playlist-empty-instructions {
-    font-size: $text-size;
-    padding-top: 0px;
-    padding-left: 10px;
-    color: #333;
-}
-
-.app-info-status-text {
-    font-size: 17px;
-    padding-bottom: 6px;
-    color: #5B616A;
-    border-bottom: 1px solid #E6E6E6;
-    position: relative;
-}
-
-.app-info-status-text:before {
-    content: " ";
-    position: absolute;
-    height: 1px;
-    width: 100%;
-    background-color: #F7F7F7;
-    bottom: 0px;
 }

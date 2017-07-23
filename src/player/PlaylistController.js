@@ -34,8 +34,8 @@ const MAX_HISTORY = 500;
 
 const dummyTrack = {};
 
-const playlistEmptyTemplate = `<div class='app-info-status-text'>Playlist empty</div>
-  <div class="playlist-empty-instructions">
+const playlistEmptyTemplate = `<div class='status-info-header'>Playlist empty</div>
+  <div class="status-info-text">
      <p>There <span class="media-library-size"></span> available in your media library.</p>
 </div>`;
 
@@ -214,12 +214,10 @@ export default class PlaylistController extends TrackContainerController {
 
     listBecameNonEmpty() {
         this.$().find(`.playlist-empty`).hide();
-        this.$().find(`.playlist-spacer`).show();
         this.$().find(`.tracklist-transform-container`).show();
     }
 
     listBecameEmpty() {
-        this.$().find(`.playlist-spacer`).hide();
         this.$().find(`.playlist-empty`).show();
         this.$().find(`.tracklist-transform-container`).hide();
     }

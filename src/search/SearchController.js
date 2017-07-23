@@ -13,6 +13,12 @@ import {actionHandler, moreThan0Selected,
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
 
+const noSearchResultsTemplate = `
+  <div class="status-info-text search-text-container">
+     <p>No tracks in your media library match the query <em class='search-query'></em>. Try online search.</p>
+</div>`;
+
+
 class SearchHistoryEntry {
     constructor(page, query) {
         query = `${query}`;
@@ -153,6 +159,7 @@ export default class SearchController extends TrackContainerController {
         if (SEARCH_HISTORY_KEY in this.dbValues) {
             this.tryLoadHistory(this.dbValues[SEARCH_HISTORY_KEY]);
         }
+        this.$().find(".search-empty").setHtml(noSearchResultsTemplate);
     }
 
     bindKeyboardShortcuts() {
@@ -405,6 +412,8 @@ export default class SearchController extends TrackContainerController {
             const tracks =
                 await Promise.all(results.map(result => _metadataManager.getTrackByFileReferenceAsync(result.trackUid)));
             this.add(tracks);
+        } else {
+            this.listBecameEmpty();
         }
 
         this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
@@ -428,6 +437,7 @@ export default class SearchController extends TrackContainerController {
             this._session.destroy();
             this._session = null;
         }
+        this.listBecameEmpty();
     }
 
     _inputKeydowned(e) {
@@ -510,6 +520,7 @@ export default class SearchController extends TrackContainerController {
 
     _gotInput() {
         const value = this.$input().value();
+        this.$().find(".search-query").setText(value);
 
         if (value.length === 0) {
             this._topHistoryEntry = null;
@@ -524,7 +535,10 @@ export default class SearchController extends TrackContainerController {
         if (normalized.length <= 1) {
             this.clear();
             this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
+            this.$().find(".search-empty .search-text-container").hide();
             return;
+        } else {
+            this.$().find(".search-empty .search-text-container").show();
         }
 
         if (this._session) {
@@ -563,12 +577,18 @@ export default class SearchController extends TrackContainerController {
     }
 
     /* eslint-disable class-methods-use-this */
-    _toggleEmptyResultsNotification() {
-        // TODO
+    _toggleEmptyResultsNotification(empty) {
+        if (empty) {
+            this.$().find(`.search-empty`).show();
+            this.$().find(`.tracklist-transform-container`).hide();
+        } else {
+            this.$().find(`.search-empty`).hide();
+            this.$().find(`.tracklist-transform-container`).show();
+        }
     }
 
     didAddTracksToView() {
-
+        // NOOP
     }
     /* eslint-enable class-methods-use-this */
 }

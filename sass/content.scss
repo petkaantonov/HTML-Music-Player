@@ -16,6 +16,40 @@ $tab-height: 32px;
         position: absolute;
         top: $tab-height;
         left: 0;
+
+        .status-info-container {
+            box-sizing: border-box;
+            display: block;
+            width: 100%;
+            position: absolute;
+            top: 10px;
+            left: 0px;
+            padding-left: 40px;
+
+            .status-info-header {
+                font-size: $text-size-biggest;
+                padding-bottom: 6px;
+                color: #5B616A;
+                border-bottom: 1px solid #E6E6E6;
+                position: relative;
+            }
+
+            .status-info-header:before {
+                content: " ";
+                position: absolute;
+                height: 1px;
+                width: 100%;
+                background-color: #F7F7F7;
+                bottom: 0px;
+            }
+
+            .status-info-text {
+                font-size: $text-size;
+                padding-top: 0px;
+                padding-left: 10px;
+                color: $text-color;
+            }
+        }
     }
 }
 
