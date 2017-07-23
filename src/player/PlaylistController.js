@@ -22,6 +22,7 @@ export const SHUFFLE_MODE = `shuffle`;
 export const NORMAL_MODE = `normal`;
 export const REPEAT_MODE = `repeat`;
 
+const PLAYLIST_TRACKS_ADDED_TAG = `playlist-tracks-added`;
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
 const PLAYLIST_CONTENTS_KEY = `playlist-contents`;
@@ -267,6 +268,15 @@ export default class PlaylistController extends TrackContainerController {
         this._persistPlaylist();
     }
 
+    didAddTracksToView(tracks) {
+        const addedTracksCount = tracks.length;
+        const tracksWord = addedTracksCount === 1 ? `track` : `tracks`;
+        this.snackbar.show(`Added ${addedTracksCount} ${tracksWord} to the playlist`, {
+            visibilityTime: 3000,
+            tag: PLAYLIST_TRACKS_ADDED_TAG
+        });
+    }
+
     async shouldUndoTracksRemoved(tracksRemovedCount) {
         const tracksWord = tracksRemovedCount === 1 ? `track` : `tracks`;
         const outcome = await this.snackbar.show(`Removed ${tracksRemovedCount} ${tracksWord} from the playlist`, {
@@ -408,7 +418,7 @@ export default class PlaylistController extends TrackContainerController {
         await delay(50);
         const {trackUids} = persistedPlaylist;
         const tracks = await this.metadataManager.mapTrackUidsToTracks(trackUids);
-        this.add(tracks);
+        this.add(tracks, {noReport: true});
     }
 
     _persistPlaylist() {

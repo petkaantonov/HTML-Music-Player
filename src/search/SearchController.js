@@ -12,7 +12,6 @@ import {actionHandler, moreThan0Selected,
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
-const PLAYLIST_TRACKS_ADDED_TAG = `playlist-tracks-added`;
 
 class SearchHistoryEntry {
     constructor(page, query) {
@@ -130,7 +129,6 @@ export default class SearchController extends TrackContainerController {
         this._searchHistory = [];
         this._session = null;
         this._playlist = deps.playlist;
-        this._snackbar = deps.snackbar;
         this._trackViewOptions = new TrackViewOptions(opts.itemHeight,
                                                       this._playlist,
                                                       this.page,
@@ -367,13 +365,7 @@ export default class SearchController extends TrackContainerController {
     }
 
     _addTracksToPlaylist(tracks) {
-        const addedTracksCount = tracks.length;
-        const tracksWord = addedTracksCount === 1 ? `track` : `tracks`;
         this._playlist.add(tracks);
-        this._snackbar.show(`Added ${addedTracksCount} ${tracksWord} to the playlist`, {
-            visibilityTime: 3000,
-            tag: PLAYLIST_TRACKS_ADDED_TAG
-        });
     }
 
     _addSelectionToPlaylist() {
@@ -573,6 +565,10 @@ export default class SearchController extends TrackContainerController {
     /* eslint-disable class-methods-use-this */
     _toggleEmptyResultsNotification() {
         // TODO
+    }
+
+    didAddTracksToView() {
+
     }
     /* eslint-enable class-methods-use-this */
 }

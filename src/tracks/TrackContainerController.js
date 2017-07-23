@@ -303,7 +303,7 @@ export default class TrackContainerController extends EventEmitter {
         this.removeTrackViews(selection);
     }
 
-    add(tracks) {
+    add(tracks, {noReport = false} = {noReport: false}) {
         if (!tracks.length) return;
         this.edited();
 
@@ -323,6 +323,9 @@ export default class TrackContainerController extends EventEmitter {
         }
         this._fixedItemListScroller.resize();
         this.emit(LENGTH_CHANGE_EVENT, oldLength + tracks.length, oldLength);
+        if (!noReport) {
+            this.didAddTracksToView(tracks);
+        }
     }
 }
 
