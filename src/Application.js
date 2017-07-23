@@ -95,8 +95,16 @@ export default class Application {
             page
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
 
+        const permissionPrompt = this.permissionPrompt = withDeps({
+            page
+        }, d => new PermissionPrompt({
+            zIndex: POPUP_ZINDEX + 80,
+            target: `body`,
+            dimmerClass: `body-dimmer`
+        }, d));
+
         const metadataManager = this.metadataManager = withDeps({
-            env, workerWrapper
+            env, workerWrapper, permissionPrompt, page
         }, d => new MetadataManagerFrontend(d));
 
         const recognizerContext = this.recognizerContext = withDeps({
@@ -117,14 +125,6 @@ export default class Application {
         const gestureScreenFlasher = this.gestureScreenFlasher = withDeps({
             page
         }, d => new GestureScreenFlasher(d));
-
-        const permissionPrompt = this.permissionPrompt = withDeps({
-            page
-        }, d => new PermissionPrompt({
-            zIndex: POPUP_ZINDEX + 80,
-            target: `body`,
-            dimmerClass: `body-dimmer`
-        }, d));
 
         const rippler = this.rippler = withDeps({
             page

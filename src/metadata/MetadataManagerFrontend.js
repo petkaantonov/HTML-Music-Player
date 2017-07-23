@@ -347,7 +347,11 @@ class Track extends EventEmitter {
 export default class MetadataManagerFrontend extends WorkerFrontend {
     constructor(deps) {
         super(METADATA_MANAGER_READY_EVENT_NAME, deps.workerWrapper);
+        this._permissionPrompt = deps.permissionPrompt;
         this._env = deps.env;
+        this._page = deps.page;
+
+        this._persistentPermissionAsked = false;
         this._uidsToTrack = new Map();
     }
 
@@ -425,7 +429,22 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         this.postMessage({action: `setPlaythroughCounter`, args: {trackUid: track.uid(), counter: track._playthroughCounter, lastPlayed: track._lastPlayed}});
     }
 
+    async _persistStorage() {
+        const {storage} = this._page.navigator();
+        if (storage && storage.persist && storage.persisted) {
+            const isStoragePersisted = await storage.persisted();
+            if (!isStoragePersisted) {
+                await this._permissionPrompt.prompt(storage.persist.bind(storage));
+            }
+        }
+    }
+
     async getTrackByFileReferenceAsync(fileReference) {
+        if (!this._persistentPermissionAsked) {
+            this._persistentPermissionAsked = true;
+            this._persistStorage();
+        }
+
         const trackUid = await fileReferenceToTrackUid(fileReference);
         const key = hexString(trackUid);
         const cached = this._uidsToTrack.get(key);
