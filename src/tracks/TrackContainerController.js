@@ -25,6 +25,13 @@ export class PlayedTrackOrigin {
     startedPlay(playlistTrack) {
         this._controller.candidatePlaylistTrackWillPlay(playlistTrack);
     }
+
+    isTrackViewValidInController(trackView) {
+        const index = trackView.getIndex();
+        return index >= 0 &&
+               index < this._controller.length &&
+               this._controller._trackViews[index] === trackView;
+    }
 }
 
 

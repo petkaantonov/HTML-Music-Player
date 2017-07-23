@@ -30,7 +30,9 @@ const MAX_HISTORY = 500;
 const dummyTrack = {};
 
 class PlaylistTrack {
-    constructor(track, trackView, origin) {
+    constructor(track, trackView, origin, {
+        generatedFromShuffle = false
+    } = {generatedFromShuffle: false}) {
         if (!track) throw new Error("track cannot be null");
         if (!trackView) throw new Error("trackView cannot be null");
         if (!origin) throw new Error("origin cannot be null");
@@ -38,6 +40,7 @@ class PlaylistTrack {
         this._track = track;
         this._trackView = trackView;
         this._origin = origin;
+        this._generatedFromShuffle = generatedFromShuffle;
     }
 
     isDummy() {
@@ -93,6 +96,11 @@ class PlaylistTrack {
             return;
         }
         this.origin().startedPlay(this);
+    }
+
+    isValidGeneratedFromShuffle() {
+        if (this.isDummy()) return false;
+        return this._generatedFromShuffle && this.origin().isTrackViewValidInController(this.trackView());
     }
 }
 
@@ -263,6 +271,8 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     removeTrackViews(trackViews) {
+        if (trackViews.length === 0) return;
+
         // TODO
     }
 
@@ -299,7 +309,6 @@ export default class PlaylistController extends TrackContainerController {
     stop() {
         this._setCurrentTrack(DUMMY_PLAYLIST_TRACK);
         this._errorCount = 0;
-        this._updateNextTrack();
         this.emit(PLAYLIST_STOPPED_EVENT);
     }
 
@@ -464,6 +473,9 @@ export default class PlaylistController extends TrackContainerController {
 
     _nextPlaylistTrackFromShuffleMode(playlistTrack) {
         const nextPlaylistTrack = this.getNextPlaylistTrack();
+        if (nextPlaylistTrack.isValidGeneratedFromShuffle()) {
+            return nextPlaylistTrack;
+        }
         const trackViews = this.getTrackViews();
         const currentTrack = playlistTrack.track();
         const nextTrack = nextPlaylistTrack.track();
@@ -475,11 +487,14 @@ export default class PlaylistController extends TrackContainerController {
 
         let target = (Math.random() * maxWeight) | 0;
         for (let i = 0; i < trackViews.length; ++i) {
-            const track = trackViews[i].track();
+            const trackView = trackViews[i];
+            const track = trackView.track();
             const weight = track.getWeight(currentTrack, nextTrack);
 
             if (target < weight) {
-                return track;
+                return new PlaylistTrack(track, trackView, this.getPlayedTrackOrigin(), {
+                    generatedFromShuffle: true
+                });
             }
             target -= weight;
         }
@@ -488,9 +503,10 @@ export default class PlaylistController extends TrackContainerController {
         const view = trackViews[target];
 
         if (view && view.track()) {
-            return new PlaylistTrack(view.track(), view, this.getPlayedTrackOrigin());
+            return new PlaylistTrack(view.track(), view, this.getPlayedTrackOrigin(), {
+                generatedFromShuffle: true
+            });
         }
-
         return nextPlaylistTrack;
     }
 
@@ -530,6 +546,7 @@ export default class PlaylistController extends TrackContainerController {
             playlistTrack.track().startPlaying();
         }
 
+        this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
         this._updateNextTrack();
     }
 
@@ -539,10 +556,6 @@ export default class PlaylistController extends TrackContainerController {
             return playlistTrack.isDummy();
         }
         return nextPlaylistTrack.track() === playlistTrack.track();
-    }
-
-    _isUsingShuffleMode() {
-        return this._mode === SHUFFLE_MODE;
     }
 
     _changeTrackImplicitly(playlistTrack, doNotRecordHistory, isUserInitiatedSkip) {
@@ -564,13 +577,18 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     _updateNextTrack() {
-        this._setNextPlaylistTrack(this._nextPlaylistTrackFromCurrentMode(this.getCurrentPlaylistTrack()));
+        const currentNextPlaylistTrack = this._nextPlaylistTrack;
+        const currentPlaylistTrack = this.getCurrentPlaylistTrack();
+        const nextPlaylistTrack = this._nextPlaylistTrackFromCurrentMode(currentPlaylistTrack);
+        this._setNextPlaylistTrack(nextPlaylistTrack);
 
         if (this.getNextPlaylistTrack().hasError()) {
             this._setNextPlaylistTrack(DUMMY_PLAYLIST_TRACK);
         }
 
-        this.emit(NEXT_TRACK_CHANGE_EVENT);
+        if (currentNextPlaylistTrack !== this._nextPlaylistTrack) {
+            this.emit(NEXT_TRACK_CHANGE_EVENT);
+        }
     }
 
     _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
