@@ -18,8 +18,6 @@ export default function createStdlib(wasm) {
         return ret;
     };
 
-    const atoi = ptr => parseInt(wasm.convertCharPToAsciiString(ptr), 10) | 0;
-
     return {
         brk,
         sbrk(increment) {
@@ -39,29 +37,11 @@ export default function createStdlib(wasm) {
             return ret;
         },
 
-        atof(ptr) {
-            return parseFloat(wasm.convertCharPToAsciiString(ptr));
-        },
-
-        atoi,
-        atol: atoi,
-
-        getenv(keyPtr) {
-            return wasm.getEnvPtr(wasm.convertCharPToAsciiString(keyPtr));
-        },
 
         abort() {
             throw new Error(`abort called`);
         },
 
-        strtod(ptr, ptr2) {
-            const str = wasm.convertCharPToAsciiString(ptr);
-            const ret = parseFloat(str);
-            if (ptr2) {
-                throw new Error(`unsupported`);
-            }
-            return ret;
-        },
 
         qsort(ptr, length, itemByteLength, comparerFuncTableIndex) {
             const comparer = wasm.table(comparerFuncTableIndex);

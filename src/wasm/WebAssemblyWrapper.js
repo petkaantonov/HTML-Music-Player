@@ -3,7 +3,7 @@ import createCString from "wasm/cstring";
 import createStdlib from "wasm/stdlib";
 import {TextDecoder, Proxy, ArrayBuffer,
         Uint8Array, Uint32Array, DataView,
-        WebAssembly, Symbol, Int16Array, self, console, performance} from "platform/platform";
+        WebAssembly, Symbol, Int16Array, self, console} from "platform/platform";
 import {getterProxyHandlers, setterProxyHandlers} from "util";
 import EventEmitter from "events";
 
@@ -253,33 +253,6 @@ export default class WebAssemblyWrapper {
                 this._heapStart = Math.ceil(heapStart / PAGE_SIZE) * PAGE_SIZE;
                 this._brk = this._heapStart;
                 this._debug = !!debug;
-            },
-            performance_now() {
-                return performance.now();
-            },
-            math_random() {
-                return Math.random();
-            },
-            __dump_memory: (memPtr, length, constructorNamePtr, line, fileNamePtr, functionNamePtr) => {
-                const fileName = this.convertCharPToAsciiString(fileNamePtr);
-                const functionName = this.convertCharPToAsciiString(functionNamePtr);
-                const constructorName = this.convertCharPToAsciiString(constructorNamePtr);
-                const Constructor = self[constructorName];
-                const view = new Constructor(this._mem.buffer, memPtr, length);
-                dumpMemory(view, functionName, fileName, line);
-            },
-            __debugger() {
-                debugger;
-            },
-            __print_stack_trace: (messagePtr, fileNamePtr, functionNamePtr, line) => {
-                const message = this.convertCharPToAsciiString(messagePtr);
-                const fileName = this.convertCharPToAsciiString(fileNamePtr);
-                const functionName = this.convertCharPToAsciiString(functionNamePtr);
-                const stack = new Error(``).stack.split(`\n`);
-                stack.shift();
-                stack.shift();
-                stack.shift();
-                console.log(`%c${message}\n    at ${functionName} ${fileName}:${line}\n${stack.join(`\n`)}`, `color: red;`);
             }
         }, stdio, cstring, stdlib);
 
