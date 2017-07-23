@@ -93,6 +93,7 @@ class SearchSession {
 
     _gotResults(results) {
         if (this._destroyed) return;
+        this._resultCount = results.length;
         this._search.newResults(this, results);
     }
 }
