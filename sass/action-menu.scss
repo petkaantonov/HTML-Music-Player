@@ -22,7 +22,8 @@
 
 .action-menu-item-content .icon-container {
     width: 16px;
-    height: 16px;
+    height: 19px;
+    padding-top: 2px;
     display: inline-block;
     margin-right: 12px;
     vertical-align: top;
@@ -82,41 +83,37 @@
 }
 
 .action-menu-item-content {
-    font-size: $text-size;
-    padding: 7px 10px;
+    font-size: $text-size-bigger;
+    padding: 10px 10px;
 }
 
 .action-menu-context-root,
 .action-menu-submenu {
-    @include transition-transform-filter-separate(0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                                                  0.2s cubic-bezier(0.4, 0, 0.2, 1));
-    @include transform-origin(top left 0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top left 0;
 }
 
 .action-menu-context-root.transition-in,
 .action-menu-submenu.transition-in {
-    filter: opacity(100%);
-    -webkit-filter: opacity(100%);
+    opacity: 1;
     @include scale(1, 1);
 }
 
 .action-menu-context-root.transition-in.initial,
 .action-menu-submenu.transition-in.initial {
-    filter: opacity(0%);
-    -webkit-filter: opacity(0%);
+    opacity: 0;
     @include scale(0, 0);
 }
 
 .action-menu-context-root.transition-out,
 .action-menu-submenu.transition-out {
-    filter: opacity(0%);
-    -webkit-filter: opacity(0%);
+    opacity: 0;
     @include scale(1, 1);
 }
 
 .action-menu-context-root.transition-out.initial,
 .action-menu-submenu.transition-out.initial {
-    filter: opacity(100%);
-    -webkit-filter: opacity(100%);
+    opacity: 1;
     @include scale(1, 1);
 }
