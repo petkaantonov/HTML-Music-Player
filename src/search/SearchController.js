@@ -1,10 +1,9 @@
 import {normalizeQuery, throttle} from "util";
-import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
-import TrackContainerController, {LENGTH_CHANGE_EVENT, PlayedTrackOrigin} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "player/PlaylistController";
 import {indexedDB} from "platform/platform";
 
@@ -116,6 +115,7 @@ export default class SearchController extends TrackContainerController {
     constructor(opts, deps) {
         opts.trackRaterZIndex = zIndex;
         opts.playedTrackOriginUsesTrackViewIndex = false;
+        opts.supportsRemove = false;
         super(opts, deps);
         this._metadataManager = deps.metadataManager;
         this._searchFrontend = new SearchFrontend(this, deps);
@@ -213,7 +213,6 @@ export default class SearchController extends TrackContainerController {
         this._visible = false;
         this.$input().blur();
         this.$().find(`.search-next-tab-focus`).hide();
-        this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
     }
 
     tabDidShow() {
@@ -224,7 +223,6 @@ export default class SearchController extends TrackContainerController {
             this.$input().focus();
         }
         super.tabDidShow();
-        this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
         this.globalEvents.setLastShownPlayedTrackOrigin(this.getPlayedTrackOrigin());
     }
 
@@ -301,28 +299,15 @@ export default class SearchController extends TrackContainerController {
         if (!diff) {
             return;
         }
-        const oldLength = this.length;
-        const newLength = results.length;
+
         this.destroyTrackViews();
-        let candidateTrackIndex = -1;
         if (results.length > 0) {
             const {_metadataManager} = this;
-
             const tracks =
                 await Promise.all(results.map(result => _metadataManager.getTrackByFileReferenceAsync(result.trackUid)));
-
-            for (let i = 0; i < tracks.length; ++i) {
-                const track = tracks[i];
-                this._trackViews[i] = new TrackView(track, i, this._trackViewOptions);
-                if (track.isPlaying()) {
-                    candidateTrackIndex = i;
-                }
-            }
+            this.add(tracks);
         }
 
-        this.emit(LENGTH_CHANGE_EVENT, newLength, oldLength);
-        this._fixedItemListScroller.resize();
-        this._candidateTrackIndex = candidateTrackIndex;
         this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
         if (!this._playlist.hasNextTrack() && this.length > 0) {
             const index = ((++this._candidateTrackIndex) % this.length);
@@ -332,6 +317,10 @@ export default class SearchController extends TrackContainerController {
                                                             trackView,
                                                             this.getPlayedTrackOrigin());
         }
+    }
+
+    playingTrackAddedToList(track, trackView) {
+        this._candidateTrackIndex = trackView.getIndex();
     }
 
     clear() {
@@ -465,7 +454,22 @@ export default class SearchController extends TrackContainerController {
             });
         }
     }
+
+    listBecameEmpty() {
+        this._toggleEmptyResultsNotification(true);
+    }
+
+    listBecameNonEmpty() {
+        this._toggleEmptyResultsNotification(false);
+    }
+
+    /* eslint-disable class-methods-use-this */
+    _toggleEmptyResultsNotification() {
+        // TODO
+    }
+    /* eslint-enable class-methods-use-this */
 }
 
+SearchController.prototype._toggleEmptyResultsNotification = throttle(SearchController.prototype._toggleEmptyResultsNotification, 50);
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);
 SearchController.prototype.saveHistory = throttle(SearchController.prototype.saveHistory, 1000);

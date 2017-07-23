@@ -3,6 +3,8 @@ import withDeps from "ApplicationDependencies";
 import TrackContainerTrait from "tracks/TrackContainerTrait";
 import Selectable from "ui/Selectable";
 import TrackRater from "tracks/TrackRater";
+import TrackView from "tracks/TrackView";
+import {buildConsecutiveRanges, indexMapper, buildInverseRanges} from "util";
 
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
@@ -54,6 +56,9 @@ export default class TrackContainerController extends EventEmitter {
             rippler: this.rippler
         }, d => new TrackRater({zIndex: opts.trackRaterZIndex}, d));
 
+        this._trackListDeletionUndo = null;
+        this._supportsRemove = opts.supportsRemove;
+
         this._playedTrackOrigin = new PlayedTrackOrigin(this.constructor.name, this, {
             usesTrackViewIndex: opts.playedTrackOriginUsesTrackViewIndex
         });
@@ -76,6 +81,10 @@ export default class TrackContainerController extends EventEmitter {
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
         this.bindKeyboardShortcuts();
         this._bindListEvents();
+
+        if (!this.length) {
+            this.listBecameEmpty();
+        }
     }
 
     $() {
@@ -84,6 +93,10 @@ export default class TrackContainerController extends EventEmitter {
 
     $trackContainer() {
         return this._trackContainer;
+    }
+
+    supportsRemove() {
+        return this._supportsRemove;
     }
 
     getPlayedTrackOrigin() {
@@ -129,6 +142,10 @@ export default class TrackContainerController extends EventEmitter {
             const trackView = this._selectable.first();
             if (trackView) trackView.track().rate(-1);
         });
+
+        if (this.supportsRemove()) {
+            this._keyboardShortcutContext.addShortcut(`Delete`, this.removeSelected.bind(this));
+        }
     }
 
     getTrackRater() {
@@ -159,10 +176,149 @@ export default class TrackContainerController extends EventEmitter {
         if (this._singleTrackMenu) {
             this._singleTrackMenu.hide();
         }
+        this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
     }
 
     tabDidShow() {
         this._fixedItemListScroller.resize();
+        this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
+    }
+
+    edited() {
+        if (!this.supportsRemove()) return;
+        if (this._trackListDeletionUndo) {
+            this.undoForTrackRemovalExpired();
+            this._trackListDeletionUndo = null;
+        }
+    }
+
+    _saveStateForUndo(trackViews, invertedRanges, selectedIndices, priorityTrackViewIndex) {
+        if (this._trackListDeletionUndo) throw new Error(`already saved`);
+        this._trackListDeletionUndo = {
+            tracksAndPositions: trackViews.map(trackView => ({
+                track: trackView.track(),
+                index: trackView.getIndex()
+            })),
+            invertedRanges,
+            selectedIndices,
+            priorityTrackViewIndex
+        };
+    }
+
+    _restoreStateForUndo() {
+        if (!this._trackListDeletionUndo) return;
+        const currentLength = this.length;
+        const {tracksAndPositions,
+            invertedRanges,
+            selectedIndices,
+            priorityTrackViewIndex} = this._trackListDeletionUndo;
+        const newLength = tracksAndPositions.length + currentLength;
+        this._trackViews.length = newLength;
+
+        this.edited();
+
+        let k = currentLength - 1;
+        for (let i = invertedRanges.length - 1; i >= 0; --i) {
+            const rangeStart = invertedRanges[i][0];
+            const rangeEnd = invertedRanges[i][1];
+            for (let j = rangeEnd; j >= rangeStart; --j) {
+                this._trackViews[j] = this._trackViews[k--];
+                this._trackViews[j].setIndex(j);
+            }
+        }
+
+        for (let i = 0; i < tracksAndPositions.length; ++i) {
+            const {track, index} = tracksAndPositions[i];
+            this._trackViews[index] = new TrackView(track, index, this._trackViewOptions);
+        }
+
+        if (currentLength === 0) {
+            this.listBecameNonEmpty();
+        }
+        this.emit(LENGTH_CHANGE_EVENT, currentLength, newLength);
+        this._fixedItemListScroller.resize();
+        this._selectable.selectIndices(selectedIndices);
+
+        let centerOn = null;
+        if (priorityTrackViewIndex >= 0) {
+            centerOn = this._trackViews[priorityTrackViewIndex];
+            this._selectable.setPriorityTrackView(centerOn);
+        } else {
+            const mid = selectedIndices[selectedIndices.length / 2 | 0];
+            centerOn = this._trackViews[mid];
+        }
+        this.centerOnTrackView(centerOn);
+    }
+
+    removeTrackView(trackView) {
+        if (!this.supportsRemove()) return;
+        this.removeTrackViews([trackView]);
+    }
+
+    async removeTrackViews(trackViews) {
+        if (!this.supportsRemove()) return;
+        if (trackViews.length === 0) return;
+        const oldLength = this.length;
+        const indexes = trackViews.map(indexMapper);
+        const tracksIndexRanges = buildConsecutiveRanges(indexes);
+        const priorityTrackView = this._selectable.getPriorityTrackView();
+        this.edited();
+        this._saveStateForUndo(trackViews,
+                               buildInverseRanges(indexes, oldLength - 1),
+                               this.getSelection().map(indexMapper),
+                               priorityTrackView ? priorityTrackView.getIndex() : -1);
+
+        this._selectable.removeIndices(trackViews.map(indexMapper));
+
+        for (let i = 0; i < trackViews.length; ++i) {
+            trackViews[i].destroy();
+        }
+
+        this.removeTracksBySelectionRanges(tracksIndexRanges);
+        const tracksRemovedCount = oldLength - this.length;
+        this._fixedItemListScroller.resize();
+        this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
+
+        if (!this.length) {
+            this.listBecameEmpty();
+        }
+
+        const shouldUndo = await this.shouldUndoTracksRemoved(tracksRemovedCount);
+
+        if (shouldUndo) {
+            this._restoreStateForUndo();
+        } else if (this._trackListDeletionUndo) {
+            this._trackListDeletionUndo.destroy();
+        }
+    }
+
+    removeSelected() {
+        if (!this.supportsRemove()) return;
+        const selection = this.getSelection();
+        if (!selection.length) return;
+        this.removeTrackViews(selection);
+    }
+
+    add(tracks) {
+        if (!tracks.length) return;
+        this.edited();
+
+        if (!this.length) {
+            this.listBecameNonEmpty();
+        }
+
+        const oldLength = this.length;
+        for (let i = 0; i < tracks.length; ++i) {
+            const track = tracks[i];
+            const index = oldLength + i;
+            const trackView = new TrackView(track, index, this._trackViewOptions);
+            this._trackViews[index] = trackView;
+            if (track.isPlaying()) {
+                this.playingTrackAddedToList(track, trackView);
+            }
+        }
+        this._fixedItemListScroller.resize();
+        this.emit(LENGTH_CHANGE_EVENT, oldLength + tracks.length, oldLength);
     }
 }
 

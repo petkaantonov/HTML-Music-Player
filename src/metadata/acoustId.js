@@ -74,8 +74,6 @@ const getBestRecordingGroup = function(recordings, actualDuration) {
             const type = releasegroup.type.toLowerCase();
             const typeValue = groupTypeValue[type];
 
-            const secondaryTypeWeight = getSecondaryTypeWeight(secondarytypes);
-
             groups.push({
                 indexI: i,
                 indexJ: j,
@@ -83,7 +81,7 @@ const getBestRecordingGroup = function(recordings, actualDuration) {
                 type,
                 typeValue: typeValue === undefined ? 10 : typeValue,
                 album: releasegroups[j],
-                secondaryTypeWeight,
+                secondaryTypeWeight: getSecondaryTypeWeight(secondarytypes),
                 durationDiff
             });
         }
@@ -167,7 +165,7 @@ export default function parseAcoustId(data, actualDuration) {
         }
 
         const {recording} = bestRecordingGroup;
-        if (!recording || !recording.title || !recording.artists) {
+        if (!recording || !recording.title || !recording.artists) {
             continue;
         }
 

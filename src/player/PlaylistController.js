@@ -1,11 +1,9 @@
-import {buildConsecutiveRanges, indexMapper} from "util";
 import withDeps from "ApplicationDependencies";
 import DraggableSelection from "ui/DraggableSelection";
 import {ACTION_CLICKED} from "ui/Snackbar";
-import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import TrackContainerController, {LENGTH_CHANGE_EVENT, PlayedTrackOrigin} from "tracks/TrackContainerController";
+import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
@@ -33,9 +31,9 @@ class PlaylistTrack {
     constructor(track, trackView, origin, {
         generatedFromShuffle = false
     } = {generatedFromShuffle: false}) {
-        if (!track) throw new Error("track cannot be null");
-        if (!trackView) throw new Error("trackView cannot be null");
-        if (!origin) throw new Error("origin cannot be null");
+        if (!track) throw new Error(`track cannot be null`);
+        if (!trackView) throw new Error(`trackView cannot be null`);
+        if (!origin) throw new Error(`origin cannot be null`);
 
         this._track = track;
         this._trackView = trackView;
@@ -84,7 +82,7 @@ class PlaylistTrack {
     }
 
     formatFullName() {
-        return this.isDummy() ? "" : this.track().formatFullName();
+        return this.isDummy() ? `` : this.track().formatFullName();
     }
 
     hasError() {
@@ -112,6 +110,7 @@ export default class PlaylistController extends TrackContainerController {
     constructor(opts, deps) {
         opts.trackRaterZIndex = zIndex;
         opts.playedTrackOriginUsesTrackViewIndex = true;
+        opts.supportsRemove = true;
         super(opts, deps);
         this.snackbar = deps.snackbar;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
@@ -134,9 +133,6 @@ export default class PlaylistController extends TrackContainerController {
                                                       this.env.hasTouch());
         this._errorCount = 0;
 
-
-
-
         this._draggable = withDeps({
             recognizerContext: this.recognizerContext,
             page: this.page,
@@ -153,26 +149,8 @@ export default class PlaylistController extends TrackContainerController {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
         }
 
-        if (!this.length) {
-            this.showPlaylistEmptyIndicator();
-        }
-
         this._draggable.bindEvents();
-    }
-
-    bindKeyboardShortcuts() {
-        super.bindKeyboardShortcuts();
-        this._keyboardShortcutContext.addShortcut(`Delete`, this.removeSelected.bind(this));
-    }
-
-    tabWillHide() {
-        super.tabWillHide();
-        this.keyboardShortcuts.deactivateContext(this._keyboardShortcutContext);
-    }
-
-    tabDidShow() {
-        super.tabDidShow();
-        this.keyboardShortcuts.activateContext(this._keyboardShortcutContext);
+        this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
     }
 
     getCurrentPlaylistTrack() {
@@ -210,29 +188,13 @@ export default class PlaylistController extends TrackContainerController {
         }
     }
 
-    selectionContainsAnyItemViewsBetween(startY, endY) {
-        const indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
-        if (!indices) return false;
-        return this._selectable.containsAnyInRange(indices.startIndex, indices.endIndex);
-    }
-
-    selectTracksBetween(startY, endY) {
-        const indices = this._fixedItemListScroller.coordsToIndexRange(startY, endY);
-        if (!indices) return;
-        this._selectable.selectRange(indices.startIndex, indices.endIndex);
-    }
-
-    getItemHeight() {
-        return this._fixedItemListScroller.itemHeight();
-    }
-
-    hidePlaylistEmptyIndicator() {
+    listBecameNonEmpty() {
         this.$().find(`.playlist-empty`).hide();
         this.$().find(`.playlist-spacer`).show();
         this.$().find(`.tracklist-transform-container`).show();
     }
 
-    showPlaylistEmptyIndicator() {
+    listBecameEmpty() {
         this.$().find(`.playlist-spacer`).hide();
         this.$().find(`.playlist-empty`).show();
         this.$().find(`.tracklist-transform-container`).hide();
@@ -266,46 +228,6 @@ export default class PlaylistController extends TrackContainerController {
         }
     }
 
-    removeTrackView(trackView) {
-        this.removeTrackViews([trackView]);
-    }
-
-    removeTrackViews(trackViews) {
-        if (trackViews.length === 0) return;
-
-        // TODO
-    }
-
-    removeSelected() {
-        const selection = this.getSelection();
-        if (!selection.length) return;
-        this.removeTrackViews(selection);
-    }
-
-    add(tracks) {
-        if (!tracks.length) return;
-
-        this._edited();
-
-        if (!this.length) {
-            this.hidePlaylistEmptyIndicator();
-        }
-
-        const oldLength = this.length;
-
-        tracks.forEach(function(track) {
-            const len = this._trackViews.length;
-            const view = new TrackView(track, len, this._trackViewOptions);
-            this._trackViews.push(view);
-        }, this);
-
-        this.emit(LENGTH_CHANGE_EVENT, this.length, oldLength);
-        this._updateNextTrack();
-        this._fixedItemListScroller.resize();
-    }
-
-
-
     stop() {
         this._setCurrentTrack(DUMMY_PLAYLIST_TRACK);
         this._errorCount = 0;
@@ -313,16 +235,29 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     trackIndexChanged() {
-        this._edited();
-        this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, this.getCurrentPlaylistTrack());
-        this._updateNextTrack();
+        this.edited();
+        this._lengthChanged();
     }
 
-    /*eslint-enable class-methods-use-this */
+    undoForTrackRemovalExpired() {
+        this.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
+    }
+
+    async shouldUndoTracksRemoved(tracksRemovedCount) {
+        const tracksWord = tracksRemovedCount === 1 ? `track` : `tracks`;
+        const outcome = await this.snackbar.show(`Removed ${tracksRemovedCount} ${tracksWord} from the playlist`, {
+            action: `undo`,
+            visibilityTime: 10000,
+            tag: PLAYLIST_TRACKS_REMOVED_TAG
+        });
+        return outcome === ACTION_CLICKED;
+    }
+
+    /* eslint-disable class-methods-use-this */
     candidatePlaylistTrackWillPlay() {
         // NOOP
     }
-    /*eslint-disable class-methods-use-this */
+    /* eslint-enable class-methods-use-this */
 
     changeTrackExplicitly(track, {
         doNotRecordHistory = false,
@@ -433,6 +368,17 @@ export default class PlaylistController extends TrackContainerController {
         return this._mode;
     }
 
+    /* eslint-disable class-methods-use-this */
+    playingTrackAddedToList() {
+        // NOOP
+    }
+    /* eslint-enable class-methods-use-this */
+
+    _lengthChanged() {
+        this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, this.getCurrentPlaylistTrack());
+        this._updateNextTrack();
+    }
+
     _maybeGetNextPlaylistTrackFromOutsideSource() {
         const nextTrackCandidates = [];
         this.emit(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT, (track, trackView, origin, priority) => {
@@ -515,22 +461,6 @@ export default class PlaylistController extends TrackContainerController {
             return this._nextPlaylistTrackFromNormalMode(currentPlaylistTrack);
         }
         return currentPlaylistTrack || DUMMY_PLAYLIST_TRACK;
-    }
-
-    _edited() {
-        if (this._trackListDeletionUndo) {
-            this._trackListDeletionUndo.destroy();
-            this._trackListDeletionUndo = null;
-        }
-    }
-
-    _saveStateForUndo() {
-        if (this._trackListDeletionUndo) throw new Error(`already saved`);
-        this._trackListDeletionUndo = new TrackListDeletionUndo(this);
-    }
-
-    _restoreStateForUndo() {
-        // TODO
     }
 
     _setCurrentTrack(playlistTrack) {

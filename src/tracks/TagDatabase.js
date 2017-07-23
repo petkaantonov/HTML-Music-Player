@@ -311,7 +311,7 @@ export default class TagDatabase {
         job.lastTried = new Date();
         job.lastError = {
             message: error && error.message || `${error}`,
-            stack: error && error.stack || null
+            stack: error && error.stack || null
         };
         return iDbPromisify(store.put(job));
     }
