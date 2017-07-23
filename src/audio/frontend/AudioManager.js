@@ -438,8 +438,6 @@ export default class AudioManager {
         if (this.destroyed) return;
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-        this.sourceNode.removeListener(`lastBufferQueued`, this.lastBufferQueued);
-        this.sourceNode.removeListener(`decodingLatency`, this.onDecodingLatency);
         this.filterNodes.forEach((node) => {
             node.disconnect();
         });
@@ -447,8 +445,8 @@ export default class AudioManager {
         this.volumeGain.disconnect();
         this.fadeInGain.disconnect();
         this.fadeOutGain.disconnect();
-        this.sourceNode.destroy();
         this.destroyVisualizer();
+        this.sourceNode.destroy();
         this.sourceNode = null;
         this.fadeInGain = null;
         this.fadeOutGain = null;
