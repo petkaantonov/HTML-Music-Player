@@ -758,7 +758,10 @@ export const iDbPromisifyCursor = function(cursor, callback) {
               resolve();
             } else {
               try {
-                await callback(event.target.result);
+                const finished = await callback(event.target.result);
+                if (finished === true) {
+                  resolve();
+                }
               } catch (e) {
                 reject(e);
               }

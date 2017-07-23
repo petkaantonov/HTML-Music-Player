@@ -3,7 +3,9 @@ import DraggableSelection from "ui/DraggableSelection";
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
+import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
+import {throttle, delay} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
 
 export const NEXT_TRACK_CHANGE_EVENT = `nextTrackChange`;
@@ -19,6 +21,7 @@ export const REPEAT_MODE = `repeat`;
 
 const PLAYLIST_TRACKS_REMOVED_TAG = `playlist-tracks-removed`;
 const PLAYLIST_MODE_KEY = `playlist-mode`;
+const PLAYLIST_CONTENTS_KEY = `playlist-contents`;
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
@@ -145,12 +148,20 @@ export default class PlaylistController extends TrackContainerController {
             mustMatchSelector: `.track-container`
         }, d));
 
+        this._draggable.bindEvents();
+
+        this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
+        this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
+        this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
+
         if (PLAYLIST_MODE_KEY in this.dbValues) {
             this.tryChangeMode(this.dbValues[PLAYLIST_MODE_KEY]);
         }
 
-        this._draggable.bindEvents();
-        this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
+        if (PLAYLIST_CONTENTS_KEY in this.dbValues) {
+            const persistedPlaylist = this.dbValues[PLAYLIST_CONTENTS_KEY];
+            this._loadPersistedPlaylist(persistedPlaylist);
+        }
     }
 
     getCurrentPlaylistTrack() {
@@ -241,6 +252,7 @@ export default class PlaylistController extends TrackContainerController {
 
     undoForTrackRemovalExpired() {
         this.snackbar.removeByTag(PLAYLIST_TRACKS_REMOVED_TAG);
+        this._persistPlaylist();
     }
 
     async shouldUndoTracksRemoved(tracksRemovedCount) {
@@ -374,7 +386,23 @@ export default class PlaylistController extends TrackContainerController {
     }
     /* eslint-enable class-methods-use-this */
 
+    async _loadPersistedPlaylist(persistedPlaylist) {
+        // Let the ui load a bit first
+        await delay(50);
+        const {trackUids} = persistedPlaylist;
+        const tracks = await this.metadataManager.mapTrackUidsToTracks(trackUids);
+        this.add(tracks);
+    }
+
+    _persistPlaylist() {
+        if (this.metadataManager.areAllFilesPersisted()) {
+            const trackUids = this._trackViews.map(v => v.track().uid());
+            this.db.set(PLAYLIST_CONTENTS_KEY, {trackUids});
+        }
+    }
+
     _lengthChanged() {
+        this._persistPlaylist();
         this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, this.getCurrentPlaylistTrack());
         this._updateNextTrack();
     }

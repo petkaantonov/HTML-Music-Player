@@ -186,6 +186,10 @@ export default class TrackContainerController extends EventEmitter {
 
     edited() {
         if (!this.supportsRemove()) return;
+        this._destroyTrackListDeletionUndo();
+    }
+
+    _destroyTrackListDeletionUndo() {
         if (this._trackListDeletionUndo) {
             this.undoForTrackRemovalExpired();
             this._trackListDeletionUndo = null;
@@ -287,8 +291,8 @@ export default class TrackContainerController extends EventEmitter {
 
         if (shouldUndo) {
             this._restoreStateForUndo();
-        } else if (this._trackListDeletionUndo) {
-            this._trackListDeletionUndo.destroy();
+        } else {
+            this._destroyTrackListDeletionUndo();
         }
     }
 

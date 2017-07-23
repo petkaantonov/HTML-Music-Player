@@ -1,4 +1,4 @@
-import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey} from "util";
+import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
 const VERSION = 24;
@@ -18,6 +18,10 @@ const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex2`;
 
 export const trackSearchIndexCmp = function(a, b) {
     return indexedDB.cmp(a.trackUid, b.trackUid);
+};
+
+const indexedDBCmp = function(a, b) {
+    return indexedDB.cmp(a, b);
 };
 
 export const stopWords = new Set([`a`, `an`, `and`, `are`, `as`, `at`, `be`, `by`,
@@ -265,6 +269,47 @@ export default class TagDatabase {
 
     getTrackInfosHavingGenre(genre, opts) {
         return this._getTrackInfosHavingKey(genre, `genres`, opts);
+    }
+
+    async trackUidsToTrackInfos(trackUids) {
+        const ret = new Array(trackUids.length);
+        ret.length = 0;
+        trackUids.sort(indexedDBCmp);
+        let i = 0;
+        const db = await this.db;
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
+        const {length} = trackUids;
+
+        if (i >= length) {
+            return ret;
+        }
+
+        const query = IDBKeyRange.bound(trackUids[0], trackUids[length - 1]);
+        await iDbPromisifyCursor(store.openCursor(query), (cursor) => {
+            const {key} = cursor;
+            let cmp = indexedDB.cmp(key, trackUids[i]);
+            while (cmp > 0) {
+                ++i;
+                if (i >= length) {
+                    return true;
+                }
+                cmp = indexedDB.cmp(key, trackUids[i]);
+            }
+
+            while (cmp === 0) {
+                ret.push(cursor.value);
+                i++;
+                if (i >= length) {
+                    return true;
+                }
+                cmp = indexedDB.cmp(key, trackUids[i]);
+            }
+
+            cursor.continue(trackUids[i]);
+            return false;
+        });
+
+        return ret;
     }
 
     async getTrackInfoByTrackUid(trackUid) {

@@ -38,6 +38,7 @@ export default class JobProcessor extends EventEmitter {
         this._queuedJobs = [];
         this._activeJobs = [];
         this._jobCallback = jobCallback;
+        this._allJobsPersistedEmitted = false;
     }
 
     get parallelJobs() {
@@ -46,6 +47,10 @@ export default class JobProcessor extends EventEmitter {
 
     get jobsActive() {
         return this._activeJobs.length;
+    }
+
+    get jobsQueued() {
+        return this._queuedJobs.length;
     }
 
     async _next() {
@@ -62,6 +67,7 @@ export default class JobProcessor extends EventEmitter {
             }
 
             this._activeJobs.push(job);
+            this._allJobsPersistedEmitted = false;
             if (this._delay > 0) {
                 await promiseDelay(this._delay);
             }
@@ -94,7 +100,9 @@ export default class JobProcessor extends EventEmitter {
             this._next();
         }
 
-        if (this._activeJobs === 0 && this._queuedJobs === 0) {
+        await promiseDelay(1000);
+        if (this.jobsActive === 0 && this.jobsQueued === 0 && !this._allJobsPersistedEmitted) {
+            this._allJobsPersistedEmitted = true;
             this.emit(ALL_JOBS_COMPLETE_EVENT);
         }
     }

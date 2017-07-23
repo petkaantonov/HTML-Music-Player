@@ -142,6 +142,7 @@ export default class TrackView {
             this._index = index;
             if (this._shouldUpdateDom()) {
                 this._updateTranslate();
+                this._renderTrackNumber();
             }
         }
     }
@@ -158,20 +159,20 @@ export default class TrackView {
         }
     }
 
-    renderTrackInfo() {
+    _renderTrackInfo() {
         const {artist, title} = this._track;
 
         this.$().find(`.track-title`).setText(title);
         this.$().find(`.track-artist`).setText(artist);
     }
 
-    renderTrackNumber() {
+    _renderTrackNumber() {
         const index = this.getIndex();
         const trackNumber = index >= 0 ? `${index + 1}.` : ``;
         this.$trackNumber().setText(trackNumber);
     }
 
-    renderTrackDuration() {
+    _renderTrackDuration() {
         this.$trackDuration().setText(this._track.formatTime());
     }
 
@@ -228,9 +229,9 @@ export default class TrackView {
 
     viewUpdateTagDataChange() {
         if (!this._shouldUpdateDom()) return;
-        this.renderTrackNumber();
-        this.renderTrackDuration();
-        this.renderTrackInfo();
+        this._renderTrackNumber();
+        this._renderTrackDuration();
+        this._renderTrackInfo();
     }
 
     _updateTranslate() {

@@ -3,7 +3,8 @@ import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
 import parseAcoustId from "metadata/acoustId";
 import AbstractBackend from "AbstractBackend";
-import JobProcessor, {JOB_COMPLETE_EVENT} from "utils/JobProcessor";
+import JobProcessor, {JOB_COMPLETE_EVENT,
+                      ALL_JOBS_COMPLETE_EVENT} from "utils/JobProcessor";
 import {delay, sha1Binary, queryString,
         toCorsUrl, _, trackInfoFromFileName, ajaxGet} from "util";
 import getCodec from "audio/backend/codec";
@@ -19,6 +20,8 @@ export const JOB_STATE_DATA_FETCHED = `dataFetched`;
 export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 export const ALBUM_ART_RESULT_MESSAGE = `albumArtResult`;
 export const ACOUST_ID_DATA_RESULT_MESSAGE = `acoustIdDataFetched`;
+export const TRACKINFO_BATCH_RESULT_MESSAGE = `trackInfoBatchResult`;
+export const ALL_FILES_PERSISTED_MESSAGE = `allFilesPersisted`;
 export const METADATA_RESULT_MESSAGE = `metadataResult`;
 export const ALBUM_ART_PREFERENCE_SMALLEST = `smallest`;
 export const ALBUM_ART_PREFERENCE_BIGGEST = `biggest`;
@@ -160,22 +163,17 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
             async parseMetadata({fileReference}) {
                 const trackUid = await fileReferenceToTrackUid(fileReference);
-                try {
-                    const trackInfo = await this._metadataParser.postJob(trackUid, fileReference).promise;
-                    const result = {trackInfo, trackUid};
-                    this.postMessage({type: METADATA_RESULT_MESSAGE, result});
-                    if (!trackInfo.hasBeenFingerprinted) {
-                        this._fingerprinter.postJob(trackUid, fileReference);
-                    }
-                } catch (e) {
-                    const result = {
-                        trackUid,
-                        error: {
-                            message: e.message
-                        }
-                    };
-                    this.postMessage({type: METADATA_RESULT_MESSAGE, result});
+                const result = await this._parseMetadata(trackUid, fileReference);
+                this.postMessage({type: METADATA_RESULT_MESSAGE, result});
+
+                if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                    this._fingerprinter.postJob(trackUid, fileReference);
                 }
+            },
+
+            async getTrackInfoBatch({batch}) {
+                const trackInfos = await this._tagDatabase.trackUidsToTrackInfos(batch);
+                this.postMessage({type: TRACKINFO_BATCH_RESULT_MESSAGE, result: {trackInfos}});
             }
         };
         this._acoustIdDataFetcher.on(JOB_COMPLETE_EVENT, async (job) => {
@@ -185,6 +183,18 @@ export default class MetadataManagerBackend extends AbstractBackend {
             }
         });
         this._acoustIdDataFetcher.postJob();
+        this._metadataParser.on(ALL_JOBS_COMPLETE_EVENT, () => {
+            this.postMessage({type: ALL_FILES_PERSISTED_MESSAGE});
+        });
+    }
+
+    async _parseMetadata(trackUid, fileReference) {
+        try {
+            const trackInfo = await this._metadataParser.postJob(trackUid, fileReference).promise;
+            return {trackInfo, trackUid};
+        } catch (e) {
+            return {trackUid, error: {message: e.message}};
+        }
     }
 
     async fileReferenceToFileView(fileReference) {
@@ -449,7 +459,6 @@ export default class MetadataManagerBackend extends AbstractBackend {
             }
         }
 
-        trackInfo.acoustIdFullResponse = fullResponse;
         await this._tagDatabase.replaceTrackInfo(uid, trackInfo);
         return {
             acoustIdResult: result || null,
