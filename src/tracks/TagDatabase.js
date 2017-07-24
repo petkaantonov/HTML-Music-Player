@@ -1,4 +1,5 @@
-import {iDbPromisify, promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
+import {promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
+import {iDbPromisify, applyStoreSpec} from "pureUtil";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
 const VERSION = 24;
@@ -141,48 +142,6 @@ const objectStoreSpec = {
         }
     }
 };
-
-function applyIndexSpecToStore(store, indexSpec) {
-    const indexNames = new Set([].slice.call(store.indexNames));
-
-    for (const indexName of Object.keys(indexSpec)) {
-        if (!indexNames.has(indexName)) {
-            const spec = indexSpec[indexName];
-            store.createIndex(indexName, spec.keyPath, spec);
-        }
-    }
-
-    for (const indexName of indexNames) {
-        if (!indexSpec.hasOwnProperty(indexName)) {
-            store.deleteIndex(indexName);
-        }
-    }
-}
-
-export function applyStoreSpec(transaction, storeSpec) {
-    const {db} = transaction;
-    const storeNames = new Set([].slice.call(transaction.objectStoreNames));
-    const ret = {};
-
-    for (const storeName of Object.keys(storeSpec)) {
-        const spec = storeSpec[storeName];
-        if (!storeNames.has(storeName)) {
-            ret[storeName] = db.createObjectStore(storeName, spec);
-        } else {
-            ret[storeName] = transaction.objectStore(storeName);
-        }
-
-        applyIndexSpecToStore(ret[storeName], spec.indexSpec || {});
-    }
-
-    for (const storeName of storeNames) {
-        if (!storeSpec.hasOwnProperty(storeName)) {
-            db.deleteObjectStore(storeName);
-        }
-    }
-
-    return ret;
-}
 
 
 export default class TagDatabase {

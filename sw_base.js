@@ -1,3 +1,4 @@
+import KeyValueDatabase from "platform/KeyValueDatabase";
 
 const {location, setTimeout, URL, fetch, caches, clients} = self;
 const ASSET_PREFIX = `asset-cache-v`;
@@ -181,21 +182,6 @@ self.addEventListener(`message`, async (e) => {
     }
 });
 
-self.addEventListener(`notificationclose`, (event) => {
-    const {notification} = event;
-    if (notification &&
-        notification.data &&
-        notification.data.forceClose) {
-        return;
-    }
-    event.waitUntil(handleNotificationClosed(notification));
-});
-
-self.addEventListener(`notificationclick`, (event) => {
-    const {action, notification} = event;
-    event.waitUntil(handleNotificationClicked(action, notification));
-});
-
 const iDbPromisify = function(ee) {
     return new Promise((resolve, reject) => {
         ee.onerror = function(event) {
@@ -207,21 +193,11 @@ const iDbPromisify = function(ee) {
     });
 };
 
-let dbPromise;
+let kvDb;
 async function savePreferences(preferences) {
-    if (!dbPromise) {
-        const request = indexedDB.open(`KeyValueDatabase2`, 4);
-        request.onupgradeneeded = (event) => {
-            //?
-        };
-        dbPromise = iDbPromisify(request);
+    if (!kvDb) {
+        kvDb = new KeyValueDatabase();
     }
 
-    const db = await dbPromise;
-    const transaction = db.transaction(`keyValueDatabase2`, `readwrite`);
-    const store = transaction.objectStore(`keyValueDatabase2`);
-
-    for (const obj of preferences) {
-        await store.put(obj);
-    }
+    await kvDb.setAll(preferences);
 }

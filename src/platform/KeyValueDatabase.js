@@ -1,6 +1,4 @@
-import {iDbPromisify, throttle} from "util";
-import {indexedDB, self} from "platform/platform";
-import {applyStoreSpec} from "tracks/TagDatabase";
+import {iDbPromisify, applyStoreSpec} from "pureUtil";
 
 const VERSION = 4;
 const NAME = `KeyValueDatabase2`;
@@ -23,7 +21,9 @@ const objectStoreSpec = {
 
 export default class KeyValueDatabase {
     constructor() {
+        /* eslint-disable no-undef */
         const request = indexedDB.open(NAME, VERSION);
+        /* eslint-enable no-undef */
         this.db = iDbPromisify(request);
         request.onupgradeneeded = (event) => {
             applyStoreSpec(event.target.transaction, objectStoreSpec);
@@ -52,7 +52,7 @@ export default class KeyValueDatabase {
                     }
                 }
             };
-            this.keySetters[key] = throttle(keySetter.method, 1000);
+            this.keySetters[key] = keySetter.method;
         }
         return this.keySetters[key];
     }
@@ -94,6 +94,15 @@ export default class KeyValueDatabase {
             ret[pair.key] = pair.value;
         });
         return ret;
+    }
+
+    async setAll(preferences) {
+        const db = await this.db;
+        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(LOG_TABLE);
+
+        for (const obj of preferences) {
+            await store.put(obj);
+        }
     }
 
 }

@@ -4,6 +4,7 @@ import {console, Uint8Array, Uint16Array, Uint32Array,
          performance, Proxy, Symbol, indexedDB, XMLHttpRequest} from "platform/platform";
 import HttpStatusError from "errors/HttpStatusError";
 import {CancellationError} from "utils/CancellationToken";
+export {iDbPromisify} from "pureUtil";
 
 /* eslint-disable no-invalid-this */
 
@@ -748,17 +749,6 @@ export const asError = function(value) {
     const ret = new Error();
     ret.message = `${value ? value.message : value}`;
     return ret;
-};
-
-export const iDbPromisify = function(ee) {
-    return new Promise((resolve, reject) => {
-        ee.onerror = function(event) {
-            reject(asError(event.target.transaction.error || ee.error));
-        };
-        ee.onsuccess = function(event) {
-            resolve(event.target.result);
-        };
-    });
 };
 
 export const iDbPromisifyCursor = function(cursor, callback) {

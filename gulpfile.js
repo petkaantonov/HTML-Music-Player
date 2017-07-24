@@ -160,8 +160,17 @@ function getServiceWorkerGeneratedCode() {
 }
 
 function bundleServiceWorker() {
-    return pump([gulp.src("sw_base.js"),
-        rename("sw.js"),
+    const entry = "sw_base.js"
+    const name = "ServiceWorker";
+    const bundles = bundleJs({
+        entry,
+        moduleName: name,
+        format: "iife",
+        banner: "",
+        target: DEBUG
+    });
+
+    return pump([bundles.full, source("sw.js"),
         buffer(),
         replace(/^/, getServiceWorkerGeneratedCode()),
         sourcemaps.init({loadMaps: true}),
