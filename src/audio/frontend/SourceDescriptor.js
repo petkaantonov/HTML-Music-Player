@@ -3,7 +3,7 @@ export const decibelToGain = function(loudness) {
 };
 
 export default class SourceDescriptor {
-    constructor(sourceNode, buffer, descriptor, channelData, isLastForTrack) {
+    constructor(sourceNode, buffer, descriptor, isLastForTrack) {
         this._sourceNode = sourceNode;
         this.buffer = buffer;
         this.playedSoFar = 0;
@@ -12,14 +12,17 @@ export default class SourceDescriptor {
         this.length = descriptor.length;
         this.sampleRate = descriptor.sampleRate;
         this.channelCount = descriptor.channelCount;
-        this.duration = buffer.duration;
+        this.duration = this.length / this.sampleRate;
         const {loudnessInfo} = descriptor;
         this._gain = isNaN(loudnessInfo.loudness) ? NaN : decibelToGain(loudnessInfo.loudness);
         this.started = -1;
         this.stopped = -1;
         this.source = null;
-        this.channelData = channelData;
         this.isLastForTrack = isLastForTrack;
+    }
+
+    get audioBuffer() {
+        return this.buffer;
     }
 
     get gain() {
@@ -70,6 +73,5 @@ export default class SourceDescriptor {
             this.source = null;
         }
         this.buffer = null;
-        this.channelData = null;
     }
 }

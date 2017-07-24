@@ -43,13 +43,14 @@ const weights = new Float32Array([
 
 
 function makeBuffer(bufferSize) {
-    return [
-        new Float32Array(bufferSize),
-        new Float64Array(bufferSize)
-    ];
+    return {
+        channelData: [new Float32Array(bufferSize), new Float32Array(bufferSize)],
+        visualizerData: new Float32Array(bufferSize),
+        windowData: new Float64Array(bufferSize)
+    };
 }
 
-const buffers = {};
+const cachedBuffers = new Map();
 
 export default class AudioVisualizer {
     constructor(audioContext, sourceNode, visualizerCanvas, opts) {
@@ -72,11 +73,15 @@ export default class AudioVisualizer {
             throw new Error(`too low fps ${this.fps()} for sample rate${this.sampleRate}`);
         }
 
-        let buffer = buffers[this.bufferSize];
-        if (!buffer) {
-            buffer = buffers[this.bufferSize] = makeBuffer(this.bufferSize);
+        let buffers = cachedBuffers.get(this.bufferSize);
+        if (!buffers) {
+            buffers = makeBuffer(this.bufferSize);
+            cachedBuffers.set(this.bufferSize, buffers);
         }
-        this.buffer = buffer;
+        const {channelData, windowData, visualizerData} = buffers;
+        this.channelData = channelData;
+        this.windowData = windowData;
+        this.visualizerData = visualizerData;
         this.fillWindow();
         this.destroyed = false;
         this.paused = false;
@@ -155,8 +160,27 @@ export default class AudioVisualizer {
             return;
         }
 
-        if (!this.sourceNode.getUpcomingSamples(this.buffer[0])) {
+        const frameDescriptor = this.sourceNode.getUpcomingSamples(this.channelData);
+
+        if (!frameDescriptor.channelDataFilled) {
             return;
+        }
+
+        const {channelCount, gain} = frameDescriptor;
+        const {visualizerData, channelData} = this;
+
+        if (channelCount === 2) {
+            const [src0, src1] = channelData;
+
+            for (let i = 0; i < visualizerData.length; ++i) {
+                visualizerData[i] = Math.fround(Math.fround(src0[i] + src1[i]) / 2 * gain);
+            }
+        } else {
+            const [src] = channelData;
+
+            for (let i = 0; i < visualizerData.length; ++i) {
+                visualizerData[i] = Math.fround(src[i] * gain);
+            }
         }
 
         this.forwardFft();
@@ -165,18 +189,18 @@ export default class AudioVisualizer {
             this.binSizeChanged();
         }
 
-        this.calculateBins();
+        this.calculateBins(frameDescriptor);
         this.visualizerCanvas.drawBins(now, this.bins);
     }
 
-    calculateBins() {
-        const X = this.buffer[0];
+    calculateBins({sampleRate}) {
+        const X = this.visualizerData;
         const imOffset = this.bufferSize >> 1;
         const {bins} = this;
-        const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / this.sampleRate);
+        const smoothingConstant = Math.pow(this.baseSmoothingConstant, this.bufferSize / sampleRate);
         const inverseSmoothingConstant = 1 - smoothingConstant;
 
-        const fftFreqs = Math.ceil(this.maxFrequency / (this.sampleRate / this.bufferSize));
+        const fftFreqs = Math.ceil(this.maxFrequency / (sampleRate / this.bufferSize));
         const binSize = bins.length;
 
         let binFrequencyStart = 1;
@@ -200,7 +224,7 @@ export default class AudioVisualizer {
                 const im = X[imOffset + binFrequencyStart + j];
                 const power = re * re + im * im;
                 if (power > maxPower) {
-                    binFrequency = ((binFrequencyStart + j) * this.sampleRate / this.bufferSize) | 0;
+                    binFrequency = ((binFrequencyStart + j) * sampleRate / this.bufferSize) | 0;
                     maxPower = power;
                 }
             }
@@ -225,7 +249,7 @@ export default class AudioVisualizer {
     }
 
     fillWindow() {
-        const window = this.buffer[1];
+        const window = this.windowData;
         const N = window.length;
         for (let n = 0; n < N; ++n) {
             // Hamming window.
@@ -234,10 +258,10 @@ export default class AudioVisualizer {
     }
 
     forwardFft() {
-        const [samples, window] = this.buffer;
-        for (let i = 0; i < samples.length; ++i) {
-            samples[i] = Math.fround(samples[i] * window[i]);
+        const {visualizerData, windowData} = this;
+        for (let i = 0; i < visualizerData.length; ++i) {
+            visualizerData[i] = Math.fround(visualizerData[i] * windowData[i]);
         }
-        realFft(this.buffer[0]);
+        realFft(visualizerData);
     }
 }

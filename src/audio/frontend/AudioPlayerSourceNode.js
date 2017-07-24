@@ -132,8 +132,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             id: this._id
         });
 
-        this._bufferQueue = [];
-        this._playedBufferQueue = [];
+        this._sourceDescriptorQueue = [];
+        this._playedSourceDescriptors = [];
     }
 
     page() {
@@ -181,11 +181,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._fadeInStarted = 0;
         this._fadeInStartedWithLength = 0;
 
-        if (this._bufferQueue.length > 0) {
-            this._bufferQueue[0].started = audioContext.currentTime - this._bufferQueue[0].playedSoFar;
-            for (let i = 1; i < this._bufferQueue.length; ++i) {
-                const prev = this._bufferQueue[i - 1];
-                this._bufferQueue[i].started = prev.started + prev.duration;
+        if (this._sourceDescriptorQueue.length > 0) {
+            this._sourceDescriptorQueue[0].started = audioContext.currentTime - this._sourceDescriptorQueue[0].playedSoFar;
+            for (let i = 1; i < this._sourceDescriptorQueue.length; ++i) {
+                const prev = this._sourceDescriptorQueue[i - 1];
+                this._sourceDescriptorQueue[i].started = prev.started + prev.duration;
             }
         }
     }
@@ -215,7 +215,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     _getCurrentAudioBufferBaseTimeDelta(now) {
-        const sourceDescriptor = this._bufferQueue[0];
+        const sourceDescriptor = this._sourceDescriptorQueue[0];
         if (!sourceDescriptor) return 0;
         if (now === undefined) now = this._player.getCurrentTime();
         const {started} = sourceDescriptor;
@@ -258,7 +258,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._stopSources();
 
         let sourceDescriptor;
-        while (sourceDescriptor = this._bufferQueue.shift()) {
+        while (sourceDescriptor = this._sourceDescriptorQueue.shift()) {
             sourceDescriptor.destroy();
         }
 
@@ -273,21 +273,21 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             if (!descriptor) {
                 self.uiLog(new Date().toISOString(), `!descriptor`,
                                 `ended emitted`, this._endedEmitted,
-                                `length`, this._bufferQueue.length);
+                                `length`, this._sourceDescriptorQueue.length);
                 return;
             }
 
-            const {length} = this._bufferQueue;
+            const {length} = this._sourceDescriptorQueue;
             let sourceDescriptor = null;
-            if (length > 0 && this._bufferQueue[0] === descriptor) {
-                sourceDescriptor = this._bufferQueue.shift();
+            if (length > 0 && this._sourceDescriptorQueue[0] === descriptor) {
+                sourceDescriptor = this._sourceDescriptorQueue.shift();
             } else {
-                for (let i = 0; i < this._playedBufferQueue.length; ++i) {
-                    if (this._playedBufferQueue[i] === descriptor) {
-                        for (let j = i; j < this._playedBufferQueue.length; ++j) {
-                            this._playedBufferQueue[j].destroy();
+                for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
+                    if (this._playedSourceDescriptors[i] === descriptor) {
+                        for (let j = i; j < this._playedSourceDescriptors.length; ++j) {
+                            this._playedSourceDescriptors[j].destroy();
                         }
-                        this._playedBufferQueue.length = i;
+                        this._playedSourceDescriptors.length = i;
                         return;
                     }
                 }
@@ -297,7 +297,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 self.uiLog(new Date().toISOString(), `!sourceDescriptor`,
                              `ended emitted`, this._endedEmitted,
                              `prelen`, length,
-                             `postlen`, this._bufferQueue.length,
+                             `postlen`, this._sourceDescriptorQueue.length,
                              `referencedStart`, descriptor.startTime,
                              `referencedEnd`, descriptor.endTime);
                 sourceDescriptor = descriptor;
@@ -308,7 +308,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 self.uiLog(new Date().toISOString(), `sourceDescriptor !== descriptor`,
                              `ended emitted`, this._endedEmitted,
                              `prelen`, length,
-                             `postlen`, this._bufferQueue.length,
+                             `postlen`, this._sourceDescriptorQueue.length,
                              `queuedStart`, sourceDescriptor.startTime,
                              `queuedEnd`, sourceDescriptor.endTime,
                              `referencedStart`, descriptor.startTime,
@@ -317,9 +317,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             source.descriptor = null;
             source.onended = null;
             sourceDescriptor.source = null;
-            this._playedBufferQueue.push(sourceDescriptor);
-            while (this._playedBufferQueue.length > this._player._playedAudioBuffersNeededForVisualization) {
-                this._playedBufferQueue.shift().destroy();
+            this._playedSourceDescriptors.push(sourceDescriptor);
+            while (this._playedSourceDescriptors.length > this._player._playedAudioBuffersNeededForVisualization) {
+                this._playedSourceDescriptors.shift().destroy();
             }
         } finally {
             this._sourceEndedUpdate(duration, wasLastBuffer);
@@ -332,7 +332,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._baseTime += sourceDuration;
             }
             if (this._baseTime >= this._duration ||
-                (wasLastBuffer && this._bufferQueue.length === 0)) {
+                (wasLastBuffer && this._sourceDescriptorQueue.length === 0)) {
                 this._ended();
             }
         } finally {
@@ -348,8 +348,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
     _lastSourceEnds() {
         if (this._sourceStopped) throw new Error(`sources are stopped`);
-        if (this._bufferQueue.length === 0) return this._player.getCurrentTime();
-        const sourceDescriptor = this._bufferQueue[this._bufferQueue.length - 1];
+        if (this._sourceDescriptorQueue.length === 0) return this._player.getCurrentTime();
+        const sourceDescriptor = this._sourceDescriptorQueue[this._sourceDescriptorQueue.length - 1];
         return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
     }
 
@@ -385,8 +385,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (this._destroyed || this._paused) return;
         if (!this._sourceStopped) throw new Error(`sources are not stopped`);
         this._sourceStopped = false;
-        for (let i = 0; i < this._bufferQueue.length; ++i) {
-            when = this._startSource(this._bufferQueue[i], when);
+        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+            when = this._startSource(this._sourceDescriptorQueue[i], when);
         }
 
         if (!this._initialPlaythroughEmitted) {
@@ -407,14 +407,14 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             self.uiLog(e.stack);
         }
 
-        for (let i = 0; i < this._bufferQueue.length; ++i) {
-            const sourceDescriptor = this._bufferQueue[i];
+        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+            const sourceDescriptor = this._sourceDescriptorQueue[i];
             if (destroyDescriptorsThatWillNeverPlay && (sourceDescriptor.started === -1 ||
                 sourceDescriptor.started > when)) {
-                for (let j = i; j < this._bufferQueue.length; ++j) {
-                    this._bufferQueue[j].destroy(when);
+                for (let j = i; j < this._sourceDescriptorQueue.length; ++j) {
+                    this._sourceDescriptorQueue[j].destroy(when);
                 }
-                this._bufferQueue.length = i;
+                this._sourceDescriptorQueue.length = i;
                 return;
             }
             const src = sourceDescriptor.source;
@@ -433,11 +433,15 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
     }
 
-    getUpcomingSamples(input) {
+    getUpcomingSamples(channelData) {
         if (this._destroyed) return false;
-        if (!(input instanceof Float32Array)) throw new Error(`need Float32Array`);
-        let samplesNeeded = Math.min(MAX_ANALYSER_SIZE, input.length);
-        const inputBuffer = input.buffer;
+        let samplesNeeded = Math.min(MAX_ANALYSER_SIZE, channelData[0].length);
+        const ret = {
+            sampleRate: 44100,
+            channelCount: channelData.length,
+            channelDataFilled: false,
+            gain: 1
+        };
 
         if (!this._sourceStopped) {
             const timestamp = this._player.getOutputTimestamp();
@@ -459,86 +463,79 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 now = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
             }
 
+
+            const sourceDescriptorQueue = this._sourceDescriptorQueue;
+            const playedSourceDescriptors = this._playedSourceDescriptors;
+
+            if (sourceDescriptorQueue.length === 0) {
+                return ret;
+            }
+
+            const sourceDescriptors = [sourceDescriptorQueue[0]];
+            const {sampleRate} = sourceDescriptors[0];
+            const channelCount = Math.min(channelData.length, sourceDescriptors[0].channelCount);
+            ret.sampleRate = sampleRate;
+            ret.channelCount = channelCount;
+            const currentSourceDescriptorPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta(now);
+
+            if (Math.ceil((currentSourceDescriptorPlayedSoFar + (samplesNeeded / sampleRate)) * sampleRate) > sourceDescriptors[0].length &&
+                sourceDescriptorQueue.length < 2) {
+                return ret;
+            } else {
+                sourceDescriptors.push(sourceDescriptorQueue[1]);
+            }
+
+            if (playedSourceDescriptors.length === 0) {
+                return ret;
+            } else {
+                sourceDescriptors.unshift(playedSourceDescriptors.length > 0 ? playedSourceDescriptors[0] : null);
+            }
+
+            const sourceDescriptorIndex = currentSourceDescriptorPlayedSoFar >= 0 ? 1 : 0;
+            let bufferDataIndex = sourceDescriptorIndex === 0 ? (sourceDescriptors[0].length + ((currentSourceDescriptorPlayedSoFar * sampleRate) | 0))
+                                                    : ((currentSourceDescriptorPlayedSoFar) * sampleRate) | 0;
             let samplesIndex = 0;
-            const bufferQueue = this._bufferQueue;
-            const playedBufferQueue = this._playedBufferQueue;
-
-            if (bufferQueue.length === 0) {
-                return false;
-            }
-
-            const buffers = [bufferQueue[0]];
-            const {sampleRate} = buffers[0];
-            const offsetInCurrentBuffer = this._getCurrentAudioBufferBaseTimeDelta(now);
-
-            if (Math.ceil((offsetInCurrentBuffer + (samplesNeeded / sampleRate)) * sampleRate) > buffers[0].length &&
-                bufferQueue.length < 2) {
-                return false;
-            } else {
-                buffers.push(bufferQueue[1]);
-            }
-
-            if (playedBufferQueue.length === 0) {
-                return false;
-            } else {
-                buffers.unshift(playedBufferQueue.length > 0 ? playedBufferQueue[0] : null);
-            }
-
-            const bufferIndex = offsetInCurrentBuffer >= 0 ? 1 : 0;
-            let bufferDataIndex = bufferIndex === 0 ? (buffers[0].length + ((offsetInCurrentBuffer * sampleRate) | 0))
-                                                    : ((offsetInCurrentBuffer) * sampleRate) | 0;
-
-            for (let i = bufferIndex; i < buffers.length; ++i) {
-                const j = bufferDataIndex;
-                const buffer = buffers[i];
-                const samplesRemainingInBuffer = Math.max(0, buffer.length - j);
+            for (let i = sourceDescriptorIndex; i < sourceDescriptors.length; ++i) {
+                const {length, gain, audioBuffer} = sourceDescriptors[i];
+                const samplesRemainingInBuffer = Math.max(0, length - bufferDataIndex);
                 if (samplesRemainingInBuffer <= 0) {
                     bufferDataIndex = 0;
                     continue;
                 }
-                const byteLength = buffer.channelData[0].buffer.byteLength - j * 4;
-                const fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, (byteLength / 4) | 0);
-                const {channelData, gain} = buffer;
-                const sampleViews = new Array(channelData.length);
-                for (let ch = 0; ch < sampleViews.length; ++ch) {
-                    sampleViews[ch] = new Float32Array(channelData[ch].buffer, j * 4, fillCount);
-                }
-                const dst = new Float32Array(inputBuffer, samplesIndex * 4, samplesNeeded);
 
-                if (sampleViews.length === 2) {
-                    for (let k = 0; k < fillCount; ++k) {
-                        dst[k] = Math.fround((sampleViews[0][k] + sampleViews[1][k]) / 2 * gain);
-                    }
-                } else if (sampleViews.length === 1) {
-                    const src = sampleViews[0];
-                    for (let k = 0; k < fillCount; ++k) {
-                        dst[k] = Math.fround(src[k] * gain);
-                    }
-                } else {
-                    // TODO Support more than 2 channels.
-                    return false;
+                const fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, length);
+                for (let ch = 0; ch < channelCount; ++ch) {
+                    const dst = new Float32Array(channelData[ch].buffer, samplesIndex * 4, fillCount);
+                    audioBuffer.copyFromChannel(dst, ch, bufferDataIndex);
                 }
+
                 samplesIndex += fillCount;
                 samplesNeeded -= fillCount;
 
                 if (samplesNeeded <= 0) {
-                    return true;
+                    ret.channelDataFilled = true;
+                    ret.gain = gain;
+                    return ret;
                 }
                 bufferDataIndex = 0;
             }
-            return false;
+            return ret;
         } else {
-            for (let i = 0; i < input.length; ++i) {
-                input[i] = 0;
+            for (let ch = 0; ch < channelData.length; ++ch) {
+                const dst = channelData[ch];
+                for (let i = 0; i < dst.length; ++i) {
+                    dst[i] = 0;
+                }
             }
-            return true;
+            ret.channelDataFilled = true;
+            return ret;
         }
     }
 
     _requestMoreBuffers() {
         if (!this._haveLoadedInitialAudioData || this._destroyed) return;
-        if (this._bufferQueue.length < this.getSustainedBufferCount()) {
-            const count = this.getSustainedBufferCount() - this._bufferQueue.length;
+        if (this._sourceDescriptorQueue.length < this.getSustainedBufferCount()) {
+            const count = this.getSustainedBufferCount() - this._sourceDescriptorQueue.length;
             if (count >= this.getMinBuffersToRequest()) {
                 this._player._message(this._id, `fillBuffers`, {count});
             }
@@ -569,8 +566,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         } catch (e) {
             self.uiLog(e.stack);
         }
-        for (let i = 0; i < this._bufferQueue.length; ++i) {
-            const sourceDescriptor = this._bufferQueue[i];
+        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+            const sourceDescriptor = this._sourceDescriptorQueue[i];
             try {
                 let {duration} = sourceDescriptor;
                 if (sourceDescriptor.playedSoFar > 0) {
@@ -648,7 +645,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (!skipBuffer) {
             const {channelCount, sampleRate, length} = descriptor;
             const audioBuffer = this._player.createBuffer(channelCount, length, sampleRate);
-            const channelData = new Array(channelCount);
 
             if (transferList.length !== channelCount) {
                 throw new Error(`transferList.length (${transferList.length}) !== channelCount (${channelCount})`);
@@ -657,10 +653,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             for (let ch = 0; ch < channelCount; ++ch) {
                 const data = new Float32Array(transferList.shift(), 0, length);
                 audioBuffer.copyToChannel(data, ch);
-                channelData[ch] = data;
             }
 
-            sourceDescriptor = new SourceDescriptor(this, audioBuffer, descriptor, channelData, isLastBuffer);
+            sourceDescriptor = new SourceDescriptor(this, audioBuffer, descriptor, isLastBuffer);
         }
 
         if (isLastBuffer &&
@@ -684,11 +679,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._stopSources(scheduledStartTime, true);
             }
 
-            this._playedBufferQueue.push(...this._bufferQueue);
-            this._bufferQueue.length = 0;
+            this._playedSourceDescriptors.push(...this._sourceDescriptorQueue);
+            this._sourceDescriptorQueue.length = 0;
 
             if (!skipBuffer) {
-                this._bufferQueue.push(sourceDescriptor);
+                this._sourceDescriptorQueue.push(sourceDescriptor);
                 if (this._sourceStopped) {
                     this._startSources(scheduledStartTime);
                 } else {
@@ -698,7 +693,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         } else if (this._sourceStopped) {
             scheduledStartTime = Math.max(scheduledStartTime, this.getCurrentTimeScheduledAhead());
             if (!skipBuffer) {
-                this._bufferQueue.push(sourceDescriptor);
+                this._sourceDescriptorQueue.push(sourceDescriptor);
                 if (!this._paused) {
                     this._startSources(scheduledStartTime);
                 }
@@ -706,7 +701,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         } else {
             scheduledStartTime = Math.max(scheduledStartTime, this._lastSourceEnds());
             if (!skipBuffer) {
-                if (this._bufferQueue.push(sourceDescriptor) === 1) {
+                if (this._sourceDescriptorQueue.push(sourceDescriptor) === 1) {
                     self.uiLog(`audio dropout`);
                 }
                 this._startSource(sourceDescriptor, scheduledStartTime);
@@ -729,8 +724,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     _printQueue() {
-        for (let i = 0; i < this._bufferQueue.length; ++i) {
-            const b = this._bufferQueue[i];
+        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+            const b = this._sourceDescriptorQueue[i];
             const s = b.sampleRate;
             self.uiLog(`${i} (${b.startTime} -> ${b.endTime}): started ${b.started} (${b.started * s}) stopped ${b.stopped} (${b.stopped * s})`);
         }
@@ -779,7 +774,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             return;
         }
         this._paused = false;
-        if (this._bufferQueue.length > 0 && this._sourceStopped && this._haveLoadedInitialAudioData) {
+        if (this._sourceDescriptorQueue.length > 0 && this._sourceStopped && this._haveLoadedInitialAudioData) {
             this._player.playbackStarted();
             this._player.resume();
             const scheduledStartTime = Math.max(this.getCurrentTimeScheduledAhead(), this._fadeOutEnded);
@@ -923,11 +918,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._stopSources();
 
         let sourceDescriptor;
-        while (sourceDescriptor = this._bufferQueue.shift()) {
+        while (sourceDescriptor = this._sourceDescriptorQueue.shift()) {
             sourceDescriptor.destroy();
         }
 
-        while (sourceDescriptor = this._playedBufferQueue.shift()) {
+        while (sourceDescriptor = this._playedSourceDescriptors.shift()) {
             sourceDescriptor.destroy();
         }
     }
