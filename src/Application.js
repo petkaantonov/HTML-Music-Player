@@ -392,7 +392,8 @@ export default class Application {
             playlist,
             recognizerContext,
             localFileHandler,
-            env
+            env,
+            snackbar
         }, d => new FloatingActionButtonManager({
             target: `.floating-action-button`
         }, d));

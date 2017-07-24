@@ -3,6 +3,10 @@ import {NEXT_TRACK_CHANGE_EVENT,
         CURRENT_TRACK_CHANGE_EVENT,
         TRACK_PLAYING_STATUS_CHANGE_EVENT,
         PLAYLIST_STOPPED_EVENT} from "player/PlaylistController";
+import {SNACKBAR_WILL_SHOW_EVENT,
+        SNACKBAR_DID_HIDE_EVENT} from "ui/Snackbar";
+
+export const FLOATING_ACTION_BUTTON_HEIGHT = (16 + 56) / 2 | 0;
 
 const UNKNOWN_STATE = `unknown-state`;
 const PLAY_BUTTON_STATE = `play-button-state`;
@@ -17,6 +21,7 @@ export default class FloatingActionButtonManager {
         this._localFileHandler = deps.localFileHandler;
         this._env = deps.env;
         this._page = deps.page;
+        this._snackbar = deps.snackbar;
 
         this._currentState = UNKNOWN_STATE;
         this._domNode = this._page.$(opts.target);
@@ -29,6 +34,8 @@ export default class FloatingActionButtonManager {
             this._playlistController.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._stateChanged);
             this._playlistController.on(PLAYLIST_STOPPED_EVENT, this._stateChanged);
             this._recognizerContext.createTapRecognizer(this._buttonClicked.bind(this)).recognizeBubbledOn(this.$());
+            this._snackbar.on(SNACKBAR_WILL_SHOW_EVENT, this._snackbarWillShow.bind(this));
+            this._snackbar.on(SNACKBAR_DID_HIDE_EVENT, this._snackbarDidHide.bind(this));
 
             this._awaitInitialState();
         }
@@ -64,6 +71,14 @@ export default class FloatingActionButtonManager {
             this._localFileHandler.openFilePicker();
             break;
         }
+    }
+
+    _snackbarWillShow() {
+        this.$().hide();
+    }
+
+    _snackbarDidHide() {
+        this.$().show();
     }
 
     _updateButtonState() {

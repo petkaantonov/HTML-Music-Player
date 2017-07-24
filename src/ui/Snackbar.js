@@ -8,6 +8,9 @@ export const ACTION_CLICKED = 0;
 export const DISMISSED = 1;
 export const TIMED_OUT = 2;
 
+export const SNACKBAR_WILL_SHOW_EVENT = `snackbarWillShow`;
+export const SNACKBAR_DID_HIDE_EVENT = `snackbarDidHide`;
+
 class SnackbarInstance extends EventEmitter {
     constructor(snackbar, message, opts) {
         super();
@@ -39,6 +42,7 @@ class SnackbarInstance extends EventEmitter {
     }
 
     show() {
+        this.snackbar._snackbarWillShow();
         const {message, opts, snackbar} = this;
         this._initDom(message, opts);
         this.$().addEventListener(`click`, this._clicked);
@@ -236,105 +240,114 @@ class SnackbarInstance extends EventEmitter {
     }
 }
 
-export default function Snackbar(opts, deps) {
-    opts = noUndefinedGet(opts);
-    this.page = deps.page;
-    this.globalEvents = deps.globalEvents;
-    this.recognizerContext = deps.recognizerContext;
+export default class Snackbar extends EventEmitter {
+    constructor(opts, deps) {
+        super();
+        opts = noUndefinedGet(opts);
+        this.page = deps.page;
+        this.globalEvents = deps.globalEvents;
+        this.recognizerContext = deps.recognizerContext;
 
-    this.containerClass = opts.containerClass;
-    this.actionClass = opts.actionClass;
-    this.titleClass = opts.titleClass;
-    this.textContainerClass = opts.textContainerClass;
-    this.textClass = opts.textClass;
-    this.transitionInClass = opts.transitionInClass;
-    this.transitionOutClass = opts.transitionOutClass;
-    this.beforeTransitionIn = opts.beforeTransitionIn || noop;
-    this.beforeTransitionOut = opts.beforeTransitionOut || noop;
-    this.nextDelay = opts.nextDelay;
-    this.visibilityTime = opts.visibilityTime;
-    this.initialUndismissableWindow = opts.initialUndismissableWindow;
+        this.containerClass = opts.containerClass;
+        this.actionClass = opts.actionClass;
+        this.titleClass = opts.titleClass;
+        this.textContainerClass = opts.textContainerClass;
+        this.textClass = opts.textClass;
+        this.transitionInClass = opts.transitionInClass;
+        this.transitionOutClass = opts.transitionOutClass;
+        this.beforeTransitionIn = opts.beforeTransitionIn || noop;
+        this.beforeTransitionOut = opts.beforeTransitionOut || noop;
+        this.nextDelay = opts.nextDelay;
+        this.visibilityTime = opts.visibilityTime;
+        this.initialUndismissableWindow = opts.initialUndismissableWindow;
 
-    this.maxLength = opts.maxLength || 3;
+        this.maxLength = opts.maxLength || 3;
 
-    this._currentInstance = null;
-    this._queue = [];
-
-    this._nextDelayId = -1;
-    this._next = this._next.bind(this);
-
-
-}
-
-Snackbar.prototype._next = function() {
-    this.page.clearTimeout(this._nextDelayId);
-    this._nextDelayId = this.page.setTimeout(() => {
         this._currentInstance = null;
-        if (this._queue.length > 0) {
-            this._currentInstance = this._queue.shift();
-            this._currentInstance.show();
-        }
-    }, this.nextDelay);
-};
+        this._queue = [];
 
-Snackbar.prototype.removeByTag = function(tag) {
-    const queue = this._queue;
-    for (let i = 0; i < queue.length; ++i) {
-        if (queue[i].opts.tag === tag) {
-            queue.splice(i, 1);
-            i--;
+        this._nextDelayId = -1;
+        this._next = this._next.bind(this);
+    }
+
+    _snackbarWillShow() {
+        this.emit(SNACKBAR_WILL_SHOW_EVENT);
+    }
+
+    _next() {
+        this.page.clearTimeout(this._nextDelayId);
+        this._nextDelayId = this.page.setTimeout(() => {
+            this._currentInstance = null;
+            if (this._queue.length > 0) {
+                this._currentInstance = this._queue.shift();
+                this._currentInstance.show();
+            } else {
+                this.emit(SNACKBAR_DID_HIDE_EVENT);
+            }
+        }, this.nextDelay);
+    }
+
+    removeByTag(tag) {
+        const queue = this._queue;
+        for (let i = 0; i < queue.length; ++i) {
+            if (queue[i].opts.tag === tag) {
+                queue.splice(i, 1);
+                i--;
+            }
+        }
+
+        if (this._currentInstance &&
+            !this._currentInstance._exiting &&
+            this._currentInstance.tag === tag) {
+            this._currentInstance.outcome = DISMISSED;
+            this._currentInstance._hide();
         }
     }
 
-    if (this._currentInstance &&
-        !this._currentInstance._exiting &&
-        this._currentInstance.tag === tag) {
-        this._currentInstance.outcome = DISMISSED;
-        this._currentInstance._hide();
-    }
-};
 
-Snackbar.prototype.show = async function(message, opts) {
-    const {tag} = opts;
 
-    if (tag && this._currentInstance &&
-        tag === this._currentInstance.tag &&
-        !this._currentInstance._exiting) {
-        this._currentInstance.removeAllListeners(`hide`);
-        let outcome;
+    async show(message, opts) {
+        const {tag} = opts;
+
+        if (tag && this._currentInstance &&
+            tag === this._currentInstance.tag &&
+            !this._currentInstance._exiting) {
+            this._currentInstance.removeAllListeners(`hide`);
+            let outcome;
+            try {
+                outcome = await this._currentInstance.replace(message);
+            } finally {
+                this._next();
+            }
+            return outcome;
+        }
+
+        const queue = this._queue;
         try {
-            outcome = await this._currentInstance.replace(message);
+            if (this._currentInstance) {
+                if (tag && queue.length) {
+                    for (let i = 0; i < queue.length; ++i) {
+                        if (queue[i].tag === tag) {
+                            queue[i].message = message;
+                            return queue[i].finished();
+                        }
+                    }
+                }
+
+                if (queue.length >= this.maxLength) {
+                    queue.pop();
+                }
+
+                const queuedMessage = new SnackbarInstance(this, message, opts);
+                queue.push(queuedMessage);
+                return await queuedMessage.finished();
+            } else {
+                this._currentInstance = new SnackbarInstance(this, message, opts);
+                this._currentInstance.show();
+                return await this._currentInstance.finished();
+            }
         } finally {
             this._next();
         }
-        return outcome;
     }
-
-    const queue = this._queue;
-    try {
-        if (this._currentInstance) {
-            if (tag && queue.length) {
-                for (let i = 0; i < queue.length; ++i) {
-                    if (queue[i].tag === tag) {
-                        queue[i].message = message;
-                        return queue[i].finished();
-                    }
-                }
-            }
-
-            if (queue.length >= this.maxLength) {
-                queue.pop();
-            }
-
-            const queuedMessage = new SnackbarInstance(this, message, opts);
-            queue.push(queuedMessage);
-            return await queuedMessage.finished();
-        } else {
-            this._currentInstance = new SnackbarInstance(this, message, opts);
-            this._currentInstance.show();
-            return await this._currentInstance.finished();
-        }
-    } finally {
-        this._next();
-    }
-};
+}

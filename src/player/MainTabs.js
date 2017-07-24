@@ -2,6 +2,7 @@ import {noUndefinedGet, _call} from "util";
 import TabController from "ui/TabController";
 import withDeps from "ApplicationDependencies";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
+import {FLOATING_ACTION_BUTTON_HEIGHT} from "ui/FloatingActionButtonManager";
 
 import {ITEMS_SELECTED_EVENT} from "ui/Selectable";
 import {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
@@ -159,7 +160,7 @@ export default class MainTabs {
         const visible = elems.filter(elem => page.$(elem).style().display !== `none`).get(0);
 
         const rect = visible.getBoundingClientRect();
-        const USED_HEIGHT = rect.top;
+        const USED_HEIGHT = rect.top + FLOATING_ACTION_BUTTON_HEIGHT;
 
         let height = page.height() - USED_HEIGHT;
         height = Math.max(height - this.itemHeight / 2, this.itemHeight + this.itemHeight / 2);

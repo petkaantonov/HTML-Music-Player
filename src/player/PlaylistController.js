@@ -646,7 +646,6 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     _updateNextTrack() {
-        const currentNextPlaylistTrack = this._nextPlaylistTrack;
         const currentPlaylistTrack = this.getCurrentPlaylistTrack();
         const nextPlaylistTrack = this._nextPlaylistTrackFromCurrentMode(currentPlaylistTrack);
         this._setNextPlaylistTrack(nextPlaylistTrack);

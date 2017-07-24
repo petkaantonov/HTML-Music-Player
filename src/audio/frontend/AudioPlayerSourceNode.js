@@ -707,7 +707,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             scheduledStartTime = Math.max(scheduledStartTime, this._lastSourceEnds());
             if (!skipBuffer) {
                 if (this._bufferQueue.push(sourceDescriptor) === 1) {
-                    self.uiLog("audio dropout");
+                    self.uiLog(`audio dropout`);
                 }
                 this._startSource(sourceDescriptor, scheduledStartTime);
 

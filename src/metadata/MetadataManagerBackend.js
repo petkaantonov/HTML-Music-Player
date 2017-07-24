@@ -175,6 +175,13 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
             async getTrackInfoBatch({batch}) {
                 const trackInfos = await this._tagDatabase.trackUidsToTrackInfos(batch);
+                for (let i = 0; i < trackInfos.length; ++i) {
+                    const trackInfo = trackInfos[i];
+                    if (!trackInfo.hasBeenFingerprinted) {
+                        const {trackUid} = trackInfo;
+                        this._fingerprinter.postJob(trackUid, trackUid);
+                    }
+                }
                 this.postMessage({type: TRACKINFO_BATCH_RESULT_MESSAGE, result: {trackInfos}});
             }
         };
