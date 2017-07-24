@@ -41,9 +41,9 @@ export default class DefaultShortcuts {
         this.disableGestures = this.disableGestures.bind(this);
 
         this.nextGestureRecognizer =
-            this.recognizerContext.createHorizontalTwoFingerSwipeRecognizer(this.shortcutGestureNext, 1);
+            this.recognizerContext.createHorizontalSwipeRecognizer(this.shortcutGestureNext, 1);
         this.prevGestureRecognizer =
-            this.recognizerContext.createHorizontalTwoFingerSwipeRecognizer(this.shortcutGesturePrev, -1);
+            this.recognizerContext.createHorizontalSwipeRecognizer(this.shortcutGesturePrev, -1);
         this.togglePlaybackGestureRecognizer =
             this.recognizerContext.createTwoFingerTapRecognizer(this.shortcutGestureTogglePlayback);
         this.rippleRecognizer =

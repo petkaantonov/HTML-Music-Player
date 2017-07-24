@@ -5,6 +5,7 @@ import {MediaMetadata} from "platform/platform";
 import {PLAYBACK_STATE_CHANGE_EVENT,
         PLAYBACK_RESUME_AFTER_IDLE_EVENT} from "player/PlayerController";
 import {FOREGROUND_EVENT} from "platform/GlobalEvents";
+import {IMAGE_CHANGE_EVENT} from "player/PlayerPictureManager";
 
 const PLAYBACK_STATE_NONE = `none`;
 const PLAYBACK_STATE_PLAYING = `playing`;
@@ -63,7 +64,7 @@ export default class MediaSessionWrapper {
             this.playlist.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._stateChanged);
             this.player.on(PLAYBACK_STATE_CHANGE_EVENT, this._stateChanged);
             this.player.on(PLAYBACK_RESUME_AFTER_IDLE_EVENT, this._refreshMediaSession);
-            this.pictureManager.on(`imageChange`, this._stateChanged);
+            this.pictureManager.on(IMAGE_CHANGE_EVENT, this._stateChanged);
             this.globalEvents.on(FOREGROUND_EVENT, this._refreshMediaSession);
         }
     }

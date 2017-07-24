@@ -33,14 +33,6 @@ export async function canvasToImage(canvas) {
     image.src = url;
     image.blob = blob;
     image.isGenerated = true;
-    try {
-        await imageLoaded(image);
-    } finally {
-        try {
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            // Noop
-        }
-    }
+    await imageLoaded(image);
     return image;
 }

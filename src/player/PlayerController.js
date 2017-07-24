@@ -103,7 +103,6 @@ export default class PlayerController extends EventEmitter {
                 controls: false,
                 src: URL.createObjectURL(generateSilentWavFile())
             })[0];
-
         }
 
         this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
@@ -506,39 +505,33 @@ export default class PlayerController extends EventEmitter {
 
     }
 
-    startedPlay() {
-        this.checkButtonState();
+    async _callMediaFocusAction(method) {
         if (this.mediaFocusAudioElement) {
             try {
-                this.mediaFocusAudioElement.play();
-            } catch (e) {
-                this.env.logError(e);
-            }
+                await this.mediaFocusAudioElement[method]();
+            } catch (e) {}
         }
+    }
+
+    async startedPlay() {
+        this.checkButtonState();
         this.emit(PLAYBACK_PLAY_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        this._callMediaFocusAction("play");
     }
 
-    stoppedPlay() {
+    async stoppedPlay() {
         this.checkButtonState();
-        if (this.mediaFocusAudioElement) {
-            try {
-                this.mediaFocusAudioElement.pause();
-            } catch (e) {
-                this.env.logError(e);
-            }
-        }
         this.emit(PLAYBACK_STOP_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        this._callMediaFocusAction("pause");
     }
 
-    pausedPlay() {
+    async pausedPlay() {
         this.checkButtonState();
-        if (this.mediaFocusAudioElement) {
-            this.mediaFocusAudioElement.pause();
-        }
         this.emit(PLAYBACK_PAUSE_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        this._callMediaFocusAction("pause");
     }
 
     seek(seconds, intent) {

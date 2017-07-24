@@ -4,8 +4,8 @@ const GESTURE_EDUCATION_KEY = `gesture-education`;
 
 const gestureEducationMessages = {
     "playpause": `Tap the screen with two fingers to toggle play/pause`,
-    "next": `Swipe right with two fingers to play the next track`,
-    "previous": `Swip left with two fingers to play the previous track`
+    "next": `Swipe right to play the next track`,
+    "previous": `Swip left to play the previous track`
 };
 
 export default class GestureEducator {

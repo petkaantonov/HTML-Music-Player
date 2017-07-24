@@ -4,7 +4,7 @@ import {canvasToImage} from "platform/dom/util";
 import EventEmitter from "events";
 import {ALBUM_ART_PREFERENCE_SMALLEST as preference} from "metadata/MetadataManagerBackend";
 import {TAG_DATA_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
-import {Image} from "platform/platform";
+import {Image, URL} from "platform/platform";
 import {TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
 
 export const IMAGE_CHANGE_EVENT = `imageChange`;
@@ -229,6 +229,7 @@ export default class PlayerPictureManager extends EventEmitter {
             return ret;
         }
 
+        // TODO: Based on byte size
         if (this._generatedImages.size > 50) {
             const keys = this._generatedImages.keys();
             let j = 0;
@@ -240,7 +241,12 @@ export default class PlayerPictureManager extends EventEmitter {
                 if (this._currentImage && this._currentImage.src === image.src) {
                     continue;
                 }
-                image.blob.close();
+                try {
+                    image.blob.close();
+                } catch (e) {}
+                try {
+                    URL.revokeObjectURL(image.src);
+                } catch (e) {}
                 image.blob = null;
                 this._generatedImages.delete(cachedKey);
                 j++;

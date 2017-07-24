@@ -134,12 +134,6 @@ export default class Env {
         return this._supportedMimes.slice();
     }
 
-    logError(e) {
-        if (this.isDevelopment()) {
-            this.window.console.error(e && (e.stack || e.message) ? `${(e.stack || e.message)}` : e);
-        }
-    }
-
     async getRequiredPlatformFeatures() {
         if (this._retChecked) throw new Error(`already called`);
         this._retChecked = true;
