@@ -153,7 +153,7 @@ function getServiceWorkerGeneratedCode() {
     var code = "// AUTOMATICALLY GENERATED FILE DO NOT EDIT\n" + licenseHeader + assetsCode + buildDate;
 
     if (releaseVersion) {
-        code += `const version = "${releaseVersion}"`;
+        code += `const version = "${releaseVersion}";`;
     }
 
     return code;
