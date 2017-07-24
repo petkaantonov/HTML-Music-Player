@@ -167,19 +167,6 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     }
 
     decodingLatencyValue(latencyValue) {
-        const bufferLengthMs = this.preferences().getBufferLengthMilliSeconds();
-        if (bufferLengthMs < 1.5 * latencyValue) {
-            const avg = this.getDecodingLatencyAvgIfFilled();
-            if (avg !== -1 && avg > 3 * bufferLengthMs) {
-                this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 1.66667);
-            }
-        } else if (bufferLengthMs > 10 * latencyValue) {
-            const avg = this.getDecodingLatencyAvgIfFilled();
-            if (avg !== -1 && bufferLengthMs > 30 * avg) {
-                this.setPreference(`bufferLengthMilliSeconds`, bufferLengthMs * 0.6);
-            }
-        }
-
         const index = this._decodingLatencyValueIndex++;
         this._decodingLatencyValueIndex %= (this._decodingLatencyValues.length);
         this._decodingLatencyValues[index] = latencyValue;
