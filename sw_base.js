@@ -166,6 +166,12 @@ function postMessageAndAwaitResponse(client, data) {
         data.__requestId = __requestId;
         pendingMessageMap.set(key, {resolve, reject});
         client.postMessage(data);
+        setTimeout(function() {
+            if (pendingMessageMap.has(key)) {
+                pendingMessageMap.delete(key);
+            };
+            resolve(null);
+        }, 5000);
     });
 }
 

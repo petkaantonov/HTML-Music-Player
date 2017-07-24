@@ -95,15 +95,7 @@ export default class LocalFileHandler {
     }
 
     async gotFiles(files) {
-        const {length} = files;
-        let i = 0;
-
-        while (i < length) {
-            const filtered = this.filterFiles(files.slice(i, Math.min(i + BATCH_SIZE, length)));
-            await this.addFilesToPlaylist(filtered);
-            await delay(500);
-            i += BATCH_SIZE;
-        }
+        this.addFilesToPlaylist(this.filterFiles(files));
     }
 
     gotEntries(entries) {

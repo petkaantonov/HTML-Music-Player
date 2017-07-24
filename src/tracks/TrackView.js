@@ -1,8 +1,13 @@
 import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 
 const TEMPLATE = `<div class='track'>
-    <div class='track-control-reorder track-left-controls'>
-        <div class='material-icons large-material-icon reorder'></div>
+    <div class='track-left-controls'>
+        <div class='track-control-menu'>
+            <div class='material-icons large-material-icon selection-menu-options'></div>
+        </div>
+        <div class='track-control-select'>
+            <div class='material-icons large-material-icon blank-checkbox track-selection-indicator'></div>
+        </div>
     </div>
     <div class='track-data'>
         <div class='track-number'></div>
@@ -12,14 +17,8 @@ const TEMPLATE = `<div class='track'>
         </div>
         <div class='track-duration'></div>
     </div>
-    <div class='track-right-controls'>
-        <div class='track-control-select'>
-            <div class='material-icons large-material-icon blank-checkbox track-selection-indicator'></div>
-        </div>
-        <div class='track-control-menu'>
-            <div class='material-icons large-material-icon selection-menu-options'></div>
-        </div>
-
+    <div class='track-right-controls track-control-reorder'>
+        <div class='material-icons large-material-icon reorder'></div>
     </div>
 </div>`;
 

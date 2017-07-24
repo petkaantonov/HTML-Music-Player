@@ -243,10 +243,14 @@ export default class PlayerPictureManager extends EventEmitter {
                 }
                 try {
                     image.blob.close();
-                } catch (e) {}
+                } catch (e) {
+                    // NOOP
+                }
                 try {
                     URL.revokeObjectURL(image.src);
-                } catch (e) {}
+                } catch (e) {
+                    // NOOP
+                }
                 image.blob = null;
                 this._generatedImages.delete(cachedKey);
                 j++;

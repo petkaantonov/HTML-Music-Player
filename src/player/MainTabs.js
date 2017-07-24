@@ -160,15 +160,10 @@ export default class MainTabs {
         const visible = elems.filter(elem => page.$(elem).style().display !== `none`).get(0);
 
         const rect = visible.getBoundingClientRect();
-        const USED_HEIGHT = rect.top + FLOATING_ACTION_BUTTON_HEIGHT;
+        const USED_HEIGHT = rect.top + FLOATING_ACTION_BUTTON_HEIGHT - this.itemHeight / 4;
 
         let height = page.height() - USED_HEIGHT;
         height = Math.max(height - this.itemHeight / 2, this.itemHeight + this.itemHeight / 2);
-        const remainder = height % this.itemHeight;
-
-        if (remainder !== 0) {
-            height -= remainder;
-        }
 
         elems.setStyle(`height`, `${height}px`);
         this.tabHolder.setStyle(`height`, `${height + this.tabHeight}px`);

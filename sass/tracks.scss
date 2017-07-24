@@ -34,29 +34,11 @@
     }
 
     .track-left-controls {
+        $track-controls-room: $track-left-controls-width;
         width: $track-left-controls-width;
-        padding: 0px 8px;
+        padding: 0px;
         height: 100%;
         text-align: center;
-
-        .material-icons {
-            color: $text-color-lighter;
-            margin-top: 10px;
-        }
-    }
-
-    .track-right-controls {
-        $track-controls-room: $track-right-controls-width - $track-controls-gutter;
-        padding-left: $track-controls-gutter;
-        height: 100%;
-        width: $track-right-controls-width;
-
-        .track-control-select,
-        .track-control-menu {
-            width: $track-controls-room / 2;
-            text-align: center;
-            height: 100%;
-        }
 
         .material-icons {
             margin-top: 10px;
@@ -68,6 +50,33 @@
             &.checked-checkbox {
                 color: $primary-color-darker;
             }
+        }
+
+        .track-control-select {
+            width: $track-control-select-width;
+        }
+
+        .track-control-menu {
+            width: $track-control-menu-width;
+
+        }
+
+        .track-control-select,
+        .track-control-menu {
+            height: 100%;
+            text-align: center;
+        }
+    }
+
+    .track-right-controls {
+        padding-left: $track-controls-gutter;
+        height: 100%;
+        width: $track-right-controls-width;
+
+
+        .material-icons {
+            color: $text-color-lighter;
+            margin-top: 10px;
         }
     }
 

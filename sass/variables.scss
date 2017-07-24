@@ -40,10 +40,12 @@ $track-controls-gutter: 10px;
 $track-controls-icon-size: 16px;
 $track-controls-icon-text-gutter: 5px;
 
-$track-left-controls-width: 44px;
+$track-right-controls-width: 44px;
+$track-left-controls-width: 80px;
+$track-control-menu-width: 36px;
+$track-control-select-width: 44px;
 $track-number-width: 42px;
 $track-duration-width: 38px;
-$track-right-controls-width: 80px;
 $track-width-used: $track-info-gutter + $track-left-controls-width + $track-number-width + $track-duration-width + $track-right-controls-width;
 
 $track-item-height: 44px;

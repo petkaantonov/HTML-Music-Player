@@ -509,29 +509,31 @@ export default class PlayerController extends EventEmitter {
         if (this.mediaFocusAudioElement) {
             try {
                 await this.mediaFocusAudioElement[method]();
-            } catch (e) {}
+            } catch (e) {
+                // NOOP
+            }
         }
     }
 
-    async startedPlay() {
+    startedPlay() {
         this.checkButtonState();
         this.emit(PLAYBACK_PLAY_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction("play");
+        this._callMediaFocusAction(`play`);
     }
 
-    async stoppedPlay() {
+    stoppedPlay() {
         this.checkButtonState();
         this.emit(PLAYBACK_STOP_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction("pause");
+        this._callMediaFocusAction(`pause`);
     }
 
-    async pausedPlay() {
+    pausedPlay() {
         this.checkButtonState();
         this.emit(PLAYBACK_PAUSE_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction("pause");
+        this._callMediaFocusAction(`pause`);
     }
 
     seek(seconds, intent) {
