@@ -30,11 +30,13 @@ export default class ServiceWorkerManager extends EventEmitter {
 
         this._pendingMessages = new Map();
         this._nextPendingMessageId = 0;
+        this._preferencesSaved = false;
 
         this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
         this._globalEvents.on(`foreground`, this._foregrounded);
         this._globalEvents.on(`background`, this._backgrounded);
         this._globalEvents.on(SHUTDOWN_EVENT, this._appClosed);
+        this._bindDbCloseEvent();
     }
 
     get controller() {
@@ -42,9 +44,25 @@ export default class ServiceWorkerManager extends EventEmitter {
         return sw && sw.controller;
     }
 
-    _appClosed(preferences) {
+    _canSavePreferences() {
+        return !!this.controller && !this._preferencesSaved;
+    }
+
+    async _bindDbCloseEvent() {
+        const idb = await this._db.getDb();
+        idb.addEventListener(`close`, () => {
+            if (this._canSavePreferences()) {
+                const preferences = this._globalEvents.gatherAllPreferences();
+                this._savePreferences(preferences);
+            }
+
+        });
+    }
+
+    _savePreferences(preferences) {
         const {controller} = this;
-        if (controller) {
+        if (this._canSavePreferences()) {
+            this._preferencesSaved = true;
             try {
                 controller.postMessage({
                     action: `savePreferences`,
@@ -54,6 +72,10 @@ export default class ServiceWorkerManager extends EventEmitter {
                 // NOOP
             }
         }
+    }
+
+    _appClosed(preferences) {
+        this._savePreferences(preferences);
     }
 
     _updateChecker() {

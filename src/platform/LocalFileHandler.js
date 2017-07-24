@@ -1,9 +1,7 @@
 import {File, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
-import {delay} from "util";
 
 const MAX_FILE_COUNT = 75000;
-const BATCH_SIZE = 25;
 
 function _dragEntered(e) {
     e.preventDefault();
@@ -94,7 +92,7 @@ export default class LocalFileHandler {
         });
     }
 
-    async gotFiles(files) {
+    gotFiles(files) {
         this.addFilesToPlaylist(this.filterFiles(files));
     }
 

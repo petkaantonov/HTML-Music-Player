@@ -117,4 +117,8 @@ export default class KeyValueDatabase {
         }
     }
 
+    getDb() {
+        return this.db;
+    }
+
 }
