@@ -2,7 +2,6 @@ import withDeps from "ApplicationDependencies";
 import {console, matchMedia, performance} from "platform/platform";
 import Snackbar, {DISMISSED, ACTION_CLICKED} from "ui/Snackbar";
 import Rippler from "ui/Rippler";
-import Spinner from "ui/Spinner";
 import PermissionPrompt from "ui/PermissionPrompt";
 import TrackDisplay from "player/TrackDisplay";
 import {default as MainTabs, VISIBLE_TAB_PREFERENCE_KEY} from "player/MainTabs";
@@ -239,13 +238,6 @@ export default class Application {
             closerContainerClass: `popup-closer-container`,
             popupButtonClass: `popup-button`,
             buttonDisabledClass: `popup-button-disabled`
-        }, d));
-
-        const spinner = this.spinner = withDeps({
-            page
-        }, d => new Spinner({
-            clockwise: `#clockwise-spinner`,
-            counterclockwise: `#counterclockwise-spinner`
         }, d));
 
         const gestureEducator = this.gestureEducator = withDeps({
@@ -544,12 +536,12 @@ export default class Application {
         }
     }
 
-    longTapStarted(touch) {
-        this.spinner.spinAt(touch.clientX | 0, touch.clientY | 0);
+    longTapStarted() {
+
     }
 
     longTapEnded() {
-        this.spinner.stop();
+
     }
 
     playerStopped() {
