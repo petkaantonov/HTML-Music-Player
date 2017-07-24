@@ -167,24 +167,23 @@ export default class AudioVisualizer {
         }
 
         const {channelCount, gain} = frameDescriptor;
-        const {visualizerData, channelData} = this;
+        const {visualizerData, channelData, windowData} = this;
 
         if (channelCount === 2) {
             const [src0, src1] = channelData;
 
             for (let i = 0; i < visualizerData.length; ++i) {
-                visualizerData[i] = Math.fround(Math.fround(src0[i] + src1[i]) / 2 * gain);
+                visualizerData[i] = Math.fround(Math.fround(src0[i] + src1[i]) / 2 * gain * windowData[i]);
             }
         } else {
             const [src] = channelData;
 
             for (let i = 0; i < visualizerData.length; ++i) {
-                visualizerData[i] = Math.fround(src[i] * gain);
+                visualizerData[i] = Math.fround(src[i] * gain * windowData[i]);
             }
         }
 
-        this.forwardFft();
-
+        realFft(visualizerData);
         if (this.bins.length !== this.binCount()) {
             this.binSizeChanged();
         }
@@ -255,13 +254,5 @@ export default class AudioVisualizer {
             // Hamming window.
             window[n] = (0.53836 - 0.46164 * Math.cos((2 * Math.PI * n) / (N - 1)));
         }
-    }
-
-    forwardFft() {
-        const {visualizerData, windowData} = this;
-        for (let i = 0; i < visualizerData.length; ++i) {
-            visualizerData[i] = Math.fround(visualizerData[i] * windowData[i]);
-        }
-        realFft(visualizerData);
     }
 }
