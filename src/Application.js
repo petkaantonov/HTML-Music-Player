@@ -15,6 +15,7 @@ import VisualizerCanvas from "visualization/VisualizerCanvas";
 import KeyboardShortcuts from "keyboard/KeyboardShortcuts";
 import GestureScreenFlasher from "ui/GestureScreenFlasher";
 import DefaultShortcuts from "keyboard/DefaultShortcuts";
+import AudioVisualizer from "visualization/AudioVisualizer";
 import PopupContext from "ui/PopupContext";
 import MetadataManagerFrontend, {timerTick as trackTimerTick} from "metadata/MetadataManagerFrontend";
 import GestureEducator from "player/GestureEducator";
@@ -125,6 +126,16 @@ export default class Application {
         const workerWrapper = this.workerWrapper = withDeps({
             page
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
+
+        const visualizer = this.visualizer = withDeps({
+            workerWrapper, page
+        }, d => new AudioVisualizer({
+            baseSmoothingConstant: 0.00042,
+            maxFrequency: 12500,
+            minFrequency: 20,
+            bufferSize: 1024,
+            targetFps: 60
+        }, d));
 
         const permissionPrompt = this.permissionPrompt = withDeps({
             page
@@ -332,7 +343,8 @@ export default class Application {
             localFileHandler,
             workerWrapper,
             metadataManager,
-            timers
+            timers,
+            visualizer
         }, d => new PlayerController({
             target: `.app-player-controls`,
             playButtonDom: `.play-button`,
@@ -466,12 +478,12 @@ export default class Application {
             capHeight: 1,
             capSeparator: 2,
             capStyle: `rgb(37,117,197)`,
-            targetFps: 60,
             capDropTime: 750,
             ghostOpacity: 0.14,
             capInterpolator: ACCELERATE_CUBIC_INTERPOLATOR,
             enabledMediaMatcher: matchMedia(`(min-height: 500px)`)
         }, d));
+        visualizer.setCanvas(visualizerCanvas);
 
         const trackDisplay = this.trackDisplay = withDeps({
             playlist,

@@ -180,7 +180,6 @@ export default class VisualizerCanvas extends EventEmitter {
         this.capHeight = opts.capHeight * this.page.devicePixelRatio() | 0;
         this.capSeparator = opts.capSeparator * this.page.devicePixelRatio() | 0;
         this.capStyle = opts.capStyle;
-        this.targetFps = opts.targetFps;
         this.sectionContainerSelector = opts.sectionContainerSelector || `.visualizer-section-container`;
         this.capInterpolator = null;
         this.setCapInterpolator(opts.capInterpolator || ACCELERATE_QUAD_INTERPOLATOR);
@@ -372,10 +371,6 @@ export default class VisualizerCanvas extends EventEmitter {
     setCapInterpolator(interpolator) {
         if (typeof interpolator !== `function`) throw new Error(`${interpolator} is not a function`);
         this.capInterpolator = interpolator;
-    }
-
-    getTargetFps() {
-        return this.targetFps;
     }
 
     getMaxBins() {

@@ -120,6 +120,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._previousAudioContextTime = -1;
         this._previousHighResTime = -1;
         this._previousCombinedTime = -1;
+        this._previousUpcomingSamplesTime = -1;
 
         this._gaplessPreloadArgs = null;
 
@@ -177,6 +178,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._previousAudioContextTime = -1;
         this._previousHighResTime = -1;
         this._previousCombinedTime = -1;
+        this._previousUpcomingSamplesTime = -1;
         this._fadeOutEnded = 0;
         this._fadeInStarted = 0;
         this._fadeInStartedWithLength = 0;
@@ -433,7 +435,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
     }
 
-    getUpcomingSamples(channelData) {
+    getUpcomingSamples(channelData, secondsInFuture = 0) {
         if (this._destroyed) return false;
         let samplesNeeded = Math.min(MAX_ANALYSER_SIZE, channelData[0].length);
         const ret = {
@@ -463,13 +465,15 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 now = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
             }
 
-
             const sourceDescriptorQueue = this._sourceDescriptorQueue;
             const playedSourceDescriptors = this._playedSourceDescriptors;
 
-            if (sourceDescriptorQueue.length === 0) {
+            now += secondsInFuture;
+            if (sourceDescriptorQueue.length === 0 ||
+                now === this._previousUpcomingSamplesTime) {
                 return ret;
             }
+            this._previousUpcomingSamplesTime = now;
 
             const sourceDescriptors = [sourceDescriptorQueue[0]];
             const {sampleRate} = sourceDescriptors[0];

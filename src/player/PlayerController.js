@@ -35,6 +35,7 @@ export default class PlayerController extends EventEmitter {
         super();
         opts = noUndefinedGet(opts);
         this.localFileHandler = deps.localFileHandler;
+        this.visualizer = deps.visualizer;
         this.env = deps.env;
         this.page = deps.page;
         this.globalEvents = deps.globalEvents;
@@ -429,7 +430,7 @@ export default class PlayerController extends EventEmitter {
         if (this.currentAudioManager) {
             this.currentAudioManager.background();
         }
-        this.currentAudioManager = new AudioManager(this, track, implicit);
+        this.currentAudioManager = new AudioManager(this, this.visualizer, track, implicit);
         this.audioManagers.push(this.currentAudioManager);
         this.startedPlay();
         this.emit(TRACK_PLAYING_EVENT);

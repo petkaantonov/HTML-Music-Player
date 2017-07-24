@@ -15,9 +15,10 @@ import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import Fingerprinter from "audio/backend/Fingerprinter";
 import {MAX_BUFFER_LENGTH_SECONDS as BUFFER_DURATION} from "audio/frontend/buffering";
 
+export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
+
 export const JOB_STATE_INITIAL = `initial`;
 export const JOB_STATE_DATA_FETCHED = `dataFetched`;
-export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 export const ALBUM_ART_RESULT_MESSAGE = `albumArtResult`;
 export const ACOUST_ID_DATA_RESULT_MESSAGE = `acoustIdDataFetched`;
 export const TRACKINFO_BATCH_RESULT_MESSAGE = `trackInfoBatchResult`;

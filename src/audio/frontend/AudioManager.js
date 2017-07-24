@@ -1,5 +1,4 @@
 import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
-import AudioVisualizer from "visualization/AudioVisualizer";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 import {cancelAndHold} from "audio/frontend/AudioPlayer";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";
@@ -8,7 +7,7 @@ const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
 export default class AudioManager {
-    constructor(player, track, implicitlyLoaded) {
+    constructor(player, visualizer, track, implicitlyLoaded) {
         this.gaplessPreloadTrack = null;
         this.implicitlyLoaded = implicitlyLoaded;
         this.player = player;
@@ -24,7 +23,7 @@ export default class AudioManager {
         this.fadeInGain = null;
         this.fadeOutGain = null;
         this.filterNodes = [];
-        this.visualizer = null;
+        this.visualizer = visualizer;
 
         this.timeUpdated = this.timeUpdated.bind(this);
         this.ended = this.ended.bind(this);
@@ -43,6 +42,8 @@ export default class AudioManager {
         this.sourceNode.on(`lastBufferQueued`, this.lastBufferQueued);
         this.sourceNode.on(`decodingLatency`, this.onDecodingLatency);
         this.sourceNode.pause();
+        this.visualizer.connectSourceNode(this.sourceNode);
+        this.visualizer.pause();
         this.setupNodes();
     }
 
@@ -57,13 +58,6 @@ export default class AudioManager {
 
         this.muteGain.gain.value = this.player.isMuted() ? 0 : 1;
         this.volumeGain.gain.value = this.player.getVolume() * VOLUME_RATIO;
-
-        this.visualizer = new AudioVisualizer(audioCtx, this.sourceNode, this.player.visualizerCanvas, {
-            baseSmoothingConstant: 0.00042,
-            maxFrequency: 12500,
-            minFrequency: 20
-        });
-
         this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
         this.volumeGain.connect(this.muteGain);
         this.muteGain.connect(this.fadeInGain);
@@ -78,22 +72,19 @@ export default class AudioManager {
         }
     }
 
-    destroyVisualizer() {
-        if (this.visualizer) {
-            this.visualizer.destroy();
-            this.visualizer = null;
-        }
+    detachVisualizer() {
+        if (this.destroyed) return;
+        this.visualizer.disconnectSourceNode(this.sourceNode);
     }
 
     // The track is only used for fade out and this audiomanager is otherwise
     // Obsolete.
     background() {
-        this.destroyVisualizer();
+        this.detachVisualizer();
     }
 
     audioContextReset() {
         if (this.destroyed) return;
-        this.destroyVisualizer();
         this.setupNodes();
     }
 
@@ -291,18 +282,14 @@ export default class AudioManager {
         this.paused = true;
         this.tickCounter.pause();
         this.sourceNode.pause();
-        if (this.visualizer) {
-            this.visualizer.pause();
-        }
+        this.visualizer.pause();
     }
 
     resume() {
         if (this.destroyed || !this.started || !this.paused) return;
         this.paused = false;
         this.sourceNode.play();
-        if (this.visualizer) {
-            this.visualizer.resume();
-        }
+        this.visualizer.resume();
     }
 
     start() {
@@ -429,11 +416,6 @@ export default class AudioManager {
 
     }
 
-    getVisualizer() {
-        if (this.destroyed || !this.started) return null;
-        return this.visualizer;
-    }
-
     destroy() {
         if (this.destroyed) return;
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
@@ -445,7 +427,7 @@ export default class AudioManager {
         this.volumeGain.disconnect();
         this.fadeInGain.disconnect();
         this.fadeOutGain.disconnect();
-        this.destroyVisualizer();
+        this.detachVisualizer();
         this.sourceNode.destroy();
         this.sourceNode = null;
         this.fadeInGain = null;
@@ -453,8 +435,8 @@ export default class AudioManager {
         this.volumeGain = null;
         this.muteGain = null;
         this.filterNodes = [];
-        this.track = null;
         this.destroyed = true;
+        this.track = null;
         this.gaplessPreloadTrack = null;
         this.player.audioManagerDestroyed(this);
         this.player = null;
