@@ -161,7 +161,6 @@ export default class SearchController extends TrackContainerController {
 
         this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
         this._preferencesLoaded = this.loadPreferences();
-        this._preferencesHaveBeenLoaded = false;
     }
 
     shutdownSavePreferences(preferences) {
@@ -181,7 +180,6 @@ export default class SearchController extends TrackContainerController {
         await this._tryLoadQuery(this.dbValues[SEARCH_QUERY_KEY]);
         this.getPlayedTrackOrigin().originInitialTracksLoaded();
         await super.loadPreferences();
-        this._preferencesHaveBeenLoaded = true;
     }
 
 
@@ -365,9 +363,7 @@ export default class SearchController extends TrackContainerController {
         if (!value) value = ``;
         await this._metadataManager.ready();
         this.$input().setValue(value);
-        if (value) {
-            await this._performQuery(this.$input().value());
-        }
+        await this._performQuery(this.$input().value());
     }
 
     _candidateTracksNeeded(submitCandidate) {
@@ -604,33 +600,13 @@ export default class SearchController extends TrackContainerController {
     }
 
     listBecameEmpty() {
-        if (this._preferencesHaveBeenLoaded) {
-            this._toggleEmptyResultsNotificationThrottled(true);
-        } else {
-            this._toggleEmptyResultsNotification(true);
-        }
+        this.$().find(`.search-empty`).show();
+        this.$().find(`.tracklist-transform-container`).hide();
     }
 
     listBecameNonEmpty() {
-        if (this._preferencesHaveBeenLoaded) {
-            this._toggleEmptyResultsNotificationThrottled(false);
-        } else {
-            this._toggleEmptyResultsNotification(false);
-        }
-    }
-
-    _toggleEmptyResultsNotification(empty) {
-        if (empty) {
-            this.$().find(`.search-empty`).show();
-            this.$().find(`.tracklist-transform-container`).hide();
-        } else {
-            this.$().find(`.search-empty`).hide();
-            this.$().find(`.tracklist-transform-container`).show();
-        }
-    }
-
-    _toggleEmptyResultsNotificationThrottled(empty) {
-        this._toggleEmptyResultsNotification(empty);
+        this.$().find(`.search-empty`).hide();
+        this.$().find(`.tracklist-transform-container`).show();
     }
 
     /* eslint-disable class-methods-use-this */
@@ -640,5 +616,4 @@ export default class SearchController extends TrackContainerController {
     /* eslint-enable class-methods-use-this */
 }
 
-SearchController.prototype._toggleEmptyResultsNotificationThrottled = throttle(SearchController.prototype._toggleEmptyResultsNotificationThrottled, 50);
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);

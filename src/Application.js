@@ -37,6 +37,7 @@ import ToolbarManager from "ui/ToolbarManager";
 import SelectionStatus from "ui/SelectionStatus";
 import MainMenu from "ui/MainMenu";
 import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
+import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -385,6 +386,16 @@ export default class Application {
             activeTabIndicator: `.active-tab-indicator`
         }, d));
 
+        const floatingActionButtonManager = this.floatingActionButtonManager = withDeps({
+            page,
+            player,
+            playlist,
+            recognizerContext,
+            localFileHandler,
+            env
+        }, d => new FloatingActionButtonManager({
+            target: `.floating-action-button`
+        }, d));
 
         const playerPictureManager = this.playerPictureManager = withDeps({
             page,

@@ -655,9 +655,7 @@ export default class PlaylistController extends TrackContainerController {
             this._setNextPlaylistTrack(DUMMY_PLAYLIST_TRACK);
         }
 
-        if (currentNextPlaylistTrack !== this._nextPlaylistTrack) {
-            this.emit(NEXT_TRACK_CHANGE_EVENT);
-        }
+        this.emit(NEXT_TRACK_CHANGE_EVENT);
     }
 
     _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {

@@ -417,11 +417,11 @@ export default class TrackContainerController extends EventEmitter {
                 this.playingTrackAddedToList(track, trackView);
             }
         }
-        this._fixedItemListScroller.resize();
         this.emit(LENGTH_CHANGE_EVENT, oldLength + tracks.length, oldLength);
         if (!noReport) {
             this.didAddTracksToView(tracks);
         }
+        this._fixedItemListScroller.resize();
     }
 }
 

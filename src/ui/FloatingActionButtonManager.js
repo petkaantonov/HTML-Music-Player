@@ -10,21 +10,36 @@ const PAUSE_BUTTON_STATE = `pause-button-state`;
 const ADD_BUTTON_STATE = `add-button-state`;
 
 export default class FloatingActionButtonManager {
-    constructor(deps) {
+    constructor(opts, deps) {
         this._playerController = deps.player;
         this._playlistController = deps.playlist;
         this._recognizerContext = deps.recognizerContext;
         this._localFileHandler = deps.localFileHandler;
+        this._env = deps.env;
+        this._page = deps.page;
+
         this._currentState = UNKNOWN_STATE;
+        this._domNode = this._page.$(opts.target);
 
-        this._stateChanged = this._stateChanged.bind(this);
-        this._playerController.on(PLAYBACK_STATE_CHANGE_EVENT, this._stateChanged);
-        this._playlistController.on(NEXT_TRACK_CHANGE_EVENT, this._stateChanged);
-        this._playlistController.on(CURRENT_TRACK_CHANGE_EVENT, this._stateChanged);
-        this._playlistController.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._stateChanged);
-        this._playlistController.on(PLAYLIST_STOPPED_EVENT, this._stateChanged);
+        if (this._env.hasTouch()) {
+            this._stateChanged = this._stateChanged.bind(this);
+            this._playerController.on(PLAYBACK_STATE_CHANGE_EVENT, this._stateChanged);
+            this._playlistController.on(NEXT_TRACK_CHANGE_EVENT, this._stateChanged);
+            this._playlistController.on(CURRENT_TRACK_CHANGE_EVENT, this._stateChanged);
+            this._playlistController.on(TRACK_PLAYING_STATUS_CHANGE_EVENT, this._stateChanged);
+            this._playlistController.on(PLAYLIST_STOPPED_EVENT, this._stateChanged);
+            this._recognizerContext.createTapRecognizer(this._buttonClicked.bind(this)).recognizeBubbledOn(this.$());
 
-        this._awaitInitialState();
+            this._awaitInitialState();
+        }
+    }
+
+    $() {
+        return this._domNode;
+    }
+
+    $icon() {
+        return this.$().find(`.icon`);
     }
 
     async _awaitInitialState() {
@@ -52,7 +67,27 @@ export default class FloatingActionButtonManager {
     }
 
     _updateButtonState() {
+        const root = this.$();
+        const icon = this.$icon();
 
+        root.removeClass(`preferred-action`).show();
+        icon.removeClass([`play`, `add`, `pause`]);
+
+        switch (this._currentState) {
+        case PLAY_BUTTON_STATE:
+            root.addClass(`preferred-action`);
+            icon.addClass(`play`);
+            break;
+
+        case PAUSE_BUTTON_STATE:
+            root.addClass(`preferred-action`);
+            icon.addClass(`pause`);
+            break;
+
+        case ADD_BUTTON_STATE:
+            icon.addClass(`add`);
+            break;
+        }
     }
 
     _stateChanged() {
