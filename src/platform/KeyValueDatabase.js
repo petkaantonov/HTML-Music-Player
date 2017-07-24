@@ -96,11 +96,23 @@ export default class KeyValueDatabase {
         return ret;
     }
 
-    async setAll(preferences) {
+    async setAll(preferenceKeyValuePairs) {
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(LOG_TABLE);
+        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
 
-        for (const obj of preferences) {
+        for (const preferenceKeyValuePair of preferenceKeyValuePairs) {
+            await store.put(preferenceKeyValuePair);
+        }
+    }
+
+    async setAllObject(preferences) {
+        const db = await this.db;
+        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+
+        const keys = Object.keys(preferences);
+
+        for (const key of keys) {
+            const obj = {key, value: preferences[key]};
             await store.put(obj);
         }
     }

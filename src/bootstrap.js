@@ -8,6 +8,7 @@ import GlobalEvents from "platform/GlobalEvents";
 import Timers from "platform/Timers";
 import Page from "platform/dom/Page";
 import {noop, setIsDevelopment, setTimers} from "util";
+import ServiceWorkerManager from "platform/ServiceWorkerManager";
 
 const defaultTitle = `Soita`;
 const TOO_LONG_TO_LOAD_MS = 300;
@@ -31,8 +32,9 @@ const page = new Page(document, window, timers);
 const ready = page.ready();
 const globalEvents = new GlobalEvents(page);
 const db = new KeyValueDatabase(globalEvents);
-const dbValuesPromise = db.getInitialValues();
 const env = new Env(page);
+const serviceWorkerManager = new ServiceWorkerManager({env, page, globalEvents, db});
+serviceWorkerManager.start();
 const featureCheckResultsPromise = env.getRequiredPlatformFeatures();
 const loadingIndicatorShowerTimeoutId = page.setTimeout(() => {
     page.$(`.loader-container`).
@@ -81,10 +83,11 @@ page.setTitle(defaultTitle);
         page.$(`#app-container`).show();
     }
 
+    const dbValues = await serviceWorkerManager.loadPreferences();
+
     if (globalEvents.isWindowBackgrounded()) {
         await globalEvents.windowWasForegrounded();
     }
-    const dbValues = await dbValuesPromise;
 
     self.soitaApp = withDeps({
         env,
@@ -93,7 +96,8 @@ page.setTitle(defaultTitle);
         defaultTitle,
         globalEvents,
         page,
-        timers
+        timers,
+        serviceWorkerManager
     }, deps => new Application(deps, loadingIndicatorShowerTimeoutId));
 })();
 

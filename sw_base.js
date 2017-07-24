@@ -120,26 +120,6 @@ async function removeOldAssets() {
     return Promise.all(requests);
 }
 
-async function handleNotificationClosed(notification) {
-    const {data, tag} = notification;
-    const clientList = await clients.matchAll({type: `window`});
-    for (const client of clientList) {
-        client.postMessage({
-            data, tag, eventType: `swEvent`, type: `notificationClose`
-        });
-    }
-}
-
-async function handleNotificationClicked(action, notification) {
-    const {data, tag} = notification;
-    const clientList = await clients.matchAll({type: `window`});
-    for (const client of clientList) {
-        client.postMessage({
-            data, tag, action, eventType: `swEvent`, type: `notificationClick`
-        });
-    }
-}
-
 self.addEventListener(`install`, (e) => {
     if (IS_DEVELOPMENT) return;
     e.waitUntil(cacheAssets());
@@ -172,26 +152,68 @@ self.addEventListener(`fetch`, (e) => {
     e.respondWith(getMatchedAsset(request));
 }, false);
 
+const pendingMessageMap = new Map();
+let nextRequestId = Math.round(Math.random() * Date.now());
+
+function messageKey(client, requestId) {
+    return `${client.id}-${requestId}`;
+}
+
+function postMessageAndAwaitResponse(client, data) {
+    const __requestId = ++nextRequestId;
+    const key = messageKey(client, __requestId);
+    return new Promise((resolve, reject) => {
+        data.__requestId = __requestId;
+        pendingMessageMap.set(key, {resolve, reject});
+        client.postMessage(data);
+    });
+}
 
 self.addEventListener(`message`, async (e) => {
-    const {action, tabId, preferences} = e.data;
+    const {action, preferences, __requestId} = e.data;
     if (action === `skipWaiting`) {
         self.skipWaiting();
     } else if (action === `savePreferences`) {
         savePreferences(preferences);
+    } else if (action === `gotPreferences`) {
+        savePreferences(preferences);
+        const key = messageKey(e.source, __requestId);
+        const pendingMessage = pendingMessageMap.get(key);
+        if (pendingMessage) {
+            pendingMessageMap.delete(key);
+            pendingMessage.resolve(preferences);
+        }
+    } else if (action === `loadPreferences`) {
+        const client = e.source;
+        try {
+            const allClients = await clients.matchAll({type: "window"});
+            let requestPreferencesFromClient;
+            for (const otherClient of allClients) {
+                if (otherClient.id !== client.id) {
+                    requestPreferencesFromClient = otherClient;
+                    break;
+                }
+            }
+
+            let preferencesToSend = null;
+            if (requestPreferencesFromClient) {
+                preferencesToSend = await postMessageAndAwaitResponse(requestPreferencesFromClient, {
+                    type: "getPreferences"
+                });
+            }
+            client.postMessage({
+                __requestId,
+                error: null,
+                result: preferencesToSend
+            });
+        } catch (err) {
+            client.postMessage({
+                __requestId,
+                error: {message: err.message}
+            });
+        }
     }
 });
-
-const iDbPromisify = function(ee) {
-    return new Promise((resolve, reject) => {
-        ee.onerror = function(event) {
-            reject(event.target.transaction.error || ee.error);
-        };
-        ee.onsuccess = function(event) {
-            resolve(event.target.result);
-        };
-    });
-};
 
 let kvDb;
 async function savePreferences(preferences) {
@@ -199,5 +221,10 @@ async function savePreferences(preferences) {
         kvDb = new KeyValueDatabase();
     }
 
-    await kvDb.setAll(preferences);
+    if (Array.isArray(preferences)) {
+        await kvDb.setAll(preferences);
+    } else {
+        await kvDb.setAllObject(preferences);
+    }
 }
+

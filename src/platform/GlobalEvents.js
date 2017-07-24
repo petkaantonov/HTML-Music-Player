@@ -120,13 +120,17 @@ export default class GlobalEvents extends EventEmitter {
     _shutdown() {
         if (this._shutdownEmitted) return;
         this._shutdownEmitted = true;
-        const preferencesToSave = [];
-        this.emit(SHUTDOWN_SAVE_PREFERENCES_EVENT, preferencesToSave);
-        this.emit(SHUTDOWN_EVENT, preferencesToSave);
+        this.emit(SHUTDOWN_EVENT, this.gatherAllPreferences());
     }
 
     _beforeUnload() {
         this._shutdown();
+    }
+
+    gatherAllPreferences() {
+        const preferencesToSave = [];
+        this.emit(SHUTDOWN_SAVE_PREFERENCES_EVENT, preferencesToSave);
+        return preferencesToSave;
     }
 
     isWindowBlurred() {

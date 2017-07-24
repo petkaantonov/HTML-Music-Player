@@ -1,6 +1,6 @@
 import withDeps from "ApplicationDependencies";
 import {console, matchMedia, performance} from "platform/platform";
-import Snackbar from "ui/Snackbar";
+import Snackbar, {DISMISSED, ACTION_CLICKED} from "ui/Snackbar";
 import Rippler from "ui/Rippler";
 import Spinner from "ui/Spinner";
 import PermissionPrompt from "ui/PermissionPrompt";
@@ -31,13 +31,13 @@ import SearchController from "search/SearchController";
 import ApplicationPreferencesBindingContext from "ui/ApplicationPreferencesBindingContext";
 import EffectPreferencesBindingContext from "ui/EffectPreferencesBindingContext";
 import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingContext";
-import ServiceWorkerManager from "platform/ServiceWorkerManager";
 import WorkerWrapper from "WorkerWrapper";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
 import ToolbarManager from "ui/ToolbarManager";
 import SelectionStatus from "ui/SelectionStatus";
 import MainMenu from "ui/MainMenu";
+import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
 
 const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
@@ -64,6 +64,7 @@ export default class Application {
                 defaultTitle,
                 globalEvents,
                 dbValues,
+                serviceWorkerManager,
                 timers} = deps;
 
         if (!env.hasTouch()) {
@@ -77,12 +78,39 @@ export default class Application {
         this.defaultTitle = defaultTitle;
         this.globalEvents = globalEvents;
         this.timers = timers;
+        this.serviceWorkerManager = serviceWorkerManager;
 
         const toolbars = [`#main-toolbar`];
 
         if (env.hasTouch()) {
             toolbars.push(`#selection-toolbar`);
         }
+
+        const recognizerContext = this.recognizerContext = withDeps({
+            page,
+            env,
+            globalEvents
+        }, d => new GestureRecognizerContext(d));
+
+        const snackbar = this.snackbar = withDeps({
+            page,
+            recognizerContext,
+            globalEvents
+        }, d => new Snackbar({
+            transitionInClass: `transition-in`,
+            transitionOutClass: `transition-out`,
+            containerClass: `snackbar-container`,
+            actionClass: `snackbar-action`,
+            titleClass: `snackbar-title`,
+            textContainerClass: `text-container`,
+            textClass: `text`,
+            nextDelay: 400,
+            visibilityTime: 4400,
+            initialUndismissableWindow: 500,
+            beforeTransitionIn: null,
+            beforeTransitionOut: null,
+            maxLength: 3
+        }, d));
 
         const toolbarManager = this.toolbarManager = withDeps({
             page, globalEvents
@@ -109,12 +137,6 @@ export default class Application {
         const metadataManager = this.metadataManager = withDeps({
             env, workerWrapper, permissionPrompt, page
         }, d => new MetadataManagerFrontend(d));
-
-        const recognizerContext = this.recognizerContext = withDeps({
-            page,
-            env,
-            globalEvents
-        }, d => new GestureRecognizerContext(d));
 
         const sliderContext = this.sliderContext = withDeps({
             page,
@@ -191,26 +213,6 @@ export default class Application {
             itemHeight: ITEM_HEIGHT
         }, d));
 
-        const snackbar = this.snackbar = withDeps({
-            page,
-            recognizerContext,
-            globalEvents
-        }, d => new Snackbar({
-            transitionInClass: `transition-in`,
-            transitionOutClass: `transition-out`,
-            containerClass: `snackbar-container`,
-            actionClass: `snackbar-action`,
-            titleClass: `snackbar-title`,
-            textContainerClass: `text-container`,
-            textClass: `text`,
-            nextDelay: 400,
-            visibilityTime: 4400,
-            initialUndismissableWindow: 500,
-            beforeTransitionIn: null,
-            beforeTransitionOut: null,
-            maxLength: 3
-        }, d));
-
         const mainMenu = this.mainMenu = withDeps({
             menuContext, env
         }, d => new MainMenu({
@@ -252,14 +254,6 @@ export default class Application {
             db,
             dbValues
         }, d => new GestureEducator(d));
-
-        const serviceWorkerManager = this.serviceWorkerManager = withDeps({
-            env,
-            page,
-            snackbar,
-            globalEvents
-        }, d => new ServiceWorkerManager(d));
-        this.serviceWorkerManager.start();
 
         const applicationPreferencesBindingContext = this.applicationPreferencesBindingContext = withDeps({
             page,
@@ -513,6 +507,7 @@ export default class Application {
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
         this.page.addDocumentListener(`selectstart`, selectStarted);
         this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped.bind(this));
+        this.serviceWorkerManager.on(UPDATE_AVAILABLE_EVENT, this._updateAvailable.bind(this));
 
         this.page.changeDom(() => {
             page.$(`#app-loader`).remove();
@@ -576,6 +571,17 @@ export default class Application {
                 e.target.blur();
             }
         }
+    }
+
+    _updateAvailable(respondWith) {
+        respondWith((async () => {
+            const outcome = await this.snackbar.show(`New version available`, {
+                action: `refresh`,
+                visibilityTime: 15000
+            });
+
+            return outcome === ACTION_CLICKED || outcome === DISMISSED;
+        })());
     }
 
 }

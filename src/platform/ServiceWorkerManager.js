@@ -1,13 +1,10 @@
-import {delay} from "util";
-import {DISMISSED, TIMED_OUT, ACTION_CLICKED} from "ui/Snackbar";
 import EventEmitter from "events";
 import {SHUTDOWN_EVENT} from "platform/GlobalEvents";
+import {delay} from "util";
 
 const UPDATE_INTERVAL = 15 * 60 * 1000;
-const tabId = Math.floor(Date.now() + Math.random() * Date.now());
-const rTagStrip = new RegExp(`\\-${tabId}$`);
 
-let notificationId = (Date.now() * Math.random()) | 0;
+export const UPDATE_AVAILABLE_EVENT = `updateAvailable`;
 
 export default class ServiceWorkerManager extends EventEmitter {
     constructor(deps) {
@@ -15,7 +12,7 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._page = deps.page;
         this._globalEvents = deps.globalEvents;
         this._env = deps.env;
-        this._snackbar = deps.snackbar;
+        this._db = deps.db;
 
         this._registration = null;
         this._started = false;
@@ -31,19 +28,26 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._updateChecker = this._updateChecker.bind(this);
         this._appClosed = this._appClosed.bind(this);
 
+        this._pendingMessages = new Map();
+        this._nextPendingMessageId = 0;
+
         this._updateCheckInterval = this._page.setInterval(this._updateChecker, 10000);
         this._globalEvents.on(`foreground`, this._foregrounded);
         this._globalEvents.on(`background`, this._backgrounded);
         this._globalEvents.on(SHUTDOWN_EVENT, this._appClosed);
     }
 
+    get controller() {
+        const sw = this._page.navigator().serviceWorker;
+        return sw && sw.controller;
+    }
+
     _appClosed(preferences) {
-        if (this._page.navigator().serviceWorker &&
-            this._page.navigator().serviceWorker.controller) {
+        const {controller} = this;
+        if (controller) {
             try {
-                this._page.navigator().serviceWorker.controller.postMessage({
+                controller.postMessage({
                     action: `savePreferences`,
-                    tabId,
                     preferences
                 });
             } catch (e) {
@@ -95,30 +99,25 @@ export default class ServiceWorkerManager extends EventEmitter {
 
     async _updateAvailable(worker) {
         this._updateAvailableNotified = true;
-        try {
-            let outcome;
-            let nextAskTimeout = 60 * 1000;
-
-            do {
-                outcome = await this._snackbar.show(`New version available`, {
-                    action: `refresh`,
-                    visibilityTime: 15000,
-                    tag: null
+        let nextAskTimeout = 15 * 1000;
+        while (true) {
+            let shouldRefreshPromise;
+            try {
+                this.emit(UPDATE_AVAILABLE_EVENT, (respondedWith) => {
+                    shouldRefreshPromise = respondedWith;
                 });
-
-                if (outcome === ACTION_CLICKED || outcome === DISMISSED) {
+                const shouldRefresh = await shouldRefreshPromise;
+                if (shouldRefresh === true) {
                     worker.postMessage({action: `skipWaiting`});
                     return;
                 }
+            } catch (e) {
+                self.uiLog(e.message);
+            }
 
-                await delay(nextAskTimeout);
-                nextAskTimeout *= 3;
-            } while (outcome === TIMED_OUT);
-        } catch (e) {
-            await this._snackbar.show(e.message, {
-                visibilityTime: 15000,
-                tag: null
-            });
+            await delay(nextAskTimeout);
+            nextAskTimeout += 10000;
+            nextAskTimeout = Math.min(nextAskTimeout, 60 * 1000);
         }
     }
 
@@ -136,7 +135,7 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._registration = (async () => {
             try {
                 const reg = await this._page.navigator().serviceWorker.register(`/sw.js`);
-                if (!this._page.navigator().serviceWorker.controller) return reg;
+                if (!this.controller) return reg;
 
                 if (reg.waiting) {
                     this._updateAvailable(reg.waiting);
@@ -171,80 +170,67 @@ export default class ServiceWorkerManager extends EventEmitter {
         });
     }
 
-    _messaged(e) {
-        if (e.data.data.tabId !== tabId || e.data.eventType !== `swEvent`) return;
-        const {data} = e;
-        let {tag} = data;
+    async loadPreferences() {
+        if (!this._started) {
+            this.start();
+        }
+        await this._registration;
+        const preferences = await this._postMessageAndAwaitResponse({
+            action: `loadPreferences`
+        });
 
-        if (tag) {
-            tag = (`${tag}`).replace(rTagStrip, ``);
+        if (preferences) {
+            return preferences;
         } else {
-            tag = ``;
-        }
-
-        const eventArg = data.data;
-        let eventName = null;
-
-        if (data.type === `notificationClick`) {
-            eventName = `action${data.action}-${tag}`;
-        } else if (data.type === `notificationClose`) {
-            eventName = `notificationClose-${tag}`;
-        }
-
-        if (eventName) {
-            this.emit(eventName, eventArg);
+            return this._db.getAll();
         }
     }
 
-    async hideNotifications(tag) {
-        if (tag) {
-            tag = `${tag}-${tabId}`;
-        } else {
-            tag = tabId;
-        }
-        const reg = await this._registration;
-        const notifications = await Promise.resolve(reg.getNotifications({tag}));
-        notifications.forEach((notification) => {
-            try {
-                notification.close();
-            } catch (e) {
-                // Noop
+    _postMessageAndAwaitResponse(data) {
+        return new Promise((resolve, reject) => {
+            data.__requestId = ++this._nextPendingMessageId;
+            this._pendingMessages.set(data.__requestId, {resolve, reject});
+            const {controller} = this;
+            if (controller) {
+                try {
+                    controller.postMessage(data);
+                } catch (e) {
+                    reject(e);
+                }
+            } else {
+                resolve(null);
             }
         });
     }
 
-    async showNotification(title, {tag}) {
-        if (!this._started) return null;
-        const id = ++notificationId;
-        const data = {notificationId: id, tabId};
-        const reg = await this._registration;
-        const tagOption = (tag ? `${tag}-${tabId}` : `${tabId}`);
-
-        if (this._env.isMobile()) {
-            const notifications = await Promise.resolve(reg.getNotifications());
-            for (const notification of notifications) {
-                try {
-                    notification.close();
-                } catch (e) {
-                    // Noop
+    _messaged(e) {
+        const {result, error, __requestId} = e.data;
+        if (__requestId) {
+            const pendingMessage = this._pendingMessages.get(__requestId);
+            if (pendingMessage) {
+                this._pendingMessages.delete(__requestId);
+                if (!error) {
+                    pendingMessage.resolve(result);
+                } else {
+                    pendingMessage.reject(new Error(error.message));
+                }
+            } else {
+                const {type} = e.data;
+                const {controller} = this;
+                if (!controller) return;
+                if (type === `getPreferences`) {
+                    const preferenceKeyValuePairs = this._globalEvents.gatherAllPreferences();
+                    const preferences = {};
+                    for (const keyValuePair of preferenceKeyValuePairs) {
+                        preferences[keyValuePair.key] = keyValuePair.value;
+                    }
+                    controller.postMessage({
+                        action: `gotPreferences`,
+                        preferences,
+                        __requestId
+                    });
                 }
             }
         }
-
-        await reg.showNotification(title, {
-            data,
-            tag: tagOption
-        });
-
-        const notifications = await Promise.resolve(reg.getNotifications({tag: tagOption}));
-        const otherNotifications = notifications.filter(n => n.data.notificationId !== id && n.data.tabId === tabId);
-        for (const notification of otherNotifications) {
-            try {
-                notification.close();
-            } catch (e) {
-                // Noop
-            }
-        }
-        return notifications.find(n => n.data.notificationId === id && n.data.tabId === tabId) || null;
     }
 }
