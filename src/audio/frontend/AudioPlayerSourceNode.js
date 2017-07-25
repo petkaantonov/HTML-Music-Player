@@ -846,7 +846,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             }
             cancelAndHold(param, ctxTime);
             const curve = getFadeOutCurve(startValue);
-            param.setValueCurveAtTime(curve, ctxTime, time);
+            try {
+                param.setValueCurveAtTime(curve, ctxTime, time);
+            } catch (e) {
+                return false;
+            }
             this._fadeOutEnded = ctxTime + time;
             return true;
         }
@@ -856,7 +860,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     _maybeFadeIn(time, ctxTime = this._audioPlayerFrontend.getCurrentTime()) {
         if (time > 0) {
             const curve = getFadeInCurve();
-            this._fadeInOutNode.gain.setValueCurveAtTime(curve, ctxTime, time);
+            try {
+                this._fadeInOutNode.gain.setValueCurveAtTime(curve, ctxTime, time);
+            } catch (e) {
+                return false;
+            }
             this._fadeInStarted = ctxTime;
             this._fadeInStartedWithLength = time;
             return true;
