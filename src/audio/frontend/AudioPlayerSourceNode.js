@@ -398,7 +398,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     _stopSources(when = this._player.getCurrentTime(),
-                                                            destroyDescriptorsThatWillNeverPlay = false) {
+                 destroyDescriptorsThatWillNeverPlay = false) {
         if (this._destroyed || this._sourceStopped) return;
         this._player.playbackStopped();
 
@@ -423,7 +423,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             if (!src) continue;
             if (when >= sourceDescriptor.started &&
                 when < sourceDescriptor.started + sourceDescriptor.duration) {
-                sourceDescriptor.playedSoFar += (when - sourceDescriptor.started);
+                sourceDescriptor.playedSoFar = (when - sourceDescriptor.started);
             }
             src.onended = null;
 
