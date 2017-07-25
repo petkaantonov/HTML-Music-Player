@@ -15,6 +15,7 @@ const MAX_DIFFERENT_AUDIO_BUFFER_KEYS = 10;
 
 // TODO Make end user configurable
 const SEEK_FADE_TIME = 0.2;
+const TRACK_CHANGE_FADE_TIME = 0.2;
 const PAUSE_RESUME_FADE_TIME = 0.4;
 const MUTE_UNMUTE_FADE_TIME = 0.4;
 
@@ -148,6 +149,10 @@ export default class AudioPlayer extends WorkerFrontend {
 
     getMuteUnmuteFadeTime() {
         return MUTE_UNMUTE_FADE_TIME;
+    }
+
+    getTrackChangeFadeTime() {
+        return TRACK_CHANGE_FADE_TIME;
     }
 
     _bufferFrameCountForSampleRate(sampleRate) {

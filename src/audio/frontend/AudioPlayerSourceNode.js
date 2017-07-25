@@ -557,6 +557,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
     _firstBufferFromDifferentTrackLoaded(scheduledStartTime) {
         this.emit(`replacementLoaded`, scheduledStartTime);
+        this._maybeFadeIn(this._audioPlayerFrontend.getTrackChangeFadeTime(), scheduledStartTime);
     }
 
     getCurrentTimeScheduledAhead() {
@@ -623,9 +624,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             afterScheduleKnownCallbacks.push(isUserSeek
                     ? this._userSeekCompleted
                     : this._firstBufferFromDifferentTrackLoaded);
-            if (isUserSeek) {
+            if ((isUserSeek && this._audioPlayerFrontend.getSeekFadeTime() > 0) ||
+                (!isUserSeek && this._audioPlayerFrontend.getTrackChangeFadeTime() > 0)) {
                 scheduledStartTime = this._fadeOutEnded;
-            }
+        }
         } else if (bufferFillType === BUFFER_FILL_TYPE_REPLACEMENT) {
             const {demuxData, gaplessPreload, requestId, baseTime} = descriptor.fillTypeData;
 
@@ -642,6 +644,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 currentSourcesShouldBeStopped = true;
                 this._applyReplacementLoaded({demuxData, baseTime});
                 afterScheduleKnownCallbacks.push(this._firstBufferFromDifferentTrackLoaded);
+                if (this._audioPlayerFrontend.getTrackChangeFadeTime() > 0) {
+                    scheduledStartTime = this._fadeOutEnded;
+                }
             }
         }
 
@@ -902,10 +907,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             this._maybeFadeOut(this._audioPlayerFrontend.getSeekFadeTime());
             const now = performance.now();
             if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
-
                 this._seek(this._currentTime, true);
             } else {
-
                 this._throttledSeek(this._currentTime);
             }
             this._lastExpensiveCall = now;
@@ -1018,6 +1021,9 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (seekTime === undefined) seekTime = 0;
         this._loadingNext = true;
         const now = performance.now();
+        if (!gaplessPreload) {
+            this._maybeFadeOut(this._audioPlayerFrontend.getTrackChangeFadeTime());
+        }
         if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
             this._actualReplace(fileReference, seekTime, gaplessPreload);
         } else {
