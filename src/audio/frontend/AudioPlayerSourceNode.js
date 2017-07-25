@@ -128,7 +128,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._sourceEnded = this._sourceEnded.bind(this);
         this._ended = this._ended.bind(this);
 
-        this._timeUpdater = this.page().setInterval(this._timeUpdate, 32);
+        this._timeUpdater = this.page().setInterval(this._timeUpdate, 100);
         this._audioPlayerFrontend._message(-1, `register`, {
             id: this._id
         });
