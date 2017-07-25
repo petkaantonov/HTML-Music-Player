@@ -33,6 +33,7 @@ export default class KeyValueDatabase {
 
         this._uiLogRef = self.uiLog;
         self.uiLog = this.uiLogOverwrite.bind(this);
+        this._lastLog = null;
     }
 
     getKeySetter(key) {
@@ -62,7 +63,12 @@ export default class KeyValueDatabase {
     }
 
     uiLogOverwrite(...args) {
-        this.storeLog(args.join(` `));
+        const msg = args.join(" ");
+        if (msg === this._lastLog) {
+            return;
+        }
+        this._lastLog = msg;
+        this.storeLog(msg);
         this._uiLogRef(...args);
     }
 
