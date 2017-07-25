@@ -29,7 +29,8 @@ export default class AudioVisualizer extends WorkerFrontend {
         this._awaitingBackendResponse = false;
         this._frameHandle = -1;
         this._numericFrameId = 0;
-        this._binsUpdatedForFrameId = -1;
+        this._nextBinUpdateRequestId = 0;
+        this._binsUpdatedForRequestId = -1;
         this._lastRafArg = -1;
         this._actualFps = 0;
         this._workerFps = 0;
@@ -47,10 +48,12 @@ export default class AudioVisualizer extends WorkerFrontend {
     _adjustFrameRate() {
         const {targetFps, actualFps} = this;
 
-        if (actualFps > 1.1 * targetFps && this._frameSkip < 8) {
-            this._frameSkip <<= 2;
+        if (actualFps > targetFps * 1.1) {
+            if (actualFps / 2 > 0.9 * targetFps && this._frameSkip < 8) {
+                this._frameSkip <<= 1;
+            }
         } else if (actualFps < targetFps * 0.9 && this._frameSkip > 1) {
-            this._frameSkip >>= 2;
+            this._frameSkip >>= 1;
         }
     }
 
@@ -99,10 +102,10 @@ export default class AudioVisualizer extends WorkerFrontend {
     async _requestBinsAndAnimationFrame() {
         this._requestAnimationFrame();
 
+        const requestId = ++this._nextBinUpdateRequestId;
         if (this.visualizerCanvas.needsToDraw() &&
             !this._paused &&
             !this._awaitingBackendResponse) {
-            const frameId = this._numericFrameId;
             const {actualFps} = this;
             const secondsInFuture = actualFps > 0 ? (1000 / actualFps / 1000) : 0;
             const frameDescriptor = this._sourceNode.getUpcomingSamples(this._channelData,
@@ -119,7 +122,7 @@ export default class AudioVisualizer extends WorkerFrontend {
 
             const now = performance.now();
             await this._getBins(frameDescriptor);
-            this._binsUpdatedForFrameId = frameId;
+            this._binsUpdatedForRequestId = requestId;
             const fps = 1000 / (performance.now() - now);
             this._workerFps = (this._workerFps * (1 - ALPHA)) + fps * ALPHA;
         }
@@ -137,9 +140,8 @@ export default class AudioVisualizer extends WorkerFrontend {
                     this._adjustFrameRate();
                 }
             }
-            const frameId = this._numericFrameId;
 
-            if (this._binsUpdatedForFrameId === frameId) {
+            if (this._binsUpdatedForRequestId === this._nextBinUpdateRequestId) {
                 this.visualizerCanvas.drawBins(now, this._bins);
             } else if (this.visualizerCanvas.needsToDraw() && this._paused) {
                 this.visualizerCanvas.drawIdleBins(now);
