@@ -1,5 +1,3 @@
-import withDeps from "ApplicationDependencies";
-import DraggableSelection from "ui/DraggableSelection";
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
 import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
@@ -134,6 +132,7 @@ export default class PlaylistController extends TrackContainerController {
         opts.trackRaterZIndex = zIndex;
         opts.playedTrackOriginUsesTrackViewIndex = true;
         opts.supportsRemove = true;
+        opts.supportsDragging = true;
         super(opts, deps);
         this.snackbar = deps.snackbar;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
@@ -148,22 +147,9 @@ export default class PlaylistController extends TrackContainerController {
         this._trackHistory = [];
         this._errorCount = 0;
 
-        this._draggable = withDeps({
-            recognizerContext: this.recognizerContext,
-            page: this.page,
-            globalEvents: this.globalEvents
-        }, d => new DraggableSelection({
-            target: this.$(),
-            listView: this,
-            scroller: this._fixedItemListScroller,
-            mustNotMatchSelector: `.track-rating`,
-            mustMatchSelector: `.track-container`
-        }, d));
-
         this._persistHistory = throttle(this._persistHistory, 1000, this);
         this._persistMode = throttle(this._persistMode, 500, this);
 
-        this._draggable.bindEvents();
         this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);

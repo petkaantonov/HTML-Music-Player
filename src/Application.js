@@ -39,8 +39,8 @@ import SelectionStatus from "ui/SelectionStatus";
 import MainMenu from "ui/MainMenu";
 import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
 import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
+import {ITEM_HEIGHT} from "tracks/TrackView";
 
-const ITEM_HEIGHT = 44;
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
 const IMAGE_DIMENSIONS = 97;

@@ -1,6 +1,8 @@
 import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 
-const TEMPLATE = `<div class='track'>
+export const ITEM_HEIGHT = 44;
+
+const TEMPLATE = `<div class='track not-draggable'>
     <div class='track-left-controls'>
         <div class='track-control-menu'>
             <div class='material-icons large-material-icon selection-menu-options'></div>
@@ -21,6 +23,8 @@ const TEMPLATE = `<div class='track'>
         <div class='material-icons large-material-icon reorder'></div>
     </div>
 </div>`;
+
+const DRAGGABLE_TEMPLATE = TEMPLATE.replace(`not-draggable`, `draggable`);
 
 export default class TrackView {
     constructor(track, index, opts) {
@@ -52,6 +56,10 @@ export default class TrackView {
 
     itemHeight() {
         return this._opts.itemHeight;
+    }
+
+    controller() {
+        return this._opts.controller;
     }
 
     $() {
@@ -87,7 +95,7 @@ export default class TrackView {
 
         this._domNode = recycledDomNode || this.page().createElement(`div`, {
             class: `track-container`
-        }).setHtml(TEMPLATE);
+        }).setHtml(this.controller().supportsDragging() ? DRAGGABLE_TEMPLATE : TEMPLATE);
 
         if (this.selectable().contains(this)) {
             this.selected();
@@ -95,10 +103,12 @@ export default class TrackView {
             this.unselected();
         }
 
-        if (this._dragged) {
-            this.$().addClass(`track-dragging`);
-        } else {
-            this.$().removeClass(`track-dragging`);
+        if (this.controller().supportsDragging()) {
+            if (this._dragged) {
+                this.$().addClass(`track-dragging`);
+            } else {
+                this.$().removeClass(`track-dragging`);
+            }
         }
 
         this.viewUpdateTagDataChange();
@@ -238,15 +248,15 @@ export default class TrackView {
         let y = index * this.itemHeight();
         let x = 0;
         if (this._dragged) {
-            x -= 25;
-            y -= 10;
+            x -= 2;
+            y -= 2;
         }
         y += this._offset;
         return `translate(${x}px, ${y}px)`;
     }
 
     setOffset(value) {
-        this._offset = value;
+        this._offset = Math.min(ITEM_HEIGHT, value);
         if (!this._shouldUpdateDom()) return;
         this._updateTranslate();
     }

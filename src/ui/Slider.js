@@ -83,7 +83,7 @@ export default class Slider extends EventEmitter {
     _onMousedown(e) {
         const wasTouchEvent = isTouchEvent(e);
         if (this._sliding ||
-            (!wasTouchEvent && e.which !== 1) ||
+            (!wasTouchEvent && ((e.buttons & 1) !== 1)) ||
             (wasTouchEvent && e.isFirst === false)) {
             return;
         }
@@ -169,7 +169,7 @@ export default class Slider extends EventEmitter {
     }
 
     _onMousemove(e) {
-        if (!isTouchEvent(e) && e.which !== 1) {
+        if (!isTouchEvent(e) && ((e.buttons & 1) !== 1)) {
             if (this._lastEvent) {
                 this._onMouseup(this._lastEvent);
             }

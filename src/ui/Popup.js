@@ -362,7 +362,7 @@ export default class Popup extends EventEmitter {
 
     mousemoved(e) {
         if (!this._shown || this.isMobile()) return;
-        if (!isTouchEvent(e) && e.which !== 1) {
+        if (!isTouchEvent(e) && ((e.buttons & 1) !== 1)) {
             this.draggingEnd();
             return;
         }

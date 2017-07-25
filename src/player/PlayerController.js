@@ -7,7 +7,7 @@ import AudioPlayer from "audio/frontend/AudioPlayer";
 import AudioManager from "audio/frontend/AudioManager";
 import EventEmitter from "events";
 import {noUndefinedGet, throttle} from "util";
-import {URL} from "platform/platform";
+import {URL, performance} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";

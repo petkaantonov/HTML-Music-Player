@@ -20,13 +20,13 @@ export default class Selectable extends EventEmitter {
     }
 
     trackViewMouseDown(e, trackView) {
-        if (e.which !== 1 && e.which !== 3) {
+        if (e.button !== 0 && e.button !== 2) {
             return;
         }
 
         const modifierKeyPropertyName = this._page.modifierKeyPropertyName();
 
-        if (e.which === 3) {
+        if (e.button === 2) {
             if (!this.contains(trackView)) {
                 this.selectTrackView(trackView);
             }
@@ -422,6 +422,10 @@ export default class Selectable extends EventEmitter {
         }
     }
 
+    refresh() {
+        this.updateOrder(this.getSelection());
+    }
+
     clearSelection() {
         this._resetPointers();
         this._clearSelection();
@@ -431,6 +435,8 @@ export default class Selectable extends EventEmitter {
     getSelection() {
         return this._selection.toArray();
     }
+
+
 
     selectTrackView(trackView) {
         const index = trackView.getIndex();

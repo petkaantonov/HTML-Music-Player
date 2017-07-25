@@ -134,6 +134,7 @@ export default class SearchController extends TrackContainerController {
         opts.trackRaterZIndex = zIndex;
         opts.playedTrackOriginUsesTrackViewIndex = false;
         opts.supportsRemove = false;
+        opts.supportsDragging = false;
         super(opts, deps);
         this._metadataManager = deps.metadataManager;
         this._searchFrontend = new SearchFrontend(this, deps);
