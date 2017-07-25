@@ -254,7 +254,7 @@ export default class TrackContainerController extends EventEmitter {
         this._singleTrackMenu.show(event, () => {
             const box = eventTarget.getBoundingClientRect();
             return {
-                x: box.right,
+                x: box.left,
                 y: box.top
             };
         });
