@@ -29,8 +29,8 @@ const PLAYLIST_HISTORY_KEY = `playlist-history`;
 
 const KIND_IMPLICIT = 0;
 const KIND_EXPLICIT = 1;
-const MAX_ERRORS = 200;
-const MAX_HISTORY = 500;
+const MAX_ERRORS = 50;
+const MAX_HISTORY = 25;
 
 const dummyTrack = {};
 
@@ -144,7 +144,6 @@ export default class PlaylistController extends TrackContainerController {
         this._currentPlaylistTrack = DUMMY_PLAYLIST_TRACK;
         this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
 
-        this._trackListDeletionUndo = null;
         this._currentPlayId = -1;
         this._trackHistory = [];
         this._errorCount = 0;
@@ -222,7 +221,7 @@ export default class PlaylistController extends TrackContainerController {
 
     getNextPlaylistTrack() {
         if (this._nextPlaylistTrack.isDummy()) {
-            const nextPlaylistTrack = this._maybeGetNextPlaylistTrackFromOutsideSource();
+            const nextPlaylistTrack = this._maybeGetNextPlaylistTrackFromAnotherOrigin();
             if (nextPlaylistTrack) {
                 this._nextPlaylistTrack = nextPlaylistTrack;
                 return this._nextPlaylistTrack;
@@ -446,6 +445,26 @@ export default class PlaylistController extends TrackContainerController {
         return this._mode;
     }
 
+    async _deserializePlaylistTracks(serializedPlaylistTracks) {
+        await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
+        const tracks = await this.metadataManager.mapTrackUidsToTracks(serializedPlaylistTracks.map(
+                                serializedPlaylistTrack => serializedPlaylistTrack.trackUid));
+        return tracks.map((track, index) => {
+            const serializedPlaylistTrack = serializedPlaylistTracks[index];
+            const origin = this.playedTrackOriginContext.originByName(serializedPlaylistTrack.origin);
+            if (!origin) {
+                return null;
+            }
+            const trackView = origin.trackViewByIndex(serializedPlaylistTrack.index);
+
+            if (!trackView || trackView.track() !== track) {
+                return null;
+            }
+
+            return new PlaylistTrack(track, trackView, origin);
+        }).filter(Boolean);
+    }
+
     async _deserializePlaylistTrack(serializedPlaylistTrack) {
         await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
         const {index, trackUid, origin: originName} = serializedPlaylistTrack;
@@ -482,22 +501,12 @@ export default class PlaylistController extends TrackContainerController {
             return;
         }
         await this.metadataManager.ready();
-        await this.playedTrackOriginContext.allOriginsInitialTracksLoaded();
-        // TODO: Use same batch method as persist playlist uses
-        const unfilteredTrackHistory =
-            await Promise.all(playlistHistory.map(v => this._deserializePlaylistTrack(v)));
-
-        const filteredTrackHistory = unfilteredTrackHistory.filter(Boolean);
-
+        const deserializedHistory = await this._deserializePlaylistTracks(playlistHistory);
         if (this._trackHistory.length > 0) {
-            filteredTrackHistory.push(...this._trackHistory);
+            deserializedHistory.push(...this._trackHistory);
         }
-        this._trackHistory = filteredTrackHistory;
-
-        // TODO just slice it.
-        while (this._trackHistory.length > MAX_HISTORY) {
-            this._trackHistory.shift();
-        }
+        this._trackHistory = deserializedHistory;
+        this._trackHistory.splice(0, Math.max(0, this._trackHistory.length - MAX_HISTORY));
         this.emit(HISTORY_CHANGE_EVENT);
     }
 
@@ -534,7 +543,7 @@ export default class PlaylistController extends TrackContainerController {
         this._updateNextTrack();
     }
 
-    _maybeGetNextPlaylistTrackFromOutsideSource() {
+    _maybeGetNextPlaylistTrackFromAnotherOrigin() {
         const nextTrackCandidates = [];
         this.emit(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT, (track, trackView, origin, priority) => {
             nextTrackCandidates.push({track, trackView, origin, priority});
