@@ -12,6 +12,7 @@ import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {MINIMUM_DURATION} from "audio/backend/demuxer";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
+import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
 
 export const PLAYBACK_STATE_CHANGE_EVENT = `playbackStateChange`;
 export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
@@ -98,6 +99,7 @@ export default class PlayerController extends EventEmitter {
         this.playlist.on(PLAYLIST_STOPPED_EVENT, this.stop.bind(this));
         this.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
         this.playlist.on(HISTORY_CHANGE_EVENT, this.historyChanged.bind(this));
+        this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistTrack.bind(this));
 
         this.ready = (async () => {
             await this.audioPlayer.ready();
