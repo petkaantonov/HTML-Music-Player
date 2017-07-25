@@ -56,6 +56,9 @@ export default class PlayerController extends EventEmitter {
         this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
         this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
 
+        this._progressLastPersisted = performance.now();
+        this._lastPersistedProgressValue = -1;
+
         this.audioManagers = [];
         this.visualizerCanvas = null;
         this.currentAudioManager = null;
@@ -80,7 +83,10 @@ export default class PlayerController extends EventEmitter {
             timers: deps.timers
         }, d => new AudioPlayer(d));
 
+        this._persistMute = throttle(this._persistMute, 500, this);
+        this._persistVolume = throttle(this._persistVolume, 500, this);
         this.nextTrackChanged = this.nextTrackChanged.bind(this);
+
         this.$play().addEventListener(`click`, this.playButtonClicked.bind(this));
         this.$next().addEventListener(`click`, this.nextButtonClicked.bind(this));
         this.$previous().addEventListener(`click`, this.prevButtonClicked.bind(this));
@@ -112,8 +118,8 @@ export default class PlayerController extends EventEmitter {
         this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this._preferencesLoaded = this._loadPreferences();
-        this._persistMute = throttle(this._persistMute, 500, this);
-        this._persistVolume = throttle(this._persistVolume, 500, this);
+
+
     }
 
     preferencesLoaded() {
@@ -324,7 +330,14 @@ export default class PlayerController extends EventEmitter {
             } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
                 this.emit(PROGRESS_EVENT, currentTime, totalTime);
             }
-            this._persistProgress();
+
+            const now = performance.now();
+            if (now - this._progressLastPersisted > 500 &&
+                this._lastPersistedProgressValue !== this._getUnroundedProgress()) {
+                this._progressLastPersisted = now;
+                this._lastPersistedProgressValue = this._getUnroundedProgress();
+                this._persistProgress();
+            }
         }
         return false;
     }
@@ -662,7 +675,7 @@ export default class PlayerController extends EventEmitter {
 
             preferences.push({
                 key: CURRENT_TRACK_PROGRESS_KEY,
-                value: this.getProgress()
+                value: this._getUnroundedProgress()
             });
         }
     }
@@ -675,14 +688,14 @@ export default class PlayerController extends EventEmitter {
         const playlistTrack = this.playlist.getCurrentPlaylistTrack();
         if (this._canPersistPlaylistTrack(playlistTrack)) {
             this.db.set(CURRENT_PLAYLIST_TRACK_KEY, playlistTrack.toJSON());
-            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this.getProgress());
+            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this._getUnroundedProgress());
         }
     }
 
     _persistProgress() {
         const playlistTrack = this.playlist.getCurrentPlaylistTrack();
         if (this._canPersistPlaylistTrack(playlistTrack)) {
-            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this.getProgress());
+            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this._getUnroundedProgress());
         }
     }
 
@@ -717,5 +730,13 @@ export default class PlayerController extends EventEmitter {
 
     getAudioContext() {
         return this.audioPlayer.getAudioContext();
+    }
+
+    _getUnroundedProgress() {
+        if (!this.currentAudioManager) return 0;
+        const duration = this.currentAudioManager.getDuration();
+        if (!duration) return 0;
+        const currentTime = this.currentAudioManager.getCurrentTime();
+        return currentTime / duration;
     }
 }
