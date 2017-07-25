@@ -27,11 +27,11 @@ $ultra-small-screen-height: 320px;
 
 $track-info-gutter: 6px;
 
-$action-menu-min-width: 210px;
 $action-menu-active-color: #BE7306;
 $action-menu-disabled-color: #5B616A;
 
-$track-rating-max-width: $action-menu-min-width / 5;
+$track-rating-width: 210px;
+$track-rating-max-width: $track-rating-width / 5;
 $track-rating-horizontal-gutter: 4px;
 $track-rating-star-size: $track-rating-max-width - ($track-rating-horizontal-gutter * 2);
 $track-rating-vertical-gutter: 6px;
