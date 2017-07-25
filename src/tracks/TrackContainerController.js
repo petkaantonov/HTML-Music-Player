@@ -1,13 +1,14 @@
 import EventEmitter from "events";
 import withDeps from "ApplicationDependencies";
 import TrackContainerTrait from "tracks/TrackContainerTrait";
-import Selectable from "ui/Selectable";
+import Selectable, {ITEMS_SELECTED_EVENT} from "ui/Selectable";
 import TrackRater from "tracks/TrackRater";
 import TrackView from "tracks/TrackView";
 import TrackViewOptions from "tracks/TrackViewOptions";
 import {buildConsecutiveRanges, indexMapper, buildInverseRanges,
-        buildConsecutiveRangesCompressed} from "util";
+        buildConsecutiveRangesCompressed, throttle} from "util";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
+import {SCROLL_POSITION_CHANGE_EVENT} from "ui/scrolling/ContentScroller";
 
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
@@ -151,6 +152,8 @@ export default class TrackContainerController extends EventEmitter {
         this._preferencesLoaded = Promise.resolve();
         this._trackViewOptions = new TrackViewOptions(opts.itemHeight, this.page, this._selectable, this.env.hasTouch());
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this.shutdownSavePreferences.bind(this));
+        this._fixedItemListScroller.on(SCROLL_POSITION_CHANGE_EVENT, throttle(this._persistScrollPosition, 500, this));
+        this.on(ITEMS_SELECTED_EVENT, throttle(this._persistSelection, 500, this));
     }
 
 
@@ -173,12 +176,12 @@ export default class TrackContainerController extends EventEmitter {
 
     shutdownSavePreferences(preferences) {
         preferences.push({
-            key: `${this.constructor.name}${SELECTED_INDEX_RANGES_SUFFIX}`,
+            key: this._selectionKey(),
             value: buildConsecutiveRangesCompressed(this.getSelection(), indexMapper)
         });
 
         preferences.push({
-            key: `${this.constructor.name}${SCROLL_POSITION_KEY_SUFFIX}`,
+            key: this._scrollPositionKey(),
             value: this._fixedItemListScroller.getScrollTop()
         });
     }
@@ -283,6 +286,24 @@ export default class TrackContainerController extends EventEmitter {
     edited() {
         if (!this.supportsRemove()) return;
         this._destroyTrackListDeletionUndo();
+    }
+
+    _scrollPositionKey() {
+        return `${this.constructor.name}${SCROLL_POSITION_KEY_SUFFIX}`;
+    }
+
+    _selectionKey() {
+        return `${this.constructor.name}${SELECTED_INDEX_RANGES_SUFFIX}`;
+    }
+
+    _persistScrollPosition(scrollPosition) {
+        this.db.set(this._scrollPositionKey(),
+                    scrollPosition);
+    }
+
+    _persistSelection() {
+        this.db.set(this._selectionKey(),
+                    buildConsecutiveRangesCompressed(this.getSelection(), indexMapper));
     }
 
     _destroyTrackListDeletionUndo() {

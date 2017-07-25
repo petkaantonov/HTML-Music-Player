@@ -120,10 +120,9 @@ export default class FixedItemListScroller extends ContentScroller {
     }
 
     _onScroll(forced = false) {
-        super._onScroll(forced);
+        const scrollTop = super._onScroll(forced);
         const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
 
-        const scrollTop = this.getScrollTop();
         const contentHeight = this.contentHeight();
 
         if (displayedItems.length > 2 && !forced) {
@@ -136,7 +135,7 @@ export default class FixedItemListScroller extends ContentScroller {
             const {_minPrerenderedItems: minPrerenderedItems} = this;
             if (screenStart > (virtualStart + minPrerenderedItems) &&
                 screenEnd < (virtualEnd - minPrerenderedItems)) {
-                return;
+                return scrollTop;
             }
         }
 
@@ -170,5 +169,6 @@ export default class FixedItemListScroller extends ContentScroller {
         }
 
         displayedItems.length = end - start + 1;
+        return scrollTop;
     }
 }

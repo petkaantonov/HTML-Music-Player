@@ -386,6 +386,7 @@ export default class Application {
             playlist,
             search,
             queue,
+            db,
             recognizerContext,
             rippler
         }, d => new MainTabs({
@@ -425,6 +426,7 @@ export default class Application {
 
         const playerTimeManager = this.playerTimeManager = withDeps({
             page,
+            db,
             player,
             recognizerContext,
             sliderContext,

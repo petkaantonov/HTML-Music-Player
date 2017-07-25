@@ -27,6 +27,7 @@ export default class MainTabs {
         this.playlist = deps.playlist;
         this.search = deps.search;
         this.queue = deps.queue;
+        this.db = deps.db;
 
         this.itemHeight = opts.itemHeight;
         this.tabHeight = opts.tabHeight;
@@ -147,6 +148,8 @@ export default class MainTabs {
                     this.playlistContextMenu.hide(true);
                     this.searchContextMenu.hide(true);
                     this.selectionStatus.setSelectionCount(0, 0, false);
+                } else if (methodName === `tabDidShow`) {
+                    this._persistActiveTabId();
                 }
                 this.page.warn(`no tab id ${tabId}`);
             }
@@ -204,5 +207,9 @@ export default class MainTabs {
             key: VISIBLE_TAB_PREFERENCE_KEY,
             value: this.tabController.getActiveTabId()
         });
+    }
+
+    _persistActiveTabId() {
+        this.db.set(VISIBLE_TAB_PREFERENCE_KEY, this.tabController.getActiveTabId());
     }
 }

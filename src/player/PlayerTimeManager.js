@@ -17,6 +17,7 @@ export default class PlayerTimeManager {
         this.rippler = deps.rippler;
         this.player = deps.player;
         this.globalEvents = deps.globalEvents;
+        this.db = deps.db;
 
         this._domNode = this.page.$(opts.target).eq(0);
         this.displayMode = DISPLAY_REMAINING;
@@ -240,11 +241,16 @@ export default class PlayerTimeManager {
         }
         this._updateDimensions();
         this.forceUpdate();
+        this._persistDisplayMode();
     }
 
     containerClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.toggleDisplayMode();
+    }
+
+    _persistDisplayMode() {
+        this.db.set(TIME_DISPLAY_PREFERENCE_KEY, this.displayMode);
     }
 
     _shutdownSavePreferences(preferences) {

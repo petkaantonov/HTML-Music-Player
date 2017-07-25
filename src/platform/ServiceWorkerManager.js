@@ -22,7 +22,6 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._currentUpdateCheck = null;
         this._updateAvailable = this._updateAvailable.bind(this);
         this._updateFound = this._updateFound.bind(this);
-        this._messaged = this._messaged.bind(this);
         this._foregrounded = this._foregrounded.bind(this);
         this._backgrounded = this._backgrounded.bind(this);
         this._updateChecker = this._updateChecker.bind(this);
@@ -36,7 +35,6 @@ export default class ServiceWorkerManager extends EventEmitter {
         this._globalEvents.on(`foreground`, this._foregrounded);
         this._globalEvents.on(`background`, this._backgrounded);
         this._globalEvents.on(SHUTDOWN_EVENT, this._appClosed);
-        this._bindDbCloseEvent();
     }
 
     get controller() {
@@ -46,17 +44,6 @@ export default class ServiceWorkerManager extends EventEmitter {
 
     _canSavePreferences() {
         return !!this.controller && !this._preferencesSaved;
-    }
-
-    async _bindDbCloseEvent() {
-        const idb = await this._db.getDb();
-        idb.addEventListener(`close`, () => {
-            if (this._canSavePreferences()) {
-                const preferences = this._globalEvents.gatherAllPreferences();
-                this._savePreferences(preferences);
-            }
-
-        });
     }
 
     _savePreferences(preferences) {
@@ -168,11 +155,6 @@ export default class ServiceWorkerManager extends EventEmitter {
                         this._updateFound(reg.installing);
                     });
                 }
-
-                this._page.navigator().serviceWorker.addEventListener(`message`, this._messaged);
-                this._page.navigator().serviceWorker.addEventListener(`ServiceWorkerMessageEvent`, this._messaged);
-                this._page.addWindowListener(`message`, this._messaged);
-                this._page.addWindowListener(`ServiceWorkerMessageEvent`, this._messaged);
                 return reg;
             } catch (e) {
                 if (!this._env.isDevelopment()) {
@@ -192,67 +174,10 @@ export default class ServiceWorkerManager extends EventEmitter {
         });
     }
 
-    async loadPreferences() {
+    loadPreferences() {
         if (!this._started) {
             this.start();
         }
-        await this._registration;
-        const preferences = await this._postMessageAndAwaitResponse({
-            action: `loadPreferences`
-        });
-
-        if (preferences) {
-            return preferences;
-        } else {
-            return this._db.getAll();
-        }
-    }
-
-    _postMessageAndAwaitResponse(data) {
-        return new Promise((resolve, reject) => {
-            data.__requestId = ++this._nextPendingMessageId;
-            this._pendingMessages.set(data.__requestId, {resolve, reject});
-            const {controller} = this;
-            if (controller) {
-                try {
-                    controller.postMessage(data);
-                } catch (e) {
-                    reject(e);
-                }
-            } else {
-                resolve(null);
-            }
-        });
-    }
-
-    _messaged(e) {
-        const {result, error, __requestId} = e.data;
-        if (__requestId) {
-            const pendingMessage = this._pendingMessages.get(__requestId);
-            if (pendingMessage) {
-                this._pendingMessages.delete(__requestId);
-                if (!error) {
-                    pendingMessage.resolve(result);
-                } else {
-                    pendingMessage.reject(new Error(error.message));
-                }
-            } else {
-                const {type} = e.data;
-                const {controller} = this;
-                if (!controller) return;
-                if (type === `getPreferences`) {
-                    const preferenceKeyValuePairs = this._globalEvents.gatherAllPreferences();
-                    const preferences = {};
-                    for (const keyValuePair of preferenceKeyValuePairs) {
-                        preferences[keyValuePair.key] = keyValuePair.value;
-                    }
-                    controller.postMessage({
-                        action: `gotPreferences`,
-                        preferences,
-                        __requestId
-                    });
-                }
-            }
-        }
+        return this._db.getAll();
     }
 }

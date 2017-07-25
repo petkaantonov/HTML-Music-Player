@@ -126,7 +126,7 @@ export const inherits = function(Child, Parent) {
     return Child.prototype;
 };
 
-export const throttle = function(callback, delay) {
+export const throttle = function(callback, delay, ctx = null) {
     let timerId = -1;
     let callId = 0;
 
@@ -140,7 +140,7 @@ export const throttle = function(callback, delay) {
             if (callId !== myCallId) return;
             callId = 0;
             timerId = -1;
-            callback.call(this, ...args);
+            callback.call(ctx || this, ...args);
         }, delay);
     };
 };

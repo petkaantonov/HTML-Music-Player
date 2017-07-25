@@ -147,8 +147,11 @@ export default class SearchController extends TrackContainerController {
         this._topHistoryEntry = null;
         this._visible = false;
         this._nextSessionId = 0;
-
         this._candidateTrackIndex = -1;
+
+        this._persistHistory = throttle(this._persistHistory, 1000, this);
+        this._persistQuery = throttle(this._persistQuery, 500, this);
+
         this._playlist.on(CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT,
                           this._candidateTracksNeeded.bind(this));
 
@@ -161,6 +164,7 @@ export default class SearchController extends TrackContainerController {
 
         this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
         this._preferencesLoaded = this.loadPreferences();
+
     }
 
     shutdownSavePreferences(preferences) {
@@ -514,6 +518,7 @@ export default class SearchController extends TrackContainerController {
             } else {
                 this._topHistoryEntry.update(this._session._rawQuery);
             }
+            this._persistHistory();
         }
     }
 
@@ -574,9 +579,18 @@ export default class SearchController extends TrackContainerController {
         await this._session.resultsLoaded();
     }
 
+    _persistQuery() {
+        this.db.set(SEARCH_QUERY_KEY, this._getRawQuery());
+    }
+
+    _persistHistory() {
+        this.db.set(SEARCH_HISTORY_KEY, this._searchHistory.map(v => v.toJSON()));
+    }
+
     _gotInput() {
         const value = this.$input().value();
         this._performQuery(value);
+        this._persistQuery();
     }
 
     playFirst() {

@@ -1,5 +1,10 @@
-export default class ContentScroller {
+import EventEmitter from "events";
+
+export const SCROLL_POSITION_CHANGE_EVENT = `scrollPositionChange`;
+
+export default class ContentScroller extends EventEmitter {
     constructor({target, contentContainer}, {page}) {
+        super();
         this._page = page;
         this._domNode = this._page.$(target).eq(0);
         this._contentContainer = this._page.$(contentContainer).eq(0);
@@ -66,9 +71,9 @@ export default class ContentScroller {
         return this.$()[0].getBoundingClientRect();
     }
 
-    /* eslint-disable class-methods-use-this */
     _onScroll() {
-        // NOOP.
+        const scrollTop = this.getScrollTop();
+        this.emit(SCROLL_POSITION_CHANGE_EVENT, scrollTop);
+        return scrollTop;
     }
-    /* eslint-enable class-methods-use-this */
 }

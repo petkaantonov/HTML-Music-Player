@@ -152,72 +152,12 @@ self.addEventListener(`fetch`, (e) => {
     e.respondWith(getMatchedAsset(request));
 }, false);
 
-const pendingMessageMap = new Map();
-let nextRequestId = Math.round(Math.random() * Date.now());
-
-function messageKey(client, requestId) {
-    return `${client.id}-${requestId}`;
-}
-
-function postMessageAndAwaitResponse(client, data) {
-    const __requestId = ++nextRequestId;
-    const key = messageKey(client, __requestId);
-    return new Promise((resolve, reject) => {
-        data.__requestId = __requestId;
-        pendingMessageMap.set(key, {resolve, reject});
-        client.postMessage(data);
-        setTimeout(function() {
-            if (pendingMessageMap.has(key)) {
-                pendingMessageMap.delete(key);
-            };
-            resolve(null);
-        }, 5000);
-    });
-}
-
-self.addEventListener(`message`, async (e) => {
-    const {action, preferences, __requestId} = e.data;
+self.addEventListener(`message`, (e) => {
+    const {action, preferences} = e.data;
     if (action === `skipWaiting`) {
         self.skipWaiting();
     } else if (action === `savePreferences`) {
         savePreferences(preferences);
-    } else if (action === `gotPreferences`) {
-        savePreferences(preferences);
-        const key = messageKey(e.source, __requestId);
-        const pendingMessage = pendingMessageMap.get(key);
-        if (pendingMessage) {
-            pendingMessageMap.delete(key);
-            pendingMessage.resolve(preferences);
-        }
-    } else if (action === `loadPreferences`) {
-        const client = e.source;
-        try {
-            const allClients = await clients.matchAll({type: "window"});
-            let requestPreferencesFromClient;
-            for (const otherClient of allClients) {
-                if (otherClient.id !== client.id) {
-                    requestPreferencesFromClient = otherClient;
-                    break;
-                }
-            }
-
-            let preferencesToSend = null;
-            if (requestPreferencesFromClient) {
-                preferencesToSend = await postMessageAndAwaitResponse(requestPreferencesFromClient, {
-                    type: "getPreferences"
-                });
-            }
-            client.postMessage({
-                __requestId,
-                error: null,
-                result: preferencesToSend
-            });
-        } catch (err) {
-            client.postMessage({
-                __requestId,
-                error: {message: err.message}
-            });
-        }
     }
 });
 

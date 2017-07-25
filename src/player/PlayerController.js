@@ -6,7 +6,7 @@ import withDeps from "ApplicationDependencies";
 import AudioPlayer from "audio/frontend/AudioPlayer";
 import AudioManager from "audio/frontend/AudioManager";
 import EventEmitter from "events";
-import {noUndefinedGet} from "util";
+import {noUndefinedGet, throttle} from "util";
 import {URL} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
@@ -112,6 +112,8 @@ export default class PlayerController extends EventEmitter {
         this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this._preferencesLoaded = this._loadPreferences();
+        this._persistMute = throttle(this._persistMute, 500, this);
+        this._persistVolume = throttle(this._persistVolume, 500, this);
     }
 
     preferencesLoaded() {
@@ -322,6 +324,7 @@ export default class PlayerController extends EventEmitter {
             } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
                 this.emit(PROGRESS_EVENT, currentTime, totalTime);
             }
+            this._persistProgress();
         }
         return false;
     }
@@ -520,6 +523,7 @@ export default class PlayerController extends EventEmitter {
         this.checkButtonState();
         this.emit(PLAYBACK_PLAY_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        this._persistTrack();
         this._callMediaFocusAction(`play`);
     }
 
@@ -576,6 +580,7 @@ export default class PlayerController extends EventEmitter {
                 am.unmute();
             });
         }
+        this._persistMute();
     }
 
     getDuration() {
@@ -602,6 +607,7 @@ export default class PlayerController extends EventEmitter {
             am.updateVolume(volume);
         });
         this.emit(VOLUME_CHANGE_EVENT);
+        this._persistVolume();
         return this;
     }
 
@@ -648,7 +654,7 @@ export default class PlayerController extends EventEmitter {
 
         const playlistTrack = this.playlist.getCurrentPlaylistTrack();
 
-        if (playlistTrack && !playlistTrack.isDummy() && this.metadataManager.areAllFilesPersisted()) {
+        if (this._canPersistPlaylistTrack(playlistTrack)) {
             preferences.push({
                 key: CURRENT_PLAYLIST_TRACK_KEY,
                 value: playlistTrack.toJSON()
@@ -659,6 +665,33 @@ export default class PlayerController extends EventEmitter {
                 value: this.getProgress()
             });
         }
+    }
+
+    _canPersistPlaylistTrack(playlistTrack) {
+        return playlistTrack && !playlistTrack.isDummy() && this.metadataManager.areAllFilesPersisted();
+    }
+
+    _persistTrack() {
+        const playlistTrack = this.playlist.getCurrentPlaylistTrack();
+        if (this._canPersistPlaylistTrack(playlistTrack)) {
+            this.db.set(CURRENT_PLAYLIST_TRACK_KEY, playlistTrack.toJSON());
+            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this.getProgress());
+        }
+    }
+
+    _persistProgress() {
+        const playlistTrack = this.playlist.getCurrentPlaylistTrack();
+        if (this._canPersistPlaylistTrack(playlistTrack)) {
+            this.db.set(CURRENT_TRACK_PROGRESS_KEY, this.getProgress());
+        }
+    }
+
+    _persistVolume() {
+        this.db.set(VOLUME_KEY, this.volume);
+    }
+
+    _persistMute() {
+        this.db.set(MUTED_KEY, this.isMutedValue);
     }
 
     // Supports deletion mid-iteration.

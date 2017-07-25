@@ -178,6 +178,10 @@ export default class PopupContext {
     }
 
     popupClosed(popup) {
+        this.db.set(toPreferenceKey(popup.title()), {
+            screenPosition: popup.getScreenPosition(),
+            scrollPosition: popup.getScrollPosition()
+        });
         const index = this.shownPopups.indexOf(popup);
         if (index >= 0) {
             this.shownPopups.splice(index, 1);

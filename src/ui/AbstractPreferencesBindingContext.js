@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import {noUndefinedGet} from "util";
+import {noUndefinedGet, throttle} from "util";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
 
@@ -34,11 +34,12 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
 
         this._popup.on(`open`, this.popupOpened.bind(this));
         this._popup.on(`layoutUpdate`, this.layoutUpdated.bind(this));
-        this.checkDbValues(deps.dbValues);
+        this._loadPersistedPreferences(deps.dbValues);
         this._globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
+        this._persistPreferences = throttle(this._persistPreferences, 500, this);
     }
 
-    async checkDbValues(dbValues) {
+    async _loadPersistedPreferences(dbValues) {
         await Promise.resolve();
         if (dbValues && this._storageKey in dbValues) {
             this.preferences().copyFrom(dbValues[this._storageKey]);
@@ -113,6 +114,7 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
 
     savePreferences() {
         this.emit(`change`, this.preferences());
+        this._persistPreferences();
     }
 
     /* eslint-disable class-methods-use-this */
@@ -155,5 +157,9 @@ export default class AbstractPreferencesBindingContext extends EventEmitter {
             key: this._storageKey,
             value: this.preferences().toJSON()
         });
+    }
+
+    _persistPreferences() {
+        this._db.set(this._storageKey, this.preferences().toJSON());
     }
 }

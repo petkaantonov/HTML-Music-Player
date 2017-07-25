@@ -161,8 +161,10 @@ export default class PlaylistController extends TrackContainerController {
             mustMatchSelector: `.track-container`
         }, d));
 
-        this._draggable.bindEvents();
+        this._persistHistory = throttle(this._persistHistory, 1000, this);
+        this._persistMode = throttle(this._persistMode, 500, this);
 
+        this._draggable.bindEvents();
         this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
@@ -171,6 +173,7 @@ export default class PlaylistController extends TrackContainerController {
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
         this._preferencesLoaded = this.loadPreferences();
+
     }
 
     shutdownSavePreferences(preferences) {
@@ -396,6 +399,7 @@ export default class PlaylistController extends TrackContainerController {
                     doNotRecordHistory: true
                 });
             }
+            this._persistHistory();
         } else {
             this.emit(HISTORY_CHANGE_EVENT);
         }
@@ -434,6 +438,7 @@ export default class PlaylistController extends TrackContainerController {
         this.emit(MODE_CHANGE_EVENT, mode, oldMode);
         this._nextPlaylistTrack = DUMMY_PLAYLIST_TRACK;
         this._updateNextTrack();
+        this._persistMode();
         return true;
     }
 
@@ -503,6 +508,17 @@ export default class PlaylistController extends TrackContainerController {
         const {trackUids} = persistedPlaylist;
         const tracks = await this.metadataManager.mapTrackUidsToTracks(trackUids);
         this.add(tracks, {noReport: true});
+    }
+
+
+    _persistMode() {
+        this.db.set(PLAYLIST_MODE_KEY, this._mode);
+    }
+
+    _persistHistory() {
+        if (this.metadataManager.areAllFilesPersisted()) {
+            this.db.set(PLAYLIST_HISTORY_KEY, this._trackHistory.map(v => v.toJSON()));
+        }
     }
 
     _persistPlaylist() {
@@ -672,6 +688,7 @@ export default class PlaylistController extends TrackContainerController {
                     this._trackHistory.shift();
                 }
                 this.emit(HISTORY_CHANGE_EVENT);
+                this._persistHistory();
             }
         }
 
