@@ -11,6 +11,7 @@ import {WEB_AUDIO_BLOCK_SIZE,
         MIN_SUSTAINED_AUDIO_SECONDS} from "audio/frontend/buffering";
 
 const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
+const MAX_DIFFERENT_AUDIO_BUFFER_KEYS = 10;
 
 // TODO Make end user configurable
 const SEEK_FADE_TIME = 0.2;
@@ -57,6 +58,14 @@ export const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime ===
                               typeof AudioParam.prototype.cancelValuesAndHoldAtTime === `function` ? cancelAndHoldNonStandardImpl :
                               cancelAndHoldPolyfillImpl;
 
+function audioBufferCacheKey(channelCount, length, sampleRate) {
+    return `${channelCount}-${length}-${sampleRate}`;
+}
+
+function lruCmp(a, b) {
+    return b.lastUsed - a.lastUsed;
+}
+
 
 let autoIncrementNodeId = 0;
 export default class AudioPlayer extends WorkerFrontend {
@@ -88,6 +97,8 @@ export default class AudioPlayer extends WorkerFrontend {
 
 
         this._audioBufferTime = -1;
+        this._audioBufferCache = new Map();
+        this._audioBufferCacheKeys = [];
 
         this._suspensionTimeoutMs = SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS * 1000;
         this._currentStateModificationAction = null;
@@ -177,7 +188,9 @@ export default class AudioPlayer extends WorkerFrontend {
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(this._outputSampleRate);
         this._audioBufferTime = this._bufferFrameCount / this._outputSampleRate;
         this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
-        this._silentBuffer = this.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
+        if (!this._silentBuffer) {
+            this._silentBuffer = this._audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
+        }
         await this._updateBackendConfig({bufferTime: this._audioBufferTime});
         if (sourceNodeNeedsReset) {
             for (const sourceNode of this._sourceNodes.slice()) {
@@ -256,8 +269,43 @@ export default class AudioPlayer extends WorkerFrontend {
         return this._scheduleAheadTime;
     }
 
-    createBuffer(channelCount, length, sampleRate) {
-        return this._audioContext.createBuffer(channelCount, length, sampleRate);
+    createAudioBuffer(channelCount, length, sampleRate) {
+        const key = audioBufferCacheKey(channelCount, length, sampleRate);
+        const {_audioBufferCacheKeys, _audioBufferCache} = this;
+        const lastUsed = performance.now();
+        let keyExists = false;
+
+        for (let i = 0; i < _audioBufferCacheKeys.length; ++i) {
+            if (_audioBufferCacheKeys[i].key === key) {
+                _audioBufferCacheKeys[i].lastUsed = lastUsed;
+                keyExists = true;
+                break;
+            }
+        }
+
+        if (!keyExists) {
+            const entry = {key, lastUsed};
+            if (_audioBufferCacheKeys.length >= MAX_DIFFERENT_AUDIO_BUFFER_KEYS) {
+                _audioBufferCacheKeys.sort(lruCmp);
+                const removedKey = _audioBufferCacheKeys.pop().key;
+                _audioBufferCache.delete(removedKey);
+            }
+            _audioBufferCacheKeys.push(entry);
+            _audioBufferCache.set(key, []);
+        }
+
+        const audioBuffers = _audioBufferCache.get(key);
+        if (!audioBuffers.length) {
+            return this._audioContext.createBuffer(channelCount, length, sampleRate);
+        } else {
+            return audioBuffers.pop();
+        }
+    }
+
+    freeAudioBuffer(audioBuffer) {
+        const {numberOfChannels, length, sampleRate} = audioBuffer;
+        const key = audioBufferCacheKey(numberOfChannels, length, sampleRate);
+        this._audioBufferCache.get(key).push(audioBuffer);
     }
 
     async _touchended() {

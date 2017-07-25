@@ -1,28 +1,64 @@
+import {Float32Array} from "platform/platform";
+
 export const decibelToGain = function(loudness) {
     return Math.pow(10, (loudness / 20));
 };
 
 export default class SourceDescriptor {
-    constructor(sourceNode, buffer, descriptor, isLastForTrack) {
+    constructor(sourceNode, channelDataAsArrayBuffers, descriptor, isLastForTrack) {
         this._sourceNode = sourceNode;
-        this.buffer = buffer;
-        this.playedSoFar = 0;
-        this.startTime = descriptor.startTime;
-        this.endTime = descriptor.endTime;
-        this.length = descriptor.length;
-        this.sampleRate = descriptor.sampleRate;
-        this.channelCount = descriptor.channelCount;
-        this.duration = this.length / this.sampleRate;
+        this._descriptor = descriptor;
+        this._audioBuffer = this._createAudioBuffer(channelDataAsArrayBuffers);
         const {loudnessInfo} = descriptor;
         this._gain = isNaN(loudnessInfo.loudness) ? NaN : decibelToGain(loudnessInfo.loudness);
+
         this.started = -1;
         this.stopped = -1;
+        this.playedSoFar = 0;
         this.source = null;
+
         this.isLastForTrack = isLastForTrack;
     }
 
+    _createAudioBuffer(channelDataAsArrayBuffers) {
+        const {channelCount, sampleRate, length} = this._descriptor;
+        const audioBuffer =
+            this._sourceNode.getAudioPlayerFrontend().createAudioBuffer(channelCount, length, sampleRate);
+
+        for (let ch = 0; ch < channelCount; ++ch) {
+            const data = new Float32Array(channelDataAsArrayBuffers[ch], 0, length);
+            audioBuffer.copyToChannel(data, ch);
+        }
+
+        return audioBuffer;
+    }
+
+    get startTime() {
+        return this._descriptor.startTime;
+    }
+
+    get endTime() {
+        return this._descriptor.endTime;
+    }
+
+    get length() {
+        return this._descriptor.length;
+    }
+
+    get sampleRate() {
+        return this._descriptor.sampleRate;
+    }
+
+    get channelCount() {
+        return this._descriptor.channelCount;
+    }
+
+    get duration() {
+        return this.length / this.sampleRate;
+    }
+
     get audioBuffer() {
-        return this.buffer;
+        return this._audioBuffer;
     }
 
     get gain() {
@@ -34,7 +70,7 @@ export default class SourceDescriptor {
     }
 
     print() {
-        self.uiLog(`.buffer=${this.buffer}
+        self.uiLog(`.audioBuffer=${this.audioBuffer}
                     .playedSoFar=${this.playedSoFar}
                     .startTime=${this.startTime}
                     .endTime=${this.endTime}
@@ -50,7 +86,9 @@ export default class SourceDescriptor {
     }
 
     destroy(stopTime = -1) {
-        if (this.buffer === null) return;
+        if (this._audioBuffer === null) return;
+        this._sourceNode.getAudioPlayerFrontend().freeAudioBuffer(this._audioBuffer);
+        this._audioBuffer = null;
         this._sourceNode = null;
         const src = this.source;
         if (src !== null) {
@@ -72,6 +110,5 @@ export default class SourceDescriptor {
             }
             this.source = null;
         }
-        this.buffer = null;
     }
 }

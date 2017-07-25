@@ -54,6 +54,7 @@ page.setTitle(defaultTitle);
     console.log(`css load time:`, performance.now() - CSS_LOAD_START, `ms`);
     const [featureCheckResults] = await Promise.all([featureCheckResultsPromise, ready]);
     const featureMissing = featureCheckResults.some(v => !v.supported);
+
     if (featureMissing) {
         page.clearTimeout(loadingIndicatorShowerTimeoutId);
         page.$(`#app-load-text`).remove();

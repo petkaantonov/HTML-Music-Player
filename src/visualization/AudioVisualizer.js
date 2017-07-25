@@ -1,5 +1,5 @@
 import {noUndefinedGet} from "util";
-import {Float32Array, Float64Array} from "platform/platform";
+import {Float32Array, Float64Array, performance} from "platform/platform";
 import {AUDIO_VISUALIZER_READY_EVENT_NAME} from "visualization/AudioVisualizerBackend";
 import WorkerFrontend from "WorkerFrontend";
 
@@ -49,10 +49,10 @@ export default class AudioVisualizer extends WorkerFrontend {
         const {targetFps, actualFps} = this;
 
         if (actualFps > targetFps * 1.1) {
-            if (actualFps / 2 > 0.9 * targetFps && this._frameSkip < 8) {
+            if (actualFps / 2 > 0.8 * targetFps && this._frameSkip < 8) {
                 this._frameSkip <<= 1;
             }
-        } else if (actualFps < targetFps * 0.9 && this._frameSkip > 1) {
+        } else if (actualFps < targetFps * 0.8 && this._frameSkip > 1) {
             this._frameSkip >>= 1;
         }
     }

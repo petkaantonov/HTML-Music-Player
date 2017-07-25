@@ -82,7 +82,7 @@ function applyWav(planarF32Arrays, frameLength) {
 
 const MAX_ANALYSER_SIZE = 65536;
 export default class AudioPlayerSourceNode extends EventEmitter {
-    constructor(player, id, audioContext) {
+    constructor(audioPlayerFrontend, id, audioContext) {
         super();
         this._id = id;
         this._sourceEndedId = 0;
@@ -91,7 +91,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
         this._lastExpensiveCall = 0;
 
-        this._player = player;
+        this._audioPlayerFrontend = audioPlayerFrontend;
         this._audioContext = audioContext;
         this._haveLoadedInitialAudioData = false;
         this._sourceStopped = true;
@@ -129,7 +129,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._ended = this._ended.bind(this);
 
         this._timeUpdater = this.page().setInterval(this._timeUpdate, 32);
-        this._player._message(-1, `register`, {
+        this._audioPlayerFrontend._message(-1, `register`, {
             id: this._id
         });
 
@@ -138,7 +138,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     page() {
-        return this._player.page;
+        return this._audioPlayerFrontend.page;
+    }
+
+    getAudioPlayerFrontend() {
+        return this._audioPlayerFrontend;
     }
 
     destroy() {
@@ -146,7 +150,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this.removeAllListeners();
         this.page().clearInterval(this._timeUpdater);
         this.unload();
-        this._player._sourceNodeDestroyed(this);
+        this._audioPlayerFrontend._sourceNodeDestroyed(this);
         try {
             this._normalizerNode.disconnect();
         } catch (e) {
@@ -164,7 +168,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._sourceEnded =
         this._ended = null;
         this._destroyed = true;
-        this._player._message(this._id, `destroy`);
+        this._audioPlayerFrontend._message(this._id, `destroy`);
     }
 
     adoptNewAudioContext(audioContext) {
@@ -201,38 +205,38 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     getTargetBufferLengthSeconds() {
-        return this._player.getTargetBufferLengthSeconds();
+        return this._audioPlayerFrontend.getTargetBufferLengthSeconds();
     }
 
     getSustainedBufferedAudioSeconds() {
-        return this._player.getSustainedBufferedAudioSeconds();
+        return this._audioPlayerFrontend.getSustainedBufferedAudioSeconds();
     }
 
     getSustainedBufferCount() {
-        return this._player.getSustainedBufferCount();
+        return this._audioPlayerFrontend.getSustainedBufferCount();
     }
 
     getMinBuffersToRequest() {
-        return this._player.getMinBuffersToRequest();
+        return this._audioPlayerFrontend.getMinBuffersToRequest();
     }
 
     _getCurrentAudioBufferBaseTimeDelta(now) {
         const sourceDescriptor = this._sourceDescriptorQueue[0];
         if (!sourceDescriptor) return 0;
-        if (now === undefined) now = this._player.getCurrentTime();
+        if (now === undefined) now = this._audioPlayerFrontend.getCurrentTime();
         const {started} = sourceDescriptor;
         if (now < started || started > (sourceDescriptor.started + sourceDescriptor.duration)) {
             return 0;
         }
 
         if (this._paused || this._sourceStopped) return 0;
-        return Math.min((now - started) + sourceDescriptor.playedSoFar, this._player.getBufferDuration());
+        return Math.min((now - started) + sourceDescriptor.playedSoFar, this._audioPlayerFrontend.getBufferDuration());
     }
 
     _nullifyPendingRequests() {
         this._seekRequestId++;
         this._replacementRequestId++;
-        this._player._message(this._id, `cancelAllOperations`);
+        this._audioPlayerFrontend._message(this._id, `cancelAllOperations`);
     }
 
     _timeUpdate() {
@@ -246,7 +250,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     _ended() {
         if (this._endedEmitted || this._destroyed || this._loadingNext) return;
 
-        this._player.playbackStopped();
+        this._audioPlayerFrontend.playbackStopped();
         this._endedEmitted = true;
 
         if (this.hasGaplessPreload()) {
@@ -320,7 +324,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             source.onended = null;
             sourceDescriptor.source = null;
             this._playedSourceDescriptors.push(sourceDescriptor);
-            while (this._playedSourceDescriptors.length > this._player._playedAudioBuffersNeededForVisualization) {
+            while (this._playedSourceDescriptors.length > this._audioPlayerFrontend._playedAudioBuffersNeededForVisualization) {
                 this._playedSourceDescriptors.shift().destroy();
             }
         } finally {
@@ -338,7 +342,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                 this._ended();
             }
         } finally {
-            this._player.ping();
+            this._audioPlayerFrontend.ping();
             if (!this._endedEmitted) {
                 this._requestMoreBuffers();
             }
@@ -350,21 +354,21 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
     _lastSourceEnds() {
         if (this._sourceStopped) throw new Error(`sources are stopped`);
-        if (this._sourceDescriptorQueue.length === 0) return this._player.getCurrentTime();
+        if (this._sourceDescriptorQueue.length === 0) return this._audioPlayerFrontend.getCurrentTime();
         const sourceDescriptor = this._sourceDescriptorQueue[this._sourceDescriptorQueue.length - 1];
         return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
     }
 
     _startSource(sourceDescriptor, when) {
         if (this._destroyed) return -1;
-        const {buffer} = sourceDescriptor;
+        const {audioBuffer} = sourceDescriptor;
         const duration = sourceDescriptor.getRemainingDuration();
         const src = this._audioContext.createBufferSource();
         let endedEmitted = false;
         sourceDescriptor.source = src;
         sourceDescriptor.started = when;
         sourceDescriptor.stopped = when + duration;
-        src.buffer = buffer;
+        src.buffer = audioBuffer;
         src.connect(this.node());
         try {
             this._normalizerNode.gain.setValueAtTime(sourceDescriptor.gain, when);
@@ -397,10 +401,10 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
     }
 
-    _stopSources(when = this._player.getCurrentTime(),
+    _stopSources(when = this._audioPlayerFrontend.getCurrentTime(),
                  destroyDescriptorsThatWillNeverPlay = false) {
         if (this._destroyed || this._sourceStopped) return;
-        this._player.playbackStopped();
+        this._audioPlayerFrontend.playbackStopped();
 
         this._sourceStopped = true;
         try {
@@ -446,7 +450,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         };
 
         if (!this._sourceStopped) {
-            const timestamp = this._player.getOutputTimestamp();
+            const timestamp = this._audioPlayerFrontend.getOutputTimestamp();
             let now = timestamp.contextTime;
             const hr = timestamp.performanceTime;
             const prevHr = this._previousHighResTime;
@@ -541,14 +545,14 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (this._sourceDescriptorQueue.length < this.getSustainedBufferCount()) {
             const count = this.getSustainedBufferCount() - this._sourceDescriptorQueue.length;
             if (count >= this.getMinBuffersToRequest()) {
-                this._player._message(this._id, `fillBuffers`, {count});
+                this._audioPlayerFrontend._message(this._id, `fillBuffers`, {count});
             }
         }
     }
 
     _userSeekCompleted(scheduledStartTime) {
         this.emit(`seekComplete`, scheduledStartTime);
-        this._maybeFadeIn(this._player.getSeekFadeTime(), scheduledStartTime);
+        this._maybeFadeIn(this._audioPlayerFrontend.getSeekFadeTime(), scheduledStartTime);
     }
 
     _firstBufferFromDifferentTrackLoaded(scheduledStartTime) {
@@ -556,7 +560,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     getCurrentTimeScheduledAhead() {
-        return this._player.getScheduleAheadTime() + this._player.getCurrentTime();
+        return this._audioPlayerFrontend.getScheduleAheadTime() + this._audioPlayerFrontend.getCurrentTime();
     }
 
     _idle() {
@@ -575,7 +579,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             try {
                 let {duration} = sourceDescriptor;
                 if (sourceDescriptor.playedSoFar > 0) {
-                    duration = sourceDescriptor.getRemainingDuration() - this._player.getScheduleAheadTime();
+                    duration = sourceDescriptor.getRemainingDuration() - this._audioPlayerFrontend.getScheduleAheadTime();
                     if (duration < 0) {
                         continue;
                     }
@@ -641,29 +645,21 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             }
         }
 
-        this._player.playbackStarted();
-        this._player.resume();
+        this._audioPlayerFrontend.playbackStarted();
+        this._audioPlayerFrontend.resume();
 
         let sourceDescriptor;
 
         if (!skipBuffer) {
-            const {channelCount, sampleRate, length} = descriptor;
-            const audioBuffer = this._player.createBuffer(channelCount, length, sampleRate);
-
-            if (transferList.length !== channelCount) {
-                throw new Error(`transferList.length (${transferList.length}) !== channelCount (${channelCount})`);
+            if (transferList.length !== descriptor.channelCount) {
+                throw new Error(`transferList.length (${transferList.length}) !== channelCount (${descriptor.channelCount})`);
             }
 
-            for (let ch = 0; ch < channelCount; ++ch) {
-                const data = new Float32Array(transferList.shift(), 0, length);
-                audioBuffer.copyToChannel(data, ch);
-            }
-
-            sourceDescriptor = new SourceDescriptor(this, audioBuffer, descriptor, isLastBuffer);
+            sourceDescriptor = new SourceDescriptor(this, transferList, descriptor, isLastBuffer);
         }
 
         if (isLastBuffer &&
-            descriptor.endTime < this._duration - this._player.getBufferDuration()) {
+            descriptor.endTime < this._duration - this._audioPlayerFrontend.getBufferDuration()) {
             this._duration = descriptor.endTime;
             this._emitTimeUpdate(this._currentTime, this._duration);
             this.emit(`durationChange`, this._duration);
@@ -744,16 +740,16 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     muteRequested() {
-        if (this._maybeFadeOut(this._player.getMuteUnmuteFadeTime())) {
+        if (this._maybeFadeOut(this._audioPlayerFrontend.getMuteUnmuteFadeTime())) {
             return this._fadeOutEnded;
         } else {
-            return this._player.getCurrentTime();
+            return this._audioPlayerFrontend.getCurrentTime();
         }
     }
 
     unmuteRequested() {
         const scheduledStartTime = Math.max(this._fadeOutEnded, this.getCurrentTimeScheduledAhead());
-        if (this._maybeFadeIn(this._player.getMuteUnmuteFadeTime(), scheduledStartTime)) {
+        if (this._maybeFadeIn(this._audioPlayerFrontend.getMuteUnmuteFadeTime(), scheduledStartTime)) {
             return this._fadeInStarted;
         } else {
             return scheduledStartTime;
@@ -762,7 +758,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
     pause() {
         if (this._destroyed || this._paused) return;
-        if (this._maybeFadeOut(this._player.getPauseResumeFadeTime())) {
+        if (this._maybeFadeOut(this._audioPlayerFrontend.getPauseResumeFadeTime())) {
             this._stopSources(this._fadeOutEnded);
         } else {
             this._stopSources();
@@ -779,11 +775,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
         this._paused = false;
         if (this._sourceDescriptorQueue.length > 0 && this._sourceStopped && this._haveLoadedInitialAudioData) {
-            this._player.playbackStarted();
-            this._player.resume();
+            this._audioPlayerFrontend.playbackStarted();
+            this._audioPlayerFrontend.resume();
             const scheduledStartTime = Math.max(this.getCurrentTimeScheduledAhead(), this._fadeOutEnded);
             this._startSources(scheduledStartTime);
-            this._maybeFadeIn(this._player.getSeekFadeTime(), scheduledStartTime);
+            this._maybeFadeIn(this._audioPlayerFrontend.getSeekFadeTime(), scheduledStartTime);
         }
         this._emitTimeUpdate(this._currentTime, this._duration);
     }
@@ -811,7 +807,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     _seek(time, isUserSeek) {
         if (!this.isSeekable()) return;
         const requestId = ++this._seekRequestId;
-        this._player._message(this._id, `seek`, {
+        this._audioPlayerFrontend._message(this._id, `seek`, {
             requestId,
             count: this.getSustainedBufferCount(),
             time,
@@ -834,7 +830,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
     }
 
-    _maybeFadeOut(time, ctxTime = this._player.getCurrentTime()) {
+    _maybeFadeOut(time, ctxTime = this._audioPlayerFrontend.getCurrentTime()) {
         if (time > 0) {
             const param = this._fadeInOutNode.gain;
             let startValue = param.value;
@@ -857,7 +853,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         return false;
     }
 
-    _maybeFadeIn(time, ctxTime = this._player.getCurrentTime()) {
+    _maybeFadeIn(time, ctxTime = this._audioPlayerFrontend.getCurrentTime()) {
         if (time > 0) {
             const curve = getFadeInCurve();
             this._fadeInOutNode.gain.setValueCurveAtTime(curve, ctxTime, time);
@@ -879,7 +875,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
         time = Math.max(0, time);
         if (this._haveLoadedInitialAudioData) {
-            time = Math.min(this._player.getMaximumSeekTime(this._duration), time);
+            time = Math.min(this._audioPlayerFrontend.getMaximumSeekTime(this._duration), time);
         }
 
         this._currentTime = time;
@@ -895,7 +891,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         if (noThrottle === NO_THROTTLE) {
             this._seek(this._currentTime, false);
         } else {
-            this._maybeFadeOut(this._player.getSeekFadeTime());
+            this._maybeFadeOut(this._audioPlayerFrontend.getSeekFadeTime());
             const now = performance.now();
             if (now - this._lastExpensiveCall > EXPENSIVE_CALL_THROTTLE_TIME) {
 
@@ -951,7 +947,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._haveLoadedInitialAudioData = true;
         this._duration = demuxData.duration;
         this._baseGain = typeof demuxData.establishedGain === `number` ? demuxData.establishedGain : 1;
-        this._currentTime = Math.min(this._player.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
+        this._currentTime = Math.min(this._audioPlayerFrontend.getMaximumSeekTime(this._duration), Math.max(0, this._currentTime));
         this._seek(this._currentTime, false);
         this._emitTimeUpdate(this._currentTime, this._duration);
         this.emit(`canPlay`);
@@ -1000,7 +996,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             seekTime = 0;
         }
         const requestId = ++this._replacementRequestId;
-        this._player._message(this._id, `loadReplacement`, {
+        this._audioPlayerFrontend._message(this._id, `loadReplacement`, {
             fileReference,
             requestId,
             seekTime,
@@ -1031,7 +1027,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this.unload();
         this._currentTime = this._baseTime = seekTime;
         const requestId = ++this._replacementRequestId;
-        this._player._message(this._id, `loadInitialAudioData`, {
+        this._audioPlayerFrontend._message(this._id, `loadInitialAudioData`, {
             fileReference,
             requestId
         });

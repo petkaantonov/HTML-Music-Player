@@ -63,7 +63,7 @@ export default class KeyValueDatabase {
     }
 
     uiLogOverwrite(...args) {
-        const msg = args.join(" ");
+        const msg = args.join(` `);
         if (msg === this._lastLog) {
             return;
         }
