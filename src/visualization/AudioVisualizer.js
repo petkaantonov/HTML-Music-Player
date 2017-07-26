@@ -2,6 +2,7 @@ import {noUndefinedGet} from "util";
 import {Float32Array, Float64Array, performance} from "platform/platform";
 import {AUDIO_VISUALIZER_READY_EVENT_NAME} from "visualization/AudioVisualizerBackend";
 import WorkerFrontend from "WorkerFrontend";
+import {CANVAS_ENABLED_STATE_CHANGE_EVENT} from "visualization/VisualizerCanvas";
 
 const ALPHA = 0.1;
 
@@ -35,6 +36,10 @@ export default class AudioVisualizer extends WorkerFrontend {
         this._actualFps = 0;
         this._workerFps = 0;
         this._init();
+    }
+
+    get canvasEnabled() {
+        return this.visualizerCanvas && this.visualizerCanvas.isEnabled();
     }
 
     get actualFps() {
@@ -99,12 +104,18 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     _requestAnimationFrame() {
+        if (!this.canvasEnabled) {
+            return false;
+        }
         this._frameHandle = this.page.requestAnimationFrame(this._receivedFrame);
         this._numericFrameId++;
+        return true;
     }
 
     async _requestBinsAndAnimationFrame() {
-        this._requestAnimationFrame();
+        if (!this._requestAnimationFrame()) {
+            return;
+        }
 
         const requestId = ++this._nextBinUpdateRequestId;
         if (this.visualizerCanvas.needsToDraw() &&
@@ -162,6 +173,15 @@ export default class AudioVisualizer extends WorkerFrontend {
 
     setCanvas(visualizerCanvas) {
         this.visualizerCanvas = visualizerCanvas;
+        visualizerCanvas.on(CANVAS_ENABLED_STATE_CHANGE_EVENT, this._visualizerCanvasEnabledStateChanged.bind(this));
+    }
+
+    _visualizerCanvasEnabledStateChanged() {
+        if (this.canvasEnabled && this._sourceNode) {
+            this._requestBinsAndAnimationFrame();
+        } else {
+            this.page.cancelAnimationFrame(this._frameHandle);
+        }
     }
 
     async _init() {
