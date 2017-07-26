@@ -1,5 +1,6 @@
 import EventEmitter from "events";
 import {ABOVE_TOOLBAR_Z_INDEX} from "ui/ToolbarManager";
+import {shortNumber} from "util";
 
 
 export default class SelectionStatus extends EventEmitter {
@@ -69,7 +70,7 @@ export default class SelectionStatus extends EventEmitter {
         const previousCount = this._selectionCount;
         this._selectionCount = count;
         this._canSelectAll = count < maxCount;
-        this.$countDisplay().setText(this._selectionCount);
+        this.$countDisplay().setText(shortNumber(this._selectionCount));
         this._updateSelectAllButtonState();
         if (count > 0) {
             if (previousCount === 0) {

@@ -10,6 +10,7 @@
     @include translate3d(0,0,0);
     will-change: transform;
     z-index: 1000;
+    contain: content;
 }
 
 .ripple-node {
@@ -22,4 +23,5 @@
     @include translate3d(0,0,0);
     will-change: transform;
     z-index: 1000;
+    contain: content;
 }

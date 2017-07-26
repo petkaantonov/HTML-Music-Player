@@ -3,6 +3,23 @@
 $slider-width: 76px;
 $slider-margin: 3px;
 
+.picture-container,
+.picture-container img {
+    @include desktop {
+        height: $desktop-picture-size;
+        width: $desktop-picture-size;
+    }
+
+    @include non-desktop {
+        height: $non-desktop-picture-size;
+        width: $non-desktop-picture-size;
+    }
+}
+
+.picture-container {
+    contain: strict;
+}
+
 @include ultra-small-screen {
     $button-width: 28px;
     $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
@@ -144,6 +161,7 @@ $slider-margin: 3px;
 }
 
 #track-progress-container {
+    contain: strict;
     text-shadow: 1px 1px 1px #111;
     position: relative;
     color: #fcfcfc;
@@ -173,6 +191,7 @@ $slider-margin: 3px;
     font-size: 0;
     position: relative;
     border-bottom-right-radius: $subtle-radius;
+    contain: strict;
 }
 
 .player-control-panel-container .control-panel-lower-container {

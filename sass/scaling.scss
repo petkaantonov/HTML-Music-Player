@@ -52,19 +52,6 @@
     }
 }
 
-.picture-container,
-.picture-container img {
-    @include desktop {
-        height: $desktop-picture-size;
-        width: $desktop-picture-size;
-    }
-
-    @include non-desktop {
-        height: $non-desktop-picture-size;
-        width: $non-desktop-picture-size;
-    }
-}
-
 .player-control-panel-container .button-groups-container {
     @include desktop {
         height: 36px;

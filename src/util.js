@@ -101,9 +101,9 @@ export const shortNumber = function(num) {
     const sign = num < 0 ? `-` : ``;
     num = Math.abs(num);
     if (num < 1e3) return `${sign + num}`;
-    if (num < 1e6) return `${sign + Math.round(num / 1e3).toFixed(1)}k`;
-    if (num < 1e9) return `${sign + Math.round(num / 1e6).toFixed(1)}m`;
-    if (num < 1e12) return `${sign + Math.round(num / 1e9).toFixed(1)}g`;
+    if (num < 1e6) return `${sign + (Math.round(num / 1e2) / 1e1).toFixed(1)}k`;
+    if (num < 1e9) return `${sign + (Math.round(num / 1e5) / 1e1).toFixed(1)}m`;
+    if (num < 1e12) return `${sign + (Math.round(num / 1e8) / 1e1).toFixed(1)}g`;
     return sign + num.toExponential(0);
 };
 

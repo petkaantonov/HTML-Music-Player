@@ -8,4 +8,9 @@
     font-size: 13px;
     line-height: 13px;
     text-shadow: 1px 1px 1px #333;
+
+    contain: content;
+    position: absolute;
+    top: 14px;
+    right: -40px;
 }

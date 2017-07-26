@@ -120,18 +120,18 @@ body {
     height: 100%;
     box-sizing: border-box;
     outline: none;
+    position: relative;
 }
 
 .toolbar-items .toolbar-item {
-
     width: 50px;
     border-right: 1px solid #EBEBEB;
     font-size: 18px;
     line-height: 18px;
     text-align: center;
     color: #474747;
-
     vertical-align: top;
+    contain: content;
 }
 
 .toolbar-items .toolbar-text {

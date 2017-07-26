@@ -6,6 +6,7 @@
     border: 1px solid #F4F4F4;
     padding: 10px 0px;
     box-sizing: border-box;
+    contain: content;
 }
 
 .action-menu-item.action-menu-sub-menu-item::after {
@@ -53,6 +54,7 @@
 .action-menu-item {
     width: 100%;
     box-sizing: border-box;
+    contain: content;
 }
 
 .action-menu-item.touch-hover {
