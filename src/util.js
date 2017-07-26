@@ -1376,7 +1376,7 @@ export function ajaxGet(url, cancellationToken,
 }
 
 const UNKNOWN = `Unknown`;
-const separatorPattern = /(.+)\s*-\s*(.+)/;
+const separatorPattern = /(.+?)\s*-\s*(.+)/;
 export const stripExtensionPattern = new RegExp(`\\.(?:[a-z0-9_\\-]{1,8})$`, `i`);
 export const trackInfoFromFileName = function(inputFileName) {
     const fileName = inputFileName.replace(stripExtensionPattern, ``);

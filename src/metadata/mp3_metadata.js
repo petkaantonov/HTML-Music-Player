@@ -131,7 +131,7 @@ tagMap[0x544250 | 0] = tagMap[0x5442504d | 0] = id3v2String((tagData, result) =>
 });
 
 tagMap[0x545945 | 0] = tagMap[0x54594552 | 0] = id3v2String((tagData, result) => {
-    tagData.year = +result;
+    tagData.year = +(result.slice(0, 4));
 });
 
 const rgenre = /\((\d+)\)/g;
