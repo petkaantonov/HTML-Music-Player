@@ -520,8 +520,6 @@ export default class Application {
         }, d));
         /* eslint-enable no-unused-vars */
 
-        this.globalEvents.on(`longPressStart`, this.longTapStarted.bind(this));
-        this.globalEvents.on(`longPressEnd`, this.longTapEnded.bind(this));
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);
         this.page.addDocumentListener(`selectstart`, selectStarted);
         this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped.bind(this));
@@ -560,14 +558,6 @@ export default class Application {
         } finally {
             this.page.setTimeout(this.tickLongTimers, 60 * 1000);
         }
-    }
-
-    longTapStarted() {
-
-    }
-
-    longTapEnded() {
-
     }
 
     playerStopped() {

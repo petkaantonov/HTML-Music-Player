@@ -160,7 +160,7 @@ export default class ServiceWorkerManager extends EventEmitter {
                 if (!this._env.isDevelopment()) {
                     throw e;
                 } else {
-                    console.log(e.message);
+                    self.console.log(e.message);
                 }
                 return null;
             }
