@@ -21,7 +21,6 @@ export default class TrackRater {
         this._doubleClicked = this.page.delegatedEventHandler(this._doubleClicked, `.rating-input`, this);
         this._clicked = this.page.delegatedEventHandler(this._clicked, `.rating-input`, this);
         this._hovered = this.page.delegatedEventHandler(this._hovered, `.rating-input`, this);
-        this._doubleTapRecognizer = this.recognizerContext.createDoubleTapRecognizer(this._doubleClicked);
         this._tapRecognizer = this.recognizerContext.createTapRecognizer(this._clicked);
         this._update(-1);
         this._enabled = false;
@@ -63,7 +62,6 @@ export default class TrackRater {
                 removeEventListener(`mouseleave`, this._hovered).
                 removeEventListener(`dblclick`, this._doubleClicked);
         this._tapRecognizer.unrecognizeBubbledOn(this.$());
-        this._doubleTapRecognizer.unrecognizeBubbledOn(this.$());
     }
 
     update() {
@@ -84,7 +82,6 @@ export default class TrackRater {
                 addEventListener(`mouseleave`, this._hovered).
                 addEventListener(`dblclick`, this._doubleClicked);
         this._tapRecognizer.recognizeBubbledOn(this.$());
-        this._doubleTapRecognizer.recognizeBubbledOn(this.$());
     }
 
 

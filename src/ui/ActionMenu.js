@@ -978,13 +978,10 @@ export class ContextMenu extends ButtonMenu {
         super(opts, deps);
         this.rightClicked = this.rightClicked.bind(this);
         this.keypressed = this.keypressed.bind(this);
-
-        this.longTapRecognizer = this._menu.recognizerContext.createLongTapRecognizer(this.rightClicked);
         this.preventDefault = preventDefaultHandler;
 
         this.$target().addEventListener(`contextmenu`, this.rightClicked);
         this.page().addDocumentListener(`keydown`, this.keypressed, true);
-        this.longTapRecognizer.recognizeBubbledOn(this.$target());
     }
 
 
@@ -996,7 +993,6 @@ export class ContextMenu extends ButtonMenu {
         this.page().removeDocumentListener(`mousedown`, this.documentClicked, true);
         this.page().removeDocumentListener(`keydown`, this.keypressed, true);
         this.$target().removeEventListener(`contextmenu`, this.rightClicked);
-        this.longTapRecognizer.unrecognizeBubbledOn(this._targetDom);
         this.documentTouchedRecognizer.unrecognizeCapturedOn(this.page().document());
         this.removeAllListeners();
     }
