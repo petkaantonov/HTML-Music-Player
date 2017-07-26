@@ -90,7 +90,7 @@ export default class AudioProcessingPipeline {
 
     setBufferTime(bufferTime) {
         this.bufferTime = bufferTime;
-        this.bufferAudioFrameCount = bufferTime * this.destinationSampleRate;
+        this.bufferAudioFrameCount = bufferTime * this.destinationSampleRate | 0;
     }
 
     dropFilledBuffer() {

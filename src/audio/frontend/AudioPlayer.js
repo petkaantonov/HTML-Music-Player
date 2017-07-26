@@ -59,8 +59,8 @@ export const cancelAndHold = typeof AudioParam.prototype.cancelAndHoldAtTime ===
                               typeof AudioParam.prototype.cancelValuesAndHoldAtTime === `function` ? cancelAndHoldNonStandardImpl :
                               cancelAndHoldPolyfillImpl;
 
-function audioBufferCacheKey(channelCount, length, sampleRate) {
-    return `${channelCount}-${length}-${sampleRate}`;
+function audioBufferCacheKey(channelCount, sampleRate) {
+    return `${channelCount}-${sampleRate}`;
 }
 
 function lruCmp(a, b) {
@@ -275,7 +275,7 @@ export default class AudioPlayer extends WorkerFrontend {
     }
 
     createAudioBuffer(channelCount, length, sampleRate) {
-        const key = audioBufferCacheKey(channelCount, length, sampleRate);
+        const key = audioBufferCacheKey(channelCount, sampleRate);
         const {_audioBufferCacheKeys, _audioBufferCache} = this;
         const lastUsed = performance.now();
         let keyExists = false;
@@ -303,13 +303,19 @@ export default class AudioPlayer extends WorkerFrontend {
         if (!audioBuffers.length) {
             return this._audioContext.createBuffer(channelCount, length, sampleRate);
         } else {
-            return audioBuffers.pop();
+            while (audioBuffers.length > 0) {
+                const audioBuffer = audioBuffers.pop();
+                if (audioBuffer.length === length) {
+                    return audioBuffer;
+                }
+            }
+            return this._audioContext.createBuffer(channelCount, length, sampleRate);
         }
     }
 
     freeAudioBuffer(audioBuffer) {
-        const {numberOfChannels, length, sampleRate} = audioBuffer;
-        const key = audioBufferCacheKey(numberOfChannels, length, sampleRate);
+        const {numberOfChannels, sampleRate} = audioBuffer;
+        const key = audioBufferCacheKey(numberOfChannels, sampleRate);
         this._audioBufferCache.get(key).push(audioBuffer);
     }
 
