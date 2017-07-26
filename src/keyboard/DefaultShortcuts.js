@@ -34,7 +34,6 @@ export default class DefaultShortcuts {
         this.shortcutSeekBack = this.shortcutSeekBack.bind(this);
         this.shortcutSeekForward = this.shortcutSeekForward.bind(this);
         this.screenTapped = this.screenTapped.bind(this);
-        this.shortcutGestureTogglePlayback = this.shortcutGestureTogglePlayback.bind(this);
         this.shortcutGestureNext = this.shortcutGestureNext.bind(this);
         this.shortcutGesturePrev = this.shortcutGesturePrev.bind(this);
         this.enableGestures = this.enableGestures.bind(this);
@@ -44,8 +43,6 @@ export default class DefaultShortcuts {
             this.recognizerContext.createHorizontalSwipeRecognizer(this.shortcutGestureNext, 1);
         this.prevGestureRecognizer =
             this.recognizerContext.createHorizontalSwipeRecognizer(this.shortcutGesturePrev, -1);
-        this.togglePlaybackGestureRecognizer =
-            this.recognizerContext.createTwoFingerTapRecognizer(this.shortcutGestureTogglePlayback);
         this.rippleRecognizer =
             this.recognizerContext.createTapRecognizer(this.screenTapped);
 
@@ -177,12 +174,6 @@ export default class DefaultShortcuts {
         this.rippler.rippleAt(e.clientX, e.clientY, 35, `#aaaaaa`);
     }
 
-    shortcutGestureTogglePlayback() {
-        const gesture = this.player.isPlaying ? `pause` : `play`;
-        this.gestureScreenFlasher.flashGesture(gesture);
-        this.player.togglePlayback();
-    }
-
     shortcutGestureNext() {
         this.gestureScreenFlasher.flashGesture(`next`);
         this.playlist.next(true);
@@ -196,12 +187,10 @@ export default class DefaultShortcuts {
     enableGestures() {
         this.prevGestureRecognizer.recognizeCapturedOn(this.page.document());
         this.nextGestureRecognizer.recognizeCapturedOn(this.page.document());
-        this.togglePlaybackGestureRecognizer.recognizeCapturedOn(this.page.document());
     }
 
     disableGestures() {
         this.prevGestureRecognizer.unrecognizeCapturedOn(this.page.document());
         this.nextGestureRecognizer.unrecognizeCapturedOn(this.page.document());
-        this.togglePlaybackGestureRecognizer.unrecognizeCapturedOn(this.page.document());
     }
 }

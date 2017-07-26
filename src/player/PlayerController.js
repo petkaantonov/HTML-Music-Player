@@ -479,9 +479,6 @@ export default class PlayerController extends EventEmitter {
         } else {
             this.play();
         }
-        if (isTouchEvent(e)) {
-            this.gestureEducator.educate(`playpause`);
-        }
     }
 
     canPlayPause() {

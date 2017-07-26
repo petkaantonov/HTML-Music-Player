@@ -25,8 +25,6 @@ const gestureIcon = function(icon) {
 };
 
 const gestureNameMap = {
-    play: gestureIcon(`glyphicon glyphicon-play`),
-    pause: gestureIcon(`glyphicon glyphicon-pause`),
     next: gestureIcon(`glyphicon glyphicon-step-forward`),
     previous: gestureIcon(`glyphicon glyphicon-step-backward`)
 };
