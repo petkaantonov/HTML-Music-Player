@@ -204,6 +204,14 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         return 1;
     }
 
+    getBufferDuration() {
+        return this._audioPlayerFrontend.getBufferDuration();
+    }
+
+    getAudioLatency() {
+        return this._audioPlayerFrontend.getAudioLatency();
+    }
+
     getTargetBufferLengthSeconds() {
         return this._audioPlayerFrontend.getTargetBufferLengthSeconds();
     }
@@ -230,7 +238,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
 
         if (this._paused || this._sourceStopped) return 0;
-        return Math.min((now - started) + sourceDescriptor.playedSoFar, this._audioPlayerFrontend.getBufferDuration());
+        return Math.min((now - started) + sourceDescriptor.playedSoFar, this.getBufferDuration());
     }
 
     _nullifyPendingRequests() {
@@ -439,9 +447,8 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         }
     }
 
-    getUpcomingSamples(channelData, secondsInFuture = 0) {
+    getSamplesScheduledAtOffsetRelativeToNow(channelData, offsetSeconds = 0) {
         if (this._destroyed) return false;
-        let samplesNeeded = Math.min(MAX_ANALYSER_SIZE, channelData[0].length);
         const ret = {
             sampleRate: 44100,
             channelCount: channelData.length,
@@ -451,82 +458,119 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
         if (!this._sourceStopped) {
             const timestamp = this._audioPlayerFrontend.getOutputTimestamp();
-            let now = timestamp.contextTime;
+            let currentTime = timestamp.contextTime;
             const hr = timestamp.performanceTime;
             const prevHr = this._previousHighResTime;
 
             // Workaround for bad values from polyfill
-            if (now === this._previousAudioContextTime) {
+            if (currentTime === this._previousAudioContextTime) {
                 const reallyElapsed = Math.round(((hr - prevHr) * 1000)) / 1e6;
-                now += reallyElapsed;
-                this._previousCombinedTime = now;
+                currentTime += reallyElapsed;
+                this._previousCombinedTime = currentTime;
             } else {
-                this._previousAudioContextTime = now;
+                this._previousAudioContextTime = currentTime;
                 this._previousHighResTime = hr;
             }
 
-            if (now < this._previousCombinedTime) {
-                now = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
+            if (currentTime < this._previousCombinedTime) {
+                currentTime = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
             }
 
-            const sourceDescriptorQueue = this._sourceDescriptorQueue;
-            const playedSourceDescriptors = this._playedSourceDescriptors;
-
-            now += secondsInFuture;
-            if (sourceDescriptorQueue.length === 0 ||
-                now === this._previousUpcomingSamplesTime) {
+            if (!this._sourceDescriptorQueue.length) {
                 return ret;
             }
-            this._previousUpcomingSamplesTime = now;
 
-            const sourceDescriptors = [sourceDescriptorQueue[0]];
-            const {sampleRate} = sourceDescriptors[0];
-            const channelCount = Math.min(channelData.length, sourceDescriptors[0].channelCount);
-            ret.sampleRate = sampleRate;
-            ret.channelCount = channelCount;
-            const currentSourceDescriptorPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta(now);
-
-            if (Math.ceil((currentSourceDescriptorPlayedSoFar + (samplesNeeded / sampleRate)) * sampleRate) > sourceDescriptors[0].length &&
-                sourceDescriptorQueue.length < 2) {
+            const targetStartTime = currentTime + offsetSeconds;
+            if (targetStartTime < 0) {
                 return ret;
-            } else {
-                sourceDescriptors.push(sourceDescriptorQueue[1]);
             }
 
-            if (playedSourceDescriptors.length === 0) {
+            const [nextSourceDescriptor] = this._sourceDescriptorQueue;
+            const {sampleRate, channelCount} = nextSourceDescriptor;
+            const duration = channelData[0].length / sampleRate;
+            let lowerBoundSourceDescriptor, upperBoundSourceDescriptor;
+
+            // Assume `duration` is always less than bufferDuration. Which it is.
+            if (duration > this.getBufferDuration()) {
+                self.uiLog(`duration > this.getBufferDuration() ${duration} ${this.getBufferDuration()}`);
                 return ret;
-            } else {
-                sourceDescriptors.unshift(playedSourceDescriptors.length > 0 ? playedSourceDescriptors[0] : null);
             }
 
-            const sourceDescriptorIndex = currentSourceDescriptorPlayedSoFar >= 0 ? 1 : 0;
-            let bufferDataIndex = sourceDescriptorIndex === 0 ? (sourceDescriptors[0].length + ((currentSourceDescriptorPlayedSoFar * sampleRate) | 0))
-                                                    : ((currentSourceDescriptorPlayedSoFar) * sampleRate) | 0;
-            let samplesIndex = 0;
-            for (let i = sourceDescriptorIndex; i < sourceDescriptors.length; ++i) {
-                const {length, gain, audioBuffer} = sourceDescriptors[i];
-                const samplesRemainingInBuffer = Math.max(0, length - bufferDataIndex);
-                if (samplesRemainingInBuffer <= 0) {
-                    bufferDataIndex = 0;
+            for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
+                const sourceDescriptor = this._playedSourceDescriptors[i];
+                if (sourceDescriptor.started === -1) {
                     continue;
                 }
+                if (sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
+                    lowerBoundSourceDescriptor = sourceDescriptor;
 
-                const fillCount = Math.min(samplesNeeded, samplesRemainingInBuffer, length);
-                for (let ch = 0; ch < channelCount; ++ch) {
-                    const dst = new Float32Array(channelData[ch].buffer, samplesIndex * 4, fillCount);
-                    audioBuffer.copyFromChannel(dst, ch, bufferDataIndex);
+                    if (targetStartTime + duration <= sourceDescriptor.stopped) {
+                        upperBoundSourceDescriptor = sourceDescriptor;
+                    } else if (i + 1 < this._playedSourceDescriptors.length) {
+                        upperBoundSourceDescriptor = this._playedSourceDescriptors[i + 1];
+                    }
+                    break;
                 }
-
-                samplesIndex += fillCount;
-                samplesNeeded -= fillCount;
-
-                if (samplesNeeded <= 0) {
-                    ret.channelDataFilled = true;
-                    ret.gain = gain;
-                    return ret;
-                }
-                bufferDataIndex = 0;
             }
+
+            if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
+                for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+                    const sourceDescriptor = this._sourceDescriptorQueue[i];
+                    if (!lowerBoundSourceDescriptor &&
+                        sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
+                        lowerBoundSourceDescriptor = sourceDescriptor;
+                        if (targetStartTime + duration <= sourceDescriptor.stopped) {
+                            upperBoundSourceDescriptor = lowerBoundSourceDescriptor;
+                        } else if (i + 1 < this._sourceDescriptorQueue.length) {
+                            upperBoundSourceDescriptor = this._sourceDescriptorQueue[i + 1];
+                        } else {
+                            return ret;
+                        }
+                        break;
+                    }
+
+                    if (lowerBoundSourceDescriptor && !upperBoundSourceDescriptor) {
+                        upperBoundSourceDescriptor = this._sourceDescriptorQueue[i];
+                        break;
+                    }
+                }
+            }
+
+            if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
+                return ret;
+            }
+
+            ret.sampleRate = sampleRate;
+            ret.channelCount = channelCount;
+            ret.gain = lowerBoundSourceDescriptor.gain;
+            ret.channelDataFilled = true;
+
+            const offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
+            const length = duration * sampleRate | 0;
+            const bufferLength = this.getBufferDuration() * sampleRate | 0;
+
+            if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
+                const {audioBuffer} = lowerBoundSourceDescriptor;
+                for (let ch = 0; ch < channelData.length; ++ch) {
+                    audioBuffer.copyFromChannel(channelData[ch], ch, offset);
+                }
+            } else {
+
+                let {audioBuffer} = lowerBoundSourceDescriptor;
+
+                for (let ch = 0; ch < channelData.length; ++ch) {
+                    audioBuffer.copyFromChannel(channelData[ch], ch, offset);
+                }
+                ({audioBuffer} = upperBoundSourceDescriptor);
+                const remainingLength = length - (bufferLength - offset);
+                for (let ch = 0; ch < channelData.length; ++ch) {
+                    const dst = new Float32Array(channelData[ch].buffer,
+                                                 (bufferLength - offset) * 4,
+                                                 remainingLength);
+                    audioBuffer.copyFromChannel(dst, ch, 0);
+                }
+            }
+
             return ret;
         } else {
             for (let ch = 0; ch < channelData.length; ++ch) {

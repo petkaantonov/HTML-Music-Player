@@ -45,6 +45,10 @@ export default class AudioVisualizer extends WorkerFrontend {
         return Math.floor(this._workerFps);
     }
 
+    _getAudioLatency() {
+        return this._sourceNode.getAudioLatency();
+    }
+
     _adjustFrameRate() {
         const {targetFps, actualFps} = this;
 
@@ -107,9 +111,10 @@ export default class AudioVisualizer extends WorkerFrontend {
             !this._paused &&
             !this._awaitingBackendResponse) {
             const {actualFps} = this;
-            const secondsInFuture = actualFps > 0 ? (1000 / actualFps / 1000) : 0;
-            const frameDescriptor = this._sourceNode.getUpcomingSamples(this._channelData,
-                                                                        secondsInFuture);
+            const offsetSeconds = (actualFps > 0 ? (1000 / actualFps / 1000) : 1000 / this.targetFps) -
+                                    this._getAudioLatency();
+
+            const frameDescriptor = this._sourceNode.getSamplesScheduledAtOffsetRelativeToNow(this._channelData, offsetSeconds);
 
             if (!frameDescriptor.channelDataFilled) {
                 return;

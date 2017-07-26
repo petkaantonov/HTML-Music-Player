@@ -85,8 +85,12 @@ export default class SourceDescriptor {
                     .isLastForTrack=${this.isLastForTrack}`);
     }
 
+    isDestroyed() {
+        return this._audioBuffer === null;
+    }
+
     destroy(stopTime = -1) {
-        if (this._audioBuffer === null) return;
+        if (this.isDestroyed()) return;
         this._sourceNode.getAudioPlayerFrontend().freeAudioBuffer(this._audioBuffer);
         this._audioBuffer = null;
         this._sourceNode = null;

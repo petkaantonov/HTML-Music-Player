@@ -15,9 +15,9 @@ const NULL_STRING = `\x00`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const QUARTER_HOUR_MS = 15 * 60 * 1000;
 const tracksWithWeightDeadline = new Set();
-const DEFAULT_ARTIST = "Unknown Artist";
-const DEFAULT_TITLE = "Unknown Title";
-const DEFAULT_ALBUM = "Unknown Album";
+const DEFAULT_ARTIST = `Unknown Artist`;
+const DEFAULT_TITLE = `Unknown Title`;
+const DEFAULT_ALBUM = `Unknown Album`;
 
 export function timerTick(now) {
     for (const track of tracksWithWeightDeadline) {
@@ -117,7 +117,7 @@ class Track extends EventEmitter {
     }
 
     get album() {
-        return this._album || DEFAULT_ALBUM ;
+        return this._album || DEFAULT_ALBUM;
     }
 
     isAvailableOffline() {

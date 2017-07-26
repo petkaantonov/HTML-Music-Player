@@ -192,7 +192,8 @@ export default class AudioPlayer extends WorkerFrontend {
         this._minBuffersToRequest = Math.ceil(this._sustainedBufferCount / 4);
         this._bufferFrameCount = this._bufferFrameCountForSampleRate(this._outputSampleRate);
         this._audioBufferTime = this._bufferFrameCount / this._outputSampleRate;
-        this._playedAudioBuffersNeededForVisualization = Math.ceil(0.5 / this._audioBufferTime);
+        this._playedAudioBuffersNeededForVisualization = Math.ceil(this.getAudioLatency() / this._audioBufferTime) + 1;
+
         if (!this._silentBuffer) {
             this._silentBuffer = this._audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
         }
@@ -268,6 +269,11 @@ export default class AudioPlayer extends WorkerFrontend {
         this._scheduleAheadTime = Math.max(this._scheduleAheadTime,
                                            roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 8, sampleRate) / sampleRate);
         return changed;
+    }
+
+    getAudioLatency() {
+        return (this._audioContext.baseLatency || 0) +
+                (this._audioContext.outputLatency || 0);
     }
 
     getScheduleAheadTime() {
