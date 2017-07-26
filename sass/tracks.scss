@@ -199,6 +199,9 @@
     box-sizing: border-box;
 
     &.tracks-dragging {
+        touch-action: none;
+        overflow-y: hidden;
+
         .track-container {
             @include transition-property(-webkit-transform, transform);
             @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
