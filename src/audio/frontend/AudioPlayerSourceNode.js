@@ -498,9 +498,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
 
             for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
                 const sourceDescriptor = this._playedSourceDescriptors[i];
-                if (sourceDescriptor.started === -1) {
-                    continue;
-                }
                 if (sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
                     lowerBoundSourceDescriptor = sourceDescriptor;
 
@@ -543,19 +540,17 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             ret.sampleRate = sampleRate;
             ret.channelCount = channelCount;
             ret.gain = lowerBoundSourceDescriptor.gain;
-            ret.channelDataFilled = true;
 
             const offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
             const length = duration * sampleRate | 0;
-            const bufferLength = this.getBufferDuration() * sampleRate | 0;
+            const bufferLength = lowerBoundSourceDescriptor.getRemainingDuration() * sampleRate | 0;
 
             if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
                 const {audioBuffer} = lowerBoundSourceDescriptor;
                 for (let ch = 0; ch < channelData.length; ++ch) {
                     audioBuffer.copyFromChannel(channelData[ch], ch, offset);
                 }
-            } else {
-
+            } else if (offset < bufferLength) {
                 let {audioBuffer} = lowerBoundSourceDescriptor;
 
                 for (let ch = 0; ch < channelData.length; ++ch) {
@@ -569,8 +564,19 @@ export default class AudioPlayerSourceNode extends EventEmitter {
                                                  remainingLength);
                     audioBuffer.copyFromChannel(dst, ch, 0);
                 }
+            } else {
+                // TODO figure out when this happens
+                self.uiLog(offset, length, bufferLength,
+                          lowerBoundSourceDescriptor.playedSoFar,
+                           lowerBoundSourceDescriptor.started,
+                           lowerBoundSourceDescriptor.stopped,
+                           upperBoundSourceDescriptor.playedSoFar,
+                           upperBoundSourceDescriptor.started,
+                           upperBoundSourceDescriptor.stopped);
+                return ret;
             }
 
+            ret.channelDataFilled = true;
             return ret;
         } else {
             for (let ch = 0; ch < channelData.length; ++ch) {
