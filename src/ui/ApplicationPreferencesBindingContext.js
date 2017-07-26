@@ -97,10 +97,6 @@ class PreferencesManager extends AbstractUiBindingManager {
             this.$().find(`.decoding-latency-avg`).setText(`${avg.toFixed(0)}ms`);
             this.$().find(`.decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
         });
-
-        bindingContext.on(`decodingLatencyReset`, () => {
-            this.$().find(`.decoding-latency-avg, .decoding-latency-max`).setText(`N/A`);
-        });
     }
 }
 
@@ -112,8 +108,8 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
             template: TEMPLATE
         });
         deps.mainMenu.on(`preferences`, this.openPopup.bind(this));
-        this._decodingLatencyValues = new Float64Array(10);
-        this._decodingLatencyValueIndex = 0;
+        this._decodingLatencyAvg = 0;
+        this._decodingLatencyMax = 0;
     }
 
     _createManager() {
@@ -121,33 +117,13 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     }
 
     getDecodingLatencyMax() {
-        return Math.max(...this._decodingLatencyValues);
+        return this._decodingLatencyMax;
     }
 
     getDecodingLatencyAvg() {
-        let sum = 0;
-        let j = 0;
-        for (let i = 0; i < this._decodingLatencyValues.length; ++i) {
-            const value = this._decodingLatencyValues[i];
-            if (value !== 0) {
-                sum += value;
-                j++;
-            }
-        }
-        return sum / j;
+        return this._decodingLatencyAvg;
     }
 
-    getDecodingLatencyAvgIfFilled() {
-        let sum = 0;
-        for (let i = 0; i < this._decodingLatencyValues.length; ++i) {
-            const value = this._decodingLatencyValues[i];
-            if (value === 0) {
-                return -1;
-            }
-            sum += value;
-        }
-        return sum / this._decodingLatencyValues.length;
-    }
 
     willUpdatePreferences(oldPreferences, newPreferences) {
         if (oldPreferences.getBufferLengthMilliSeconds() !==
@@ -163,13 +139,13 @@ export default class ApplicationPreferencesBindingContext extends AbstractPrefer
     }
 
     bufferLengthChanged() {
-        this.emit(`decodingLatencyReset`);
+        this._decodingLatencyMax = 0;
     }
 
     decodingLatencyValue(latencyValue) {
-        const index = this._decodingLatencyValueIndex++;
-        this._decodingLatencyValueIndex %= (this._decodingLatencyValues.length);
-        this._decodingLatencyValues[index] = latencyValue;
+        const alpha = 0.1;
+        this._decodingLatencyAvg = this._decodingLatencyAvg * (1 - alpha) + latencyValue * alpha;
+        this._decodingLatencyMax = Math.max(latencyValue, this._decodingLatencyMax);
         if (this.isActive()) {
             this.emit(`newDecodingLatencyValue`);
         }
