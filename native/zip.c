@@ -72,12 +72,6 @@ EXPORT ZipperError zipper_prepare_file_for_reading(Zipper* zipper, const char *p
 EXPORT Zipper* init_zipper(void);
 
 int main() {
-    data_length = 1024 * 1024 * 20;
-    data_ptr = malloc(data_length);
-    if (!data_ptr) {
-        printf("Failed to allocate %llu bytes", data_length);
-        abort();
-    }
     // Sanity checks
     uint8_t bytes[10];
     for (int i = 0; i < 10; ++i) {
@@ -92,6 +86,13 @@ int main() {
     int dummy;
     heapStart = (uintptr_t)(&dummy) + (uintptr_t)(4);
     initialize(heapStart, DEBUG, STACK_SIZE);
+
+    data_length = 1024 * 1024 * 20;
+    data_ptr = malloc(data_length);
+    if (!data_ptr) {
+        printf("Failed to allocate %llu bytes", data_length);
+        abort();
+    }
 }
 
 EXPORT int* __errno_location() {
@@ -206,12 +207,12 @@ EXPORT ZipperError zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
     }
 
     ZipperFileInfo* entry = &zipper->file_infos[index];
-    *retval_index = entry->index;
-    *size = CLIP_I64_TO_DOUBLE(entry->size);
-    *last_modified = CLIP_I64_TO_DOUBLE(entry->last_modified);
-    *name = entry->name;
     *is_directory = entry->is_directory;
     *is_encrypted = entry->is_encrypted;
+    *name = entry->name;
+    *last_modified = CLIP_I64_TO_DOUBLE(entry->last_modified);
+    *size = CLIP_I64_TO_DOUBLE(entry->size);
+    *retval_index = entry->index;
     *entry_ptr = entry;
     return SUCCESS;
 }

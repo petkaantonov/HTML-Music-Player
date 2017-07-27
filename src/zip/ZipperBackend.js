@@ -6,6 +6,8 @@ import {getCodecNameFromContents, getCodecNameFromFileName,
 
 export const ZIPPER_READY_EVENT_NAME = `ZipperReady`;
 
+export const AUDIO_FILE_EXTRACTED_MESSAGE = `audioFileExtractedMessage`;
+
 function audioExtractorMetadataFilter({size}) {
     return (131072 < size && size < 1073741824);
 }
@@ -15,6 +17,7 @@ function audioExtractorMetadataFilter({size}) {
 // TODO import block size from sniffer
 // TODO Import supported codec
 // TODO Handle fileread errors
+// TODO Service worker the bundle
 export default class ZipperBackend extends AbstractBackend {
     constructor(wasm) {
         super(ZIPPER_READY_EVENT_NAME);
@@ -39,12 +42,9 @@ export default class ZipperBackend extends AbstractBackend {
             type: userData.type,
             lastModified: lastModified * 1000
         });
-
-        debugger;
     }
 
     _fileExtractionProgress({name, userData}, ptr, length) {
-        debugger;
         if (!userData.type) {
             if (length >= 8192) {
                 let codecName = getCodecNameFromContents(this._wasm.u8view(ptr, length));

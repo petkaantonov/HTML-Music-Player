@@ -23,7 +23,6 @@ export default function createStdlib(wasm) {
         sbrk(increment) {
             increment |= 0;
             increment = ((increment + 15) & -16);
-
             const oldbrk = wasm._brk;
 
             let ret;

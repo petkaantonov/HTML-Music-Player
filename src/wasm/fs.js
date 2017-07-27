@@ -93,18 +93,18 @@ class FHandle {
         if (this.append) return 0;
         if (!this.binary) {
             if (origin === SEEK_SET) {
-                this._position = this._validPositionForSet(offset);
+                this._setValidPosition(offset);
             } else {
                 this._error = EINVAL;
                 return -1;
             }
         } else {
             if (origin === SEEK_SET) {
-                this._position = this._validPositionForSet(offset);
+                this._setValidPosition(offset);
             } else if (origin === SEEK_CUR) {
-                this._position = this._validPositionForSet(this._position + offset);
+                this._setValidPosition(this._position + offset);
             } else if (origin === SEEK_END) {
-                this._position = this._validPositionForSet(this._size + offset);
+                this._setValidPosition(this._size + offset);
             } else {
                 this._error = EINVAL;
                 return -1;
@@ -114,7 +114,7 @@ class FHandle {
         return 0;
     }
 
-    _validPositionForSet(position) {
+    _setValidPosition(position) {
         if (position >= this._size) {
             position = this._size;
             this._eof = true;
@@ -128,13 +128,13 @@ class FHandle {
         }
         const length = size * count;
         const fileStart = this._position;
-        this._validPositionForSet(fileStart + length);
+        this._setValidPosition(fileStart + length);
         const lengthToRead = this._position - fileStart;
         const {file} = this;
         if (!file) {
             return -1;
         }
-        const slicedBlob = file.slice(fileStart, fileStart + lengthToRead + 1, file.type);
+        const slicedBlob = file.slice(fileStart, fileStart + lengthToRead, file.type);
         try {
             const reader = new FileReaderSync();
             const src = reader.readAsArrayBuffer(slicedBlob);
@@ -270,7 +270,8 @@ export function createFs(wasm) {
             return withHandle(handle, fhandle => fhandle._fseek(offset, whence));
         },
         js_ftell(handle) {
-            return withHandle(handle, fhandle => fhandle._ftell());
+            const ret = withHandle(handle, fhandle => fhandle._ftell());
+            return ret;
         },
         js_stat(fileNamePtr, mtimeDoublePtr) {
             const fileName = wasm.convertCharPToAsciiString(fileNamePtr);

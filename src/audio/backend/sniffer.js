@@ -1,5 +1,9 @@
 import {DataView} from "platform/platform";
 
+export const SNIFF_LENGTH = 8192;
+export const MIN_AUDIO_FILE_SIZE = 131072;
+export const MAX_AUDIO_FILE_SIZE = 1073741824;
+
 const RIFF = 1380533830 | 0;
 const WAVE = 1463899717 | 0;
 const ID3 = 0x494433 | 0;
@@ -8,15 +12,22 @@ const WEBM = 0x1A45DFA3 | 0;
 const AAC_1 = 0xFFF1 | 0;
 const AAC_2 = 0xFFF9 | 0;
 
-export const SNIFF_LENGTH = 8192;
-
-const mimeMap = {
+const supportedAudioFileMimeMap = {
     "audio/mp3": `mp3`,
     "audio/mpeg": `mp3`
 };
 
-const extMap = {
-    "mp3": `mp3`
+const supportedOtherFileMimeMap = {
+    "application/zip": `zip`
+};
+
+export const supportedMimes = Object.keys(supportedAudioFileMimeMap).
+    concat(Object.keys(supportedOtherFileMimeMap));
+
+const supportedAudioFileExtMap = {
+    "mp3": `mp3`,
+    "mpg": `mp3`,
+    "mpeg": `mp3`
 };
 
 const codecNameToTypeMap = {
@@ -55,6 +66,27 @@ function refine(type, dataView, index) {
     }
 }
 
+export function isZipFile(file) {
+    const type = `${file.type}`.toLowerCase();
+    return type === `application/zip` || getExtension(file.name) === `zip`;
+}
+
+export function isAudioFile(file) {
+    if (file.size < MIN_AUDIO_FILE_SIZE || file.size > MAX_AUDIO_FILE_SIZE) {
+        return false;
+    }
+
+    const ext = getExtension(file.name) || ``;
+    if (supportedAudioFileExtMap.hasOwnProperty(ext) ||
+        supportedAudioFileMimeMap.hasOwnProperty(file.type)) {
+        return true;
+    } else if (!ext && !file.type) {
+        return true;
+    }
+    return false;
+}
+
+
 export default async function getCodecName(fileView, cancellationToken) {
     await fileView.readBlockOfSizeAt(SNIFF_LENGTH, 0, cancellationToken);
     const contentResult = getCodecNameFromContents(fileView.block());
@@ -64,8 +96,8 @@ export default async function getCodecName(fileView, cancellationToken) {
     }
 
     const {file} = fileView;
-    if (mimeMap[file.type]) {
-        return mimeMap[file.type];
+    if (supportedAudioFileMimeMap[file.type]) {
+        return supportedAudioFileMimeMap[file.type];
     }
 
     return getCodecNameFromFileName(file.name);
@@ -98,7 +130,7 @@ export function getCodecNameFromFileName(fileName) {
     const ext = getExtension(fileName);
 
     if (ext) {
-        return extMap[ext] || null;
+        return supportedAudioFileExtMap[ext] || null;
     }
 
     return null;

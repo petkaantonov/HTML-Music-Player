@@ -10,6 +10,7 @@ import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
 import {hexString, toTimeString, ownPropOr, delay} from "util";
 import WorkerFrontend from "WorkerFrontend";
+import {AUDIO_FILE_EXTRACTED_EVENT} from "zip/ZipperFrontend";
 
 const NULL_STRING = `\x00`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -358,6 +359,7 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         this._permissionPrompt = deps.permissionPrompt;
         this._env = deps.env;
         this._page = deps.page;
+        this._zipper = deps.zipper;
 
         this._allFilesPersisted = true;
         this._persistentPermissionAsked = false;
@@ -371,6 +373,8 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             [ALL_FILES_PERSISTED_MESSAGE]: this._allFilesHaveBeenPersisted.bind(this),
             [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this)
         };
+
+        this._zipper.on(AUDIO_FILE_EXTRACTED_EVENT, this._audioFileExtracted.bind(this));
     }
 
     receiveMessage(event) {
@@ -512,6 +516,10 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
 
     _recordPlaythrough(track) {
         this.postMessage({action: `setPlaythroughCounter`, args: {trackUid: track.uid(), counter: track._playthroughCounter, lastPlayed: track._lastPlayed}});
+    }
+
+    _audioFileExtracted(tmpFileId) {
+        this.postMessage({action: `parseTmpFile`, args: {tmpFileId}});
     }
 
     async _persistStorage() {

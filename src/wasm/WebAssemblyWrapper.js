@@ -78,7 +78,7 @@ const createFunctionWrapper = function(name, thisObj, types, {
             if (type === `string`) {
                 needsMalloc = true;
                 unsafeJsStack = false;
-                return `const convertedArg${index} = ${thisObj}.convertAsciiStringToCharp(arg${index});`;
+                return `const convertedArg${index} = ${thisObj}.convertAsciiStringToCharP(arg${index});`;
             } else if (type === `boolean`) {
                 return `const convertedArg${index} = +arg${index};`;
             } else if (type.indexOf(`retval`) >= 0) {
@@ -639,16 +639,13 @@ export default class WebAssemblyWrapper {
     }
 
     jsStackAlloc(size) {
+        size = Math.max(size, 8);
+        size = ((size-1) & ~7) + 8;
         if (this._jsStackMemoryStack === 0) {
             throw new NullPointerError(`js stack wasn't pushed!`);
         }
         const originalSize = size;
         let ret = this._jsStackMemoryPtr;
-
-        if (size === 8 || size === 4) {
-            ret = ((ret + (size - 1)) & ~(size - 1));
-            size += (ret - this._jsStackMemoryPtr);
-        }
 
         if (ret + size > this._jsStackMemoryEnd) {
             const currentlyMalloced = this._jsStackMemoryPtr - this._jsStackMemoryStart;
@@ -662,7 +659,7 @@ export default class WebAssemblyWrapper {
             this._jsStackMemoryPtr += originalSize;
             return newRet;
         } else {
-            this._jsStackMemoryPtr += size;
+            this._jsStackMemoryPtr += Math.max(size, 8);
             return ret;
         }
     }

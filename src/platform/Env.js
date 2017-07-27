@@ -34,10 +34,6 @@ export default class Env {
                             `directory` in input ||
                             `mozdirectory` in input);
         this._readFiles = typeof window.FileReader === `function`;
-
-        this._supportedMimes = `audio/mp3,audio/mpeg`.split(`,`);
-        this._rSupportedMimes = new RegExp(`^(?:${this._supportedMimes.join(`|`)})$`, `i`);
-        this._rSupportedExtensions = /^(?:mp3|mpg|mpeg)$/i;
         this._mediaSession = `mediaSession` in navigator;
 
         let browserName, browserVersion;
@@ -120,18 +116,6 @@ export default class Env {
 
     canReadFiles() {
         return this._readFiles;
-    }
-
-    supportsExtension(ext) {
-        return this._rSupportedExtensions.test(ext);
-    }
-
-    supportsMime(mime) {
-        return this._rSupportedMimes.test(mime);
-    }
-
-    supportedMimes() {
-        return this._supportedMimes.slice();
     }
 
     async getRequiredPlatformFeatures() {

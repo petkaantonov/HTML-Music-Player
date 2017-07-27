@@ -40,6 +40,7 @@ import MainMenu from "ui/MainMenu";
 import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
 import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
 import {ITEM_HEIGHT} from "tracks/TrackView";
+import ZipperFrontend from "zip/ZipperFrontend";
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
@@ -127,6 +128,14 @@ export default class Application {
             page
         }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/WorkerBackend.js` : `dist/worker/WorkerBackend.min.js`, d));
 
+        const zipperWorkerWrapper = withDeps({
+            page
+        }, d => new WorkerWrapper(env.isDevelopment() ? `dist/worker/ZipperWorker.js` : `dist/worker/ZipperWorker.min.js`, d));
+
+        const zipper = this.zipper = withDeps({
+            zipperWorkerWrapper
+        }, d => new ZipperFrontend(d));
+
         const visualizer = this.visualizer = withDeps({
             workerWrapper, page
         }, d => new AudioVisualizer({
@@ -146,7 +155,7 @@ export default class Application {
         }, d));
 
         const metadataManager = this.metadataManager = withDeps({
-            env, workerWrapper, permissionPrompt, page
+            env, workerWrapper, permissionPrompt, page, zipper
         }, d => new MetadataManagerFrontend(d));
 
         const sliderContext = this.sliderContext = withDeps({
@@ -324,6 +333,7 @@ export default class Application {
             env,
             playlist,
             metadataManager,
+            zipper,
             mainMenu
         }, d => new LocalFileHandler(d));
 

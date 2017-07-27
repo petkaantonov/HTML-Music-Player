@@ -1,5 +1,6 @@
 import {File, DataView, ArrayBuffer} from "platform/platform";
 import LocalFiles from "platform/LocalFiles";
+import {isAudioFile, isZipFile, supportedMimes} from "audio/backend/sniffer";
 
 const MAX_FILE_COUNT = 75000;
 
@@ -16,6 +17,21 @@ function _dragLeft(e) {
 function _dragOvered(e) {
     e.preventDefault();
     return false;
+}
+
+function filterFiles(files) {
+    const audioFiles = new Array(files.length);
+    audioFiles.length = 0;
+    const zipFiles = [];
+
+    for (let i = 0; i < files.length; ++i) {
+        if (isZipFile(files[i])) {
+            zipFiles.push(files[i]);
+        } else if (isAudioFile(files[i])) {
+            audioFiles.push(files[i]);
+        }
+    }
+    return {audioFiles, zipFiles};
 }
 
 export function generateSilentWavFile() {
@@ -51,7 +67,8 @@ export default class LocalFileHandler {
         this.fileInputContext = deps.fileInputContext;
         this.metadataManager = deps.metadataManager;
         this.playlist = deps.playlist;
-        this.localFiles = new LocalFiles(this.env);
+        this.zipper = deps.zipper;
+        this.localFiles = new LocalFiles();
 
         this.gotFiles = this.gotFiles.bind(this);
         this.gotEntries = this.gotEntries.bind(this);
@@ -71,7 +88,7 @@ export default class LocalFileHandler {
         this.filesFileInput = this.fileInputContext.createFileInput({
             onchange: this.fileInputChanged.bind(this),
             multiple: true,
-            accept: this.env.supportedMimes().join(`,`)
+            accept: supportedMimes.join(`,`)
         });
         this.mainMenu.on(`addFiles`, () => this.openFilePicker());
 
@@ -86,14 +103,16 @@ export default class LocalFileHandler {
     }
 
     receiveFiles(fileEmitter) {
-        fileEmitter.on(`files`, this.addFilesToPlaylist);
+        fileEmitter.on(`files`, this.gotFiles);
         fileEmitter.on(`end`, () => {
             fileEmitter.removeAllListeners();
         });
     }
 
     gotFiles(files) {
-        this.addFilesToPlaylist(this.filterFiles(files));
+        const {audioFiles, zipFiles} = filterFiles(files);
+        this.addFilesToPlaylist(audioFiles);
+        zipFiles.forEach(zipFile => this.zipper.extractSupportedAudioFilesFromZip(zipFile));
     }
 
     gotEntries(entries) {
@@ -151,16 +170,5 @@ export default class LocalFileHandler {
     async addFilesToPlaylist(files) {
         const tracks = await Promise.all(files.map(file => this.metadataManager.getTrackByFileReferenceAsync(file)));
         this.playlist.add(tracks);
-    }
-
-    filterFiles(files) {
-        const ret = new Array(files.length);
-        ret.length = 0;
-        for (let i = 0; i < files.length; ++i) {
-            if (this.localFiles.defaultFilter(files[i])) {
-                ret.push(files[i]);
-            }
-        }
-        return ret;
     }
 }

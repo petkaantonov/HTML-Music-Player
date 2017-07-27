@@ -21,7 +21,6 @@ export default class Zipper {
     _writeCallback(fileOffset, bufferPtr, bufferLength, wasmDataPtr) {
         this._wasm.memcpy(wasmDataPtr + fileOffset, bufferPtr, bufferLength);
         this._currentFileInfo.written += bufferLength;
-
         if (fileOffset + bufferLength >= this._currentFileInfo.size ||
             this._currentFileInfo.written >= this._currentFileInfo.size) {
             this._fileExtractedCallback(this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written);
@@ -40,6 +39,8 @@ export default class Zipper {
             throw new Error(`must be a file`);
         }
         fs.set(zipFile.name, zipFile);
+        this._fileExtractedCallback = fileExtractedCallback;
+        this._fileExtractionProgressCallback = fileExtractionProgressCallback;
         try {
             let err = this.zipper_prepare_file_for_reading(this._ptr, zipFile.name);
             if (err) {
@@ -52,11 +53,13 @@ export default class Zipper {
                 throw new Error(`Zipper error: ${err}`);
             }
             let filesExtracted = 0;
+
             if (fileCount > 0) {
                 for (let i = 0; i < fileCount; ++i) {
                     const [error, is_directory,
                            is_encrypted, name, lastModified,
                            size, index, entryPtr] = this.zipper_get_nth_file_info_fields(this._ptr, i);
+
                     if (error) {
                         throw new Error(`Zipper error: ${error}`);
                     }
@@ -113,8 +116,9 @@ moduleEvents.on(`zip_afterInitialized`, (wasm, exports) => {
     }, `integer`, `integer-retval`);
     Zipper.prototype.zipper_get_nth_file_info_fields = wasm.createFunctionWrapper({
         name: `zipper_get_nth_file_info_fields`
-    }, `integer`, `boolean-retval`, `boolean-retval`, `string-retval`,
-     `double-retval`, `double-retval`, `integer-retval`, `integer-retval`);
+    }, `integer`, `integer`,
+    `boolean-retval`, `boolean-retval`, `string-retval`, `double-retval`,
+    `double-retval`, `integer-retval`, `integer-retval`);
     Zipper.prototype.zipper_extract_file = wasm.createFunctionWrapper({
         name: `zipper_extract_file`
     }, `integer`, `integer`);

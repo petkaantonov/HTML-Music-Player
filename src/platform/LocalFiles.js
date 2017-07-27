@@ -4,10 +4,6 @@ import {Directory} from "platform/platform";
 const MIN_FILES_BEFORE_TRIGGER = 10;
 const MAX_FILE_COUNT = Math.pow(2, 31);
 
-const rext = /\.([A-Z_a-z0-9-]+)$/;
-const getExtension = function(name) {
-    return name.match(rext);
-};
 
 function readEntries(reader) {
     return new Promise(resolve => reader.readEntries(resolve, () => resolve(null)));
@@ -18,39 +14,12 @@ function entryToFile(entry) {
 }
 
 export default class LocalFiles {
-    constructor(env) {
-        this.env = env;
-        this.defaultFilter = this.defaultFilter.bind(this);
-    }
-
-    defaultFilter(file) {
-        if (file.size <= 131072 || file.size >= 1073741824) {
-            return false;
-        }
-
-        let ext = getExtension(file.name);
-
-        if (ext) {
-            ext = ext[1];
-        } else {
-            ext = ``;
-        }
-
-        if (this.env.supportsExtension(ext) ||
-            this.env.supportsMime(file.type)) {
-            return true;
-        } else if (!ext && !file.type) {
-            return true;
-        }
-        return false;
-    }
-
     async traverseEntries(entries, ee, context) {
         for (let i = 0; i < entries.length && context.currentFileCount < context.maxFileCount; ++i) {
             const entry = entries[i];
             if (entry.isFile) {
                 const file = await entryToFile(entry);
-                if (file && context.filter(file)) {
+                if (file) {
                     context.currentFileCount++;
                     if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
                         ee.emit(`files`, context.stack.slice());
@@ -73,7 +42,7 @@ export default class LocalFiles {
             const entry = entries[i];
             if (!(entry instanceof Directory) && entry.name && entry.size) {
                 const file = entry;
-                if (file && context.filter(file)) {
+                if (file) {
                     context.currentFileCount++;
                     if (context.stack.push(file) >= MIN_FILES_BEFORE_TRIGGER) {
                         ee.emit(`files`, context.stack.slice());
@@ -92,13 +61,12 @@ export default class LocalFiles {
         }
     }
 
-    fileEmitterFromFilesAndDirs(filesAndDirs, maxFileCount, filter) {
+    fileEmitterFromFilesAndDirs(filesAndDirs) {
         const ret = new EventEmitter();
         const context = {
             stack: [],
             maxFileCount: MAX_FILE_COUNT,
-            currentFileCount: 0,
-            filter: filter || this.defaultFilter
+            currentFileCount: 0
         };
 
         (async () => {
@@ -115,13 +83,12 @@ export default class LocalFiles {
         return ret;
     }
 
-    fileEmitterFromEntries(entries, maxFileCount, filter) {
+    fileEmitterFromEntries(entries) {
         const ret = new EventEmitter();
         const context = {
             stack: [],
             maxFileCount: MAX_FILE_COUNT,
-            currentFileCount: 0,
-            filter: filter || this.defaultFilter
+            currentFileCount: 0
         };
 
         (async () => {
