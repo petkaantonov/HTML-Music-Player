@@ -7,7 +7,7 @@ import EventEmitter from "events";
 import {ACCELERATE_QUAD_INTERPOLATOR} from "ui/animation/easing";
 import {PLAYBACK_STOP_EVENT, PLAYBACK_PLAY_EVENT} from "player/PlayerController";
 
-export const CANVAS_ENABLED_STATE_CHANGE_EVENT = "canvasEnabledStateChange";
+export const CANVAS_ENABLED_STATE_CHANGE_EVENT = `canvasEnabledStateChange`;
 
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = `rgb(11,32,53)`;

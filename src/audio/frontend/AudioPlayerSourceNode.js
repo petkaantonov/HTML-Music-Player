@@ -80,7 +80,6 @@ function applyWav(planarF32Arrays, frameLength) {
     }
 }*/
 
-const MAX_ANALYSER_SIZE = 65536;
 export default class AudioPlayerSourceNode extends EventEmitter {
     constructor(audioPlayerFrontend, id, audioContext) {
         super();
@@ -542,7 +541,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             ret.gain = lowerBoundSourceDescriptor.gain;
 
             const offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
-            const length = duration * sampleRate | 0;
+            const length = duration * sampleRate | 0;
             const bufferLength = lowerBoundSourceDescriptor.getRemainingDuration() * sampleRate | 0;
 
             if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {

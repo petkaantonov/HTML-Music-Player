@@ -121,12 +121,7 @@ export default class FileView {
             while (retries < 5) {
                 try {
                     const blob = this.file.slice(this.start, this.end);
-                    let result;
-                    try {
-                        result = await readAsArrayBuffer(blob, cancellationToken);
-                    } finally {
-                        blob.close();
-                    }
+                    const result = await readAsArrayBuffer(blob, cancellationToken);
                     this._freeBuffer();
                     this.buffer = new Uint8Array(result);
                     this.dataview = new DataView(result);

@@ -273,7 +273,7 @@ export default class AudioPlayer extends WorkerFrontend {
 
     getAudioLatency() {
         return (this._audioContext.baseLatency || 0) +
-                (this._audioContext.outputLatency || 0);
+                (this._audioContext.outputLatency || 0);
     }
 
     getScheduleAheadTime() {

@@ -1,4 +1,5 @@
-import {normalizeQuery, throttle} from "util";
+import {throttle} from "util";
+import {normalizeQuery} from "utils/searchUtil";
 import {SEARCH_READY_EVENT_NAME} from "search/SearchBackend";
 import WorkerFrontend from "WorkerFrontend";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";

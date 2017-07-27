@@ -9,7 +9,7 @@ export default class Zipper {
         this._wasm = wasm;
         this._ptr = this.init_zipper();
         if (!this._ptr) {
-            throw new Error("out of memory");
+            throw new Error(`out of memory`);
         }
         this._fileExtractionProgressCallback = null;
         this._fileExtractedCallback = null;
@@ -19,7 +19,7 @@ export default class Zipper {
     }
 
     _writeCallback(fileOffset, bufferPtr, bufferLength, wasmDataPtr) {
-        wasm.memcpy(wasmDataPtr + fileOffset, bufferPtr, bufferLength);
+        this._wasm.memcpy(wasmDataPtr + fileOffset, bufferPtr, bufferLength);
         this._currentFileInfo.written += bufferLength;
 
         if (fileOffset + bufferLength >= this._currentFileInfo.size ||
@@ -37,7 +37,7 @@ export default class Zipper {
 
     readZip(zipFile, fileExtractedCallback, fileExtractionProgressCallback, fileMetadataCallback) {
         if (!(zipFile instanceof File)) {
-            throw new Error("must be a file");
+            throw new Error(`must be a file`);
         }
         fs.set(zipFile.name, zipFile);
         try {
@@ -45,8 +45,12 @@ export default class Zipper {
             if (err) {
                 throw new Error(`Zipper error: ${err}`);
             }
-            let fileCount;
-            ([err, fileCount] = this.zipper_populate_file_infos(this._ptr));
+            const populateFileInfosResult = this.zipper_populate_file_infos(this._ptr);
+            const [, fileCount] = populateFileInfosResult;
+            ([err] = populateFileInfosResult);
+            if (err) {
+                throw new Error(`Zipper error: ${err}`);
+            }
             let filesExtracted = 0;
             if (fileCount > 0) {
                 for (let i = 0; i < fileCount; ++i) {
@@ -70,8 +74,8 @@ export default class Zipper {
 
                     err = this.zipper_extract_file(this._ptr, entryPtr);
 
-                    if (err && !this._fileCancelled)  {
-                        throw new Error("unexpected extraction fail");
+                    if (err && !this._fileCancelled) {
+                        throw new Error(`unexpected extraction fail`);
                     }
 
                     if (!err) {
@@ -88,7 +92,6 @@ export default class Zipper {
             this._currentFileInfo = null;
             this._fileCancelled = false;
         }
-        return {fileCount: 0, filesExtracted: 0};
     }
 }
 
@@ -103,16 +106,16 @@ moduleEvents.on(`zip_beforeModuleImport`, (wasm, imports) => {
 moduleEvents.on(`zip_afterInitialized`, (wasm, exports) => {
     Zipper.prototype.init_zipper = exports.init_zipper;
     Zipper.prototype.zipper_prepare_file_for_reading = wasm.createFunctionWrapper({
-        name: "zipper_prepare_file_for_reading"
-    }, "integer", "string");
+        name: `zipper_prepare_file_for_reading`
+    }, `integer`, `string`);
     Zipper.prototype.zipper_populate_file_infos = wasm.createFunctionWrapper({
-        name: "zipper_populate_file_infos"
-    }, "integer", "integer-retval");
+        name: `zipper_populate_file_infos`
+    }, `integer`, `integer-retval`);
     Zipper.prototype.zipper_get_nth_file_info_fields = wasm.createFunctionWrapper({
-        name: "zipper_get_nth_file_info_fields"
-    }, "integer", "boolean-retval", "boolean-retval", "string-retval",
-     "double-retval", "double-retval", "integer-retval", "integer-retval");
+        name: `zipper_get_nth_file_info_fields`
+    }, `integer`, `boolean-retval`, `boolean-retval`, `string-retval`,
+     `double-retval`, `double-retval`, `integer-retval`, `integer-retval`);
     Zipper.prototype.zipper_extract_file = wasm.createFunctionWrapper({
-        name: "zipper_extract_file"
-    }, "integer", "integer");
+        name: `zipper_extract_file`
+    }, `integer`, `integer`);
 });

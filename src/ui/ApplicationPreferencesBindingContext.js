@@ -1,7 +1,6 @@
 import {ToggleableValue, SlideableValue} from "ui/templates";
 import {ToggleableValuePreferenceUiBinding, SlideableValuePreferenceUiBinding} from "preferences/uibinders";
 import AbstractUiBindingManager from "ui/AbstractUiBindingManager";
-import {Float64Array} from "platform/platform";
 import {STORAGE_KEY, Preferences,
         minBufferLengthValue, maxBufferLengthValue} from "preferences/ApplicationPreferences";
 import AbstractPreferencesBindingContext from "ui/AbstractPreferencesBindingContext";

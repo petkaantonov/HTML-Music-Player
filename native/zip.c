@@ -114,8 +114,6 @@ EXPORT Zipper* init_zipper() {
     return zipper;
 }
 
-
-
 EXPORT ZipperError zipper_prepare_file_for_reading(Zipper* zipper, const char *pFilename) {
     if (zipper->file_info_count > 0) {
         for (int i = 0; i < zipper->file_info_count; ++i) {

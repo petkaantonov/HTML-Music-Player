@@ -1,3 +1,5 @@
+import {DataView} from "platform/platform";
+
 const RIFF = 1380533830 | 0;
 const WAVE = 1463899717 | 0;
 const ID3 = 0x494433 | 0;
@@ -6,12 +8,19 @@ const WEBM = 0x1A45DFA3 | 0;
 const AAC_1 = 0xFFF1 | 0;
 const AAC_2 = 0xFFF9 | 0;
 
+export const SNIFF_LENGTH = 8192;
+
 const mimeMap = {
     "audio/mp3": `mp3`,
     "audio/mpeg": `mp3`
 };
+
 const extMap = {
     "mp3": `mp3`
+};
+
+const codecNameToTypeMap = {
+    "mp3": `audio/mp3`
 };
 
 const probablyMp3Header = function(header) {
@@ -28,12 +37,12 @@ const getExtension = function(str) {
     return null;
 };
 
-function refine(type, fileView, index) {
+function refine(type, dataView, index) {
     if (type === `wav`) {
-        if (index >= fileView.end - 22) {
+        if (index >= dataView.byteLength - 22) {
             return `wav`;
         }
-        const fmt = fileView.getUint16(index + 20, true);
+        const fmt = dataView.getUint16(index + 20, true);
         switch (fmt) {
             case 0x0055: return `mp3`;
             case 0x0001: return `wav`;
@@ -47,34 +56,54 @@ function refine(type, fileView, index) {
 }
 
 export default async function getCodecName(fileView, cancellationToken) {
-    await fileView.readBlockOfSizeAt(8192 * 16, 0, cancellationToken);
-    const {end, file} = fileView;
-    for (let i = 0; i < end - 4; ++i) {
-        const value = fileView.getInt32(i, false);
+    await fileView.readBlockOfSizeAt(SNIFF_LENGTH, 0, cancellationToken);
+    const contentResult = getCodecNameFromContents(fileView.block());
 
-        if (value === RIFF &&
-            i < end - 12 &&
-            fileView.getInt32(i + 8) === WAVE) {
-            return refine(`wav`, fileView, i);
-        } else if ((value >>> 16) === AAC_1 || (value >>> 16) === AAC_2) {
-            return refine(`aac`, fileView, i);
-        } else if (value === WEBM) {
-            return refine(`webm`, fileView, i);
-        } else if (value === OGGS) {
-            return refine(`ogg`, fileView, i);
-        } else if ((value >>> 8) === ID3 || probablyMp3Header(value)) {
-            return refine(`mp3`, fileView, i);
-        }
+    if (contentResult) {
+        return contentResult;
     }
 
+    const {file} = fileView;
     if (mimeMap[file.type]) {
         return mimeMap[file.type];
     }
 
-    const ext = getExtension(file.name);
+    return getCodecNameFromFileName(file.name);
+}
 
-    if (ext) return extMap[ext] || null;
+export function getCodecNameFromContents(buffer) {
+    const length = Math.min(buffer.length, SNIFF_LENGTH);
+    const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    for (let i = 0; i < length - 4; ++i) {
+        const value = dataView.getInt32(i, false);
+
+        if (value === RIFF &&
+            i < length - 12 &&
+            dataView.getInt32(i + 8) === WAVE) {
+            return refine(`wav`, dataView, i);
+        } else if ((value >>> 16) === AAC_1 || (value >>> 16) === AAC_2) {
+            return refine(`aac`, dataView, i);
+        } else if (value === WEBM) {
+            return refine(`webm`, dataView, i);
+        } else if (value === OGGS) {
+            return refine(`ogg`, dataView, i);
+        } else if ((value >>> 8) === ID3 || probablyMp3Header(value)) {
+            return refine(`mp3`, dataView, i);
+        }
+    }
+    return null;
+}
+
+export function getCodecNameFromFileName(fileName) {
+    const ext = getExtension(fileName);
+
+    if (ext) {
+        return extMap[ext] || null;
+    }
 
     return null;
+}
 
+export function codecNameToFileType(codecName) {
+    return `${codecNameToTypeMap[codecName]}`;
 }

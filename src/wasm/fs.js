@@ -1,21 +1,21 @@
 export const fs = new Map();
 export const handles = new Map();
-import {File} from "platform/platform";
+import {File, FileReaderSync, Uint8Array, ArrayBuffer} from "platform/platform";
 
 const SEEK_SET = 0;
 const SEEK_CUR = 1;
 const SEEK_END = 2;
-const EOF -1;
+const EOF = -1;
 const EINVAL = 22;
 
 class Mode {
     constructor(modeString) {
         this._binary = modeString.indexOf(`b`) >= 0;
-        this._write = modeString.indexOf("w") >= 0;
-        this._read = modeString.indexOf("r") >= 0;
-        this._append = modeString.indexOf("a") >= 0;
-        this._plus = modeString.indexOf("+") >= 0;
-        this._x = modeString.indexOf("x") >= 0;
+        this._write = modeString.indexOf(`w`) >= 0;
+        this._read = modeString.indexOf(`r`) >= 0;
+        this._append = modeString.indexOf(`a`) >= 0;
+        this._plus = modeString.indexOf(`+`) >= 0;
+        this._x = modeString.indexOf(`x`) >= 0;
     }
 }
 
@@ -130,7 +130,7 @@ class FHandle {
         const fileStart = this._position;
         this._validPositionForSet(fileStart + length);
         const lengthToRead = this._position - fileStart;
-        const file = this.file;
+        const {file} = this;
         if (!file) {
             return -1;
         }
@@ -141,10 +141,10 @@ class FHandle {
             const dst = wasm.u8view(targetPtr, lengthToRead);
             dst.set(new Uint8Array(src));
             return lengthToRead / size;
-        } finally {
-            slicedBlob.close();
+        } catch (e) {
+            self.uiLog(e.message);
+            return 0;
         }
-        return 0;
     }
 
     _fwrite(wasm, sourcePtr, size, count) {
@@ -155,13 +155,13 @@ class FHandle {
         const position = this._position;
 
         if (position + length >= this._writeLength) {
-            const length = (position + length * 1.5);
+            const bufferLength = (position + length * 1.5) | 0;
             if (this._writePtr) {
-                this._writePtr = wasm.realloc(this._writePtr, length);
+                this._writePtr = wasm.realloc(this._writePtr, bufferLength);
             } else {
-                this._writePtr = wasm.malloc(length);
+                this._writePtr = wasm.malloc(bufferLength);
             }
-            this._writeLength = length;
+            this._writeLength = bufferLength;
         }
         this._position += length;
         this._size += length;
@@ -230,7 +230,7 @@ export function createFs(wasm) {
 
     return {
         fclose(handle) {
-            return withHandle(handle, fhandle => {
+            return withHandle(handle, (fhandle) => {
                 fhandle._fflush(wasm);
                 fhandle._fclose(wasm);
                 handles.delete(handle);
@@ -253,12 +253,12 @@ export function createFs(wasm) {
             return withHandle(handle, fhandle => fhandle._fread(wasm, ptr, size, count));
         },
         freopen(fileNamePtr, flagsStrPtr, handle) {
-            return withHandle(handle, fhandle => {
+            return withHandle(handle, () => {
                 handles.delete(handle);
                 return fopen(fileNamePtr, flagsStrPtr, handle);
             });
         },
-        fwrite(ptr, size, count, handle) {
+        fwrite(ptr, size, count, handle) {
             return withHandle(handle, fhandle => fhandle._fwrite(wasm, ptr, size, count));
         },
         remove(fileNamePtr) {
@@ -281,8 +281,8 @@ export function createFs(wasm) {
             }
             return -1;
         },
-        js_utime(path, actime, modtime) {
+        js_utime() {
             return 0;
         }
     };
-};
+}

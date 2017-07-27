@@ -1,5 +1,6 @@
 import AbstractBackend from "AbstractBackend";
-import {getFirstWord, getLastWord, reverseString, normalizeQuery} from "util";
+import {getFirstWord, getLastWord, reverseString} from "util";
+import {normalizeQuery} from "utils/searchUtil";
 import {trackSearchIndexCmp, stopWords} from "tracks/TagDatabase";
 import {merge, insert} from "search/sortedArrays";
 import {indexedDB} from "platform/platform";

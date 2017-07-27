@@ -241,11 +241,7 @@ export default class PlayerPictureManager extends EventEmitter {
                 if (this._currentImage && this._currentImage.src === image.src) {
                     continue;
                 }
-                try {
-                    image.blob.close();
-                } catch (e) {
-                    // NOOP
-                }
+
                 try {
                     URL.revokeObjectURL(image.src);
                 } catch (e) {

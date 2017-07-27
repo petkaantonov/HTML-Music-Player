@@ -1,4 +1,4 @@
-import {iDbPromisify, applyStoreSpec} from "pureUtil";
+import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
 
 const VERSION = 4;
 const NAME = `KeyValueDatabase2`;

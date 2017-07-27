@@ -107,6 +107,40 @@ function bundleGui(target) {
     return Promise.all([full, minified]);
 }
 
+function bundleZipperWorker(target) {
+    var entry = "src/zip/ZipperWorker.js";
+    var name = "ZipperWorker";
+    mkdirp("dist/worker");
+
+    var bundles = bundleJs({
+        entry: entry,
+        moduleName: name,
+        format: "iife",
+        banner: licenseHeader,
+        target: target
+    });
+
+    var full, minified;
+
+    if (target & DEBUG) {
+        full = pump([bundles.full, source(name + ".js"), buffer(), replace(/^/, "self.DEBUGGING = true;\n"), gulp.dest("dist/worker")]);
+    }
+
+    if (target & RELEASE) {
+        let globals = `self.DEBUGGING = false;\n`;
+        if (releaseVersion) {
+            globals += `self.VERSION = "${releaseVersion}";\n`;
+        }
+        minified = pump([bundles.minified, source(name + ".min.js"),
+            buffer(),
+            sourcemaps.init({loadMaps: true}),
+            replace(/^/, globals),
+            sourcemaps.write("."),
+            gulp.dest("dist/worker")]);
+    }
+    return Promise.all([full, minified]);
+}
+
 function bundleWorkerBackend(target) {
     var entry = "src/WorkerBackend.js";
     var name = "WorkerBackend";
@@ -200,9 +234,15 @@ function bundleSass() {
 function cpWasm(target) {
     mkdirp("dist/worker/wasm");
     if (target & DEBUG) {
-        return exec("cp wasm/main.debug.wasm dist/worker/wasm/main.debug.wasm");
+        return Promise.all([
+                exec("cp wasm/main.debug.wasm dist/worker/wasm/main.debug.wasm"),
+                exec("cp wasm/zip.debug.wasm dist/worker/wasm/zip.debug.wasm")
+        ]);
     } else if (target & RELEASE) {
-        return exec("cp wasm/main.release.wasm dist/worker/wasm/main.release.wasm");
+        return Promise.all([
+            exec("cp wasm/main.release.wasm dist/worker/wasm/main.release.wasm"),
+            exec("cp wasm/zip.release.wasm dist/worker/wasm/zip.release.wasm")
+        ]);
     }
 }
 
@@ -211,6 +251,7 @@ function build() {
         bundleSass(),
         bundleGui(RELEASE),
         bundleWorkerBackend(RELEASE),
+        bundleZipperWorker(RELEASE),
         bundleServiceWorker(),
         cpWasm(RELEASE)
     ]);
@@ -221,6 +262,7 @@ function buildDebug() {
         bundleSass(),
         bundleGui(DEBUG),
         bundleWorkerBackend(DEBUG),
+        bundleZipperWorker(DEBUG),
         bundleServiceWorker(),
         cpWasm(DEBUG)
     ]);
@@ -267,7 +309,8 @@ gulp.task("lint", function() {
 gulp.task("gui", bundleGui.bind(null, DEBUG));
 gulp.task("nongui", function() {
     return Promise.all([
-        bundleWorkerBackend(DEBUG)
+        bundleWorkerBackend(DEBUG),
+        bundleZipperWorker(DEBUG)
     ]);
 })
 

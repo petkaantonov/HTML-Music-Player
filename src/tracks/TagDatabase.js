@@ -1,5 +1,5 @@
 import {promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
-import {iDbPromisify, applyStoreSpec} from "pureUtil";
+import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
 const VERSION = 24;
