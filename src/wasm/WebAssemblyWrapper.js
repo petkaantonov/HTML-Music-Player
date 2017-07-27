@@ -1,9 +1,10 @@
 import createStdio from "wasm/stdio";
 import createCString from "wasm/cstring";
 import createStdlib from "wasm/stdlib";
+import createTime from "wasm/time";
 import {TextDecoder, Proxy, ArrayBuffer,
         Uint8Array, Uint32Array, DataView,
-        WebAssembly, Symbol, Int16Array, self, console} from "platform/platform";
+        WebAssembly, Symbol, Int16Array, self, console, indexedDB} from "platform/platform";
 import {getterProxyHandlers, setterProxyHandlers} from "util";
 import EventEmitter from "events";
 
@@ -243,6 +244,7 @@ export default class WebAssemblyWrapper {
         const stdio = createStdio(this);
         const cstring = createCString(this);
         const stdlib = createStdlib(this);
+        const time = createTime(this);
 
         const stdenv = Object.assign({
             initialize: (heapStart, debug) => {
@@ -254,7 +256,7 @@ export default class WebAssemblyWrapper {
                 this._brk = this._heapStart;
                 this._debug = !!debug;
             }
-        }, stdio, cstring, stdlib);
+        }, stdio, cstring, stdlib, time);
 
         const importsObj = {
             env: stdenv
@@ -362,8 +364,16 @@ export default class WebAssemblyWrapper {
         return this._view.getUint32(ptr + offset, true);
     }
 
+    setF64(ptr, value) {
+        return this._view.setFloat64(ptr, value, true);
+    }
+
     setU32(ptr, value) {
         return this._view.setUint32(ptr, value, true);
+    }
+
+    setI32(ptr, value) {
+        return this._view.setInt32(ptr, value, true);
     }
 
     u32(ptr) {
@@ -428,6 +438,13 @@ export default class WebAssemblyWrapper {
     memset(dstPtr, value, length) {
         this._heap.fill(value, dstPtr, dstPtr + length);
         return dstPtr;
+    }
+
+    memcmp(ptr1, ptr2, length) {
+        return indexedDB.cmp(
+            this.u8view(ptr1, length),
+            this.u8view(ptr2, length)
+        );
     }
 
     createFunctionWrapper({name, unsafeJsStack}, ...types) {

@@ -7,6 +7,10 @@
     #define NDEBUG 1
 #endif
 
+#ifndef NULL
+  #define NULL ( (void *) 0)
+#endif
+
 #define __int8_t_defined
 typedef signed char int8_t;
 typedef short int int16_t;
@@ -22,6 +26,7 @@ typedef long long int intmax_t;
 typedef intptr_t ptrdiff_t;
 typedef unsigned long long int uintmax_t;
 typedef uint32_t size_t;
+typedef uint64_t time_t;
 typedef double double_t;
 typedef float float_t;
 typedef struct {} FILE;
@@ -78,7 +83,15 @@ FILE* stderr = (FILE*)2;
 #define DOUBLE_TO_I32(val) ((int32_t)((int64_t)(val)))
 #define DOUBLE_TO_U32(val) ((uint32_t)((uint64_t)(val)))
 
-#define CLIP_I32_TO_I16(val) (int16_t)(MAX(MIN((val), SHRT_MAX), SHRT_MIN))
+#define MAX_SAFE_INTEGER 9007199254740991LL
+#define MIN_SAFE_INTEGER -9007199254740991LL
+#define MAX_SAFE_INTEGER_F 9007199254740991.0
+#define MIN_SAFE_INTEGER_F -9007199254740991.0
+
+#define DOUBLE_TO_I64(val) ((int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(MIN_SAFE_INTEGER_F, (val)))))
+#define DOUBLE_TO_U64(val) ((uint64_t)(int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(-1.0, (val)))))
+#define CLIP_I64_TO_DOUBLE(val) ((double)(MIN(MAX_SAFE_INTEGER, MAX(MIN_SAFE_INTEGER, (val)))))
+#define CLIP_I32_TO_I16(val) ((int16_t)(MAX(MIN((val), SHRT_MAX), SHRT_MIN)))
 
 #define ABORT_ON_ASSERT_FAILURE 0
 #define MALLOC_FAILURE_ACTION
@@ -98,6 +111,54 @@ FILE* stderr = (FILE*)2;
 #define EXPORT extern __attribute__((visibility("default")))
 #define DLMALLOC_EXPORT EXPORT
 
+struct tm
+{
+    int tm_sec;
+    int tm_min;
+    int tm_hour;
+    int tm_mday;
+    int tm_mon;
+    int tm_year;
+    int tm_wday;
+    int tm_yday;
+    int tm_isdst;
+    long __tm_gmtoff;
+    const char *__tm_zone;
+};
+
+struct utimbuf {
+    time_t actime;
+    time_t modtime;
+};
+
+time_t mktime (struct tm *);
+struct tm* localtime(time_t*);
+time_t time(time_t *arg);
+int utime(const char *path, const struct utimbuf *times);
+
+extern double js_time();
+time_t time(time_t* arg) {
+  double ret_val = js_time();
+  time_t ret_val_64 = DOUBLE_TO_U64(ret_val);
+  if (arg) {
+    *arg = ret_val_64;
+  }
+  return ret_val_64;
+}
+extern int js_utime(const char* path, double actime, double modtime);
+int utime(const char *path, const struct utimbuf *times) {
+  double actime, modtime;
+  if (!times) {
+    double now = js_time();
+    actime = now;
+    modtime = now;
+  } else {
+    actime = CLIP_I64_TO_DOUBLE(times->actime);
+    modtime = CLIP_I64_TO_DOUBLE(times->modtime);
+  }
+  return js_utime(path, actime, modtime);
+}
+
 extern void* sbrk(intptr_t);
 extern int brk(void*);
 extern void a_crash();
@@ -111,11 +172,41 @@ int clz(uint32_t x);
 void* memmove(void*, const void*, size_t);
 void* memcpy(void*, const void*, size_t);
 void* memset(void*, int, size_t);
+int memcmp(const void *str1, const void *str2, size_t n);
+
 void abort();
 size_t strlen(const char*);
 extern double performance_now(void);
 extern double math_random(void);
 extern void qsort(void*, size_t, size_t, int (*compar)(const void*, const void*));
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#define EOF -1
+
+uint64_t ftello(FILE* handle);
+int fseeko(FILE* handle, uint64_t offset, int whence);
+uint32_t ftell(FILE* handle);
+int fseek(FILE* handle, uint32_t offset, int whence);
+size_t fread(void* ptr, size_t size, size_t nitems, FILE* handle);
+int fclose(FILE* handle);
+FILE* fopen(const char *filename, const char *type);
+size_t fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream);
+FILE *freopen(const char *filename, const char *type, FILE *stream);
+int fflush(FILE *stream);
+int remove(const char *path);
+
+extern double js_ftell(FILE* handle);
+extern int js_fseek(FILE* handle, double offset, int whence);
+
+uint64_t ftello(FILE* handle) {
+  return DOUBLE_TO_U64(js_ftell(handle));
+}
+
+int fseeko(FILE* handle, uint64_t offset, int whence) {
+  return js_fseek(handle, CLIP_I64_TO_DOUBLE(offset), whence);
+}
 
 #ifdef DEBUG
 
