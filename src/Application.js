@@ -41,6 +41,7 @@ import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
 import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
 import {ITEM_HEIGHT} from "tracks/TrackView";
 import ZipperFrontend from "zip/ZipperFrontend";
+import {QUOTA_EXCEEDED_EVENT} from "platform/QuotaExceededEmitterTrait";
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
@@ -559,6 +560,10 @@ export default class Application {
 
         this.tickLongTimers = this.tickLongTimers.bind(this);
         this.tickLongTimers();
+
+        this._quotaExceeded = this._quotaExceeded.bind(this);
+        this.zipper.on(QUOTA_EXCEEDED_EVENT, this._quotaExceeded);
+        this.metadataManager.on(QUOTA_EXCEEDED_EVENT, this._quotaExceeded);
     }
 
     tickLongTimers() {
@@ -600,6 +605,16 @@ export default class Application {
 
             return outcome === ACTION_CLICKED || outcome === DISMISSED;
         })());
+    }
+
+    async _quotaExceeded() {
+        const outcome = await this.snackbar.show(`Storage space limit has been reached`, {
+            action: `Resolve`,
+            visibilityTime: 60000 * 3
+        });
+        if (outcome === ACTION_CLICKED) {
+            // TODO: show space manager or request somehow more quota?
+        }
     }
 
 }

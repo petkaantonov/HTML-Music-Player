@@ -47,3 +47,11 @@ export const {ArrayBuffer,
 const global = self;
 
 export {global as self};
+
+export const CONSTRAINT_ERROR = `ConstraintError`;
+export const QUOTA_EXCEEDED_ERROR = `QuotaExceededError`;
+export const UNKNOWN_ERROR = `UnknownError`;
+
+export function isOutOfMemoryError(e) {
+    return e.name === UNKNOWN_ERROR || e.name === QUOTA_EXCEEDED_ERROR;
+}

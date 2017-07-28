@@ -5,7 +5,7 @@ import {File, FileReaderSync, Uint8Array, ArrayBuffer} from "platform/platform";
 const SEEK_SET = 0;
 const SEEK_CUR = 1;
 const SEEK_END = 2;
-const EOF = -1;
+// Const EOF = -1;
 const EINVAL = 22;
 
 class Mode {

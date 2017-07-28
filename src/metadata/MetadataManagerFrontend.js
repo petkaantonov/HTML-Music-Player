@@ -8,12 +8,14 @@ import {METADATA_MANAGER_READY_EVENT_NAME,
             UIDS_MAPPED_TO_FILES_MESSAGE,
             NEW_TRACK_FROM_TMP_FILE_MESSAGE,
             FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+            QUOTA_EXCEEDED_MESSAGE,
         fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
 import {hexString, toTimeString, ownPropOr, delay} from "util";
 import WorkerFrontend from "WorkerFrontend";
 import {AUDIO_FILE_EXTRACTED_EVENT} from "zip/ZipperFrontend";
+import QuotaExceededEmitterTrait from "platform/QuotaExceededEmitterTrait";
 
 const NULL_STRING = `\x00`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -379,7 +381,8 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this),
             [UIDS_MAPPED_TO_FILES_MESSAGE]: this._uidsMappedToFiles.bind(this),
             [NEW_TRACK_FROM_TMP_FILE_MESSAGE]: this._newTrackFromTmpFile.bind(this),
-            [FILE_REFERENCE_UNAVAILABLE_MESSAGE]: this._fileReferenceUnavailable.bind(this)
+            [FILE_REFERENCE_UNAVAILABLE_MESSAGE]: this._fileReferenceUnavailable.bind(this),
+            [QUOTA_EXCEEDED_MESSAGE]: this.quotaExceeded.bind(this)
         };
 
         this._zipper.on(AUDIO_FILE_EXTRACTED_EVENT, this._audioFileExtracted.bind(this));
@@ -586,3 +589,5 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         } while (i < trackUidsNeedingTrackInfo.length);
     }
 }
+
+Object.assign(MetadataManagerFrontend.prototype, QuotaExceededEmitterTrait);

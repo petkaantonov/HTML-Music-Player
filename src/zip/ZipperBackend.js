@@ -7,7 +7,7 @@ import Zipper, {
     ARCHIVING_BUFFER_FULL_EVENT,
     ARCHIVING_PROGRESS_EVENT
 } from "zip/Zipper";
-import {File, Blob} from "platform/platform";
+import {File, Blob, isOutOfMemoryError} from "platform/platform";
 import {getCodecNameFromContents, getCodecNameFromFileName,
         codecNameToFileType} from "audio/backend/sniffer";
 import KeyValueDatabase from "platform/KeyValueDatabase";
@@ -15,6 +15,7 @@ import KeyValueDatabase from "platform/KeyValueDatabase";
 export const ZIPPER_READY_EVENT_NAME = `ZipperReady`;
 export const AUDIO_FILE_EXTRACTED_MESSAGE = `audioFileExtractedMessage`;
 export const ARCHIVE_PROGRESS_MESSAGE = `archiveProgress`;
+export const QUOTA_EXCEEDED_MESSAGE = `quotaExceeded`;
 
 export const EXTRACTED_FILE_TMP_SOURCE_NAME = `ExtractedFromArchive`;
 export const ARCHIVE_FILE_TMP_SOURCE_NAME = `ArchiveTmpChunk`;
@@ -99,10 +100,22 @@ export default class ZipperBackend extends AbstractBackend {
         this._archiveTotalSize = totalSizeBytes;
     }
 
-    async _archivingBufferFull(ptr, length) {
-        const blob = new Blob([this._wasm.u8view(ptr, length)]);
-        await this._kvdb.addTmpFile(blob, this._archiveRequestId);
-        // TODO Communicate to frontend, which communicates to serviceworker
+    async _saveArchivedChunk(buffer) {
+        try {
+            const blob = new Blob([buffer]);
+            await this._kvdb.addTmpFile(blob, this._archiveRequestId);
+            // TODO Communicate to frontend, which communicates to serviceworker
+            return true;
+        } catch (e) {
+            if (this._checkStorageError(e)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    _archivingBufferFull(ptr, length, out) {
+        out.respondWith = this._saveArchivedChunk(this._wasm.u8view(ptr, length));
     }
 
     _archivingProgress(filesArchived, bytesWritten) {
@@ -117,21 +130,26 @@ export default class ZipperBackend extends AbstractBackend {
         });
     }
 
-    async _saveExtractedFile(file) {
-        const tmpFileId = await this._kvdb.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
-        this.postMessage({
-            type: AUDIO_FILE_EXTRACTED_MESSAGE,
-            result: {tmpFileId}
-        });
+    async _saveExtractedFile(buffer, fileName, type, lastModified) {
+        try {
+            const file = new File([buffer], fileName, {type, lastModified});
+            const tmpFileId = await this._kvdb.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
+            this.postMessage({
+                type: AUDIO_FILE_EXTRACTED_MESSAGE,
+                result: {tmpFileId}
+            });
+            return true;
+        } catch (e) {
+            if (this._checkStorageError(e)) {
+                return false;
+            }
+            throw e;
+        }
     }
 
     _fileExtracted({lastModified, name, userData}, buffer, out) {
         const fileName = basename(name);
-        const file = new File([buffer], fileName, {
-            type: userData.type,
-            lastModified: lastModified * 1000
-        });
-        out.waitUntil = this._saveExtractedFile(file);
+        out.respondWith = this._saveExtractedFile(buffer, fileName, userData.type, lastModified * 1000);
     }
 
     _fileExtractionProgress({name, userData}, ptr, length, out) {
@@ -148,5 +166,13 @@ export default class ZipperBackend extends AbstractBackend {
                 userData.type = codecNameToFileType(codecName);
             }
         }
+    }
+
+    _checkStorageError(e) {
+        if (isOutOfMemoryError(e)) {
+            this.postMessage({type: QUOTA_EXCEEDED_MESSAGE});
+            return true;
+        }
+        return false;
     }
 }

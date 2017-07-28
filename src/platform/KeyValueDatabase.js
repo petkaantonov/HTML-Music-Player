@@ -150,6 +150,14 @@ export default class KeyValueDatabase {
         return iDbPromisify(store.getAll());
     }
 
+    async consumeTmpFileById(tmpFileId) {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        const ret = await iDbPromisify(store.get(tmpFileId));
+        await iDbPromisify(store.delete(tmpFileId));
+        return ret;
+    }
+
     async getTmpFileById(tmpFileId) {
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_ONLY).objectStore(TMP_FILES_OBJECT_STORE_NAME);

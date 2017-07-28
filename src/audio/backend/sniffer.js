@@ -76,7 +76,7 @@ export function isAudioFile(file) {
         return false;
     }
 
-    const ext = getExtension(file.name) || ``;
+    const ext = getExtension(file.name) || ``;
     if (supportedAudioFileExtMap.hasOwnProperty(ext) ||
         supportedAudioFileMimeMap.hasOwnProperty(file.type)) {
         return true;

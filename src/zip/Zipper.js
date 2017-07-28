@@ -10,16 +10,12 @@ export const ARCHIVING_WILL_START_EVENT = `archivingWillStart`;
 export const ARCHIVING_BUFFER_FULL_EVENT = `archivingBufferFull`;
 export const ARCHIVING_PROGRESS_EVENT = `archivingProgressEvent`;
 
-function delay(ms) {
-    return new Promise(resolve => self.setTimeout(resolve, ms));
-}
-
 const CALLBACK_MODE_NONE = 0;
 const CALLBACK_MODE_EXTRACT = 1;
 const CALLBACK_MODE_ARCHIVE = 2;
 
 const zippersToJsInstances = new Map();
-const out = {preventExtraction: false, waitUntil: null};
+const out = {preventExtraction: false, respondWith: true};
 
 export default class Zipper extends EventEmitter {
     constructor(wasm) {
@@ -36,7 +32,7 @@ export default class Zipper extends EventEmitter {
         zippersToJsInstances.set(this._ptr, this);
     }
 
-    _getWasmData() {
+    _getWasmData() {
         const [err, wasmDataPtr, wasmDataLength] = this.zipper_get_data(this._ptr);
         this._checkError(err);
         return {wasmDataPtr, wasmDataLength};
@@ -60,7 +56,7 @@ export default class Zipper extends EventEmitter {
                 this._currentFileInfo.finished = true;
                 const buffer = this._wasm.u8view(wasmDataPtr, this._currentFileInfo.size);
                 this.emit(FILE_EXTRACTED_EVENT, this._currentFileInfo, buffer, out);
-                this._currentFileInfo.waitUntil = out.waitUntil;
+                this._currentFileInfo.respondWith = out.respondWith;
                 return bufferLength;
             }
             this._currentFileInfo.written += bufferLength;
@@ -72,7 +68,8 @@ export default class Zipper extends EventEmitter {
             return bufferLength;
         } else {
             if (this._wasmDataWritten + bufferLength > wasmDataLength) {
-                this.emit(ARCHIVING_BUFFER_FULL_EVENT, wasmDataPtr, this._wasmDataWritten);
+                this.emit(ARCHIVING_BUFFER_FULL_EVENT, wasmDataPtr, this._wasmDataWritten, out);
+                this._currentFileInfo.respondWith = out.respondWith;
                 this._wasmDataWritten = 0;
                 this.emit(ARCHIVING_PROGRESS_EVENT, this._filesArchived, fileOffset);
             }
@@ -102,10 +99,13 @@ export default class Zipper extends EventEmitter {
 
             for (let i = 0; i < files.length; ++i) {
                 const {name, size, lastModified, type} = files[i];
-                this._currentFileInfo = {name, size, lastModified, type};
+                this._currentFileInfo = {name, size, lastModified, type, respondWith: true};
                 this._checkError(this.zipper_add_file_to_archive(this._ptr, name, name, 0));
                 this._filesArchived++;
-                await delay(100);
+                const shouldContinue = await this._currentFileInfo.respondWith;
+                if (shouldContinue === false) {
+                    return;
+                }
             }
 
             this._checkError(this.zipper_finish_archive(this._ptr));
@@ -155,7 +155,7 @@ export default class Zipper extends EventEmitter {
                     }
 
                     out.preventExtraction = false;
-                    this._currentFileInfo = {finished: false, waitUntil: null, index, lastModified, name, size, entryPtr, userData: {}};
+                    this._currentFileInfo = {finished: false, respondWith: true, index, lastModified, name, size, entryPtr, userData: {}};
                     this.emit(WILL_EXTRACT_FILE_EVENT, this._currentFileInfo, out);
 
                     if (out.preventExtraction) {
@@ -173,7 +173,10 @@ export default class Zipper extends EventEmitter {
 
                     filesExtracted++;
 
-                    await this._currentFileInfo.waitUntil;
+                    const shouldContinue = await this._currentFileInfo.respondWith;
+                    if (shouldContinue === false) {
+                        return {fileCount, filesExtracted};
+                    }
                 }
             }
             return {fileCount, filesExtracted};

@@ -1,6 +1,8 @@
 import {ZIPPER_READY_EVENT_NAME,
+        QUOTA_EXCEEDED_MESSAGE,
          AUDIO_FILE_EXTRACTED_MESSAGE} from "zip/ZipperBackend";
 import WorkerFrontend from "WorkerFrontend";
+import QuotaExceededEmitterTrait from "platform/QuotaExceededEmitterTrait";
 
 export const AUDIO_FILE_EXTRACTED_EVENT = `audioFileExtracted`;
 
@@ -14,6 +16,8 @@ export default class ZipperFrontend extends WorkerFrontend {
 
         if (type === AUDIO_FILE_EXTRACTED_MESSAGE) {
             this._audioFileExtracted(result);
+        } else if (type === QUOTA_EXCEEDED_MESSAGE) {
+            this.quotaExceeded();
         }
     }
 
@@ -37,3 +41,5 @@ export default class ZipperFrontend extends WorkerFrontend {
         });
     }
 }
+
+Object.assign(ZipperFrontend.prototype, QuotaExceededEmitterTrait);

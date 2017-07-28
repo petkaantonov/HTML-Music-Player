@@ -1,6 +1,6 @@
 import {promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
 import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
-import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
+import {indexedDB, IDBKeyRange, ArrayBuffer, File, CONSTRAINT_ERROR} from "platform/platform";
 
 const VERSION = 26;
 const DATA_WIPE_VERSION = 24;
@@ -31,8 +31,6 @@ export const stopWords = new Set([`a`, `an`, `and`, `are`, `as`, `at`, `be`, `by
 
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
-
-const CONSTRAINT_ERROR = `ConstraintError`;
 
 const objectStoreSpec = {
     [TRACK_INFO_OBJECT_STORE_NAME]: {

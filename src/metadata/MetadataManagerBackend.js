@@ -8,7 +8,7 @@ import JobProcessor, {JOB_COMPLETE_EVENT,
 import {delay, sha1Binary, queryString,
         toCorsUrl, _, trackInfoFromFileName, ajaxGet} from "util";
 import getCodec from "audio/backend/codec";
-import {URL, File, Blob, ArrayBuffer} from "platform/platform";
+import {URL, File, Blob, ArrayBuffer, isOutOfMemoryError} from "platform/platform";
 import {allocResampler, freeResampler} from "audio/backend/pool";
 import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
@@ -21,6 +21,7 @@ export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 
 export const JOB_STATE_INITIAL = `initial`;
 export const JOB_STATE_DATA_FETCHED = `dataFetched`;
+
 export const ALBUM_ART_RESULT_MESSAGE = `albumArtResult`;
 export const ACOUST_ID_DATA_RESULT_MESSAGE = `acoustIdDataFetched`;
 export const TRACKINFO_BATCH_RESULT_MESSAGE = `trackInfoBatchResult`;
@@ -30,6 +31,8 @@ export const UIDS_MAPPED_TO_FILES_MESSAGE = `uidsMappedToFiles`;
 export const METADATA_RESULT_MESSAGE = `metadataResult`;
 export const NEW_TRACK_FROM_TMP_FILE_MESSAGE = `newTrackFromTmpFile`;
 export const FILE_REFERENCE_UNAVAILABLE_MESSAGE = `fileReferenceUnavailable`;
+export const QUOTA_EXCEEDED_MESSAGE = `quotaExceeded`;
+
 export const ALBUM_ART_PREFERENCE_SMALLEST = `smallest`;
 export const ALBUM_ART_PREFERENCE_BIGGEST = `biggest`;
 export const ALBUM_ART_PREFERENCE_ALL = `all`;
@@ -203,35 +206,47 @@ export default class MetadataManagerBackend extends AbstractBackend {
             },
 
             async mapTrackUidsToFiles({trackUids}) {
-                // TODO: Handle missing files.
-                const files = await this._tagDatabase.trackUidsToFiles(trackUids);
+                const missing = [];
+                const files = await this._tagDatabase.trackUidsToFiles(trackUids, missing);
                 this.postMessage({type: UIDS_MAPPED_TO_FILES_MESSAGE, result: {files}});
+
+                for (let i = 0; i < missing.length; ++i) {
+                    const trackUid = missing[i];
+                    this.postMessage({
+                        type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+                        result: {trackUid}
+                    });
+                }
             },
 
             async parseTmpFile({tmpFileId}) {
                 await this._checkKvdb();
-                const tmpFile = await this._kvdb.getTmpFileById(tmpFileId);
+                const tmpFile = await this._kvdb.consumeTmpFileById(tmpFileId);
                 if (!tmpFile) {
-                    self.uiLog(`Temporary file was somehow not found (id=${tmpFileId})`);
                     return;
                 }
-                try {
-                    const {file} = tmpFile;
-                    const trackUid = await fileReferenceToTrackUid(file);
-                    const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
-                    if (!trackInfo) {
-                        const result = await this._parseMetadata(trackUid, file);
-                        if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+
+                const {file} = tmpFile;
+                const trackUid = await fileReferenceToTrackUid(file);
+                const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
+                if (!trackInfo) {
+                    const result = await this._parseMetadata(trackUid, file);
+                    if (result && result.trackInfo) {
+                        if (!result.trackInfo.hasBeenFingerprinted) {
                             this._fingerprinter.postJob(trackUid, trackUid);
                         }
-                        if (result && result.trackInfo) {
-                            this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
-                                trackInfo: result.trackInfo
-                            }});
+                        this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
+                            trackInfo: result.trackInfo
+                        }});
+                    }
+                } else {
+                    try {
+                        await this._tagDatabase.ensureFileStored(trackUid, file);
+                    } catch (e) {
+                        if (!this._checkStorageError(e)) {
+                            throw e;
                         }
                     }
-                } finally {
-                    await this._kvdb.deleteTmpFile(tmpFileId);
                 }
             }
         };
@@ -264,6 +279,9 @@ export default class MetadataManagerBackend extends AbstractBackend {
     async _parseMetadata(trackUid, fileReference) {
         try {
             const trackInfo = await this._metadataParser.postJob(trackUid, fileReference).promise;
+            if (!trackInfo) {
+                return null;
+            }
             return {trackInfo, trackUid};
         } catch (e) {
             if (e instanceof FileReferenceDeletedError) {
@@ -443,7 +461,14 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _parseMetadataJob(job, trackUid, fileReference) {
-        await this._tagDatabase.ensureFileStored(trackUid, fileReference);
+        try {
+            await this._tagDatabase.ensureFileStored(trackUid, fileReference);
+        } catch (e) {
+            if (this._checkStorageError(e)) {
+                return null;
+            }
+            throw e;
+        }
         let trackInfo = await this.getTrackInfoByTrackUid(trackUid);
 
         if (trackInfo) {
@@ -710,6 +735,15 @@ export default class MetadataManagerBackend extends AbstractBackend {
         if (!this._kvdb) {
             this._kvdb = new KeyValueDatabase();
             await this._kvdb.getDb();
+        }
+    }
+
+    _checkStorageError(e) {
+        if (isOutOfMemoryError(e)) {
+            this.postMessage({type: QUOTA_EXCEEDED_MESSAGE});
+            return true;
+        } else {
+            return false;
         }
     }
 }
