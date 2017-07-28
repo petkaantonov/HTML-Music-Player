@@ -17,10 +17,6 @@ const CALLBACK_MODE_ARCHIVE = 2;
 const zippersToJsInstances = new Map();
 const out = {preventExtraction: false};
 
-function delay(ms) {
-    return new Promise(resolve => self.setTimeout(resolve, ms));
-}
-
 export default class Zipper extends EventEmitter {
     constructor(wasm) {
         super();
@@ -78,7 +74,7 @@ export default class Zipper extends EventEmitter {
         }
     }
 
-    async writeZip(files) {
+    writeZip(files) {
         if (this._callbackMode !== CALLBACK_MODE_NONE) {
             throw new Error(`no parallel processing`);
         }
@@ -101,7 +97,6 @@ export default class Zipper extends EventEmitter {
                 this._currentFileInfo = {name, size, lastModified, type};
                 this._checkError(this.zipper_add_file_to_archive(this._ptr, name, name, 0));
                 this._filesArchived++;
-                await delay(100);
             }
 
             this._checkError(this.zipper_finish_archive(this._ptr));
@@ -120,7 +115,7 @@ export default class Zipper extends EventEmitter {
         }
     }
 
-    async readZip(zipFile) {
+    readZip(zipFile) {
         if (!(zipFile instanceof File)) {
             throw new Error(`must be a file`);
         }
@@ -167,8 +162,6 @@ export default class Zipper extends EventEmitter {
                     }
 
                     filesExtracted++;
-
-                    await delay(100);
                 }
             }
             return {fileCount, filesExtracted};
