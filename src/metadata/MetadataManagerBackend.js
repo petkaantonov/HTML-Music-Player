@@ -198,21 +198,28 @@ export default class MetadataManagerBackend extends AbstractBackend {
             async parseTmpFile({tmpFileId}) {
                 await this._checkKvdb();
                 const tmpFile = await this._kvdb.getTmpFileById(tmpFileId);
-
+                if (!tmpFile) {
+                    self.uiLog(`Temporary file was somehow not found (id=${tmpFileId})`);
+                    return;
+                }
                 const {file} = tmpFile;
                 const trackUid = await fileReferenceToTrackUid(file);
-                const result = await this._parseMetadata(trackUid, file);
+                const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
 
-                if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
-                    this._fingerprinter.postJob(trackUid, trackUid);
+                if (!trackInfo) {
+                    const result = await this._parseMetadata(trackUid, file);
+
+                    if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                        this._fingerprinter.postJob(trackUid, trackUid);
+                    }
+                    if (result && result.trackInfo) {
+                        this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
+                            trackInfo: result.trackInfo
+                        }});
+                    }
                 }
-                if (result && result.trackInfo) {
-                    this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
-                        trackInfo: result.trackInfo
-                    }});
-                }
+
                 await this._kvdb.deleteTmpFile(tmpFileId);
-
             }
         };
         this._acoustIdDataFetcher.on(JOB_COMPLETE_EVENT, async (job) => {
