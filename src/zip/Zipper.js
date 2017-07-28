@@ -151,7 +151,7 @@ export default class Zipper extends EventEmitter {
                     }
 
                     out.preventExtraction = false;
-                    this._currentFileInfo = {lastModified, name, size, index, entryPtr, userData: {}, written: 0};
+                    this._currentFileInfo = {fileCount, filesExtracted, index, lastModified, name, size, entryPtr, userData: {}, written: 0};
 
                     this.emit(WILL_EXTRACT_FILE_EVENT, this._currentFileInfo, out);
 

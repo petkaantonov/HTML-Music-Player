@@ -16,11 +16,11 @@ export const ZIPPER_READY_EVENT_NAME = `ZipperReady`;
 export const AUDIO_FILE_EXTRACTED_MESSAGE = `audioFileExtractedMessage`;
 export const ARCHIVE_PROGRESS_MESSAGE = `archiveProgress`;
 
-export const EXTRACTED_FILE_TMP_SOURCE_NAME = "ExtractedFromArchive";
-export const ARCHIVE_FILE_TMP_SOURCE_NAME = "ArchiveTmpChunk";
+export const EXTRACTED_FILE_TMP_SOURCE_NAME = `ExtractedFromArchive`;
+export const ARCHIVE_FILE_TMP_SOURCE_NAME = `ArchiveTmpChunk`;
 
 function basename(name) {
-    const slash = name.lastIndexOf("/");
+    const slash = name.lastIndexOf(`/`);
     if (slash >= 0) {
         return name.slice(slash + 1);
     }
@@ -117,11 +117,13 @@ export default class ZipperBackend extends AbstractBackend {
         });
     }
 
-    async _fileExtracted({lastModified, name, userData}, ptr, length) {
-        const file = new File([this._wasm.u8view(ptr, length)], basename(name), {
+    async _fileExtracted({lastModified, name, userData, fileCount, filesExtracted, index: zipArchiveIndex}, ptr, length) {
+        const fileName = basename(name);
+        const file = new File([this._wasm.u8view(ptr, length)], fileName, {
             type: userData.type,
             lastModified: lastModified * 1000
         });
+        self.uiLog(`extracted file ${fileName} (#${zipArchiveIndex}) ${filesExtracted}/${fileCount}`);
         const tmpFileId = await this._kvdb.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
         this.postMessage({
             type: AUDIO_FILE_EXTRACTED_MESSAGE,
