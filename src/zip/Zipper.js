@@ -164,8 +164,6 @@ export default class Zipper extends EventEmitter {
 
                     if (!out.preventExtraction) {
                         this._checkError(err);
-                    } else {
-                        continue;
                     }
 
                     filesExtracted++;

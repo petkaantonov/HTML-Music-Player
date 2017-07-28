@@ -72,8 +72,6 @@ const createFunctionWrapper = function(name, thisObj, types, {
             return `arg${index}`;
         }).filter(Boolean).join(`, `);
 
-
-
         const preCall = types.map((type, index) => {
             if (type === `string`) {
                 needsMalloc = true;
@@ -659,7 +657,7 @@ export default class WebAssemblyWrapper {
             this._jsStackMemoryPtr += originalSize;
             return newRet;
         } else {
-            this._jsStackMemoryPtr += Math.max(size, 8);
+            this._jsStackMemoryPtr += size;
             return ret;
         }
     }

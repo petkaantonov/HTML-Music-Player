@@ -19,6 +19,14 @@ export const ARCHIVE_PROGRESS_MESSAGE = `archiveProgress`;
 export const EXTRACTED_FILE_TMP_SOURCE_NAME = "ExtractedFromArchive";
 export const ARCHIVE_FILE_TMP_SOURCE_NAME = "ArchiveTmpChunk";
 
+function basename(name) {
+    const slash = name.lastIndexOf("/");
+    if (slash >= 0) {
+        return name.slice(slash + 1);
+    }
+    return name;
+}
+
 function audioExtractorMetadataFilter({size}, out) {
     out.preventExtraction = size < 131072 || size > 1073741824;
 }
@@ -110,7 +118,7 @@ export default class ZipperBackend extends AbstractBackend {
     }
 
     async _fileExtracted({lastModified, name, userData}, ptr, length) {
-        const file = new File([this._wasm.u8view(ptr, length)], name, {
+        const file = new File([this._wasm.u8view(ptr, length)], basename(name), {
             type: userData.type,
             lastModified: lastModified * 1000
         });

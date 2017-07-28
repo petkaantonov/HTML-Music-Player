@@ -51,7 +51,7 @@ typedef struct {
 
 
 EXPORT mz_zip_error zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
-        bool* is_directory, bool* is_supported, char** name, double* last_modified,
+        uint32_t* is_directory, uint32_t* is_supported, char** name, double* last_modified,
         double* size, size_t* retval_index, ZipperFileInfo** entry_ptr) ;
 EXPORT mz_zip_error zipper_extract_file(Zipper* zipper, ZipperFileInfo* file_info);
 static size_t write_callback(void* file_handle, uint64_t file_offset, const void* buffer, size_t buffer_length);
@@ -221,7 +221,7 @@ EXPORT mz_zip_error zipper_populate_file_infos(Zipper* zipper, size_t* file_info
 }
 
 EXPORT mz_zip_error zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
-        bool* is_directory, bool* is_supported, char** name, double* last_modified,
+        uint32_t* is_directory, uint32_t* is_supported, char** name, double* last_modified,
         double* size, size_t* retval_index, ZipperFileInfo** entry_ptr) {
     if (!zipper->file_prepared) {
         return MZ_ZIP_INVALID_PARAMETER;
