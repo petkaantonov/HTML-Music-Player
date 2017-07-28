@@ -17,8 +17,15 @@ export default class ZipperFrontend extends WorkerFrontend {
         }
     }
 
-    _audioFileExtracted(result) {
-        this.emit(AUDIO_FILE_EXTRACTED_EVENT, result.tmpFileId);
+    _audioFileExtracted({tmpFileId}) {
+        this.emit(AUDIO_FILE_EXTRACTED_EVENT, tmpFileId);
+    }
+
+    archiveFiles(files) {
+        this.postMessage({
+            action: `archiveFiles`,
+            args: {files, archiveRequestId: 1}
+        });
     }
 
     extractSupportedAudioFilesFromZip(zipFile) {

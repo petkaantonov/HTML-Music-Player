@@ -1,6 +1,7 @@
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT} from "metadata/MetadataManagerFrontend";
+import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT, NEW_TRACK_FROM_TMP_FILE_EVENT}
+        from "metadata/MetadataManagerFrontend";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {throttle} from "util";
 import {ABOVE_TOOLBAR_Z_INDEX as zIndex} from "ui/ToolbarManager";
@@ -154,6 +155,7 @@ export default class PlaylistController extends TrackContainerController {
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
+        this.metadataManager.on(NEW_TRACK_FROM_TMP_FILE_EVENT, this._newTrackFromTmpFile.bind(this));
 
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
@@ -474,6 +476,10 @@ export default class PlaylistController extends TrackContainerController {
     _mediaLibrarySizeUpdated(count) {
         const text = count === 1 ? `is 1 track` : `are ${count} tracks`;
         this.$().find(`.playlist-empty .media-library-size`).setText(text);
+    }
+
+    _newTrackFromTmpFile(track) {
+        this.add([track], {noReport: true});
     }
 
     /* eslint-disable class-methods-use-this */

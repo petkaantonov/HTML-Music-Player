@@ -185,10 +185,12 @@ extern void qsort(void*, size_t, size_t, int (*compar)(const void*, const void*)
 #define SEEK_END 2
 #define EOF -1
 
+uint64_t ftello64(FILE* handle);
+int fseeko64(FILE* handle, uint64_t offset, int whence);
 uint64_t ftello(FILE* handle);
 int fseeko(FILE* handle, uint64_t offset, int whence);
-uint32_t ftell(FILE* handle);
-int fseek(FILE* handle, uint32_t offset, int whence);
+uint64_t ftell(FILE* handle);
+int fseek(FILE* handle, uint64_t offset, int whence);
 size_t fread(void* ptr, size_t size, size_t nitems, FILE* handle);
 int fclose(FILE* handle);
 FILE* fopen(const char *filename, const char *type);
@@ -205,6 +207,22 @@ uint64_t ftello(FILE* handle) {
 }
 
 int fseeko(FILE* handle, uint64_t offset, int whence) {
+  return js_fseek(handle, CLIP_I64_TO_DOUBLE(offset), whence);
+}
+
+uint64_t ftell(FILE* handle) {
+  return DOUBLE_TO_U64(js_ftell(handle));
+}
+
+int fseek(FILE* handle, uint64_t offset, int whence) {
+  return js_fseek(handle, CLIP_I64_TO_DOUBLE(offset), whence);
+}
+
+uint64_t ftello64(FILE* handle) {
+  return DOUBLE_TO_U64(js_ftell(handle));
+}
+
+int fseeko64(FILE* handle, uint64_t offset, int whence) {
   return js_fseek(handle, CLIP_I64_TO_DOUBLE(offset), whence);
 }
 

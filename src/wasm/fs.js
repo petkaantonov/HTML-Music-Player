@@ -83,6 +83,7 @@ class FHandle {
             this._writePtr = 0;
             this._writeLength = 0;
         }
+        return 0;
     }
 
     _ftell() {
@@ -230,12 +231,12 @@ export function createFs(wasm) {
 
     return {
         fclose(handle) {
-            return withHandle(handle, (fhandle) => {
+            withHandle(handle, (fhandle) => {
                 fhandle._fflush(wasm);
                 fhandle._fclose(wasm);
                 handles.delete(handle);
-                return 0;
             });
+            return 0;
         },
         fflush(handle) {
             if (!handle) {

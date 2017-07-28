@@ -1,21 +1,38 @@
 import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
 
-const VERSION = 4;
-const NAME = `KeyValueDatabase2`;
-const KEY_NAME = `key`;
-const TABLE_NAME = `keyValueDatabase2`;
+const VERSION = 2;
+const NAME = `AppDatabase`;
+const KEY_VALUE_PAIRS_KEY_NAME = `key`;
+const KEY_VALUE_PAIRS_OBJECT_STORE_NAME = `keyValuePairs`;
 const READ_WRITE = `readwrite`;
 const READ_ONLY = `readonly`;
 
-const LOG_TABLE = `logTable`;
+const LOG_OBJECT_STORE_NAME = `logs`;
+const LOG_PRIMARY_KEY_NAME = `id`;
+
+const TMP_FILES_OBJECT_STORE_NAME = `tmpFiles`;
+const TMP_FILE_KEY_NAME = `tmpFileId`;
+const SOURCE_KEY = `source`;
+
 
 const objectStoreSpec = {
-    [TABLE_NAME]: {
-        keyPath: KEY_NAME
+    [KEY_VALUE_PAIRS_OBJECT_STORE_NAME]: {
+        keyPath: KEY_VALUE_PAIRS_KEY_NAME
     },
-    [LOG_TABLE]: {
-        keyPath: `id`,
+    [LOG_OBJECT_STORE_NAME]: {
+        keyPath: LOG_PRIMARY_KEY_NAME,
         autoIncrement: true
+    },
+    [TMP_FILES_OBJECT_STORE_NAME]: {
+        keyPath: TMP_FILE_KEY_NAME,
+        autoIncrement: true,
+        indexSpec: {
+            [SOURCE_KEY]: {
+                unique: false,
+                multiEntry: false,
+                keyPath: SOURCE_KEY
+            }
+        }
     }
 };
 
@@ -41,8 +58,8 @@ export default class KeyValueDatabase {
             const keySetter = {
                 async method(value) {
                     const db = await this.db;
-                    const transaction = db.transaction(TABLE_NAME, READ_WRITE);
-                    const store = transaction.objectStore(TABLE_NAME);
+                    const transaction = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE);
+                    const store = transaction.objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
                     const existingData = await iDbPromisify(store.get(key));
                     if (existingData) {
                         existingData.value = value;
@@ -75,7 +92,7 @@ export default class KeyValueDatabase {
     async storeLog(message) {
         const date = new Date();
         const db = await this.db;
-        const store = db.transaction(LOG_TABLE, READ_WRITE).objectStore(LOG_TABLE);
+        const store = db.transaction(LOG_OBJECT_STORE_NAME, READ_WRITE).objectStore(LOG_OBJECT_STORE_NAME);
         return iDbPromisify(store.add({message, date}));
     }
 
@@ -86,13 +103,13 @@ export default class KeyValueDatabase {
     async get(key) {
         key = `${key}`;
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+        const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_ONLY).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(key));
     }
 
     async getAll() {
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME, READ_ONLY).objectStore(TABLE_NAME);
+        const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_ONLY).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
         const keyValuePairs = await iDbPromisify(store.getAll());
 
         const ret = Object.create(null);
@@ -104,7 +121,7 @@ export default class KeyValueDatabase {
 
     async setAll(preferenceKeyValuePairs) {
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
 
         for (const preferenceKeyValuePair of preferenceKeyValuePairs) {
             await store.put(preferenceKeyValuePair);
@@ -113,7 +130,7 @@ export default class KeyValueDatabase {
 
     async setAllObject(preferences) {
         const db = await this.db;
-        const store = db.transaction(TABLE_NAME, READ_WRITE).objectStore(TABLE_NAME);
+        const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
 
         const keys = Object.keys(preferences);
 
@@ -125,6 +142,41 @@ export default class KeyValueDatabase {
 
     getDb() {
         return this.db;
+    }
+
+    async getTmpFiles() {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_ONLY).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        return iDbPromisify(store.getAll());
+    }
+
+    async getTmpFileById(tmpFileId) {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_ONLY).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        return iDbPromisify(store.get(tmpFileId));
+    }
+
+    async addTmpFile(file, source) {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        const obj = {
+            created: new Date(),
+            file,
+            [SOURCE_KEY]: source
+        };
+        return iDbPromisify(store.add(obj));
+    }
+
+    async clearTmpFiles() {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        await iDbPromisify(store.clear());
+    }
+
+    async deleteTmpFile(tmpFileId) {
+        const db = await this.db;
+        const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
+        await iDbPromisify(store.delete(tmpFileId));
     }
 
 }

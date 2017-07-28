@@ -3,6 +3,7 @@
 
 
 #define MINIZ_LITTLE_ENDIAN 1
+#define MINIZ_USE_UNALIGNED_LOADS_AND_STORES 0
 
 struct stat {
   time_t st_mtime;
@@ -28,14 +29,11 @@ extern void initialize(int, int, int);
 static uintptr_t heapStart;
 static int errNo;
 
-static uint8_t* data_ptr;
-static uint64_t data_length;
-
 static char* EMPTY_STRING = "";
 
 typedef struct {
     bool is_directory;
-    bool is_encrypted;
+    bool is_supported;
     char* name;
     time_t last_modified;
     size_t index;
@@ -47,29 +45,27 @@ typedef struct {
     ZipperFileInfo* file_infos;
     size_t file_info_count;
     mz_zip_archive* miniz;
+    uint32_t data_length;
+    uint8_t* data_ptr;
 } Zipper;
 
 
-typedef enum {
-    SUCCESS = 0,
-
-    NO_FILE_PREPARED = 1,
-    FILE_INIT_FAILED = 2,
-    OUT_OF_MEMORY = 3,
-    FILE_INFOS_ALREADY_RETRIEVED = 4,
-    STAT_FAILED = 5,
-    EXTRACTION_FAILED = 6,
-    INDEX_OUT_OF_BOUNDS = 7
-} ZipperError;
-
-EXPORT ZipperError zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
-        bool* is_directory, bool* is_encrypted, char** name, double* last_modified,
+EXPORT mz_zip_error zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
+        bool* is_directory, bool* is_supported, char** name, double* last_modified,
         double* size, size_t* retval_index, ZipperFileInfo** entry_ptr) ;
-EXPORT ZipperError zipper_extract_file(Zipper* zipper, ZipperFileInfo* file_info);
+EXPORT mz_zip_error zipper_extract_file(Zipper* zipper, ZipperFileInfo* file_info);
 static size_t write_callback(void* file_handle, uint64_t file_offset, const void* buffer, size_t buffer_length);
-EXPORT ZipperError zipper_populate_file_infos(Zipper* zipper, size_t* file_info_count);
-EXPORT ZipperError zipper_prepare_file_for_reading(Zipper* zipper, const char *pFilename);
+EXPORT mz_zip_error zipper_populate_file_infos(Zipper* zipper, size_t* file_info_count);
+EXPORT mz_zip_error zipper_prepare_file_for_reading(Zipper* zipper, const char *pFilename);
 EXPORT Zipper* init_zipper(void);
+EXPORT const char* zipper_error_string(Zipper* zipper, mz_zip_error);
+EXPORT mz_zip_error zipper_prepare_file_for_writing(Zipper* zipper);
+EXPORT mz_zip_error zipper_add_file_to_archive(Zipper* zipper, const char* archive_name, const char* file_name,
+                                              uint32_t compression_level);
+EXPORT mz_zip_error zipper_finish_archive(Zipper* zipper);
+EXPORT mz_zip_error zipper_finish_writing(Zipper* zipper);
+EXPORT mz_zip_error zipper_get_data(Zipper* zipper, uint8_t** data_ptr_result, uint32_t* data_length_result);
+static void zipper_clear_data(Zipper* zipper);
 
 int main() {
     // Sanity checks
@@ -86,36 +82,13 @@ int main() {
     int dummy;
     heapStart = (uintptr_t)(&dummy) + (uintptr_t)(4);
     initialize(heapStart, DEBUG, STACK_SIZE);
-
-    data_length = 1024 * 1024 * 20;
-    data_ptr = malloc(data_length);
-    if (!data_ptr) {
-        printf("Failed to allocate %llu bytes", data_length);
-        abort();
-    }
 }
 
 EXPORT int* __errno_location() {
     return &errNo;
 }
 
-EXPORT Zipper* init_zipper() {
-    Zipper* zipper = malloc(sizeof(Zipper));
-    if (!zipper) {
-        return 0;
-    }
-    zipper->file_prepared = false;
-    zipper->file_infos = 0;
-    zipper->file_info_count = 0;
-    mz_zip_archive* miniz = malloc(sizeof(mz_zip_archive));
-    if (!miniz) {
-        return 0;
-    }
-    zipper->miniz = miniz;
-    return zipper;
-}
-
-EXPORT ZipperError zipper_prepare_file_for_reading(Zipper* zipper, const char *pFilename) {
+static void zipper_clear_data(Zipper* zipper) {
     if (zipper->file_info_count > 0) {
         for (int i = 0; i < zipper->file_info_count; ++i) {
             ZipperFileInfo* file_info = &zipper->file_infos[i];
@@ -128,39 +101,88 @@ EXPORT ZipperError zipper_prepare_file_for_reading(Zipper* zipper, const char *p
         zipper->file_infos = 0;
         zipper->file_info_count = 0;
     }
-    memset(zipper->miniz, 0, sizeof(mz_zip_archive));
+    mz_zip_zero_struct(zipper->miniz);
     zipper->file_prepared = false;
     zipper->file_infos = 0;
     zipper->file_info_count = 0;
+}
 
+EXPORT mz_zip_error zipper_finish_reading(Zipper* zipper) {
+    if (!mz_zip_reader_end(zipper->miniz)) {
+        return mz_zip_peek_last_error(zipper->miniz);
+    }
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT const char* zipper_error_string(Zipper* zipper, mz_zip_error err) {
+    return mz_zip_get_error_string(err);
+}
+
+EXPORT Zipper* init_zipper() {
+    Zipper* zipper = malloc(sizeof(Zipper));
+    if (!zipper) {
+        goto free_zipper;
+    }
+    zipper->file_prepared = false;
+    zipper->file_infos = 0;
+    zipper->file_info_count = 0;
+    mz_zip_archive* miniz = malloc(sizeof(mz_zip_archive));
+    if (!miniz) {
+        goto free_miniz;
+    }
+    zipper->miniz = miniz;
+
+    zipper->data_length = 1024 * 1024 * 2;
+    zipper->data_ptr = malloc(zipper->data_length);
+    if (!zipper->data_ptr) {
+        goto free_data_ptr;
+    }
+
+    return zipper;
+
+    free_data_ptr:
+        free(zipper->data_ptr);
+        zipper->data_ptr = 0;
+    free_miniz:
+        free(zipper->miniz);
+        zipper->miniz = 0;
+    free_zipper:
+        free(zipper);
+        zipper = 0;
+
+    return 0;
+}
+
+EXPORT mz_zip_error zipper_prepare_file_for_reading(Zipper* zipper, const char *pFilename) {
+    zipper_clear_data(zipper);
     if (!mz_zip_reader_init_file(zipper->miniz, pFilename, MZ_ZIP_FLAG_DO_NOT_SORT_CENTRAL_DIRECTORY)) {
-        return FILE_INIT_FAILED;
+        return mz_zip_peek_last_error(zipper->miniz);
     }
 
     zipper->file_prepared = true;
-    return SUCCESS;
+    return MZ_ZIP_NO_ERROR;
 }
 
 
-EXPORT ZipperError zipper_populate_file_infos(Zipper* zipper, size_t* file_info_count) {
+EXPORT mz_zip_error zipper_populate_file_infos(Zipper* zipper, size_t* file_info_count) {
     *file_info_count = 0;
     if (!zipper->file_prepared) {
-        return NO_FILE_PREPARED;
+        return MZ_ZIP_INVALID_PARAMETER;
     }
 
     if (zipper->file_info_count > 0) {
-        return FILE_INFOS_ALREADY_RETRIEVED;
+        return MZ_ZIP_INVALID_PARAMETER;
     }
 
     size_t total_files = mz_zip_reader_get_num_files(zipper->miniz);
     if (total_files == 0) {
-        return SUCCESS;
+        return MZ_ZIP_NO_ERROR;
     }
 
     ZipperFileInfo* file_infos = malloc(total_files * sizeof(ZipperFileInfo));
 
     if (!file_infos) {
-        return OUT_OF_MEMORY;
+        return MZ_ZIP_ALLOC_FAILED;
     }
 
     zipper->file_infos = file_infos;
@@ -170,51 +192,54 @@ EXPORT ZipperError zipper_populate_file_infos(Zipper* zipper, size_t* file_info_
     for (size_t index = 0; index < total_files; ++index) {
         ZipperFileInfo* file_info = &zipper->file_infos[index];
         file_info->index = index;
-        size_t name_length = mz_zip_reader_get_filename(zipper->miniz, index, 0, 0);
+
+        if (!mz_zip_reader_file_stat(zipper->miniz, index, &stat)) {
+            return mz_zip_peek_last_error(zipper->miniz);
+        }
+
+        file_info->size = stat.m_uncomp_size;
+        file_info->last_modified = stat.m_time;
+        file_info->is_directory = stat.m_is_directory;
+        file_info->is_supported = stat.m_is_supported;
+
+        int name_length = strlen((const char*)&stat.m_filename);
         if (!name_length) {
             file_info->name = EMPTY_STRING;
         } else {
-            char* name = malloc(name_length);
+            char* name = malloc(name_length + 1);
             if (!name) {
-                return OUT_OF_MEMORY;
+                return MZ_ZIP_ALLOC_FAILED;
             }
-            mz_zip_reader_get_filename(zipper->miniz, index, name, name_length);
+            memcpy(name, &stat.m_filename, name_length);
+            name[name_length] = '\0';
             file_info->name = name;
         }
-
-        file_info->is_directory = mz_zip_reader_is_file_a_directory(zipper->miniz, index);
-        file_info->is_encrypted = mz_zip_reader_is_file_encrypted(zipper->miniz, index);
-        if (!mz_zip_reader_file_stat(zipper->miniz, index, &stat)) {
-            return STAT_FAILED;
-        }
-        file_info->size = stat.m_uncomp_size;
-        file_info->last_modified = stat.m_time;
     }
 
     *file_info_count = zipper->file_info_count;
-    return SUCCESS;
+    return MZ_ZIP_NO_ERROR;
 }
 
-EXPORT ZipperError zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
-        bool* is_directory, bool* is_encrypted, char** name, double* last_modified,
+EXPORT mz_zip_error zipper_get_nth_file_info_fields(Zipper* zipper, size_t index,
+        bool* is_directory, bool* is_supported, char** name, double* last_modified,
         double* size, size_t* retval_index, ZipperFileInfo** entry_ptr) {
     if (!zipper->file_prepared) {
-        return NO_FILE_PREPARED;
+        return MZ_ZIP_INVALID_PARAMETER;
     }
 
     if (index >= zipper->file_info_count) {
-        return INDEX_OUT_OF_BOUNDS;
+        return MZ_ZIP_INVALID_PARAMETER;
     }
 
     ZipperFileInfo* entry = &zipper->file_infos[index];
     *is_directory = entry->is_directory;
-    *is_encrypted = entry->is_encrypted;
+    *is_supported = entry->is_supported;
     *name = entry->name;
     *last_modified = CLIP_I64_TO_DOUBLE(entry->last_modified);
     *size = CLIP_I64_TO_DOUBLE(entry->size);
     *retval_index = entry->index;
     *entry_ptr = entry;
-    return SUCCESS;
+    return MZ_ZIP_NO_ERROR;
 }
 
 
@@ -222,32 +247,84 @@ extern size_t js_write_callback(Zipper* zipper,
                                 double file_offset,
                                 const void* buffer,
                                 size_t buffer_length,
-                                uint8_t* wasm_data_ptr);
+                                uint8_t* data_ptr,
+                                uint32_t data_length);
 
-static size_t write_callback(void* zipper, uint64_t file_offset, const void* buffer, size_t buffer_length) {
+static size_t write_callback(void* zipper_opaque, uint64_t file_offset, const void* buffer, size_t buffer_length) {
     double file_offset_d = CLIP_I64_TO_DOUBLE(file_offset);
-    return js_write_callback(zipper, file_offset_d, buffer, buffer_length, data_ptr);
+    Zipper* zipper = (Zipper*) zipper_opaque;
+    return js_write_callback(zipper, file_offset_d, buffer, buffer_length, zipper->data_ptr, zipper->data_length);
 }
 
-EXPORT ZipperError zipper_extract_file(Zipper* zipper, ZipperFileInfo* file_info) {
-    if (file_info->size > data_length) {
+EXPORT mz_zip_error zipper_extract_file(Zipper* zipper, ZipperFileInfo* file_info) {
+    if (file_info->size > zipper->data_length) {
         if (file_info->size >= UINT_MAX) {
-            return OUT_OF_MEMORY;
+            return MZ_ZIP_ALLOC_FAILED;
         }
 
-        data_length = 0;
-        void* realloced = realloc(data_ptr, (uint32_t) file_info->size);
+        zipper->data_length = 0;
+        void* realloced = realloc(zipper->data_ptr, (uint32_t) file_info->size);
         if (!realloced) {
-            free(data_ptr);
-            data_ptr = 0;
-            return OUT_OF_MEMORY;
+            free(zipper->data_ptr);
+            zipper->data_ptr = 0;
+            return MZ_ZIP_ALLOC_FAILED;
         }
-        data_ptr = realloced;
-        data_length = (uint32_t) file_info->size;
+        zipper->data_ptr = realloced;
+        zipper->data_length = (uint32_t) file_info->size;
     }
 
     if (!mz_zip_reader_extract_to_callback(zipper->miniz, file_info->index, write_callback, zipper, MZ_ZIP_FLAG_DO_NOT_SORT_CENTRAL_DIRECTORY)) {
-        return EXTRACTION_FAILED;
+        return mz_zip_peek_last_error(zipper->miniz);
     }
-    return SUCCESS;
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT mz_zip_error zipper_prepare_file_for_writing(Zipper* zipper) {
+    zipper_clear_data(zipper);
+
+    zipper->miniz->m_pWrite = write_callback;
+    zipper->miniz->m_pIO_opaque = zipper;
+
+    if (!mz_zip_writer_init_v2(zipper->miniz, 0ULL, MZ_ZIP_FLAG_WRITE_ZIP64)) {
+        return mz_zip_peek_last_error(zipper->miniz);
+    }
+
+    zipper->file_prepared = true;
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT mz_zip_error zipper_add_file_to_archive(Zipper* zipper, const char* archive_name, const char* file_name,
+                                               uint32_t compression_level) {
+    compression_level = MAX(0, MIN(10, compression_level));
+    if (!mz_zip_writer_add_file(zipper->miniz, archive_name, file_name, NULL, 0, compression_level)) {
+        return mz_zip_peek_last_error(zipper->miniz);
+    }
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT mz_zip_error zipper_finish_archive(Zipper* zipper) {
+    if (!mz_zip_writer_finalize_archive(zipper->miniz)) {
+        return mz_zip_peek_last_error(zipper->miniz);
+    }
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT mz_zip_error zipper_finish_writing(Zipper* zipper) {
+    if (!mz_zip_writer_end(zipper->miniz)) {
+        return mz_zip_peek_last_error(zipper->miniz);
+    }
+    return MZ_ZIP_NO_ERROR;
+}
+
+EXPORT mz_zip_error zipper_get_data(Zipper* zipper, uint8_t** data_ptr_result, uint32_t* data_length_result) {
+    *data_ptr_result = 0;
+    *data_length_result = 0;
+    if (!zipper->file_prepared) {
+        return MZ_ZIP_INVALID_PARAMETER;
+    }
+
+    *data_ptr_result = zipper->data_ptr;
+    *data_length_result = zipper->data_length;
+
+    return MZ_ZIP_NO_ERROR;
 }

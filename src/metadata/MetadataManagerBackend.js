@@ -14,6 +14,7 @@ import ChannelMixer from "audio/backend/ChannelMixer";
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import Fingerprinter from "audio/backend/Fingerprinter";
 import {MAX_BUFFER_LENGTH_SECONDS as BUFFER_DURATION} from "audio/frontend/buffering";
+import KeyValueDatabase from "platform/KeyValueDatabase";
 
 export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 
@@ -24,7 +25,9 @@ export const ACOUST_ID_DATA_RESULT_MESSAGE = `acoustIdDataFetched`;
 export const TRACKINFO_BATCH_RESULT_MESSAGE = `trackInfoBatchResult`;
 export const ALL_FILES_PERSISTED_MESSAGE = `allFilesPersisted`;
 export const MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE = `mediaLibrarySizeCounted`;
+export const UIDS_MAPPED_TO_FILES_MESSAGE = `uidsMappedToFiles`;
 export const METADATA_RESULT_MESSAGE = `metadataResult`;
+export const NEW_TRACK_FROM_TMP_FILE_MESSAGE = `newTrackFromTmpFile`;
 export const ALBUM_ART_PREFERENCE_SMALLEST = `smallest`;
 export const ALBUM_ART_PREFERENCE_BIGGEST = `biggest`;
 export const ALBUM_ART_PREFERENCE_ALL = `all`;
@@ -125,6 +128,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         this._blobUrls = [];
         this._blobUrlSize = 0;
         this._trackInfoEntriesCount = 0;
+        this._kvdb = null;
 
         this._acoustIdDataFetcher = new JobProcessor({delay: 1000, jobCallback: this._fetchAcoustIdDataJob.bind(this)});
         this._fingerprinter = new JobProcessor({jobCallback: this._fingerprintJob.bind(this)});
@@ -184,6 +188,31 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     }
                 }
                 this.postMessage({type: TRACKINFO_BATCH_RESULT_MESSAGE, result: {trackInfos}});
+            },
+
+            async mapTrackUidsToFiles({trackUids}) {
+                const files = await this._tagDatabase.trackUidsToFiles(trackUids);
+                this.postMessage({type: UIDS_MAPPED_TO_FILES_MESSAGE, result: {files}});
+            },
+
+            async parseTmpFile({tmpFileId}) {
+                await this._checkKvdb();
+                const tmpFile = await this._kvdb.getTmpFileById(tmpFileId);
+
+                const {file} = tmpFile;
+                const trackUid = await fileReferenceToTrackUid(file);
+                const result = await this._parseMetadata(trackUid, file);
+
+                if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                    this._fingerprinter.postJob(trackUid, trackUid);
+                }
+                if (result && result.trackInfo) {
+                    this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
+                        trackInfo: result.trackInfo
+                    }});
+                }
+                await this._kvdb.deleteTmpFile(tmpFileId);
+
             }
         };
         this._acoustIdDataFetcher.on(JOB_COMPLETE_EVENT, async (job) => {
@@ -635,4 +664,10 @@ export default class MetadataManagerBackend extends AbstractBackend {
         }
     }
 
+    async _checkKvdb() {
+        if (!this._kvdb) {
+            this._kvdb = new KeyValueDatabase();
+            await this._kvdb.getDb();
+        }
+    }
 }

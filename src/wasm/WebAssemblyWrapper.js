@@ -640,12 +640,12 @@ export default class WebAssemblyWrapper {
 
     jsStackAlloc(size) {
         size = Math.max(size, 8);
-        size = ((size-1) & ~7) + 8;
+        size = ((size - 1) & ~7) + 8;
         if (this._jsStackMemoryStack === 0) {
             throw new NullPointerError(`js stack wasn't pushed!`);
         }
         const originalSize = size;
-        let ret = this._jsStackMemoryPtr;
+        const ret = this._jsStackMemoryPtr;
 
         if (ret + size > this._jsStackMemoryEnd) {
             const currentlyMalloced = this._jsStackMemoryPtr - this._jsStackMemoryStart;

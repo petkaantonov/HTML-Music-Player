@@ -1,7 +1,6 @@
 import WebAssemblyWrapper from "wasm/WebAssemblyWrapper";
 import {fetch, Request, WebAssembly} from "platform/platform";
 import ZipperBackend from "zip/ZipperBackend";
-
 const isDevelopment = !(self.location.href.indexOf(`.min.js`) >= 0);
 
 self.env = {
@@ -28,6 +27,7 @@ if (self.addEventListener) {
 }
 
 (async () => {
+
     const wasmBuild = self.env.isDevelopment() ? `debug` : `release`;
     const request = new Request(`wasm/zip.${wasmBuild}.wasm`, {
         cache: self.env.isDevelopment() ? `no-store` : `default`
@@ -40,5 +40,6 @@ if (self.addEventListener) {
     const module = await WebAssembly.compile(bufferSource);
     self.zipWasmModule = new WebAssemblyWrapper(module, `zip`);
     await self.zipWasmModule.start();
+
     self.zipperBackend = new ZipperBackend(self.zipWasmModule).start();
 })();

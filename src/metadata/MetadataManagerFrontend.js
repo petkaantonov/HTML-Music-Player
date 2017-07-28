@@ -5,6 +5,8 @@ import {METADATA_MANAGER_READY_EVENT_NAME,
             TRACKINFO_BATCH_RESULT_MESSAGE,
             ALL_FILES_PERSISTED_MESSAGE,
             MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE,
+            UIDS_MAPPED_TO_FILES_MESSAGE,
+            NEW_TRACK_FROM_TMP_FILE_MESSAGE,
         fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
@@ -32,6 +34,7 @@ export const VIEW_UPDATE_EVENT = `viewUpdate`;
 export const TAG_DATA_UPDATE_EVENT = `tagDataUpdate`;
 export const ALL_FILES_PERSISTED_EVENT = `allFilesPersisted`;
 export const MEDIA_LIBRARY_SIZE_CHANGE_EVENT = `mediaLibrarySizeChange`;
+export const NEW_TRACK_FROM_TMP_FILE_EVENT = `newTrackFromTmpFile`;
 
 class Track extends EventEmitter {
     constructor(fileReference, uid, metadataManager) {
@@ -371,10 +374,35 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             [METADATA_RESULT_MESSAGE]: this._trackMetadataParsed.bind(this),
             [TRACKINFO_BATCH_RESULT_MESSAGE]: this._trackInfoBatchRetrieved.bind(this),
             [ALL_FILES_PERSISTED_MESSAGE]: this._allFilesHaveBeenPersisted.bind(this),
-            [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this)
+            [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this),
+            [UIDS_MAPPED_TO_FILES_MESSAGE]: this._uidsMappedToFiles.bind(this),
+            [NEW_TRACK_FROM_TMP_FILE_MESSAGE]: this._newTrackFromTmpFile.bind(this)
         };
 
         this._zipper.on(AUDIO_FILE_EXTRACTED_EVENT, this._audioFileExtracted.bind(this));
+    }
+
+    _uidsMappedToFiles(result) {
+        this._zipper.archiveFiles(result.files);
+    }
+
+    _exportTracks(tracks) {
+        const trackUids = tracks.map(track => track.uid());
+        this.postMessage({action: `mapTrackUidsToFiles`, args: {trackUids}});
+    }
+
+    _newTrackFromTmpFile(result) {
+        const {trackInfo} = result;
+        const {trackUid} = trackInfo;
+        const key = hexString(trackUid);
+
+        let track = this._uidsToTrack.get(key);
+        if (!track) {
+            track = new Track(trackUid, trackUid, this);
+            this._uidsToTrack.set(key, track);
+            track.updateFields(trackInfo);
+        }
+        this.emit(NEW_TRACK_FROM_TMP_FILE_EVENT, track);
     }
 
     receiveMessage(event) {

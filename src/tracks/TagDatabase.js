@@ -235,29 +235,29 @@ export default class TagDatabase {
         return iDbPromisify(store.count());
     }
 
-    async trackUidsToTrackInfos(trackUids) {
-        const ret = new Array(trackUids.length);
+    async _primaryOrUniqueKeyInArrayQuery(storeName, listOfPrimaryKeys) {
+        const ret = new Array(listOfPrimaryKeys.length);
         ret.length = 0;
-        trackUids.sort(indexedDBCmp);
+        listOfPrimaryKeys.sort(indexedDBCmp);
         let i = 0;
         const db = await this.db;
-        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
-        const {length} = trackUids;
+        const store = db.transaction(storeName, READ_ONLY).objectStore(storeName);
+        const {length} = listOfPrimaryKeys;
 
         if (i >= length) {
             return ret;
         }
 
-        const query = IDBKeyRange.bound(trackUids[0], trackUids[length - 1]);
+        const query = IDBKeyRange.bound(listOfPrimaryKeys[0], listOfPrimaryKeys[length - 1]);
         await iDbPromisifyCursor(store.openCursor(query), (cursor) => {
             const {key} = cursor;
-            let cmp = indexedDB.cmp(key, trackUids[i]);
+            let cmp = indexedDB.cmp(key, listOfPrimaryKeys[i]);
             while (cmp > 0) {
                 ++i;
                 if (i >= length) {
                     return true;
                 }
-                cmp = indexedDB.cmp(key, trackUids[i]);
+                cmp = indexedDB.cmp(key, listOfPrimaryKeys[i]);
             }
 
             while (cmp === 0) {
@@ -266,14 +266,23 @@ export default class TagDatabase {
                 if (i >= length) {
                     return true;
                 }
-                cmp = indexedDB.cmp(key, trackUids[i]);
+                cmp = indexedDB.cmp(key, listOfPrimaryKeys[i]);
             }
 
-            cursor.continue(trackUids[i]);
+            cursor.continue(listOfPrimaryKeys[i]);
             return false;
         });
 
         return ret;
+    }
+
+    async trackUidsToFiles(trackUids) {
+        const result = await this._primaryOrUniqueKeyInArrayQuery(TRACK_PAYLOAD_OBJECT_STORE_NAME, trackUids);
+        return result.map(obj => obj.file);
+    }
+
+    trackUidsToTrackInfos(trackUids) {
+        return this._primaryOrUniqueKeyInArrayQuery(TRACK_INFO_OBJECT_STORE_NAME, trackUids);
     }
 
     async getTrackInfoByTrackUid(trackUid) {
