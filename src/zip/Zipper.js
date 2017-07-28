@@ -50,18 +50,12 @@ export default class Zipper extends EventEmitter {
         if (this._callbackMode === CALLBACK_MODE_EXTRACT) {
             this._wasm.memcpy(wasmDataPtr + fileOffset, bufferPtr, bufferLength);
             this._currentFileInfo.written += bufferLength;
-            if (fileOffset + bufferLength >= this._currentFileInfo.size ||
-                this._currentFileInfo.written >= this._currentFileInfo.size) {
-                this.emit(FILE_EXTRACTED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written);
-                return bufferLength;
-            } else {
-                out.preventExtraction = false;
-                this.emit(FILE_EXTRACTION_PROGRESSED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written, out);
-                if (out.preventExtraction) {
-                    return 0;
-                }
-                return bufferLength;
+            out.preventExtraction = false;
+            this.emit(FILE_EXTRACTION_PROGRESSED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written, out);
+            if (out.preventExtraction) {
+                return 0;
             }
+            return bufferLength;
         } else {
             if (this._wasmDataWritten + bufferLength > wasmDataLength) {
                 this.emit(ARCHIVING_BUFFER_FULL_EVENT, wasmDataPtr, this._wasmDataWritten);
@@ -132,7 +126,7 @@ export default class Zipper extends EventEmitter {
             ([err] = populateFileInfosResult);
             this._checkError(err);
             let filesExtracted = 0;
-
+            const {wasmDataPtr} = this._getWasmData();
             if (fileCount > 0) {
                 for (let i = 0; i < fileCount; ++i) {
                     const [error, is_directory,
@@ -162,6 +156,7 @@ export default class Zipper extends EventEmitter {
                     }
 
                     filesExtracted++;
+                    this.emit(FILE_EXTRACTED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written);
                 }
             }
             return {fileCount, filesExtracted};
