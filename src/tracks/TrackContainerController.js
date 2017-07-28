@@ -518,7 +518,7 @@ export default class TrackContainerController extends EventEmitter {
         this.removeTrackViews([trackView]);
     }
 
-    async removeTrackViews(trackViews) {
+    async removeTrackViews(trackViews, {silent = false} = {silent: false}) {
         if (!this.supportsRemove()) return;
         if (trackViews.length === 0) return;
         const oldLength = this.length;
@@ -546,12 +546,14 @@ export default class TrackContainerController extends EventEmitter {
             this.listBecameEmpty();
         }
 
-        const shouldUndo = await this.shouldUndoTracksRemoved(tracksRemovedCount);
+        if (!silent) {
+            const shouldUndo = await this.shouldUndoTracksRemoved(tracksRemovedCount);
 
-        if (shouldUndo) {
-            this._restoreStateForUndo();
-        } else {
-            this._destroyTrackListDeletionUndo();
+            if (shouldUndo) {
+                this._restoreStateForUndo();
+            } else {
+                this._destroyTrackListDeletionUndo();
+            }
         }
     }
 

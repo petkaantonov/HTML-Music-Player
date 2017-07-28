@@ -7,6 +7,7 @@ import {METADATA_MANAGER_READY_EVENT_NAME,
             MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE,
             UIDS_MAPPED_TO_FILES_MESSAGE,
             NEW_TRACK_FROM_TMP_FILE_MESSAGE,
+            FILE_REFERENCE_UNAVAILABLE_MESSAGE,
         fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import EventEmitter from "events";
 import {indexedDB} from "platform/platform";
@@ -35,6 +36,7 @@ export const TAG_DATA_UPDATE_EVENT = `tagDataUpdate`;
 export const ALL_FILES_PERSISTED_EVENT = `allFilesPersisted`;
 export const MEDIA_LIBRARY_SIZE_CHANGE_EVENT = `mediaLibrarySizeChange`;
 export const NEW_TRACK_FROM_TMP_FILE_EVENT = `newTrackFromTmpFile`;
+export const TRACK_BACKING_FILE_REMOVED_EVENT = `TRACK_BACKING_FILE_REMOVED_EVENT`;
 
 class Track extends EventEmitter {
     constructor(fileReference, uid, metadataManager) {
@@ -376,10 +378,21 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             [ALL_FILES_PERSISTED_MESSAGE]: this._allFilesHaveBeenPersisted.bind(this),
             [MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE]: this._mediaLibrarySizeCounted.bind(this),
             [UIDS_MAPPED_TO_FILES_MESSAGE]: this._uidsMappedToFiles.bind(this),
-            [NEW_TRACK_FROM_TMP_FILE_MESSAGE]: this._newTrackFromTmpFile.bind(this)
+            [NEW_TRACK_FROM_TMP_FILE_MESSAGE]: this._newTrackFromTmpFile.bind(this),
+            [FILE_REFERENCE_UNAVAILABLE_MESSAGE]: this._fileReferenceUnavailable.bind(this)
         };
 
         this._zipper.on(AUDIO_FILE_EXTRACTED_EVENT, this._audioFileExtracted.bind(this));
+    }
+
+    _fileReferenceUnavailable(result) {
+        const {trackUid} = result;
+        const key = hexString(trackUid);
+        const track = this._uidsToTrack.get(key);
+        if (track) {
+            track.setError(`backing file has been deleted`);
+            this.emit(TRACK_BACKING_FILE_REMOVED_EVENT, track);
+        }
     }
 
     _uidsMappedToFiles(result) {

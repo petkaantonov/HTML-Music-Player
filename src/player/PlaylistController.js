@@ -1,6 +1,7 @@
 import {ACTION_CLICKED} from "ui/Snackbar";
 import TrackSorterTrait from "tracks/TrackSorterTrait";
-import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT, NEW_TRACK_FROM_TMP_FILE_EVENT}
+import {ALL_FILES_PERSISTED_EVENT, MEDIA_LIBRARY_SIZE_CHANGE_EVENT, NEW_TRACK_FROM_TMP_FILE_EVENT,
+            TRACK_BACKING_FILE_REMOVED_EVENT}
         from "metadata/MetadataManagerFrontend";
 import TrackContainerController, {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
 import {throttle} from "util";
@@ -150,12 +151,16 @@ export default class PlaylistController extends TrackContainerController {
 
         this._persistHistory = throttle(this._persistHistory, 1000, this);
         this._persistMode = throttle(this._persistMode, 500, this);
+        this._removePendingTracks = throttle(this._removePendingTracks, 1000, this);
 
         this.on(LENGTH_CHANGE_EVENT, this._lengthChanged.bind(this));
         this._persistPlaylist = throttle(this._persistPlaylist.bind(this), 500);
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistPlaylist);
         this.metadataManager.on(MEDIA_LIBRARY_SIZE_CHANGE_EVENT, this._mediaLibrarySizeUpdated.bind(this));
         this.metadataManager.on(NEW_TRACK_FROM_TMP_FILE_EVENT, this._newTrackFromTmpFile.bind(this));
+        this.metadataManager.on(TRACK_BACKING_FILE_REMOVED_EVENT, this._trackBackingFileRemoved.bind(this));
+
+        this._pendingTrackRemovals = [];
 
         this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
@@ -476,6 +481,24 @@ export default class PlaylistController extends TrackContainerController {
     _mediaLibrarySizeUpdated(count) {
         const text = count === 1 ? `is 1 track` : `are ${count} tracks`;
         this.$().find(`.playlist-empty .media-library-size`).setText(text);
+    }
+
+    _removePendingTracks() {
+        const tracksToRemove = new Set(this._pendingTrackRemovals);
+        this._pendingTrackRemovals = [];
+        const viewsToRemove = [];
+        for (let i = 0; i < this._trackViews.length; ++i) {
+            const trackView = this._trackViews[i];
+            if (tracksToRemove.has(trackView.track())) {
+                viewsToRemove.push(trackView);
+            }
+        }
+        this.removeTrackViews(viewsToRemove, {silent: true});
+    }
+
+    _trackBackingFileRemoved(track) {
+        this._pendingTrackRemovals.push(track);
+        this._removePendingTracks();
     }
 
     _newTrackFromTmpFile(track) {

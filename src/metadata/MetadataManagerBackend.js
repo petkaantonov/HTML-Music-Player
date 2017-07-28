@@ -15,6 +15,7 @@ import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import Fingerprinter from "audio/backend/Fingerprinter";
 import {MAX_BUFFER_LENGTH_SECONDS as BUFFER_DURATION} from "audio/frontend/buffering";
 import KeyValueDatabase from "platform/KeyValueDatabase";
+import FileReferenceDeletedError from "errors/FileReferenceDeletedError";
 
 export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 
@@ -28,6 +29,7 @@ export const MEDIA_LIBRARY_SIZE_COUNTED_MESSAGE = `mediaLibrarySizeCounted`;
 export const UIDS_MAPPED_TO_FILES_MESSAGE = `uidsMappedToFiles`;
 export const METADATA_RESULT_MESSAGE = `metadataResult`;
 export const NEW_TRACK_FROM_TMP_FILE_MESSAGE = `newTrackFromTmpFile`;
+export const FILE_REFERENCE_UNAVAILABLE_MESSAGE = `fileReferenceUnavailable`;
 export const ALBUM_ART_PREFERENCE_SMALLEST = `smallest`;
 export const ALBUM_ART_PREFERENCE_BIGGEST = `biggest`;
 export const ALBUM_ART_PREFERENCE_ALL = `all`;
@@ -170,11 +172,22 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
             async parseMetadata({fileReference}) {
                 const trackUid = await fileReferenceToTrackUid(fileReference);
-                const result = await this._parseMetadata(trackUid, fileReference);
-                this.postMessage({type: METADATA_RESULT_MESSAGE, result});
+                try {
+                    const result = await this._parseMetadata(trackUid, fileReference);
+                    this.postMessage({type: METADATA_RESULT_MESSAGE, result});
 
-                if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
-                    this._fingerprinter.postJob(trackUid, fileReference);
+                    if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                        this._fingerprinter.postJob(trackUid, fileReference);
+                    }
+                } catch (e) {
+                    if (e instanceof FileReferenceDeletedError) {
+                        this.postMessage({
+                            type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+                            result: {trackUid}
+                        });
+                    } else {
+                        throw e;
+                    }
                 }
             },
 
@@ -202,21 +215,24 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     self.uiLog(`Temporary file was somehow not found (id=${tmpFileId})`);
                     return;
                 }
-                const {file} = tmpFile;
-                const trackUid = await fileReferenceToTrackUid(file);
-                const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
-                if (!trackInfo) {
-                    const result = await this._parseMetadata(trackUid, file);
-                    if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
-                        this._fingerprinter.postJob(trackUid, trackUid);
+                try {
+                    const {file} = tmpFile;
+                    const trackUid = await fileReferenceToTrackUid(file);
+                    const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
+                    if (!trackInfo) {
+                        const result = await this._parseMetadata(trackUid, file);
+                        if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                            this._fingerprinter.postJob(trackUid, trackUid);
+                        }
+                        if (result && result.trackInfo) {
+                            this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
+                                trackInfo: result.trackInfo
+                            }});
+                        }
                     }
-                    if (result && result.trackInfo) {
-                        this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
-                            trackInfo: result.trackInfo
-                        }});
-                    }
+                } finally {
+                    await this._kvdb.deleteTmpFile(tmpFileId);
                 }
-                await this._kvdb.deleteTmpFile(tmpFileId);
             }
         };
         this._acoustIdDataFetcher.on(JOB_COMPLETE_EVENT, async (job) => {
@@ -260,7 +276,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         } else if (fileReference instanceof ArrayBuffer) {
             const file = await this._tagDatabase.fileByFileReference(fileReference);
             if (!(file instanceof File)) {
-                throw new Error(`fileReference has been deleted`);
+                throw new FileReferenceDeletedError();
             }
             return new FileView(file);
         } else {
@@ -420,6 +436,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
             duration: 0,
             autogenerated: false
         };
+
         const fileView = await this.fileReferenceToFileView(fileReference);
         const codecName = await getCodecName(fileView);
         if (!codecName) {
