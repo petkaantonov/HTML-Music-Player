@@ -205,10 +205,8 @@ export default class MetadataManagerBackend extends AbstractBackend {
                 const {file} = tmpFile;
                 const trackUid = await fileReferenceToTrackUid(file);
                 const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
-
                 if (!trackInfo) {
                     const result = await this._parseMetadata(trackUid, file);
-
                     if (result && result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
                         this._fingerprinter.postJob(trackUid, trackUid);
                     }
@@ -218,7 +216,6 @@ export default class MetadataManagerBackend extends AbstractBackend {
                         }});
                     }
                 }
-
                 await this._kvdb.deleteTmpFile(tmpFileId);
             }
         };

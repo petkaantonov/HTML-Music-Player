@@ -164,7 +164,8 @@ export default class KeyValueDatabase {
             file,
             [SOURCE_KEY]: source
         };
-        return iDbPromisify(store.add(obj));
+        const ret = await iDbPromisify(store.add(obj));
+        return ret;
     }
 
     async clearTmpFiles() {

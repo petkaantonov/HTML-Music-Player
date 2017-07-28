@@ -2,7 +2,7 @@ import {promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromis
 import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
 import {indexedDB, IDBKeyRange, ArrayBuffer, File} from "platform/platform";
 
-const VERSION = 24;
+const VERSION = 26;
 const DATA_WIPE_VERSION = 24;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;

@@ -10,12 +10,16 @@ export const ARCHIVING_WILL_START_EVENT = `archivingWillStart`;
 export const ARCHIVING_BUFFER_FULL_EVENT = `archivingBufferFull`;
 export const ARCHIVING_PROGRESS_EVENT = `archivingProgressEvent`;
 
+function delay(ms) {
+    return new Promise(resolve => self.setTimeout(resolve, ms));
+}
+
 const CALLBACK_MODE_NONE = 0;
 const CALLBACK_MODE_EXTRACT = 1;
 const CALLBACK_MODE_ARCHIVE = 2;
 
 const zippersToJsInstances = new Map();
-const out = {preventExtraction: false};
+const out = {preventExtraction: false, waitUntil: null};
 
 export default class Zipper extends EventEmitter {
     constructor(wasm) {
@@ -48,7 +52,17 @@ export default class Zipper extends EventEmitter {
 
     _writeCallback(fileOffset, bufferPtr, bufferLength, wasmDataPtr, wasmDataLength) {
         if (this._callbackMode === CALLBACK_MODE_EXTRACT) {
+            if (this._currentFileInfo.finished) {
+                return bufferLength;
+            }
             this._wasm.memcpy(wasmDataPtr + fileOffset, bufferPtr, bufferLength);
+            if (fileOffset + bufferLength === this._currentFileInfo.size) {
+                this._currentFileInfo.finished = true;
+                const buffer = this._wasm.u8view(wasmDataPtr, this._currentFileInfo.size);
+                this.emit(FILE_EXTRACTED_EVENT, this._currentFileInfo, buffer, out);
+                this._currentFileInfo.waitUntil = out.waitUntil;
+                return bufferLength;
+            }
             this._currentFileInfo.written += bufferLength;
             out.preventExtraction = false;
             this.emit(FILE_EXTRACTION_PROGRESSED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written, out);
@@ -68,7 +82,7 @@ export default class Zipper extends EventEmitter {
         }
     }
 
-    writeZip(files) {
+    async writeZip(files) {
         if (this._callbackMode !== CALLBACK_MODE_NONE) {
             throw new Error(`no parallel processing`);
         }
@@ -91,6 +105,7 @@ export default class Zipper extends EventEmitter {
                 this._currentFileInfo = {name, size, lastModified, type};
                 this._checkError(this.zipper_add_file_to_archive(this._ptr, name, name, 0));
                 this._filesArchived++;
+                await delay(100);
             }
 
             this._checkError(this.zipper_finish_archive(this._ptr));
@@ -109,7 +124,7 @@ export default class Zipper extends EventEmitter {
         }
     }
 
-    readZip(zipFile) {
+    async readZip(zipFile) {
         if (!(zipFile instanceof File)) {
             throw new Error(`must be a file`);
         }
@@ -126,7 +141,7 @@ export default class Zipper extends EventEmitter {
             ([err] = populateFileInfosResult);
             this._checkError(err);
             let filesExtracted = 0;
-            const {wasmDataPtr} = this._getWasmData();
+
             if (fileCount > 0) {
                 for (let i = 0; i < fileCount; ++i) {
                     const [error, is_directory,
@@ -140,8 +155,7 @@ export default class Zipper extends EventEmitter {
                     }
 
                     out.preventExtraction = false;
-                    this._currentFileInfo = {fileCount, filesExtracted, index, lastModified, name, size, entryPtr, userData: {}, written: 0};
-
+                    this._currentFileInfo = {finished: false, waitUntil: null, index, lastModified, name, size, entryPtr, userData: {}};
                     this.emit(WILL_EXTRACT_FILE_EVENT, this._currentFileInfo, out);
 
                     if (out.preventExtraction) {
@@ -153,10 +167,13 @@ export default class Zipper extends EventEmitter {
 
                     if (!out.preventExtraction) {
                         this._checkError(err);
+                    } else {
+                        continue;
                     }
 
                     filesExtracted++;
-                    this.emit(FILE_EXTRACTED_EVENT, this._currentFileInfo, wasmDataPtr, this._currentFileInfo.written);
+
+                    await this._currentFileInfo.waitUntil;
                 }
             }
             return {fileCount, filesExtracted};

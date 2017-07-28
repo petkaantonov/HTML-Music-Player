@@ -117,18 +117,21 @@ export default class ZipperBackend extends AbstractBackend {
         });
     }
 
-    async _fileExtracted({lastModified, name, userData, fileCount, filesExtracted, index: zipArchiveIndex}, ptr, length) {
-        const fileName = basename(name);
-        const file = new File([this._wasm.u8view(ptr, length)], fileName, {
-            type: userData.type,
-            lastModified: lastModified * 1000
-        });
-        self.uiLog(`extracted file ${fileName} (#${zipArchiveIndex}) ${filesExtracted}/${fileCount}`);
+    async _saveExtractedFile(file) {
         const tmpFileId = await this._kvdb.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
         this.postMessage({
             type: AUDIO_FILE_EXTRACTED_MESSAGE,
             result: {tmpFileId}
         });
+    }
+
+    _fileExtracted({lastModified, name, userData}, buffer, out) {
+        const fileName = basename(name);
+        const file = new File([buffer], fileName, {
+            type: userData.type,
+            lastModified: lastModified * 1000
+        });
+        out.waitUntil = this._saveExtractedFile(file);
     }
 
     _fileExtractionProgress({name, userData}, ptr, length, out) {
