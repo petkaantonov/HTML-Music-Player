@@ -267,7 +267,7 @@ export default class WebAssemblyWrapper {
 
             const kind = requiredImportObj.env[name];
 
-            if (typeof value !== kind) {
+            if (kind && typeof value !== kind) {
                 throw new Error(`expected import type to be ${kind} for env:${name} but it was ${typeof value}`);
             }
 

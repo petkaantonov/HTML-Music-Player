@@ -21,14 +21,16 @@ export default class ZipperFrontend extends WorkerFrontend {
         this.emit(AUDIO_FILE_EXTRACTED_EVENT, tmpFileId);
     }
 
-    archiveFiles(files) {
+    async archiveFiles(files) {
+        await this.ready();
         this.postMessage({
             action: `archiveFiles`,
             args: {files, archiveRequestId: 1}
         });
     }
 
-    extractSupportedAudioFilesFromZip(zipFile) {
+    async extractSupportedAudioFilesFromZip(zipFile) {
+        await this.ready();
         this.postMessage({
             action: `extractSupportedAudioFilesFromZipFile`,
             args: {zipFile}
