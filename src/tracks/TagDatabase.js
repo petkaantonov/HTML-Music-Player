@@ -235,7 +235,7 @@ export default class TagDatabase {
         return iDbPromisify(store.count());
     }
 
-    async _primaryOrUniqueKeyInArrayQuery(storeName, listOfPrimaryKeys) {
+    async _primaryOrUniqueKeyInArrayQuery(storeName, listOfPrimaryKeys, missing) {
         const ret = new Array(listOfPrimaryKeys.length);
         ret.length = 0;
         listOfPrimaryKeys.sort(indexedDBCmp);
@@ -243,6 +243,7 @@ export default class TagDatabase {
         const db = await this.db;
         const store = db.transaction(storeName, READ_ONLY).objectStore(storeName);
         const {length} = listOfPrimaryKeys;
+        let completelyEmpty = true;
 
         if (i >= length) {
             return ret;
@@ -250,9 +251,13 @@ export default class TagDatabase {
 
         const query = IDBKeyRange.bound(listOfPrimaryKeys[0], listOfPrimaryKeys[length - 1]);
         await iDbPromisifyCursor(store.openCursor(query), (cursor) => {
+            completelyEmpty = false;
             const {key} = cursor;
             let cmp = indexedDB.cmp(key, listOfPrimaryKeys[i]);
             while (cmp > 0) {
+                if (missing) {
+                    missing.push(listOfPrimaryKeys[i]);
+                }
                 ++i;
                 if (i >= length) {
                     return true;
@@ -273,16 +278,20 @@ export default class TagDatabase {
             return false;
         });
 
+        if (missing && completelyEmpty) {
+            missing.push(...listOfPrimaryKeys);
+        }
+
         return ret;
     }
 
-    async trackUidsToFiles(trackUids) {
-        const result = await this._primaryOrUniqueKeyInArrayQuery(TRACK_PAYLOAD_OBJECT_STORE_NAME, trackUids);
+    async trackUidsToFiles(trackUids, missing) {
+        const result = await this._primaryOrUniqueKeyInArrayQuery(TRACK_PAYLOAD_OBJECT_STORE_NAME, trackUids, missing);
         return result.map(obj => obj.file);
     }
 
-    trackUidsToTrackInfos(trackUids) {
-        return this._primaryOrUniqueKeyInArrayQuery(TRACK_INFO_OBJECT_STORE_NAME, trackUids);
+    trackUidsToTrackInfos(trackUids, missing) {
+        return this._primaryOrUniqueKeyInArrayQuery(TRACK_INFO_OBJECT_STORE_NAME, trackUids, missing);
     }
 
     async getTrackInfoByTrackUid(trackUid) {

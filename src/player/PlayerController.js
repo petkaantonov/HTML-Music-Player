@@ -397,6 +397,7 @@ export default class PlayerController extends EventEmitter {
         this.playlist.stop();
         this.emit(PROGRESS_EVENT, 0, 0);
         this.stoppedPlay();
+        this._persistTrack();
     }
 
     async loadTrack(track, isUserInitiatedSkip) {
@@ -639,16 +640,18 @@ export default class PlayerController extends EventEmitter {
 
         if (CURRENT_PLAYLIST_TRACK_KEY in this.dbValues) {
             const serializedPlaylistTrack = this.dbValues[CURRENT_PLAYLIST_TRACK_KEY];
-            const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack);
-            if (startedToPlayTrack) {
-                const {currentAudioManager} = this;
-                await currentAudioManager.durationKnown();
-                this.pause();
-                if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
-                    this.setProgress(this.dbValues[CURRENT_TRACK_PROGRESS_KEY]);
-                    this.emit(PROGRESS_EVENT,
-                              currentAudioManager.getCurrentTime(),
-                              currentAudioManager.getDuration());
+            if (serializedPlaylistTrack) {
+                const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack);
+                if (startedToPlayTrack) {
+                    const {currentAudioManager} = this;
+                    await currentAudioManager.durationKnown();
+                    this.pause();
+                    if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
+                        this.setProgress(this.dbValues[CURRENT_TRACK_PROGRESS_KEY]);
+                        this.emit(PROGRESS_EVENT,
+                                  currentAudioManager.getCurrentTime(),
+                                  currentAudioManager.getDuration());
+                    }
                 }
             }
         }
@@ -680,7 +683,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     _canPersistPlaylistTrack(playlistTrack) {
-        return playlistTrack && !playlistTrack.isDummy() && this.metadataManager.areAllFilesPersisted();
+        return playlistTrack && this.metadataManager.areAllFilesPersisted();
     }
 
     _persistTrack() {

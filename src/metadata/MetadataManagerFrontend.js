@@ -392,6 +392,7 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
         if (track) {
             track.setError(`backing file has been deleted`);
             this.emit(TRACK_BACKING_FILE_REMOVED_EVENT, track);
+            this._uidsToTrack.delete(key);
         }
     }
 

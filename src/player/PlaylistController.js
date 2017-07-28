@@ -493,7 +493,16 @@ export default class PlaylistController extends TrackContainerController {
                 viewsToRemove.push(trackView);
             }
         }
+
+        if (tracksToRemove.has(this._currentPlaylistTrack.track())) {
+            this.stop();
+        }
+
         this.removeTrackViews(viewsToRemove, {silent: true});
+        this._trackHistory = this._trackHistory.filter(t => !tracksToRemove.has(t.track()));
+
+        this.emit(HISTORY_CHANGE_EVENT);
+        this._persistHistory();
     }
 
     _trackBackingFileRemoved(track) {

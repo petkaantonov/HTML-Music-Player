@@ -172,27 +172,21 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
             async parseMetadata({fileReference}) {
                 const trackUid = await fileReferenceToTrackUid(fileReference);
-                try {
-                    const result = await this._parseMetadata(trackUid, fileReference);
-                    this.postMessage({type: METADATA_RESULT_MESSAGE, result});
-
-                    if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
-                        this._fingerprinter.postJob(trackUid, fileReference);
-                    }
-                } catch (e) {
-                    if (e instanceof FileReferenceDeletedError) {
-                        this.postMessage({
-                            type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
-                            result: {trackUid}
-                        });
-                    } else {
-                        throw e;
-                    }
+                const result = await this._parseMetadata(trackUid, fileReference);
+                if (!result) {
+                    return;
                 }
+                this.postMessage({type: METADATA_RESULT_MESSAGE, result});
+
+                if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
+                    this._fingerprinter.postJob(trackUid, fileReference);
+                }
+
             },
 
             async getTrackInfoBatch({batch}) {
-                const trackInfos = await this._tagDatabase.trackUidsToTrackInfos(batch);
+                const missing = [];
+                const trackInfos = await this._tagDatabase.trackUidsToTrackInfos(batch, missing);
                 for (let i = 0; i < trackInfos.length; ++i) {
                     const trackInfo = trackInfos[i];
                     if (!trackInfo.hasBeenFingerprinted) {
@@ -200,10 +194,16 @@ export default class MetadataManagerBackend extends AbstractBackend {
                         this._fingerprinter.postJob(trackUid, trackUid);
                     }
                 }
+
+                for (let i = 0; i < missing.length; ++i) {
+                    this.actions.parseMetadata.call(this, {fileReference: missing[i]});
+                }
+
                 this.postMessage({type: TRACKINFO_BATCH_RESULT_MESSAGE, result: {trackInfos}});
             },
 
             async mapTrackUidsToFiles({trackUids}) {
+                // TODO: Handle missing files.
                 const files = await this._tagDatabase.trackUidsToFiles(trackUids);
                 this.postMessage({type: UIDS_MAPPED_TO_FILES_MESSAGE, result: {files}});
             },
@@ -266,7 +266,15 @@ export default class MetadataManagerBackend extends AbstractBackend {
             const trackInfo = await this._metadataParser.postJob(trackUid, fileReference).promise;
             return {trackInfo, trackUid};
         } catch (e) {
-            return {trackUid, error: {message: e.message}};
+            if (e instanceof FileReferenceDeletedError) {
+                this.postMessage({
+                    type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+                    result: {trackUid}
+                });
+                return null;
+            } else {
+                return {trackUid, error: {message: e.message}};
+            }
         }
     }
 
@@ -298,7 +306,20 @@ export default class MetadataManagerBackend extends AbstractBackend {
                 return;
             }
 
-            const fileView = await this.fileReferenceToFileView(fileReference);
+            let fileView;
+            try {
+                fileView = await this.fileReferenceToFileView(fileReference);
+            } catch (e) {
+                if (e instanceof FileReferenceDeletedError) {
+                    this.postMessage({
+                        type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+                        result: {trackUid}
+                    });
+                    return;
+                } else {
+                    throw e;
+                }
+            }
             const DecoderContext = await getCodec(trackInfo.codecName);
 
             const {sampleRate, duration, channels, demuxData} = trackInfo;
