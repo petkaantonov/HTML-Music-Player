@@ -1,6 +1,5 @@
-import {promisifyKeyCursorContinue, promisifyCursorContinuePrimaryKey, iDbPromisifyCursor} from "util";
-import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
-import {indexedDB, IDBKeyRange, ArrayBuffer, File, CONSTRAINT_ERROR} from "platform/platform";
+import {iDbPromisifyCursor, iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
+import {indexedDB, DatabaseClosedError, IDBKeyRange, ArrayBuffer, File, CONSTRAINT_ERROR} from "platform/platform";
 
 const VERSION = 26;
 const DATA_WIPE_VERSION = 24;
@@ -144,6 +143,7 @@ const objectStoreSpec = {
 
 export default class TagDatabase {
     constructor() {
+        this._closed = false;
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
         request.onupgradeneeded = (event) => {
@@ -156,84 +156,36 @@ export default class TagDatabase {
                 }
             }
         };
+        request.onversionchange = async () => {
+            this._closed = true;
+            const db = await this.db;
+            db.close();
+        };
+
+        request.onclose = function() {
+            this._closed = true;
+        };
     }
 
-    async _getTrackInfoByCursor(onlyKeys, keyName,
-                                {before = null, after = null, limit}) {
-        const db = await this.db;
-        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
-        const index = store.index(keyName);
-
-        let range = null;
-        if (after && before) {
-            range = IDBKeyRange.bound(after, before, true, true);
-        } else if (after) {
-            range = IDBKeyRange.lowerBound(after, true);
-        } else if (before) {
-            range = IDBKeyRange.upperBound(before, true);
-        }
-
-        const opts = limit ? {limit} : {};
-        if (onlyKeys) {
-            const cursor = index.openKeyCursor(range, `nextunique`);
-            return promisifyKeyCursorContinue(cursor, opts);
-        } else {
-            throw new Error(`only keys`);
+    _checkClosed() {
+        if (this._closed) {
+            throw new DatabaseClosedError();
         }
     }
 
-    async _getTrackInfosHavingKey(keyValue, indexName, opts = {}) {
-        const db = await this.db;
-        let primaryKeyValue = null;
-        const {limit} = opts;
-
-        if (opts.after) {
-            primaryKeyValue = opts.after;
-        }
-
-        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
-        const index = store.index(indexName);
-        const keyRange = IDBKeyRange.only(keyValue);
-        const cursor = index.openCursor(keyRange, `next`);
-        const result = await promisifyCursorContinuePrimaryKey(cursor, {keyValue, primaryKeyValue, limit});
-        return result;
-    }
-
-    _getTrackInfoKeys(keyName, opts) {
-        return this._getTrackInfoByCursor(true, keyName, opts);
-    }
-
-    getAlbums(opts = {}) {
-        return this._getTrackInfoKeys(`album`, opts);
-    }
-
-    getArtists(opts = {}) {
-        return this._getTrackInfoKeys(`artist`, opts);
-    }
-
-    getGenres(opts = {}) {
-        return this._getTrackInfoKeys(`genres`, opts);
-    }
-
-    getTrackInfosHavingAlbum(album, opts = {}) {
-        return this._getTrackInfosHavingKey(album, `album`, opts);
-    }
-
-    getTrackInfosHavingArtist(artist, opts = {}) {
-        return this._getTrackInfosHavingKey(artist, `artist`, opts);
-    }
-
-    getTrackInfosHavingGenre(genre, opts) {
-        return this._getTrackInfosHavingKey(genre, `genres`, opts);
+    isClosed() {
+        return this._closed;
     }
 
     async getTrackInfoCount() {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         return iDbPromisify(store.count());
     }
 
     async _primaryOrUniqueKeyInArrayQuery(storeName, listOfPrimaryKeys, missing) {
+        this._checkClosed();
         const ret = new Array(listOfPrimaryKeys.length);
         ret.length = 0;
         listOfPrimaryKeys.sort(indexedDBCmp);
@@ -284,21 +236,25 @@ export default class TagDatabase {
     }
 
     async trackUidsToFiles(trackUids, missing) {
+        this._checkClosed();
         const result = await this._primaryOrUniqueKeyInArrayQuery(TRACK_PAYLOAD_OBJECT_STORE_NAME, trackUids, missing);
         return result.map(obj => obj.file);
     }
 
     trackUidsToTrackInfos(trackUids, missing) {
+        this._checkClosed();
         return this._primaryOrUniqueKeyInArrayQuery(TRACK_INFO_OBJECT_STORE_NAME, trackUids, missing);
     }
 
     async getTrackInfoByTrackUid(trackUid) {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(trackUid));
     }
 
     async replaceTrackInfo(trackUid, trackInfo) {
+        this._checkClosed();
         trackInfo.trackUid = trackUid;
         const db = await this.db;
         const tx = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
@@ -306,6 +262,7 @@ export default class TagDatabase {
     }
 
     async addTrackInfo(trackUid, trackInfo) {
+        this._checkClosed();
         trackInfo.trackUid = trackUid;
         const db = await this.db;
         const transaction = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE);
@@ -317,6 +274,7 @@ export default class TagDatabase {
     }
 
     async completeAcoustIdFetchJob(jobId) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction([ACOUST_ID_JOB_OBJECT_STORE_NAME], READ_WRITE);
         const acoustIdStore = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -329,6 +287,7 @@ export default class TagDatabase {
     }
 
     async setAcoustIdFetchJobError(jobId, error) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -342,6 +301,7 @@ export default class TagDatabase {
     }
 
     async getAcoustIdFetchJob() {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -350,6 +310,7 @@ export default class TagDatabase {
     }
 
     async updateAcoustIdFetchJobState(trackUid, data) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -364,6 +325,7 @@ export default class TagDatabase {
     }
 
     async addAcoustIdFetchJob(trackUid, fingerprint, duration, state) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ACOUST_ID_JOB_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ACOUST_ID_JOB_OBJECT_STORE_NAME);
@@ -382,6 +344,7 @@ export default class TagDatabase {
     }
 
     async getAlbumArtData(trackUid, artist, album) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ALBUM_ART_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(ALBUM_ART_OBJECT_STORE_NAME);
@@ -399,6 +362,7 @@ export default class TagDatabase {
     }
 
     async addAlbumArtData(trackUid, albumArtData) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(ALBUM_ART_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(ALBUM_ART_OBJECT_STORE_NAME);
@@ -434,6 +398,7 @@ export default class TagDatabase {
     }
 
     async fileByFileReference(fileReference) {
+        this._checkClosed();
         if (fileReference instanceof File) {
             return fileReference;
         } else if (fileReference instanceof ArrayBuffer) {
@@ -452,6 +417,7 @@ export default class TagDatabase {
     }
 
     async ensureFileStored(trackUid, fileReference) {
+        this._checkClosed();
         if (fileReference instanceof ArrayBuffer) {
             return false;
         } else if (fileReference instanceof File) {
@@ -478,6 +444,7 @@ export default class TagDatabase {
     }
 
     async searchPrefixes(firstPrefixKeyword) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
@@ -487,6 +454,7 @@ export default class TagDatabase {
     }
 
     async searchSuffixes(firstSuffixKeyword) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_ONLY);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
@@ -496,6 +464,7 @@ export default class TagDatabase {
     }
 
     async addSearchIndexEntryForTrackIfNotPresent(entry) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
@@ -512,6 +481,7 @@ export default class TagDatabase {
     }
 
     async updateSearchIndexEntryForTrack(entry) {
+        this._checkClosed();
         const db = await this.db;
         const tx = db.transaction(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME, READ_WRITE);
         const store = tx.objectStore(TRACK_SEARCH_INDEX_OBJECT_STORE_NAME);
@@ -522,6 +492,7 @@ export default class TagDatabase {
 const fieldUpdater = function(...fieldNames) {
     return {
         async method(trackUid, ...values) {
+            this._checkClosed();
             const db = await this.db;
             const tx = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_WRITE);
             const store = tx.objectStore(TRACK_INFO_OBJECT_STORE_NAME);

@@ -1,4 +1,7 @@
 import {iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
+import {DatabaseClosedError} from "platform/platform";
+import EventEmitter from "events";
+import DatabaseClosedEmitterTrait from "platform/DatabaseClosedEmitterTrait";
 
 const VERSION = 2;
 const NAME = `AppDatabase`;
@@ -36,8 +39,10 @@ const objectStoreSpec = {
     }
 };
 
-export default class KeyValueDatabase {
+export default class KeyValueDatabase extends EventEmitter {
     constructor() {
+        super();
+        this._closed = false;
         /* eslint-disable no-undef */
         const request = indexedDB.open(NAME, VERSION);
         /* eslint-enable no-undef */
@@ -51,12 +56,41 @@ export default class KeyValueDatabase {
         this._uiLogRef = self.uiLog;
         self.uiLog = this.uiLogOverwrite.bind(this);
         this._lastLog = null;
+        this._setHandlers();
+    }
+
+    async _setHandlers() {
+        const db = await this.db;
+        db.onversionchange = async () => {
+            this._closed = true;
+            const db = await this.db;
+            db.close();
+            this.databaseClosed();
+        };
+        db.onclose = function() {
+            this._closed = true;
+            this.databaseClosed();
+        };
+    }
+
+    _checkClosed() {
+        if (this._closed) {
+            throw new DatabaseClosedError();
+        }
+    }
+
+    async close() {
+        const db = await this.db;
+        this._closed = true;
+        db.close();
+        this.databaseClosed();
     }
 
     getKeySetter(key) {
         if (!this.keySetters[key]) {
             const keySetter = {
                 async method(value) {
+                    this._checkClosed();
                     const db = await this.db;
                     const transaction = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE);
                     const store = transaction.objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
@@ -90,6 +124,7 @@ export default class KeyValueDatabase {
     }
 
     async storeLog(message) {
+        if (this.isClosedAndEmit()) return;
         const date = new Date();
         const db = await this.db;
         const store = db.transaction(LOG_OBJECT_STORE_NAME, READ_WRITE).objectStore(LOG_OBJECT_STORE_NAME);
@@ -97,10 +132,12 @@ export default class KeyValueDatabase {
     }
 
     set(key, value) {
+        if (this.isClosedAndEmit()) return;
         return this.getKeySetter(`${key}`).call(this, value);
     }
 
     async get(key) {
+        if (this.isClosedAndEmit()) return null;
         key = `${key}`;
         const db = await this.db;
         const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_ONLY).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
@@ -108,6 +145,7 @@ export default class KeyValueDatabase {
     }
 
     async getAll() {
+        if (this.isClosedAndEmit()) return {};
         const db = await this.db;
         const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_ONLY).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
         const keyValuePairs = await iDbPromisify(store.getAll());
@@ -120,6 +158,7 @@ export default class KeyValueDatabase {
     }
 
     async setAll(preferenceKeyValuePairs) {
+        if (this.isClosedAndEmit()) return;
         const db = await this.db;
         const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
 
@@ -129,6 +168,7 @@ export default class KeyValueDatabase {
     }
 
     async setAllObject(preferences) {
+        if (this.isClosedAndEmit()) return;
         const db = await this.db;
         const store = db.transaction(KEY_VALUE_PAIRS_OBJECT_STORE_NAME, READ_WRITE).objectStore(KEY_VALUE_PAIRS_OBJECT_STORE_NAME);
 
@@ -145,12 +185,14 @@ export default class KeyValueDatabase {
     }
 
     async getTmpFiles() {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_ONLY).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         return iDbPromisify(store.getAll());
     }
 
     async consumeTmpFileById(tmpFileId) {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         const ret = await iDbPromisify(store.get(tmpFileId));
@@ -159,12 +201,14 @@ export default class KeyValueDatabase {
     }
 
     async getTmpFileById(tmpFileId) {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_ONLY).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         return iDbPromisify(store.get(tmpFileId));
     }
 
     async addTmpFile(file, source) {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         const obj = {
@@ -177,15 +221,30 @@ export default class KeyValueDatabase {
     }
 
     async clearTmpFiles() {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         await iDbPromisify(store.clear());
     }
 
     async deleteTmpFile(tmpFileId) {
+        this._checkClosed();
         const db = await this.db;
         const store = db.transaction(TMP_FILES_OBJECT_STORE_NAME, READ_WRITE).objectStore(TMP_FILES_OBJECT_STORE_NAME);
         await iDbPromisify(store.delete(tmpFileId));
     }
 
+    isClosed() {
+        return this._closed;
+    }
+
+    isClosedAndEmit() {
+        if (this.isClosed()) {
+            this.databaseClosed();
+            return true;
+        }
+        return false;
+    }
 }
+
+Object.assign(KeyValueDatabase.prototype, DatabaseClosedEmitterTrait);

@@ -476,29 +476,6 @@ export const asError = function(value) {
     return ret;
 };
 
-export const iDbPromisifyCursor = function(cursor, callback) {
-    return new Promise((resolve, reject) => {
-        cursor.onerror = function(event) {
-            reject(asError(event.target.transaction.error || cursor.error));
-        };
-
-        cursor.onsuccess = async function(event) {
-            if (!event.target.result) {
-              resolve();
-            } else {
-              try {
-                const finished = await callback(event.target.result);
-                if (finished === true) {
-                  resolve();
-                }
-              } catch (e) {
-                reject(e);
-              }
-            }
-        };
-    });
-};
-
 const MAX_LIMIT = Math.pow(2, 31);
 
 const _promisifyCursor = function(ee, onlyKeys,

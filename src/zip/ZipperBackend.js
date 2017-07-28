@@ -1,4 +1,4 @@
-import AbstractBackend from "AbstractBackend";
+import DatabaseUsingBackend from "DatabaseUsingBackend";
 import Zipper, {
     FILE_EXTRACTED_EVENT,
     FILE_EXTRACTION_PROGRESSED_EVENT,
@@ -39,11 +39,10 @@ function audioExtractorMetadataFilter({size}, out) {
 // TODO Handle fileread errors
 // TODO Service worker the bundle
 // TODO CLear tmp files
-export default class ZipperBackend extends AbstractBackend {
+export default class ZipperBackend extends DatabaseUsingBackend {
     constructor(wasm) {
-        super(ZIPPER_READY_EVENT_NAME);
+        super(ZIPPER_READY_EVENT_NAME, null);
         this._wasm = wasm;
-        this._kvdb = null;
         this._archivingZipper = new Zipper(wasm);
         this._extractingZipper = new Zipper(wasm);
 
@@ -61,11 +60,13 @@ export default class ZipperBackend extends AbstractBackend {
         this.actions = {
             async extractSupportedAudioFilesFromZipFile({zipFile}) {
                 await this._checkDb();
+                if (!this.canUseDatabase()) return;
                 this._extractingZipper.readZip(zipFile);
             },
 
             async archiveFiles({files, archiveRequestId}) {
                 await this._checkDb();
+                if (!this.canUseDatabase()) return;
                 if (this._archiveRequestId >= 0) {
                     // Already in progress
                 }
@@ -89,9 +90,9 @@ export default class ZipperBackend extends AbstractBackend {
     }
 
     async _checkDb() {
-        if (!this._kvdb) {
-            this._kvdb = new KeyValueDatabase();
-            await this._kvdb.getDb();
+        if (!this.database) {
+            this.database = new KeyValueDatabase();
+            await this.database.getDb();
         }
     }
 
@@ -101,9 +102,10 @@ export default class ZipperBackend extends AbstractBackend {
     }
 
     async _saveArchivedChunk(buffer) {
+        if (!this.canUseDatabase()) return false;
         try {
             const blob = new Blob([buffer]);
-            await this._kvdb.addTmpFile(blob, this._archiveRequestId);
+            await this.database.addTmpFile(blob, this._archiveRequestId);
             // TODO Communicate to frontend, which communicates to serviceworker
             return true;
         } catch (e) {
@@ -131,9 +133,10 @@ export default class ZipperBackend extends AbstractBackend {
     }
 
     async _saveExtractedFile(buffer, fileName, type, lastModified) {
+        if (!this.canUseDatabase()) return false;
         try {
             const file = new File([buffer], fileName, {type, lastModified});
-            const tmpFileId = await this._kvdb.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
+            const tmpFileId = await this.database.addTmpFile(file, EXTRACTED_FILE_TMP_SOURCE_NAME);
             this.postMessage({
                 type: AUDIO_FILE_EXTRACTED_MESSAGE,
                 result: {tmpFileId}

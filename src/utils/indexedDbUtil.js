@@ -9,6 +9,29 @@ export function iDbPromisify(ee) {
     });
 }
 
+export function iDbPromisifyCursor(cursor, callback) {
+    return new Promise((resolve, reject) => {
+        cursor.onerror = function(event) {
+            reject(event.target.transaction.error || cursor.error);
+        };
+
+        cursor.onsuccess = async function(event) {
+            if (!event.target.result) {
+              resolve();
+            } else {
+              try {
+                const finished = await callback(event.target.result);
+                if (finished === true) {
+                  resolve();
+                }
+              } catch (e) {
+                reject(e);
+              }
+            }
+        };
+    });
+}
+
 function applyIndexSpecToStore(store, indexSpec) {
     const indexNames = new Set([].slice.call(store.indexNames));
 

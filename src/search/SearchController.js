@@ -9,6 +9,8 @@ import {CANDIDATE_TRACKS_OUTSIDE_PLAYLIST_FOR_NEXT_TRACK_NEEDED_EVENT} from "pla
 import {indexedDB} from "platform/platform";
 import {actionHandler, moreThan0Selected,
         exactly1Selected, lessThanAllSelected} from "ui/MenuContext";
+import DatabaseClosedEmitterTrait from "platform/DatabaseClosedEmitterTrait";
+import {DATABASE_HAS_BEEN_CLOSED_MESSAGE} from "DatabaseUsingBackend";
 
 const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
@@ -123,6 +125,12 @@ class SearchFrontend extends WorkerFrontend {
     }
 
     receiveMessage(event) {
+        const {type} = event.data;
+
+        if (type === DATABASE_HAS_BEEN_CLOSED_MESSAGE) {
+            this.searchController.databaseClosed();
+            return;
+        }
         const {_session} = this.searchController;
         if (_session) {
             _session._messaged(event);
@@ -633,3 +641,4 @@ export default class SearchController extends TrackContainerController {
 }
 
 SearchController.prototype._gotInput = throttle(SearchController.prototype._gotInput, 33);
+Object.assign(SearchController.prototype, DatabaseClosedEmitterTrait);

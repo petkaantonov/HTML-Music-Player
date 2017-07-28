@@ -42,6 +42,7 @@ import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
 import {ITEM_HEIGHT} from "tracks/TrackView";
 import ZipperFrontend from "zip/ZipperFrontend";
 import {QUOTA_EXCEEDED_EVENT} from "platform/QuotaExceededEmitterTrait";
+import {DATABASE_CLOSED_EVENT} from "platform/DatabaseClosedEmitterTrait";
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
@@ -50,6 +51,9 @@ const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 
 const MAIN_TOOLBAR_INDEX = 0;
 const SELECTION_TOOLBAR_INDEX = 1;
+
+const DATABASE_CLOSED_TAG = "database-closed";
+const QUOTA_EXCEEDED_TAG = "quota-exceeded";
 
 function selectStarted(e) {
     if (!isTextInputElement(e.target)) {
@@ -564,6 +568,11 @@ export default class Application {
         this._quotaExceeded = this._quotaExceeded.bind(this);
         this.zipper.on(QUOTA_EXCEEDED_EVENT, this._quotaExceeded);
         this.metadataManager.on(QUOTA_EXCEEDED_EVENT, this._quotaExceeded);
+        this._databaseClosed = this._databaseClosed.bind(this);
+        this.zipper.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
+        this.metadataManager.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
+        this.search.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
+        db.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
     }
 
     tickLongTimers() {
@@ -610,11 +619,26 @@ export default class Application {
     async _quotaExceeded() {
         const outcome = await this.snackbar.show(`Storage space limit has been reached`, {
             action: `Resolve`,
-            visibilityTime: 60000 * 3
+            visibilityTime: 60000 * 3,
+            tag: QUOTA_EXCEEDED_TAG
         });
         if (outcome === ACTION_CLICKED) {
             // TODO: show space manager or request somehow more quota?
         }
     }
 
+    async _databaseClosed() {
+        if (this.globalEvents.isWindowBackgrounded()) {
+            this.page.window().location.reload();
+        } else {
+            const outcome = await this.snackbar.show(`Connection to storage media lost`, {
+                action: `restore`,
+                visibilityTime: 15000,
+                tag: DATABASE_CLOSED_TAG
+            });
+            if (outcome === ACTION_CLICKED || outcome === DISMISSED) {
+                this.page.window().location.reload();
+            }
+        }
+    }
 }

@@ -161,16 +161,20 @@ self.addEventListener(`message`, (e) => {
     }
 });
 
-let kvDb;
-async function savePreferences(preferences) {
-    if (!kvDb) {
-        kvDb = new KeyValueDatabase();
-    }
 
-    if (Array.isArray(preferences)) {
-        await kvDb.setAll(preferences);
-    } else {
-        await kvDb.setAllObject(preferences);
-    }
+let currentPreferencesSave = Promise.resolve();
+async function savePreferences(preferences) {
+    await currentPreferencesSave;
+    currentPreferencesSave = (async () => {
+        const kvDb = new KeyValueDatabase();
+
+        if (Array.isArray(preferences)) {
+            await kvDb.setAll(preferences);
+        } else {
+            await kvDb.setAllObject(preferences);
+        }
+
+        await kvDb.close();
+    })();
 }
 

@@ -16,6 +16,8 @@ import {hexString, toTimeString, ownPropOr, delay} from "util";
 import WorkerFrontend from "WorkerFrontend";
 import {AUDIO_FILE_EXTRACTED_EVENT} from "zip/ZipperFrontend";
 import QuotaExceededEmitterTrait from "platform/QuotaExceededEmitterTrait";
+import DatabaseClosedEmitterTrait from "platform/DatabaseClosedEmitterTrait";
+import {DATABASE_HAS_BEEN_CLOSED_MESSAGE} from "DatabaseUsingBackend";
 
 const NULL_STRING = `\x00`;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -382,7 +384,8 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
             [UIDS_MAPPED_TO_FILES_MESSAGE]: this._uidsMappedToFiles.bind(this),
             [NEW_TRACK_FROM_TMP_FILE_MESSAGE]: this._newTrackFromTmpFile.bind(this),
             [FILE_REFERENCE_UNAVAILABLE_MESSAGE]: this._fileReferenceUnavailable.bind(this),
-            [QUOTA_EXCEEDED_MESSAGE]: this.quotaExceeded.bind(this)
+            [QUOTA_EXCEEDED_MESSAGE]: this.quotaExceeded.bind(this),
+            [DATABASE_HAS_BEEN_CLOSED_MESSAGE]: this.databaseClosed.bind(this)
         };
 
         this._zipper.on(AUDIO_FILE_EXTRACTED_EVENT, this._audioFileExtracted.bind(this));
@@ -590,4 +593,4 @@ export default class MetadataManagerFrontend extends WorkerFrontend {
     }
 }
 
-Object.assign(MetadataManagerFrontend.prototype, QuotaExceededEmitterTrait);
+Object.assign(MetadataManagerFrontend.prototype, QuotaExceededEmitterTrait, DatabaseClosedEmitterTrait);

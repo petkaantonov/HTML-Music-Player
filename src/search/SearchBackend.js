@@ -1,9 +1,9 @@
-import AbstractBackend from "AbstractBackend";
 import {getFirstWord, getLastWord, reverseString} from "util";
 import {normalizeQuery} from "utils/searchUtil";
 import {trackSearchIndexCmp, stopWords} from "tracks/TagDatabase";
 import {merge, insert} from "search/sortedArrays";
 import {indexedDB} from "platform/platform";
+import DatabaseUsingBackend from "DatabaseUsingBackend";
 
 const MAX_SEARCH_RESULTS = 2500;
 const EMPTY_ARRAY = Object.freeze([]);
@@ -86,14 +86,12 @@ function buildEntry(trackInfo) {
     };
 }
 
-export default class SearchBackend extends AbstractBackend {
-    constructor(tagDatabase) {
-        super(SEARCH_READY_EVENT_NAME);
-
-        this._tagDatabase = tagDatabase;
-
+export default class SearchBackend extends DatabaseUsingBackend {
+    constructor(database) {
+        super(SEARCH_READY_EVENT_NAME, database);
         this.actions = {
             async search({sessionId, normalizedQuery}) {
+                if (!this.canUseDatabase()) return;
                 const results = await this._search(normalizedQuery);
                 this.postMessage({
                     searchSessionId: sessionId,
@@ -105,15 +103,17 @@ export default class SearchBackend extends AbstractBackend {
     }
 
     async addTrackToSearchIndexIfNotPresent(trackInfo) {
+        if (!this.canUseDatabase()) return;
         const entry = buildEntry(trackInfo);
         if (!entry) return;
-        await this._tagDatabase.addSearchIndexEntryForTrackIfNotPresent(entry);
+        await this.database.addSearchIndexEntryForTrackIfNotPresent(entry);
     }
 
     async updateTrackToSearchIndex(trackInfo) {
+        if (!this.canUseDatabase()) return;
         const entry = buildEntry(trackInfo);
         if (!entry) return;
-        await this._tagDatabase.updateSearchIndexEntryForTrack(entry);
+        await this.database.updateSearchIndexEntryForTrack(entry);
     }
 
     async _search(normalizedQuery) {
@@ -123,8 +123,8 @@ export default class SearchBackend extends AbstractBackend {
         const firstSuffixKeyword = getLastWord(suffixQuery);
 
         const [prefixMatches, suffixMatches] = await Promise.all([
-            this._tagDatabase.searchPrefixes(firstPrefixKeyword),
-            this._tagDatabase.searchSuffixes(firstSuffixKeyword)
+            this.database.searchPrefixes(firstPrefixKeyword),
+            this.database.searchSuffixes(firstSuffixKeyword)
         ]);
 
         const results = prefixMatches;

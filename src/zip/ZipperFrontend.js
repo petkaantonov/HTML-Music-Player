@@ -3,6 +3,8 @@ import {ZIPPER_READY_EVENT_NAME,
          AUDIO_FILE_EXTRACTED_MESSAGE} from "zip/ZipperBackend";
 import WorkerFrontend from "WorkerFrontend";
 import QuotaExceededEmitterTrait from "platform/QuotaExceededEmitterTrait";
+import DatabaseClosedEmitterTrait from "platform/DatabaseClosedEmitterTrait";
+import {DATABASE_HAS_BEEN_CLOSED_MESSAGE} from "DatabaseUsingBackend";
 
 export const AUDIO_FILE_EXTRACTED_EVENT = `audioFileExtracted`;
 
@@ -18,6 +20,8 @@ export default class ZipperFrontend extends WorkerFrontend {
             this._audioFileExtracted(result);
         } else if (type === QUOTA_EXCEEDED_MESSAGE) {
             this.quotaExceeded();
+        } else if (type === DATABASE_HAS_BEEN_CLOSED_MESSAGE) {
+            this.databaseClosed();
         }
     }
 
@@ -42,4 +46,4 @@ export default class ZipperFrontend extends WorkerFrontend {
     }
 }
 
-Object.assign(ZipperFrontend.prototype, QuotaExceededEmitterTrait);
+Object.assign(ZipperFrontend.prototype, QuotaExceededEmitterTrait, DatabaseClosedEmitterTrait);

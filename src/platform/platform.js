@@ -19,6 +19,7 @@ export const {ArrayBuffer,
     Worker,
     indexedDB,
     IDBKeyRange,
+    IDBDatabase,
     Directory,
     Image,
     codecLoaded,
@@ -51,7 +52,19 @@ export {global as self};
 export const CONSTRAINT_ERROR = `ConstraintError`;
 export const QUOTA_EXCEEDED_ERROR = `QuotaExceededError`;
 export const UNKNOWN_ERROR = `UnknownError`;
+export const INVALID_ACCESS_ERROR = `InvalidAccessError`;
+export const INVALID_STATE_ERROR = `InvalidStateError`;
+export const NOT_FOUND_ERROR = `NotFoundError`;
+export const VERSION_ERROR = `VersionError`;
+export const DATABASE_CLOSED_ERROR = `DatabaseClosedError`;
 
 export function isOutOfMemoryError(e) {
     return e.name === UNKNOWN_ERROR || e.name === QUOTA_EXCEEDED_ERROR;
+}
+
+export class DatabaseClosedError extends Error {
+    constructor() {
+        super(`Database has been closed`);
+        this.name = DATABASE_CLOSED_ERROR;
+    }
 }

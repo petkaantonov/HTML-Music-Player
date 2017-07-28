@@ -2,7 +2,7 @@ import getCodecName from "audio/backend/sniffer";
 import FileView from "platform/FileView";
 import parseMp3Metadata from "metadata/mp3_metadata";
 import parseAcoustId from "metadata/acoustId";
-import AbstractBackend from "AbstractBackend";
+import DatabaseUsingBackend from "DatabaseUsingBackend";
 import JobProcessor, {JOB_COMPLETE_EVENT,
                       ALL_JOBS_COMPLETE_EVENT} from "utils/JobProcessor";
 import {delay, sha1Binary, queryString,
@@ -124,10 +124,9 @@ function buildTrackInfo(metadata, demuxData) {
     });
 }
 
-export default class MetadataManagerBackend extends AbstractBackend {
-    constructor(wasm, tagDatabase, searchBackend) {
-        super(METADATA_MANAGER_READY_EVENT_NAME);
-        this._tagDatabase = tagDatabase;
+export default class MetadataManagerBackend extends DatabaseUsingBackend {
+    constructor(wasm, database, searchBackend) {
+        super(METADATA_MANAGER_READY_EVENT_NAME, database);
         this._searchBackend = searchBackend;
         this._wasm = wasm;
         this._blobUrls = [];
@@ -156,24 +155,29 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
         this.actions = {
             setRating({trackUid, rating}) {
-                this._tagDatabase.updateRating(trackUid, rating);
+                if (!this.canUseDatabase()) return;
+                this.database.updateRating(trackUid, rating);
             },
 
             setSkipCounter({trackUid, counter, lastPlayed}) {
-                this._tagDatabase.updateSkipCounter(trackUid, counter, lastPlayed);
+                if (!this.canUseDatabase()) return;
+                this.database.updateSkipCounter(trackUid, counter, lastPlayed);
             },
 
             setPlaythroughCounter({trackUid, counter, lastPlayed}) {
-                this._tagDatabase.updatePlaythroughCounter(trackUid, counter, lastPlayed);
+                if (!this.canUseDatabase()) return;
+                this.database.updatePlaythroughCounter(trackUid, counter, lastPlayed);
             },
 
             async getAlbumArt({trackUid, artist, album, preference, requestReason}) {
+                if (!this.canUseDatabase()) return;
                 const albumArt = await this._getAlbumArt(trackUid, artist, album, preference);
                 const result = {albumArt, trackUid, preference, requestReason};
                 this.postMessage({type: ALBUM_ART_RESULT_MESSAGE, result});
             },
 
             async parseMetadata({fileReference}) {
+                if (!this.canUseDatabase()) return;
                 const trackUid = await fileReferenceToTrackUid(fileReference);
                 const result = await this._parseMetadata(trackUid, fileReference);
                 if (!result) {
@@ -188,8 +192,9 @@ export default class MetadataManagerBackend extends AbstractBackend {
             },
 
             async getTrackInfoBatch({batch}) {
+                if (!this.canUseDatabase()) return;
                 const missing = [];
-                const trackInfos = await this._tagDatabase.trackUidsToTrackInfos(batch, missing);
+                const trackInfos = await this.database.trackUidsToTrackInfos(batch, missing);
                 for (let i = 0; i < trackInfos.length; ++i) {
                     const trackInfo = trackInfos[i];
                     if (!trackInfo.hasBeenFingerprinted) {
@@ -206,8 +211,9 @@ export default class MetadataManagerBackend extends AbstractBackend {
             },
 
             async mapTrackUidsToFiles({trackUids}) {
+                if (!this.canUseDatabase()) return;
                 const missing = [];
-                const files = await this._tagDatabase.trackUidsToFiles(trackUids, missing);
+                const files = await this.database.trackUidsToFiles(trackUids, missing);
                 this.postMessage({type: UIDS_MAPPED_TO_FILES_MESSAGE, result: {files}});
 
                 for (let i = 0; i < missing.length; ++i) {
@@ -220,6 +226,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
             },
 
             async parseTmpFile({tmpFileId}) {
+                if (!this.canUseDatabase()) return;
                 await this._checkKvdb();
                 const tmpFile = await this._kvdb.consumeTmpFileById(tmpFileId);
                 if (!tmpFile) {
@@ -241,7 +248,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
                     }
                 } else {
                     try {
-                        await this._tagDatabase.ensureFileStored(trackUid, file);
+                        await this.database.ensureFileStored(trackUid, file);
                     } catch (e) {
                         if (!this._checkStorageError(e)) {
                             throw e;
@@ -271,7 +278,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _updateMediaLibrarySize() {
-        const count = await this._tagDatabase.getTrackInfoCount();
+        const count = await this.database.getTrackInfoCount();
         this._trackInfoEntriesCount = count;
         this._trackInfoEntriesCountUpdated();
     }
@@ -300,7 +307,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         if (fileReference instanceof File) {
             return new FileView(fileReference);
         } else if (fileReference instanceof ArrayBuffer) {
-            const file = await this._tagDatabase.fileByFileReference(fileReference);
+            const file = await this.database.fileByFileReference(fileReference);
             if (!(file instanceof File)) {
                 throw new FileReferenceDeletedError();
             }
@@ -311,7 +318,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     setEstablishedGain(trackUid, establishedGain) {
-        return this._tagDatabase.updateEstablishedGain(trackUid, establishedGain);
+        return this.database.updateEstablishedGain(trackUid, establishedGain);
     }
 
     async _fingerprintJob({cancellationToken}, trackUid, fileReference) {
@@ -384,8 +391,8 @@ export default class MetadataManagerBackend extends AbstractBackend {
             }
 
             if (fingerprint) {
-                await this._tagDatabase.updateHasBeenFingerprinted(trackUid, true);
-                await this._tagDatabase.addAcoustIdFetchJob(trackUid, fingerprint, duration, JOB_STATE_INITIAL);
+                await this.database.updateHasBeenFingerprinted(trackUid, true);
+                await this.database.addAcoustIdFetchJob(trackUid, fingerprint, duration, JOB_STATE_INITIAL);
                 this._acoustIdDataFetcher.postJob();
             }
         } finally {
@@ -397,7 +404,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     async _fetchAcoustIdDataJob({cancellationToken}) {
-        const job = await this._tagDatabase.getAcoustIdFetchJob();
+        const job = await this.database.getAcoustIdFetchJob();
         if (!job) {
             return NO_JOBS_FOUND_TOKEN;
         }
@@ -413,13 +420,13 @@ export default class MetadataManagerBackend extends AbstractBackend {
                const result = await this._fetchAcoustId(cancellationToken, trackUid, fingerprint, duration);
                 ({acoustIdResult, trackInfo, trackInfoUpdated} = result);
                 state = JOB_STATE_DATA_FETCHED;
-                await this._tagDatabase.updateAcoustIdFetchJobState(jobId, {acoustIdResult, state});
+                await this.database.updateAcoustIdFetchJobState(jobId, {acoustIdResult, state});
 
                 if (trackInfoUpdated) {
                     this._searchBackend.updateTrackToSearchIndex(trackInfo);
                 }
             } catch (e) {
-                await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
+                await this.database.setAcoustIdFetchJobError(jobId, e);
                 if (waitLongTime) {
                     await delay(10000);
                 }
@@ -439,14 +446,14 @@ export default class MetadataManagerBackend extends AbstractBackend {
                         trackInfoUpdated = fetchedCoverArt;
                     }
                 } catch (e) {
-                    await this._tagDatabase.setAcoustIdFetchJobError(jobId, e);
+                    await this.database.setAcoustIdFetchJobError(jobId, e);
                     if (waitLongTime) {
                         await delay(10000);
                     }
                     return JOBS_FOUND_TOKEN;
                 }
             }
-            await this._tagDatabase.completeAcoustIdFetchJob(jobId);
+            await this.database.completeAcoustIdFetchJob(jobId);
         }
 
         this.postMessage({type: ACOUST_ID_DATA_RESULT_MESSAGE, result: {trackInfo, trackInfoUpdated}});
@@ -457,12 +464,12 @@ export default class MetadataManagerBackend extends AbstractBackend {
     }
 
     getTrackInfoByTrackUid(trackUid) {
-        return this._tagDatabase.getTrackInfoByTrackUid(trackUid);
+        return this.database.getTrackInfoByTrackUid(trackUid);
     }
 
     async _parseMetadataJob(job, trackUid, fileReference) {
         try {
-            await this._tagDatabase.ensureFileStored(trackUid, fileReference);
+            await this.database.ensureFileStored(trackUid, fileReference);
         } catch (e) {
             if (this._checkStorageError(e)) {
                 return null;
@@ -514,7 +521,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         if (data.pictures) {
             const {pictures} = data;
             delete data.pictures;
-            await this._tagDatabase.addAlbumArtData(trackUid, {
+            await this.database.addAlbumArtData(trackUid, {
                 trackUid,
                 images: pictures.map(i => Object.assign({[IMAGE_TYPE_KEY]: IMAGE_TYPE_BLOB}, i)),
                 album: data.album || null,
@@ -524,7 +531,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
         trackInfo = buildTrackInfo(data, data.demuxData);
         this._searchBackend.updateTrackToSearchIndex(trackInfo);
-        await this._tagDatabase.replaceTrackInfo(trackUid, trackInfo);
+        await this.database.replaceTrackInfo(trackUid, trackInfo);
         this._trackInfoEntriesCount++;
         this._trackInfoEntriesCountUpdated();
         return trackInfo;
@@ -581,7 +588,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
             }
         }
 
-        await this._tagDatabase.replaceTrackInfo(uid, trackInfo);
+        await this.database.replaceTrackInfo(uid, trackInfo);
         return {
             acoustIdResult: result || null,
             trackInfo,
@@ -607,7 +614,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
         try {
             const response = await ajaxGet(toCorsUrl(`https://coverartarchive.org/${type}/${mbid}`), cancellationToken);
             if (response && response.images && response.images.length > 0) {
-                await this._tagDatabase.addAlbumArtData(trackUid, {
+                await this.database.addAlbumArtData(trackUid, {
                     trackUid,
                     images: response.images.map(i => Object.assign({[IMAGE_TYPE_KEY]: IMAGE_TYPE_COVERARTARCHIVE}, i)),
                     artist: taggedArtist,
@@ -638,7 +645,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
     async _getAlbumArt(trackUid, artist, album, preference = ALBUM_ART_PREFERENCE_SMALLEST) {
         let result = null;
 
-        const albumArtData = await this._tagDatabase.getAlbumArtData(trackUid, artist, album);
+        const albumArtData = await this.database.getAlbumArtData(trackUid, artist, album);
         if (!albumArtData) {
             result = preference === ALBUM_ART_PREFERENCE_ALL ? [] : null;
         } else {
@@ -673,7 +680,7 @@ export default class MetadataManagerBackend extends AbstractBackend {
 
                     if (blobResult) {
                         result = blobResult;
-                        await this._tagDatabase.addAlbumArtData(trackUid, {
+                        await this.database.addAlbumArtData(trackUid, {
                             trackUid,
                             images: [{
                                 [IMAGE_TYPE_KEY]: IMAGE_TYPE_BLOB,
