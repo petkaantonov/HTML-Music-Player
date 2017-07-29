@@ -28,6 +28,9 @@ export default class WorkerFrontend extends EventEmitter {
     }
 
     postMessage(args, transferList) {
+        if (!this._channel) {
+            throw new Error("attempting to send message before ready()")
+        }
         this._workerWrapper.postMessage(this._channel, args, transferList);
     }
 

@@ -73,6 +73,7 @@ export default class AudioVisualizer extends WorkerFrontend {
             const channelData = this._channelData.map(v => v.buffer);
             const bins = this._bins.buffer;
             const transferList = channelData.concat(bins);
+
             this.postMessage({
                 action: `getBins`,
                 args: {
@@ -201,10 +202,11 @@ export default class AudioVisualizer extends WorkerFrontend {
         });
     }
 
-    connectSourceNode(sourceNode) {
+    async connectSourceNode(sourceNode) {
         this._lastRafArg = -1;
         this.page.cancelAnimationFrame(this._frameHandle);
         this._sourceNode = sourceNode;
+        await this.ready();
         this._requestBinsAndAnimationFrame();
     }
 

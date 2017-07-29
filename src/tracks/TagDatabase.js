@@ -155,14 +155,19 @@ export default class TagDatabase {
                     stores[key].clear();
                 }
             }
+
         };
-        request.onversionchange = async () => {
+        this._setHandlers();
+    }
+
+    async _setHandlers() {
+        const db = await this.db;
+        db.onversionchange = async () => {
             this._closed = true;
             const db = await this.db;
             db.close();
         };
-
-        request.onclose = function() {
+        db.onclose = function() {
             this._closed = true;
         };
     }
