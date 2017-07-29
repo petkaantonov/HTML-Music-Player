@@ -170,7 +170,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._audioPlayerFrontend._message(this._id, `destroy`);
     }
 
-    adoptNewAudioContext(audioContext) {
+    adoptNewAudioContext(audioContext, oldAudioContextTime) {
         if (!this._sourceStopped) {
             throw new Error(`sources must be stopped while adopting new audio context`);
         }
@@ -186,12 +186,24 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._fadeInStarted = 0;
         this._fadeInStartedWithLength = 0;
 
-        if (this._sourceDescriptorQueue.length > 0) {
-            this._sourceDescriptorQueue[0].started = audioContext.currentTime - this._sourceDescriptorQueue[0].playedSoFar;
-            for (let i = 1; i < this._sourceDescriptorQueue.length; ++i) {
-                const prev = this._sourceDescriptorQueue[i - 1];
-                this._sourceDescriptorQueue[i].started = prev.started + prev.duration;
+        const timeDiff = audioContext.currentTime - oldAudioContextTime;
+
+        const sourceDescriptors = this._sourceDescriptorQueue;
+
+        let lowestOriginalTime = Infinity;
+        for (let i = 0; i < sourceDescriptors.length; ++i) {
+            const sourceDescriptor = sourceDescriptors[i];
+            if (sourceDescriptor.started !== -1) {
+                lowestOriginalTime = Math.min(sourceDescriptor.started, lowestOriginalTime, sourceDescriptor.stopped);
             }
+        }
+
+        for (let i = 0; i < sourceDescriptors.length; ++i) {
+            sourceDescriptors[i].readjustTime(timeDiff, lowestOriginalTime);
+        }
+
+        for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
+            this._playedSourceDescriptors[i].started = this._playedSourceDescriptors[i].stopped = -1;
         }
     }
 
@@ -540,39 +552,34 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             ret.channelCount = channelCount;
             ret.gain = lowerBoundSourceDescriptor.gain;
 
-            const offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
             const length = duration * sampleRate | 0;
-            const bufferLength = lowerBoundSourceDescriptor.getRemainingDuration() * sampleRate | 0;
-
+            const bufferLength = lowerBoundSourceDescriptor.duration * sampleRate | 0;
+            let offset;
             if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
+                offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
                 const {audioBuffer} = lowerBoundSourceDescriptor;
-                for (let ch = 0; ch < channelData.length; ++ch) {
-                    audioBuffer.copyFromChannel(channelData[ch], ch, offset);
-                }
-            } else if (offset < bufferLength) {
+
+                    for (let ch = 0; ch < channelData.length; ++ch) {
+                        audioBuffer.copyFromChannel(channelData[ch], ch, offset);
+                    }
+
+            } else {
+                offset = (lowerBoundSourceDescriptor.duration -
+                                (lowerBoundSourceDescriptor.stopped - targetStartTime)) * sampleRate | 0;
                 let {audioBuffer} = lowerBoundSourceDescriptor;
 
                 for (let ch = 0; ch < channelData.length; ++ch) {
                     audioBuffer.copyFromChannel(channelData[ch], ch, offset);
                 }
                 ({audioBuffer} = upperBoundSourceDescriptor);
-                const remainingLength = length - (bufferLength - offset);
+                const samplesCopied = bufferLength - offset;
+                const remainingLength = length - samplesCopied;
                 for (let ch = 0; ch < channelData.length; ++ch) {
                     const dst = new Float32Array(channelData[ch].buffer,
-                                                 (bufferLength - offset) * 4,
+                                                 samplesCopied * 4,
                                                  remainingLength);
                     audioBuffer.copyFromChannel(dst, ch, 0);
                 }
-            } else {
-                // TODO figure out when this happens
-                self.uiLog(offset, length, bufferLength,
-                          lowerBoundSourceDescriptor.playedSoFar,
-                           lowerBoundSourceDescriptor.started,
-                           lowerBoundSourceDescriptor.stopped,
-                           upperBoundSourceDescriptor.playedSoFar,
-                           upperBoundSourceDescriptor.started,
-                           upperBoundSourceDescriptor.stopped);
-                return ret;
             }
 
             ret.channelDataFilled = true;
