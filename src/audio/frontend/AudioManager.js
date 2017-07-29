@@ -1,41 +1,32 @@
 import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
-import {cancelAndHold} from "audio/frontend/AudioPlayer";
-import {MINIMUM_DURATION} from "audio/backend/demuxer";
 
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
 export default class AudioManager {
-    constructor(player, visualizer, track, implicitlyLoaded) {
-        this.gaplessPreloadTrack = null;
-        this.implicitlyLoaded = implicitlyLoaded;
+    constructor(player, visualizer) {
+        this.visualizer = visualizer;
         this.player = player;
-        this.destroyed = false;
+
+        this.nextTrack = null;
         this.tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
         this.intendingToSeek = -1;
-        this.track = track;
-        this.currentTime = 0;
+        this.track = null;
         this.sourceNode = null;
         this.paused = false;
         this.volumeGain = null;
         this.muteGain = null;
-        this.fadeInGain = null;
-        this.fadeOutGain = null;
         this.filterNodes = [];
-        this.visualizer = visualizer;
 
         this.timeUpdated = this.timeUpdated.bind(this);
         this.ended = this.ended.bind(this);
         this.errored = this.errored.bind(this);
-        this.nextTrackChanged = this.nextTrackChanged.bind(this);
         this.willSeek = this.willSeek.bind(this);
         this.didSeek = this.didSeek.bind(this);
         this.initialPlaythrough = this.initialPlaythrough.bind(this);
         this.lastBufferQueued = this.lastBufferQueued.bind(this);
         this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
-
-        this.player.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
 
         this.onDecodingLatency = this.onDecodingLatency.bind(this);
         this.sourceNode = this.player.audioPlayer.createSourceNode();
@@ -51,8 +42,6 @@ export default class AudioManager {
         const audioCtx = this.player.getAudioContext();
         this.volumeGain = audioCtx.createGain();
         this.muteGain = audioCtx.createGain();
-        this.fadeInGain = audioCtx.createGain();
-        this.fadeOutGain = audioCtx.createGain();
 
         this.filterNodes = [];
 
@@ -60,118 +49,79 @@ export default class AudioManager {
         this.volumeGain.gain.value = this.player.getVolume() * VOLUME_RATIO;
         this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
         this.volumeGain.connect(this.muteGain);
-        this.muteGain.connect(this.fadeInGain);
-        this.fadeInGain.connect(this.fadeOutGain);
-        this.fadeOutGain.connect(audioCtx.destination);
+        this.muteGain.connect(audioCtx.destination);
         this.intendingToSeek = -1;
     }
 
     onDecodingLatency(decodingLatency) {
-        if (this.player) {
-            this.player.decodingLatencyValue(decodingLatency);
-        }
+        this.player.decodingLatencyValue(decodingLatency);
     }
 
     detachVisualizer() {
-        if (this.destroyed) return;
         this.visualizer.disconnectSourceNode(this.sourceNode);
     }
 
-    // The track is only used for fade out and this audiomanager is otherwise
-    // Obsolete.
-    background() {
-        this.detachVisualizer();
-    }
-
     audioContextReset() {
-        if (this.destroyed) return;
         this.setupNodes();
     }
 
-    hasGaplessPreload() {
-        return this.sourceNode.hasGaplessPreload();
+    hasPreloadedNextTrack() {
+        return this.sourceNode.hasPreloadedNextTrack();
     }
 
-    _updateNextGaplessTrack() {
-        this.gaplessPreloadTrack = this.player.playlist.getNextTrack();
-        if (this.gaplessPreloadTrack) {
-            const fileReference = this.gaplessPreloadTrack.getFileReference();
+    _updateNextTrack() {
+        this.nextTrack = this.player.playlist.getNextTrack();
+        if (this.nextTrack) {
+            const fileReference = this.nextTrack.getFileReference();
             this.sourceNode.replace(fileReference, 0, true);
         }
     }
 
     nextTrackChangedWhilePreloading() {
-        this._updateNextGaplessTrack();
+        this._updateNextTrack();
     }
 
     isSeekable() {
-        return !this.destroyed && this.sourceNode.isSeekable();
+        return this.sourceNode.isSeekable();
     }
 
     lastBufferQueued() {
-        const shouldPreload = this.player.currentAudioManager === this &&
-                            this.player.playlist.getNextTrack() &&
-                            this.player.getFadeInTimeForNextTrack() === 0 &&
-                            !this.gaplessPreloadTrack;
-
-
-        if (shouldPreload) {
+        if (this.player.playlist.getNextTrack() && !this.nextTrack) {
             this.player.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-            this._updateNextGaplessTrack();
+            this._updateNextTrack();
         }
     }
 
-    replaceTrack(track, explicitlyLoaded) {
-        if (this.destroyed || this.player.currentAudioManager !== this) return;
+    replaceTrack(track) {
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-        const {gaplessPreloadTrack} = this;
-        this.gaplessPreloadTrack = null;
+        const {nextTrack} = this;
+        this.nextTrack = null;
+        this.tickCounter.reset();
+        this.track = track;
 
-        if (this.sourceNode.hasGaplessPreload() &&
-            !explicitlyLoaded &&
-            track === gaplessPreloadTrack) {
-            this.tickCounter.reset();
+        if (this.sourceNode.hasPreloadedNextTrack() && track === nextTrack) {
             this.intendingToSeek = -1;
-            this.track = track;
-            this.updateSchedules();
-            this.sourceNode.replaceUsingGaplessPreload();
+            this.sourceNode.replaceWithPreloadedTrack();
             this.resume();
             return;
         }
 
         this.intendingToSeek = 0;
-        this.player.audioManagerSeekIntent(this, 0);
-        this.track = track;
-        this.implicitlyLoaded = false;
+        this.player.audioManagerSeekIntent(0);
         this.sourceNode.removeAllListeners(`replacementLoaded`);
         this.sourceNode.once(`replacementLoaded`, () => {
-            this.tickCounter.reset();
             this.intendingToSeek = -1;
-            if (this.destroyed || this.player.currentAudioManager !== this) return;
             this.resume();
         });
-        this.currentTime = 0;
         const fileReference = track.getFileReference();
-        this.sourceNode.replace(fileReference, this.currentTime, false);
-    }
-
-    nextTrackChanged() {
-        if (this.destroyed) return;
-        this.updateSchedules();
+        this.sourceNode.replace(fileReference, 0, false);
     }
 
     effectsChanged() {
-        if (this.destroyed) return;
         this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
     }
 
-    crossfadingChanged() {
-        if (this.destroyed) return;
-        this.updateSchedules();
-    }
-
     connectEqualizer(setup) {
-        if (this.destroyed) return;
         const audioCtx = this.player.getAudioContext();
         try {
             this.sourceNode.node().disconnect();
@@ -217,68 +167,54 @@ export default class AudioManager {
     }
 
     setCurrentTime(currentTime) {
-        if (this.destroyed) return;
-        this.currentTime = currentTime;
         this.sourceNode.setCurrentTime(currentTime);
     }
 
     getCurrentTime() {
-        if (this.destroyed) return 0;
-        this.currentTime = this.sourceNode.getCurrentTime();
-        return this.currentTime;
+        return this.sourceNode.getCurrentTime();
     }
 
     getDuration() {
-        if (this.destroyed) return 0;
         return this.sourceNode.getDuration();
     }
 
     errored(e) {
-        if (this.destroyed) return;
-        this.player.audioManagerErrored(this, e);
+        if (this.track) {
+            this.track.setError(e.message);
+        }
+        this.player.audioManagerErrored();
     }
 
-    ended(haveGaplessPreloadPending) {
-        if (this.destroyed) return;
+    ended(nextTrackIsPreloading) {
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-        this.player.audioManagerEnded(this, haveGaplessPreloadPending);
+        const alreadyFinished = nextTrackIsPreloading && !this.hasPreloadedNextTrack();
+        if (!alreadyFinished) {
+            this.player.trackFinished();
+        }
     }
 
     seekIntent(value) {
-        if (this.destroyed) return;
         this.intendingToSeek = value;
-        this.player.audioManagerSeekIntent(this, this.intendingToSeek);
+        this.player.audioManagerSeekIntent(this.intendingToSeek);
     }
 
     hasPlaythroughBeenTriggered() {
         return this.tickCounter.hasTriggered();
     }
 
-    timeUpdated(currentTime, duration, willEmitEnded, endedHasBeenEmitted) {
-        if (this.destroyed || this.intendingToSeek !== -1) return;
-        const shouldHandleEnding = !willEmitEnded && !endedHasBeenEmitted;
+    timeUpdated(currentTime, duration) {
+        if (this.intendingToSeek !== -1) return;
 
-        if (currentTime >= duration && shouldHandleEnding) {
-            this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-        }
-        if (!this.tickCounter.hasTriggered() &&
-            this.track &&
-            currentTime >= 5 &&
-            duration >= 10) {
-
+        if (!this.tickCounter.hasTriggered() && this.track && currentTime >= 5 && duration >= 10) {
             if (this.tickCounter.tick()) {
                 this.track.triggerPlaythrough();
             }
         }
-        this.player.audioManagerProgressed(this, currentTime, duration, shouldHandleEnding);
-    }
-
-    now() {
-        return this.player.getAudioContext().currentTime;
+        this.player.audioManagerProgressed(currentTime, duration);
     }
 
     pause() {
-        if (this.destroyed || !this.started || this.paused) return;
+        if (!this.started || this.paused) return;
         this.paused = true;
         this.tickCounter.pause();
         this.sourceNode.pause();
@@ -286,14 +222,15 @@ export default class AudioManager {
     }
 
     resume() {
-        if (this.destroyed || !this.started || !this.paused) return;
+        if (!this.started || !this.paused) return;
         this.paused = false;
         this.sourceNode.play();
         this.visualizer.resume();
     }
 
-    start() {
-        if (this.destroyed || this.started) return;
+    start(track) {
+        if (this.started) return false;
+        this.track = track;
         this.tickCounter.reset();
         this.intendingToSeek = -1;
         this.started = true;
@@ -304,10 +241,10 @@ export default class AudioManager {
         const fileReference = this.track.getFileReference();
         this.sourceNode.load(fileReference, 0);
         this.sourceNode.play();
+        return true;
     }
 
     initialPlaythrough() {
-        this.updateSchedules(!this.implicitlyLoaded);
         this.sourceNode.on(`seeking`, this.willSeek);
         this.sourceNode.on(`seekComplete`, this.didSeek);
     }
@@ -317,9 +254,7 @@ export default class AudioManager {
     }
 
     didSeek() {
-        if (this.destroyed) return;
         this.intendingToSeek = -1;
-        this.updateSchedules(true);
     }
 
     durationKnown() {
@@ -329,116 +264,22 @@ export default class AudioManager {
     }
 
     mute() {
-        if (this.destroyed) return;
         const scheduledTime = this.sourceNode.muteRequested();
         this.muteGain.gain.setValueAtTime(0, scheduledTime);
     }
 
     unmute() {
-        if (this.destroyed) return;
         const scheduledTime = this.sourceNode.unmuteRequested();
         this.muteGain.gain.setValueAtTime(1, scheduledTime);
     }
 
     seek(time) {
-        if (this.destroyed || !this.started) return;
+        if (!this.started) return;
         this.intendingToSeek = -1;
         this.setCurrentTime(time);
     }
 
     updateVolume(volume) {
-        if (this.destroyed) return;
         this.volumeGain.gain.value = volume * VOLUME_RATIO;
-    }
-
-    getFadeInTime() {
-        const preferences = this.player.crossfadePreferencesBindingContext.preferences();
-        const fadeInEnabled = preferences.getInEnabled();
-
-        if (!fadeInEnabled) return 0;
-
-        if (preferences.getShouldAlbumNotCrossFade()) {
-            if (this.player.playlist.getPreviousTrack() &&
-                this.track.comesAfterInSameAlbum(this.player.playlist.getPreviousTrack())) {
-                return 0;
-            }
-        }
-
-        const duration = this.getDuration();
-        return Math.max(0, Math.min(preferences.getInTime(),
-                duration - MINIMUM_DURATION - preferences.getOutTime()));
-    }
-
-    getFadeOutTime() {
-        const preferences = this.player.crossfadePreferencesBindingContext.preferences();
-        const fadeOutEnabled = preferences.getOutEnabled();
-
-        if (!fadeOutEnabled) return 0;
-
-        if (preferences.getShouldAlbumNotCrossFade()) {
-            if (this.player.playlist.getNextTrack() &&
-                this.track.comesBeforeInSameAlbum(this.player.playlist.getNextTrack())) {
-                return 0;
-            }
-        }
-
-        const duration = this.getDuration();
-        return Math.max(0, Math.min(preferences.getOutTime(),
-                duration - MINIMUM_DURATION - preferences.getInTime()));
-    }
-
-    updateSchedules(forceReset) {
-        if (this.destroyed) return;
-        const trackCurrentTime = this.getCurrentTime();
-        const trackDuration = this.getDuration();
-        cancelAndHold(this.fadeInGain.gain, 0);
-        cancelAndHold(this.fadeOutGain.gain, 0);
-
-        const preferences = this.player.crossfadePreferencesBindingContext.preferences();
-        const fadeInTime = this.getFadeInTime();
-        const fadeOutTime = this.getFadeOutTime();
-        const fadeInSamples = preferences.getInCurveSamples();
-        const fadeOutSamples = preferences.getOutCurveSamples();
-
-        if (fadeInTime > 0 && this.implicitlyLoaded && !forceReset) {
-            const audioCtxTime = this.now() - trackCurrentTime;
-            if (audioCtxTime > 0) {
-                this.fadeInGain.gain.setValueCurveAtTime(fadeInSamples, audioCtxTime, fadeInTime);
-            }
-        }
-
-        if (fadeOutTime > 0) {
-            const trackCurrentTimeForFadeOut = trackDuration - fadeOutTime;
-            const secondsUntilFadeOut = trackCurrentTimeForFadeOut - trackCurrentTime;
-            const audioCtxTime = Math.max(0, this.now() + secondsUntilFadeOut);
-            this.fadeOutGain.gain.setValueCurveAtTime(fadeOutSamples, audioCtxTime, fadeOutTime);
-        }
-
-    }
-
-    destroy() {
-        if (this.destroyed) return;
-        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
-        this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
-        this.filterNodes.forEach((node) => {
-            node.disconnect();
-        });
-        this.muteGain.disconnect();
-        this.volumeGain.disconnect();
-        this.fadeInGain.disconnect();
-        this.fadeOutGain.disconnect();
-        this.detachVisualizer();
-        this.sourceNode.destroy();
-        this.sourceNode = null;
-        this.fadeInGain = null;
-        this.fadeOutGain = null;
-        this.volumeGain = null;
-        this.muteGain = null;
-        this.filterNodes = [];
-        this.destroyed = true;
-        this.track = null;
-        this.gaplessPreloadTrack = null;
-        this.player.audioManagerDestroyed(this);
-        this.player = null;
     }
 }

@@ -224,6 +224,7 @@ export default class AudioVisualizer extends WorkerFrontend {
 
     pause() {
         if (this._paused) return;
+        console.trace(`paused`);
         this._paused = true;
     }
 

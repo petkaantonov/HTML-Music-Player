@@ -1,8 +1,15 @@
 import createPreferences from "preferences/PreferenceCreator";
+import {MIN_SUSTAINED_AUDIO_SECONDS, MIN_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 
 export const EQUALIZER_MAX_GAIN = 12;
 export const EQUALIZER_MIN_GAIN = -12;
 export const STORAGE_KEY = `effect-preferences`;
+export const CROSSFADE_MIN_DURATION = Math.max(MIN_BUFFER_LENGTH_SECONDS, 1);
+export const CROSSFADE_MAX_DURATION = Math.min(MIN_SUSTAINED_AUDIO_SECONDS, 12);
+export const CROSSFADE_DEFAULT_DURATION = Math.min(CROSSFADE_MAX_DURATION, Math.max(CROSSFADE_MIN_DURATION, 5));
+export const MIN_NOISE_SHARPENING_EFFECT_SIZE = 0;
+export const MAX_NOISE_SHARPENING_EFFECT_SIZE = 2;
+export const DEFAULT_NOISE_SHARPENING_EFFECT_SIZE = 0.6;
 
 
 export const gainValueToProgress = function(gainValue) {
@@ -93,9 +100,9 @@ export const Preferences = createPreferences({
         },
 
         noiseSharpeningStrength: {
-            defaultValue: 0.6,
+            defaultValue: DEFAULT_NOISE_SHARPENING_EFFECT_SIZE,
             asValidValue(value) {
-                const ret = Math.max(0, Math.min(2, +value));
+                const ret = Math.max(MIN_NOISE_SHARPENING_EFFECT_SIZE, Math.min(MAX_NOISE_SHARPENING_EFFECT_SIZE, +value));
                 return isFinite(ret) ? ret : this.defaultNoiseSharpeningStrength;
             }
         },
@@ -104,6 +111,28 @@ export const Preferences = createPreferences({
             defaultValue: true,
             asValidValue(value) {
                 return !!value;
+            }
+        },
+
+        shouldAlbumNotCrossfade: {
+            defaultValue: true,
+            asValidValue(value) {
+                return !!value;
+            }
+        },
+
+        crossfadeEnabled: {
+            defaultValue: false,
+            asValidValue(value) {
+                return !!value;
+            }
+        },
+
+        crossfadeDuration: {
+            defaultValue: CROSSFADE_DEFAULT_DURATION,
+            asValidValue(value) {
+                if (!isFinite(+value)) return CROSSFADE_DEFAULT_DURATION;
+                return Math.min(Math.max(CROSSFADE_MIN_DURATION, +value), CROSSFADE_MAX_DURATION);
             }
         }
     }

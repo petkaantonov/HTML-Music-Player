@@ -1,11 +1,14 @@
 import {ToggleableSlideableValue,
-        SingleSelectableValue} from "ui/templates";
-import {ToggleableSlideableValuePreferenceUiBinding} from "preferences/uibinders";
+        SingleSelectableValue,
+        ToggleableValue} from "ui/templates";
+import {ToggleableSlideableValuePreferenceUiBinding, ToggleableValuePreferenceUiBinding} from "preferences/uibinders";
 import AbstractUiBindingManager from "ui/AbstractUiBindingManager";
 import AbstractPreferencesBindingContext from "ui/AbstractPreferencesBindingContext";
 import {equalizerPresets, formatFreq, STORAGE_KEY,
         equalizerPresetKeys, equalizerBands,
-        Preferences, gainValueToProgress, progressToGainValue} from "preferences/EffectPreferences";
+        Preferences, gainValueToProgress, progressToGainValue,
+        MIN_NOISE_SHARPENING_EFFECT_SIZE, MAX_NOISE_SHARPENING_EFFECT_SIZE,
+        CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
 import {_, _set} from "util";
 const ALL_SLIDERS_ON_SAME_ROW_THRESHOLD = 620;
 
@@ -48,6 +51,12 @@ const TEMPLATE = `<div class='settings-container equalizer-popup-content-contain
                     <div class="label wide-label subtitle">Noise sharpening</div>
                 </div>
                 <div class='section-container noise-sharpening-container'></div>
+                <div class='section-separator'></div>
+                <div class="inputs-container">
+                    <div class="label wide-label subtitle">Crossfading</div>
+                </div>
+                <div class="crossfade-container"></div>
+                <div class='section-container album-preference-container'></div>
                 <div class='section-separator'></div>
                 <div class='section-container'>${sliderContainerHtml}</div>
                 <div class='section-container preset-selector-container'></div>
@@ -140,23 +149,40 @@ class EqualizerUiBinding {
 class EffectManager extends AbstractUiBindingManager {
     constructor(rootSelector, bindingContext) {
         super(rootSelector, bindingContext, new Preferences());
+        const sliderContext = bindingContext.sliderContext();
 
-        const toggleableSlideableValue = new ToggleableSlideableValue({
-            checkboxLabel: `Enable noise sharpening`,
-            sliderLabel: `Strength`,
-            valueFormatter: value => value.toFixed(1),
-            minValue: 0,
-            maxValue: 2
-        }, {
-            sliderContext: bindingContext.sliderContext()
-        });
-
-        this.addBinding(new EqualizerUiBinding(this)).
+        this.
+            addBinding(new EqualizerUiBinding(this)).
             addBinding(new ToggleableSlideableValuePreferenceUiBinding(
                 this.$().find(`.noise-sharpening-container`),
-                toggleableSlideableValue,
+                new ToggleableSlideableValue({
+                    checkboxLabel: `Enable noise sharpening`,
+                    sliderLabel: `Strength`,
+                    valueFormatter: value => value.toFixed(1),
+                    minValue: MIN_NOISE_SHARPENING_EFFECT_SIZE,
+                    maxValue: MAX_NOISE_SHARPENING_EFFECT_SIZE
+                }, {sliderContext}),
                 `noiseSharpeningStrength`,
                 `noiseSharpeningEnabled`,
+                this
+            )).
+            addBinding(new ToggleableValuePreferenceUiBinding(
+                this.$().find(`.album-preference-container`),
+                new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
+                `shouldAlbumNotCrossfade`,
+                this
+            )).
+            addBinding(new ToggleableSlideableValuePreferenceUiBinding(
+                this.$().find(`.crossfade-container`),
+                new ToggleableSlideableValue({
+                    checkboxLabel: `Enable crossfading`,
+                    sliderLabel: `Duration`,
+                    valueFormatter: value => `${value.toFixed(1)}s`,
+                    minValue: CROSSFADE_MIN_DURATION,
+                    maxValue: CROSSFADE_MAX_DURATION
+                }, {sliderContext}),
+                `crossfadeDuration`,
+                `crossfadeEnabled`,
                 this
             ));
         this.update();
@@ -177,6 +203,20 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
         return new EffectManager(`.equalizer-popup-content-container`, this);
     }
 
+    getNoiseSharpeningEffectSize() {
+        const preferences = this.preferences();
+        return preferences.getNoiseSharpeningEnabled() ? preferences.getNoiseSharpeningStrength() : 0;
+    }
+
+    getCrossfadeDuration() {
+        const preferences = this.preferences();
+        return preferences.getCrossfadeEnabled() ? preferences.getCrossfadeDuration() : 0;
+    }
+
+    getShouldAlbumNotCrossfade() {
+        return this.preferences().getShouldAlbumNotCrossfade();
+    }
+
     getEqualizerSetup() {
         return {
             specs: equalizerBands,
@@ -185,10 +225,9 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
     }
 
     getAudioPlayerEffects() {
-        const pref = this.preferences();
         return [{
             name: `noise-sharpening`,
-            effectSize: pref.getNoiseSharpeningEnabled() ? pref.getNoiseSharpeningStrength() : 0
+            effectSize: this.getNoiseSharpeningEffectSize()
         }];
     }
 }

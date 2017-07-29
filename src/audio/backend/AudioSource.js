@@ -6,6 +6,7 @@ import seeker from "audio/backend/seeker";
 import getCodecName from "audio/backend/sniffer";
 import getCodec from "audio/backend/codec";
 import demuxer from "audio/backend/demuxer";
+import Crossfader from "audio/backend/Crossfader";
 import {fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import CancellableOperations from "utils/CancellationToken";
 
@@ -19,12 +20,6 @@ const queuedMessage = {
     loadInitialAudioData: true,
     loadReplacement: true,
     fillBuffers: true
-};
-
-const overridingMessage = {
-    seek: true,
-    loadInitialAudioData: true,
-    loadReplacement: true
 };
 
 export default class AudioSource extends CancellableOperations(EventEmitter,
@@ -41,6 +36,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._filePosition = 0;
         this._bufferFillCancellationToken = null;
         this._audioPipeline = null;
+        this._destroyOnIdleFlag = false;
+        this._crossfader = new Crossfader();
         this.codecName = ``;
         this.destroyed = false;
         this.demuxData = null;
@@ -54,6 +51,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._processingMessage = false;
 
         this._next = this._next.bind(this);
+    }
+
+    get duration() {
+        if (!this.demuxData) {
+            throw new Error(`no demuxData set`);
+        }
+        return this.demuxData.duration;
     }
 
     get sampleRate() {
@@ -74,8 +78,16 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         return this.backend.bufferTime * this.sampleRate;
     }
 
+    get crossfadeDuration() {
+        return this._crossfader.getDuration();
+    }
+
     _clearQueue() {
         this.messageQueue.length = 0;
+    }
+
+    _isIdle() {
+        return !this._processingMessage && this.messageQueue.length === 0;
     }
 
     async _next() {
@@ -88,17 +100,21 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this._processingMessage = false;
                 this._next();
             }
+        } else if (this._destroyOnIdleFlag) {
+            this.destroy();
         }
     }
 
     _passReplacementBuffer(spec, args, destinationBuffers) {
-        const {demuxData, gaplessPreload, requestId} = spec;
+        const {demuxData, isPreloadForNextTrack, requestId} = spec;
         const {descriptor: bufferDescriptor} = args;
         const {baseTime} = bufferDescriptor.fillTypeData;
-        const fillTypeData = {demuxData, gaplessPreload, requestId, baseTime};
+        const fillTypeData = {demuxData, isPreloadForNextTrack, requestId, baseTime};
         const descriptor = {
             length: bufferDescriptor.length,
             startTime: bufferDescriptor.startTime,
+            isBackgroundBuffer: bufferDescriptor.isBackgroundBuffer,
+            isLastBuffer: bufferDescriptor.isLastBuffer,
             endTime: bufferDescriptor.endTime,
             loudnessInfo: bufferDescriptor.loudnessInfo,
             sampleRate: bufferDescriptor.sampleRate,
@@ -109,17 +125,11 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         this._sendFilledBuffer(requestId,
                                descriptor,
                                destinationBuffers,
-                               BUFFER_FILL_TYPE_REPLACEMENT,
-                               false);
+                               BUFFER_FILL_TYPE_REPLACEMENT);
     }
 
     newMessage(spec) {
         const {methodName, args} = spec;
-
-        if (overridingMessage[methodName] === true) {
-            this.cancelAllOperations();
-            this._clearQueue();
-        }
 
         if (queuedMessage[methodName] === true) {
             this.messageQueue.push(spec);
@@ -176,7 +186,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 this.replacementSource._passReplacementBuffer(spec, args, destinationBuffers);
             } finally {
                 this.replacementSource = null;
-                this.destroy(false);
+                this._setDestroyOnIdle();
             }
             break;
         }
@@ -184,6 +194,13 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         default:
             this.sendError(`unknown message from replacement: ${name}`);
         break;
+        }
+    }
+
+    _setDestroyOnIdle() {
+        this._destroyOnIdleFlag = true;
+        if (this._isIdle()) {
+            this.destroy();
         }
     }
 
@@ -199,6 +216,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     }
 
     async destroy() {
+        console.log(`destruct`);
         if (this.destroyed) return;
         this.destroyed = true;
         this._clearQueue();
@@ -264,9 +282,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         return this._audioPipeline.consumeFilledBuffer();
     }
 
-    _sendFilledBuffer(requestId, descriptor, destinationBuffers, bufferFillType, isLastBuffer = false) {
+    _sendFilledBuffer(requestId, descriptor, destinationBuffers, bufferFillType) {
         this.sendMessage(`_bufferFilled`,
-                        {requestId, descriptor, isLastBuffer, bufferFillType},
+                        {requestId, descriptor, bufferFillType},
                         destinationBuffers);
     }
 
@@ -285,7 +303,6 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
     async _fillBuffers(count, requestId, bufferFillType, fillTypeData = null) {
         if (this.ended) {
-            this._sendFilledBuffer(requestId, null, null, bufferFillType, true);
             return;
         }
 
@@ -299,20 +316,23 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         const {sampleRate, channelCount} = this;
         let i = 0;
         let currentBufferFillType = bufferFillType;
+        const {crossfadeDuration, duration} = this;
+        this._loudnessAnalyzer.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization);
+        this._loudnessAnalyzer.setSilenceTrimmingEnabled(this.backend.silenceTrimming);
+        this._audioPipeline.setBufferTime(this.backend.bufferTime);
+        const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
+        this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
+        let lastBufferSent = false;
         try {
             while (i < count) {
                 const now = performance.now();
                 const buffersRemainingToDecode = count - i;
                 const destinationBuffers = this._getDestinationBuffers();
-                this._loudnessAnalyzer.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization);
-                this._loudnessAnalyzer.setSilenceTrimmingEnabled(this.backend.silenceTrimming);
-                this._audioPipeline.setBufferTime(this.backend.bufferTime);
-                const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
-                this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
                 const bufferDescriptor = await this._decodeNextBuffer(destinationBuffers,
                                                                       this._bufferFillCancellationToken,
                                                                       buffersRemainingToDecode);
                 if (this._bufferFillCancellationToken.isCancelled()) {
+
                     this._bufferFillCancellationToken.signal();
                     break;
                 }
@@ -331,12 +351,32 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     loudnessInfo = Object.assign({}, loudnessInfo, {loudness: establishedGain});
                 }
 
+                const {startTime, endTime} = bufferDescriptor;
+                let isBackgroundBuffer = false;
+                let isLastBuffer = false;
+
+                if (crossfadeDuration > 0) {
+                    const fadeOutStartTime = duration - crossfadeDuration;
+                    if (startTime > fadeOutStartTime) {
+                        isBackgroundBuffer = true;
+                    } else if (endTime >= fadeOutStartTime) {
+                        isLastBuffer = true;
+                    }
+                } else {
+                    isLastBuffer = this.ended;
+                }
+
+                if (isLastBuffer && !lastBufferSent) {
+                    lastBufferSent = true;
+                }
+
                 const decodingLatency = performance.now() - now;
                 const descriptor = {
                     length: Math.min(bufferDescriptor.length, targetBufferLengthAudioFrames),
-                    startTime: bufferDescriptor.startTime,
-                    endTime: bufferDescriptor.endTime,
+                    startTime,
+                    endTime,
                     loudnessInfo, sampleRate, channelCount, decodingLatency,
+                    isBackgroundBuffer, isLastBuffer,
                     fillTypeData: null
                 };
 
@@ -344,7 +384,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                     descriptor.fillTypeData = fillTypeData;
                 }
 
-                this._sendFilledBuffer(requestId, descriptor, destinationBuffers, currentBufferFillType, this.ended);
+                this._sendFilledBuffer(requestId, descriptor, destinationBuffers, currentBufferFillType);
                 i++;
                 currentBufferFillType = BUFFER_FILL_TYPE_NORMAL;
 
@@ -354,7 +394,19 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             }
         } finally {
             this._bufferFillCancellationToken = null;
-            if (!this.destroyed && !this.ended) {
+
+            if (lastBufferSent && crossfadeDuration > 0) {
+                const buffersNeeded = Math.ceil(crossfadeDuration / this._audioPipeline.bufferTime);
+                try {
+                    await this._fillBuffers(buffersNeeded, 0, BUFFER_FILL_TYPE_NORMAL);
+                } catch (e) {
+                    self.uiLog(e.message);
+                }
+            }
+
+            if (this._destroyOnIdleFlag) {
+                this.destroy();
+            } else if (!this.destroyed && !this.ended) {
                 this.sendMessage(`_idle`, {});
             }
         }
@@ -402,7 +454,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             this.demuxData = demuxData;
             this._filePosition = this.demuxData.dataStart;
-            const {sampleRate, channelCount, targetBufferLengthAudioFrames} = this;
+            const {sampleRate, channelCount, targetBufferLengthAudioFrames, duration,
+                    _crossfader: crossfader} = this;
 
             this._decoder = new DecoderContext(wasm, {
                 targetBufferLengthAudioFrames
@@ -418,7 +471,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 decoder: this._decoder,
                 loudnessAnalyzer: this._loudnessAnalyzer,
                 bufferAudioFrameCount: targetBufferLengthAudioFrames,
-                effects, bufferTime
+                effects, bufferTime, duration, crossfader
             });
             this.sendMessage(`_initialAudioDataLoaded`, {requestId, demuxData});
         } catch (e) {
@@ -456,6 +509,10 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
     loadReplacement(args) {
         if (this.destroyed) return;
         this.destroyReplacement();
+        if (!args.isPreloadForNextTrack) {
+            this.cancelAllOperations();
+            this._clearQueue();
+        }
         const cancellationToken = this.cancellationTokenForReplacementOperation();
         try {
             this.replacementSpec = {
@@ -464,7 +521,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 seekTime: args.seekTime,
                 demuxData: null,
                 preloadBufferCount: args.count,
-                gaplessPreload: args.gaplessPreload,
+                isPreloadForNextTrack: args.isPreloadForNextTrack,
                 cancellationToken
             };
             this.replacementSource = new AudioSource(this.backend, -1, this);
@@ -475,10 +532,8 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    async seek(args) {
+    async seek({requestId, count, time, isUserSeek}) {
         try {
-            const {requestId, count, time} = args;
-
             if (this.destroyed) {
                 this.sendError(`AudioSource has been destroyed`);
                 return;
@@ -491,6 +546,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             const bufferFillOperationCancellationAcknowledgedPromise =
                 this._bufferFillOperationCancellationAcknowledged();
             this.cancelAllOperations();
+            this._clearQueue();
 
             const cancellationToken = this.cancellationTokenForSeekOperation();
             let seekerResult;
@@ -514,9 +570,14 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
 
             this.ended = false;
 
+            this._crossfader.setDuration(this.backend.crossfadeDuration);
+            if (isUserSeek) {
+                this._crossfader.setFadeInEnabled(false);
+            }
+            this._crossfader.setFadeOutEnabled(true);
             this._fillBuffers(count, requestId, BUFFER_FILL_TYPE_SEEK, {
                 baseTime: seekerResult.time,
-                isUserSeek: args.isUserSeek,
+                isUserSeek,
                 requestId
             });
         } catch (e) {
@@ -524,7 +585,7 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
         }
     }
 
-    async loadInitialAudioData({fileReference, requestId}) {
+    async loadInitialAudioData({fileReference, requestId, isPreloadForNextTrack}) {
         try {
             if (this.destroyed) {
                 return;
@@ -545,6 +606,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
             this.fileReference = null;
             this._filePosition = 0;
             this.codecName = ``;
+
+            this.cancelAllOperations();
+            this._clearQueue();
 
             const {metadataManager} = this.backend;
             let fileView;
@@ -579,6 +643,9 @@ export default class AudioSource extends CancellableOperations(EventEmitter,
                 if (!codec) {
                     throw new Error(`Not decoder found for the codec: ${codecName}`);
                 }
+                this._crossfader.setDuration(this.backend.crossfadeDuration);
+                this._crossfader.setFadeInEnabled(isPreloadForNextTrack);
+                this._crossfader.setFadeOutEnabled(true);
                 await this._gotCodec(codec, requestId);
                 if (this.destroyed) {
                     return;

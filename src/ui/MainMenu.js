@@ -40,13 +40,6 @@ export default class MainMenu extends EventEmitter {
             onClick: this._createMenuItemClickedHandler(`effects`)
         });
 
-        menu.push({
-            id: `crossfading`,
-            disabled: false,
-            content: this._menuContext.createMenuItem(`Crossfading`, `icomoon-icon small-icomoon-icon icomoon-crossfade`),
-            onClick: this._createMenuItemClickedHandler(`crossfading`)
-        });
-
         this._menu = this._menuContext.createButtonMenu({
             target: opts.target,
             zIndex,

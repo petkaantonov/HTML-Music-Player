@@ -10,7 +10,6 @@ import {noUndefinedGet, throttle} from "util";
 import {URL, performance} from "platform/platform";
 import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
-import {MINIMUM_DURATION} from "audio/backend/demuxer";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
 
@@ -44,7 +43,6 @@ export default class PlayerController extends EventEmitter {
         this.db = deps.db;
         this.dbValues = deps.dbValues;
         this.rippler = deps.rippler;
-        this.crossfadePreferencesBindingContext = deps.crossfadePreferencesBindingContext;
         this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.gestureEducator = deps.gestureEducator;
@@ -60,15 +58,12 @@ export default class PlayerController extends EventEmitter {
         this._progressLastPersisted = performance.now();
         this._lastPersistedProgressValue = -1;
 
-        this.audioManagers = [];
         this.visualizerCanvas = null;
-        this.currentAudioManager = null;
         this.volume = 0.15;
         this.isStopped = true;
         this.isPaused = false;
         this.isPlaying = false;
         this.isMutedValue = false;
-        this.implicitLoading = false;
         this.queuedNextTrackImplicitly = false;
         this.pictureManager = null;
         this.mediaFocusAudioElement = null;
@@ -77,7 +72,6 @@ export default class PlayerController extends EventEmitter {
             env: this.env,
             db: this.db,
             dbValues: this.dbValues,
-            crossfadePreferencesBindingContext: this.crossfadePreferencesBindingContext,
             effectPreferencesBindingContext: this.effectPreferencesBindingContext,
             applicationPreferencesBindingContext: this.applicationPreferencesBindingContext,
             workerWrapper: deps.workerWrapper,
@@ -114,9 +108,9 @@ export default class PlayerController extends EventEmitter {
             })[0];
         }
 
+        this._audioManager = new AudioManager(this, this.visualizer);
         this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
         this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
-        this.crossfadePreferencesBindingContext.on(`change`, this.crossfadePreferencesChanged.bind(this));
         this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this._preferencesLoaded = this._loadPreferences();
@@ -129,22 +123,12 @@ export default class PlayerController extends EventEmitter {
     }
 
     audioContextReset() {
-        if (this.currentAudioManager) {
-            this.currentAudioManager.audioContextReset();
-        }
+        this._audioManager.audioContextReset();
         this.emit(PLAYBACK_RESUME_AFTER_IDLE_EVENT);
     }
 
     effectPreferencesChanged() {
-        this.forEachAudioManager((am) => {
-            am.effectsChanged(this.effectPreferencesBindingContext);
-        });
-    }
-
-    crossfadePreferencesChanged() {
-        this.forEachAudioManager((am) => {
-            am.crossfadingChanged(this.crossfadePreferencesBindingContext);
-        });
+        this._audioManager.effectsChanged(this.effectPreferencesBindingContext);
     }
 
     /* eslint-disable class-methods-use-this */
@@ -197,21 +181,6 @@ export default class PlayerController extends EventEmitter {
         this.checkButtonState();
     }
 
-    audioManagerDestroyed(audioManager) {
-        const index = this.audioManagers.indexOf(audioManager);
-        if (index >= 0) {
-            this.audioManagers.splice(index, 1);
-        }
-        if (audioManager === this.currentAudioManager) {
-            this.currentAudioManager = null;
-            if (!this.playlist.getCurrentTrack() &&
-                !this.playlist.getNextTrack() &&
-                this.isPlaying) {
-                this.stop();
-            }
-        }
-    }
-
     nextTrackStartedPlaying() {
         return new Promise(resolve => this.once(TRACK_PLAYING_EVENT, resolve));
     }
@@ -231,70 +200,37 @@ export default class PlayerController extends EventEmitter {
             return;
         }
 
-        this.implicitLoading = true;
-        if (!this.playlist.next(false)) {
-            this.implicitLoading = false;
-        }
+        this.playlist.next(false);
     }
 
-    audioManagerErrored(audioManager, e) {
-        if (audioManager.track) {
-            audioManager.track.setError(e.message);
-        }
-        this.destroyAudioManagers();
-        this.currentAudioManager = null;
+    audioManagerErrored() {
         this.nextTrackImplicitly();
     }
 
     getProgress() {
-        if (!this.currentAudioManager) return -1;
-        const duration = this.currentAudioManager.getDuration();
+        const duration = this._audioManager.getDuration();
         if (!duration) return -1;
-        const currentTime = this.currentAudioManager.getCurrentTime();
+        const currentTime = this._audioManager.getCurrentTime();
         return Math.round((currentTime / duration) * 100) / 100;
     }
 
     setProgress(p) {
-        if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
+        if (!this._audioManager.isSeekable()) return;
         p = Math.min(Math.max(p, 0), 1);
-        const duration = this.currentAudioManager.getDuration();
+        const duration = this._audioManager.getDuration();
         if (!duration) return;
         this.seek(p * duration);
     }
 
     seekIntent(p) {
-        if (!this.currentAudioManager) return;
         p = Math.min(Math.max(p, 0), 1);
-        const duration = this.currentAudioManager.getDuration();
+        const duration = this._audioManager.getDuration();
         if (!duration) return;
         this.seek(p * duration, true);
     }
 
-    getFadeInTimeForNextTrack() {
-        const preferences = this.crossfadePreferencesBindingContext.preferences();
-        const fadeInTime = preferences.getInTime();
-        if (fadeInTime <= 0 || !preferences.getInEnabled()) return 0;
-
-        const audioManager = this.currentAudioManager;
-
-        if (!audioManager) return 0;
-
-        const nextTrack = this.playlist.getNextTrack();
-        if (!nextTrack) return 0;
-        if (preferences.getShouldAlbumNotCrossFade() &&
-            audioManager.track.comesBeforeInSameAlbum(nextTrack)) {
-            return 0;
-        }
-
-        const duration = nextTrack.getDuration();
-        return !duration ? fadeInTime
-                         : Math.max(Math.min(duration - MINIMUM_DURATION - preferences.getOutTime(), fadeInTime), 0);
-    }
-
-    audioManagerSeekIntent(audioManager, time) {
-        if (audioManager === this.currentAudioManager) {
-            this.emit(PROGRESS_EVENT, time, audioManager.getDuration());
-        }
+    audioManagerSeekIntent(time) {
+        this.emit(PROGRESS_EVENT, time, this._audioManager.getDuration());
     }
 
     trackFinished() {
@@ -302,46 +238,36 @@ export default class PlayerController extends EventEmitter {
         this.nextTrackImplicitly();
     }
 
-    audioManagerEnded(audioManager, haveGaplessPreloadPending) {
-        if (audioManager === this.currentAudioManager) {
-            const alreadyFinished = haveGaplessPreloadPending && !audioManager.hasGaplessPreload();
-            if (!haveGaplessPreloadPending) {
-                audioManager.destroy();
-            }
+    getFadeInTimeForNextTrack(currentTrack) {
+        const {effectPreferencesBindingContext} = this;
+        const crossfadeDuration = effectPreferencesBindingContext.getCrossfadeDuration();
 
-            if (!alreadyFinished) {
-                this.trackFinished();
-                return true;
-            }
-        } else {
-            audioManager.destroy();
+        if (crossfadeDuration === 0) {
+            return 0;
         }
-        return false;
+
+        if (effectPreferencesBindingContext.getShouldAlbumNotCrossfade()) {
+            const nextTrack = this.playlist.getNextTrack();
+            if (nextTrack && currentTrack.comesBeforeInSameAlbum(nextTrack)) {
+                return 0;
+            }
+        }
+
+        return crossfadeDuration;
     }
 
-    audioManagerProgressed(audioManager, currentTime, totalTime, shouldHandleEnding) {
-        if (audioManager === this.currentAudioManager) {
-            const fadeInTime = this.getFadeInTimeForNextTrack();
-
-            if (shouldHandleEnding &&
-                (currentTime >= totalTime && totalTime > 0 && currentTime > 0) ||
-                (fadeInTime > 0 && totalTime > 0 && currentTime > 0 && (totalTime - currentTime > 0) &&
-                (totalTime - currentTime <= fadeInTime))) {
-                this.trackFinished();
-                return true;
-            } else if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
-                this.emit(PROGRESS_EVENT, currentTime, totalTime);
-            }
-
-            const now = performance.now();
-            if (now - this._progressLastPersisted > 500 &&
-                this._lastPersistedProgressValue !== this._getUnroundedProgress()) {
-                this._progressLastPersisted = now;
-                this._lastPersistedProgressValue = this._getUnroundedProgress();
-                this._persistProgress();
-            }
+    audioManagerProgressed(currentTime, totalTime) {
+        if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
+            this.emit(PROGRESS_EVENT, currentTime, totalTime);
         }
-        return false;
+
+        const now = performance.now();
+        if (now - this._progressLastPersisted > 500 &&
+            this._lastPersistedProgressValue !== this._getUnroundedProgress()) {
+            this._progressLastPersisted = now;
+            this._lastPersistedProgressValue = this._getUnroundedProgress();
+            this._persistProgress();
+        }
     }
 
     getSampleRate() {
@@ -355,9 +281,7 @@ export default class PlayerController extends EventEmitter {
         this.isPaused = true;
         this.isStopped = false;
         this.isPlaying = false;
-        this.forEachAudioManager((am) => {
-            am.pause();
-        });
+        this._audioManager.pause();
         this.pausedPlay();
     }
 
@@ -380,10 +304,7 @@ export default class PlayerController extends EventEmitter {
         this.isPaused = false;
         this.isStopped = false;
         this.isPlaying = true;
-        this.forEachAudioManager((am) => {
-            am.updateSchedules();
-            am.resume();
-        });
+        this._audioManager.resume();
         this.startedPlay();
     }
 
@@ -392,8 +313,7 @@ export default class PlayerController extends EventEmitter {
         this.isStopped = true;
         this.isPaused = false;
         this.isPlaying = false;
-        this.currentAudioManager = null;
-        this.destroyAudioManagers();
+        this._audioManager.pause();
         this.playlist.stop();
         this.emit(PROGRESS_EVENT, 0, 0);
         this.stoppedPlay();
@@ -410,12 +330,9 @@ export default class PlayerController extends EventEmitter {
         }
         ++loadId;
 
-        if (isUserInitiatedSkip &&
-            this.currentAudioManager &&
-            !this.currentAudioManager.hasPlaythroughBeenTriggered()) {
-
-            if (this.currentAudioManager.track) {
-                this.currentAudioManager.track.recordSkip();
+        if (isUserInitiatedSkip && !this._audioManager.hasPlaythroughBeenTriggered()) {
+            if (this._audioManager.track) {
+                this._audioManager.track.recordSkip();
             }
         }
 
@@ -423,38 +340,13 @@ export default class PlayerController extends EventEmitter {
         this.isPlaying = true;
         this.isPaused = false;
 
-        const implicit = this.implicitLoading;
-        if (implicit) {
-            this.implicitLoading = false;
-        } else {
-            this.destroyAudioManagers(this.currentAudioManager);
+        if (!this._audioManager.start(track)) {
+            this._audioManager.replaceTrack(track);
         }
 
-        // Should never be true but there are too many moving parts to figure it out.
-        if (this.currentAudioManager && this.currentAudioManager.destroyed) {
-            this.currentAudioManager = null;
-        }
-
-
-        const explicit = !implicit;
-        if (this.currentAudioManager &&
-            (explicit || this.currentAudioManager.hasGaplessPreload())) {
-            this.currentAudioManager.replaceTrack(track, explicit);
-            this.startedPlay();
-            this.emit(TRACK_PLAYING_EVENT);
-            this.emit(NEW_TRACK_LOAD_EVENT, track);
-            return;
-        }
-
-        if (this.currentAudioManager) {
-            this.currentAudioManager.background();
-        }
-        this.currentAudioManager = new AudioManager(this, this.visualizer, track, implicit);
-        this.audioManagers.push(this.currentAudioManager);
         this.startedPlay();
         this.emit(TRACK_PLAYING_EVENT);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
-        this.currentAudioManager.start();
     }
 
     nextButtonClicked(e) {
@@ -556,15 +448,14 @@ export default class PlayerController extends EventEmitter {
 
     seek(seconds, intent) {
         if (!this.isPlaying && !this.isPaused) return;
-        if (!this.currentAudioManager || !this.currentAudioManager.isSeekable()) return;
-        const maxSeek = this.currentAudioManager.getDuration();
+        if (!this._audioManager.isSeekable()) return;
+        const maxSeek = this._audioManager.getDuration();
         if (!isFinite(maxSeek)) return;
         seconds = Math.max(0, Math.min(seconds, maxSeek));
-
         if (intent) {
-            this.currentAudioManager.seekIntent(seconds);
+            this._audioManager.seekIntent(seconds);
         } else {
-            this.currentAudioManager.seek(seconds);
+            this._audioManager.seek(seconds);
         }
     }
 
@@ -584,26 +475,20 @@ export default class PlayerController extends EventEmitter {
         this.isMutedValue = !this.isMutedValue;
         if (this.isMutedValue) {
             this.emit(VOLUME_MUTE_EVENT, true);
-            this.forEachAudioManager((am) => {
-                am.mute();
-            });
+            this._audioManager.mute();
         } else {
             this.emit(VOLUME_MUTE_EVENT, false);
-            this.forEachAudioManager((am) => {
-                am.unmute();
-            });
+            this._audioManager.unmute();
         }
         this._persistMute();
     }
 
     getDuration() {
-        if (!this.currentAudioManager) throw new Error(`cannot get duration no audioManager`);
-        return this.currentAudioManager.getDuration();
+        return this._audioManager.getDuration();
     }
 
     getProbableDuration() {
-        if (!this.currentAudioManager) throw new Error(`cannot get duration no audioManager`);
-        const ret = this.currentAudioManager.getDuration();
+        const ret = this._audioManager.getDuration();
         if (ret) return ret;
         const track = this.playlist.getCurrentTrack();
         return track.getDuration();
@@ -616,9 +501,7 @@ export default class PlayerController extends EventEmitter {
     setVolume(val) {
         val = Math.min(Math.max(0, val), 1);
         const volume = this.volume = val;
-        this.forEachAudioManager((am) => {
-            am.updateVolume(volume);
-        });
+        this._audioManager.updateVolume(volume);
         this.emit(VOLUME_CHANGE_EVENT);
         this._persistVolume();
         return this;
@@ -643,14 +526,14 @@ export default class PlayerController extends EventEmitter {
             if (serializedPlaylistTrack) {
                 const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack);
                 if (startedToPlayTrack) {
-                    const {currentAudioManager} = this;
-                    await currentAudioManager.durationKnown();
+                    const {_audioManager} = this;
+                    await _audioManager.durationKnown();
                     this.pause();
                     if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
                         this.setProgress(this.dbValues[CURRENT_TRACK_PROGRESS_KEY]);
                         this.emit(PROGRESS_EVENT,
-                                  currentAudioManager.getCurrentTime(),
-                                  currentAudioManager.getDuration());
+                                  _audioManager.getCurrentTime(),
+                                  _audioManager.getDuration());
                     }
                 }
             }
@@ -709,36 +592,14 @@ export default class PlayerController extends EventEmitter {
         this.db.set(MUTED_KEY, this.isMutedValue);
     }
 
-    // Supports deletion mid-iteration.
-    forEachAudioManager(fn) {
-        let currentLength = this.audioManagers.length;
-        for (let i = 0; i < this.audioManagers.length; ++i) {
-            fn.call(this, this.audioManagers[i], i, this.audioManagers);
-            // Deleted from the array.
-            if (currentLength > this.audioManagers.length) {
-                i -= (currentLength - this.audioManagers.length);
-                currentLength = this.audioManagers.length;
-            }
-        }
-    }
-
-    destroyAudioManagers(exceptThisOne) {
-        this.forEachAudioManager((am) => {
-            if (am !== exceptThisOne) {
-                am.destroy();
-            }
-        });
-    }
-
     getAudioContext() {
         return this.audioPlayer.getAudioContext();
     }
 
     _getUnroundedProgress() {
-        if (!this.currentAudioManager) return 0;
-        const duration = this.currentAudioManager.getDuration();
+        const duration = this._audioManager.getDuration();
         if (!duration) return 0;
-        const currentTime = this.currentAudioManager.getCurrentTime();
+        const currentTime = this._audioManager.getCurrentTime();
         return currentTime / duration;
     }
 }

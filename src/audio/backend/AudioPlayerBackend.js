@@ -6,6 +6,7 @@ export const PLAYER_READY_EVENT_NAME = `playerReady`;
 import {checkBoolean} from "errors/BooleanTypeError";
 import {checkNumberRange, checkNumberDivisible} from "errors/NumberTypeError";
 import {MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
+import {CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
 
 const emptyArray = [];
 
@@ -20,7 +21,8 @@ export default class AudioPlayerBackend extends AbstractBackend {
         this._config = {
             bufferTime: 0,
             loudnessNormalization: true,
-            silenceTrimming: true
+            silenceTrimming: true,
+            crossfadeDuration: 0
         };
         this._metadataManager = metadataManager;
     }
@@ -37,6 +39,10 @@ export default class AudioPlayerBackend extends AbstractBackend {
         return this._effects;
     }
 
+    get crossfadeDuration() {
+        return this._config.crossfadeDuration;
+    }
+
     get bufferTime() {
         const ret = this._config.bufferTime;
         if (!ret) throw new Error(`buffer time not set`);
@@ -49,6 +55,11 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
     get silenceTrimming() {
         return this._config.silenceTrimming;
+    }
+
+    set crossfadeDuration(duration) {
+        checkNumberRange(`duration`, duration, CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION);
+        this._config.crossfadeDuration = duration;
     }
 
     set bufferTime(bufferTime) {

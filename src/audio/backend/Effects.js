@@ -2,37 +2,35 @@ import {Symbol} from "platform/platform";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 let effects_noise_sharpening;
-
 export default class Effects {
     constructor() {
-        this._effects = [{
-            name: `noise-sharpening`,
-            effectSize: 0,
-            apply(channelCount, samplePtr, byteLength) {
-                if (this.effectSize > 0) {
-                    effects_noise_sharpening(this.effectSize, channelCount, samplePtr, byteLength);
-                }
-                return {samplePtr, byteLength};
-            },
+        this._effects = {
+            "noise-sharpening": {
+                effectSize: 0,
+                apply(samplePtr, byteLength, {channelCount}) {
+                    if (this.effectSize > 0) {
+                        effects_noise_sharpening(this.effectSize, channelCount, samplePtr, byteLength);
+                    }
+                    return {samplePtr, byteLength};
+                },
 
-            _applySpec(spec = null) {
-                this.effectSize = spec ? spec.effectSize : 0;
+                _applySpec(spec = null) {
+                    this.effectSize = spec ? spec.effectSize : 0;
+                }
             }
-        }];
+        };
+        this._effectNames = Object.keys(this._effects);
     }
 
-    [Symbol.iterator]() {
-        return this._effects[Symbol.iterator]();
+    * [Symbol.iterator]() {
+        for (let i = 0; i < this._effectNames.length; ++i) {
+            yield this._effects[this._effectNames[i]];
+        }
     }
 
     setEffects(spec = []) {
-        const effectMap = new Map();
         for (const specEffect of spec) {
-            effectMap.set(specEffect.name, specEffect);
-        }
-
-        for (const effect of this) {
-            effect._applySpec(effectMap.get(effect.name));
+            this._effects[specEffect.name]._applySpec(specEffect);
         }
     }
 }

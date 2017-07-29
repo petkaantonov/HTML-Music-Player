@@ -371,7 +371,7 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
                     sourceSampleRate, sourceChannelCount,
                     destinationSampleRate, destinationChannelCount,
                     decoder, resampler, channelMixer, fingerprinter,
-                    bufferTime: BUFFER_DURATION,
+                    bufferTime: BUFFER_DURATION, duration,
                     bufferAudioFrameCount: destinationSampleRate * BUFFER_DURATION
                 });
 

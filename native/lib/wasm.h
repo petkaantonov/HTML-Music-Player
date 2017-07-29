@@ -111,6 +111,8 @@ FILE* stderr = (FILE*)2;
 #define EXPORT extern __attribute__((visibility("default")))
 #define DLMALLOC_EXPORT EXPORT
 
+#ifndef WASM_NO_TIME
+
 struct tm
 {
     int tm_sec;
@@ -158,6 +160,7 @@ int utime(const char *path, const struct utimbuf *times) {
   }
   return js_utime(path, actime, modtime);
 }
+#endif
 
 extern void* sbrk(intptr_t);
 extern int brk(void*);
@@ -179,6 +182,8 @@ size_t strlen(const char*);
 extern double performance_now(void);
 extern double math_random(void);
 extern void qsort(void*, size_t, size_t, int (*compar)(const void*, const void*));
+
+#ifndef WASM_NO_FS
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -225,6 +230,7 @@ uint64_t ftello64(FILE* handle) {
 int fseeko64(FILE* handle, uint64_t offset, int whence) {
   return js_fseek(handle, CLIP_I64_TO_DOUBLE(offset), whence);
 }
+#endif
 
 #ifdef DEBUG
 

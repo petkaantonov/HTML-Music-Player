@@ -77,7 +77,6 @@ export default class AudioPlayer extends WorkerFrontend {
         this.db = deps.db;
         this.timers = deps.timers;
         this.dbValues = deps.dbValues;
-        this.crossfadePreferencesBindingContext = deps.crossfadePreferencesBindingContext;
         this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
 
@@ -85,8 +84,6 @@ export default class AudioPlayer extends WorkerFrontend {
         this._unprimedAudioContext = null;
 
         this._silentBuffer = null;
-
-        this._previousAudioContextTime = -1;
 
         this._outputSampleRate = -1;
         this._outputChannelCount = -1;
@@ -117,7 +114,8 @@ export default class AudioPlayer extends WorkerFrontend {
         this.effectPreferencesBindingContext.on(`change`, async () => {
             await this.ready();
             this._updateBackendConfig({
-                effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects())
+                effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects()),
+                crossfadeDuration: this.getCrossfadeDuration()
             });
         });
         this.applicationPreferencesBindingContext.on(`change`, async () => {
@@ -136,6 +134,10 @@ export default class AudioPlayer extends WorkerFrontend {
                                                                                                   : PolyfillGetOutputTimestamp;
         this._resetAudioContext();
         this._initBackend();
+    }
+
+    getCrossfadeDuration() {
+        return this.effectPreferencesBindingContext.getCrossfadeDuration();
     }
 
     /* eslint-disable class-methods-use-this */
@@ -235,23 +237,23 @@ export default class AudioPlayer extends WorkerFrontend {
         this._updateBackendConfig({
             loudnessNormalization: preferences.getEnableLoudnessNormalization(),
             silenceTrimming: preferences.getEnableSilenceTrimming(),
-            effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects())
+            effects: ensureArray(this.effectPreferencesBindingContext.getAudioPlayerEffects()),
+            crossfadeDuration: this.getCrossfadeDuration()
         });
     }
 
-    _audioContextChanged() {
+    _audioContextChanged(oldAudioContextTime) {
         const {_audioContext} = this;
         const {channelCount} = _audioContext.destination;
         const {sampleRate} = _audioContext;
 
-        this._previousAudioContextTime = _audioContext.currentTime;
 
         if (this._setAudioOutputParameters({channelCount, sampleRate})) {
             this._setBufferSize(this.applicationPreferencesBindingContext.preferences().getBufferLengthMilliSeconds(),
                                 true);
         } else {
             for (const sourceNode of this._sourceNodes.slice()) {
-                sourceNode.adoptNewAudioContext(_audioContext);
+                sourceNode.adoptNewAudioContext(_audioContext, oldAudioContextTime);
             }
         }
     }
@@ -374,6 +376,7 @@ export default class AudioPlayer extends WorkerFrontend {
     }
 
     _resetAudioContext() {
+        const oldAudioContextTime = this._audioContext ? this._audioContext.currentTime : 0;
         try {
             if (this._audioContext) {
                 this._audioContext.close();
@@ -385,7 +388,7 @@ export default class AudioPlayer extends WorkerFrontend {
         }
         this._audioContext = new AudioContext({latencyHint: `playback`});
         this._unprimedAudioContext = this._audioContext;
-        this._audioContextChanged();
+        this._audioContextChanged(oldAudioContextTime);
         this.emit(`audioContextReset`, this);
     }
 

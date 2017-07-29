@@ -30,7 +30,6 @@ import PlaylistController from "player/PlaylistController";
 import SearchController from "search/SearchController";
 import ApplicationPreferencesBindingContext from "ui/ApplicationPreferencesBindingContext";
 import EffectPreferencesBindingContext from "ui/EffectPreferencesBindingContext";
-import CrossfadePreferencesBindingContext from "ui/CrossfadePreferencesBindingContext";
 import WorkerWrapper from "WorkerWrapper";
 import {ACCELERATE_CUBIC_INTERPOLATOR} from "ui/animation/easing";
 import {isTextInputElement, isAnyInputElement} from "platform/dom/Page";
@@ -52,8 +51,8 @@ const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 const MAIN_TOOLBAR_INDEX = 0;
 const SELECTION_TOOLBAR_INDEX = 1;
 
-const DATABASE_CLOSED_TAG = "database-closed";
-const QUOTA_EXCEEDED_TAG = "quota-exceeded";
+const DATABASE_CLOSED_TAG = `database-closed`;
+const QUOTA_EXCEEDED_TAG = `quota-exceeded`;
 
 function selectStarted(e) {
     if (!isTextInputElement(e.target)) {
@@ -299,19 +298,6 @@ export default class Application {
             env
         }, d => new EffectPreferencesBindingContext(d));
 
-        const crossfadePreferencesBindingContext = this.crossfadePreferencesBindingContext = withDeps({
-            page,
-            recognizerContext,
-            sliderContext,
-            dbValues,
-            db,
-            rippler,
-            mainMenu,
-            popupContext,
-            globalEvents,
-            env
-        }, d => new CrossfadePreferencesBindingContext(d));
-
         const playlist = this.playlist = withDeps({
             env,
             page,
@@ -352,7 +338,6 @@ export default class Application {
             db,
             gestureEducator,
             rippler,
-            crossfadePreferencesBindingContext,
             effectPreferencesBindingContext,
             applicationPreferencesBindingContext,
             localFileHandler,

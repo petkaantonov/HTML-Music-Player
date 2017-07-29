@@ -162,9 +162,8 @@ export default class TagDatabase {
 
     async _setHandlers() {
         const db = await this.db;
-        db.onversionchange = async () => {
+        db.onversionchange = () => {
             this._closed = true;
-            const db = await this.db;
             db.close();
         };
         db.onclose = function() {

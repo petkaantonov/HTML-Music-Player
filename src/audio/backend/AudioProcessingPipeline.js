@@ -64,6 +64,8 @@ export default class AudioProcessingPipeline {
         resampler,
         fingerprinter,
         loudnessAnalyzer,
+        crossfader,
+        duration,
         bufferTime,
         bufferAudioFrameCount
     }) {
@@ -82,6 +84,8 @@ export default class AudioProcessingPipeline {
         this.fingerprinter = fingerprinter;
         this.bufferTime = bufferTime;
         this.bufferAudioFrameCount = bufferAudioFrameCount;
+        this.totalDuration = duration;
+        this.crossfader = crossfader;
     }
 
     get hasFilledBuffer() {
@@ -171,8 +175,14 @@ export default class AudioProcessingPipeline {
                 effects,
                 resampler,
                 loudnessAnalyzer,
-                fingerprinter} = this;
-
+                fingerprinter,
+                crossfader} = this;
+        const metadata = {
+            channelCount: sourceChannelCount,
+            sampleRate: sourceSampleRate,
+            currentTime: startAudioFrame / sourceSampleRate,
+            duration: this.totalDuration
+        };
         let loudnessInfo = defaultLoudnessInfo;
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
@@ -181,8 +191,12 @@ export default class AudioProcessingPipeline {
 
         if (effects) {
             for (const effect of effects) {
-                ({samplePtr, byteLength} = effect.apply(sourceChannelCount, samplePtr, byteLength));
+                ({samplePtr, byteLength} = effect.apply(samplePtr, byteLength, metadata));
             }
+        }
+
+        if (crossfader) {
+            crossfader.apply(samplePtr, byteLength, metadata);
         }
 
         if (sourceChannelCount !== destinationChannelCount) {

@@ -61,9 +61,8 @@ export default class KeyValueDatabase extends EventEmitter {
 
     async _setHandlers() {
         const db = await this.db;
-        db.onversionchange = async () => {
+        db.onversionchange = () => {
             this._closed = true;
-            const db = await this.db;
             db.close();
             this.databaseClosed();
         };
@@ -124,7 +123,7 @@ export default class KeyValueDatabase extends EventEmitter {
     }
 
     async storeLog(message) {
-        if (this.isClosedAndEmit()) return;
+        if (this.isClosedAndEmit()) return null;
         const date = new Date();
         const db = await this.db;
         const store = db.transaction(LOG_OBJECT_STORE_NAME, READ_WRITE).objectStore(LOG_OBJECT_STORE_NAME);
@@ -132,7 +131,7 @@ export default class KeyValueDatabase extends EventEmitter {
     }
 
     set(key, value) {
-        if (this.isClosedAndEmit()) return;
+        if (this.isClosedAndEmit()) return null;
         return this.getKeySetter(`${key}`).call(this, value);
     }
 

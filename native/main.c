@@ -1,3 +1,6 @@
+#define WASM_NO_TIME 1
+#define WASM_NO_FS 1
+
 #include <wasm.c>
 #include "resampler.c"
 #include "channel_mixer.c"

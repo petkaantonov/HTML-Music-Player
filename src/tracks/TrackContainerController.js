@@ -9,6 +9,7 @@ import {buildConsecutiveRanges, indexMapper, buildInverseRanges,
         buildConsecutiveRangesCompressed, throttle} from "util";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 import {SCROLL_POSITION_CHANGE_EVENT} from "ui/scrolling/ContentScroller";
+import {Symbol} from "platform/platform";
 
 export const ITEM_ORDER_CHANGE_EVENT = `itemOrderChange`;
 export const LENGTH_CHANGE_EVENT = `lengthChange`;
@@ -831,5 +832,9 @@ export default class TrackContainerController extends EventEmitter {
             remove(trackViews, selection, indexOffset);
             indexOffset += selection.length;
         });
+    }
+
+    [Symbol.iterator]() {
+        return this._trackViews[Symbol.iterator]();
     }
 }

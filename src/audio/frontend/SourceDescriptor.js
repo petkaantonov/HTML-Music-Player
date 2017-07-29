@@ -5,7 +5,7 @@ export const decibelToGain = function(loudness) {
 };
 
 export default class SourceDescriptor {
-    constructor(sourceNode, channelDataAsArrayBuffers, descriptor, isLastForTrack) {
+    constructor(sourceNode, channelDataAsArrayBuffers, descriptor) {
         this._sourceNode = sourceNode;
         this._descriptor = descriptor;
         this._audioBuffer = this._createAudioBuffer(channelDataAsArrayBuffers);
@@ -16,8 +16,7 @@ export default class SourceDescriptor {
         this.stopped = -1;
         this.playedSoFar = 0;
         this.source = null;
-
-        this.isLastForTrack = isLastForTrack;
+        this._backgrounded = false;
     }
 
     _createAudioBuffer(channelDataAsArrayBuffers) {
@@ -31,6 +30,10 @@ export default class SourceDescriptor {
         }
 
         return audioBuffer;
+    }
+
+    get isLastForTrack() {
+        return this._descriptor.isLastBuffer;
     }
 
     get startTime() {
@@ -65,8 +68,31 @@ export default class SourceDescriptor {
         return !isFinite(this._gain) ? this._sourceNode.baseGain : this._gain;
     }
 
+    readjustTime(timeDiff, lowestOriginalTime) {
+        if (this.started !== -1 && this.stopped !== -1) {
+            if (this.started + timeDiff < 0) {
+                this.started = this.started - lowestOriginalTime;
+            } else {
+                this.started = this.started + timeDiff;
+            }
+            this.started = Math.max(0, this.started);
+            this.started = Math.round(this.started * 1e9) / 1e9;
+            this.stopped = this.started + this.getRemainingDuration();
+        }
+    }
+
     getRemainingDuration() {
         return this.duration - this.playedSoFar;
+    }
+
+    getAdjustedStartTime() {
+        if (this.playedSoFar === 0) return this.started;
+        const playedSoFarSamples = this.playedSoFar * this.sampleRate | 0;
+
+        if (Math.abs(playedSoFarSamples - (((this.stopped - this.started) * this.sampleRate) | 0)) > 100) {
+            return this.started;
+        }
+        return this.started + this.playedSoFar;
     }
 
     print() {
@@ -87,6 +113,14 @@ export default class SourceDescriptor {
 
     isDestroyed() {
         return this._audioBuffer === null;
+    }
+
+    setBackground() {
+        this._backgrounded = true;
+    }
+
+    isInBackground() {
+        return this._backgrounded;
     }
 
     destroy(stopTime = -1) {
