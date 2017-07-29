@@ -58,7 +58,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
     }
 
     set crossfadeDuration(duration) {
-        checkNumberRange(`duration`, duration, CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION);
+        checkNumberRange(`duration`, duration, 0, CROSSFADE_MAX_DURATION);
         this._config.crossfadeDuration = duration;
     }
 

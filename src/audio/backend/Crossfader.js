@@ -15,7 +15,7 @@ export default class Crossfader {
     }
 
     setDuration(duration) {
-        checkNumberRange(`duration`, duration, CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION);
+        checkNumberRange(`duration`, duration, 0, CROSSFADE_MAX_DURATION);
         this._duration = duration;
     }
 

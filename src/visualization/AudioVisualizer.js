@@ -25,13 +25,11 @@ export default class AudioVisualizer extends WorkerFrontend {
         this._sourceNode = null;
         this._channelData = [new Float32Array(this.bufferSize), new Float32Array(this.bufferSize)];
         this._bins = null;
-        this._paused = false;
         this._resolveGetBinsPromise = null;
+        this._awaitingBins = false;
         this._awaitingBackendResponse = false;
         this._frameHandle = -1;
         this._numericFrameId = 0;
-        this._nextBinUpdateRequestId = 0;
-        this._binsUpdatedForRequestId = -1;
         this._lastRafArg = -1;
         this._actualFps = 0;
         this._workerFps = 0;
@@ -67,13 +65,13 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     _getBins(frameDescriptor) {
+        if (this._awaitingBackendResponse) return;
         this._awaitingBackendResponse = true;
         return new Promise((resolve) => {
             this._resolveGetBinsPromise = resolve;
             const channelData = this._channelData.map(v => v.buffer);
             const bins = this._bins.buffer;
             const transferList = channelData.concat(bins);
-
             this.postMessage({
                 action: `getBins`,
                 args: {
@@ -87,17 +85,14 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     receiveMessage(event) {
-        try {
-            const {channelData, bins} = event.data;
-            for (let i = 0; i < channelData.length; ++i) {
-                this._channelData[i] = new Float32Array(channelData[i]);
-            }
-            this._bins = new Float64Array(bins);
-            this._resolveGetBinsPromise();
-            this._resolveGetBinsPromise = null;
-        } finally {
-            this._awaitingBackendResponse = false;
+        const {channelData, bins} = event.data;
+        for (let i = 0; i < channelData.length; ++i) {
+            this._channelData[i] = new Float32Array(channelData[i]);
         }
+        this._bins = new Float64Array(bins);
+        this._resolveGetBinsPromise();
+        this._resolveGetBinsPromise = null;
+        this._awaitingBackendResponse = false;
     }
 
     _shouldSkipFrame() {
@@ -118,10 +113,7 @@ export default class AudioVisualizer extends WorkerFrontend {
             return;
         }
 
-        const requestId = ++this._nextBinUpdateRequestId;
-        if (this.visualizerCanvas.needsToDraw() &&
-            !this._paused &&
-            !this._awaitingBackendResponse) {
+        if (this.visualizerCanvas.needsToDraw() && !this._awaitingBins) {
             const {actualFps} = this;
             const offsetSeconds = (actualFps > 0 ? (1000 / actualFps / 1000) : 1000 / this.targetFps) -
                                     this._getAudioLatency();
@@ -138,8 +130,8 @@ export default class AudioVisualizer extends WorkerFrontend {
             }
 
             const now = performance.now();
+            this._awaitingBins = true;
             await this._getBins(frameDescriptor);
-            this._binsUpdatedForRequestId = requestId;
             const fps = 1000 / (performance.now() - now);
             this._workerFps = (this._workerFps * (1 - ALPHA)) + fps * ALPHA;
         }
@@ -158,9 +150,12 @@ export default class AudioVisualizer extends WorkerFrontend {
                 }
             }
 
-            if (this._binsUpdatedForRequestId === this._nextBinUpdateRequestId) {
-                this.visualizerCanvas.drawBins(now, this._bins);
-            } else if (this.visualizerCanvas.needsToDraw() && this._paused) {
+            if (this._awaitingBins) {
+                if (!this._awaitingBackendResponse) {
+                    this._awaitingBins = false;
+                    this.visualizerCanvas.drawBins(now, this._bins);
+                }
+            } else if (this.visualizerCanvas.needsToDraw()) {
                 this.visualizerCanvas.drawIdleBins(now);
             } else {
                 // TODO: This happens when fps is too high yet worker is too
@@ -220,16 +215,5 @@ export default class AudioVisualizer extends WorkerFrontend {
 
     binCount() {
         return this.visualizerCanvas.getNumBins();
-    }
-
-    pause() {
-        if (this._paused) return;
-        console.trace(`paused`);
-        this._paused = true;
-    }
-
-    resume() {
-        if (!this._paused) return;
-        this._paused = false;
     }
 }

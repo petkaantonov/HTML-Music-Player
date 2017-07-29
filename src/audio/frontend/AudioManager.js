@@ -34,7 +34,6 @@ export default class AudioManager {
         this.sourceNode.on(`decodingLatency`, this.onDecodingLatency);
         this.sourceNode.pause();
         this.visualizer.connectSourceNode(this.sourceNode);
-        this.visualizer.pause();
         this.setupNodes();
     }
 
@@ -218,14 +217,12 @@ export default class AudioManager {
         this.paused = true;
         this.tickCounter.pause();
         this.sourceNode.pause();
-        this.visualizer.pause();
     }
 
     resume() {
         if (!this.started || !this.paused) return;
         this.paused = false;
         this.sourceNode.play();
-        this.visualizer.resume();
     }
 
     start(track) {

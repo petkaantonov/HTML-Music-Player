@@ -474,133 +474,125 @@ export default class AudioPlayerSourceNode extends EventEmitter {
             gain: 1
         };
 
-        if (!this._sourceStopped) {
-            const timestamp = this._audioPlayerFrontend.getOutputTimestamp();
-            let currentTime = timestamp.contextTime;
-            const hr = timestamp.performanceTime;
-            const prevHr = this._previousHighResTime;
+        if (this._sourceStopped) {
+            return ret;
+        }
+        const timestamp = this._audioPlayerFrontend.getOutputTimestamp();
+        let currentTime = timestamp.contextTime;
+        const hr = timestamp.performanceTime;
+        const prevHr = this._previousHighResTime;
 
-            // Workaround for bad values from polyfill
-            if (currentTime === this._previousAudioContextTime) {
-                const reallyElapsed = Math.round(((hr - prevHr) * 1000)) / 1e6;
-                currentTime += reallyElapsed;
-                this._previousCombinedTime = currentTime;
-            } else {
-                this._previousAudioContextTime = currentTime;
-                this._previousHighResTime = hr;
+        // Workaround for bad values from polyfill
+        if (currentTime === this._previousAudioContextTime) {
+            const reallyElapsed = Math.round(((hr - prevHr) * 1000)) / 1e6;
+            currentTime += reallyElapsed;
+            this._previousCombinedTime = currentTime;
+        } else {
+            this._previousAudioContextTime = currentTime;
+            this._previousHighResTime = hr;
+        }
+
+        if (currentTime < this._previousCombinedTime) {
+            currentTime = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
+        }
+
+        if (!this._sourceDescriptorQueue.length) {
+            return ret;
+        }
+
+        const targetStartTime = currentTime + offsetSeconds;
+        if (targetStartTime < 0) {
+            return ret;
+        }
+
+        const [nextSourceDescriptor] = this._sourceDescriptorQueue;
+        const {sampleRate, channelCount} = nextSourceDescriptor;
+        const duration = channelData[0].length / sampleRate;
+        let lowerBoundSourceDescriptor, upperBoundSourceDescriptor;
+
+        // Assume `duration` is always less than bufferDuration. Which it is.
+        if (duration > this.getBufferDuration()) {
+            self.uiLog(`duration > this.getBufferDuration() ${duration} ${this.getBufferDuration()}`);
+            return ret;
+        }
+
+        for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
+            const sourceDescriptor = this._playedSourceDescriptors[i];
+            if (sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
+                lowerBoundSourceDescriptor = sourceDescriptor;
+
+                if (targetStartTime + duration <= sourceDescriptor.stopped) {
+                    upperBoundSourceDescriptor = sourceDescriptor;
+                } else if (i + 1 < this._playedSourceDescriptors.length) {
+                    upperBoundSourceDescriptor = this._playedSourceDescriptors[i + 1];
+                }
+                break;
             }
+        }
 
-            if (currentTime < this._previousCombinedTime) {
-                currentTime = this._previousCombinedTime + Math.round(((hr - prevHr) * 1000)) / 1e6;
-            }
-
-            if (!this._sourceDescriptorQueue.length) {
-                return ret;
-            }
-
-            const targetStartTime = currentTime + offsetSeconds;
-            if (targetStartTime < 0) {
-                return ret;
-            }
-
-            const [nextSourceDescriptor] = this._sourceDescriptorQueue;
-            const {sampleRate, channelCount} = nextSourceDescriptor;
-            const duration = channelData[0].length / sampleRate;
-            let lowerBoundSourceDescriptor, upperBoundSourceDescriptor;
-
-            // Assume `duration` is always less than bufferDuration. Which it is.
-            if (duration > this.getBufferDuration()) {
-                self.uiLog(`duration > this.getBufferDuration() ${duration} ${this.getBufferDuration()}`);
-                return ret;
-            }
-
-            for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
-                const sourceDescriptor = this._playedSourceDescriptors[i];
-                if (sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
+        if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
+            for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
+                const sourceDescriptor = this._sourceDescriptorQueue[i];
+                if (!lowerBoundSourceDescriptor &&
+                    sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
                     lowerBoundSourceDescriptor = sourceDescriptor;
-
                     if (targetStartTime + duration <= sourceDescriptor.stopped) {
-                        upperBoundSourceDescriptor = sourceDescriptor;
-                    } else if (i + 1 < this._playedSourceDescriptors.length) {
-                        upperBoundSourceDescriptor = this._playedSourceDescriptors[i + 1];
+                        upperBoundSourceDescriptor = lowerBoundSourceDescriptor;
+                    } else if (i + 1 < this._sourceDescriptorQueue.length) {
+                        upperBoundSourceDescriptor = this._sourceDescriptorQueue[i + 1];
+                    } else {
+                        return ret;
                     }
                     break;
                 }
-            }
 
-            if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
-                for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
-                    const sourceDescriptor = this._sourceDescriptorQueue[i];
-                    if (!lowerBoundSourceDescriptor &&
-                        sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
-                        lowerBoundSourceDescriptor = sourceDescriptor;
-                        if (targetStartTime + duration <= sourceDescriptor.stopped) {
-                            upperBoundSourceDescriptor = lowerBoundSourceDescriptor;
-                        } else if (i + 1 < this._sourceDescriptorQueue.length) {
-                            upperBoundSourceDescriptor = this._sourceDescriptorQueue[i + 1];
-                        } else {
-                            return ret;
-                        }
-                        break;
-                    }
-
-                    if (lowerBoundSourceDescriptor && !upperBoundSourceDescriptor) {
-                        upperBoundSourceDescriptor = this._sourceDescriptorQueue[i];
-                        break;
-                    }
+                if (lowerBoundSourceDescriptor && !upperBoundSourceDescriptor) {
+                    upperBoundSourceDescriptor = this._sourceDescriptorQueue[i];
+                    break;
                 }
             }
+        }
 
-            if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
-                return ret;
-            }
+        if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
+            return ret;
+        }
 
-            ret.sampleRate = sampleRate;
-            ret.channelCount = channelCount;
-            ret.gain = lowerBoundSourceDescriptor.gain;
+        ret.sampleRate = sampleRate;
+        ret.channelCount = channelCount;
+        ret.gain = lowerBoundSourceDescriptor.gain;
 
-            const length = duration * sampleRate | 0;
-            const bufferLength = lowerBoundSourceDescriptor.duration * sampleRate | 0;
-            let offset;
-            if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
-                offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
-                const {audioBuffer} = lowerBoundSourceDescriptor;
-
-                    for (let ch = 0; ch < channelData.length; ++ch) {
-                        audioBuffer.copyFromChannel(channelData[ch], ch, offset);
-                    }
-
-            } else {
-                offset = (lowerBoundSourceDescriptor.duration -
-                                (lowerBoundSourceDescriptor.stopped - targetStartTime)) * sampleRate | 0;
-                let {audioBuffer} = lowerBoundSourceDescriptor;
+        const length = duration * sampleRate | 0;
+        const bufferLength = lowerBoundSourceDescriptor.duration * sampleRate | 0;
+        let offset;
+        if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
+            offset = (targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate | 0;
+            const {audioBuffer} = lowerBoundSourceDescriptor;
 
                 for (let ch = 0; ch < channelData.length; ++ch) {
                     audioBuffer.copyFromChannel(channelData[ch], ch, offset);
                 }
-                ({audioBuffer} = upperBoundSourceDescriptor);
-                const samplesCopied = bufferLength - offset;
-                const remainingLength = length - samplesCopied;
-                for (let ch = 0; ch < channelData.length; ++ch) {
-                    const dst = new Float32Array(channelData[ch].buffer,
-                                                 samplesCopied * 4,
-                                                 remainingLength);
-                    audioBuffer.copyFromChannel(dst, ch, 0);
-                }
-            }
 
-            ret.channelDataFilled = true;
-            return ret;
         } else {
+            offset = (lowerBoundSourceDescriptor.duration -
+                            (lowerBoundSourceDescriptor.stopped - targetStartTime)) * sampleRate | 0;
+            let {audioBuffer} = lowerBoundSourceDescriptor;
+
             for (let ch = 0; ch < channelData.length; ++ch) {
-                const dst = channelData[ch];
-                for (let i = 0; i < dst.length; ++i) {
-                    dst[i] = 0;
-                }
+                audioBuffer.copyFromChannel(channelData[ch], ch, offset);
             }
-            ret.channelDataFilled = true;
-            return ret;
+            ({audioBuffer} = upperBoundSourceDescriptor);
+            const samplesCopied = bufferLength - offset;
+            const remainingLength = length - samplesCopied;
+            for (let ch = 0; ch < channelData.length; ++ch) {
+                const dst = new Float32Array(channelData[ch].buffer,
+                                             samplesCopied * 4,
+                                             remainingLength);
+                audioBuffer.copyFromChannel(dst, ch, 0);
+            }
         }
+
+        ret.channelDataFilled = true;
+        return ret;
     }
 
     _requestMoreBuffers() {
@@ -682,7 +674,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this.emit(`decodingLatency`, descriptor.decodingLatency);
 
         if (descriptor.isBackgroundBuffer) {
-            console.log(`received background buffer`);
             if (!this._paused) {
                 const sourceDescriptor = new SourceDescriptor(this, transferList, descriptor);
                 sourceDescriptor.setBackground();
