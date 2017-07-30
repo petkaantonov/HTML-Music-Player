@@ -169,7 +169,6 @@ export default class VisualizerCanvas extends EventEmitter {
         this.globalEvents = deps.globalEvents;
         this.env = deps.env;
         this.player = deps.player;
-        this.player.setVisualizerCanvas(this);
         this.webglSupported = WebGl2dImageRenderer.isSupported(this.page.document());
         this.canvasSupported = true;
 

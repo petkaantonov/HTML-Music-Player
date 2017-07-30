@@ -12,6 +12,7 @@ import {isTouchEvent} from "platform/dom/Page";
 import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
+import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 
 export const PLAYBACK_STATE_CHANGE_EVENT = `playbackStateChange`;
 export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
@@ -24,7 +25,8 @@ export const TRACK_PLAYING_EVENT = `trackPlaying`;
 export const NEW_TRACK_LOAD_EVENT = `newTrackLoad`;
 export const PROGRESS_EVENT = `progress`;
 
-let loadId = 0;
+const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
+
 const VOLUME_KEY = `volume`;
 const MUTED_KEY = `muted`;
 const CURRENT_TRACK_PROGRESS_KEY = `currentTrackProgress`;
@@ -49,6 +51,7 @@ export default class PlayerController extends EventEmitter {
         this.playlist = deps.playlist;
         this.metadataManager = deps.metadataManager;
 
+        this._tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
         this._domNode = this.page.$(opts.target);
 
         this._playButtonDomNode = this.$().find(opts.playButtonDom);
@@ -58,14 +61,11 @@ export default class PlayerController extends EventEmitter {
         this._progressLastPersisted = performance.now();
         this._lastPersistedProgressValue = -1;
 
-        this.visualizerCanvas = null;
         this.volume = 0.15;
         this.isStopped = true;
         this.isPaused = false;
         this.isPlaying = false;
         this.isMutedValue = false;
-        this.queuedNextTrackImplicitly = false;
-        this.pictureManager = null;
         this.mediaFocusAudioElement = null;
         this.audioPlayer = withDeps({
             page: this.page,
@@ -134,14 +134,6 @@ export default class PlayerController extends EventEmitter {
     }
     /* eslint-enable class-methods-use-this */
 
-    setVisualizerCanvas(value) {
-        this.visualizerCanvas = value;
-    }
-
-    setPictureManager(pictureManager) {
-        this.pictureManager = pictureManager;
-    }
-
     $allButtons() {
         return this.$play().add(this.$previous(), this.$next());
     }
@@ -170,53 +162,19 @@ export default class PlayerController extends EventEmitter {
         this.checkButtonState();
     }
 
-    getPictureManager() {
-        return this.pictureManager;
-    }
-
     nextTrackChanged() {
         this.checkButtonState();
     }
 
-    nextTrackStartedPlaying() {
-        return new Promise(resolve => this.once(TRACK_PLAYING_EVENT, resolve));
-    }
-
-    async nextTrackImplicitly() {
-        if (this.isPaused) {
-            if (this.queuedNextTrackImplicitly) return;
-            this.queuedNextTrackImplicitly = true;
-            const playId = this.playlist.getCurrentPlayId();
-            // Queue the next track load when the player resumes.
-            await this.nextTrackStartedPlaying();
-            this.queuedNextTrackImplicitly = false;
-            // If it was exactly the same track playthrough that was resumed.
-            if (!this.isPaused && this.playlist.getCurrentPlayId() === playId) {
-                this.nextTrackImplicitly();
-            }
-            return;
-        }
-
+    nextTrackImplicitly() {
         this.playlist.next(false);
     }
 
-    audioManagerErrored() {
+    audioManagerErrored(e) {
+        if (this._audioManager.track) {
+            this._audioManager.track.setError(e.message);
+        }
         this.nextTrackImplicitly();
-    }
-
-    getProgress() {
-        const duration = this._audioManager.getDuration();
-        if (!duration) return -1;
-        const currentTime = this._audioManager.getCurrentTime();
-        return Math.round((currentTime / duration) * 100) / 100;
-    }
-
-    setProgress(p) {
-        if (!this._audioManager.isSeekable()) return;
-        p = Math.min(Math.max(p, 0), 1);
-        const duration = this._audioManager.getDuration();
-        if (!duration) return;
-        this.seek(p * duration);
     }
 
     trackFinished() {
@@ -243,6 +201,13 @@ export default class PlayerController extends EventEmitter {
     }
 
     audioManagerProgressed(currentTime, totalTime) {
+        if (!this._tickCounter.hasTriggered() &&
+            this._audioManager.track && currentTime >= 5 && totalTime >= 10) {
+            if (this._tickCounter.tick()) {
+                this._audioManager.track.triggerPlaythrough();
+            }
+        }
+
         this.emit(PROGRESS_EVENT, currentTime, totalTime);
 
         const now = performance.now();
@@ -254,18 +219,13 @@ export default class PlayerController extends EventEmitter {
         }
     }
 
-    getSampleRate() {
-        const track = this.playlist.getCurrentTrack();
-        if (!track) return 44100;
-        return track.getSampleRate();
-    }
-
     pause() {
         if (this.isPaused) return;
         this.isPaused = true;
         this.isStopped = false;
         this.isPlaying = false;
         this._audioManager.pause();
+        this._tickCounter.pause();
         this.pausedPlay();
     }
 
@@ -298,21 +258,18 @@ export default class PlayerController extends EventEmitter {
         this.isPaused = false;
         this.isPlaying = false;
         this._audioManager.pause();
+        this._tickCounter.pause();
         this.playlist.stop();
         this.emit(PROGRESS_EVENT, 0, 0);
         this.stoppedPlay();
         this._persistTrack();
     }
 
-    async loadTrack(track, {isUserInitiatedSkip, initialProgress, resumeIfPaused}) {
-        if (this.ready) {
-            const id = ++loadId;
-            await this.ready;
-            if (id !== loadId) {
-                return;
-            }
+    loadTrack(track, {isUserInitiatedSkip, initialProgress, resumeIfPaused}) {
+        if (isUserInitiatedSkip && !this._tickCounter.hasTriggered() && this._audioManager.track) {
+            this._audioManager.track.recordSkip();
         }
-        ++loadId;
+        this._tickCounter.reset();
         this._audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
         this.emit(TRACK_PLAYING_EVENT);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
@@ -321,6 +278,7 @@ export default class PlayerController extends EventEmitter {
             this.play();
         }
         this._persistTrack();
+
     }
 
     nextButtonClicked(e) {
@@ -417,6 +375,21 @@ export default class PlayerController extends EventEmitter {
         this.emit(PLAYBACK_PAUSE_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
         this._callMediaFocusAction(`pause`);
+    }
+
+    getProgress() {
+        const duration = this._audioManager.getDuration();
+        if (!duration) return -1;
+        const currentTime = this._audioManager.getCurrentTime();
+        return Math.round((currentTime / duration) * 100) / 100;
+    }
+
+    setProgress(p) {
+        if (!this._audioManager.isSeekable()) return;
+        p = Math.min(Math.max(p, 0), 1);
+        const duration = this._audioManager.getDuration();
+        if (!duration) return;
+        this.seek(p * duration);
     }
 
     seek(seconds) {

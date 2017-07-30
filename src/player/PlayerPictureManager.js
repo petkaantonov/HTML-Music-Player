@@ -21,7 +21,6 @@ export default class PlayerPictureManager extends EventEmitter {
         opts = noUndefinedGet(opts);
         this._page = deps.page;
         this._player = deps.player;
-        this._player.setPictureManager(this);
         this._playlist = deps.playlist;
         this._metadataManager = deps.metadataManager;
         this._applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;

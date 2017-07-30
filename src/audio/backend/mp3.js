@@ -19,7 +19,7 @@ const {max, min} = Math;
 
 export default class Mp3Context extends DecoderContext {
     constructor(wasm, opts) {
-        super(opts);
+        super(wasm);
         this._invalidMp3FrameCount = 0;
         this._audioFramesToSkip = 0;
         this._audioFramesSkipped = 0;
@@ -28,8 +28,6 @@ export default class Mp3Context extends DecoderContext {
         this._currentUnflushedAudioFrameCount = 0;
 
         this._totalMp3Frames = (-1 >>> 1) | 0;
-
-        this._wasm = wasm;
         this._ptr = this.mp3_create_ctx();
         if (this._ptr === 0) {
             throw new Error(`allocation failed`);
@@ -43,36 +41,31 @@ export default class Mp3Context extends DecoderContext {
         this.reinitialized(opts);
     }
 
-    reinitialized(opts) {
-        const prev = this.targetBufferLengthAudioFrames;
-        super.reinitialized(opts);
-        let {targetBufferLengthAudioFrames} = this;
-        targetBufferLengthAudioFrames = max(min(targetBufferLengthAudioFrames, MAX_BUFFER_LENGTH_AUDIO_FRAMES), MIN_BUFFER_LENGTH_AUDIO_FRAMES);
+    reinitialized({targetBufferLengthAudioFrames}) {
         this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
-
-        if (!this._samplesPtr || prev !== this.targetBufferLengthAudioFrames) {
-            if (this._samplesPtr) {
-                this._wasm.free(this._samplesPtr);
-                this._samplesPtr = 0;
-            }
-
-            if (this._srcBufferPtr) {
-                this._wasm.free(this._srcBufferPtr);
-                this._srcBufferPtr = 0;
-            }
-
-            const maxAudioSamplesPerMp3Frame = MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS;
-            const maxAudioSamplesUntilFlush = (Math.ceil(MAX_BUFFER_LENGTH_SECONDS * MAX_SAMPLE_RATE * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
-                                                                                            maxAudioSamplesPerMp3Frame) +
-                                                                    (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
-            const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
-
-            this._srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
-            this._srcBufferPtr = this._wasm.malloc(this._srcBufferMaxLength);
-            this._samplesPtrMaxLength = byteLengthSamples;
-            this._samplesPtr = this._wasm.malloc(byteLengthSamples);
-        }
         return this;
+    }
+
+    targetBufferLengthChanged() {
+        const realloc = this._samplesPtr !== 0;
+
+        const maxBufferLengthSeconds = this.targetBufferLengthAudioFrames / MAX_SAMPLE_RATE;
+        const maxAudioSamplesPerMp3Frame = MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS;
+        const maxAudioSamplesUntilFlush = (Math.ceil(maxBufferLengthSeconds * MAX_SAMPLE_RATE * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
+                                                                                        maxAudioSamplesPerMp3Frame) +
+                                                                (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
+        const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
+        const srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
+
+        if (!realloc) {
+            this._srcBufferPtr = this._wasm.malloc(srcBufferMaxLength);
+            this._samplesPtr = this._wasm.malloc(byteLengthSamples);
+        } else if (this._srcBufferMaxLength !== srcBufferMaxLength || this._samplesPtrMaxLength !== byteLengthSamples) {
+            this._srcBufferPtr = this._wasm.realloc(this._srcBufferPtr, srcBufferMaxLength);
+            this._samplesPtr = this._wasm.realloc(this._samplesPtr, byteLengthSamples);
+        }
+        this._srcBufferMaxLength = srcBufferMaxLength;
+        this._samplesPtrMaxLength = byteLengthSamples;
     }
 
 

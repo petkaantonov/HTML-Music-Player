@@ -1,17 +1,12 @@
 let autoIncrementId = 0;
 export default class DecoderContext {
-    constructor({targetBufferLengthAudioFrames}) {
+    constructor(wasm) {
+        this._wasm = wasm;
         this._id = autoIncrementId++;
         this._started = false;
         this._channelCount = -1;
         this._sampleRate = -1;
         this._targetBufferLengthAudioFrames = 0;
-        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
-    }
-
-    reinitialized({targetBufferLengthAudioFrames}) {
-        this.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
-        return this;
     }
 
     get channelCount() {
@@ -38,6 +33,7 @@ export default class DecoderContext {
 
     set targetBufferLengthAudioFrames(val) {
         this._targetBufferLengthAudioFrames = Math.ceil(val) >>> 0;
+        this.targetBufferLengthChanged();
     }
 
     hasEstablishedMetadata() {

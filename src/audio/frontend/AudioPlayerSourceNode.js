@@ -663,6 +663,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this.emit(DECODING_LATENCY_EVENT, descriptor.decodingLatency);
 
         if (descriptor.isBackgroundBuffer) {
+            console.log(`queud b`);
             if (!this._paused) {
                 const sourceDescriptor = new SourceDescriptor(this, transferList, descriptor);
                 sourceDescriptor.setBackground();
@@ -892,31 +893,11 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._audioPlayerFrontend._message(`seek`, {bufferFillCount, time});
     }
 
-    unload() {
-        this._preloadedNextTrackArgs = null;
-        this._nullifyPendingRequests();
-        this._currentTime = this._duration = this._baseTime = 0;
-        this._seeking = false;
-        this._lastBufferLoadedEmitted = false;
-        this._endedEmitted = false;
-        this._stopSources();
-
-        const sourceDescriptors = this._sourceDescriptorQueue.concat(this._playedSourceDescriptors,
-                                                                     this._backgroundSourceDescriptors);
-        for (const sourceDescriptor of sourceDescriptors) {
-            sourceDescriptor.destroy();
-        }
-        this._sourceDescriptorQueue.length =
-        this._playedSourceDescriptors.length =
-        this._backgroundSourceDescriptors.length = 0;
-    }
-
     isSeekable() {
         return !this._lastBufferLoadedEmitted && !this._loadingNext;
     }
 
     _error({message}) {
-        this.unload();
         this.emit(ERROR_EVENT, {message});
     }
 

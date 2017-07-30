@@ -51,7 +51,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
             seek: this._seek.bind(this),
             load: this._load.bind(this),
-            fillBuffers: this._fillBuffers.bind(this),
+            fillBuffers: this._fillBuffersMessage.bind(this),
             cancelAllOperations: this._cancelAllOperations.bind(this)
         };
     }
@@ -70,27 +70,30 @@ export default class AudioPlayerBackend extends AbstractBackend {
         }, channelData);
     }
 
-    async _fillBuffers({bufferFillCount}) {
-        if (this._activeAudioSource) {
-            let buffersSent = 0;
-            const callback = (bufferDescriptor, channelData) => {
-                buffersSent++;
-                this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
-            };
-            try {
-                do {
-                    bufferFillCount = await this._activeAudioSource.fillBuffers(bufferFillCount, callback);
-                } while (bufferFillCount > 0);
-
-                if (buffersSent > 0) {
-                    this._sendMessage(`_idle`);
-                } else {
-                    this._sendMessage(`_ended`);
-                }
-            } catch (e) {
-                this._checkError(e);
-            }
+    _fillBuffersMessage({bufferFillCount}) {
+        if (this._activeAudioSource && !this._activeAudioSource.isBufferFillingInProgress()) {
+            this._fillBuffers(bufferFillCount);
         }
+    }
+
+    async _fillBuffers(bufferFillCount) {
+        const audioSource = this._activeAudioSource;
+        let buffersSent = 0;
+        try {
+            await audioSource.fillBuffers(bufferFillCount, (bufferDescriptor, channelData) => {
+                if (audioSource === this._activeAudioSource || bufferDescriptor.isBackgroundBuffer) {
+                    buffersSent++;
+                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
+                }
+            });
+
+            if (audioSource === this._activeAudioSource && buffersSent > 0) {
+                this._sendMessage(`_idle`);
+            }
+        } catch (e) {
+            this._checkError(e);
+        }
+
     }
 
     async _seek({bufferFillCount, time}) {
@@ -99,20 +102,16 @@ export default class AudioPlayerBackend extends AbstractBackend {
             this._activeAudioSource.bufferOperationCancellationAcknowledged();
         this._activeAudioSource.cancelAllOperations();
 
-        let firstBufferSent = false;
         try {
             const {cancellationToken, baseTime} = await this._activeAudioSource.seek({time});
             cancellationToken.check();
             await bufferOperationCancellationAcknowledged;
             cancellationToken.check();
-            this._activeAudioSource.fillBuffers(bufferFillCount, (bufferDescriptor, channelData) => {
-                if (!firstBufferSent) {
-                    firstBufferSent = true;
-                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER, {baseTime});
-                } else {
-                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
-                }
-            }, cancellationToken);
+            await this._activeAudioSource.fillBuffers(1, (bufferDescriptor, channelData) => {
+                this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER, {baseTime});
+            }, {cancellationToken, totalBuffersToFillHint: bufferFillCount + 1});
+            cancellationToken.check();
+            this._fillBuffers(bufferFillCount);
         } catch (e) {
             this._checkError(e);
         }
@@ -124,41 +123,38 @@ export default class AudioPlayerBackend extends AbstractBackend {
             this._passiveAudioSource.destroy();
             this._passiveAudioSource = null;
         }
-        let firstBufferSent = false;
         let audioSource;
         try {
             audioSource = new AudioSource(this);
             this._passiveAudioSource = audioSource;
 
-            const {demuxData, baseTime} = await audioSource.load({fileReference, isPreloadForNextTrack, progress});
-            if (audioSource.isDestroyed()) {
-                return;
-            }
-            await audioSource.fillBuffers(bufferFillCount, (bufferDescriptor, channelData) => {
-                if (!firstBufferSent) {
-                    firstBufferSent = true;
-                    if (this._activeAudioSource) {
+            const {demuxData, baseTime, cancellationToken} = await audioSource.load({fileReference, isPreloadForNextTrack, progress});
+            cancellationToken.check();
+            await audioSource.fillBuffers(1, (bufferDescriptor, channelData) => {
+                if (this._activeAudioSource) {
+                    if (isPreloadForNextTrack) {
+                        console.log(`destroyAfterBuffersFilled`, this._activeAudioSource.isBufferFillingInProgress());
+                        this._activeAudioSource.destroyAfterBuffersFilled();
+                    } else {
                         this._activeAudioSource.destroy();
                     }
-                    this._activeAudioSource = audioSource;
-                    this._passiveAudioSource = null;
-
-                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER, {
-                        demuxData, isPreloadForNextTrack, baseTime
-                    });
-                } else {
-                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
                 }
-            });
+                this._activeAudioSource = audioSource;
+                this._passiveAudioSource = null;
+
+                this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER, {
+                    demuxData, isPreloadForNextTrack, baseTime
+                });
+            }, {cancellationToken, totalBuffersToFillHint: bufferFillCount + 1});
+            cancellationToken.check();
+            await this._fillBuffers(bufferFillCount);
         } catch (e) {
             this._checkError(e);
-            if (!firstBufferSent) {
+            if (audioSource !== this._activeAudioSource) {
                 audioSource.destroy();
             }
-            if (this._passiveAudioSource === audioSource) {
-                this._passiveAudioSource = null;
-            }
         }
+
 
     }
 

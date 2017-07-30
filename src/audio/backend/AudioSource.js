@@ -29,6 +29,7 @@ export default class AudioSource extends CancellableOperations(null,
         this.fileView = null;
         this.fileReference = null;
         this.trackInfo = null;
+        this._destroyAfterBuffersFilledFlag = false;
     }
 
     get duration() {
@@ -60,8 +61,12 @@ export default class AudioSource extends CancellableOperations(null,
         return this._crossfader.getDuration();
     }
 
-    isDestroyed() {
-        return this._destroyed;
+    destroyAfterBuffersFilled() {
+        if (this.isBufferFillingInProgress()) {
+            this._destroyAfterBuffersFilledFlag = true;
+        } else {
+            this.destroy();
+        }
     }
 
     async destroy() {
@@ -82,12 +87,18 @@ export default class AudioSource extends CancellableOperations(null,
         }
     }
 
-    async fillBuffers(totalBuffersToFill, callback, cancellationToken = null) {
+    async fillBuffers(totalBuffersToFill, callback, {
+        cancellationToken = null,
+        totalBuffersToFillHint = totalBuffersToFill
+    } = {
+        cancellationToken: null,
+        totalBuffersToFillHint: totalBuffersToFill
+    }) {
         if (this.ended) {
-            return 0;
+            return;
         }
 
-        if (this._bufferFillCancellationToken) {
+        if (this.isBufferFillingInProgress()) {
             throw new Error(`invalid parallel buffer fill loop`);
         }
 
@@ -102,19 +113,18 @@ export default class AudioSource extends CancellableOperations(null,
         this._audioPipeline.setBufferTime(this.backend.bufferTime);
         const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
         this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
-        let lastBufferSent = false;
         try {
             while (i < totalBuffersToFill) {
                 const now = performance.now();
-                const buffersRemainingToDecode = totalBuffersToFill - i;
+                const buffersRemainingToDecodeHint = totalBuffersToFillHint - i;
                 const destinationBuffers = this._getDestinationBuffers();
                 const bufferDescriptor = await this._decodeNextBuffer(destinationBuffers,
                                                                       this._bufferFillCancellationToken,
-                                                                      buffersRemainingToDecode);
+                                                                      buffersRemainingToDecodeHint);
 
                 if (!bufferDescriptor) {
                     this.ended = true;
-                    return 0;
+                    break;
                 }
 
                 let {loudnessInfo} = bufferDescriptor;
@@ -137,13 +147,10 @@ export default class AudioSource extends CancellableOperations(null,
                         isBackgroundBuffer = true;
                     } else if (endTime >= fadeOutStartTime) {
                         isLastBuffer = true;
+                        i += Math.ceil(crossfadeDuration / this._audioPipeline.bufferTime);
                     }
                 } else {
                     isLastBuffer = this.ended;
-                }
-
-                if (isLastBuffer && !lastBufferSent) {
-                    lastBufferSent = true;
                 }
 
                 const decodingLatency = performance.now() - now;
@@ -162,7 +169,7 @@ export default class AudioSource extends CancellableOperations(null,
                 callback(descriptor, destinationBuffers);
                 i++;
                 if (this.ended) {
-                    return 0;
+                    break;
                 }
             }
         } catch (e) {
@@ -175,12 +182,10 @@ export default class AudioSource extends CancellableOperations(null,
                 this._bufferFillCancellationToken.signal();
             }
             this._bufferFillCancellationToken = null;
+            if (this._destroyAfterBuffersFilledFlag) {
+                this.destroy();
+            }
         }
-
-        if (lastBufferSent && crossfadeDuration > 0) {
-            return Math.ceil(crossfadeDuration / this._audioPipeline.bufferTime);
-        }
-        return 0;
     }
 
     cancelAllOperations() {
@@ -269,13 +274,13 @@ export default class AudioSource extends CancellableOperations(null,
             const time = progress * demuxData.duration;
             const {baseTime} = await this._seek(time, cancellationToken);
             cancellationToken.check();
-            return {baseTime, demuxData};
+            return {baseTime, demuxData, cancellationToken};
         }
 
-        return {baseTime: 0, demuxData};
+        return {baseTime: 0, demuxData, cancellationToken};
     }
 
-    async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecode) {
+    async _decodeNextBuffer(destinationBuffers, cancellationToken, buffersRemainingToDecodeHint) {
         let bytesRead;
         try {
             bytesRead = await this._audioPipeline.decodeFromFileViewAtOffset(this.fileView,
@@ -283,7 +288,7 @@ export default class AudioSource extends CancellableOperations(null,
                                                                                this.demuxData,
                                                                                cancellationToken,
                                                                                {channelData: destinationBuffers},
-                                                                                buffersRemainingToDecode);
+                                                                                buffersRemainingToDecodeHint);
         } catch (e) {
             if (cancellationToken.isCancelled()) {
                 this._audioPipeline.dropFilledBuffer();
@@ -299,6 +304,10 @@ export default class AudioSource extends CancellableOperations(null,
             return null;
         }
         return this._audioPipeline.consumeFilledBuffer();
+    }
+
+    isBufferFillingInProgress() {
+        return !!this._bufferFillCancellationToken;
     }
 
     _getDestinationBuffers() {

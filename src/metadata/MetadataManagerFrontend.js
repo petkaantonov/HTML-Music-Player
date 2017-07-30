@@ -168,10 +168,6 @@ class Track extends EventEmitter {
         return this._fileReference;
     }
 
-    getSampleRate() {
-        return this._sampleRate;
-    }
-
     formatFullName() {
         if (this._formattedFullName) {
             return this._formattedFullName;

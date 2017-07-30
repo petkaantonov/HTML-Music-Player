@@ -1,5 +1,5 @@
 import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
-import PlaythroughTickCounter from "player/PlaythroughTickCounter";
+
 import {LAST_BUFFER_LOADED_EVENT,
        TIME_UPDATE_EVENT,
        DECODING_LATENCY_EVENT,
@@ -7,7 +7,6 @@ import {LAST_BUFFER_LOADED_EVENT,
        ERROR_EVENT} from "audio/frontend/AudioPlayerSourceNode";
 
 const VOLUME_RATIO = 2;
-const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 
 export default class AudioManager {
     constructor(player, visualizer) {
@@ -15,7 +14,6 @@ export default class AudioManager {
         this.player = player;
 
         this.nextTrack = null;
-        this.tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
         this.track = null;
         this.sourceNode = null;
         this.paused = false;
@@ -85,14 +83,9 @@ export default class AudioManager {
     }
 
     loadTrack(track, isUserInitiatedSkip, initialProgress = 0) {
-        if (isUserInitiatedSkip && !this.hasPlaythroughBeenTriggered() && this.track) {
-            this.track.recordSkip();
-        }
-
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         const {nextTrack} = this;
         this.nextTrack = null;
-        this.tickCounter.reset();
         this.track = track;
 
         if (this.sourceNode.hasPreloadedNextTrack() && track === nextTrack) {
@@ -164,10 +157,7 @@ export default class AudioManager {
     }
 
     errored(e) {
-        if (this.track) {
-            this.track.setError(e.message);
-        }
-        this.player.audioManagerErrored();
+        this.player.audioManagerErrored(e);
     }
 
     ended(nextTrackIsPreloading) {
@@ -178,23 +168,13 @@ export default class AudioManager {
         }
     }
 
-    hasPlaythroughBeenTriggered() {
-        return this.tickCounter.hasTriggered();
-    }
-
     timeUpdated(currentTime, duration) {
-        if (!this.tickCounter.hasTriggered() && this.track && currentTime >= 5 && duration >= 10) {
-            if (this.tickCounter.tick()) {
-                this.track.triggerPlaythrough();
-            }
-        }
         this.player.audioManagerProgressed(currentTime, duration);
     }
 
     pause() {
         if (this.paused) return;
         this.paused = true;
-        this.tickCounter.pause();
         this.sourceNode.pause();
     }
 
