@@ -318,11 +318,11 @@ export default class PlaylistController extends TrackContainerController {
     }
     /* eslint-enable class-methods-use-this */
 
-    async playSerializedPlaylistTrack(serializedPlaylistTrack) {
+    async playSerializedPlaylistTrack(serializedPlaylistTrack, progress) {
         const playlistTrack = await this._deserializePlaylistTrack(serializedPlaylistTrack);
 
         if (playlistTrack) {
-            this._changeTrack(playlistTrack, true, KIND_EXPLICIT);
+            this._changeTrack(playlistTrack, true, KIND_EXPLICIT, {progress});
             return true;
         }
         return false;
@@ -676,8 +676,8 @@ export default class PlaylistController extends TrackContainerController {
         return nextPlaylistTrack.track() === playlistTrack.track();
     }
 
-    _changeTrackImplicitly(playlistTrack, doNotRecordHistory, isUserInitiatedSkip) {
-        return this._changeTrack(playlistTrack, !!doNotRecordHistory, KIND_IMPLICIT, !!isUserInitiatedSkip);
+    _changeTrackImplicitly(playlistTrack, doNotRecordHistory, isUserInitiatedSkip = false) {
+        return this._changeTrack(playlistTrack, !!doNotRecordHistory, KIND_IMPLICIT, {isUserInitiatedSkip});
     }
 
     _setNextPlaylistTrack(playlistTrack) {
@@ -706,7 +706,10 @@ export default class PlaylistController extends TrackContainerController {
         this.emit(NEXT_TRACK_CHANGE_EVENT);
     }
 
-    _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, isUserInitiatedSkip) {
+    _changeTrack(playlistTrack, doNotRecordHistory, trackChangeKind, {
+        isUserInitiatedSkip = false,
+        progress = 0
+    } = {isUserInitiatedSkip: false, progress: 0}) {
         if (!playlistTrack || playlistTrack.isDummy() || this._errorCount >= MAX_ERRORS) {
             this._errorCount = 0;
             this._setCurrentTrack(DUMMY_PLAYLIST_TRACK);
@@ -737,9 +740,10 @@ export default class PlaylistController extends TrackContainerController {
             }
         }
 
+        progress = Math.max(0, Math.min(1, +progress || 0));
         this._currentPlayId = nextPlayId++;
         this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, playlistTrack);
-        this.emit(CURRENT_TRACK_CHANGE_EVENT, playlistTrack.track(), !!isUserInitiatedSkip);
+        this.emit(CURRENT_TRACK_CHANGE_EVENT, playlistTrack.track(), !!isUserInitiatedSkip, progress);
         playlistTrack.startedPlay();
         return true;
     }

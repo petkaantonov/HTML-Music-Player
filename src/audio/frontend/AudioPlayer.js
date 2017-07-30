@@ -67,8 +67,6 @@ function lruCmp(a, b) {
     return b.lastUsed - a.lastUsed;
 }
 
-
-let autoIncrementNodeId = 0;
 export default class AudioPlayer extends WorkerFrontend {
     constructor(deps) {
         super(PLAYER_READY_EVENT_NAME, deps.workerWrapper);
@@ -89,7 +87,7 @@ export default class AudioPlayer extends WorkerFrontend {
         this._outputChannelCount = -1;
 
         this._scheduleAheadTime = -1;
-        this._sourceNodes = [];
+        this._sourceNode = new AudioPlayerSourceNode(this);
         this._bufferFrameCount = 0;
         this._playedAudioBuffersNeededForVisualization = 0;
 
@@ -181,7 +179,7 @@ export default class AudioPlayer extends WorkerFrontend {
         return this.applicationPreferencesBindingContext.getPreference(`enableSilenceTrimming`);
     }
 
-    async _setBufferSize(bufferLengthMilliSecondsPreference, sourceNodeNeedsReset = false) {
+    async _setBufferSize(bufferLengthMilliSecondsPreference) {
         if (this._targetBufferLengthSeconds / 1000 === bufferLengthMilliSecondsPreference) {
             return;
         }
@@ -200,35 +198,22 @@ export default class AudioPlayer extends WorkerFrontend {
             this._silentBuffer = this._audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
         }
         await this._updateBackendConfig({bufferTime: this._audioBufferTime});
-        if (sourceNodeNeedsReset) {
-            for (const sourceNode of this._sourceNodes.slice()) {
-                sourceNode._resetAudioBuffers();
-            }
-        }
     }
 
     /* eslint-enable class-methods-use-this */
 
     receiveMessage(event) {
-        const {nodeId} = event.data;
-        if (nodeId >= 0) {
-            for (let i = 0; i < this._sourceNodes.length; ++i) {
-                if (this._sourceNodes[i]._id === nodeId) {
-                    this._sourceNodes[i].receiveMessage(event);
-                    break;
-                }
-            }
+        const {methodName, args, transferList} = event.data;
+        if (!this[methodName]) {
+            this._sourceNode[methodName](args, transferList);
         } else {
-            const {methodName, args, transferList} = event.data;
-            if ((nodeId < 0 || nodeId === undefined) && methodName) {
-                this[methodName](args, transferList);
-            }
+            this[methodName](args, transferList);
         }
     }
 
     async _updateBackendConfig(config) {
         await this.ready();
-        this._message(-1, `audioConfiguration`, config);
+        this._message(`audioConfiguration`, config);
     }
 
     async _initBackend() {
@@ -247,15 +232,10 @@ export default class AudioPlayer extends WorkerFrontend {
         const {channelCount} = _audioContext.destination;
         const {sampleRate} = _audioContext;
 
-
         if (this._setAudioOutputParameters({channelCount, sampleRate})) {
-            this._setBufferSize(this.applicationPreferencesBindingContext.preferences().getBufferLengthMilliSeconds(),
-                                true);
-        } else {
-            for (const sourceNode of this._sourceNodes.slice()) {
-                sourceNode.adoptNewAudioContext(_audioContext, oldAudioContextTime);
-            }
+            this._setBufferSize(this.applicationPreferencesBindingContext.preferences().getBufferLengthMilliSeconds());
         }
+        this._sourceNode.adoptNewAudioContext(_audioContext, oldAudioContextTime);
     }
 
     _setAudioOutputParameters({sampleRate, channelCount}) {
@@ -398,24 +378,8 @@ export default class AudioPlayer extends WorkerFrontend {
         this._suspensionTimeoutId = -1;
     }
 
-    _message(nodeId, methodName, args, transferList) {
-        if (transferList === undefined) transferList = [];
-        args = Object(args);
-        transferList = transferList.map((v) => {
-            if (v.buffer) return v.buffer;
-            return v;
-        });
-        this.postMessage({
-            nodeId,
-            methodName,
-            args,
-            transferList
-        }, transferList);
-    }
-
-    _sourceNodeDestroyed(node) {
-        const i = this._sourceNodes.indexOf(node);
-        if (i >= 0) this._sourceNodes.splice(i, 1);
+    _message(action, args) {
+        this.postMessage({action, args});
     }
 
     getCurrentTime() {
@@ -466,17 +430,11 @@ export default class AudioPlayer extends WorkerFrontend {
     }
 
     createSourceNode() {
-        const ret = new AudioPlayerSourceNode(this, autoIncrementNodeId++, this._audioContext);
-        this._sourceNodes.push(ret);
-        return ret;
+        return this._sourceNode;
     }
 
     ping() {
         this.timers.tick();
-        this.postMessage({
-            nodeId: -1,
-            args: {},
-            methodName: `ping`
-        });
+        this._message(`ping`, {});
     }
 }

@@ -6,9 +6,14 @@ export const PLAYER_READY_EVENT_NAME = `playerReady`;
 import {checkBoolean} from "errors/BooleanTypeError";
 import {checkNumberRange, checkNumberDivisible} from "errors/NumberTypeError";
 import {MIN_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
-import {CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
+import {CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
+import {CancellationError} from "utils/CancellationToken";
 
 const emptyArray = [];
+
+export const BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER = `BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER`;
+export const BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER = `BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER`;
+export const BUFFER_FILL_TYPE_REGULAR_BUFFER = `BUFFER_FILL_TYPE_REGULAR_BUFFER`;
 
 export default class AudioPlayerBackend extends AbstractBackend {
     constructor(wasm, timers, metadataManager) {
@@ -25,6 +30,167 @@ export default class AudioPlayerBackend extends AbstractBackend {
             crossfadeDuration: 0
         };
         this._metadataManager = metadataManager;
+
+        this._activeAudioSource = null;
+        this._passiveAudioSource = null;
+
+        this.actions = {
+            audioConfiguration(args) {
+                for (const key of Object.keys(args)) {
+                    if (this._config.hasOwnProperty(key) || key === `effects`) {
+                        this[key] = args[key];
+                    } else {
+                        throw new Error(`invalid configuration key: ${key}`);
+                    }
+                }
+            },
+
+            ping() {
+                this._timers.tick();
+            },
+
+            seek: this._seek.bind(this),
+            load: this._load.bind(this),
+            fillBuffers: this._fillBuffers.bind(this),
+            cancelAllOperations: this._cancelAllOperations.bind(this)
+        };
+    }
+
+    _cancelAllOperations() {
+        if (this._activeAudioSource) {
+            this._activeAudioSource.cancelAllOperations();
+        }
+    }
+
+    _sendBuffer(bufferDescriptor, channelData, bufferFillType, extraData = null) {
+        this._sendMessage(`_bufferFilled`, {
+            descriptor: bufferDescriptor,
+            bufferFillType,
+            extraData
+        }, channelData);
+    }
+
+    async _fillBuffers({bufferFillCount}) {
+        if (this._activeAudioSource) {
+            let buffersSent = 0;
+            const callback = (bufferDescriptor, channelData) => {
+                buffersSent++;
+                this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
+            };
+            try {
+                do {
+                    bufferFillCount = await this._activeAudioSource.fillBuffers(bufferFillCount, callback);
+                } while (bufferFillCount > 0);
+
+                if (buffersSent > 0) {
+                    this._sendMessage(`_idle`);
+                } else {
+                    this._sendMessage(`_ended`);
+                }
+            } catch (e) {
+                this._checkError(e);
+            }
+        }
+    }
+
+    async _seek({bufferFillCount, time}) {
+        if (!this._activeAudioSource) return;
+        const bufferOperationCancellationAcknowledged =
+            this._activeAudioSource.bufferOperationCancellationAcknowledged();
+        this._activeAudioSource.cancelAllOperations();
+
+        let firstBufferSent = false;
+        try {
+            const {cancellationToken, baseTime} = await this._activeAudioSource.seek({time});
+            cancellationToken.check();
+            await bufferOperationCancellationAcknowledged;
+            cancellationToken.check();
+            this._activeAudioSource.fillBuffers(bufferFillCount, (bufferDescriptor, channelData) => {
+                if (!firstBufferSent) {
+                    firstBufferSent = true;
+                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER, {baseTime});
+                } else {
+                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
+                }
+            }, cancellationToken);
+        } catch (e) {
+            this._checkError(e);
+        }
+
+    }
+
+    async _load({fileReference, isPreloadForNextTrack, bufferFillCount, progress = 0}) {
+        if (this._passiveAudioSource) {
+            this._passiveAudioSource.destroy();
+            this._passiveAudioSource = null;
+        }
+        let firstBufferSent = false;
+        let audioSource;
+        try {
+            audioSource = new AudioSource(this);
+            this._passiveAudioSource = audioSource;
+
+            const {demuxData, baseTime} = await audioSource.load({fileReference, isPreloadForNextTrack, progress});
+            if (audioSource.isDestroyed()) {
+                return;
+            }
+            await audioSource.fillBuffers(bufferFillCount, (bufferDescriptor, channelData) => {
+                if (!firstBufferSent) {
+                    firstBufferSent = true;
+                    if (this._activeAudioSource) {
+                        this._activeAudioSource.destroy();
+                    }
+                    this._activeAudioSource = audioSource;
+                    this._passiveAudioSource = null;
+
+                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER, {
+                        demuxData, isPreloadForNextTrack, baseTime
+                    });
+                } else {
+                    this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_REGULAR_BUFFER);
+                }
+            });
+        } catch (e) {
+            this._checkError(e);
+            if (!firstBufferSent) {
+                audioSource.destroy();
+            }
+            if (this._passiveAudioSource === audioSource) {
+                this._passiveAudioSource = null;
+            }
+        }
+
+    }
+
+    _checkError(e) {
+        if (!(e instanceof CancellationError)) {
+            this._sendError(e);
+        }
+    }
+
+    _sendError(error) {
+        this._sendMessage(`_error`, {message: error.message});
+        if (self.env.isDevelopment()) {
+            self.console.log(error);
+        }
+    }
+
+    _sendMessage(methodName, args, transferList) {
+        if (!transferList) transferList = emptyArray;
+        args = Object(args);
+
+        if (transferList.length > 0) {
+            transferList = transferList.map((v) => {
+                if (v.buffer) return v.buffer;
+                return v;
+            });
+        }
+
+        this.postMessage({
+            methodName,
+            args,
+            transferList
+        }, transferList);
     }
 
     get metadataManager() {
@@ -80,62 +246,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
     set effects(effects) {
         this._effects.setEffects(effects);
-    }
-
-    sendMessage(nodeId, methodName, args, transferList) {
-        if (!transferList) transferList = emptyArray;
-        args = Object(args);
-
-        if (transferList.length > 0) {
-            transferList = transferList.map((v) => {
-                if (v.buffer) return v.buffer;
-                return v;
-            });
-        }
-
-        this.postMessage({
-            nodeId,
-            methodName,
-            args,
-            transferList
-        }, transferList);
-    }
-
-    transferSourceId(from, to) {
-        if (to.id !== -1 || !this._audioSources.has(from.id)) {
-            throw new Error(`invalid source id transfer from ${from.id} to ${to.id}`);
-        }
-        to.id = from.id;
-        from.id = -1;
-        this._audioSources.set(to.id, to);
-    }
-
-    receiveMessage(event) {
-        const {nodeId, args, methodName} = event.data;
-
-        if (nodeId === -1) {
-            if (methodName === `audioConfiguration`) {
-                for (const key of Object.keys(args)) {
-                    if (this._config.hasOwnProperty(key) || key === `effects`) {
-                        this[key] = args[key];
-                    } else {
-                        throw new Error(`invalid configuration key: ${key}`);
-                    }
-                }
-            } else if (methodName === `register`) {
-                const audioSource = new AudioSource(this, args.id);
-                audioSource.once(`destroy`, () => {
-                    if (audioSource.id >= 0) {
-                        this._audioSources.delete(audioSource.id);
-                    }
-                });
-                this._audioSources.set(args.id, audioSource);
-            } else if (methodName === `ping`) {
-                this._timers.tick();
-            }
-        } else {
-            this._audioSources.get(nodeId).newMessage({methodName, args});
-        }
     }
 }
 

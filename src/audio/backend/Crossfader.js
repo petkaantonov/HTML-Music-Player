@@ -1,7 +1,7 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import {checkBoolean} from "errors/BooleanTypeError";
 import {checkNumberRange} from "errors/NumberTypeError";
-import {CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
+import {CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
 
 export default class Crossfader {
     constructor() {

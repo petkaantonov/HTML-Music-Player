@@ -95,9 +95,11 @@ export default class PlayerController extends EventEmitter {
         this.playlist.on(HISTORY_CHANGE_EVENT, this.historyChanged.bind(this));
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistTrack.bind(this));
 
+        this._audioManager = null;
         this.ready = (async () => {
             await this.audioPlayer.ready();
             this.ready = null;
+            this._audioManager = new AudioManager(this, this.visualizer);
         })();
 
         if (this.env.mediaSessionSupport()) {
@@ -108,14 +110,9 @@ export default class PlayerController extends EventEmitter {
             })[0];
         }
 
-        this._audioManager = new AudioManager(this, this.visualizer);
         this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
-        this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
-        this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this._preferencesLoaded = this._loadPreferences();
-
-
     }
 
     preferencesLoaded() {
@@ -309,7 +306,7 @@ export default class PlayerController extends EventEmitter {
         this._persistTrack();
     }
 
-    async loadTrack(track, isUserInitiatedSkip) {
+    async loadTrack(track, isUserInitiatedSkip, initialProgress) {
         if (this.ready) {
             const id = ++loadId;
             await this.ready;
@@ -319,20 +316,10 @@ export default class PlayerController extends EventEmitter {
         }
         ++loadId;
 
-        if (isUserInitiatedSkip && !this._audioManager.hasPlaythroughBeenTriggered()) {
-            if (this._audioManager.track) {
-                this._audioManager.track.recordSkip();
-            }
-        }
-
         this.isStopped = false;
         this.isPlaying = true;
         this.isPaused = false;
-
-        if (!this._audioManager.start(track)) {
-            this._audioManager.replaceTrack(track);
-        }
-
+        this._audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
         this.startedPlay();
         this.emit(TRACK_PLAYING_EVENT);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
@@ -494,6 +481,8 @@ export default class PlayerController extends EventEmitter {
 
     async _loadPreferences() {
         await Promise.all([this.ready, this.metadataManager.ready()]);
+        this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
+        this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
 
 
         if (VOLUME_KEY in this.dbValues) {
@@ -509,17 +498,16 @@ export default class PlayerController extends EventEmitter {
         if (CURRENT_PLAYLIST_TRACK_KEY in this.dbValues) {
             const serializedPlaylistTrack = this.dbValues[CURRENT_PLAYLIST_TRACK_KEY];
             if (serializedPlaylistTrack) {
-                const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack);
+                let progress = 0;
+                if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
+                    progress = this.dbValues[CURRENT_TRACK_PROGRESS_KEY];
+                }
+                const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack,
+                                                                                           progress);
                 if (startedToPlayTrack) {
                     const {_audioManager} = this;
                     await _audioManager.durationKnown();
                     this.pause();
-                    if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
-                        this.setProgress(this.dbValues[CURRENT_TRACK_PROGRESS_KEY]);
-                        this.emit(PROGRESS_EVENT,
-                                  _audioManager.getCurrentTime(),
-                                  _audioManager.getDuration());
-                    }
                 }
             }
         }

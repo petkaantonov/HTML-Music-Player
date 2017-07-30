@@ -118,7 +118,7 @@ export default class PlayerTimeManager {
     slideEnded(percentage) {
         this._seekingFromSlider = false;
         if (this.player.isStopped) return;
-        tihs.showSeekTime(percentage);
+        this.showSeekTime(percentage);
         const duration = this.player.getDuration();
         if (duration) {
             this.player.seek(duration * percentage);

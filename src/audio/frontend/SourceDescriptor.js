@@ -85,16 +85,6 @@ export default class SourceDescriptor {
         return this.duration - this.playedSoFar;
     }
 
-    getAdjustedStartTime() {
-        if (this.playedSoFar === 0) return this.started;
-        const playedSoFarSamples = this.playedSoFar * this.sampleRate | 0;
-
-        if (Math.abs(playedSoFarSamples - (((this.stopped - this.started) * this.sampleRate) | 0)) > 100) {
-            return this.started;
-        }
-        return this.started + this.playedSoFar;
-    }
-
     print() {
         self.uiLog(`.audioBuffer=${this.audioBuffer}
                     .playedSoFar=${this.playedSoFar}

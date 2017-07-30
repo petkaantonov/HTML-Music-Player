@@ -1,6 +1,10 @@
 import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
-import {FIRST_BUFFER_LOADED_EVENT} from "audio/frontend/AudioPlayerSourceNode";
+import {LAST_BUFFER_LOADED_EVENT,
+       TIME_UPDATE_EVENT,
+       DECODING_LATENCY_EVENT,
+       ENDED_EVENT,
+       ERROR_EVENT} from "audio/frontend/AudioPlayerSourceNode";
 
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
@@ -19,24 +23,15 @@ export default class AudioManager {
         this.muteGain = null;
         this.filterNodes = [];
 
-        this.timeUpdated = this.timeUpdated.bind(this);
-        this.ended = this.ended.bind(this);
-        this.errored = this.errored.bind(this);
-        this.lastBufferQueued = this.lastBufferQueued.bind(this);
         this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
-        this.onDecodingLatency = this.onDecodingLatency.bind(this);
         this.sourceNode = this.player.audioPlayer.createSourceNode();
-        this.sourceNode.on(`lastBufferQueued`, this.lastBufferQueued);
-        this.sourceNode.on(`decodingLatency`, this.onDecodingLatency);
-        this.sourceNode.on(`timeUpdate`, this.timeUpdated);
-        this.sourceNode.on(`ended`, this.ended);
-        this.sourceNode.on(`error`, this.errored);
+        this.sourceNode.on(LAST_BUFFER_LOADED_EVENT, this.lastBufferLoaded.bind(this));
+        this.sourceNode.on(DECODING_LATENCY_EVENT, this.onDecodingLatency.bind(this));
+        this.sourceNode.on(TIME_UPDATE_EVENT, this.timeUpdated.bind(this));
+        this.sourceNode.on(ENDED_EVENT, this.ended.bind(this));
+        this.sourceNode.on(ERROR_EVENT, this.errored.bind(this));
         this.visualizer.connectSourceNode(this.sourceNode);
-        this.setupNodes();
-    }
-
-    setupNodes() {
         const audioCtx = this.player.getAudioContext();
         this.volumeGain = audioCtx.createGain();
         this.muteGain = audioCtx.createGain();
@@ -70,7 +65,7 @@ export default class AudioManager {
         this.nextTrack = this.player.playlist.getNextTrack();
         if (this.nextTrack) {
             const fileReference = this.nextTrack.getFileReference();
-            this.sourceNode.replace(fileReference, 0, true);
+            this.sourceNode.preload(fileReference);
         }
     }
 
@@ -82,25 +77,18 @@ export default class AudioManager {
         return this.sourceNode.isSeekable();
     }
 
-    lastBufferQueued() {
+    lastBufferLoaded() {
         if (this.player.playlist.getNextTrack() && !this.nextTrack) {
             this.player.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
             this._updateNextTrack();
         }
     }
 
-    start(track) {
-        if (this.started) return false;
-        this.track = track;
-        this.tickCounter.reset();
-        this.started = true;
-        const fileReference = this.track.getFileReference();
-        this.sourceNode.load(fileReference, 0);
-        this.sourceNode.play();
-        return true;
-    }
+    loadTrack(track, isUserInitiatedSkip, initialProgress = 0) {
+        if (isUserInitiatedSkip && !this.hasPlaythroughBeenTriggered() && this.track) {
+            this.track.recordSkip();
+        }
 
-    replaceTrack(track) {
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         const {nextTrack} = this;
         this.nextTrack = null;
@@ -109,15 +97,9 @@ export default class AudioManager {
 
         if (this.sourceNode.hasPreloadedNextTrack() && track === nextTrack) {
             this.sourceNode.replaceWithPreloadedTrack();
-            this.resume();
-            return;
+        } else {
+            this.sourceNode.load(track.getFileReference(), initialProgress);
         }
-        this.sourceNode.removeAllListeners(FIRST_BUFFER_LOADED_EVENT);
-        this.sourceNode.once(FIRST_BUFFER_LOADED_EVENT, () => {
-            this.resume();
-        });
-        const fileReference = track.getFileReference();
-        this.sourceNode.replace(fileReference, 0, false);
     }
 
     effectsChanged() {
@@ -210,21 +192,21 @@ export default class AudioManager {
     }
 
     pause() {
-        if (!this.started || this.paused) return;
+        if (this.paused) return;
         this.paused = true;
         this.tickCounter.pause();
         this.sourceNode.pause();
     }
 
     resume() {
-        if (!this.started || !this.paused) return;
+        if (!this.paused) return;
         this.paused = false;
         this.sourceNode.play();
     }
 
     durationKnown() {
         return new Promise((resolve) => {
-            this.sourceNode.once(`timeUpdate`, resolve);
+            this.sourceNode.once(TIME_UPDATE_EVENT, resolve);
         });
     }
 
@@ -239,7 +221,6 @@ export default class AudioManager {
     }
 
     seek(time) {
-        if (!this.started) return;
         this.setCurrentTime(time);
     }
 

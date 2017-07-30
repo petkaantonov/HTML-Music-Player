@@ -65,7 +65,7 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     _getBins(frameDescriptor) {
-        if (this._awaitingBackendResponse) return;
+        if (this._awaitingBackendResponse) return Promise.resolve();
         this._awaitingBackendResponse = true;
         return new Promise((resolve) => {
             this._resolveGetBinsPromise = resolve;
