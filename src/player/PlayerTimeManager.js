@@ -21,7 +21,8 @@ export default class PlayerTimeManager {
 
         this._domNode = this.page.$(opts.target).eq(0);
         this.displayMode = DISPLAY_REMAINING;
-        this.seeking = false;
+        this._seekingFromSlider = false;
+        this._seekingFromKeyboard = false;
         this.totalTime = 0;
         this.currentTime = 0;
         this.seekSlider = deps.sliderContext.createSlider({
@@ -102,38 +103,44 @@ export default class PlayerTimeManager {
         return this._domNode;
     }
 
-    enableSeeking() {
-        this.seeking = true;
+    startKeyboardSeeking() {
+        this._seekingFromKeyboard = true;
     }
 
-    disableSeeking() {
-        this.seeking = false;
+    stopKeyboardSeeking() {
+        this._seekingFromKeyboard = false;
     }
 
     slideBegun() {
-        this.enableSeeking();
+        this._seekingFromSlider = true;
     }
 
     slideEnded(percentage) {
-        this.disableSeeking();
+        this._seekingFromSlider = false;
         if (this.player.isStopped) return;
+        tihs.showSeekTime(percentage);
         const duration = this.player.getDuration();
         if (duration) {
-            this.setTimes(duration * percentage, null);
             this.player.seek(duration * percentage);
         }
     }
 
     slided(percentage) {
         if (this.player.isStopped) return;
+        this.showSeekTime(percentage);
+    }
+
+    showSeekTime(progress) {
+        if (!this._isShowingProgressFromSeek()) return;
+        progress = Math.min(1, Math.max(0, progress));
         const duration = this.player.getDuration();
         if (duration) {
-            this.setTimes(duration * percentage, null);
+            this.setTimes(duration * progress, null);
         }
     }
 
     playerTimeProgressed(playedTime, totalTime) {
-        if (this.seeking) return;
+        if (this._isShowingProgressFromSeek()) return;
         this.setTimes(playedTime, totalTime);
     }
 
@@ -303,8 +310,12 @@ export default class PlayerTimeManager {
         }
     }
 
+    _isShowingProgressFromSeek() {
+        return this._seekingFromSlider || this._seekingFromKeyboard;
+    }
+
     newTrackLoaded() {
-        if (this.seeking) return;
+        if (this._isShowingProgressFromSeek()) return;
         this._displayedTimeRight = this._displayedTimeLeft = -1;
         const duration = Math.max(this.player.getProbableDuration() || 0, 0);
         this.checkVisibility(duration);

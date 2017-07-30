@@ -1,5 +1,6 @@
 import {NEXT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
+import {FIRST_BUFFER_LOADED_EVENT} from "audio/frontend/AudioPlayerSourceNode";
 
 const VOLUME_RATIO = 2;
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
@@ -11,7 +12,6 @@ export default class AudioManager {
 
         this.nextTrack = null;
         this.tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
-        this.intendingToSeek = -1;
         this.track = null;
         this.sourceNode = null;
         this.paused = false;
@@ -22,9 +22,6 @@ export default class AudioManager {
         this.timeUpdated = this.timeUpdated.bind(this);
         this.ended = this.ended.bind(this);
         this.errored = this.errored.bind(this);
-        this.willSeek = this.willSeek.bind(this);
-        this.didSeek = this.didSeek.bind(this);
-        this.initialPlaythrough = this.initialPlaythrough.bind(this);
         this.lastBufferQueued = this.lastBufferQueued.bind(this);
         this.nextTrackChangedWhilePreloading = this.nextTrackChangedWhilePreloading.bind(this);
 
@@ -32,7 +29,9 @@ export default class AudioManager {
         this.sourceNode = this.player.audioPlayer.createSourceNode();
         this.sourceNode.on(`lastBufferQueued`, this.lastBufferQueued);
         this.sourceNode.on(`decodingLatency`, this.onDecodingLatency);
-        this.sourceNode.pause();
+        this.sourceNode.on(`timeUpdate`, this.timeUpdated);
+        this.sourceNode.on(`ended`, this.ended);
+        this.sourceNode.on(`error`, this.errored);
         this.visualizer.connectSourceNode(this.sourceNode);
         this.setupNodes();
     }
@@ -49,7 +48,6 @@ export default class AudioManager {
         this.connectEqualizer(this.player.effectPreferencesBindingContext.getEqualizerSetup(this.track));
         this.volumeGain.connect(this.muteGain);
         this.muteGain.connect(audioCtx.destination);
-        this.intendingToSeek = -1;
     }
 
     onDecodingLatency(decodingLatency) {
@@ -91,6 +89,17 @@ export default class AudioManager {
         }
     }
 
+    start(track) {
+        if (this.started) return false;
+        this.track = track;
+        this.tickCounter.reset();
+        this.started = true;
+        const fileReference = this.track.getFileReference();
+        this.sourceNode.load(fileReference, 0);
+        this.sourceNode.play();
+        return true;
+    }
+
     replaceTrack(track) {
         this.player.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChangedWhilePreloading);
         const {nextTrack} = this;
@@ -99,17 +108,12 @@ export default class AudioManager {
         this.track = track;
 
         if (this.sourceNode.hasPreloadedNextTrack() && track === nextTrack) {
-            this.intendingToSeek = -1;
             this.sourceNode.replaceWithPreloadedTrack();
             this.resume();
             return;
         }
-
-        this.intendingToSeek = 0;
-        this.player.audioManagerSeekIntent(0);
-        this.sourceNode.removeAllListeners(`replacementLoaded`);
-        this.sourceNode.once(`replacementLoaded`, () => {
-            this.intendingToSeek = -1;
+        this.sourceNode.removeAllListeners(FIRST_BUFFER_LOADED_EVENT);
+        this.sourceNode.once(FIRST_BUFFER_LOADED_EVENT, () => {
             this.resume();
         });
         const fileReference = track.getFileReference();
@@ -192,18 +196,11 @@ export default class AudioManager {
         }
     }
 
-    seekIntent(value) {
-        this.intendingToSeek = value;
-        this.player.audioManagerSeekIntent(this.intendingToSeek);
-    }
-
     hasPlaythroughBeenTriggered() {
         return this.tickCounter.hasTriggered();
     }
 
     timeUpdated(currentTime, duration) {
-        if (this.intendingToSeek !== -1) return;
-
         if (!this.tickCounter.hasTriggered() && this.track && currentTime >= 5 && duration >= 10) {
             if (this.tickCounter.tick()) {
                 this.track.triggerPlaythrough();
@@ -225,35 +222,6 @@ export default class AudioManager {
         this.sourceNode.play();
     }
 
-    start(track) {
-        if (this.started) return false;
-        this.track = track;
-        this.tickCounter.reset();
-        this.intendingToSeek = -1;
-        this.started = true;
-        this.sourceNode.on(`timeUpdate`, this.timeUpdated);
-        this.sourceNode.on(`ended`, this.ended);
-        this.sourceNode.on(`error`, this.errored);
-        this.sourceNode.on(`initialPlaythrough`, this.initialPlaythrough);
-        const fileReference = this.track.getFileReference();
-        this.sourceNode.load(fileReference, 0);
-        this.sourceNode.play();
-        return true;
-    }
-
-    initialPlaythrough() {
-        this.sourceNode.on(`seeking`, this.willSeek);
-        this.sourceNode.on(`seekComplete`, this.didSeek);
-    }
-
-    willSeek() {
-        this.intendingToSeek = -1;
-    }
-
-    didSeek() {
-        this.intendingToSeek = -1;
-    }
-
     durationKnown() {
         return new Promise((resolve) => {
             this.sourceNode.once(`timeUpdate`, resolve);
@@ -272,7 +240,6 @@ export default class AudioManager {
 
     seek(time) {
         if (!this.started) return;
-        this.intendingToSeek = -1;
         this.setCurrentTime(time);
     }
 

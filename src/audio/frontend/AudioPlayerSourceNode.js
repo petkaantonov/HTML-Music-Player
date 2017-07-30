@@ -12,6 +12,7 @@ const EXPENSIVE_CALL_THROTTLE_TIME = 100;
 export const FADE_MINIMUM_VOLUME = 0.2;
 export const CURVE_LENGTH = 8;
 export const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
+export const FIRST_BUFFER_LOADED_EVENT = "firstBufferLoaded";
 
 const getCurve = function(v0, v1) {
     const t0 = 0;
@@ -110,7 +111,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._paused = true;
         this._baseGain = 1;
 
-        this._initialPlaythroughEmitted = false;
         this._currentSeekEmitted = false;
         this._lastBufferLoadedEmitted = false;
         this._endedEmitted = false;
@@ -413,11 +413,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
             when = this._startSource(this._sourceDescriptorQueue[i], when);
         }
-
-        if (!this._initialPlaythroughEmitted) {
-            this._initialPlaythroughEmitted = true;
-            this.emit(`initialPlaythrough`);
-        }
     }
 
     _stopBackgroundSources() {
@@ -611,7 +606,7 @@ export default class AudioPlayerSourceNode extends EventEmitter {
     }
 
     _firstBufferFromDifferentTrackLoaded(scheduledStartTime) {
-        this.emit(`replacementLoaded`, scheduledStartTime);
+        this.emit(FIRST_BUFFER_LOADED_EVENT, scheduledStartTime);
         this._maybeFadeIn(this._audioPlayerFrontend.getTrackChangeFadeTime(), scheduledStartTime);
     }
 
@@ -983,7 +978,6 @@ export default class AudioPlayerSourceNode extends EventEmitter {
         this._currentTime = this._duration = this._baseTime = 0;
         this._haveLoadedInitialAudioData = false;
         this._seeking = false;
-        this._initialPlaythroughEmitted = false;
         this._currentSeekEmitted = false;
         this._lastBufferLoadedEmitted = false;
         this._endedEmitted = false;

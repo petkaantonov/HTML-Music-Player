@@ -77,6 +77,7 @@ export default class DefaultShortcuts {
 
     commitSeek(e) {
         if (e.key !== this.seekShortcut) return;
+        this.playerTimeManager.stopKeyboardSeeking();
         this.page.removeDocumentListener(`keyup`, this.commitSeek, true);
         this.player.setProgress(this.seekValueToCommit);
         this.seekValueToCommit = -1;
@@ -145,10 +146,11 @@ export default class DefaultShortcuts {
         }
 
         if (p !== -1) {
+            this.playerTimeManager.startKeyboardSeeking();
             this.seekValueToCommit = Math.max(Math.min(1, p - 0.01), 0);
             this.seekShortcut = e.key;
             this.page.addDocumentListener(`keyup`, this.commitSeek, true);
-            this.player.seekIntent(this.seekValueToCommit);
+            this.playerTimeManager.showSeekTime(this.seekValueToCommit);
         }
     }
 
@@ -163,10 +165,11 @@ export default class DefaultShortcuts {
         }
 
         if (p !== -1) {
+            this.playerTimeManager.startKeyboardSeeking();
             this.seekValueToCommit = Math.max(Math.min(1, p + 0.01), 0);
             this.seekShortcut = e.key;
             this.page.addDocumentListener(`keyup`, this.commitSeek, true);
-            this.player.seekIntent(this.seekValueToCommit);
+            this.playerTimeManager.showSeekTime(this.seekValueToCommit);
         }
     }
 

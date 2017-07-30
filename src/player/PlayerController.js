@@ -222,17 +222,6 @@ export default class PlayerController extends EventEmitter {
         this.seek(p * duration);
     }
 
-    seekIntent(p) {
-        p = Math.min(Math.max(p, 0), 1);
-        const duration = this._audioManager.getDuration();
-        if (!duration) return;
-        this.seek(p * duration, true);
-    }
-
-    audioManagerSeekIntent(time) {
-        this.emit(PROGRESS_EVENT, time, this._audioManager.getDuration());
-    }
-
     trackFinished() {
         this.playlist.trackPlayedSuccessfully();
         this.nextTrackImplicitly();
@@ -446,17 +435,13 @@ export default class PlayerController extends EventEmitter {
         this._callMediaFocusAction(`pause`);
     }
 
-    seek(seconds, intent) {
+    seek(seconds) {
         if (!this.isPlaying && !this.isPaused) return;
         if (!this._audioManager.isSeekable()) return;
         const maxSeek = this._audioManager.getDuration();
         if (!isFinite(maxSeek)) return;
         seconds = Math.max(0, Math.min(seconds, maxSeek));
-        if (intent) {
-            this._audioManager.seekIntent(seconds);
-        } else {
-            this._audioManager.seek(seconds);
-        }
+        this._audioManager.seek(seconds);
     }
 
     isMuted() {
