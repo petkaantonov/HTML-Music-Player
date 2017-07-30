@@ -204,12 +204,6 @@ export default class AudioManager {
         this.sourceNode.play();
     }
 
-    durationKnown() {
-        return new Promise((resolve) => {
-            this.sourceNode.once(TIME_UPDATE_EVENT, resolve);
-        });
-    }
-
     mute() {
         const scheduledTime = this.sourceNode.muteRequested();
         this.muteGain.gain.setValueAtTime(0, scheduledTime);

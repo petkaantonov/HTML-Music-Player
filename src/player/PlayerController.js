@@ -243,9 +243,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     audioManagerProgressed(currentTime, totalTime) {
-        if (this.isPlaying && !this.globalEvents.isWindowBackgrounded()) {
-            this.emit(PROGRESS_EVENT, currentTime, totalTime);
-        }
+        this.emit(PROGRESS_EVENT, currentTime, totalTime);
 
         const now = performance.now();
         if (now - this._progressLastPersisted > 500 &&
@@ -263,7 +261,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     pause() {
-        if (!this.isPlaying) return;
+        if (this.isPaused) return;
         this.isPaused = true;
         this.isStopped = false;
         this.isPlaying = false;
@@ -306,7 +304,7 @@ export default class PlayerController extends EventEmitter {
         this._persistTrack();
     }
 
-    async loadTrack(track, isUserInitiatedSkip, initialProgress) {
+    async loadTrack(track, {isUserInitiatedSkip, initialProgress, resumeIfPaused}) {
         if (this.ready) {
             const id = ++loadId;
             await this.ready;
@@ -315,14 +313,14 @@ export default class PlayerController extends EventEmitter {
             }
         }
         ++loadId;
-
-        this.isStopped = false;
-        this.isPlaying = true;
-        this.isPaused = false;
         this._audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
-        this.startedPlay();
         this.emit(TRACK_PLAYING_EVENT);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
+
+        if (resumeIfPaused) {
+            this.play();
+        }
+        this._persistTrack();
     }
 
     nextButtonClicked(e) {
@@ -404,7 +402,6 @@ export default class PlayerController extends EventEmitter {
         this.checkButtonState();
         this.emit(PLAYBACK_PLAY_EVENT);
         this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._persistTrack();
         this._callMediaFocusAction(`play`);
     }
 
@@ -502,11 +499,10 @@ export default class PlayerController extends EventEmitter {
                 if (CURRENT_TRACK_PROGRESS_KEY in this.dbValues) {
                     progress = this.dbValues[CURRENT_TRACK_PROGRESS_KEY];
                 }
-                const startedToPlayTrack = await this.playlist.playSerializedPlaylistTrack(serializedPlaylistTrack,
-                                                                                           progress);
-                if (startedToPlayTrack) {
-                    const {_audioManager} = this;
-                    await _audioManager.durationKnown();
+
+                const validTrackFound = await this.playlist.restoreSerializedPlaylistTrack(serializedPlaylistTrack,
+                                                                                              progress);
+                if (validTrackFound) {
                     this.pause();
                 }
             }
