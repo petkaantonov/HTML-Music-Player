@@ -2,8 +2,8 @@ import createStdio from "wasm/stdio";
 import createCString from "wasm/cstring";
 import createStdlib from "wasm/stdlib";
 import createTime from "wasm/time";
-import {TextDecoder, Proxy, ArrayBuffer,
-        Uint8Array, Uint32Array, DataView,
+import {TextDecoder, Proxy, ArrayBuffer, Float32Array, Float64Array,
+        Uint8Array, Uint32Array, Int32Array, DataView,
         WebAssembly, Symbol, Int16Array, self, console, indexedDB} from "platform/platform";
 import {getterProxyHandlers, setterProxyHandlers} from "util";
 import EventEmitter from "events";
@@ -605,6 +605,18 @@ export default class WebAssemblyWrapper {
 
     u32view(ptr, length = undefined) {
         return new Uint32Array(this._mem.buffer, ptr, length);
+    }
+
+    i32view(ptr, length = undefined) {
+        return new Int32Array(this._mem.buffer, ptr, length);
+    }
+
+    f32view(ptr, length = undefined) {
+        return new Float32Array(this._mem.buffer, ptr, length);
+    }
+
+    f64view(ptr, length = undefined) {
+        return new Float64Array(this._mem.buffer, ptr, length);
     }
 
     i16view(ptr, length = undefined) {

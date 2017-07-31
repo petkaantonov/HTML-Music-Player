@@ -127,14 +127,11 @@ export default class AudioSource extends CancellableOperations(null,
                     break;
                 }
 
-                let {loudnessInfo} = bufferDescriptor;
+                const {loudnessInfo} = bufferDescriptor;
                 if (!establishedGain &&
                     this._loudnessAnalyzer.hasEstablishedGain()) {
                     establishedGain = this._loudnessAnalyzer.getEstablishedGain();
                     this.backend.metadataManager.setEstablishedGain(this.trackInfo.trackUid, establishedGain);
-                } else if (establishedGain &&
-                           !this._loudnessAnalyzer.hasEstablishedGain()) {
-                    loudnessInfo = Object.assign({}, loudnessInfo, {loudness: establishedGain});
                 }
 
                 const {startTime, endTime} = bufferDescriptor;
@@ -147,7 +144,7 @@ export default class AudioSource extends CancellableOperations(null,
                         isBackgroundBuffer = true;
                     } else if (endTime >= fadeOutStartTime) {
                         isLastBuffer = true;
-                        i += Math.ceil(crossfadeDuration / this._audioPipeline.bufferTime);
+                        totalBuffersToFill += Math.ceil(crossfadeDuration / this._audioPipeline.bufferTime);
                     }
                 } else {
                     isLastBuffer = this.ended;
@@ -258,6 +255,10 @@ export default class AudioSource extends CancellableOperations(null,
         });
         this._decoder.start(demuxData);
         this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate, loudnessNormalization);
+
+        if (demuxData.establishedGain) {
+            this._loudnessAnalyzer.setPreviouslyObtainedEstablishedGain(demuxData.establishedGain);
+        }
 
         this._audioPipeline = new AudioProcessingPipeline(wasm, {
             sourceSampleRate: sampleRate,

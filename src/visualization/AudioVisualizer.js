@@ -11,6 +11,7 @@ export default class AudioVisualizer extends WorkerFrontend {
         super(AUDIO_VISUALIZER_READY_EVENT_NAME, deps.workerWrapper);
         opts = noUndefinedGet(opts);
         this.page = deps.page;
+        this.audioManager = deps.audioManager;
         this.visualizerCanvas = null;
 
         this.maxFrequency = opts.maxFrequency;
@@ -22,7 +23,6 @@ export default class AudioVisualizer extends WorkerFrontend {
         this._receivedFrame = this._receivedFrame.bind(this);
 
         this._frameSkip = 1;
-        this._sourceNode = null;
         this._channelData = [new Float32Array(this.bufferSize), new Float32Array(this.bufferSize)];
         this._bins = null;
         this._resolveGetBinsPromise = null;
@@ -34,6 +34,10 @@ export default class AudioVisualizer extends WorkerFrontend {
         this._actualFps = 0;
         this._workerFps = 0;
         this._init();
+    }
+
+    ready() {
+        return Promise.all([super.ready(), this.audioManager.ready()]);
     }
 
     get canvasEnabled() {
@@ -49,7 +53,7 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     _getAudioLatency() {
-        return this._sourceNode.getAudioLatency();
+        return this.audioManager.getAudioLatency();
     }
 
     _adjustFrameRate() {
@@ -118,7 +122,7 @@ export default class AudioVisualizer extends WorkerFrontend {
             const offsetSeconds = (actualFps > 0 ? (1000 / actualFps / 1000) : 1000 / this.targetFps) -
                                     this._getAudioLatency();
 
-            const frameDescriptor = this._sourceNode.getSamplesScheduledAtOffsetRelativeToNow(this._channelData, offsetSeconds);
+            const frameDescriptor = this.audioManager.getSamplesScheduledAtOffsetRelativeToNow(this._channelData, offsetSeconds);
 
             if (!frameDescriptor.channelDataFilled) {
                 return;
@@ -173,7 +177,7 @@ export default class AudioVisualizer extends WorkerFrontend {
     }
 
     _visualizerCanvasEnabledStateChanged() {
-        if (this.canvasEnabled && this._sourceNode) {
+        if (this.canvasEnabled) {
             this._requestBinsAndAnimationFrame();
         } else {
             this.page.cancelAnimationFrame(this._frameHandle);
@@ -195,22 +199,7 @@ export default class AudioVisualizer extends WorkerFrontend {
                 baseSmoothingConstant
             }
         });
-    }
-
-    async connectSourceNode(sourceNode) {
-        this._lastRafArg = -1;
-        this.page.cancelAnimationFrame(this._frameHandle);
-        this._sourceNode = sourceNode;
-        await this.ready();
         this._requestBinsAndAnimationFrame();
-    }
-
-    disconnectSourceNode(sourceNode) {
-        if (this._sourceNode === sourceNode) {
-            this._lastRafArg = -1;
-            this.page.cancelAnimationFrame(this._frameHandle);
-            this._sourceNode = null;
-        }
     }
 
     binCount() {

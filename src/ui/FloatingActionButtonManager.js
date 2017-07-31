@@ -1,4 +1,4 @@
-import {PLAYBACK_STATE_CHANGE_EVENT} from "player/PlayerController";
+import {PLAYBACK_STATE_CHANGE_EVENT} from "audio/frontend/AudioManager";
 import {NEXT_TRACK_CHANGE_EVENT,
         CURRENT_TRACK_CHANGE_EVENT,
         TRACK_PLAYING_STATUS_CHANGE_EVENT,

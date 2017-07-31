@@ -5,6 +5,8 @@
 
 #define REFERENCE_LUFS -18.0
 
+static double decibel_to_volume(double loudness);
+
 typedef struct {
     uint32_t frames_added;
     uint32_t max_history;
@@ -26,4 +28,8 @@ EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
                                           uint32_t sample_rate,
                                           uint32_t max_history);
 EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this);
+EXPORT void loudness_analyzer_apply_normalization(LoudnessAnalyzer* this,
+                                                   double loudness,
+                                                   int16_t* frames,
+                                                   uint32_t frame_count);
 #endif //LOUDNESS_ANALYZER_H

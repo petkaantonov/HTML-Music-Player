@@ -73,7 +73,7 @@ export default class AudioVisualizerBackend extends AbstractBackend {
             getBins({channelData, bins, frameDescriptor}) {
                 const channelDataF32 = channelData.map(v => new Float32Array(v));
                 const binsF64 = new Float64Array(bins);
-                const {channelCount, gain, sampleRate} = frameDescriptor;
+                const {channelCount, sampleRate} = frameDescriptor;
                 const {_visualizerData: visualizerData,
                        _windowData: windowData,
                        _bufferSize: bufferSize} = this;
@@ -82,13 +82,13 @@ export default class AudioVisualizerBackend extends AbstractBackend {
                     const [src0, src1] = channelDataF32;
 
                     for (let i = 0; i < bufferSize; ++i) {
-                        visualizerData[i] = Math.fround(Math.fround(src0[i] + src1[i]) / 2 * gain * windowData[i]);
+                        visualizerData[i] = Math.fround(Math.fround(src0[i] + src1[i]) / 2 * windowData[i]);
                     }
                 } else {
                     const [src] = channelDataF32;
 
                     for (let i = 0; i < bufferSize; ++i) {
-                        visualizerData[i] = Math.fround(src[i] * gain * windowData[i]);
+                        visualizerData[i] = Math.fround(src[i] * windowData[i]);
                     }
                 }
 

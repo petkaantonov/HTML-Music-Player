@@ -2,8 +2,8 @@ import {NEXT_TRACK_CHANGE_EVENT,
        TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
 import {TAG_DATA_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 import {MediaMetadata} from "platform/platform";
-import {PLAYBACK_STATE_CHANGE_EVENT,
-        PLAYBACK_RESUME_AFTER_IDLE_EVENT} from "player/PlayerController";
+import {PLAYBACK_STATE_CHANGE_EVENT} from "audio/frontend/AudioManager";
+import {PLAYBACK_RESUME_AFTER_IDLE_EVENT} from "player/PlayerController";
 import {FOREGROUND_EVENT} from "platform/GlobalEvents";
 import {IMAGE_CHANGE_EVENT} from "player/PlayerPictureManager";
 

@@ -1,5 +1,14 @@
 #include "effects.h"
 
+
+static float effects_equalizer_state[EFFECT_EQUALIZER_STATE_LENGTH];
+
+EXPORT void effects_equalizer_reset() {
+    for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
+        effects_equalizer_state[i] = 0.0;
+    }
+}
+
 static double get_fade_in_volume(double t0, double t, double t1) {
     t = (t / ((t1 - t0) / 2.0)) - 1.0;
     return sqrt(0.5 * (1.0 + t));
@@ -96,3 +105,64 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
         }
     }
 }
+
+/*
+    out[0] = gain;
+    out[1] = a1;
+    out[2] = a2;
+    out[3] = b0;
+    out[4] = b1;
+    out[5] = b2;
+    x1 = 0
+    x2 = 1
+    y1 = 2
+    y2 = 3
+*/
+EXPORT void effects_equalizer_apply(int16_t* samples,
+                                    uint32_t byte_length,
+                                    uint32_t channel_count,
+                                    float* param_ptr) {
+    if (channel_count > EFFECT_EQUALIZER_MAX_CHANNELS) {
+        return;
+    }
+
+    bool have_output = false;
+
+    uint32_t frame_length = byte_length / sizeof(int16_t) / channel_count;
+
+    for (int i = 0; i < frame_length; ++i) {
+        for (int ch = 0; ch < channel_count; ++ch) {
+            const int index = i * channel_count + ch;
+
+            float input = (float)samples[index] / 32768.0;
+            float output;
+
+            for (int band = 0; band < 10; ++band) {
+                const int state_index_base = (band * channel_count + ch) * 4;
+                const int param_base = band * 6;
+                output = param_ptr[param_base + 3] * input +
+                        param_ptr[param_base + 4] * effects_equalizer_state[state_index_base + 0] +
+                        param_ptr[param_base + 5] * effects_equalizer_state[state_index_base + 1] -
+                        param_ptr[param_base + 1] * effects_equalizer_state[state_index_base + 2] -
+                        param_ptr[param_base + 2] * effects_equalizer_state[state_index_base + 3];
+                        effects_equalizer_state[state_index_base + 1] = effects_equalizer_state[state_index_base + 0];
+                        effects_equalizer_state[state_index_base + 0] = input;
+                        effects_equalizer_state[state_index_base + 3] = effects_equalizer_state[state_index_base + 2];
+                        effects_equalizer_state[state_index_base + 2] = output;
+                input = output;
+            }
+
+            samples[index] = CLIP_I32_TO_I16((int32_t)(output * 32768.0));
+
+            have_output = true;
+        }
+    }
+
+    for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
+        if (fabs(effects_equalizer_state[i]) < FLT_MIN) {
+            effects_equalizer_state[i] = 0.0;
+        }
+    }
+}
+
+#undef EFFECT_APPLY_BAND

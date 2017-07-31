@@ -184,14 +184,15 @@ export default class AudioProcessingPipeline {
             duration: this.totalDuration
         };
         let loudnessInfo = defaultLoudnessInfo;
+
         if (loudnessAnalyzer) {
             const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
-            loudnessInfo = loudnessAnalyzer.getLoudnessInfo(samplePtr, audioFrameLength);
+            loudnessInfo = loudnessAnalyzer.applyLoudnessNormalization(samplePtr, audioFrameLength);
         }
 
         if (effects) {
             for (const effect of effects) {
-                ({samplePtr, byteLength} = effect.apply(samplePtr, byteLength, metadata));
+                ({samplePtr, byteLength} = effect.apply(effects, samplePtr, byteLength, metadata));
             }
         }
 

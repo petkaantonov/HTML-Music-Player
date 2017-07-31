@@ -1,5 +1,7 @@
 import createPreferences from "preferences/PreferenceCreator";
 import {MIN_SUSTAINED_AUDIO_SECONDS, MIN_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
+export {equalizerBands, equalizerPresets} from "audio/backend/Effects";
+import {equalizerPresets} from "audio/backend/Effects";
 
 export const EQUALIZER_MAX_GAIN = 12;
 export const EQUALIZER_MIN_GAIN = -12;
@@ -30,40 +32,6 @@ export const formatFreq = function(freq) {
     } else {
         return `${Math.round(freq / 1000)} KHz`;
     }
-};
-
-export const equalizerBands = [
-    [70, `lowshelf`],
-    [180, `peaking`],
-    [320, `peaking`],
-    [600, `peaking`],
-    [1000, `peaking`],
-    [3000, `peaking`],
-    [6000, `peaking`],
-    [12000, `peaking`],
-    [14000, `peaking`],
-    [16000, `highshelf`]
-];
-
-export const equalizerPresets = {
-    "None": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    "Classical": [-1, -1, -1, -1, -1, -1, -7, -7, -7, -9],
-    "Club": [-1, -1, 8, 5, 5, 5, 3, -1, -1, -1],
-    "Dance": [9, 7, 2, -1, -1, -5, -7, -7, -1, -1],
-    "Full Bass": [-8, 9, 9, 5, 1, -4, -8, -10, -11, -11],
-    "Full Bass & Treble": [7, 5, -1, -7, -4, 1, 8, 11, 12, 12],
-    "Full Treble": [-9, -9, -9, -4, 2, 11, 12, 12, 12, 12],
-    "Laptop Speakers / Headphone": [4, 11, 5, -3, -2, 1, 4, 9, 12, 12],
-    "Large Hall": [10, 10, 5, 5, -1, -4, -4, -4, -1, -1],
-    "Live": [-4, -1, 4, 5, 5, 5, 4, 2, 2, 2],
-    "Party": [7, 7, -1, -1, -1, -1, -1, -1, 7, 7],
-    "Pop": [-1, 4, 7, 8, 5, -1, -2, -2, -1, -1],
-    "Reggae": [-1, -1, -1, -5, -1, 6, 6, -1, -1, -1],
-    "Rock": [8, 4, -5, -8, -3, 4, 8, 11, 11, 11],
-    "Ska": [-2, -4, -4, -1, 4, 5, 8, 9, 11, 9],
-    "Soft": [4, 1, -1, -2, -1, 4, 8, 9, 11, 12],
-    "Soft Rock": [4, 4, 2, -1, -4, -5, -3, -1, 2, 8],
-    "Techno": [8, 5, -1, -5, -4, -1, 8, 9, 9, 8]
 };
 
 export const equalizerPresetKeys = Object.keys(equalizerPresets);

@@ -7,7 +7,6 @@ const SILENCE_THRESHOLD = 50;
 const MOMENTARY_WINDOW_MS = 400;
 
 export const defaultLoudnessInfo = Object.freeze({
-    loudness: 0,
     isEntirelySilent: false
 });
 
@@ -22,6 +21,7 @@ export default class LoudnessAnalyzer {
         this._wasm = wasm;
         this._ptr = 0;
         this._establishedGain = -1;
+        this._previouslyObtainedEstalishedGain = 0;
         this._framesAdded = 0;
         this._loudnessNormalizationEnabled = loudnessNormalizationEnabled;
         this._silenceTrimmingEnabled = silenceTrimmingEnabled;
@@ -43,20 +43,18 @@ export default class LoudnessAnalyzer {
         this._silenceTrimmingEnabled = enabled;
     }
 
-    getLoudnessInfo(samplePtr, audioFrameCount) {
+    applyLoudnessNormalization(samplePtr, audioFrameCount) {
+        const originalSamplePtr = samplePtr;
         if (!this._ptr) {
             throw new Error(`not allocated`);
         }
-        const ret = {
-            loudness: 0,
-            isEntirelySilent: false
-        };
+        let loudness = 0;
+        const ret = {isEntirelySilent: false};
         const {_loudnessNormalizationEnabled, _silenceTrimmingEnabled} = this;
 
         if (!_loudnessNormalizationEnabled && !_silenceTrimmingEnabled) {
             return ret;
         }
-
 
         const momentaryLoudnessSlices = [];
         const momentaryWindowFrameCount = MOMENTARY_WINDOW_MS / 1000 * this._sampleRate | 0;
@@ -100,7 +98,7 @@ export default class LoudnessAnalyzer {
                 }
             }
 
-            ret.loudness = gain;
+            loudness = gain;
         }
 
         if (_silenceTrimmingEnabled &&
@@ -115,6 +113,14 @@ export default class LoudnessAnalyzer {
             ret.isEntirelySilent = isEntirelySilent;
         }
 
+        if (_loudnessNormalizationEnabled && this._previouslyObtainedEstalishedGain && !this.hasEstablishedGain()) {
+            loudness = this._previouslyObtainedEstalishedGain;
+        }
+
+        if (_loudnessNormalizationEnabled && loudness) {
+            this.loudness_analyzer_apply_normalization(this._ptr, loudness, originalSamplePtr, audioFrameCount);
+        }
+
         return ret;
     }
 
@@ -124,6 +130,10 @@ export default class LoudnessAnalyzer {
 
     getEstablishedGain() {
         return this._establishedGain;
+    }
+
+    setPreviouslyObtainedEstablishedGain(gain) {
+        this._previouslyObtainedEstalishedGain = gain;
     }
 
     destroy() {
@@ -150,6 +160,7 @@ export default class LoudnessAnalyzer {
         this._sampleRate = sampleRate;
         this._establishedGain = -1;
         this._framesAdded = 0;
+        this._previouslyObtainedEstalishedGain = 0;
         if (!this._ptr) {
             const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
             if (err) {
@@ -185,5 +196,6 @@ moduleEvents.on(`main_afterInitialized`, (wasm, exports) => {
     LoudnessAnalyzer.prototype.loudness_analyzer_reinitialize = exports.loudness_analyzer_reinitialize;
     LoudnessAnalyzer.prototype.loudness_analyzer_reset = exports.loudness_analyzer_reset;
     LoudnessAnalyzer.prototype.loudness_analyzer_add_frames = exports.loudness_analyzer_add_frames;
+    LoudnessAnalyzer.prototype.loudness_analyzer_apply_normalization = exports.loudness_analyzer_apply_normalization;
 
 });

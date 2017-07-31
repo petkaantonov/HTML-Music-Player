@@ -217,17 +217,13 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
         return this.preferences().getShouldAlbumNotCrossfade();
     }
 
-    getEqualizerSetup() {
-        return {
-            specs: equalizerBands,
-            gains: this.preferences().getEqualizer()
-        };
-    }
-
     getAudioPlayerEffects() {
         return [{
             name: `noise-sharpening`,
             effectSize: this.getNoiseSharpeningEffectSize()
+        }, {
+            name: `equalizer`,
+            gains: this.preferences().getEqualizer()
         }];
     }
 }

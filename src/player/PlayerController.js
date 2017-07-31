@@ -2,9 +2,11 @@ import {NEXT_TRACK_CHANGE_EVENT,
         HISTORY_CHANGE_EVENT,
         PLAYLIST_STOPPED_EVENT,
         CURRENT_TRACK_CHANGE_EVENT} from "player/PlaylistController";
-import withDeps from "ApplicationDependencies";
-import AudioPlayer from "audio/frontend/AudioPlayer";
-import AudioManager from "audio/frontend/AudioManager";
+import {PLAYBACK_STATE_CHANGE_EVENT,
+         PLAYBACK_PROGRESS_EVENT,
+         PLAYBACK_END_EVENT,
+         ERROR_EVENT,
+         AUDIO_CONTEXT_RESET_EVENT} from "audio/frontend/AudioManager";
 import EventEmitter from "events";
 import {noUndefinedGet, throttle} from "util";
 import {URL, performance} from "platform/platform";
@@ -14,14 +16,12 @@ import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
 
-export const PLAYBACK_STATE_CHANGE_EVENT = `playbackStateChange`;
 export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
 export const PLAYBACK_PAUSE_EVENT = `pause`;
 export const PLAYBACK_PLAY_EVENT = `play`;
 export const PLAYBACK_STOP_EVENT = `stop`;
 export const VOLUME_CHANGE_EVENT = `volumeChange`;
 export const VOLUME_MUTE_EVENT = `muted`;
-export const TRACK_PLAYING_EVENT = `trackPlaying`;
 export const NEW_TRACK_LOAD_EVENT = `newTrackLoad`;
 export const PROGRESS_EVENT = `progress`;
 
@@ -36,8 +36,6 @@ export default class PlayerController extends EventEmitter {
     constructor(opts, deps) {
         super();
         opts = noUndefinedGet(opts);
-        this.localFileHandler = deps.localFileHandler;
-        this.visualizer = deps.visualizer;
         this.env = deps.env;
         this.page = deps.page;
         this.globalEvents = deps.globalEvents;
@@ -45,14 +43,15 @@ export default class PlayerController extends EventEmitter {
         this.db = deps.db;
         this.dbValues = deps.dbValues;
         this.rippler = deps.rippler;
-        this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
-        this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.gestureEducator = deps.gestureEducator;
         this.playlist = deps.playlist;
         this.metadataManager = deps.metadataManager;
+        this.audioManager = deps.audioManager;
 
+        this._loadedTrack = null;
         this._tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
         this._domNode = this.page.$(opts.target);
+        this._mediaFocusAudioElement = null;
 
         this._playButtonDomNode = this.$().find(opts.playButtonDom);
         this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
@@ -60,23 +59,6 @@ export default class PlayerController extends EventEmitter {
 
         this._progressLastPersisted = performance.now();
         this._lastPersistedProgressValue = -1;
-
-        this.volume = 0.15;
-        this.isStopped = true;
-        this.isPaused = false;
-        this.isPlaying = false;
-        this.isMutedValue = false;
-        this.mediaFocusAudioElement = null;
-        this.audioPlayer = withDeps({
-            page: this.page,
-            env: this.env,
-            db: this.db,
-            dbValues: this.dbValues,
-            effectPreferencesBindingContext: this.effectPreferencesBindingContext,
-            applicationPreferencesBindingContext: this.applicationPreferencesBindingContext,
-            workerWrapper: deps.workerWrapper,
-            timers: deps.timers
-        }, d => new AudioPlayer(d));
 
         this._persistMute = throttle(this._persistMute, 500, this);
         this._persistVolume = throttle(this._persistVolume, 500, this);
@@ -88,51 +70,48 @@ export default class PlayerController extends EventEmitter {
         this.recognizerContext.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
         this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
         this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
-
+        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this.playlist.on(CURRENT_TRACK_CHANGE_EVENT, this.loadTrack.bind(this));
         this.playlist.on(PLAYLIST_STOPPED_EVENT, this.stop.bind(this));
         this.playlist.on(NEXT_TRACK_CHANGE_EVENT, this.nextTrackChanged);
         this.playlist.on(HISTORY_CHANGE_EVENT, this.historyChanged.bind(this));
         this.metadataManager.on(ALL_FILES_PERSISTED_EVENT, this._persistTrack.bind(this));
-
-        this._audioManager = null;
-        this.ready = (async () => {
-            await this.audioPlayer.ready();
-            this.ready = null;
-            this._audioManager = new AudioManager(this, this.visualizer);
-        })();
+        this.audioManager.on(PLAYBACK_STATE_CHANGE_EVENT, this._playbackStateChanged.bind(this));
+        this.audioManager.on(PLAYBACK_PROGRESS_EVENT, this._playbackProgressed.bind(this));
+        this.audioManager.on(PLAYBACK_END_EVENT, this._trackFinished.bind(this));
+        this.audioManager.on(ERROR_EVENT, this._errored.bind(this));
+        this.audioManager.on(AUDIO_CONTEXT_RESET_EVENT, this._audioContextReseted.bind(this));
 
         if (this.env.mediaSessionSupport()) {
-            this.mediaFocusAudioElement = this.page.createElement(`audio`, {
+            this._mediaFocusAudioElement = this.page.createElement(`audio`, {
                 loop: true,
                 controls: false,
                 src: URL.createObjectURL(generateSilentWavFile())
             })[0];
         }
 
-        this.audioPlayer.on(`audioContextReset`, this.audioContextReset.bind(this));
-        this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
         this._preferencesLoaded = this._loadPreferences();
+    }
+
+    ready() {
+        return this.audioManager.ready();
+    }
+
+    get isStopped() {
+        return this.isPaused && !this._loadedTrack;
+    }
+
+    get isPaused() {
+        return this.audioManager.isPaused() && !!this._loadedTrack;
+    }
+
+    get isPlaying() {
+        return !this.audioManager.isPaused() && !!this._loadedTrack;
     }
 
     preferencesLoaded() {
         return this._preferencesLoaded;
     }
-
-    audioContextReset() {
-        this._audioManager.audioContextReset();
-        this.emit(PLAYBACK_RESUME_AFTER_IDLE_EVENT);
-    }
-
-    effectPreferencesChanged() {
-        this._audioManager.effectsChanged(this.effectPreferencesBindingContext);
-    }
-
-    /* eslint-disable class-methods-use-this */
-    applicationPreferencesChanged() {
-        // EMPTYFORNOW
-    }
-    /* eslint-enable class-methods-use-this */
 
     $allButtons() {
         return this.$play().add(this.$previous(), this.$next());
@@ -148,10 +127,6 @@ export default class PlayerController extends EventEmitter {
 
     $previous() {
         return this._previousButtonDomNode;
-    }
-
-    decodingLatencyValue(decodingLatency) {
-        this.applicationPreferencesBindingContext.decodingLatencyValue(decodingLatency);
     }
 
     $next() {
@@ -170,108 +145,13 @@ export default class PlayerController extends EventEmitter {
         this.playlist.next(false);
     }
 
-    audioManagerErrored(e) {
-        if (this._audioManager.track) {
-            this._audioManager.track.setError(e.message);
-        }
-        this.nextTrackImplicitly();
-    }
-
-    trackFinished() {
-        this.playlist.trackPlayedSuccessfully();
-        this.nextTrackImplicitly();
-    }
-
-    getFadeInTimeForNextTrack(currentTrack) {
-        const {effectPreferencesBindingContext} = this;
-        const crossfadeDuration = effectPreferencesBindingContext.getCrossfadeDuration();
-
-        if (crossfadeDuration === 0) {
-            return 0;
-        }
-
-        if (effectPreferencesBindingContext.getShouldAlbumNotCrossfade()) {
-            const nextTrack = this.playlist.getNextTrack();
-            if (nextTrack && currentTrack.comesBeforeInSameAlbum(nextTrack)) {
-                return 0;
-            }
-        }
-
-        return crossfadeDuration;
-    }
-
-    audioManagerProgressed(currentTime, totalTime) {
-        if (!this._tickCounter.hasTriggered() &&
-            this._audioManager.track && currentTime >= 5 && totalTime >= 10) {
-            if (this._tickCounter.tick()) {
-                this._audioManager.track.triggerPlaythrough();
-            }
-        }
-
-        this.emit(PROGRESS_EVENT, currentTime, totalTime);
-
-        const now = performance.now();
-        if (now - this._progressLastPersisted > 500 &&
-            this._lastPersistedProgressValue !== this._getUnroundedProgress()) {
-            this._progressLastPersisted = now;
-            this._lastPersistedProgressValue = this._getUnroundedProgress();
-            this._persistProgress();
-        }
-    }
-
-    pause() {
-        if (this.isPaused) return;
-        this.isPaused = true;
-        this.isStopped = false;
-        this.isPlaying = false;
-        this._audioManager.pause();
-        this._tickCounter.pause();
-        this.pausedPlay();
-    }
-
-    resume() {
-        if (this.isPaused) {
-            this.emit(TRACK_PLAYING_EVENT);
-            this.play();
-        }
-    }
-
-    play() {
-        if (this.isPlaying) return;
-
-        if (!this.playlist.getCurrentTrack()) {
-            this.playlist.next(true);
-            return;
-        }
-
-        this.emit(TRACK_PLAYING_EVENT);
-        this.isPaused = false;
-        this.isStopped = false;
-        this.isPlaying = true;
-        this._audioManager.resume();
-        this.startedPlay();
-    }
-
-    stop() {
-        if (this.isStopped) return;
-        this.isStopped = true;
-        this.isPaused = false;
-        this.isPlaying = false;
-        this._audioManager.pause();
-        this._tickCounter.pause();
-        this.playlist.stop();
-        this.emit(PROGRESS_EVENT, 0, 0);
-        this.stoppedPlay();
-        this._persistTrack();
-    }
-
     loadTrack(track, {isUserInitiatedSkip, initialProgress, resumeIfPaused}) {
-        if (isUserInitiatedSkip && !this._tickCounter.hasTriggered() && this._audioManager.track) {
-            this._audioManager.track.recordSkip();
+        if (isUserInitiatedSkip && !this._tickCounter.hasTriggered() && this._loadedTrack) {
+            this._loadedTrack.recordSkip();
         }
         this._tickCounter.reset();
-        this._audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
-        this.emit(TRACK_PLAYING_EVENT);
+        this._loadedTrack = track;
+        this.audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
 
         if (resumeIfPaused) {
@@ -299,11 +179,7 @@ export default class PlayerController extends EventEmitter {
 
     playButtonClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-        if (this.isPlaying) {
-            this.pause();
-        } else {
-            this.play();
-        }
+        this.togglePlayback();
     }
 
     canPlayPause() {
@@ -346,114 +222,163 @@ export default class PlayerController extends EventEmitter {
 
     }
 
-    async _callMediaFocusAction(method) {
-        if (this.mediaFocusAudioElement) {
-            try {
-                await this.mediaFocusAudioElement[method]();
-            } catch (e) {
-                // NOOP
-            }
-        }
-    }
-
-    startedPlay() {
-        this.checkButtonState();
-        this.emit(PLAYBACK_PLAY_EVENT);
-        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction(`play`);
-    }
-
-    stoppedPlay() {
-        this.checkButtonState();
-        this.emit(PLAYBACK_STOP_EVENT);
-        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction(`pause`);
-    }
-
-    pausedPlay() {
-        this.checkButtonState();
-        this.emit(PLAYBACK_PAUSE_EVENT);
-        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._callMediaFocusAction(`pause`);
-    }
-
     getProgress() {
-        const duration = this._audioManager.getDuration();
+        const duration = this.audioManager.getDuration();
         if (!duration) return -1;
-        const currentTime = this._audioManager.getCurrentTime();
+        const currentTime = this.audioManager.getCurrentTime();
         return Math.round((currentTime / duration) * 100) / 100;
     }
 
     setProgress(p) {
-        if (!this._audioManager.isSeekable()) return;
+        if (this.isStopped || !this.audioManager.isSeekable()) return;
         p = Math.min(Math.max(p, 0), 1);
-        const duration = this._audioManager.getDuration();
+        const duration = this.audioManager.getDuration();
         if (!duration) return;
         this.seek(p * duration);
     }
 
     seek(seconds) {
-        if (!this.isPlaying && !this.isPaused) return;
-        if (!this._audioManager.isSeekable()) return;
-        const maxSeek = this._audioManager.getDuration();
+        if (this.isStopped || !this.audioManager.isSeekable()) return;
+        const maxSeek = this.audioManager.getDuration();
         if (!isFinite(maxSeek)) return;
         seconds = Math.max(0, Math.min(seconds, maxSeek));
-        this._audioManager.seek(seconds);
+        this.audioManager.setCurrentTime(seconds);
     }
 
-    isMuted() {
-        return this.isMutedValue;
+    stop() {
+        if (this.isStopped) return;
+        this._loadedTrack = null;
+        this._persistTrack();
+        this.emit(PROGRESS_EVENT, 0, 0);
+        if (!this.audioManager.isPaused()) {
+            this.pause();
+        } else {
+            this._playbackStateChanged();
+        }
+
+    }
+
+    pause() {
+        this.audioManager.pause();
+    }
+
+    play() {
+        if (this.isStopped) {
+            this.playlist.next(true);
+            return;
+        }
+        this.audioManager.resume();
     }
 
     togglePlayback() {
         if (this.isPlaying) {
             this.pause();
+        } else if (this.isStopped) {
+            this.playlist.next(true);
         } else {
             this.play();
         }
     }
 
     toggleMute() {
-        this.isMutedValue = !this.isMutedValue;
-        if (this.isMutedValue) {
-            this.emit(VOLUME_MUTE_EVENT, true);
-            this._audioManager.mute();
-        } else {
+        if (this.isMuted()) {
+            this.audioManager.setMuted(false);
             this.emit(VOLUME_MUTE_EVENT, false);
-            this._audioManager.unmute();
+        } else {
+            this.audioManager.setMuted(true);
+            this.emit(VOLUME_MUTE_EVENT, true);
         }
         this._persistMute();
     }
 
     getDuration() {
-        return this._audioManager.getDuration();
+        return this.audioManager.getDuration();
     }
 
     getProbableDuration() {
-        const ret = this._audioManager.getDuration();
+        const ret = this.audioManager.getDuration();
         if (ret) return ret;
         const track = this.playlist.getCurrentTrack();
         return track.getDuration();
     }
 
+    isMuted() {
+        return this.audioManager.isMuted();
+    }
+
     getVolume() {
-        return this.volume;
+        return this.audioManager.getVolume();
     }
 
     setVolume(val) {
         val = Math.min(Math.max(0, val), 1);
-        const volume = this.volume = val;
-        this._audioManager.updateVolume(volume);
+        this.audioManager.setVolume(val);
         this.emit(VOLUME_CHANGE_EVENT);
         this._persistVolume();
         return this;
     }
 
-    async _loadPreferences() {
-        await Promise.all([this.ready, this.metadataManager.ready()]);
-        this.effectPreferencesBindingContext.on(`change`, this.effectPreferencesChanged.bind(this));
-        this.applicationPreferencesBindingContext.on(`change`, this.applicationPreferencesChanged.bind(this));
+    _playbackStateChanged() {
+        this.checkButtonState();
+        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        if (this.isStopped) {
+            this._tickCounter.pause();
+            this._callMediaFocusAction(`pause`);
+            this.emit(PLAYBACK_STOP_EVENT);
+        } else if (this.isPaused) {
+            this._tickCounter.pause();
+            this._callMediaFocusAction(`pause`);
+            this.emit(PLAYBACK_PAUSE_EVENT);
+        } else {
+            this._callMediaFocusAction(`play`);
+            this.emit(PLAYBACK_PLAY_EVENT);
+        }
+    }
 
+    _errored(e) {
+        if (this._loadedTrack) {
+            this._loadedTrack.setError(e.message);
+        }
+        this.nextTrackImplicitly();
+    }
+
+    _trackFinished() {
+        this.playlist.trackPlayedSuccessfully();
+        this.nextTrackImplicitly();
+    }
+
+    _playbackProgressed(currentTime, totalTime) {
+        if (!this._tickCounter.hasTriggered() &&
+            this._loadedTrack && currentTime >= 5 && totalTime >= 10) {
+            if (this._tickCounter.tick()) {
+                this._loadedTrack.triggerPlaythrough();
+            }
+        }
+
+        const now = performance.now();
+        if (now - this._progressLastPersisted > 500 &&
+            this._lastPersistedProgressValue !== this._getUnroundedProgress()) {
+            this._progressLastPersisted = now;
+            this._lastPersistedProgressValue = this._getUnroundedProgress();
+            this._persistProgress();
+        }
+
+        this.emit(PROGRESS_EVENT, currentTime, totalTime);
+    }
+
+
+    async _callMediaFocusAction(method) {
+        if (this._mediaFocusAudioElement) {
+            try {
+                await this._mediaFocusAudioElement[method]();
+            } catch (e) {
+                // NOOP
+            }
+        }
+    }
+
+    async _loadPreferences() {
+        await Promise.all([this.ready(), this.metadataManager.ready()]);
 
         if (VOLUME_KEY in this.dbValues) {
             this.setVolume(this.dbValues[VOLUME_KEY]);
@@ -485,11 +410,11 @@ export default class PlayerController extends EventEmitter {
     _shutdownSavePreferences(preferences) {
         preferences.push({
             key: VOLUME_KEY,
-            value: this.volume
+            value: this.getVolume()
         });
         preferences.push({
             key: MUTED_KEY,
-            value: this.isMutedValue
+            value: this.isMuted()
         });
 
         const playlistTrack = this.playlist.getCurrentPlaylistTrack();
@@ -527,21 +452,21 @@ export default class PlayerController extends EventEmitter {
     }
 
     _persistVolume() {
-        this.db.set(VOLUME_KEY, this.volume);
+        this.db.set(VOLUME_KEY, this.getVolume());
     }
 
     _persistMute() {
-        this.db.set(MUTED_KEY, this.isMutedValue);
-    }
-
-    getAudioContext() {
-        return this.audioPlayer.getAudioContext();
+        this.db.set(MUTED_KEY, this.isMuted());
     }
 
     _getUnroundedProgress() {
-        const duration = this._audioManager.getDuration();
+        const duration = this.audioManager.getDuration();
         if (!duration) return 0;
-        const currentTime = this._audioManager.getCurrentTime();
+        const currentTime = this.audioManager.getCurrentTime();
         return currentTime / duration;
+    }
+
+    _audioContextReseted() {
+        this.emit(PLAYBACK_RESUME_AFTER_IDLE_EVENT);
     }
 }

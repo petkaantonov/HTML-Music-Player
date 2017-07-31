@@ -1,21 +1,15 @@
 import {Uint8Array} from "platform/platform";
 import DecoderContext from "audio/backend/DecoderContext";
-import {MAX_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
 const DECODER_DELAY = 529;
 const MAX_SAMPLE_RATE = 48000;
 const MAX_CHANNELS = 2;
 const MAX_AUDIO_FRAMES_PER_MP3_FRAME = 1152;
-const MAX_BUFFER_LENGTH_AUDIO_FRAMES = Math.ceil(MAX_BUFFER_LENGTH_SECONDS * MAX_SAMPLE_RATE / MAX_AUDIO_FRAMES_PER_MP3_FRAME) *
-                                                MAX_AUDIO_FRAMES_PER_MP3_FRAME;
-const MIN_BUFFER_LENGTH_AUDIO_FRAMES = MAX_AUDIO_FRAMES_PER_MP3_FRAME;
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
 const MAX_BYTES_PER_AUDIO_FRAME = MAX_MP3_FRAME_BYTE_LENGTH / (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
 const INT_16_BYTE_LENGTH = 2;
-
-const {max, min} = Math;
 
 export default class Mp3Context extends DecoderContext {
     constructor(wasm, opts) {

@@ -22,7 +22,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
         this._hardwareSampleRate = 0;
         this._timers = timers;
         this._audioSources = new Map();
-        this._effects = new Effects();
+        this._effects = new Effects(wasm);
         this._config = {
             bufferTime: 0,
             loudnessNormalization: true,
@@ -51,15 +51,8 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
             seek: this._seek.bind(this),
             load: this._load.bind(this),
-            fillBuffers: this._fillBuffersMessage.bind(this),
-            cancelAllOperations: this._cancelAllOperations.bind(this)
+            fillBuffers: this._fillBuffersMessage.bind(this)
         };
-    }
-
-    _cancelAllOperations() {
-        if (this._activeAudioSource) {
-            this._activeAudioSource.cancelAllOperations();
-        }
     }
 
     _sendBuffer(bufferDescriptor, channelData, bufferFillType, extraData = null) {
@@ -133,7 +126,6 @@ export default class AudioPlayerBackend extends AbstractBackend {
             await audioSource.fillBuffers(1, (bufferDescriptor, channelData) => {
                 if (this._activeAudioSource) {
                     if (isPreloadForNextTrack) {
-                        console.log(`destroyAfterBuffersFilled`, this._activeAudioSource.isBufferFillingInProgress());
                         this._activeAudioSource.destroyAfterBuffersFilled();
                     } else {
                         this._activeAudioSource.destroy();

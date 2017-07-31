@@ -163,3 +163,22 @@ EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
 
     return EBUR128_SUCCESS;
 }
+
+static double decibel_to_volume(double loudness) {
+    return pow(10.0, (loudness / 20.0));
+}
+
+EXPORT void loudness_analyzer_apply_normalization(LoudnessAnalyzer* this,
+                                                   double loudness,
+                                                   int16_t* frames,
+                                                   uint32_t frame_count) {
+
+    static const int32_t MULTIPLIER = 10000;
+    uint32_t length = this->st->channels * frame_count;
+    int32_t volume_multiplier = DOUBLE_TO_I32(decibel_to_volume(loudness) * (double) MULTIPLIER);
+
+    for (int i = 0; i < length; ++i) {
+        int32_t val = (((int32_t)frames[i]) * volume_multiplier) / MULTIPLIER;
+        frames[i] = CLIP_I32_TO_I16(val);
+    }
+}

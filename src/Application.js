@@ -10,6 +10,7 @@ import PlayerTimeManager from "player/PlayerTimeManager";
 import PlayerVolumeManager from "player/PlayerVolumeManager";
 import PlayerPictureManager from "player/PlayerPictureManager";
 import MediaSessionWrapper from "player/MediaSessionWrapper";
+import AudioManager from "audio/frontend/AudioManager";
 import LocalFileHandler from "platform/LocalFileHandler";
 import VisualizerCanvas from "visualization/VisualizerCanvas";
 import KeyboardShortcuts from "keyboard/KeyboardShortcuts";
@@ -139,16 +140,6 @@ export default class Application {
         const zipper = this.zipper = withDeps({
             zipperWorkerWrapper
         }, d => new ZipperFrontend(d));
-
-        const visualizer = this.visualizer = withDeps({
-            workerWrapper, page
-        }, d => new AudioVisualizer({
-            baseSmoothingConstant: 0.00042,
-            maxFrequency: 12500,
-            minFrequency: 20,
-            bufferSize: 1024,
-            targetFps: 60
-        }, d));
 
         const permissionPrompt = this.permissionPrompt = withDeps({
             page
@@ -328,23 +319,37 @@ export default class Application {
             mainMenu
         }, d => new LocalFileHandler(d));
 
-        const player = this.player = withDeps({
-            page,
+        const audioManager = this.audioManager = withDeps({
             playlist,
-            env,
-            globalEvents,
-            recognizerContext,
-            dbValues,
-            db,
-            gestureEducator,
-            rippler,
+            page,
             effectPreferencesBindingContext,
             applicationPreferencesBindingContext,
-            localFileHandler,
             workerWrapper,
+            timers
+        }, d => new AudioManager(d));
+
+        const visualizer = this.visualizer = withDeps({
+            workerWrapper, page, audioManager
+        }, d => new AudioVisualizer({
+            baseSmoothingConstant: 0.00042,
+            maxFrequency: 12500,
+            minFrequency: 20,
+            bufferSize: 1024,
+            targetFps: 60
+        }, d));
+
+        const player = this.player = withDeps({
+            env,
+            page,
+            globalEvents,
+            recognizerContext,
+            db,
+            dbValues,
+            rippler,
+            gestureEducator,
+            playlist,
             metadataManager,
-            timers,
-            visualizer
+            audioManager
         }, d => new PlayerController({
             target: `.app-player-controls`,
             playButtonDom: `.play-button`,
