@@ -125,9 +125,6 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
     if (channel_count > EFFECT_EQUALIZER_MAX_CHANNELS) {
         return;
     }
-
-    bool have_output = false;
-
     uint32_t frame_length = byte_length / sizeof(int16_t) / channel_count;
 
     for (int i = 0; i < frame_length; ++i) {
@@ -153,8 +150,6 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
             }
 
             samples[index] = CLIP_I32_TO_I16((int32_t)(output * 32768.0));
-
-            have_output = true;
         }
     }
 
