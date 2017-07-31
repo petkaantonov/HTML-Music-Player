@@ -40,11 +40,12 @@ export const equalizerPresets = {
 
 function writeBandParam(type, frequency, gain, sampleRate, basePtr, index, wasm) {
     let a0, a1, a2, b0, b1, b2;
+    const Q = 1;
     const A = Math.pow(10, gain / 40);
     const w0 = Math.PI * 2 * frequency / sampleRate;
     const S = 1;
     const alphaS = 0.5 * Math.sin(w0) * Math.sqrt((A + 1 / A) * (1 / S - 1) + 2);
-    const alphaQ = Math.sin(w0) / 2;
+    const alphaQ = Math.sin(w0) / (2 * Q);
     const k = Math.cos(w0);
     const k2 = 2 * Math.sqrt(A) * alphaS;
     const aPlusOne = A + 1;
@@ -77,13 +78,12 @@ function writeBandParam(type, frequency, gain, sampleRate, basePtr, index, wasm)
     b1 *= (1 / a0);
     b2 *= (1 / a0);
 
-    const out = wasm.f32view(basePtr + index * 6 * FLOAT_BYTE_SIZE, 6);
-    out[0] = gain;
-    out[1] = a1;
-    out[2] = a2;
-    out[3] = b0;
-    out[4] = b1;
-    out[5] = b2;
+    const out = wasm.f32view(basePtr + index * FILTER_COEFFS * FLOAT_BYTE_SIZE, FILTER_COEFFS);
+    out[0] = a1;
+    out[1] = a2;
+    out[2] = b0;
+    out[3] = b1;
+    out[4] = b2;
 }
 
 const DEFAULT_EQUALIZER_GAINS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -92,7 +92,7 @@ let effects_noise_sharpening, effects_equalizer_apply, effects_equalizer_reset;
 export default class Effects {
     constructor(wasm) {
         this._wasm = wasm;
-        this._equalizerParamPtr = wasm.malloc((FILTER_COEFFS + 1) * equalizerBands.length * FLOAT_BYTE_SIZE);
+        this._equalizerParamPtr = wasm.malloc(FILTER_COEFFS * equalizerBands.length * FLOAT_BYTE_SIZE);
 
         this._effects = {
             "noise-sharpening": {

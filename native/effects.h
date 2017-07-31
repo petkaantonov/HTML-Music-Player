@@ -5,7 +5,7 @@
 #define EFFECT_BLOCK_SIZE 1024
 #define EFFECT_BAND_COUNT 10
 #define EFFECT_EQUALIZER_MAX_CHANNELS 2
-#define EFFECT_EQUALIZER_STATE_LENGTH (4 * EFFECT_BAND_COUNT * EFFECT_EQUALIZER_MAX_CHANNELS)
+#define EFFECT_EQUALIZER_STATE_LENGTH (2 * EFFECT_BAND_COUNT * EFFECT_EQUALIZER_MAX_CHANNELS)
 
 static double get_fade_in_volume(double t0, double t, double t1);
 static double get_fade_out_volume(double t0, double t, double t1);
