@@ -98,7 +98,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     get isStopped() {
-        return this.isPaused && !this._loadedTrack;
+        return this.audioManager.isPaused() && !this._loadedTrack;
     }
 
     get isPaused() {
@@ -153,7 +153,6 @@ export default class PlayerController extends EventEmitter {
         this._loadedTrack = track;
         this.audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
         this.emit(NEW_TRACK_LOAD_EVENT, track);
-
         if (resumeIfPaused) {
             this.play();
         }
@@ -264,8 +263,9 @@ export default class PlayerController extends EventEmitter {
 
     play() {
         if (this.isStopped) {
-            this.playlist.next(true);
-            return;
+            if (!this.playlist.next(true)) {
+                return;
+            }
         }
         this.audioManager.resume();
     }
@@ -273,8 +273,6 @@ export default class PlayerController extends EventEmitter {
     togglePlayback() {
         if (this.isPlaying) {
             this.pause();
-        } else if (this.isStopped) {
-            this.playlist.next(true);
         } else {
             this.play();
         }
