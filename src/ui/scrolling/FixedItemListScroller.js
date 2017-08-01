@@ -1,4 +1,5 @@
 import ContentScroller from "ui/scrolling/ContentScroller";
+import {throttle} from "util";
 
 export default class FixedItemListScroller extends ContentScroller {
     constructor({
@@ -17,6 +18,7 @@ export default class FixedItemListScroller extends ContentScroller {
             position: `absolute`,
             transform: `translate3d(0, 0, 0)`
         }).setText(` `).prependTo(this.$contentContainer());
+        this._onScroll = throttle(this._onScroll, 33, this);
     }
 
     $sentinel() {
