@@ -126,15 +126,14 @@ export default class FixedItemListScroller extends ContentScroller {
         const contentHeight = this.contentHeight();
 
         if (displayedItems.length > 2 && !forced) {
+
             const virtualStart = displayedItems[0].getIndex();
             const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
 
-            const screenStart = scrollTop / itemHeight;
-            const screenEnd = (scrollTop + contentHeight) / itemHeight;
+            const screenStart = Math.ceil(scrollTop / itemHeight);
+            const screenEnd = Math.floor((scrollTop + contentHeight) / itemHeight);
 
-            const {_minPrerenderedItems: minPrerenderedItems} = this;
-            if (screenStart > (virtualStart + minPrerenderedItems) &&
-                screenEnd < (virtualEnd - minPrerenderedItems)) {
+            if (screenStart >= virtualStart && screenEnd <= virtualEnd) {
                 return scrollTop;
             }
         }
