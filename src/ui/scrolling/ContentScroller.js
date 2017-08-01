@@ -12,9 +12,6 @@ export default class ContentScroller extends EventEmitter {
         const {left, top} = this._getTopLeft();
         this._left = left;
         this._top = top;
-        this.$contentContainer().addEventListener(`scroll`, () => {
-            this._onScroll();
-        });
     }
 
     $() {
@@ -74,6 +71,5 @@ export default class ContentScroller extends EventEmitter {
     _onScroll() {
         const scrollTop = this.getScrollTop();
         this.emit(SCROLL_POSITION_CHANGE_EVENT, scrollTop);
-        return scrollTop;
     }
 }

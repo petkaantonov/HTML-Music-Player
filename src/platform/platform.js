@@ -42,7 +42,8 @@ export const {ArrayBuffer,
     Request,
     Response,
     Proxy,
-    WebAssembly
+    WebAssembly,
+    IntersectionObserver
 } = self;
 
 const global = self;

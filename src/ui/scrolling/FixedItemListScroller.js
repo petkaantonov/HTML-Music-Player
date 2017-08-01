@@ -1,22 +1,42 @@
-import ContentScroller from "ui/scrolling/ContentScroller";
+import ContentScroller, {SCROLL_POSITION_CHANGE_EVENT} from "ui/scrolling/ContentScroller";
+import {IntersectionObserver} from "platform/platform";
+import {throttle} from "util";
 
 export default class FixedItemListScroller extends ContentScroller {
     constructor({
-        target, contentContainer, itemHeight, itemList, minPrerenderedItems, maxPrerenderedItems
+        target, contentContainer, itemHeight, itemList
     }, deps) {
         super({target, contentContainer}, deps);
         this._itemHeight = itemHeight;
         this._itemList = itemList;
         this._displayedItems = new Array(300);
         this._displayedItems.length = 0;
-        this._minPrerenderedItems = minPrerenderedItems || 15;
-        this._maxPrerenderedItems = maxPrerenderedItems || 100;
+        this._itemsVisibleInContainer = 0;
         this._sentinel = this._page.createElement(`div`).setStyles({
             width: `1px`,
             height: `1px`,
             position: `absolute`,
-            transform: `translate3d(0, 0, 0)`
+            transform: `translateY(0)`
         }).setText(` `).prependTo(this.$contentContainer());
+        this._startSentinel = this._page.createElement(`div`).setStyles({
+            position: `absolute`,
+            width: `100%`,
+            transform: `translateY(0)`,
+            contain: "strict",
+            visibility: `hidden`,
+            pointerEvents: `none`,
+            zIndex: 9999,
+            height: `${itemHeight}px`
+        }).setText(` `).prependTo(this.$contentContainer());
+        this._endSentinel = this._page.$(this._startSentinel[0].cloneNode()).setText(` `).prependTo(this.$contentContainer());
+        this._observer = new IntersectionObserver(this._observerCallback.bind(this), {
+            root: this.$contentContainer()[0]
+        });
+        this._startSentinelIndex = 0;
+        this._endSentinelIndex = 0;
+        this._observer.observe(this._startSentinel[0]);
+        this._observer.observe(this._endSentinel[0]);
+        this._emitScrollPositionChange = throttle(this._emitScrollPositionChange, 100, this);
     }
 
     $sentinel() {
@@ -50,6 +70,7 @@ export default class FixedItemListScroller extends ContentScroller {
         if (rect.height === 0) {
             this._rect = rect = this.$contentContainer()[0].getBoundingClientRect();
         }
+        this._itemsVisibleInContainer = Math.ceil(rect.height / this._itemHeight);
         return rect.height;
     }
 
@@ -119,55 +140,91 @@ export default class FixedItemListScroller extends ContentScroller {
         return index * this.itemHeight();
     }
 
-    _onScroll(forced = false) {
-        const scrollTop = super._onScroll(forced);
-        const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
+    _emitScrollPositionChange() {
+        const scrollTop = this.getScrollTop();
+        this.emit(SCROLL_POSITION_CHANGE_EVENT, scrollTop);
+    }
 
-        const contentHeight = this.contentHeight();
+    _observerCallback(entries) {
+        const [entry] = entries;
+        if (entries.length === 1 && entry.isIntersecting) {
+            const {height} = entry.rootBounds;
+            this._itemsVisibleInContainer = Math.ceil(height / this._itemHeight);
+            const {_itemsVisibleInContainer: itemsVisibleInContainer,
+                   _startSentinelIndex: startSentinelIndex,
+                   _endSentinelIndex: endSentinelIndex} = this;
 
-        if (displayedItems.length > 2 && !forced) {
-
-            const virtualStart = displayedItems[0].getIndex();
-            const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
-
-            const screenStart = Math.ceil(scrollTop / itemHeight);
-            const screenEnd = Math.floor((scrollTop + contentHeight) / itemHeight);
-
-            if (screenStart >= virtualStart && screenEnd <= virtualEnd) {
-                return scrollTop;
+            let startIndex, endIndex;
+            if (entry.target === this._startSentinel[0]) {
+                startIndex = startSentinelIndex - itemsVisibleInContainer;
+                endIndex = startIndex + itemsVisibleInContainer * 3;
+            } else {
+                endIndex = endSentinelIndex + itemsVisibleInContainer;
+                startIndex = endIndex - itemsVisibleInContainer * 3;
             }
+            startIndex = Math.max(0, startIndex);
+            endIndex = Math.min(this._itemList.length - 1, endIndex);
+            this._renderItems(startIndex, endIndex);
         }
+    }
 
-        const {_itemList: items, _maxPrerenderedItems: maxPrerenderedItems} = this;
+    _renderItems(startIndex, endIndex) {
         const container = this.$contentContainer();
-        const itemsBefore = Math.min(items.length, scrollTop / itemHeight | 0);
-        const itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
-
-        const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
-        const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
-
+        const {_itemList: items,
+                _itemsVisibleInContainer: itemsVisibleInContainer,
+                _itemHeight: itemHeight,
+                _displayedItems: displayedItems} = this;
         const detachedDomNodes = [];
 
         for (let i = 0; i < displayedItems.length; ++i) {
             const index = displayedItems[i].getIndex();
-            if (!(start <= index && index <= end) && displayedItems[i].isVisible()) {
+            if (!(startIndex <= index && index <= endIndex) && displayedItems[i].isVisible()) {
                 detachedDomNodes.push(displayedItems[i].detach());
             }
         }
 
-        for (let i = start; i <= end; ++i) {
+        for (let i = startIndex; i <= endIndex; ++i) {
             const item = items[i];
             if (!item.isVisible()) {
                 item.attach(container, detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null);
             }
-            displayedItems[i - start] = item;
+            displayedItems[i - startIndex] = item;
         }
 
         for (let i = 0; i < detachedDomNodes.length; ++i) {
             detachedDomNodes[i].remove();
         }
 
-        displayedItems.length = end - start + 1;
-        return scrollTop;
+        displayedItems.length = endIndex - startIndex + 1;
+
+        let startSentinelIndex = 0;
+        let endSentinelIndex = 0;
+
+        if (displayedItems.length > 2) {
+            startSentinelIndex = Math.min(items.length - 1, (startIndex + Math.ceil(itemsVisibleInContainer / 2)));
+            endSentinelIndex = Math.max(0, (endIndex - Math.ceil(itemsVisibleInContainer / 2)));
+        }
+        this._startSentinelIndex = startSentinelIndex;
+        this._endSentinelIndex = endSentinelIndex;
+        this._startSentinel.setTransform(`translateY(${startSentinelIndex * itemHeight}px)`);
+        this._endSentinel.setTransform(`translateY(${endSentinelIndex * itemHeight}px)`);
+        this._emitScrollPositionChange();
+    }
+
+    _onScroll() {
+        if (this._itemList.length === 0) {
+            return;
+        }
+        const scrollTop = this.getScrollTop();
+        const contentHeight = this.contentHeight();
+        const {_itemList: items,
+                _itemsVisibleInContainer: itemsVisibleInContainer,
+                _itemHeight: itemHeight} = this;
+
+        const itemsBefore = Math.min(items.length, scrollTop / itemHeight | 0);
+        const itemsWithin = Math.min(items.length, Math.ceil(contentHeight / itemHeight));
+        const startIndex = Math.max(itemsBefore - itemsVisibleInContainer, 0);
+        const endIndex = Math.min(items.length - 1, itemsWithin + itemsBefore + itemsVisibleInContainer);
+        this._renderItems(startIndex, endIndex);
     }
 }

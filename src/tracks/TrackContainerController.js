@@ -149,9 +149,7 @@ export default class TrackContainerController extends EventEmitter {
         this._fixedItemListScroller = deps.scrollerContext.createFixedItemListScroller({
             target: this.$(),
             itemList: this._trackViews,
-            contentContainer: this.$trackContainer(),
-            minPrerenderedItems: 6,
-            maxPrerenderedItems: 12
+            contentContainer: this.$trackContainer()
         });
 
         this.globalEvents.on(`resize`, this._windowLayoutChanged.bind(this));
