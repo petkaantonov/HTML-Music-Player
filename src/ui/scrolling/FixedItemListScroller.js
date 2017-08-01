@@ -148,22 +148,26 @@ export default class FixedItemListScroller extends ContentScroller {
     _observerCallback(entries) {
         const [entry] = entries;
         const {height} = entry.rootBounds;
-        this._itemsVisibleInContainer = Math.ceil(height / this._itemHeight);
-        const {_itemsVisibleInContainer: itemsVisibleInContainer,
-               _startSentinelIndex: startSentinelIndex,
-               _endSentinelIndex: endSentinelIndex} = this;
+        if (entry.isIntersecting) {
+            this._itemsVisibleInContainer = Math.ceil(height / this._itemHeight);
+            const {_itemsVisibleInContainer: itemsVisibleInContainer,
+                   _startSentinelIndex: startSentinelIndex,
+                   _endSentinelIndex: endSentinelIndex} = this;
 
-        let startIndex, endIndex;
-        if (entry.target === this._startSentinel[0]) {
-            startIndex = startSentinelIndex - itemsVisibleInContainer;
-            endIndex = startIndex + itemsVisibleInContainer * 3;
-        } else {
-            endIndex = endSentinelIndex + itemsVisibleInContainer;
-            startIndex = endIndex - itemsVisibleInContainer * 3;
+            let startIndex, endIndex;
+            if (entry.target === this._startSentinel[0]) {
+                startIndex = startSentinelIndex - itemsVisibleInContainer;
+                endIndex = startIndex + itemsVisibleInContainer * 3;
+                //console.log("triggered start", startIndex, endIndex);
+            } else {
+                endIndex = endSentinelIndex + itemsVisibleInContainer;
+                startIndex = endIndex - itemsVisibleInContainer * 3;
+                //console.log("triggered end", startIndex, endIndex);
+            }
+            startIndex = Math.max(0, startIndex);
+            endIndex = Math.min(this._itemList.length - 1, endIndex);
+            this._renderItems(startIndex, endIndex);
         }
-        startIndex = Math.max(0, startIndex);
-        endIndex = Math.min(this._itemList.length - 1, endIndex);
-        this._renderItems(startIndex, endIndex);
     }
 
     _renderItems(startIndex, endIndex) {
@@ -199,8 +203,8 @@ export default class FixedItemListScroller extends ContentScroller {
         let endSentinelIndex = 0;
 
         if (displayedItems.length > 2) {
-            startSentinelIndex = Math.min(items.length - 1, (startIndex + Math.ceil(itemsVisibleInContainer / 2)));
-            endSentinelIndex = Math.max(0, (endIndex - Math.ceil(itemsVisibleInContainer / 2)));
+            startSentinelIndex = Math.max(0, Math.min(items.length - 1, (startIndex + Math.ceil(itemsVisibleInContainer / 2))));
+            endSentinelIndex = Math.min(items.length - 1, Math.max(0, (endIndex - Math.ceil(itemsVisibleInContainer / 2))));
         }
         this._startSentinelIndex = startSentinelIndex;
         this._endSentinelIndex = endSentinelIndex;
