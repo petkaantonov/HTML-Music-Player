@@ -147,23 +147,25 @@ export default class FixedItemListScroller extends ContentScroller {
 
     _observerCallback(entries) {
         const [entry] = entries;
-        const {height} = entry.rootBounds;
-        this._itemsVisibleInContainer = Math.ceil(height / this._itemHeight);
-        const {_itemsVisibleInContainer: itemsVisibleInContainer,
-               _startSentinelIndex: startSentinelIndex,
-               _endSentinelIndex: endSentinelIndex} = this;
+        if (entries.length === 1 && entry.isIntersecting) {
+            const {height} = entry.rootBounds;
+            this._itemsVisibleInContainer = Math.ceil(height / this._itemHeight);
+            const {_itemsVisibleInContainer: itemsVisibleInContainer,
+                   _startSentinelIndex: startSentinelIndex,
+                   _endSentinelIndex: endSentinelIndex} = this;
 
-        let startIndex, endIndex;
-        if (entry.target === this._startSentinel[0]) {
-            startIndex = startSentinelIndex - itemsVisibleInContainer;
-            endIndex = startIndex + itemsVisibleInContainer * 3;
-        } else {
-            endIndex = endSentinelIndex + itemsVisibleInContainer;
-            startIndex = endIndex - itemsVisibleInContainer * 3;
+            let startIndex, endIndex;
+            if (entry.target === this._startSentinel[0]) {
+                startIndex = startSentinelIndex - itemsVisibleInContainer;
+                endIndex = startIndex + itemsVisibleInContainer * 3;
+            } else {
+                endIndex = endSentinelIndex + itemsVisibleInContainer;
+                startIndex = endIndex - itemsVisibleInContainer * 3;
+            }
+            startIndex = Math.max(0, startIndex);
+            endIndex = Math.min(this._itemList.length - 1, endIndex);
+            this._renderItems(startIndex, endIndex);
         }
-        startIndex = Math.max(0, startIndex);
-        endIndex = Math.min(this._itemList.length - 1, endIndex);
-        this._renderItems(startIndex, endIndex);
     }
 
     _renderItems(startIndex, endIndex) {
