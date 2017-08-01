@@ -1,11 +1,14 @@
 #ifndef EFFECTS_H
 #define EFFECTS_H
 
-#define EFFECT_MULTIPLIER ((int32_t)10000)
+#define CLIP_DOUBLE_SAMPLE(val) MAX(-1.0, MIN(1.0, (val)))
+#define EFFECT_MULTIPLIER ((int32_t)16384)
 #define EFFECT_BLOCK_SIZE 1024
-#define EFFECT_BAND_COUNT 10
+#define EFFECT_EQUALIZER_BAND_COUNT 10
 #define EFFECT_EQUALIZER_MAX_CHANNELS 2
-#define EFFECT_EQUALIZER_STATE_LENGTH (2 * EFFECT_BAND_COUNT * EFFECT_EQUALIZER_MAX_CHANNELS)
+#define EFFECT_EQUALIZER_STATE_PARAMS 4
+#define EFFECT_EQUALIZER_COEFF_PARAMS 5
+#define EFFECT_EQUALIZER_STATE_LENGTH (EFFECT_EQUALIZER_STATE_PARAMS * EFFECT_EQUALIZER_BAND_COUNT * EFFECT_EQUALIZER_MAX_CHANNELS)
 
 static double get_fade_in_volume(double t0, double t, double t1);
 static double get_fade_out_volume(double t0, double t, double t1);
@@ -32,6 +35,6 @@ EXPORT void effects_equalizer_reset(void);
 EXPORT void effects_equalizer_apply(int16_t* samples,
                                     uint32_t byte_length,
                                     uint32_t channel_count,
-                                    float* param_ptr);
+                                    double* param_ptr);
 
 #endif //EFFECTS_H

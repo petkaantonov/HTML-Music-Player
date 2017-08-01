@@ -1,7 +1,7 @@
 #include "effects.h"
 
 
-static float effects_equalizer_state[EFFECT_EQUALIZER_STATE_LENGTH];
+static double effects_equalizer_state[EFFECT_EQUALIZER_STATE_LENGTH];
 
 EXPORT void effects_equalizer_reset() {
     for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
@@ -106,44 +106,76 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
     }
 }
 
+#define EFFECT_APPLY_BAND(input, output, state_index_base, param_base, param_ptr)                       \
+        output = param_ptr[param_base + 0] * input +                                                    \
+                 param_ptr[param_base + 1] * effects_equalizer_state[state_index_base + 0] +            \
+                 param_ptr[param_base + 2] * effects_equalizer_state[state_index_base + 1] -            \
+                 param_ptr[param_base + 3] * effects_equalizer_state[state_index_base + 2] -            \
+                 param_ptr[param_base + 4] * effects_equalizer_state[state_index_base + 3];             \
+        effects_equalizer_state[state_index_base + 1] = effects_equalizer_state[state_index_base + 0];  \
+        effects_equalizer_state[state_index_base + 0] = input;                                          \
+        effects_equalizer_state[state_index_base + 3] = effects_equalizer_state[state_index_base + 2];  \
+        effects_equalizer_state[state_index_base + 2] = output;
+
+#define EFFECT_APPLY_BAND_TO_CHANNEL(input, output, channel_index, channel_count, band_index, param_ptr)    \
+        EFFECT_APPLY_BAND(input, output,                                                                    \
+                          (band_index * channel_count + channel_index) * EFFECT_EQUALIZER_STATE_PARAMS,     \
+                          (band_index * EFFECT_EQUALIZER_COEFF_PARAMS),                                     \
+                          param_ptr)
+#define CLIP_DOUBLE_SAMPLE(val) MAX(-1.0, MIN(1.0, (val)))
+
 EXPORT void effects_equalizer_apply(int16_t* samples,
                                     uint32_t byte_length,
                                     uint32_t channel_count,
-                                    float* param_ptr) {
+                                    double* param_ptr) {
+    uint32_t frame_length = byte_length / sizeof(int16_t) / channel_count;
     if (channel_count > EFFECT_EQUALIZER_MAX_CHANNELS) {
         return;
-    }
-    uint32_t frame_length = byte_length / sizeof(int16_t) / channel_count;
+    } else if (channel_count == 2) {
+        for (int i = 0; i < frame_length; ++i) {
+            double tmp1, tmp2, result;
 
-    for (int i = 0; i < frame_length; ++i) {
-        for (int ch = 0; ch < channel_count; ++ch) {
-            const int index = i * channel_count + ch;
+            tmp1 = (double) samples[i * 2] / 32768.0;
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 0, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 1, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 2, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 3, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 4, param_ptr);
+            tmp2 = CLIP_DOUBLE_SAMPLE(tmp2);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 5, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 6, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 7, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 8, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, result, 0, 2, 9, param_ptr);
+            samples[i * 2] = CLIP_I32_TO_I16((int32_t)(result * 32768.0));
 
-            float input = (float)samples[index] / 32768.0;
-            float output;
+            tmp1 = (double) samples[i * 2 + 1] / 32768.0;
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 0, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 1, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 2, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 3, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 4, param_ptr);
+            tmp2 = CLIP_DOUBLE_SAMPLE(tmp2);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 5, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 6, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 7, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 8, param_ptr);
+            EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, result, 1, 2, 9, param_ptr);
+            samples[i * 2 + 1] = CLIP_I32_TO_I16((int32_t)(result * 32768.0));
 
-            for (int band = 0; band < EFFECT_BAND_COUNT; ++band) {
-                const int state_index_base = (band * channel_count + ch) * 2;
-                const int param_base = band * 5;
-
-                output = effects_equalizer_state[state_index_base + 0] + input * param_ptr[param_base + 2];
-                effects_equalizer_state[state_index_base + 0] = effects_equalizer_state[state_index_base + 1] +
-                                                                input * param_ptr[param_base + 3] -
-                                                                output * param_ptr[param_base + 0];
-                effects_equalizer_state[state_index_base + 1] = input * param_ptr[param_base + 4] -
-                                                                output * param_ptr[param_base + 1];
-                input = output;
+            if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
+                const uint64_t* effects_equalizer_state_bits = (uint64_t*) effects_equalizer_state;
+                for (int j = 0; j < EFFECT_EQUALIZER_STATE_LENGTH; ++j) {
+                    if ((effects_equalizer_state_bits[j] & 0x7FF0000000000000LLU) == 0LLU) {
+                        effects_equalizer_state[j] = 0.0;
+                    }
+                }
             }
-
-            samples[index] = CLIP_I32_TO_I16((int32_t)(output * 32768.0));
         }
-    }
-
-    for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
-        if (fabs(effects_equalizer_state[i]) < FLT_MIN) {
-            effects_equalizer_state[i] = 0.0;
-        }
+    } else {
+        return;
     }
 }
 
 #undef EFFECT_APPLY_BAND
+#undef EFFECT_APPLY_BAND_TO_CHANNEL
