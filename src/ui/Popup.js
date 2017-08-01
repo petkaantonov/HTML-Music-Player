@@ -341,7 +341,7 @@ export default class Popup extends EventEmitter {
         return this._shown;
     }
 
-    open() {
+    async open() {
         if (this._shown) return;
         this._activeElementBeforeOpen = this.page.activeElement();
         this._shown = true;
@@ -353,11 +353,12 @@ export default class Popup extends EventEmitter {
         this._updateLayout();
         this._contentScroller.setScrollTop(this._scrollTop);
 
-        this.beforeTransitionIn(this.$(), this._rect);
+        this.emit(`layoutUpdate`);
+        await this.beforeTransitionIn(this.$(), this._rect);
+        this.emit(`layoutUpdate`);
         this.$().focus();
 
         this.page.addDocumentListener(`focus`, this._elementFocused, true);
-        this.emit(`layoutUpdate`);
     }
 
     mousemoved(e) {

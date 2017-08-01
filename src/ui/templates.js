@@ -213,7 +213,7 @@ export class ToggleableSlideableValue {
         });
         this._slider.on(`slide`, (p) => {
             const value = p * (this.maxValue - this.minValue) + this.minValue;
-            this._updateSlider(value, true);
+            this._updateSlider(value, true, false);
             this._updateCheckbox(true);
             this.onSlide(value);
         });
@@ -244,7 +244,7 @@ export class ToggleableSlideableValue {
         this.$checkbox().setProperty(`checked`, toggle);
     }
 
-    _updateSlider(value, toggle) {
+    _updateSlider(value, toggle, forceRelayout = true) {
         this._renderedValue = value;
         this.$sliderValue().setText(this.valueFormatter(value));
         if (toggle) {
@@ -252,7 +252,10 @@ export class ToggleableSlideableValue {
         } else {
             this.$slider().addClass(`slider-inactive`);
         }
-        this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue));
+        if (forceRelayout) {
+            this._slider.forceRelayout();
+        }
+        this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue), forceRelayout);
     }
 }
 
@@ -318,7 +321,7 @@ export class SlideableValue {
         });
         this._slider.on(`slide`, (p) => {
             const value = p * (this.maxValue - this.minValue) + this.minValue;
-            this._updateSlider(value, true);
+            this._updateSlider(value, false);
             this.onSlide(value);
         });
     }
@@ -333,9 +336,12 @@ export class SlideableValue {
         this._slider.forceRelayout();
     }
 
-    _updateSlider(value) {
+    _updateSlider(value, forceRelayout = true) {
         this._renderedValue = value;
         this.$sliderValue().setText(this.valueFormatter(value));
-        this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue));
+        if (forceRelayout) {
+            this._slider.forceRelayout();
+        }
+        this._slider.setValue((value - this.minValue) / (this.maxValue - this.minValue), forceRelayout);
     }
 }

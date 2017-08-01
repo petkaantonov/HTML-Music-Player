@@ -118,6 +118,7 @@ class EqualizerUiBinding {
                                                                                   : this._equalizerSliders.length / 2;
         const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
         this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
+        this._equalizerSliders.forEach(_.forceRelayout);
     }
 
     equalizerPresetChanged(val) {
