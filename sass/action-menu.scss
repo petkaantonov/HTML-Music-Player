@@ -45,10 +45,14 @@
     .action-menu-item:hover .icon {
         color: $action-menu-active-color;
     }
-}
 
-.action-menu-item, .action-menu-item.action-menu-disabled:hover .icon {
-    color: $action-menu-disabled-color;
+    .action-menu-item, .action-menu-item.action-menu-disabled:hover .icon {
+        color: $action-menu-disabled-color;
+    }
+
+    .action-menu-item:hover {
+        background-color: #e6e6e6;
+    }
 }
 
 .action-menu-item {
@@ -67,7 +71,6 @@
     margin: 5px 0px;
 }
 
-.action-menu-item:hover,
 .action-menu-item.action-menu-sub-menu-item.action-menu-active {
     background-color: #e6e6e6;
 }

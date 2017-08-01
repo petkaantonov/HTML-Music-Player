@@ -211,8 +211,6 @@ $slider-margin: 3px;
 
 .button-group .button-group-button,
 .button-group .button-group-item,
-.button-group .button-group-button.disabled:hover,
-.button-group .button-group-button.just-deactivated:hover,
 .button-group .button-group-button.just-deactivated {
     background-color: transparent;
     color: #666;
@@ -293,22 +291,35 @@ $slider-margin: 3px;
     cursor: default;
 }
 
-.button-group .button-group-button:hover {
-    color: #000;
-    text-shadow: 1px 1px 1px #aaa;
+.no-touch {
+    .button-group .button-group-button.disabled:hover,
+    .button-group .button-group-button.just-deactivated:hover {
+        background-color: transparent;
+        color: #666;
+    }
+
+    .app-playlist-mode:hover {
+        background-color: #CBDFED;
+    }
+
+    .button-group .button-group-button:hover {
+        color: #000;
+        text-shadow: 1px 1px 1px #aaa;
+    }
+
+    .button-group .button-group-button.disabled:hover {
+        text-shadow: none;
+    }
+
+    .button-group .button-group-button.active:hover {
+        color: #85C4FF;
+    }
 }
 
-.button-group .button-group-button.disabled:hover {
-    text-shadow: none;
-}
 
 .button-group .button-group-button.active {
     color: #85C4FF;
     text-shadow: 1px 1px 0px #E0F0FF;
-}
-
-.button-group .button-group-button.active:hover {
-    color: #85C4FF;
 }
 
 .button-group .button-group-button.disabled {
@@ -469,7 +480,6 @@ $slider-margin: 3px;
     @include skew1(23deg);
 }
 
-.mode-active,
-.app-playlist-mode:hover {
+.mode-active {
     background-color: #CBDFED;
 }

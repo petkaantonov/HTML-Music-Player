@@ -177,10 +177,6 @@ $popup-container-border: 2px;
     border-left: 1px solid #EBEBEB;
 }
 
-.popup-closer-container:hover {
-    background: linear-gradient(to bottom, #F9F9F9 0%, #FBEEEE 100%);
-}
-
 .popup-closer-container .icon {
     text-align: center;
     font-size: 15px;
@@ -189,6 +185,12 @@ $popup-container-border: 2px;
     color: #6f6f6f;
 }
 
-.popup-closer-container:hover .icon {
-    color: #8B0000;
+.no-touch {
+    .popup-closer-container:hover .icon {
+        color: #8B0000;
+    }
+
+    .popup-closer-container:hover {
+        background: linear-gradient(to bottom, #F9F9F9 0%, #FBEEEE 100%);
+    }
 }

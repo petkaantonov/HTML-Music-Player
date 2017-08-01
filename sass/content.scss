@@ -53,6 +53,16 @@ $tab-height: 32px;
     }
 }
 
+.no-touch {
+    .content-tab-container {
+        .tab {
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.089);
+            }
+        }
+    }
+}
+
 .content-tab-container {
     div {
         box-sizing: border-box;
@@ -84,10 +94,6 @@ $tab-height: 32px;
 
         &.active {
             @include css-filter(grayscale(0%) brightness(100%));
-        }
-
-        &:hover {
-            background-color: rgba(255, 255, 255, 0.089);
         }
 
         .icon {

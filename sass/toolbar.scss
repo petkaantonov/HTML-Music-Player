@@ -42,6 +42,23 @@ body {
     filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#e4e4e4', endColorstr='#f4f4f4',GradientType=0 );
 }
 
+.no-touch {
+    .toolbar-submenu {
+        .toolbar-submenu-item:hover {
+            background-color: #e6e6e6;
+        }
+    }
+
+    .toolbar-items .toolbar-item:hover {
+        color: #85C4FF;
+    }
+
+    .toolbar-items .toolbar-item.just-deactivated:hover {
+        color: #474747;
+        background-color: transparent;
+    }
+}
+
 .toolbar > .toolbar-items {
     height: 100%;
     font-size: 0;
@@ -75,11 +92,6 @@ body {
             height: 48px;
             box-sizing: border-box;
             outline: none;
-
-            &:hover,
-            &:focus {
-                background-color: #e6e6e6;
-            }
 
             .toolbar-submenu-icon {
                 box-sizing: border-box;
@@ -145,8 +157,7 @@ body {
     vertical-align: middle;
 }
 
-.toolbar-items .toolbar-item:hover,
-.toolbar-items .toolbar-item:focus,
+
 .toolbar-items .toolbar-item.toolbar-item-active {
     color: #85C4FF;
 }
@@ -170,8 +181,6 @@ body {
     color: #474747;
 }
 
-.toolbar-items .toolbar-item.just-deactivated:hover,
-.toolbar-items .toolbar-item.just-deactivated:focus,
 .toolbar-items .toolbar-item.just-deactivated {
     color: #474747;
     background-color: transparent;
