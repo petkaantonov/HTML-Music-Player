@@ -76,8 +76,6 @@ export default class Application {
 
         if (!env.hasTouch()) {
             page.$(`body`).addClass(`no-touch`);
-        } else {
-            page.$(`body`).addClass(`has-touch`);
         }
 
         this.page = page;
