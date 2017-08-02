@@ -93,7 +93,7 @@ export const Preferences = createPreferences({
         },
 
         noiseSharpeningEnabled: {
-            defaultValue: true,
+            defaultValue: false,
             asValidValue(value) {
                 return !!value;
             }
