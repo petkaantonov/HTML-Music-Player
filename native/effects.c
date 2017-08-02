@@ -1,11 +1,19 @@
 #include "effects.h"
 
-
+static float effects_bass_boost_state[EFFECT_BASS_BOOST_MAX_CHANNELS];
 static double effects_equalizer_state[EFFECT_EQUALIZER_STATE_LENGTH];
+static const float bass_boost_gain1 = 1.0 / (EFFECT_BASS_BOOST_SELECTIVITY + 1.0);
+static const float bass_boost_gain2 = 0.5;
 
 EXPORT void effects_equalizer_reset() {
     for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
         effects_equalizer_state[i] = 0.0;
+    }
+}
+
+EXPORT void effects_bass_boost_reset() {
+    for (int i = 0; i < EFFECT_BASS_BOOST_MAX_CHANNELS; ++i) {
+        effects_bass_boost_state[i] = 0.0;
     }
 }
 
@@ -19,14 +27,43 @@ static double get_fade_out_volume(double t0, double t, double t1) {
     return sqrt(0.5 * (1.0 - t));
 }
 
+EXPORT void effects_bass_boost_apply(double effect_size,
+                               uint32_t channel_count,
+                               int16_t* samples,
+                               uint32_t byte_length) {
+    if (channel_count > EFFECT_BASS_BOOST_MAX_CHANNELS) {
+        return;
+    }
+    size_t length = byte_length / sizeof(int16_t) / channel_count;
+    int16_t* samples_i16 = (int16_t*) samples;
+    const float ratio = EFFECT_BASS_BOOST_MIN_RATIO + effect_size * (EFFECT_BASS_BOOST_MAX_RATIO - EFFECT_BASS_BOOST_MIN_RATIO);
+
+    for (int i = 0; i < length; ++i) {
+        for (int ch = 0; ch < channel_count; ++ch) {
+            float sample = ((float)samples_i16[i * channel_count + ch]) / 32768.0;
+            effects_bass_boost_state[ch] = (sample + effects_bass_boost_state[ch] * EFFECT_BASS_BOOST_SELECTIVITY) * bass_boost_gain1;
+            sample = (sample + effects_bass_boost_state[ch] * ratio) * bass_boost_gain2;
+            samples_i16[i * channel_count + ch] = CLIP_I32_TO_I16((int32_t) (sample * 32768.0));
+        }
+    }
+
+    const uint32_t* effects_bass_boost_state_bits = (uint32_t*) effects_bass_boost_state;
+    for (int j = 0; j < EFFECT_BASS_BOOST_MAX_CHANNELS; ++j) {
+        if ((effects_bass_boost_state_bits[j] & 0x7F800000) == 0) {
+            effects_bass_boost_state[j] = 0.0;
+        }
+    }
+}
+
 EXPORT void effects_noise_sharpening(double effect_size,
                                      uint8_t channel_count,
                                      void* samples,
                                      size_t byte_length) {
+    size_t length = byte_length / sizeof(int16_t) / channel_count;
+    int16_t* samples_i16 = (int16_t*) samples;
+
     if (effect_size > 0) {
         int32_t effect_multiplier = DOUBLE_TO_U32(effect_size * (double)EFFECT_MULTIPLIER);
-        size_t length = byte_length / sizeof(int16_t) / channel_count;
-        int16_t* samples_i16 = (int16_t*) samples;
         for (size_t i = length - 1; i >= 1; --i) {
             for (uint8_t ch = 0; ch < channel_count; ++ch) {
                 int32_t sample = samples_i16[i * channel_count + ch];

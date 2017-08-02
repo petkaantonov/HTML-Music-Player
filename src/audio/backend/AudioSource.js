@@ -104,7 +104,6 @@ export default class AudioSource extends CancellableOperations(null,
 
         this._bufferFillCancellationToken = cancellationToken || this.cancellationTokenForBufferFillOperation();
 
-        let {establishedGain} = this.demuxData;
         const {sampleRate, channelCount} = this;
         let i = 0;
         const {crossfadeDuration, duration} = this;
@@ -127,14 +126,7 @@ export default class AudioSource extends CancellableOperations(null,
                     break;
                 }
 
-                const {loudnessInfo} = bufferDescriptor;
-                if (!establishedGain &&
-                    this._loudnessAnalyzer.hasEstablishedGain()) {
-                    establishedGain = this._loudnessAnalyzer.getEstablishedGain();
-                    this.backend.metadataManager.setEstablishedGain(this.trackInfo.trackUid, establishedGain);
-                }
-
-                const {startTime, endTime} = bufferDescriptor;
+                const {startTime, endTime, loudnessInfo} = bufferDescriptor;
                 let isBackgroundBuffer = false;
                 let isLastBuffer = false;
 
@@ -240,7 +232,6 @@ export default class AudioSource extends CancellableOperations(null,
 
         if (trackInfo) {
             this.trackInfo = trackInfo;
-            demuxData.establishedGain = trackInfo.establishedGain || undefined;
         } else {
             this.trackInfo = null;
         }
@@ -255,10 +246,6 @@ export default class AudioSource extends CancellableOperations(null,
         });
         this._decoder.start(demuxData);
         this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate, loudnessNormalization);
-
-        if (demuxData.establishedGain) {
-            this._loudnessAnalyzer.setPreviouslyObtainedEstablishedGain(demuxData.establishedGain);
-        }
 
         this._audioPipeline = new AudioProcessingPipeline(wasm, {
             sourceSampleRate: sampleRate,

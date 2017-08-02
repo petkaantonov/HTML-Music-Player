@@ -1,9 +1,10 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import {checkBoolean} from "errors/BooleanTypeError";
 
-const MAX_HISTORY_MS = 8000;
+const MAX_HISTORY_MS = 30000;
 const INT16_BYTE_SIZE = 2;
-const SILENCE_THRESHOLD = 50;
+const SILENCE_THRESHOLD = 45;
+const NORMALIZE_THRESHOLD = 30;
 const MOMENTARY_WINDOW_MS = 400;
 
 export const defaultLoudnessInfo = Object.freeze({
@@ -20,8 +21,6 @@ export default class LoudnessAnalyzer {
         this._channelCount = channelCount;
         this._wasm = wasm;
         this._ptr = 0;
-        this._establishedGain = -1;
-        this._previouslyObtainedEstalishedGain = 0;
         this._framesAdded = 0;
         this._loudnessNormalizationEnabled = loudnessNormalizationEnabled;
         this._silenceTrimmingEnabled = silenceTrimmingEnabled;
@@ -90,14 +89,6 @@ export default class LoudnessAnalyzer {
             if (error) {
                 throw new Error(`ebur128 error ${error} ${samplePtr} ${audioFrameCount}`);
             }
-
-            if (!this.hasEstablishedGain() && isFinite(gain)) {
-                const neededFrames = Math.ceil(this._maxHistoryMs / 1000 * this._sampleRate);
-                if (this._framesAdded >= neededFrames) {
-                    this._establishedGain = gain;
-                }
-            }
-
             loudness = gain;
         }
 
@@ -113,27 +104,11 @@ export default class LoudnessAnalyzer {
             ret.isEntirelySilent = isEntirelySilent;
         }
 
-        if (_loudnessNormalizationEnabled && this._previouslyObtainedEstalishedGain && !this.hasEstablishedGain()) {
-            loudness = this._previouslyObtainedEstalishedGain;
-        }
-
-        if (_loudnessNormalizationEnabled && loudness) {
+        if (_loudnessNormalizationEnabled && loudness && isFinite(loudness) && loudness < NORMALIZE_THRESHOLD) {
             this.loudness_analyzer_apply_normalization(this._ptr, loudness, originalSamplePtr, audioFrameCount);
         }
 
         return ret;
-    }
-
-    hasEstablishedGain() {
-        return this._establishedGain !== -1;
-    }
-
-    getEstablishedGain() {
-        return this._establishedGain;
-    }
-
-    setPreviouslyObtainedEstablishedGain(gain) {
-        this._previouslyObtainedEstalishedGain = gain;
     }
 
     destroy() {
@@ -147,7 +122,6 @@ export default class LoudnessAnalyzer {
         if (!this._ptr) {
             throw new Error(`not allocated`);
         }
-        this._establishedGain = -1;
         this._framesAdded = 0;
         const err = this.loudness_analyzer_reset(this._ptr);
         if (err) {
@@ -158,9 +132,7 @@ export default class LoudnessAnalyzer {
     reinitialized(channelCount, sampleRate) {
         this._channelCount = channelCount;
         this._sampleRate = sampleRate;
-        this._establishedGain = -1;
         this._framesAdded = 0;
-        this._previouslyObtainedEstalishedGain = 0;
         if (!this._ptr) {
             const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
             if (err) {

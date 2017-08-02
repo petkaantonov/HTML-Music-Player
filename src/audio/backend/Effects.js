@@ -19,6 +19,7 @@ export const equalizerBands = [
 
 export const equalizerPresets = {
     "None": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "Flat": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     "Classical": [0, 0, 0, 0, 0, 0, -4.64516129032258, -4.64516129032258, -4.64516129032258, -6.193548387096774],
     "Club": [0, 0, 1.935483870967742, 3.483870967741936, 3.483870967741936, 3.483870967741936, 1.935483870967742, 0, 0, 0],
     "Dance": [5.806451612903226, 4.258064516129032, 1.161290322580645, 0, 0, -3.870967741935484, -4.64516129032258, -4.64516129032258, 0, 0],
@@ -40,7 +41,7 @@ export const equalizerPresets = {
 
 function writeBandParam(type, frequency, gain, sampleRate, basePtr, index, wasm) {
     let a0, a1, a2, b0, b1, b2;
-    const Q = Math.sqrt(2) * 2;
+    const Q = Math.sqrt(2) * 1;
     const A = Math.pow(10, gain / 40);
     const w0 = Math.PI * 2 * frequency / sampleRate;
     const S = 1;
@@ -89,7 +90,8 @@ function writeBandParam(type, frequency, gain, sampleRate, basePtr, index, wasm)
 
 const DEFAULT_EQUALIZER_GAINS = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-let effects_noise_sharpening, effects_equalizer_apply, effects_equalizer_reset;
+let effects_noise_sharpening, effects_equalizer_apply, effects_equalizer_reset,
+    effects_bass_boost_reset, effects_bass_boost_apply;
 export default class Effects {
     constructor(wasm) {
         this._wasm = wasm;
@@ -106,6 +108,20 @@ export default class Effects {
                 },
 
                 _applySpec(spec = null) {
+                    this.effectSize = spec ? spec.effectSize : 0;
+                }
+            },
+            "bass-boost": {
+                effectSize: 0,
+                apply(effects, samplePtr, byteLength, {channelCount}) {
+                    if (this.effectSize > 0) {
+                        effects_bass_boost_apply(this.effectSize, channelCount, samplePtr, byteLength);
+                    }
+                    return {samplePtr, byteLength};
+                },
+
+                _applySpec(spec = null) {
+                    effects_bass_boost_reset();
                     this.effectSize = spec ? spec.effectSize : 0;
                 }
             },
@@ -171,5 +187,6 @@ export default class Effects {
 }
 
 moduleEvents.on(`main_afterInitialized`, (wasm, exports) => {
-    ({effects_noise_sharpening, effects_equalizer_apply, effects_equalizer_reset} = exports);
+    ({effects_noise_sharpening, effects_equalizer_apply, effects_equalizer_reset,
+        effects_bass_boost_reset, effects_bass_boost_apply} = exports);
 });

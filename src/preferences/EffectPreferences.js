@@ -12,7 +12,9 @@ export const CROSSFADE_DEFAULT_DURATION = Math.min(CROSSFADE_MAX_DURATION, Math.
 export const MIN_NOISE_SHARPENING_EFFECT_SIZE = 0;
 export const MAX_NOISE_SHARPENING_EFFECT_SIZE = 2;
 export const DEFAULT_NOISE_SHARPENING_EFFECT_SIZE = 0.6;
-
+export const MIN_BASS_BOOST_EFFECT_SIZE = 0;
+export const MAX_BASS_BOOST_EFFECT_SIZE = 1;
+export const DEFAULT_BASS_BOOST_EFFECT_SIZE = 0.4;
 
 export const gainValueToProgress = function(gainValue) {
     const max = Math.abs(EQUALIZER_MIN_GAIN) + Math.abs(EQUALIZER_MAX_GAIN);
@@ -64,6 +66,21 @@ export const Preferences = createPreferences({
                 }
 
                 return value;
+            }
+        },
+
+        bassBoostStrength: {
+            defaultValue: DEFAULT_BASS_BOOST_EFFECT_SIZE,
+            asValidValue(value) {
+                const ret = Math.max(MIN_BASS_BOOST_EFFECT_SIZE, Math.min(MAX_BASS_BOOST_EFFECT_SIZE, +value));
+                return isFinite(ret) ? ret : this.defaultBassBoostStrength;
+            }
+        },
+
+        bassBoostEnabled: {
+            defaultValue: false,
+            asValidValue(value) {
+                return !!value;
             }
         },
 

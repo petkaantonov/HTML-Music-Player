@@ -8,6 +8,7 @@ import {equalizerPresets, formatFreq, STORAGE_KEY,
         equalizerPresetKeys, equalizerBands,
         Preferences, gainValueToProgress, progressToGainValue,
         MIN_NOISE_SHARPENING_EFFECT_SIZE, MAX_NOISE_SHARPENING_EFFECT_SIZE,
+        MIN_BASS_BOOST_EFFECT_SIZE, MAX_BASS_BOOST_EFFECT_SIZE,
         CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
 import {_, _set} from "util";
 const ALL_SLIDERS_ON_SAME_ROW_THRESHOLD = 620;
@@ -51,6 +52,11 @@ const TEMPLATE = `<div class='settings-container equalizer-popup-content-contain
                     <div class="label wide-label subtitle">Noise sharpening</div>
                 </div>
                 <div class='section-container noise-sharpening-container'></div>
+                <div class='section-separator'></div>
+                <div class="inputs-container">
+                    <div class="label wide-label subtitle">Bass boost</div>
+                </div>
+                <div class='section-container bass-boost-container'></div>
                 <div class='section-separator'></div>
                 <div class="inputs-container">
                     <div class="label wide-label subtitle">Crossfading</div>
@@ -167,6 +173,19 @@ class EffectManager extends AbstractUiBindingManager {
                 `noiseSharpeningEnabled`,
                 this
             )).
+            addBinding(new ToggleableSlideableValuePreferenceUiBinding(
+                this.$().find(`.bass-boost-container`),
+                new ToggleableSlideableValue({
+                    checkboxLabel: `Enable bass boost`,
+                    sliderLabel: `Strength`,
+                    valueFormatter: value => value.toFixed(1),
+                    minValue: MIN_BASS_BOOST_EFFECT_SIZE,
+                    maxValue: MAX_BASS_BOOST_EFFECT_SIZE
+                }, {sliderContext}),
+                `bassBoostStrength`,
+                `bassBoostEnabled`,
+                this
+            )).
             addBinding(new ToggleableValuePreferenceUiBinding(
                 this.$().find(`.album-preference-container`),
                 new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
@@ -209,6 +228,11 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
         return preferences.getNoiseSharpeningEnabled() ? preferences.getNoiseSharpeningStrength() : 0;
     }
 
+    getBassBoostEffectSize() {
+        const preferences = this.preferences();
+        return preferences.getBassBoostEnabled() ? preferences.getBassBoostStrength() : 0;
+    }
+
     getCrossfadeDuration() {
         const preferences = this.preferences();
         return preferences.getCrossfadeEnabled() ? preferences.getCrossfadeDuration() : 0;
@@ -222,6 +246,9 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
         return [{
             name: `noise-sharpening`,
             effectSize: this.getNoiseSharpeningEffectSize()
+        }, {
+            name: `bass-boost`,
+            effectSize: this.getBassBoostEffectSize()
         }, {
             name: `equalizer`,
             gains: this.preferences().getEqualizer()
