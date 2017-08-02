@@ -79,9 +79,19 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
                 <span class="icon material-icons large-material-icon menu"></span>
             </div>
         </div>
+
+        <div class="toolbar-items-section-2">
+            <div class="toolbar-item shuffle-mode-button" tabindex="0" id="shuffle-mode">
+                <span class="icon material-icons large-material-icon shuffle-mode"></span>
+            </div>
+            <div class="toolbar-item repeat-mode-button" tabindex="0" id="repeat-mode">
+                <span class="icon material-icons large-material-icon repeat-mode"></span>
+            </div>
+        </div>
     </div>
     <div class="toolbar-border"></div>
 </div>
+
 <div class="toolbar" id="selection-toolbar" style="display: none;">
     <div class="toolbar-items">
         <div class="toolbar-items-section-1">
@@ -131,85 +141,9 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
         </div>
     </div>
 
+
     <div id="app-container" class="app-container initial">
-        <div class="player-upper-container">
-            <div class="playback-status-wrapper">
-                <div class="hidden time-container slanted left-side-slant right-side-slant current-time-container">
-                    <canvas class="current-time"></canvas>
-                </div>
-                <div class="hidden time-container slanted left-side-slant right-side-slant total-time-container">
-                    <canvas class="total-time"></canvas>
-                </div>
-            </div>
-
-            <div class="coverart-and-controls-container shadow-2dp">
-                <div class="coverart-section-container division">
-                    <div class="module-container picture-module-container">
-                        <div class="picture-container">
-                            <img src="/dist/images/apple-touch-icon-180x180.png" />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="player-control-panel-container module-container">
-                    <div class="notextflow time-progress-container" id="track-progress-container">
-                        <div id="track-progress" class="time-progress"></div>
-                        <div class="track-display-container">
-                            <div class="track-display"></div>
-                        </div>
-                    </div>
-                    <div class="smoothness-separator"></div>
-                    <div class="control-panel-lower-container">
-                        <div class="button-groups-container">
-                            <div class="app-player-controls volume-controls-container button-group">
-                                <div class="volume-mute volume-mute-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-volume-up"></span>
-                                </div>
-
-                                <div class="volume-slider-container button-group-item">
-                                    <div class="slider volume-slider horizontal-slider">
-                                        <div class="slider-knob"></div>
-                                        <div class="slider-background">
-                                            <div class="slider-fill"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div class="app-player-controls player-controls-container button-group">
-                                <div class="disabled previous-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-step-backward"></span>
-                                </div>
-                                <div class="disabled play-button button-group-button">
-                                    <div class="play-pause-morph-icon-container">
-                                        <div class="play-pause-morph-icon play">
-                                            <span class="icon glyphicon glyphicon-play"></span>
-                                            <span class="icon glyphicon glyphicon-pause"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="disabled next-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-step-forward"></span>
-                                </div>
-                            </div>
-
-                            <div class="app-player-controls playlist-controls-container button-group">
-                                <div class="shuffle-mode-button  button-group-button">
-                                    <span class="icon glyphicon glyphicon-random"></span>
-                                </div>
-
-                                <div class="repeat-mode-button  button-group-button">
-                                    <span class="icon glyphicon glyphicon-repeat"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="visualizer-section-container division shadow-2dp" style="display:none;">
+        <div class="visualizer-section-container division shadow-2dp" style="display: none;">
             <div id="visualizer-container" class="visualizer-container module-container">
                 <canvas id="visualizer" class="visualizer"></canvas>
             </div>
@@ -275,10 +209,74 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
                 </div>
             </div>
         </div>
+
+        <div class="player-upper-container">
+            <div class="playback-status-wrapper">
+                <div class="hidden time-container slanted left-side-slant right-side-slant current-time-container">
+                    <canvas class="current-time"></canvas>
+                </div>
+                <div class="hidden time-container slanted left-side-slant right-side-slant total-time-container">
+                    <canvas class="total-time"></canvas>
+                </div>
+            </div>
+
+            <div class="coverart-and-controls-container shadow-2dp">
+                <div class="coverart-section-container division">
+                    <div class="module-container picture-module-container">
+                        <div class="picture-container">
+                            <img src="/dist/images/apple-touch-icon-180x180.png" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="player-control-panel-container module-container">
+                    <div class="notextflow time-progress-container" id="track-progress-container">
+                        <div id="track-progress" class="time-progress"></div>
+                        <div class="track-display-container">
+                            <div class="track-display"></div>
+                        </div>
+                    </div>
+                    <div class="smoothness-separator"></div>
+                    <div class="control-panel-lower-container">
+                        <div class="button-groups-container">
+                            <div class="app-player-controls volume-controls-container button-group">
+                                <div class="volume-mute volume-mute-button button-group-button">
+                                    <span class="icon glyphicon glyphicon-volume-up"></span>
+                                </div>
+
+                                <div class="volume-slider-container button-group-item">
+                                    <div class="slider volume-slider horizontal-slider">
+                                        <div class="slider-knob"></div>
+                                        <div class="slider-background">
+                                            <div class="slider-fill"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="app-player-controls player-controls-container button-group">
+                                <div class="disabled previous-button button-group-button">
+                                    <span class="icon glyphicon glyphicon-step-backward"></span>
+                                </div>
+                                <div class="disabled play-button button-group-button">
+                                    <div class="play-pause-morph-icon-container">
+                                        <div class="play-pause-morph-icon play">
+                                            <span class="icon glyphicon glyphicon-play"></span>
+                                            <span class="icon glyphicon glyphicon-pause"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="disabled next-button button-group-button">
+                                    <span class="icon glyphicon glyphicon-step-forward"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-<div class="floating-action-button">
-    <div class="material-icons icon"></div>
 </div>
 <script type="text/javascript">
 var DEBUGGING = false;

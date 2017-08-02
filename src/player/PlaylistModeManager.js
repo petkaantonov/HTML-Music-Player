@@ -3,7 +3,7 @@ import {MODE_CHANGE_EVENT,
          SHUFFLE_MODE,
          NORMAL_MODE,
          REPEAT_MODE} from "player/PlaylistController";
-
+import {ABOVE_TOOLBAR_Z_INDEX} from "ui/ToolbarManager";
 
 export default class PlaylistModeManager {
     constructor(opts, deps) {
@@ -16,7 +16,7 @@ export default class PlaylistModeManager {
         this._shuffleButton = this.$().find(`.shuffle-mode-button`);
         this._repeatButton = this.$().find(`.repeat-mode-button`);
 
-        this.justDeactivatedMouseLeft = this.justDeactivatedMouseLeft.bind(this);
+
         this.shuffleClicked = this.shuffleClicked.bind(this);
         this.repeatClicked = this.repeatClicked.bind(this);
         this.update = this.update.bind(this);
@@ -46,32 +46,14 @@ export default class PlaylistModeManager {
         return this._repeatButton;
     }
 
-    justDeactivatedMouseLeft(e) {
-        e.currentTarget.removeEventListener(`mouseleave`, this.justDeactivatedMouseLeft);
-        e.currentTarget.classList.remove(`just-deactivated`);
-    }
-
     shuffleClicked(e) {
-        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-        this.$allButtons().removeClass(`just-deactivated`);
+        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, ABOVE_TOOLBAR_Z_INDEX);
         this.setMode(this.getMode() === SHUFFLE_MODE ? NORMAL_MODE : SHUFFLE_MODE);
-
-        if (this.getMode() !== SHUFFLE_MODE) {
-            this.$shuffle().addClass(`just-deactivated`);
-        }
-        this.$shuffle().addEventListener(`mouseleave`, this.justDeactivatedMouseLeft);
     }
 
     repeatClicked(e) {
-        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
-        this.$allButtons().removeClass(`just-deactivated`);
+        this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY, null, ABOVE_TOOLBAR_Z_INDEX);
         this.setMode(this.getMode() === REPEAT_MODE ? NORMAL_MODE : REPEAT_MODE);
-
-        if (this.getMode() !== REPEAT_MODE) {
-            this.$repeat().addClass(`just-deactivated`);
-        }
-
-        this.$repeat().addEventListener(`mouseleave`, this.justDeactivatedMouseLeft);
     }
 
     getMode() {

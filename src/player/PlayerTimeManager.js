@@ -3,8 +3,10 @@ import {PROGRESS_EVENT,
         NEW_TRACK_LOAD_EVENT} from "player/PlayerController";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 
+export const TIMER_HEIGHT = 20;
 const DISPLAY_ELAPSED = 0;
 const DISPLAY_REMAINING = 1;
+
 
 const TIME_DISPLAY_PREFERENCE_KEY = `time-display`;
 

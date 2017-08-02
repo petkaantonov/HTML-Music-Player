@@ -1,7 +1,59 @@
 @import "variables";
 
-$slider-width: 76px;
-$slider-margin: 3px;
+.player-upper-container {
+    margin-top: 12px;
+}
+
+.player-control-panel-container {
+    @include desktop {
+        width: $large-screen-width - $total-app-border - $desktop-picture-size;
+    }
+
+    @include non-desktop {
+        @include calc(width, "100% - #{$non-desktop-picture-size}");
+    }
+}
+
+.player-control-panel-container .button-groups-container {
+    @include desktop {
+        height: $player-panel-lower-container-height;
+        margin: #{$desktop-picture-size - $non-desktop-picture-size} 0 0 0;
+    }
+
+    @include non-desktop {
+        height: $player-panel-lower-container-height;
+    }
+}
+
+.player-control-panel-container .control-panel-lower-container {
+    @include desktop {
+        height: #{$player-panel-lower-container-height + $desktop-picture-size - $non-desktop-picture-size};
+    }
+
+    @include non-desktop {
+        height: $player-panel-lower-container-height;
+    }
+}
+
+.coverart-section-container {
+    @include desktop {
+        width: $desktop-picture-size;
+    }
+
+    @include non-desktop {
+        width: $non-desktop-picture-size;
+    }
+}
+
+$slider-width: 88px;
+$slider-margin: 6px;
+$button-width: 34px;
+$big-button-width: 54px;
+$big-button-size: 26px;
+$button-size: 20px;
+$player-controls-container-space: $big-button-width + $button-width * 2;
+$playlist-controls-container-space: $button-width;
+$volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
 
 .picture-container,
 .picture-container img {
@@ -16,95 +68,13 @@ $slider-margin: 3px;
     }
 }
 
+.button-group .button-group-button,
+.button-group .button-group-item {
+    width: $button-width;
+}
+
 .picture-container {
     contain: strict;
-}
-
-@include ultra-small-screen {
-    $button-width: 28px;
-    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
-    $player-controls-container-space: $button-width * 3;
-    $playlist-controls-container-space: $button-width * 2;
-    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
-    $group-margin: "(100% - #{$total-space)}) / 2";
-
-    .player-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .playlist-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .button-group .button-group-button,
-    .button-group .button-group-item {
-        width: $button-width;
-    }
-}
-
-@include medium-small-screen {
-    $button-width: 36px;
-    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
-    $player-controls-container-space: $button-width * 3;
-    $playlist-controls-container-space: $button-width * 2;
-    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
-    $group-margin: "(100% - #{$total-space)}) / 2";
-
-    .player-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .playlist-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .button-group .button-group-button,
-    .button-group .button-group-item {
-        width: $button-width;
-    }
-}
-
-@include small-screen {
-    $button-width: 36px;
-    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
-    $player-controls-container-space: $button-width * 3;
-    $playlist-controls-container-space: $button-width * 2;
-    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
-    $group-margin: "(100% - #{$total-space)}) / 2";
-
-    .player-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .playlist-controls-container.button-group {
-        @include calc(margin-left, $group-margin);
-    }
-
-    .button-group .button-group-button,
-    .button-group .button-group-item {
-        width: $button-width;
-    }
-}
-
-@include large-screen {
-    $button-width: 36px;
-    $volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
-    $player-controls-container-space: $button-width * 3;
-    $playlist-controls-container-space: $button-width * 2;
-    $total-space: $playlist-controls-container-space + $player-controls-container-space + $volume-controls-container-space;
-
-    .player-controls-container.button-group {
-        @include calc(margin-left, "(50% - #{$volume-controls-container-space + $player-controls-container-space/2})");
-    }
-
-    .playlist-controls-container.button-group {
-        @include calc(margin-left, "100% - (#{$total-space} + (50% - #{$volume-controls-container-space + $player-controls-container-space/2}))");
-    }
-
-    .button-group .button-group-button,
-    .button-group .button-group-item {
-        width: $button-width;
-    }
 }
 
 .player-control-panel-container.module-container,
@@ -130,7 +100,7 @@ $slider-margin: 3px;
 .track-display-container {
     z-index: 5;
     position: relative;
-    height: 20px;
+    height: $track-progress-height;
     overflow: hidden;
     white-space: nowrap;
     background-color: transparent;
@@ -138,7 +108,7 @@ $slider-margin: 3px;
     margin: 0px auto;
 
     .track-display {
-        margin-top: 3px;
+        margin-top: 7px;
         cursor: default;
         display: inline-block;
         vertical-align: top;
@@ -152,9 +122,8 @@ $slider-margin: 3px;
     left: 0;
     @include translate3d(-100%, 0, 0);
     will-change: transform;
-    height: 20px;
-    background-image: url('../images/seek_fill_gradient.png');
-    background-repeat: repeat-x;
+    height: $track-progress-height;
+    background: linear-gradient(to bottom, #dbf1fb 0%,#b8e4f6 100%);
     width: 100%;
     cursor: default;
     border-radius: 2px;
@@ -168,7 +137,7 @@ $slider-margin: 3px;
     font-weight: bold;
     font-size: $text-size;
     line-height: 14px;
-    height: 20px;
+    height: $track-progress-height;
     text-align: center;
     width: 100%;
     background: linear-gradient(to bottom, #FFF 0%,#F6F6F6 47%,#EDEDED 100%);
@@ -219,8 +188,8 @@ $slider-margin: 3px;
 .button-group .button-group-button,
 .button-group .button-group-item {
     display: inline-block;
-    font-size: 16px;
-    line-height: 16px;
+    font-size: $button-size;
+    line-height: $button-size;
     vertical-align: top;
     height: 100%;
     box-sizing: border-box;
@@ -231,56 +200,53 @@ $slider-margin: 3px;
     background-color: $touch-hover-color !important;
 }
 
-.button-group .button-group-button.play-button {
-}
-
 .play-pause-morph-icon-container {
     position: relative;
     overflow: hidden;
     display: inline-block;
     vertical-align: top;
-    margin-top: 8px;
-    width: 16px;
-    height: 16px;
-    top: 1px;
-}
+    width: $big-button-width;
+    height: $big-button-width;
+    margin-top: floor(($player-panel-lower-container-height - $big-button-width) / 2);
+    border: 1px solid #333;
+    box-sizing: border-box;
 
-.play-pause-morph-icon-container .play-pause-morph-icon {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    width: 100%;
-    height: 100%;
-}
+    border-radius: 50%;
 
-.play-pause-morph-icon-container .icon {
-    position: absolute;
-    left: 0px;
-    margin: 0 !important;
-    padding: 0 !important;
-    top: 0;
-    left: 0;
-}
+    .play-pause-morph-icon {
+        position: absolute;
+        left: floor(($big-button-width - $big-button-size) / 2);
+        top: floor(($big-button-width - $big-button-size) / 2) - 2px;
+        width: $big-button-size;
+        height: $big-button-size;
+        transition: transform 0.4s ease;
+        @include translateY(0);
 
-.play-pause-morph-icon .glyphicon-play {
-    @include translateY(0);
-}
+        .glyphicon-play {
+            @include translateY(0);
+        }
 
-.play-pause-morph-icon .glyphicon-pause {
-    @include translateY(-16px);
-}
+        .glyphicon-pause {
+            @include translateY(-($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
+        }
 
-.play-pause-morph-icon {
-    transition: transform 0.4s ease;
-    @include translateY(0);
-}
+        &.pause {
+            @include translateY(($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
+        }
 
-.play-pause-morph-icon.pause {
-    @include translateY(16px);
-}
+        &.play {
+            @include translateY(0);
+        }
+    }
 
-.play-pause-morph-icon.play {
-    @include translateY(0);
+    .icon {
+        position: absolute;
+        left: 0px;
+        margin: 0 !important;
+        padding: 0 !important;
+        top: 0;
+        left: 0;
+    }
 }
 
 .button-group .button-group-button {
@@ -329,7 +295,6 @@ $slider-margin: 3px;
 .button-group .button-group-button .icon,
 .button-group .button-group-item .icon {
     vertical-align: top;
-    margin-top: 8px;
 }
 
 .button-group {
@@ -341,48 +306,81 @@ $slider-margin: 3px;
     box-sizing: border-box;
 }
 
-.player-controls-container.button-group {
-    position: relative;
+.button-group {
+    .button-group-button {
+        .icon {
+            margin-top: floor(($player-panel-lower-container-height - $button-size) / 2) - 4px;
+        }
+    }
+}
+
+.volume-controls-container.button-group {
+    position: absolute;
+    left: 0px;
     border-radius: 0px;
     border: none;
+    width: $volume-controls-container-space;
+
+    .button-group-button {
+        border-right: none;
+    }
+
+    .volume-slider-container {
+        width: $slider-width + 2px;
+        height: 100%;
+        display: inline-block;
+        margin-left: $slider-margin;
+
+        .slider {
+            margin-top: floor(($player-panel-lower-container-height - $slider-input-area-size) / 2) - 3px;
+        }
+    }
+
+    .icon.glyphicon.glyphicon-volume-off {
+        color: #960707;
+    }
+}
+
+.player-controls-container.button-group {
+    position: absolute;
+    right: 0px;
+    border-radius: 0px;
+    border: none;
+    width: $player-controls-container-space;
+    height: 100%;
     box-sizing: border-box;
+
+    .button-group-button {
+        height: 100%;
+        &.play-button {
+            width: $big-button-width;
+            font-size: $big-button-size;
+        }
+    }
 }
 
 .playlist-controls-container.button-group {
+    display: none;
     box-sizing: border-box;
-    position: relative;
+    position: absolute;
+    right: 0px;
     border-radius: 0px;
     border: none;
+    width: $playlist-controls-container-space;
+    height: 100%;
+
+    .button-group-button {
+        height: floor($player-panel-lower-container-height / 2);
+
+        .icon {
+            margin-top: floor((floor($player-panel-lower-container-height / 2) - $button-size) / 2);
+        }
+    }
 }
 
 .playlist-controls-container.button-group,
 .playlist-controls-container.button-group .repeat-mode-button {
     border-bottom-right-radius: $subtle-radius;
-}
-
-.volume-controls-container.button-group {
-    position: relative;
-    border-radius: 0px;
-    border: none;
-}
-
-.volume-controls-container.button-group .button-group-button {
-    border-right: none;
-}
-
-.icon.glyphicon.glyphicon-volume-off {
-    color: #960707;
-}
-
-.volume-controls-container .volume-slider-container {
-    width: $slider-width + 2px;
-    height: 100%;
-    display: inline-block;
-    margin-left: $slider-margin;
-}
-
-.volume-mute-button .icon {
-    margin-top: 9px !important;
 }
 
 .playback-status-wrapper {

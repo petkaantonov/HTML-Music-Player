@@ -50,9 +50,11 @@ $track-width-used: $track-info-gutter + $track-left-controls-width + $track-numb
 
 $track-item-height: 44px;
 
-$non-desktop-picture-size: 58px;
+$non-desktop-picture-size: 96px;
 $desktop-picture-size: 96px;
 $visualizer-height: 104px;
+$track-progress-height: 30px;
+$player-panel-lower-container-height: $non-desktop-picture-size - $track-progress-height - 1px;
 
 $border-width: 1px;
 $snackbar-container-min-width: 288px;

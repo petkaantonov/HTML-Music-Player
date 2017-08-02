@@ -38,7 +38,6 @@ import ToolbarManager from "ui/ToolbarManager";
 import SelectionStatus from "ui/SelectionStatus";
 import MainMenu from "ui/MainMenu";
 import {UPDATE_AVAILABLE_EVENT} from "platform/ServiceWorkerManager";
-import FloatingActionButtonManager from "ui/FloatingActionButtonManager";
 import {ITEM_HEIGHT} from "tracks/TrackView";
 import ZipperFrontend from "zip/ZipperFrontend";
 import {QUOTA_EXCEEDED_EVENT} from "platform/QuotaExceededEmitterTrait";
@@ -46,7 +45,6 @@ import {DATABASE_CLOSED_EVENT} from "platform/DatabaseClosedEmitterTrait";
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
-const IMAGE_DIMENSIONS = 97;
 const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
 
 const MAIN_TOOLBAR_INDEX = 0;
@@ -406,18 +404,6 @@ export default class Application {
             activeTabIndicator: `.active-tab-indicator`
         }, d));
 
-        const floatingActionButtonManager = this.floatingActionButtonManager = withDeps({
-            page,
-            player,
-            playlist,
-            recognizerContext,
-            localFileHandler,
-            env,
-            snackbar
-        }, d => new FloatingActionButtonManager({
-            target: `.floating-action-button`
-        }, d));
-
         const playerPictureManager = this.playerPictureManager = withDeps({
             page,
             player,
@@ -426,7 +412,6 @@ export default class Application {
             metadataManager
         }, d => new PlayerPictureManager({
             target: `.picture-container`,
-            imageDimensions: IMAGE_DIMENSIONS,
             defaultImageSrc: DEFAULT_IMAGE_SRC,
             enabledMediaMatcher: null
         }, d));
@@ -523,7 +508,7 @@ export default class Application {
             recognizerContext,
             rippler
         }, d => new PlaylistModeManager({
-            target: `.playlist-controls-container`
+            target: `#main-toolbar .toolbar-items-section-2`
         }, d));
         /* eslint-enable no-unused-vars */
 
