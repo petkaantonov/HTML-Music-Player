@@ -42,7 +42,8 @@ export const {ArrayBuffer,
     Request,
     Response,
     Proxy,
-    WebAssembly
+    WebAssembly,
+    WeakMap
 } = self;
 
 const global = self;

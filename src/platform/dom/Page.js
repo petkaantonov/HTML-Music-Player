@@ -538,11 +538,7 @@ export class DomWrapper {
 
     detach() {
         for (let i = 0; i < this._length; ++i) {
-            const node = this[i];
-            const parent = node.parentNode;
-            if (parent) {
-                parent.removeChild(node);
-            }
+            this[i].remove();
         }
         return this;
     }
@@ -561,6 +557,10 @@ export class DomWrapper {
 
     setHtml(value) {
         return this.setProperty(`innerHTML`, value);
+    }
+
+    hasParent() {
+        return this[0].parentElement !== null;
     }
 
     style() {

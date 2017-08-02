@@ -1,4 +1,5 @@
 import ContentScroller from "ui/scrolling/ContentScroller";
+import TrackView from "tracks/TrackView";
 
 export default class FixedItemListScroller extends ContentScroller {
     constructor({
@@ -17,6 +18,7 @@ export default class FixedItemListScroller extends ContentScroller {
             position: `absolute`,
             transform: `translate3d(0, 0, 0)`
         }).setText(` `).prependTo(this.$contentContainer());
+        this._detachedDomNodes = [];
     }
 
     $sentinel() {
@@ -119,6 +121,10 @@ export default class FixedItemListScroller extends ContentScroller {
         return index * this.itemHeight();
     }
 
+    get maxIndex() {
+        return this._itemList.length - 1;
+    }
+
     _onScroll(forced = false) {
         const scrollTop = super._onScroll(forced);
         const {_itemHeight: itemHeight, _displayedItems: displayedItems} = this;
@@ -129,11 +135,14 @@ export default class FixedItemListScroller extends ContentScroller {
 
             const virtualStart = displayedItems[0].getIndex();
             const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
+            const {_minPrerenderedItems: minPrerenderedItems, maxIndex, minIndex} = this;
 
-            const screenStart = Math.ceil(scrollTop / itemHeight);
-            const screenEnd = Math.floor((scrollTop + contentHeight) / itemHeight);
+            const screenStart = Math.max(0, Math.floor(scrollTop / itemHeight) - minPrerenderedItems);
+            const screenEnd = Math.min(this.maxIndex, Math.ceil((scrollTop + contentHeight + itemHeight) / itemHeight)
+                                        + minPrerenderedItems);
 
-            if (screenStart >= virtualStart && screenEnd <= virtualEnd) {
+            if (screenStart >= virtualStart &&
+                screenEnd <= virtualEnd)  {
                 return scrollTop;
             }
         }
@@ -146,7 +155,7 @@ export default class FixedItemListScroller extends ContentScroller {
         const start = Math.max(itemsBefore - maxPrerenderedItems, 0);
         const end = Math.min(items.length - 1, itemsWithin + itemsBefore + maxPrerenderedItems);
 
-        const detachedDomNodes = [];
+        const detachedDomNodes = this._detachedDomNodes;
 
         for (let i = 0; i < displayedItems.length; ++i) {
             const index = displayedItems[i].getIndex();
@@ -158,7 +167,8 @@ export default class FixedItemListScroller extends ContentScroller {
         for (let i = start; i <= end; ++i) {
             const item = items[i];
             if (!item.isVisible()) {
-                item.attach(container, detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null);
+                let node = detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null;
+                item.attach(container, node);
             }
             displayedItems[i - start] = item;
         }
