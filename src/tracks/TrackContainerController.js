@@ -151,7 +151,7 @@ export default class TrackContainerController extends EventEmitter {
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
             minPrerenderedItems: 6,
-            maxPrerenderedItems: 24
+            maxPrerenderedItems: 9
         });
 
         this.globalEvents.on(`resize`, this._windowLayoutChanged.bind(this));
