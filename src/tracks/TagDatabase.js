@@ -514,7 +514,6 @@ const fieldUpdater = function(...fieldNames) {
 };
 
 TagDatabase.prototype.updateHasBeenFingerprinted = fieldUpdater(`hasBeenFingerprinted`).method;
-TagDatabase.prototype.updateEstablishedGain = fieldUpdater(`establishedGain`).method;
 TagDatabase.prototype.updateRating = fieldUpdater(`rating`).method;
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater(`playthroughCounter`, `lastPlayed`).method;
 TagDatabase.prototype.updateSkipCounter = fieldUpdater(`skipCounter`, `lastPlayed`).method;

@@ -2,6 +2,10 @@
 #define EFFECTS_H
 
 #define CLIP_DOUBLE_SAMPLE(val) MAX(-1.0, MIN(1.0, (val)))
+#define EFFECT_BASS_BOOST_MAX_CHANNELS 5
+#define EFFECT_BASS_BOOST_SELECTIVITY 70.0
+#define EFFECT_BASS_BOOST_MAX_RATIO 16.0
+#define EFFECT_BASS_BOOST_MIN_RATIO 2.0
 #define EFFECT_MULTIPLIER ((int32_t)16384)
 #define EFFECT_BLOCK_SIZE 1024
 #define EFFECT_EQUALIZER_BAND_COUNT 10
@@ -37,4 +41,9 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
                                     uint32_t channel_count,
                                     double* param_ptr);
 
+EXPORT void effects_bass_boost_reset(void);
+EXPORT void effects_bass_boost_apply(double effect_size,
+                                     uint32_t channel_count,
+                                     int16_t* samples,
+                                     uint32_t byte_length);
 #endif //EFFECTS_H

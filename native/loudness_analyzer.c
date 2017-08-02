@@ -45,8 +45,8 @@ EXPORT int loudness_analyzer_add_frames(LoudnessAnalyzer* this,
 }
 
 EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
-    *gain = NAN;
-    uint32_t frames_needed = this->st->samplerate * 2;
+    *gain = 0.0;
+    uint32_t frames_needed = this->st->samplerate * 0.4;
     if (this->frames_added >= frames_needed) {
         double result;
         int err = ebur128_loudness_global(this->st, &result);
@@ -60,7 +60,7 @@ EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
 }
 
 EXPORT int loudness_analyzer_get_momentary_gain(LoudnessAnalyzer* this, double* gain) {
-    *gain = NAN;
+    *gain = 0.0;
     uint32_t frames_needed = (uint32_t)((double)this->st->samplerate * 0.4);
     if (this->frames_added >= frames_needed) {
         double result;
@@ -172,7 +172,6 @@ EXPORT void loudness_analyzer_apply_normalization(LoudnessAnalyzer* this,
                                                    double loudness,
                                                    int16_t* frames,
                                                    uint32_t frame_count) {
-
     static const int32_t MULTIPLIER = 10000;
     uint32_t length = this->st->channels * frame_count;
     int32_t volume_multiplier = DOUBLE_TO_I32(decibel_to_volume(loudness) * (double) MULTIPLIER);

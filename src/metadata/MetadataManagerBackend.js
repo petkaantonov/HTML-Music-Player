@@ -317,10 +317,6 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
         }
     }
 
-    setEstablishedGain(trackUid, establishedGain) {
-        return this.database.updateEstablishedGain(trackUid, establishedGain);
-    }
-
     async _fingerprintJob({cancellationToken}, trackUid, fileReference) {
         let decoder, resampler, fingerprinter, channelMixer;
         const {_wasm: wasm} = this;
