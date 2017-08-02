@@ -1,5 +1,7 @@
-import {iDbPromisifyCursor, iDbPromisify, applyStoreSpec} from "utils/indexedDbUtil";
-import {indexedDB, DatabaseClosedError, IDBKeyRange, ArrayBuffer, File, CONSTRAINT_ERROR} from "platform/platform";
+import {iDbPromisifyCursor, iDbPromisify, applyStoreSpec, getIndexedDbStorageInfo} from "utils/indexedDbUtil";
+import {indexedDB, DatabaseClosedError, IDBKeyRange, ArrayBuffer, File, CONSTRAINT_ERROR,
+    QUOTA_EXCEEDED_ERROR} from "platform/platform";
+import FileSystemWrapper from "platform/FileSystemWrapper";
 
 const VERSION = 26;
 const DATA_WIPE_VERSION = 24;
@@ -146,6 +148,7 @@ export default class TagDatabase {
         this._closed = false;
         const request = indexedDB.open(NAME, VERSION);
         this.db = iDbPromisify(request);
+        this.fs = new FileSystemWrapper();
         request.onupgradeneeded = (event) => {
             const {target} = event;
             const {transaction} = target;
@@ -158,6 +161,25 @@ export default class TagDatabase {
 
         };
         this._setHandlers();
+        this._usageAndQuota = null;
+    }
+
+    async _initUsageAndQuota() {
+        if (this._usageAndQuota) {
+            return;
+        }
+        this._usageAndQuota = await this._queryUsageAndQuota();
+    }
+
+    async _canProbablyStoreInFs() {
+        await this._initUsageAndQuota();
+        return this._usageAndQuota.fs > 0;
+    }
+
+    async _queryUsageAndQuota() {
+        const db = await getIndexedDbStorageInfo();
+        const fs = await this.fs.spaceAvailable();
+        return {fs, db, lastRetrieved: new Date()};
     }
 
     async _setHandlers() {
@@ -407,6 +429,14 @@ export default class TagDatabase {
             return fileReference;
         } else if (fileReference instanceof ArrayBuffer) {
             const trackUid = fileReference;
+
+            if (await this._canProbablyStoreInFs()) {
+                const result = await this.fs.getFileByTrackUid(trackUid);
+                if (result) {
+                    return result;
+                }
+            }
+
             const db = await this.db;
             const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_ONLY);
             const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
@@ -425,6 +455,16 @@ export default class TagDatabase {
         if (fileReference instanceof ArrayBuffer) {
             return false;
         } else if (fileReference instanceof File) {
+            if (await this._canProbablyStoreInFs()) {
+                try {
+                    return this.fs.storeFileByTrackUid(trackUid, fileReference);
+                } catch (e) {
+                    if (e.name !== QUOTA_EXCEEDED_ERROR) {
+                        throw e;
+                    }
+                }
+            }
+
             const db = await this.db;
             const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_WRITE);
             const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);

@@ -4,7 +4,6 @@ import {checkBoolean} from "errors/BooleanTypeError";
 const MAX_HISTORY_MS = 30000;
 const INT16_BYTE_SIZE = 2;
 const SILENCE_THRESHOLD = 45;
-const NORMALIZE_THRESHOLD = 30;
 const MOMENTARY_WINDOW_MS = 400;
 
 export const defaultLoudnessInfo = Object.freeze({

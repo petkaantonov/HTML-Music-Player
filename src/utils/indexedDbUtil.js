@@ -73,3 +73,34 @@ export function applyStoreSpec(transaction, storeSpec) {
 
     return ret;
 }
+
+export function fsPromisify(obj, methodName, ...args) {
+    return new Promise((resolve, reject) => {
+        args.push((...multiArgs) => {
+            resolve(multiArgs.length > 1 ? multiArgs : multiArgs[0]);
+        }, reject);
+        obj[methodName](...args);
+    });
+}
+
+export async function getIndexedDbStorageInfo() {
+    const ret = {used: 0, total: 0};
+    if (!self.navigator) {
+        return ret;
+    }
+    if (self.navigator.storage && self.navigator.storage.estimate) {
+        const {usage, quota} = await self.navigator.storage.estimate();
+        ret.used = usage;
+        ret.total = quota;
+    } else if (self.navigator.webkitTemporaryStorage) {
+        const [usage, quota] = await fsPromisify(self.navigator.webkitTemporaryStorage, `queryUsageAndQuota`);
+
+        ret.used = usage;
+        ret.total = quota;
+    } else if (self.callMainWindow) {
+        const [usage, quota] = await self.callMainWindow(`queryUsageAndQuota`, []);
+        ret.used = usage;
+        ret.total = quota;
+    }
+    return ret;
+}

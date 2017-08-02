@@ -1,5 +1,4 @@
 import ContentScroller from "ui/scrolling/ContentScroller";
-import TrackView from "tracks/TrackView";
 
 export default class FixedItemListScroller extends ContentScroller {
     constructor({
@@ -135,14 +134,14 @@ export default class FixedItemListScroller extends ContentScroller {
 
             const virtualStart = displayedItems[0].getIndex();
             const virtualEnd = displayedItems[displayedItems.length - 1].getIndex();
-            const {_minPrerenderedItems: minPrerenderedItems, maxIndex, minIndex} = this;
+            const {_minPrerenderedItems: minPrerenderedItems, maxIndex} = this;
 
             const screenStart = Math.max(0, Math.floor(scrollTop / itemHeight) - minPrerenderedItems);
-            const screenEnd = Math.min(this.maxIndex, Math.ceil((scrollTop + contentHeight + itemHeight) / itemHeight)
+            const screenEnd = Math.min(maxIndex, Math.ceil((scrollTop + contentHeight + itemHeight) / itemHeight)
                                         + minPrerenderedItems);
 
             if (screenStart >= virtualStart &&
-                screenEnd <= virtualEnd)  {
+                screenEnd <= virtualEnd) {
                 return scrollTop;
             }
         }
@@ -167,7 +166,7 @@ export default class FixedItemListScroller extends ContentScroller {
         for (let i = start; i <= end; ++i) {
             const item = items[i];
             if (!item.isVisible()) {
-                let node = detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null;
+                const node = detachedDomNodes.length > 0 ? detachedDomNodes.pop() : null;
                 item.attach(container, node);
             }
             displayedItems[i - start] = item;

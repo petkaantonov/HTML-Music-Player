@@ -1,5 +1,5 @@
 import createPreferences from "preferences/PreferenceCreator";
-import {MIN_SUSTAINED_AUDIO_SECONDS, MIN_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
+import {MIN_BUFFER_LENGTH_SECONDS} from "audio/frontend/buffering";
 export {equalizerBands, equalizerPresets} from "audio/backend/Effects";
 import {equalizerPresets} from "audio/backend/Effects";
 

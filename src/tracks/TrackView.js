@@ -1,5 +1,4 @@
 import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
-import {WeakMap} from "platform/platform";
 
 export const ITEM_HEIGHT = 44;
 

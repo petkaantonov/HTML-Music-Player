@@ -1,4 +1,31 @@
-import {Worker} from "platform/platform";
+import {Worker, localStorage} from "platform/platform";
+import {fsPromisify} from "utils/indexedDbUtil";
+
+const mainWindowCalls = {
+    queryUsageAndQuota() {
+        try {
+            return fsPromisify(self.navigator.webkitTemporaryStorage, `queryUsageAndQuota`);
+        } catch (e) {
+            return [0, 0];
+        }
+    },
+
+    requestQuota(type, size) {
+        try {
+            return fsPromisify(self.webkitStorageInfo, `requestQuota`, type, size);
+        } catch (e) {
+            return 0;
+        }
+    },
+
+    getLocalStorageItem(name) {
+        return localStorage.getItem(name);
+    },
+
+    setLocalStorageItem(name, value) {
+        return localStorage.setItem(name, value);
+    }
+};
 
 export default class WorkerWrapper {
     constructor(src, deps) {
@@ -11,9 +38,11 @@ export default class WorkerWrapper {
         });
         this._worker.addEventListener(`message`, (event) => {
             const {type} = event.data;
-            if (type === `uiLog`) {
+            if (type === `callMainWindow`) {
+                const {name, args, callId} = event.data;
+                this.callMainWindow(name, args, callId);
+            } else if (type === `uiLog`) {
                 self.uiLog(...event.data.args);
-
             } else if (type === `ready`) {
                 const name = event.data.frontendName;
                 const promise = this._frontendNamesToChannels.get(name);
@@ -29,6 +58,26 @@ export default class WorkerWrapper {
                 frontend.receiveMessage(event);
             }
         }, false);
+    }
+
+    async callMainWindow(name, args, callId) {
+        try {
+            const result = await mainWindowCalls[name](...args);
+            this._worker.postMessage({
+                type: `callMainWindowResult`,
+                result,
+                callId
+            });
+        } catch (e) {
+            this._worker.postMessage({
+                type: `callMainWindowResult`,
+                error: {
+                    name: e.name,
+                    message: e.message
+                },
+                callId
+            });
+        }
     }
 
     registerFrontendListener(channel, frontend) {

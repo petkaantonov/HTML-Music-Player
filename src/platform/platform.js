@@ -43,8 +43,13 @@ export const {ArrayBuffer,
     Response,
     Proxy,
     WebAssembly,
-    WeakMap
+    WeakMap,
+    webkitRequestFileSystem,
+    PERSISTENT,
+    webkitStorageInfo,
+    localStorage
 } = self;
+
 
 const global = self;
 
@@ -58,6 +63,7 @@ export const INVALID_STATE_ERROR = `InvalidStateError`;
 export const NOT_FOUND_ERROR = `NotFoundError`;
 export const VERSION_ERROR = `VersionError`;
 export const DATABASE_CLOSED_ERROR = `DatabaseClosedError`;
+export const PATH_EXISTS_ERROR = `PathExistsError`;
 
 export function isOutOfMemoryError(e) {
     return e.name === UNKNOWN_ERROR || e.name === QUOTA_EXCEEDED_ERROR;
