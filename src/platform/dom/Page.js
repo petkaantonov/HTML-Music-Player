@@ -103,6 +103,7 @@ const setValue = function(elem, value) {
 };
 
 const UNSET_BASE_KEY_FRAMES = [{}, {}];
+let cachedWrapper;
 
 export class DomWrapper {
     constructor(selector, root, page) {
@@ -241,6 +242,24 @@ export class DomWrapper {
             }
         }
         return ret;
+    }
+
+
+    findOne(selector) {
+        const ret = new DomWrapper(null, null, this._page);
+
+        for (let i = 0; i < this._length; ++i) {
+            const result = this[i].querySelector(selector);
+            if (result) {
+                ret._insert(result);
+            }
+        }
+        return ret;
+    }
+
+    findOneUnsafe(selector) {
+        cachedWrapper[0] = this[0].querySelector(selector);
+        return cachedWrapper;
     }
 
     addEventListener(name, handler, useCapture) {
@@ -775,6 +794,8 @@ class Platform {
 
 export default class Page {
     constructor(document, window, timers) {
+        cachedWrapper = new DomWrapper(null, null, this);
+        cachedWrapper._length = 1;
         this._timers = timers;
         this._platform = new Platform(window);
         this._document = document;
