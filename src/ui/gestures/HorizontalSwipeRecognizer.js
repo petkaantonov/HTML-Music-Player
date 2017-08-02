@@ -74,11 +74,9 @@ export default class HorizontalSwipeRecognizer extends AbstractGestureRecognizer
             const absDiff = Math.abs(diff);
             const velocity = (absDiff / elapsedTotal * 1000) | 0;
             const {direction} = this;
-            const minSwipeLength = SWIPE_LENGTH;
-            const minSwipeVelocity = SWIPE_VELOCITY;
 
-            if (absDiff > minSwipeLength &&
-                velocity > minSwipeVelocity &&
+            if (absDiff > SWIPE_LENGTH &&
+                velocity > SWIPE_VELOCITY &&
                 (diff < 0 && direction < 0 ||
                 diff > 0 && direction > 0)) {
                 const g = new GestureObject(e, touch);
