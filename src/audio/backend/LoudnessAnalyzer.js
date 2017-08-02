@@ -32,6 +32,10 @@ export default class LoudnessAnalyzer {
         this._ptr = ptr;
     }
 
+    _haveEnoughLoudnessData() {
+        return this._framesAdded >= this._sampleRate * 2;
+    }
+
     setLoudnessNormalizationEnabled(enabled) {
         checkBoolean(`enabled`, enabled);
         this._loudnessNormalizationEnabled = enabled;
@@ -104,7 +108,8 @@ export default class LoudnessAnalyzer {
             ret.isEntirelySilent = isEntirelySilent;
         }
 
-        if (_loudnessNormalizationEnabled && loudness && isFinite(loudness) && loudness < NORMALIZE_THRESHOLD) {
+        if (_loudnessNormalizationEnabled && loudness &&
+            isFinite(loudness) && this._haveEnoughLoudnessData()) {
             this.loudness_analyzer_apply_normalization(this._ptr, loudness, originalSamplePtr, audioFrameCount);
         }
 
