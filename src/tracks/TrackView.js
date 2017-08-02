@@ -13,12 +13,16 @@ const TEMPLATE = `<div class='track not-draggable'>
         </div>
     </div>
     <div class='track-data'>
-        <div class='track-number'></div>
+        <div class='track-number-container'>
+            <div class='track-number notextflow'></div>
+        </div>
         <div class='track-info'>
             <div class='track-title notextflow'></div>
             <div class='track-artist notextflow'></div>
         </div>
-        <div class='track-duration'></div>
+        <div class='track-duration-container'>
+            <div class='track-duration notextflow'></div>
+        </div>
     </div>
     <div class='track-right-controls track-control-reorder'>
         <div class='material-icons large-material-icon reorder'></div>
@@ -67,20 +71,16 @@ export default class TrackView {
         return this._domNode;
     }
 
-    $container() {
-        return this.$().find(`.track`);
-    }
-
     $trackNumber() {
-        return this.$().find(`.track-number`);
+        return this.$().findOneUnsafe(`.track-number`);
     }
 
     $trackDuration() {
-        return this.$().find(`.track-duration`);
+        return this.$().findOneUnsafe(`.track-duration`);
     }
 
     $trackSelectionIndicator() {
-        return this.$().find(`.track-selection-indicator`);
+        return this.$().findOneUnsafe(`.track-selection-indicator`);
     }
 
     track() {
@@ -168,8 +168,8 @@ export default class TrackView {
     _renderTrackInfo() {
         const {artist, title} = this._track;
 
-        this.$().find(`.track-title`).setText(title);
-        this.$().find(`.track-artist`).setText(artist);
+        this.$().findOneUnsafe(`.track-title`).setText(title);
+        this.$().findOneUnsafe(`.track-artist`).setText(artist);
     }
 
     _renderTrackNumber() {
@@ -235,9 +235,9 @@ export default class TrackView {
 
     viewUpdateTagDataChange() {
         if (!this._shouldUpdateDom()) return;
-        this._renderTrackNumber();
-        this._renderTrackDuration();
         this._renderTrackInfo();
+        this._renderTrackDuration();
+        this._renderTrackNumber();
     }
 
     _updateTranslate() {

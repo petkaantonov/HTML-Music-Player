@@ -102,10 +102,28 @@
         height: 100%;
     }
 
+    .track-duration-container {
+        width: $track-duration-width;
+        text-align: center;
+        margin-left: $track-duration-margin;
+    }
 
-
-    .track-number {
+    .track-number-container {
         width: $track-number-width;
+    }
+
+    .track-duration-container,
+    .track-number-container {
+        padding-top: 15px;
+        height: 100%;
+    }
+
+    .track-duration,
+    .track-number {
+        font-size: $text-size;
+        display: block;
+        contain: strict;
+        height: 20px;
     }
 
     .track-info {
@@ -116,34 +134,24 @@
 
         .track-title,
         .track-artist {
+            contain: strict;
             display: block;
         }
 
         .track-title {
+            height: 18px;
             font-size: 15px;
         }
 
         .track-artist {
+            height: 15px;
             font-size: 13px;
             color: $text-color-lighter;
             margin-top: 2px;
         }
     }
 
-    .track-duration {
-        width: $track-duration-width;
-        text-align: center;
-        margin-left: $track-duration-margin;
-        overflow: hidden;
-    }
 
-    .track-duration,
-    .track-number {
-        font-size: $text-size;
-        line-height: 14px;
-        padding-top: 15px;
-        height: 100%;
-    }
 
     &.track-active {
         background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
