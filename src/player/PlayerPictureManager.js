@@ -8,6 +8,7 @@ import {Image, URL} from "platform/platform";
 import {TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
 
 export const IMAGE_CHANGE_EVENT = `imageChange`;
+export const IMAGE_DIMENSIONS = 97;
 
 const requestReason = `PlayerPictureManager`;
 
@@ -26,7 +27,6 @@ export default class PlayerPictureManager extends EventEmitter {
         this._applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this._domNode = this._page.$(opts.target);
 
-        this._imageDimensions = opts.imageDimensions;
         this._defaultImageSrc = opts.defaultImageSrc;
 
         this._enabled = true;
@@ -51,8 +51,8 @@ export default class PlayerPictureManager extends EventEmitter {
         })[0];
 
         this._defaultImage = this._page.createElement(`img`, {
-            width: this._imageDimensions,
-            height: this._imageDimensions,
+            width: IMAGE_DIMENSIONS,
+            height: IMAGE_DIMENSIONS,
             src: this._defaultImageSrc
         })[0];
 
@@ -66,7 +66,7 @@ export default class PlayerPictureManager extends EventEmitter {
     }
 
     size() {
-        return (this._imageDimensions * this._page.devicePixelRatio()) | 0;
+        return (IMAGE_DIMENSIONS * this._page.devicePixelRatio()) | 0;
     }
 
     $() {

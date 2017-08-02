@@ -7,7 +7,7 @@ export const NO_OUTCOME = -1;
 export const ACTION_CLICKED = 0;
 export const DISMISSED = 1;
 export const TIMED_OUT = 2;
-
+export const SNACKBAR_HEIGHT = 48;
 export const SNACKBAR_WILL_SHOW_EVENT = `snackbarWillShow`;
 export const SNACKBAR_DID_HIDE_EVENT = `snackbarDidHide`;
 

@@ -42,37 +42,6 @@
     }
 }
 
-.player-control-panel-container {
-    @include desktop {
-        width: $large-screen-width - $total-app-border - $desktop-picture-size;
-    }
-
-    @include non-desktop {
-        @include calc(width, "100% - #{$non-desktop-picture-size}");
-    }
-}
-
-.player-control-panel-container .button-groups-container {
-    @include desktop {
-        height: 36px;
-        margin: #{$desktop-picture-size - $non-desktop-picture-size} 0 0 0;
-    }
-
-    @include non-desktop {
-        height: 36px;
-    }
-}
-
-.player-control-panel-container .control-panel-lower-container {
-    @include desktop {
-        height: #{36px + $desktop-picture-size - $non-desktop-picture-size};
-    }
-
-    @include non-desktop {
-        height: 36px;
-    }
-}
-
 .snackbar-container {
     @include large-screen {
         max-width: $small-screen-width;
@@ -127,12 +96,3 @@
     }
 }
 
-.coverart-section-container {
-    @include desktop {
-        width: $desktop-picture-size;
-    }
-
-    @include non-desktop {
-        width: $non-desktop-picture-size;
-    }
-}

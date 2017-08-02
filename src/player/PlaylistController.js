@@ -741,7 +741,7 @@ export default class PlaylistController extends TrackContainerController {
         }
 
         progress = Math.max(0, Math.min(1, +progress || 0));
-        const resumeIfPaused = trackChangeKind === KIND_EXPLICIT;
+        const resumeIfPaused = trackChangeKind === KIND_EXPLICIT || isUserInitiatedSkip;
         this._currentPlayId = nextPlayId++;
         this.emit(TRACK_PLAYING_STATUS_CHANGE_EVENT, playlistTrack);
         this.emit(CURRENT_TRACK_CHANGE_EVENT, playlistTrack.track(), {
