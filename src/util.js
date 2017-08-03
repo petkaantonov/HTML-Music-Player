@@ -618,6 +618,33 @@ export function sha1Binary(text) {
   return crypto.subtle.digest(`SHA-1`, buffer);
 }
 
+export function hexDecode(string) {
+    const ret = new Uint8Array(string.length / 2);
+    for (let i = 0; i < string.length; i += 2) {
+        let highNibble = string.charCodeAt(i);
+
+        if (highNibble <= 57) {
+            highNibble -= 48;
+        } else if (highNibble <= 70) {
+            highNibble -= 55;
+        } else {
+            highNibble -= 87;
+        }
+
+        let lowNibble = string.charCodeAt(i + 1);
+        if (lowNibble <= 57) {
+            lowNibble -= 48;
+        } else if (lowNibble <= 70) {
+            lowNibble -= 55;
+        } else {
+            lowNibble -= 87;
+        }
+        ret[i / 2] = (highNibble << 4) | lowNibble;
+    }
+    return ret.buffer;
+}
+
+const bytePadding = [`00`, `0`, ``];
 export function hexString(arrayBuffer) {
     if (arrayBuffer.byteLength === 20) {
         const view = new DataView(arrayBuffer);
@@ -636,7 +663,7 @@ export function hexString(arrayBuffer) {
         const view = new Uint8Array(arrayBuffer);
         for (let i = 0; i < view.length; ++i) {
             const byte = view[i].toString(16);
-            ret += (padding[byte.length] + byte);
+            ret += (bytePadding[byte.length] + byte);
         }
         return ret;
     }

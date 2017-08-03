@@ -90,7 +90,7 @@ export default class ZipperBackend extends DatabaseUsingBackend {
     }
 
     async _checkDb() {
-        if (!this.database) {
+        if (!this._database) {
             this.database = new KeyValueDatabase();
             await this.database.getDb();
         }

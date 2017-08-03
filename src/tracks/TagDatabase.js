@@ -18,6 +18,9 @@ const TRACK_PAYLOAD_OBJECT_STORE_NAME = `trackPayload`;
 
 const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex2`;
 
+const PAYLOAD_TYPE_FILESYSTEM_FILE = `fileSystemFile`;
+const PAYLOAD_TYPE_INDEXED_DB_FILE = `indexedDBFile`;
+
 export const trackSearchIndexCmp = function(a, b) {
     return indexedDB.cmp(a.trackUid, b.trackUid);
 };
@@ -429,22 +432,23 @@ export default class TagDatabase {
             return fileReference;
         } else if (fileReference instanceof ArrayBuffer) {
             const trackUid = fileReference;
-
-            if (await this._canProbablyStoreInFs()) {
-                const result = await this.fs.getFileByTrackUid(trackUid);
-                if (result) {
-                    return result;
-                }
-            }
-
             const db = await this.db;
             const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_ONLY);
             const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
             const result = await iDbPromisify(store.get(IDBKeyRange.only(trackUid)));
+
             if (!result) {
                 return result;
             }
-            return result.file;
+
+            if (result.payloadType === PAYLOAD_TYPE_FILESYSTEM_FILE) {
+                if (await this._canProbablyStoreInFs()) {
+                    return this.fs.getFileByTrackUid(trackUid);
+                }
+                return null;
+            }
+
+            return result.file ? result.file : null;
         } else {
             throw new Error(`invalid fileReference`);
         }
@@ -455,24 +459,50 @@ export default class TagDatabase {
         if (fileReference instanceof ArrayBuffer) {
             return false;
         } else if (fileReference instanceof File) {
+
+            const db = await this.db;
+            let tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_ONLY);
+            let store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
+            const result = await iDbPromisify(store.get(trackUid));
+
+            if (result) {
+                return false;
+            }
+
+            let fsPath = null;
+            let canStoreInFs = true;
             if (await this._canProbablyStoreInFs()) {
                 try {
-                    return this.fs.storeFileByTrackUid(trackUid, fileReference);
+                    fsPath = await this.fs.storeFileByTrackUid(trackUid, fileReference);
                 } catch (e) {
                     if (e.name !== QUOTA_EXCEEDED_ERROR) {
                         throw e;
                     }
+                    canStoreInFs = false;
                 }
             }
 
-            const db = await this.db;
-            const tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_WRITE);
-            const store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
-            const data = {
-                payloadType: `localFile`,
+            if (canStoreInFs && !fsPath) {
+                return false;
+            }
+
+            const data = canStoreInFs ? {
+                payloadType: PAYLOAD_TYPE_FILESYSTEM_FILE,
                 trackUid,
-                file: fileReference
+                originalLastModified: fileReference.lastModified,
+                originalName: fileReference.name,
+                originalSize: fileReference.size,
+                originalType: fileReference.type,
+                fileSystemPath: fsPath
+            } : {
+                payloadType: PAYLOAD_TYPE_INDEXED_DB_FILE,
+                file: fileReference,
+                trackUid
             };
+
+            tx = db.transaction(TRACK_PAYLOAD_OBJECT_STORE_NAME, READ_WRITE);
+            store = tx.objectStore(TRACK_PAYLOAD_OBJECT_STORE_NAME);
+
             try {
                 await iDbPromisify(store.add(data));
                 return true;

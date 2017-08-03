@@ -16,6 +16,7 @@ import Fingerprinter from "audio/backend/Fingerprinter";
 import {MAX_BUFFER_LENGTH_SECONDS as BUFFER_DURATION} from "audio/frontend/buffering";
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import FileReferenceDeletedError from "errors/FileReferenceDeletedError";
+import {trackUidFromFile} from "platform/FileSystemWrapper";
 
 export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 
@@ -42,6 +43,10 @@ export const METADATA_UPDATE_EVENT = `metadataUpdate`;
 export function fileReferenceToTrackUid(fileReference) {
     if (fileReference instanceof File) {
         const file = fileReference;
+        const maybeTrackUid = trackUidFromFile(file);
+        if (maybeTrackUid) {
+            return maybeTrackUid;
+        }
         return sha1Binary(`${file.lastModified}-${file.name}-${file.size}-${file.type}`);
     } else if (fileReference instanceof ArrayBuffer) {
         return fileReference;
