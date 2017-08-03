@@ -159,7 +159,6 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
                           (band_index * channel_count + channel_index) * EFFECT_EQUALIZER_STATE_PARAMS,     \
                           (band_index * EFFECT_EQUALIZER_COEFF_PARAMS),                                     \
                           param_ptr)
-#define CLIP_DOUBLE_SAMPLE(val) MAX(-1.0, MIN(1.0, (val)))
 
 EXPORT void effects_equalizer_apply(int16_t* samples,
                                     uint32_t byte_length,
@@ -178,7 +177,7 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 2, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 3, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 4, param_ptr);
-            tmp2 = CLIP_DOUBLE_SAMPLE(tmp2);
+            tmp2 = SATURATE_DOUBLE(tmp2);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 5, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 6, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 7, param_ptr);
@@ -192,7 +191,7 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 2, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 3, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 4, param_ptr);
-            tmp2 = CLIP_DOUBLE_SAMPLE(tmp2);
+            tmp2 = SATURATE_DOUBLE(tmp2);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 5, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 6, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 7, param_ptr);

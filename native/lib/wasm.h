@@ -88,6 +88,8 @@ FILE* stderr = (FILE*)2;
 #define MAX_SAFE_INTEGER_F 9007199254740991.0
 #define MIN_SAFE_INTEGER_F -9007199254740991.0
 
+#define SATURATE_DOUBLE(f) MIN(1.0, MAX(f, -1.0))
+#define SATURATE_FLOAT(f) MIN(1.0f, MAX(f, -1.0f))
 #define DOUBLE_TO_I64(val) ((int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(MIN_SAFE_INTEGER_F, (val)))))
 #define DOUBLE_TO_U64(val) ((uint64_t)(int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(-1.0, (val)))))
 #define CLIP_I64_TO_DOUBLE(val) ((double)(MIN(MAX_SAFE_INTEGER, MAX(MIN_SAFE_INTEGER, ((int64_t)val)))))

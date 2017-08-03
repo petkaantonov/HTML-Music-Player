@@ -14,7 +14,7 @@ EXPORT int loudness_analyzer_init(uint32_t channel_count,
     this->frames_added = 0;
     this->max_history = max_history;
 
-    ebur128_state* st = ebur128_init(channel_count, sample_rate, EBUR128_MODE_I);
+    ebur128_state* st = ebur128_init(channel_count, sample_rate, EBUR128_MODE_I | EBUR128_MODE_SAMPLE_PEAK);
     if (!st) {
         return EBUR128_ERROR_NOMEM;
     }
@@ -44,8 +44,8 @@ EXPORT int loudness_analyzer_add_frames(LoudnessAnalyzer* this,
     return EBUR128_SUCCESS;
 }
 
-EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
-    *gain = 0.0;
+EXPORT int loudness_analyzer_get_loudness_and_peak(LoudnessAnalyzer* this, double* loudness, double* peak) {
+    *loudness = 0.0;
     uint32_t frames_needed = this->st->samplerate * 0.4;
     if (this->frames_added >= frames_needed) {
         double result;
@@ -53,14 +53,22 @@ EXPORT int loudness_analyzer_get_gain(LoudnessAnalyzer* this, double* gain) {
         if (err) {
             return err;
         }
-        result = (REFERENCE_LUFS - result);
-        *gain = result;
+        *loudness = result;
+        double peak_value = -1.0;
+        for (int ch = 0; ch < this->st->channels; ++ch) {
+            int err = ebur128_prev_sample_peak(this->st, ch, &result);
+            if (err) {
+                return err;
+            }
+            peak_value = MAX(peak_value, result);
+        }
+        *peak = peak_value;
     }
     return EBUR128_SUCCESS;
 }
 
-EXPORT int loudness_analyzer_get_momentary_gain(LoudnessAnalyzer* this, double* gain) {
-    *gain = 0.0;
+EXPORT int loudness_analyzer_get_momentary_loudness(LoudnessAnalyzer* this, double* loudness) {
+    *loudness = 0.0;
     uint32_t frames_needed = (uint32_t)((double)this->st->samplerate * 0.4);
     if (this->frames_added >= frames_needed) {
         double result;
@@ -68,8 +76,7 @@ EXPORT int loudness_analyzer_get_momentary_gain(LoudnessAnalyzer* this, double* 
         if (err) {
             return err;
         }
-        result = (REFERENCE_LUFS - result);
-        *gain = result;
+        *loudness = result;
     }
     return EBUR128_SUCCESS;
 }
@@ -164,20 +171,31 @@ EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
     return EBUR128_SUCCESS;
 }
 
-static double decibel_to_volume(double loudness) {
-    return pow(10.0, (loudness / 20.0));
-}
-
-EXPORT void loudness_analyzer_apply_normalization(LoudnessAnalyzer* this,
-                                                   double loudness,
+EXPORT void loudness_analyzer_apply_gain(LoudnessAnalyzer* this,
+                                                   double gain_to_apply,
+                                                   double previously_applied_gain,
                                                    int16_t* frames,
                                                    uint32_t frame_count) {
-    static const int32_t MULTIPLIER = 10000;
-    uint32_t length = this->st->channels * frame_count;
-    int32_t volume_multiplier = DOUBLE_TO_I32(decibel_to_volume(loudness) * (double) MULTIPLIER);
+    const uint32_t channels = this->st->channels;
+    uint32_t length = channels * frame_count;
 
+    if (previously_applied_gain != -1.0) {
+        // When new track starts and integrated loudness hasn't stabilized, avoid
+        // sudden volume changes.
+        if (fabs(gain_to_apply - previously_applied_gain) > 0.25) {
+            const float denominator = frame_count - 1;
+            for (int i = 0; i < length; ++i) {
+                float gain = (((float) i / (float)(channels)) / denominator) * (gain_to_apply - previously_applied_gain) + previously_applied_gain;
+                float sample = (((float)frames[i] / 32767.0f) * gain);
+                sample = SATURATE_FLOAT(sample);
+                frames[i] = (int16_t)(sample * 32767.0f);
+            }
+            return;
+        }
+    }
     for (int i = 0; i < length; ++i) {
-        int32_t val = (((int32_t)frames[i]) * volume_multiplier) / MULTIPLIER;
-        frames[i] = CLIP_I32_TO_I16(val);
+        float sample = (((float)frames[i] / 32767.0f) * gain_to_apply);
+        sample = SATURATE_FLOAT(sample);
+        frames[i] = (int16_t)(sample * 32767.0f);
     }
 }
