@@ -82,19 +82,32 @@ EXPORT int loudness_analyzer_get_momentary_loudness(LoudnessAnalyzer* this, doub
 }
 
 EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this) {
-    return loudness_analyzer_reinitialize(this, this->st->channels, this->st->samplerate, this->max_history);
+    return loudness_analyzer_reinitialize(this, this->st->channels, this->st->samplerate, this->max_history, NULL);
+}
+
+EXPORT uint32_t loudness_analyzer_get_serialized_state_size(void) {
+    return sizeof(LoudnessAnalyzerSerializedState);
+}
+
+EXPORT int loudness_analyzer_export_state(LoudnessAnalyzer* this, LoudnessAnalyzerSerializedState* state) {
+    state->max_history = this->max_history;
+    state->sample_rate = this->st->samplerate;
+    state->channels = this->st->channels;
+    state->frames_added = this->frames_added;
+    state->history_length = MIN(MAX_SERIALIZED_HISTORY, this->st->d->block_list->length);
+    state->last_block_sum = this->st->d->last_block_sum;
+    memmove(&state->filter_state, &this->st->d->v, sizeof(this->st->d->v));
+    queue_export_values(this->st->d->block_list, state->history_state, state->history_length);
+    return 0;
 }
 
 EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
                                           uint32_t channel_count,
                                           uint32_t sample_rate,
-                                          uint32_t max_history) {
+                                          uint32_t max_history,
+                                          LoudnessAnalyzerSerializedState* state) {
     this->max_history = max_history;
-    this->frames_added = 0;
     ebur128_state* st = this->st;
-
-    bool sample_rate_changed = st->samplerate != sample_rate;
-    bool channel_count_changed = st->channels != channel_count;
 
     int err = ebur128_change_parameters(st, channel_count, sample_rate);
     if (err && err != EBUR128_ERROR_NO_CHANGE) {
@@ -106,66 +119,40 @@ EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
         return err;
     }
 
-    if (!channel_count_changed) {
-        for (int i = 0; i < st->channels; ++i) {
-          st->d->sample_peak[i] = 0.0;
-          st->d->prev_sample_peak[i] = 0.0;
-          st->d->true_peak[i] = 0.0;
-          st->d->prev_true_peak[i] = 0.0;
-        }
+    for (int i = 0; i < st->channels; ++i) {
+      st->d->sample_peak[i] = 0.0;
+      st->d->prev_sample_peak[i] = 0.0;
+      st->d->true_peak[i] = 0.0;
+      st->d->prev_true_peak[i] = 0.0;
     }
 
-    if (!sample_rate_changed) {
-      for (int i = 0; i < 5; ++i) {
-        for (int j = 0; j < 5; ++j) {
-          st->d->v[i][j] = 0.0;
-        }
-      }
-    }
-
-    if (!channel_count_changed && !sample_rate_changed) {
-
-        for (int j = 0; j < st->d->audio_data_frames * st->channels; ++j) {
-            st->d->audio_data[j] = 0.0;
-        }
-
+    if (state == NULL) {
+        this->frames_added = 0;
+        memset(&st->d->v, 0, sizeof(st->d->v));
         st->d->needed_frames = st->d->samples_in_100ms * 4;
         st->d->audio_data_index = 0;
         st->d->short_term_frame_counter = 0;
+        st->d->last_block_sum = 0.0;
+        queue_clear(st->d->block_list);
+    } else {
+        this->frames_added = state->frames_added;
+        memmove(&st->d->v, &state->filter_state, sizeof(st->d->v));
+        st->d->needed_frames = st->d->samples_in_100ms;
+        st->d->audio_data_index = 0;
+        st->d->short_term_frame_counter = 0;
+        st->d->last_block_sum = state->last_block_sum;
 
-        if ((st->mode & EBUR128_MODE_TRUE_PEAK) == EBUR128_MODE_TRUE_PEAK) {
-          ebur128_destroy_resampler(st);
-          err = ebur128_init_resampler(st);
-          if (err) {
-            return err;
-          }
+        queue_free(st->d->block_list);
+        double_queue* q;
+        if (state->history_length > 0) {
+            q = double_queue_init_with_values(state->history_state, state->history_length);
+        } else {
+            q = double_queue_init(512);
         }
-    }
-
-    struct ebur128_dq_entry* entry;
-    while (!STAILQ_EMPTY(&st->d->block_list)) {
-        entry = STAILQ_FIRST(&st->d->block_list);
-        STAILQ_REMOVE_HEAD(&st->d->block_list, entries);
-        free(entry);
-    }
-    STAILQ_INIT(&st->d->block_list);
-    st->d->block_list_size = 0;
-    while (!STAILQ_EMPTY(&st->d->short_term_block_list)) {
-        entry = STAILQ_FIRST(&st->d->short_term_block_list);
-        STAILQ_REMOVE_HEAD(&st->d->short_term_block_list, entries);
-        free(entry);
-    }
-    STAILQ_INIT(&st->d->short_term_block_list);
-    st->d->st_block_list_size = 0;
-
-    if (st->d->use_histogram) {
-        for (int i = 0; i < 1000; ++i) {
-          st->d->block_energy_histogram[i] = 0;
+        if (!q) {
+            return EBUR128_ERROR_NOMEM;
         }
-
-        for (int i = 0; i < 1000; ++i) {
-          st->d->short_term_block_energy_histogram[i] = 0;
-        }
+        st->d->block_list = q;
     }
 
     return EBUR128_SUCCESS;
