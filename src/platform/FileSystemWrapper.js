@@ -1,5 +1,5 @@
 import {fsPromisify} from "utils/indexedDbUtil";
-import {crypto, webkitRequestFileSystem, PERSISTENT, webkitStorageInfo, Uint32Array,
+import {crypto, webkitRequestFileSystem, PERSISTENT, Uint32Array, webkitPersistentStorage,
     PATH_EXISTS_ERROR, NOT_FOUND_ERROR,
  INVALID_MODIFICATION_ERROR} from "platform/platform";
 import {hexString} from "util";
@@ -13,10 +13,10 @@ function tmpIdToFileName(id) {
 }
 
 function requestQuota() {
-    if (webkitStorageInfo) {
-        return fsPromisify(webkitStorageInfo, `requestQuota`, PERSISTENT, QUOTA_TO_REQUEST);
+    if (webkitPersistentStorage) {
+        return fsPromisify(webkitPersistentStorage, `requestQuota`, QUOTA_TO_REQUEST);
     } else if (self.callMainWindow) {
-        return self.callMainWindow(`requestQuota`, [PERSISTENT, QUOTA_TO_REQUEST]);
+        return self.callMainWindow(`requestPersistentQuota`, [QUOTA_TO_REQUEST]);
     } else {
         return 0;
     }

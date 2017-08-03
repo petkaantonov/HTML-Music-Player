@@ -1,18 +1,18 @@
-import {Worker, localStorage} from "platform/platform";
+import {Worker, localStorage, webkitTemporaryStorage, webkitPersistentStorage} from "platform/platform";
 import {fsPromisify} from "utils/indexedDbUtil";
 
 const mainWindowCalls = {
     queryUsageAndQuota() {
         try {
-            return fsPromisify(self.navigator.webkitTemporaryStorage, `queryUsageAndQuota`);
+            return fsPromisify(webkitTemporaryStorage, `queryUsageAndQuota`);
         } catch (e) {
             return [0, 0];
         }
     },
 
-    requestQuota(type, size) {
+    requestPersistentQuota(size) {
         try {
-            return fsPromisify(self.webkitStorageInfo, `requestQuota`, type, size);
+            return fsPromisify(webkitPersistentStorage, `requestQuota`, size);
         } catch (e) {
             return 0;
         }

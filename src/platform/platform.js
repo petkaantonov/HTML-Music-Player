@@ -46,12 +46,13 @@ export const {ArrayBuffer,
     WeakMap,
     webkitRequestFileSystem,
     PERSISTENT,
-    webkitStorageInfo,
     localStorage
 } = self;
 
 
 const global = self;
+
+export const {webkitTemporaryStorage, webkitPersistentStorage} = self.navigator;
 
 export {global as self};
 
