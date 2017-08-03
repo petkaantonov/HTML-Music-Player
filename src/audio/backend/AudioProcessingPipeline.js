@@ -146,15 +146,15 @@ export default class AudioProcessingPipeline {
         };
         let loudnessInfo = defaultLoudnessInfo;
 
+        if (loudnessAnalyzer) {
+            const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
+            loudnessInfo = loudnessAnalyzer.applyLoudnessNormalization(samplePtr, audioFrameLength);
+        }
+
         if (effects) {
             for (const effect of effects) {
                 ({samplePtr, byteLength} = effect.apply(effects, samplePtr, byteLength, metadata));
             }
-        }
-
-        if (loudnessAnalyzer) {
-            const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
-            loudnessInfo = loudnessAnalyzer.applyLoudnessNormalization(samplePtr, audioFrameLength);
         }
 
         if (crossfader) {
