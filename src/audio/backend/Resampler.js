@@ -1,7 +1,7 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import BufferAllocator from "wasm/BufferAllocator";
 
-const I16_BYTE_LENGTH = 2;
+const FLOAT_BYTE_LENGTH = 4;
 
 const pointersToInstances = new Map();
 
@@ -17,11 +17,11 @@ export default class Resampler extends BufferAllocator {
     }
 
     _byteLengthToAudioFrameCount(byteLength) {
-        return byteLength / this.channelCount / I16_BYTE_LENGTH;
+        return byteLength / this.channelCount / FLOAT_BYTE_LENGTH;
     }
 
     _audioFrameCountToByteLength(audioFrameCount) {
-        return audioFrameCount * this.channelCount * I16_BYTE_LENGTH;
+        return audioFrameCount * this.channelCount * FLOAT_BYTE_LENGTH;
     }
 
     resample(samplesPtr, byteLength) {

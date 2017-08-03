@@ -992,15 +992,18 @@ static INLINE int l3_unscale(int value, int exponent)
     return m;
 }
 
-static INLINE int round_sample(int *sum) {
+static INLINE float round_sample(int *sum) {
     int sum1;
     sum1 = (*sum) >> OUT_SHIFT;
     *sum &= (1<<OUT_SHIFT)-1;
-    if (sum1 < OUT_MIN)
-        sum1 = OUT_MIN;
-    else if (sum1 > OUT_MAX)
-        sum1 = OUT_MAX;
-    return sum1;
+    if (sum1 < OUT_MIN) {
+      return -1.0f;
+    } else if (sum1 > OUT_MAX) {
+      return 1.0f;
+    } else {
+      float value = (float)sum1;
+      return value / 32768.0f;
+    }
 }
 
 static void exponents_from_scale_factors(
@@ -1854,14 +1857,14 @@ static void dct32(int32_t *out, int32_t *tab)
 static void mp3_synth_filter(
     int16_t *synth_buf_ptr, int *synth_buf_offset,
     int16_t *window, int *dither_state,
-    int16_t *samples, int incr,
+    float *samples, int incr,
     int32_t sb_samples[SBLIMIT]
 ) {
     int32_t tmp[32];
     register int16_t *synth_buf;
     register const int16_t *w, *w2, *p;
     int j, offset, v;
-    int16_t *samples2;
+    float *samples2;
     int sum, sum2;
 
     dct32(tmp, sb_samples);
@@ -1891,6 +1894,7 @@ static void mp3_synth_filter(
     SUM8(sum, +=, w, p);
     p = synth_buf + 48;
     SUM8(sum, -=, w + 32, p);
+
     *samples = round_sample(&sum);
     samples += incr;
     w++;
@@ -1903,7 +1907,6 @@ static void mp3_synth_filter(
         SUM8P2(sum, +=, sum2, -=, w, w2, p);
         p = synth_buf + 48 - j;
         SUM8P2(sum, -=, sum2, -=, w + 32, w2 + 32, p);
-
         *samples = round_sample(&sum);
         samples += incr;
         sum += sum2;
@@ -2232,10 +2235,10 @@ static int mp_decode_layer3(mp3_context_t *s) {
 
 static int mp3_decode_main(
     mp3_context_t *s,
-    int16_t *samples, const uint8_t *buf, int buf_size
+    float *samples, const uint8_t *buf, int buf_size
 ) {
     int i, nb_frames, ch;
-    int16_t *samples_ptr;
+    float *samples_ptr;
 
     init_get_bits(&s->gb, buf, (buf_size - HEADER_SIZE)*8);
 
@@ -2279,7 +2282,7 @@ static int mp3_decode_main(
         }
     }
 
-    return nb_frames * 32 * sizeof(uint16_t) * s->nb_channels;
+    return nb_frames * 32 * sizeof(float) * s->nb_channels;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2453,7 +2456,7 @@ static int mp3_decode_init() {
 static int mp3_decode_frame_slow(mp3_context_t* this,
                                  const uint8_t* src,
                                  uint32_t src_length,
-                                 int16_t* samples_ptr,
+                                 float* samples_ptr,
                                  uint32_t* samples_written_ptr) {
   uint32_t bytes_read = 0;
   uint32_t src_offset = 0;
@@ -2540,7 +2543,7 @@ static int mp3_decode_frame_slow(mp3_context_t* this,
 EXPORT int mp3_decode_frame(mp3_context_t* this,
                             const uint8_t* src,
                             uint32_t src_length,
-                            int16_t* samples_ptr,
+                            float* samples_ptr,
                             uint32_t* samples_written_ptr) {
   *samples_written_ptr = 0;
   uint32_t bytes_read = 0;

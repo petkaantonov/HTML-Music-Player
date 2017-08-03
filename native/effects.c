@@ -29,21 +29,20 @@ static double get_fade_out_volume(double t0, double t, double t1) {
 
 EXPORT void effects_bass_boost_apply(double effect_size,
                                uint32_t channel_count,
-                               int16_t* samples,
+                               float* samples,
                                uint32_t byte_length) {
     if (channel_count > EFFECT_BASS_BOOST_MAX_CHANNELS) {
         return;
     }
-    size_t length = byte_length / sizeof(int16_t) / channel_count;
-    int16_t* samples_i16 = (int16_t*) samples;
+    size_t length = byte_length / sizeof(float) / channel_count;
     const float ratio = EFFECT_BASS_BOOST_MIN_RATIO + effect_size * (EFFECT_BASS_BOOST_MAX_RATIO - EFFECT_BASS_BOOST_MIN_RATIO);
 
     for (int i = 0; i < length; ++i) {
         for (int ch = 0; ch < channel_count; ++ch) {
-            float sample = ((float)samples_i16[i * channel_count + ch]) / 32768.0;
+            float sample = samples[i * channel_count + ch];
             effects_bass_boost_state[ch] = (sample + effects_bass_boost_state[ch] * EFFECT_BASS_BOOST_SELECTIVITY) * bass_boost_gain1;
             sample = (sample + effects_bass_boost_state[ch] * ratio) * bass_boost_gain2;
-            samples_i16[i * channel_count + ch] = CLIP_I32_TO_I16((int32_t) (sample * 32768.0));
+            samples[i * channel_count + ch] = sample;
         }
     }
 
@@ -57,20 +56,18 @@ EXPORT void effects_bass_boost_apply(double effect_size,
 
 EXPORT void effects_noise_sharpening(double effect_size,
                                      uint8_t channel_count,
-                                     void* samples,
+                                     float* samples,
                                      size_t byte_length) {
-    size_t length = byte_length / sizeof(int16_t) / channel_count;
-    int16_t* samples_i16 = (int16_t*) samples;
+    size_t length = byte_length / sizeof(float) / channel_count;
 
     if (effect_size > 0) {
-        int32_t effect_multiplier = DOUBLE_TO_U32(effect_size * (double)EFFECT_MULTIPLIER);
+
         for (size_t i = length - 1; i >= 1; --i) {
             for (uint8_t ch = 0; ch < channel_count; ++ch) {
-                int32_t sample = samples_i16[i * channel_count + ch];
-                int32_t previous_sample = samples_i16[(i - 1) * channel_count + ch];
-                int32_t diff = sample - previous_sample;
-                int32_t value = (sample + (effect_multiplier * diff / EFFECT_MULTIPLIER));
-                samples_i16[i * channel_count + ch] = CLIP_I32_TO_I16(value);
+                float sample = samples[i * channel_count + ch];
+                float previous_sample = samples[(i - 1) * channel_count + ch];
+                float diff = sample - previous_sample;
+                samples[i * channel_count + ch] = sample + (effect_size * diff);
             }
         }
     }
@@ -81,27 +78,24 @@ EXPORT void effects_crossfade_fade_in(double track_current_time,
                                       double fade_duration,
                                       uint32_t sample_rate,
                                       uint8_t channel_count,
-                                      void* samples,
+                                      float* samples,
                                       size_t byte_length) {
     if (fade_duration == 0.0 || track_current_time > fade_duration) {
         return;
     }
-    const uint32_t buffer_frame_count = byte_length / sizeof(int16_t) / channel_count;
+    const uint32_t buffer_frame_count = byte_length / sizeof(float) / channel_count;
     const uint32_t fade_frame_count = (uint32_t)((double)(fade_duration - track_current_time) * (double) sample_rate);
     const uint32_t total_frames_to_process = MIN(buffer_frame_count, fade_frame_count);
 
-    int16_t* samples_i16 = (int16_t*) samples;
-    int32_t volume_multiplier;
+    double vol;
     for (int i = 0; i < total_frames_to_process; i++) {
         if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
             double t = track_current_time + ((double) i) / ((double) sample_rate);
-            double vol = get_fade_in_volume(0.0, t, fade_duration);
-            volume_multiplier = DOUBLE_TO_U32(vol * (double)EFFECT_MULTIPLIER);
+            vol = get_fade_in_volume(0.0, t, fade_duration);
         }
 
         for (int ch = 0; ch < channel_count; ++ch) {
-            int32_t val = (((int32_t)samples_i16[i * channel_count + ch]) * volume_multiplier) / EFFECT_MULTIPLIER;
-            samples_i16[i * channel_count + ch] = CLIP_I32_TO_I16(val);
+            samples[i * channel_count + ch] *= vol;
         }
     }
 }
@@ -111,9 +105,9 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
                                       double fade_duration,
                                       uint32_t sample_rate,
                                       uint8_t channel_count,
-                                      void* samples,
+                                      float* samples,
                                       size_t byte_length) {
-    const uint32_t frame_count = byte_length / sizeof(int16_t) / channel_count;
+    const uint32_t frame_count = byte_length / sizeof(float) / channel_count;
     const double buffer_duration = (double)frame_count / (double)sample_rate;
     const double fade_start_time = track_duration - fade_duration;
     if (fade_duration == 0.0 || track_current_time + buffer_duration < fade_start_time) {
@@ -121,24 +115,20 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
     }
 
     const uint32_t start_frame = (int)(MAX(fade_start_time - track_current_time, 0.0) * (double)sample_rate);
-    int16_t* samples_i16 = (int16_t*) samples;
 
     double t = (track_current_time + ((double) start_frame) / ((double) sample_rate)) - fade_start_time;
     t = MAX(0, t);
     double vol = get_fade_out_volume(0.0, t, fade_duration);
-    int32_t volume_multiplier = DOUBLE_TO_U32(vol * (double)EFFECT_MULTIPLIER);
 
     for (int i = start_frame; i < frame_count; i++) {
         if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
             double t = (track_current_time + ((double) i) / ((double) sample_rate)) - fade_start_time;
             t = MAX(0, t);
-            double vol = get_fade_out_volume(0.0, t, fade_duration);
-            volume_multiplier = DOUBLE_TO_U32(vol * (double)EFFECT_MULTIPLIER);
+            vol = get_fade_out_volume(0.0, t, fade_duration);
         }
 
         for (int ch = 0; ch < channel_count; ++ch) {
-            int32_t val = (((int32_t)samples_i16[i * channel_count + ch]) * volume_multiplier) / EFFECT_MULTIPLIER;
-            samples_i16[i * channel_count + ch] = CLIP_I32_TO_I16(val);
+            samples[i * channel_count + ch] *= vol;
         }
     }
 }
@@ -160,32 +150,31 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
                           (band_index * EFFECT_EQUALIZER_COEFF_PARAMS),                                     \
                           param_ptr)
 
-EXPORT void effects_equalizer_apply(int16_t* samples,
+EXPORT void effects_equalizer_apply(float* samples,
                                     uint32_t byte_length,
                                     uint32_t channel_count,
                                     double* param_ptr) {
-    uint32_t frame_length = byte_length / sizeof(int16_t) / channel_count;
+    uint32_t frame_length = byte_length / sizeof(float) / channel_count;
     if (channel_count > EFFECT_EQUALIZER_MAX_CHANNELS) {
         return;
     } else if (channel_count == 2) {
         for (int i = 0; i < frame_length; ++i) {
             double tmp1, tmp2, result;
 
-            tmp1 = (double) samples[i * 2] / 32768.0;
+            tmp1 = samples[i * 2];
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 0, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 1, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 2, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 3, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 4, param_ptr);
-            tmp2 = SATURATE_DOUBLE(tmp2);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 5, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 6, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 0, 2, 7, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 0, 2, 8, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, result, 0, 2, 9, param_ptr);
-            samples[i * 2] = CLIP_I32_TO_I16((int32_t)(result * 32768.0));
+            samples[i * 2] = result;
 
-            tmp1 = (double) samples[i * 2 + 1] / 32768.0;
+            tmp1 = samples[i * 2 + 1];
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 0, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 1, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 2, param_ptr);
@@ -197,7 +186,7 @@ EXPORT void effects_equalizer_apply(int16_t* samples,
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, tmp1, 1, 2, 7, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp1, tmp2, 1, 2, 8, param_ptr);
             EFFECT_APPLY_BAND_TO_CHANNEL(tmp2, result, 1, 2, 9, param_ptr);
-            samples[i * 2 + 1] = CLIP_I32_TO_I16((int32_t)(result * 32768.0));
+            samples[i * 2 + 1] = result;
 
             if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
                 const uint64_t* effects_equalizer_state_bits = (uint64_t*) effects_equalizer_state;

@@ -93,7 +93,6 @@ FILE* stderr = (FILE*)2;
 #define DOUBLE_TO_I64(val) ((int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(MIN_SAFE_INTEGER_F, (val)))))
 #define DOUBLE_TO_U64(val) ((uint64_t)(int64_t)(MIN(MAX_SAFE_INTEGER_F, MAX(-1.0, (val)))))
 #define CLIP_I64_TO_DOUBLE(val) ((double)(MIN(MAX_SAFE_INTEGER, MAX(MIN_SAFE_INTEGER, ((int64_t)val)))))
-#define CLIP_I32_TO_I16(val) ((int16_t)(MAX(MIN((val), SHRT_MAX), SHRT_MIN)))
 
 #define ABORT_ON_ASSERT_FAILURE 0
 #define MALLOC_FAILURE_ACTION

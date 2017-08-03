@@ -32,9 +32,9 @@ EXPORT void resampler_reset(SpeexResamplerState* this) {
 }
 
 EXPORT int resampler_resample(SpeexResamplerState* this,
-                              int16_t* input_sample_ptr,
+                              float* input_sample_ptr,
                               uint32_t input_length_audio_frames,
-                              int16_t** output_sample_ptr_out,
+                              float** output_sample_ptr_out,
                               uint32_t* input_audio_frames_read_out,
                               uint32_t* output_audio_frames_written_out) {
     uint32_t channel_count = this->nb_channels;
@@ -43,12 +43,12 @@ EXPORT int resampler_resample(SpeexResamplerState* this,
     *output_sample_ptr_out = NULL;
     resampler_error = 0;
     spx_uint32_t output_length_audio_frames = resampler_get_length(this, input_length_audio_frames);
-    int16_t* output_sample_ptr = resamplerGetBuffer(this, output_length_audio_frames * channel_count * sizeof(int16_t));
-    resampler_error = speex_resampler_process_interleaved_int(this,
-                                                              input_sample_ptr,
-                                                              &input_length_audio_frames,
-                                                              output_sample_ptr,
-                                                              &output_length_audio_frames);
+    float* output_sample_ptr = resamplerGetBuffer(this, output_length_audio_frames * channel_count * sizeof(float));
+    resampler_error = speex_resampler_process_interleaved_float(this,
+                                                               input_sample_ptr,
+                                                               &input_length_audio_frames,
+                                                               output_sample_ptr,
+                                                               &output_length_audio_frames);
     if (resampler_error) {
         return resampler_error;
     }

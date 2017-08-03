@@ -2,7 +2,7 @@ import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import {checkBoolean} from "errors/BooleanTypeError";
 
 const MAX_HISTORY_MS = 30000;
-const INT16_BYTE_SIZE = 2;
+const FLOAT_BYTE_SIZE = 4;
 const SILENCE_THRESHOLD = -65;
 const MOMENTARY_WINDOW_MS = 400;
 const MAX_GAIN_OFFSET = 12;
@@ -75,7 +75,7 @@ export default class LoudnessAnalyzer {
                 throw new Error(`ebur128 error ${err} ${samplePtr + sampleOffset} ${framesToAdd}`);
             }
 
-            sampleOffset += (INT16_BYTE_SIZE * this._channelCount * framesToAdd);
+            sampleOffset += (FLOAT_BYTE_SIZE * this._channelCount * framesToAdd);
             framesAdded += framesToAdd;
             this._framesAdded += framesToAdd;
 

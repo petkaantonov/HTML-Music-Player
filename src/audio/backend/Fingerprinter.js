@@ -1,6 +1,6 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 
-const I16_BYTE_LENGTH = 2;
+const FLOAT_BYTE_LENGTH = 4;
 const FINGERPRINT_RESAMPLER_QUALITY = 0;
 const FINGERPRINT_SAMPLE_RATE = 11025;
 const FINGERPRINT_CHANNELS = 1;
@@ -18,11 +18,11 @@ export default class Fingerprinter {
     }
 
     newFrames(samplePtr, byteLength) {
-        const err = this.chromaprint_add_samples(this._ptr, samplePtr, byteLength / I16_BYTE_LENGTH);
+        const err = this.chromaprint_add_samples(this._ptr, samplePtr, byteLength / FLOAT_BYTE_LENGTH);
         if (err) {
             if (err !== 3) {
                 throw new Error(`chromaprint error ${err}
-                            chromaprint_add_samples(${this._ptr}, ${samplePtr}, ${byteLength / I16_BYTE_LENGTH})
+                            chromaprint_add_samples(${this._ptr}, ${samplePtr}, ${byteLength / FLOAT_BYTE_LENGTH})
                             state:
                                     frames_processed:  ${this._wasm.u32(this._ptr + 0)}
                                     note_buffer_index: ${this._wasm.u32(this._ptr + 4)}

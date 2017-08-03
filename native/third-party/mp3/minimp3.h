@@ -161,7 +161,7 @@ typedef struct _mp3_context {
 static int mp3_decode_frame_slow(mp3_context_t* this,
                                  const uint8_t* src,
                                  uint32_t src_length,
-                                 int16_t* samples_ptr,
+                                 float* samples_ptr,
                                  uint32_t* samples_written_ptr);
 EXPORT mp3_context_t* mp3_create_ctx();
 EXPORT mp3_context_t* mp3_reset_ctx(mp3_context_t* ctx);
@@ -169,7 +169,7 @@ EXPORT void mp3_destroy_ctx(mp3_context_t* ctx);
 EXPORT int mp3_decode_frame(mp3_context_t* this,
                             const uint8_t* src,
                             uint32_t src_length,
-                            int16_t* samples_ptr,
+                            float* samples_ptr,
                             uint32_t* samples_written_ptr);
 
 #endif//__MINIMP3_H_INCLUDED__

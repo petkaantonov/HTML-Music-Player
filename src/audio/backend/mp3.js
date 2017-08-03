@@ -9,7 +9,7 @@ const MAX_AUDIO_FRAMES_PER_MP3_FRAME = 1152;
 const MAX_INVALID_FRAME_COUNT = 100;
 const MAX_MP3_FRAME_BYTE_LENGTH = 2881;
 const MAX_BYTES_PER_AUDIO_FRAME = MAX_MP3_FRAME_BYTE_LENGTH / (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
-const INT_16_BYTE_LENGTH = 2;
+const FLOAT_BYTE_LENGTH = 4;
 
 export default class Mp3Context extends DecoderContext {
     constructor(wasm, opts) {
@@ -48,7 +48,7 @@ export default class Mp3Context extends DecoderContext {
         const maxAudioSamplesUntilFlush = (Math.ceil(maxBufferLengthSeconds * MAX_SAMPLE_RATE * MAX_CHANNELS / maxAudioSamplesPerMp3Frame) *
                                                                                         maxAudioSamplesPerMp3Frame) +
                                                                 (MAX_AUDIO_FRAMES_PER_MP3_FRAME * MAX_CHANNELS);
-        const byteLengthSamples = maxAudioSamplesUntilFlush * INT_16_BYTE_LENGTH;
+        const byteLengthSamples = maxAudioSamplesUntilFlush * FLOAT_BYTE_LENGTH;
         const srcBufferMaxLength = Math.ceil(MAX_BYTES_PER_AUDIO_FRAME * (maxAudioSamplesUntilFlush / MAX_CHANNELS));
 
         if (!realloc) {
@@ -255,11 +255,11 @@ export default class Mp3Context extends DecoderContext {
     }
 
     _byteLengthToAudioFrameCount(byteLength) {
-        return byteLength / this.channelCount / INT_16_BYTE_LENGTH;
+        return byteLength / this.channelCount / FLOAT_BYTE_LENGTH;
     }
 
     _audioFrameCountToByteLength(audioFrameCount) {
-        return audioFrameCount * this.channelCount * INT_16_BYTE_LENGTH;
+        return audioFrameCount * this.channelCount * FLOAT_BYTE_LENGTH;
     }
 
     _samplesPtrOffsetByAudioFrames(frameOffset) {

@@ -17,10 +17,10 @@ EXPORT uint32_t channel_mixer_get_length(ChannelMixer* channel_mixer, uint32_t b
 
 EXPORT int channel_mixer_mix(ChannelMixer* channel_mixer,
                              uint8_t input_channel_count,
-                             int16_t* input,
+                             float* input,
                              uint32_t input_byte_length) {
     channel_mixer_error = CHANNEL_MIXER_ERR_SUCCESS;
-    channel_mixer->output = (int16_t*)NULL;
+    channel_mixer->output = (float*)NULL;
     uint8_t output_channel_count = channel_mixer->output_channels;
 
     if (output_channel_count == input_channel_count) {
@@ -28,12 +28,12 @@ EXPORT int channel_mixer_mix(ChannelMixer* channel_mixer,
         return CHANNEL_MIXER_ERR_SUCCESS;
     }
 
-    const uint32_t input_audio_frame_length = input_byte_length / input_channel_count / sizeof(int16_t);
+    const uint32_t input_audio_frame_length = input_byte_length / input_channel_count / sizeof(float);
     if (output_channel_count == 1) {
         if (input_channel_count == 2) {
-            int16_t* buf = channelMixerGetBuffer(channel_mixer, input_byte_length / 2);
+            float* buf = channelMixerGetBuffer(channel_mixer, input_byte_length / 2);
             for (uint32_t i = 0; i < input_audio_frame_length; ++i) {
-                buf[i] = CLIP_I32_TO_I16(((int32_t)input[i * 2] + (int32_t)input[i * 2 + 1]) / 2);
+                buf[i] = (input[i * 2] + input[i * 2 + 1]) / 2.0f;
             }
             channel_mixer->output = buf;
             return CHANNEL_MIXER_ERR_SUCCESS;
@@ -43,7 +43,7 @@ EXPORT int channel_mixer_mix(ChannelMixer* channel_mixer,
         }
     } else if (output_channel_count == 2) {
         if (input_channel_count == 1) {
-            int16_t* buf = channelMixerGetBuffer(channel_mixer, input_byte_length * 2);
+            float* buf = channelMixerGetBuffer(channel_mixer, input_byte_length * 2);
 
             for (uint32_t i = 0; i < input_audio_frame_length; ++i) {
                 buf[i * 2] = input[i];

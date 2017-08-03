@@ -34,9 +34,9 @@ EXPORT void loudness_analyzer_destroy(LoudnessAnalyzer* this) {
 }
 
 EXPORT int loudness_analyzer_add_frames(LoudnessAnalyzer* this,
-                                        int16_t* frames,
+                                        float* frames,
                                         uint32_t frame_count) {
-    int err = ebur128_add_frames_short(this->st, frames, frame_count);
+    int err = ebur128_add_frames_float(this->st, frames, frame_count);
     if (err) {
         return err;
     }
@@ -174,7 +174,7 @@ EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
 EXPORT void loudness_analyzer_apply_gain(LoudnessAnalyzer* this,
                                                    double gain_to_apply,
                                                    double previously_applied_gain,
-                                                   int16_t* frames,
+                                                   float* frames,
                                                    uint32_t frame_count) {
     const uint32_t channels = this->st->channels;
     uint32_t length = channels * frame_count;
@@ -186,16 +186,12 @@ EXPORT void loudness_analyzer_apply_gain(LoudnessAnalyzer* this,
             const float denominator = frame_count - 1;
             for (int i = 0; i < length; ++i) {
                 float gain = (((float) i / (float)(channels)) / denominator) * (gain_to_apply - previously_applied_gain) + previously_applied_gain;
-                float sample = (((float)frames[i] / 32767.0f) * gain);
-                sample = SATURATE_FLOAT(sample);
-                frames[i] = (int16_t)(sample * 32767.0f);
+                frames[i] *= gain;
             }
             return;
         }
     }
     for (int i = 0; i < length; ++i) {
-        float sample = (((float)frames[i] / 32767.0f) * gain_to_apply);
-        sample = SATURATE_FLOAT(sample);
-        frames[i] = (int16_t)(sample * 32767.0f);
+        frames[i] *= gain_to_apply;
     }
 }

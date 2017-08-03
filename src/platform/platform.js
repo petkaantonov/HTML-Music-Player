@@ -64,6 +64,7 @@ export const NOT_FOUND_ERROR = `NotFoundError`;
 export const VERSION_ERROR = `VersionError`;
 export const DATABASE_CLOSED_ERROR = `DatabaseClosedError`;
 export const PATH_EXISTS_ERROR = `PathExistsError`;
+export const INVALID_MODIFICATION_ERROR = "InvalidModificationError";
 
 export function isOutOfMemoryError(e) {
     return e.name === UNKNOWN_ERROR || e.name === QUOTA_EXCEEDED_ERROR;

@@ -1,6 +1,6 @@
 import {defaultLoudnessInfo} from "audio/backend/LoudnessAnalyzer";
 
-const I16_BYTE_LENGTH = 2;
+const FLOAT_BYTE_LENGTH = 4;
 const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
@@ -12,45 +12,6 @@ class FilledBufferDescriptor {
         this.loudnessInfo = loudnessInfo;
     }
 }
-
-// TODO: Remove this comment after testing framework is in place and it will become unnecessary.
-/*
-Const WAV_CHANNELS = 2;
-const WAV_SR = 48000;
-const WAV_DURATION = 0.2 * WAV_SR * 1 / 0.2 * 30;
-const wavData = new Int16Array(WAV_CHANNELS * WAV_DURATION + 44 / 2);
-
-let wavLength = 0;
-
-function applyWav(samplePtr, byteLength, wasm) {
-    if (wavLength < WAV_DURATION) {
-        const o = wavLength * WAV_CHANNELS * 2 + 44;
-        new Uint8Array(wavData.buffer).set(wasm.u8view(samplePtr, byteLength), o);
-        wavLength += byteLength / WAV_CHANNELS / I16_BYTE_LENGTH;
-    } else {
-        const buf = new Uint8Array(wavData.buffer);
-        const dataV = new DataView(wavData.buffer);
-        dataV.setUint32(0, 0x52494646 >>> 0, false);
-        dataV.setUint32(4, wavData.byteLength - 8, true);
-        dataV.setUint32(8, 0x57415645 >>> 0, false);
-        dataV.setUint32(12, 0x666d7420 >>> 0, false);
-        dataV.setUint32(16, 16, true);
-        dataV.setUint16(20, 1, true);
-        dataV.setUint16(22, WAV_CHANNELS, true);
-        dataV.setUint32(24, WAV_SR, true);
-        dataV.setUint32(28, WAV_SR * 2 * WAV_CHANNELS, true);
-        dataV.setUint16(32, 2 * WAV_CHANNELS, true);
-        dataV.setUint16(34, 16, true);
-        dataV.setUint32(36, 0x64617461 >>> 0, false);
-        dataV.setUint32(40, wavData.byteLength - 44, true);
-
-
-        const a = new Blob([wavData], {type: `audio/wav`});
-        // Just listen to the wav file to see if decoding/channelmixing/resampling was done correctly...
-        const b = URL.createObjectURL(a);
-        debugger;
-    }
-}*/
 
 export default class AudioProcessingPipeline {
     constructor(wasm, {
@@ -192,7 +153,7 @@ export default class AudioProcessingPipeline {
         }
 
         if (loudnessAnalyzer) {
-            const audioFrameLength = byteLength / sourceChannelCount / I16_BYTE_LENGTH;
+            const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
             loudnessInfo = loudnessAnalyzer.applyLoudnessNormalization(samplePtr, audioFrameLength);
         }
 
@@ -212,9 +173,9 @@ export default class AudioProcessingPipeline {
             fingerprinter.newFrames(samplePtr, byteLength);
         }
 
-        const audioFrameLength = byteLength / I16_BYTE_LENGTH / destinationChannelCount;
+        const audioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
         let paddingFrameLength = 0;
-        const src = this._wasm.i16view(samplePtr, byteLength / I16_BYTE_LENGTH);
+        const src = this._wasm.f32view(samplePtr, byteLength / FLOAT_BYTE_LENGTH);
 
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
@@ -228,8 +189,8 @@ export default class AudioProcessingPipeline {
                 const dst1 = channelData[1];
 
                 for (let i = 0; i < audioFrameLength; ++i) {
-                    dst0[i] = Math.fround(src[i * 2] / 32768);
-                    dst1[i] = Math.fround(src[i * 2 + 1] / 32768);
+                    dst0[i] = src[i * 2];
+                    dst1[i] = src[i * 2 + 1];
                 }
 
                 for (let i = 0; i < paddingFrameLength; ++i) {
@@ -240,8 +201,7 @@ export default class AudioProcessingPipeline {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch];
                     for (let i = 0; i < audioFrameLength; ++i) {
-                        const sample = src[i * destinationChannelCount + ch];
-                        dst[i] = Math.fround(sample / 32768);
+                        dst[i] = src[i * destinationChannelCount + ch];
                     }
 
                     for (let i = 0; i < paddingFrameLength; ++i) {

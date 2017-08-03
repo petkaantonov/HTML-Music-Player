@@ -1,6 +1,7 @@
 import {fsPromisify} from "utils/indexedDbUtil";
 import {crypto, webkitRequestFileSystem, PERSISTENT, webkitStorageInfo, Uint32Array,
-    PATH_EXISTS_ERROR, NOT_FOUND_ERROR} from "platform/platform";
+    PATH_EXISTS_ERROR, NOT_FOUND_ERROR,
+ INVALID_MODIFICATION_ERROR} from "platform/platform";
 import {hexString} from "util";
 
 const QUOTA_TO_REQUEST = 1024 * 1024 * 1024 * 1024;
@@ -109,7 +110,7 @@ export default class FileSystemWrapper {
         try {
             fileEntry = await fsPromisify(this._fs.root, `getFile`, fileName, {create: true, exclusive: true});
         } catch (e) {
-            if (e.name === PATH_EXISTS_ERROR) {
+            if (e.name === PATH_EXISTS_ERROR || e.name === INVALID_MODIFICATION_ERROR) {
                 return false;
             }
             throw e;
@@ -154,7 +155,7 @@ export default class FileSystemWrapper {
                 tmpFileId = id;
                 break;
             } catch (e) {
-                if (e.name === PATH_EXISTS_ERROR) {
+                if (e.name === PATH_EXISTS_ERROR || e.name === INVALID_MODIFICATION_ERROR) {
                     continue;
                 }
                 throw e;
@@ -187,7 +188,7 @@ export default class FileSystemWrapper {
             await fsPromisify(fileEntry, `remove`);
             return true;
         } catch (e) {
-            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR) {
+            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR ||  e.name === INVALID_MODIFICATION_ERROR) {
                 return true;
             }
             throw e;
@@ -202,7 +203,7 @@ export default class FileSystemWrapper {
             await fsPromisify(dirEntry, `removeRecursively`);
             return true;
         } catch (e) {
-            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR) {
+            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR || e.name === INVALID_MODIFICATION_ERROR) {
                 return true;
             }
             throw e;
@@ -233,7 +234,7 @@ export default class FileSystemWrapper {
             }
             return files;
         } catch (e) {
-            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR) {
+            if (e.name === PATH_EXISTS_ERROR || e.name === NOT_FOUND_ERROR || e.name === INVALID_MODIFICATION_ERROR) {
                 return [];
             }
             throw e;

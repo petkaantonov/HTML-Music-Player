@@ -36,7 +36,7 @@ static const uint32_t BITS_SIZE = ROWS * 33;
 
 static const char* BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static bool critical = false;
-static int16_t TMP2[TMP_SIZE];
+static float TMP2[TMP_SIZE];
 static double BUFFER[FRAMES];
 static double IMAGE[ROWS * NOTES];
 static double NOTE_BUFFER[8 * NOTES];
@@ -54,12 +54,12 @@ typedef struct {
 
 EXPORT Chromaprint* chromaprint_create();
 EXPORT void chromaprint_destroy(Chromaprint* this);
-EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* samples, uint32_t length);
+EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, float* samples, uint32_t length);
 EXPORT uint32_t chromaprint_needs_samples(Chromaprint* this);
 EXPORT int chromaprint_can_calculate(Chromaprint* this);
 EXPORT ChromaprintError chromaprint_calculate_fingerprint(Chromaprint* this, char** base64_string_result);
 
-static void chromaprint_process_frames(Chromaprint* this, int16_t* src);
+static void chromaprint_process_frames(Chromaprint* this, float* src);
 static void chromaprint_chroma(Chromaprint* this);
 static void chromaprint_transform_image(Chromaprint* this);
 static int32_t chromaprint_get_fingerprint_length(Chromaprint* this);
@@ -80,6 +80,6 @@ static uint32_t classify2(int32_t x, int32_t y, int32_t h, int32_t w, double t0,
 static uint32_t classify3(int32_t x, int32_t y, int32_t h, int32_t w, double t0, double t1, double t2);
 static uint32_t classify4(int32_t x, int32_t y, int32_t h, int32_t w, double t0, double t1, double t2);
 static uint32_t classify5(int32_t x, int32_t y, int32_t h, int32_t w, double t0, double t1, double t2);
-static void hanning_window(int16_t*, uint32_t, double*);
+static void hanning_window(float*, uint32_t, double*);
 
 #endif

@@ -59,7 +59,7 @@ EXPORT void chromaprint_destroy(Chromaprint* this) {
     free(this);
 }
 
-EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src, uint32_t length) {
+EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, float* src, uint32_t length) {
     int32_t len = (int32_t)length;
     uint32_t src_offset = 0;
 
@@ -70,7 +70,7 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src,
     if (this->tmp_length > 0) {
         int32_t tmp_offset = 0;
         assert(this->tmp_length < FRAMES);
-        memmove((void*)(&TMP2[this->tmp_length]), (void*)src, 2 * OVERLAP * sizeof(int16_t));
+        memmove((void*)(&TMP2[this->tmp_length]), (void*)src, 2 * OVERLAP * sizeof(float));
 
         while (this->tmp_length > 0) {
             if (this->frames_processed + FRAMES - 1 >= FRAMES_NEEDED_TOTAL) {
@@ -98,7 +98,7 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, int16_t* src,
             len -= OVERLAP;
             src_offset += OVERLAP;
         } else {
-            memmove((void*)TMP2, (void*)&src[src_offset], len * sizeof(int16_t));
+            memmove((void*)TMP2, (void*)&src[src_offset], len * sizeof(float));
             this->tmp_length = len;
             len = 0;
         }
@@ -124,7 +124,7 @@ EXPORT ChromaprintError chromaprint_calculate_fingerprint(Chromaprint* this, cha
     return CHROMAPRINT_SUCCESS;
 }
 
-static void chromaprint_process_frames(Chromaprint* this, int16_t* src) {
+static void chromaprint_process_frames(Chromaprint* this, float* src) {
     hanning_window(src, FRAMES, BUFFER);
     real_fft_forward(BUFFER, FRAMES);
     chromaprint_chroma(this);
@@ -168,7 +168,7 @@ static ChromaprintError chromaprint_get_fingerprint(Chromaprint* this) {
         return CHROMAPRINT_ERROR_INSUFFICIENT_LENGTH;
     }
     uint32_t* fingerprint = (uint32_t*)BUFFER;
-    assert_lt(length * sizeof(int32_t), sizeof(int16_t) * FRAMES);
+    assert_lt(length * sizeof(int32_t), sizeof(float) * FRAMES);
 
     for (uint32_t i = 0; i < length; ++i) {
         uint32_t value = 0;
@@ -471,14 +471,14 @@ static uint32_t classify5(int32_t x, int32_t y, int32_t h, int32_t w, double t0,
 
 static const double a = 0.0000011765482980900709;
 static const double b = -0.0015339801862847655;
-static void hanning_window(int16_t* frames, uint32_t length, double* dst) {
+static void hanning_window(float* frames, uint32_t length, double* dst) {
     assert_equals(length, 4096);
     double tmp;
     double cos_value = 1.0;
     double sin_value = 0.0;
 
     for (uint32_t n = 0; n < length; ++n) {
-        double frame = (double)frames[n] / 32768.0;
+        double frame = frames[n];
         frame *= (0.54 - 0.46 * cos_value);
         dst[n] = frame;
         tmp = cos_value - (a * cos_value + b * sin_value);
