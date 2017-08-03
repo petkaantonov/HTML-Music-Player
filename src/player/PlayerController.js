@@ -156,11 +156,9 @@ export default class PlayerController extends EventEmitter {
         }
         this._tickCounter.reset();
         this._loadedTrack = track;
-        this.audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress);
+        this.audioManager.loadTrack(track, isUserInitiatedSkip, initialProgress,
+                                    resumeIfPaused && (this.isPaused || this.isStopped));
         this.emit(NEW_TRACK_LOAD_EVENT, track);
-        if (resumeIfPaused) {
-            this.play();
-        }
         this._persistTrack();
 
     }

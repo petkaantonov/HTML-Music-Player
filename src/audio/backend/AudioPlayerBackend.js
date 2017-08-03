@@ -111,7 +111,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
 
     }
 
-    async _load({fileReference, isPreloadForNextTrack, bufferFillCount, progress = 0}) {
+    async _load({fileReference, isPreloadForNextTrack, bufferFillCount, progress = 0, resumeAfterLoad}) {
         if (this._passiveAudioSource) {
             this._passiveAudioSource.destroy();
             this._passiveAudioSource = null;
@@ -135,7 +135,7 @@ export default class AudioPlayerBackend extends AbstractBackend {
                 this._passiveAudioSource = null;
 
                 this._sendBuffer(bufferDescriptor, channelData, BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER, {
-                    demuxData, isPreloadForNextTrack, baseTime
+                    demuxData, isPreloadForNextTrack, baseTime, resumeAfterLoad
                 });
             }, {cancellationToken, totalBuffersToFillHint: bufferFillCount + 1});
             cancellationToken.check();

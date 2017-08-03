@@ -136,20 +136,7 @@ export default class AudioManager extends WorkerFrontend {
     }
 
     resume() {
-        if (!this.isPaused()) {
-            return;
-        }
-        this._paused = false;
-        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
-        this._checkAudioContextStaleness();
-
-        if (this._sourceDescriptorQueue.length > 0 && this._sourceStopped) {
-            this._clearSuspensionTimer();
-            const scheduledStartTime = Math.max(this._getAudioContextTimeScheduledAhead(), this._fadeOutEnded);
-            this._startSources(scheduledStartTime);
-            this._maybeFadeIn(SEEK_FADE_TIME, scheduledStartTime);
-        }
-        this._emitPlaybackProgress(this._currentTime, this._duration);
+        this._resume(true);
     }
 
     pause() {
@@ -189,7 +176,7 @@ export default class AudioManager extends WorkerFrontend {
                 (this._audioContext.outputLatency || 0);
     }
 
-    loadTrack(track, isUserInitiatedSkip, initialProgress = 0) {
+    loadTrack(track, isUserInitiatedSkip, initialProgress = 0, resumeAfterLoad) {
         this.playlist.removeListener(NEXT_TRACK_CHANGE_EVENT, this._nextTrackChangedWhilePreloading);
         const {_preloadingTrack} = this;
         this._preloadingTrack = null;
@@ -199,7 +186,7 @@ export default class AudioManager extends WorkerFrontend {
             this._preloadedNextTrackArgs = null;
             this._applyTrackInfo(args);
         } else {
-            this._load(track.getFileReference(), false, initialProgress);
+            this._load(track.getFileReference(), false, initialProgress, resumeAfterLoad);
         }
     }
 
@@ -691,14 +678,18 @@ export default class AudioManager extends WorkerFrontend {
         return Math.min((now - started) + sourceDescriptor.playedSoFar, this._getBufferDuration());
     }
 
-    _load(fileReference, isPreloadForNextTrack, progress = 0) {
+    _load(fileReference, isPreloadForNextTrack, progress = 0, resumeAfterLoad = false) {
         this._loadingNext = true;
         this._preloadedNextTrackArgs = null;
         if (!isPreloadForNextTrack) {
             this._endedEmitted = false;
         }
         const bufferFillCount = this._getSustainedBufferCount();
-        this._message(`load`, {fileReference, isPreloadForNextTrack, bufferFillCount, progress});
+        this._message(`load`, {fileReference,
+                                isPreloadForNextTrack,
+                                bufferFillCount,
+                                progress,
+                                resumeAfterLoad});
     }
 
     _checkAudioContextStaleness() {
@@ -866,6 +857,23 @@ export default class AudioManager extends WorkerFrontend {
         }
         const sourceDescriptor = this._backgroundSourceDescriptors[this._backgroundSourceDescriptors.length - 1];
         return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
+    }
+
+    _resume(startStoppedSources = true) {
+        if (!this.isPaused()) {
+            return;
+        }
+        this._paused = false;
+        this.emit(PLAYBACK_STATE_CHANGE_EVENT);
+        this._checkAudioContextStaleness();
+
+        if (startStoppedSources && this._sourceDescriptorQueue.length > 0 && this._sourceStopped) {
+            this._clearSuspensionTimer();
+            const scheduledStartTime = Math.max(this._getAudioContextTimeScheduledAhead(), this._fadeOutEnded);
+            this._startSources(scheduledStartTime);
+            this._maybeFadeIn(SEEK_FADE_TIME, scheduledStartTime);
+        }
+        this._emitPlaybackProgress(this._currentTime, this._duration);
     }
 
     _startSource(sourceDescriptor, when) {
@@ -1072,7 +1080,7 @@ export default class AudioManager extends WorkerFrontend {
                 scheduledStartTime = this._fadeOutEnded;
         }
         } else if (bufferFillType === BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER) {
-            const {demuxData, isPreloadForNextTrack, baseTime} = extraData;
+            const {demuxData, isPreloadForNextTrack, baseTime, resumeAfterLoad} = extraData;
             this._loadingNext = false;
             if (isPreloadForNextTrack) {
                 this._preloadedNextTrackArgs = {demuxData, baseTime};
@@ -1080,6 +1088,11 @@ export default class AudioManager extends WorkerFrontend {
                 currentSourcesShouldBeStopped = true;
                 this._applyTrackInfo({demuxData, baseTime});
                 afterScheduleKnownCallbacks.push(this._firstBufferFromDifferentTrackLoaded);
+
+                if (resumeAfterLoad) {
+                    this._resume(false);
+                }
+
                 if (TRACK_CHANGE_FADE_TIME > 0) {
                     scheduledStartTime = this._fadeOutEnded;
                 }
