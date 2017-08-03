@@ -3,7 +3,7 @@
 static float effects_bass_boost_state[EFFECT_BASS_BOOST_MAX_CHANNELS];
 static double effects_equalizer_state[EFFECT_EQUALIZER_STATE_LENGTH];
 static const float bass_boost_gain1 = 1.0 / (EFFECT_BASS_BOOST_SELECTIVITY + 1.0);
-static const float bass_boost_gain2 = 0.5;
+static const float bass_boost_gain2 = 1.5;
 
 EXPORT void effects_equalizer_reset() {
     for (int i = 0; i < EFFECT_EQUALIZER_STATE_LENGTH; ++i) {
