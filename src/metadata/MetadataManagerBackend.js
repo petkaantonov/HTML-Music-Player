@@ -17,6 +17,7 @@ import {MAX_BUFFER_LENGTH_SECONDS as BUFFER_DURATION} from "audio/frontend/buffe
 import KeyValueDatabase from "platform/KeyValueDatabase";
 import FileReferenceDeletedError from "errors/FileReferenceDeletedError";
 import {trackUidFromFile} from "platform/FileSystemWrapper";
+import LoudnessAnalyzer from "audio/backend/LoudnessAnalyzer";
 
 export const METADATA_MANAGER_READY_EVENT_NAME = `metadataManagerReady`;
 
@@ -121,6 +122,7 @@ function buildTrackInfo(metadata, demuxData) {
         playthroughCounter: 0,
         skipCounter: 0,
         hasBeenFingerprinted: false,
+        hasInitialLoudnessInfo: false,
         title, album, artist, albumArtist, year, albumIndex, trackCount, genres
     }, {
         sampleRate: demuxData.sampleRate,
@@ -139,6 +141,7 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
         this._trackInfoEntriesCount = 0;
         this._kvdb = null;
 
+        this._loudnessAnalyzerStateSerializer = new JobProcessor({jobCallback: this._loudnessAnalysisJob.bind(this)});
         this._acoustIdDataFetcher = new JobProcessor({delay: 1000, jobCallback: this._fetchAcoustIdDataJob.bind(this)});
         this._fingerprinter = new JobProcessor({jobCallback: this._fingerprintJob.bind(this)});
         this._metadataParser = new JobProcessor({jobCallback: this._parseMetadataJob.bind(this), parallelJobs: 8});
@@ -190,8 +193,14 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
                 }
                 this.postMessage({type: METADATA_RESULT_MESSAGE, result});
 
-                if (result.trackInfo && !result.trackInfo.hasBeenFingerprinted) {
-                    this._fingerprinter.postJob(trackUid, fileReference);
+                if (result.trackInfo) {
+                    if (!result.trackInfo.hasBeenFingerprinted) {
+                        this._fingerprinter.postJob(trackUid, fileReference);
+                    }
+
+                    if (!result.trackInfo.hasInitialLoudnessInfo) {
+                        this._loudnessAnalyzerStateSerializer.postJob(trackUid, fileReference);
+                    }
                 }
 
             },
@@ -202,9 +211,13 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
                 const trackInfos = await this.database.trackUidsToTrackInfos(batch, missing);
                 for (let i = 0; i < trackInfos.length; ++i) {
                     const trackInfo = trackInfos[i];
+                    const {trackUid} = trackInfo;
                     if (!trackInfo.hasBeenFingerprinted) {
-                        const {trackUid} = trackInfo;
                         this._fingerprinter.postJob(trackUid, trackUid);
+                    }
+
+                    if (!trackInfo.hasInitialLoudnessInfo) {
+                        this._loudnessAnalyzerStateSerializer.postJob(trackUid, trackUid);
                     }
                 }
 
@@ -246,6 +259,10 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
                     if (result && result.trackInfo) {
                         if (!result.trackInfo.hasBeenFingerprinted) {
                             this._fingerprinter.postJob(trackUid, trackUid);
+                        }
+
+                        if (!result.trackInfo.hasInitialLoudnessInfo) {
+                            this._loudnessAnalyzerStateSerializer.postJob(trackUid, trackUid);
                         }
                         this.postMessage({type: NEW_TRACK_FROM_TMP_FILE_MESSAGE, result: {
                             trackInfo: result.trackInfo
@@ -308,6 +325,14 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
         }
     }
 
+    async getLoudnessAnalyzerStateForTrack(trackUid) {
+        const ret = await this.database.getLoudnessAnalyzerStateForTrack(trackUid);
+        if (ret) {
+            return ret.serializedState;
+        }
+        return null;
+    }
+
     async fileReferenceToFileView(fileReference) {
         if (fileReference instanceof File) {
             return new FileView(fileReference);
@@ -319,6 +344,80 @@ export default class MetadataManagerBackend extends DatabaseUsingBackend {
             return new FileView(file);
         } else {
             throw new Error(`invalid fileReference`);
+        }
+    }
+
+    async _loudnessAnalysisJob({cancellationToken}, trackUid, fileReference) {
+        let decoder, loudnessAnalyzer;
+        const {_wasm: wasm} = this;
+        try {
+            const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
+
+            if (!trackInfo || trackInfo.hasInitialLoudnessInfo) {
+                return;
+            }
+
+            let fileView;
+            try {
+                fileView = await this.fileReferenceToFileView(fileReference);
+            } catch (e) {
+                if (e instanceof FileReferenceDeletedError) {
+                    this.postMessage({
+                        type: FILE_REFERENCE_UNAVAILABLE_MESSAGE,
+                        result: {trackUid}
+                    });
+                    return;
+                } else {
+                    throw e;
+                }
+            }
+
+            const DecoderContext = await getCodec(trackInfo.codecName);
+
+            const {sampleRate, duration, channels, demuxData} = trackInfo;
+            const sourceSampleRate = sampleRate;
+            const sourceChannelCount = channels;
+            const {dataStart, dataEnd} = demuxData;
+
+            if (duration >= 15) {
+                decoder = new DecoderContext(wasm, {
+                    targetBufferLengthAudioFrames: BUFFER_DURATION * sampleRate
+                });
+                decoder.start(demuxData);
+
+                loudnessAnalyzer = new LoudnessAnalyzer(wasm);
+                loudnessAnalyzer.initialize(sourceChannelCount, sourceSampleRate);
+
+                const audioPipeline = new AudioProcessingPipeline(wasm, {
+                    sourceSampleRate, sourceChannelCount,
+                    destinationSampleRate: sourceSampleRate,
+                    destinationChannelCount: sourceChannelCount,
+                    decoder,
+                    bufferTime: BUFFER_DURATION, duration,
+                    bufferAudioFrameCount: sourceSampleRate * BUFFER_DURATION,
+                    loudnessAnalyzer
+                });
+
+                const fileStartPosition = dataStart;
+                let filePosition = fileStartPosition;
+                const fileEndPosition = dataEnd;
+
+                while (filePosition < fileEndPosition && !loudnessAnalyzer.isHistoryStateFilled()) {
+                    const bytesRead = await audioPipeline.decodeFromFileViewAtOffset(fileView,
+                                                                                     filePosition,
+                                                                                     demuxData,
+                                                                                     cancellationToken);
+                    audioPipeline.consumeFilledBuffer();
+                    filePosition += bytesRead;
+                }
+
+                const serializedState = loudnessAnalyzer.serialize();
+                await this.database.setLoudnessAnalyzerStateForTrack(trackUid, serializedState);
+                await this.database.updateHasInitialLoudnessInfo(trackUid, true);
+            }
+        } finally {
+            if (decoder) decoder.destroy();
+            if (loudnessAnalyzer) loudnessAnalyzer.destroy();
         }
     }
 

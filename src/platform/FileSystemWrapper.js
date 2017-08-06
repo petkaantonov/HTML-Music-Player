@@ -1,11 +1,10 @@
 import {fsPromisify} from "utils/indexedDbUtil";
-import {crypto, webkitRequestFileSystem, PERSISTENT, Uint32Array, webkitPersistentStorage,
+import {webkitRequestFileSystem, PERSISTENT, webkitPersistentStorage,
     PATH_EXISTS_ERROR, NOT_FOUND_ERROR,
  INVALID_MODIFICATION_ERROR} from "platform/platform";
 import {hexString, hexDecode} from "util";
 
 const QUOTA_TO_REQUEST = 1024 * 1024 * 1024 * 1024;
-const TMP_FILE_DIR_NAME = `tmpFiles`;
 const LOCAL_STORAGE_GRANTED_KEY = `fs_granted`;
 const TRACK_FILE_NAME_PREFIX = `trackUid-`;
 
@@ -25,10 +24,6 @@ function dirNameFromFileName(fileName) {
 function trackUidToFileName(trackUid) {
     const trackUidString = hexString(trackUid);
     return `${TRACK_FILE_NAME_PREFIX}${trackUidString}`;
-}
-
-function tmpIdToFileName(id) {
-    return `tmp-file-${id}`;
 }
 
 function requestQuota() {

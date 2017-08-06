@@ -1,45 +1,49 @@
 import {moduleEvents} from "wasm/WebAssemblyWrapper";
 import {checkBoolean} from "errors/BooleanTypeError";
+import {DataView} from "platform/platform";
 
 const MAX_HISTORY_MS = 30000;
 const FLOAT_BYTE_SIZE = 4;
 const SILENCE_THRESHOLD = -65;
 const MOMENTARY_WINDOW_MS = 400;
+const OVERLAP_MS = 100;
 const MAX_GAIN_OFFSET = 12;
 const REFERENCE_LUFS = -18.0;
+
+const MAX_HISTORY_OFFSET = 0;
+const SAMPLE_RATE_OFFSET = 1;
+const CHANNELS_OFFSET = 2;
+const FRAMES_ADDED_OFFSET = 3;
+const SAMPLE_PEAK_OFFSET = 3;
+const INTEGRATED_LOUDNESS_OFFSET = 4;
 
 export const defaultLoudnessInfo = Object.freeze({
     isEntirelySilent: false
 });
 
 export default class LoudnessAnalyzer {
-    constructor(wasm, channelCount, sampleRate, {
-        loudnessNormalizationEnabled = true,
-        silenceTrimmingEnabled = true
-    }) {
+    constructor(wasm) {
         this._maxHistoryMs = MAX_HISTORY_MS;
-        this._sampleRate = sampleRate;
-        this._channelCount = channelCount;
+        this._sampleRate = -1;
+        this._channelCount = -1;
         this._wasm = wasm;
         this._ptr = 0;
         this._framesAdded = 0;
         this._momentaryLoudnessAvg = NaN;
-        this._loudnessNormalizationEnabled = loudnessNormalizationEnabled;
-        this._silenceTrimmingEnabled = silenceTrimmingEnabled;
+        this._loudnessNormalizationEnabled = false;
+        this._silenceTrimmingEnabled = false;
         this._previouslyAppliedGain = -1.0;
-
-        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, MAX_HISTORY_MS);
-        if (err) {
-            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${MAX_HISTORY_MS}`);
-        }
-        this._ptr = ptr;
+        this._serializedStateHolderPtr = 0;
+        this._ptr = 0;
     }
 
     _haveEnoughLoudnessData() {
         return this._framesAdded >= this._sampleRate * 3;
     }
 
-
+    isHistoryStateFilled() {
+        return (this._framesAdded / this._sampleRate * 1000) >= (MAX_HISTORY_MS + MOMENTARY_WINDOW_MS - OVERLAP_MS);
+    }
 
     setLoudnessNormalizationEnabled(enabled) {
         checkBoolean(`enabled`, enabled);
@@ -51,10 +55,39 @@ export default class LoudnessAnalyzer {
         this._silenceTrimmingEnabled = enabled;
     }
 
+    serialize() {
+        if (!this._ptr) {
+            throw new Error(`not initialized`);
+        }
+        const size = this.loudness_analyzer_get_serialized_state_size();
+        if (this._serializedStateHolderPtr === 0) {
+            this._serializedStateHolderPtr = this._wasm.malloc(size);
+        }
+        const err = this.loudness_analyzer_export_state(this._ptr, this._serializedStateHolderPtr);
+        if (err) {
+            throw new Error(`ebur128 error ${err}`);
+        }
+        const data = this._wasm.u8view(this._serializedStateHolderPtr, size);
+        const ret = new Uint8Array(size);
+        ret.set(data);
+        return ret;
+    }
+
+    addFrames(samplePtr, audioFrameCount) {
+        if (!this._ptr) {
+            throw new Error(`not initialized`);
+        }
+        const err = this.loudness_analyzer_add_frames(this._ptr, samplePtr, audioFrameCount);
+        if (err) {
+            throw new Error(`ebur128 error ${err} ${samplePtr} ${audioFrameCount}`);
+        }
+        this._framesAdded += audioFrameCount;
+    }
+
     applyLoudnessNormalization(samplePtr, audioFrameCount) {
         let err;
         if (!this._ptr) {
-            throw new Error(`not allocated`);
+            throw new Error(`not initialized`);
         }
         const ret = {isEntirelySilent: false};
         const {_loudnessNormalizationEnabled, _silenceTrimmingEnabled} = this;
@@ -131,42 +164,76 @@ export default class LoudnessAnalyzer {
     }
 
     destroy() {
-        if (this._ptr) {
-            this.loudness_analyzer_destroy(this._ptr);
-            this._ptr = 0;
-        }
-    }
-
-    reset() {
         if (!this._ptr) {
-            throw new Error(`not allocated`);
+            throw new Error(`not initialized`);
         }
-        this._framesAdded = 0;
-        const err = this.loudness_analyzer_reset(this._ptr);
-        if (err) {
-            throw new Error(`ebur128: reset error ${err}`);
+
+        this.loudness_analyzer_destroy(this._ptr);
+        this._ptr = 0;
+
+        if (this._serializedStateHolderPtr) {
+            this._wasm.free(this._serializedStateHolderPtr);
+            this._serializedStateHolderPtr = 0;
         }
     }
 
-    reinitialized(channelCount, sampleRate) {
+    initializeFromSerializedState(serializedState) {
+        let err, ptr;
+        if (this._ptr) {
+            throw new Error(`already initialized`);
+        }
+        const view = new DataView(serializedState.buffer, serializedState.buffer.byteOffset, 10 * 8);
+
+        const sampleRate = view.getUint32(SAMPLE_RATE_OFFSET * 4, true);
+        const channelCount = view.getUint32(CHANNELS_OFFSET * 4, true);
+        const framesAdded = view.getUint32(FRAMES_ADDED_OFFSET * 4, true);
+        const maxHistoryMs = view.getUint32(MAX_HISTORY_OFFSET * 4, true);
+        const integratedLoudness = view.getFloat64(INTEGRATED_LOUDNESS_OFFSET * 8, true);
+        const samplePeak = view.getFloat64(SAMPLE_PEAK_OFFSET * 8, true);
+
+        this._channelCount = channelCount;
+        this._sampleRate = sampleRate;
+        this._framesAdded = framesAdded;
+        this._maxHistoryMs = maxHistoryMs;
+
+        this._momentaryLoudnessAvg = integratedLoudness;
+
+        const gainOffset = Math.min(REFERENCE_LUFS - integratedLoudness, MAX_GAIN_OFFSET);
+        const gain = Math.min(1 / samplePeak, Math.pow(10, (gainOffset / 20)));
+        this._previouslyAppliedGain = gain;
+
+        ([err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs));
+        if (err) {
+            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
+        }
+        this._ptr = ptr;
+
+        const size = this.loudness_analyzer_get_serialized_state_size();
+        if (!this._serializedStateHolderPtr) {
+            this._serializedStateHolderPtr = this._wasm.malloc(size);
+        }
+
+        this._wasm.u8view(this._serializedStateHolderPtr, size).set(serializedState);
+        err = this.loudness_analyzer_init_from_serialized_state(this._ptr, this._serializedStateHolderPtr);
+        if (err) {
+            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
+        }
+    }
+
+    initialize(channelCount, sampleRate) {
+        if (this._ptr) {
+            throw new Error(`already initialized`);
+        }
         this._channelCount = channelCount;
         this._sampleRate = sampleRate;
         this._framesAdded = 0;
         this._momentaryLoudnessAvg = NaN;
         this._previouslyAppliedGain = -1.0;
-        if (!this._ptr) {
-            const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
-            if (err) {
-                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
-            }
-            this._ptr = ptr;
-        } else {
-            const err = this.loudness_analyzer_reinitialize(this._ptr, channelCount, sampleRate, this._maxHistoryMs);
-            if (err) {
-                throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
-            }
+        const [err, ptr] = this.loudness_analyzer_init(channelCount, sampleRate, this._maxHistoryMs);
+        if (err) {
+            throw new Error(`ebur128 error ${err} ${channelCount} ${sampleRate} ${this._maxHistoryMs}`);
         }
-        return this;
+        this._ptr = ptr;
     }
 }
 
@@ -186,9 +253,9 @@ moduleEvents.on(`main_afterInitialized`, (wasm, exports) => {
         unsafeJsStack: true
     }, `integer`, `double-retval`);
     LoudnessAnalyzer.prototype.loudness_analyzer_destroy = exports.loudness_analyzer_destroy;
-    LoudnessAnalyzer.prototype.loudness_analyzer_reinitialize = exports.loudness_analyzer_reinitialize;
-    LoudnessAnalyzer.prototype.loudness_analyzer_reset = exports.loudness_analyzer_reset;
+    LoudnessAnalyzer.prototype.loudness_analyzer_init_from_serialized_state = exports.loudness_analyzer_init_from_serialized_state;
     LoudnessAnalyzer.prototype.loudness_analyzer_add_frames = exports.loudness_analyzer_add_frames;
     LoudnessAnalyzer.prototype.loudness_analyzer_apply_gain = exports.loudness_analyzer_apply_gain;
-
+    LoudnessAnalyzer.prototype.loudness_analyzer_get_serialized_state_size = exports.loudness_analyzer_get_serialized_state_size;
+    LoudnessAnalyzer.prototype.loudness_analyzer_export_state = exports.loudness_analyzer_export_state;
 });

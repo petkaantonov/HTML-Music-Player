@@ -25,6 +25,7 @@ export default class AudioProcessingPipeline {
         resampler,
         fingerprinter,
         loudnessAnalyzer,
+        loudnessNormalizer,
         crossfader,
         duration,
         bufferTime,
@@ -42,6 +43,7 @@ export default class AudioProcessingPipeline {
         this.effects = effects;
         this.resampler = resampler;
         this.loudnessAnalyzer = loudnessAnalyzer;
+        this.loudnessNormalizer = loudnessNormalizer;
         this.fingerprinter = fingerprinter;
         this.bufferTime = bufferTime;
         this.bufferAudioFrameCount = bufferAudioFrameCount;
@@ -136,19 +138,24 @@ export default class AudioProcessingPipeline {
                 effects,
                 resampler,
                 loudnessAnalyzer,
+                loudnessNormalizer,
                 fingerprinter,
                 crossfader} = this;
+        const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
         const metadata = {
             channelCount: sourceChannelCount,
             sampleRate: sourceSampleRate,
             currentTime: startAudioFrame / sourceSampleRate,
             duration: this.totalDuration
         };
-        let loudnessInfo = defaultLoudnessInfo;
 
         if (loudnessAnalyzer) {
-            const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
-            loudnessInfo = loudnessAnalyzer.applyLoudnessNormalization(samplePtr, audioFrameLength);
+            loudnessAnalyzer.addFrames(samplePtr, audioFrameLength);
+        }
+
+        let loudnessInfo = defaultLoudnessInfo;
+        if (loudnessNormalizer) {
+            loudnessInfo = loudnessNormalizer.applyLoudnessNormalization(samplePtr, audioFrameLength);
         }
 
         if (effects) {
@@ -173,46 +180,46 @@ export default class AudioProcessingPipeline {
             fingerprinter.newFrames(samplePtr, byteLength);
         }
 
-        const audioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
+        const finalAudioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
         let paddingFrameLength = 0;
         const src = this._wasm.f32view(samplePtr, byteLength / FLOAT_BYTE_LENGTH);
 
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
-            if (audioFrameLength < this.bufferAudioFrameCount) {
+            if (finalAudioFrameLength < this.bufferAudioFrameCount) {
                 paddingFrameLength =
-                    Math.ceil(audioFrameLength / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE - audioFrameLength;
+                    Math.ceil(finalAudioFrameLength / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE - finalAudioFrameLength;
             }
 
             if (destinationChannelCount === 2) {
                 const dst0 = channelData[0];
                 const dst1 = channelData[1];
 
-                for (let i = 0; i < audioFrameLength; ++i) {
+                for (let i = 0; i < finalAudioFrameLength; ++i) {
                     dst0[i] = src[i * 2];
                     dst1[i] = src[i * 2 + 1];
                 }
 
                 for (let i = 0; i < paddingFrameLength; ++i) {
-                    const j = i + audioFrameLength;
+                    const j = i + finalAudioFrameLength;
                     dst0[j] = dst1[j] = 0.0;
                 }
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch];
-                    for (let i = 0; i < audioFrameLength; ++i) {
+                    for (let i = 0; i < finalAudioFrameLength; ++i) {
                         dst[i] = src[i * destinationChannelCount + ch];
                     }
 
                     for (let i = 0; i < paddingFrameLength; ++i) {
-                        const j = i + audioFrameLength;
+                        const j = i + finalAudioFrameLength;
                         dst[j] = 0.0;
                     }
                 }
             }
         }
 
-        const length = audioFrameLength + paddingFrameLength;
+        const length = finalAudioFrameLength + paddingFrameLength;
         const startTime = Math.round(startAudioFrame / sourceSampleRate * 1e9) / 1e9;
         const endTime = Math.round((startTime + (length / destinationSampleRate)) * 1e9) / 1e9;
         this._filledBufferDescriptor = new FilledBufferDescriptor(length, startTime, endTime, channelData, loudnessInfo);

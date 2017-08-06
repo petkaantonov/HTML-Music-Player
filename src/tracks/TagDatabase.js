@@ -3,7 +3,7 @@ import {indexedDB, DatabaseClosedError, IDBKeyRange, ArrayBuffer, File, CONSTRAI
     QUOTA_EXCEEDED_ERROR} from "platform/platform";
 import FileSystemWrapper from "platform/FileSystemWrapper";
 
-const VERSION = 26;
+const VERSION = 28;
 const DATA_WIPE_VERSION = 24;
 const NAME = `TagDatabase`;
 const TRACK_INFO_PRIMARY_KEY_NAME = `trackUid`;
@@ -20,6 +20,8 @@ const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex2`;
 
 const PAYLOAD_TYPE_FILESYSTEM_FILE = `fileSystemFile`;
 const PAYLOAD_TYPE_INDEXED_DB_FILE = `indexedDBFile`;
+
+const LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME = `loudnessInfo`;
 
 export const trackSearchIndexCmp = function(a, b) {
     return indexedDB.cmp(a.trackUid, b.trackUid);
@@ -142,6 +144,9 @@ const objectStoreSpec = {
                 keyPath: `keywords`
             }
         }
+    },
+    [LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME]: {
+        keyPath: TRACK_INFO_PRIMARY_KEY_NAME
     }
 };
 
@@ -426,6 +431,22 @@ export default class TagDatabase {
         }
     }
 
+    async getLoudnessAnalyzerStateForTrack(trackUid) {
+        this._checkClosed();
+        const db = await this.db;
+        const tx = db.transaction(LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME, READ_ONLY);
+        const store = tx.objectStore(LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME);
+        return iDbPromisify(store.get(trackUid));
+    }
+
+    async setLoudnessAnalyzerStateForTrack(trackUid, serializedState) {
+        this._checkClosed();
+        const db = await this.db;
+        const tx = db.transaction(LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME, READ_WRITE);
+        const store = tx.objectStore(LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME);
+        return iDbPromisify(store.put({trackUid, serializedState}));
+    }
+
     async fileByFileReference(fileReference) {
         this._checkClosed();
         if (fileReference instanceof File) {
@@ -583,6 +604,7 @@ const fieldUpdater = function(...fieldNames) {
     };
 };
 
+TagDatabase.prototype.updateHasInitialLoudnessInfo = fieldUpdater(`hasInitialLoudnessInfo`).method;
 TagDatabase.prototype.updateHasBeenFingerprinted = fieldUpdater(`hasBeenFingerprinted`).method;
 TagDatabase.prototype.updateRating = fieldUpdater(`rating`).method;
 TagDatabase.prototype.updatePlaythroughCounter = fieldUpdater(`playthroughCounter`, `lastPlayed`).method;

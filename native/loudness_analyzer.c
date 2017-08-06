@@ -81,10 +81,6 @@ EXPORT int loudness_analyzer_get_momentary_loudness(LoudnessAnalyzer* this, doub
     return EBUR128_SUCCESS;
 }
 
-EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this) {
-    return loudness_analyzer_reinitialize(this, this->st->channels, this->st->samplerate, this->max_history, NULL);
-}
-
 EXPORT uint32_t loudness_analyzer_get_serialized_state_size(void) {
     return sizeof(LoudnessAnalyzerSerializedState);
 }
@@ -94,65 +90,48 @@ EXPORT int loudness_analyzer_export_state(LoudnessAnalyzer* this, LoudnessAnalyz
     state->sample_rate = this->st->samplerate;
     state->channels = this->st->channels;
     state->frames_added = this->frames_added;
+
+    double integrated_loudness = 0.0;
+    int err = ebur128_loudness_global(this->st, &integrated_loudness);
+    if (err) {
+        return err;
+    }
+
+    double peak_value = -1.0;
+    for (int ch = 0; ch < this->st->channels; ++ch) {
+        double result;
+        int err = ebur128_sample_peak(this->st, ch, &result);
+        if (err) {
+            return err;
+        }
+        peak_value = MAX(peak_value, result);
+    }
+    state->sample_peak = peak_value;
+    state->integrated_loudness = integrated_loudness;
     state->history_length = MIN(MAX_SERIALIZED_HISTORY, this->st->d->block_list->length);
     state->last_block_sum = this->st->d->last_block_sum;
     memmove(&state->filter_state, &this->st->d->v, sizeof(this->st->d->v));
     queue_export_values(this->st->d->block_list, state->history_state, state->history_length);
-    return 0;
+    return EBUR128_SUCCESS;
 }
 
-EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
-                                          uint32_t channel_count,
-                                          uint32_t sample_rate,
-                                          uint32_t max_history,
-                                          LoudnessAnalyzerSerializedState* state) {
-    this->max_history = max_history;
-    ebur128_state* st = this->st;
-
-    int err = ebur128_change_parameters(st, channel_count, sample_rate);
-    if (err && err != EBUR128_ERROR_NO_CHANGE) {
-        return err;
-    }
-
-    err = ebur128_set_max_history(st, max_history);
-    if (err && err != EBUR128_ERROR_NO_CHANGE) {
-        return err;
-    }
-
+EXPORT int loudness_analyzer_init_from_serialized_state(LoudnessAnalyzer* this, LoudnessAnalyzerSerializedState* state) {
+    const ebur128_state* st = this->st;
     for (int i = 0; i < st->channels; ++i) {
-      st->d->sample_peak[i] = 0.0;
-      st->d->prev_sample_peak[i] = 0.0;
-      st->d->true_peak[i] = 0.0;
-      st->d->prev_true_peak[i] = 0.0;
+      st->d->sample_peak[i] = state->sample_peak;
+      st->d->prev_sample_peak[i] = state->sample_peak;
     }
 
-    if (state == NULL) {
-        this->frames_added = 0;
-        memset(&st->d->v, 0, sizeof(st->d->v));
-        st->d->needed_frames = st->d->samples_in_100ms * 4;
-        st->d->audio_data_index = 0;
-        st->d->short_term_frame_counter = 0;
-        st->d->last_block_sum = 0.0;
-        queue_clear(st->d->block_list);
-    } else {
-        this->frames_added = state->frames_added;
-        memmove(&st->d->v, &state->filter_state, sizeof(st->d->v));
-        st->d->needed_frames = st->d->samples_in_100ms;
-        st->d->audio_data_index = 0;
-        st->d->short_term_frame_counter = 0;
-        st->d->last_block_sum = state->last_block_sum;
+    this->frames_added = state->frames_added;
+    this->max_history = state->max_history;
+    memmove(&st->d->v, &state->filter_state, sizeof(st->d->v));
+    st->d->needed_frames = st->d->samples_in_100ms;
+    st->d->audio_data_index = 0;
+    st->d->short_term_frame_counter = 0;
+    st->d->last_block_sum = state->last_block_sum;
 
-        queue_free(st->d->block_list);
-        double_queue* q;
-        if (state->history_length > 0) {
-            q = double_queue_init_with_values(state->history_state, state->history_length);
-        } else {
-            q = double_queue_init(512);
-        }
-        if (!q) {
-            return EBUR128_ERROR_NOMEM;
-        }
-        st->d->block_list = q;
+    if (queue_copy_values(st->d->block_list, state->history_state, state->history_length)) {
+        return EBUR128_ERROR_NOMEM;
     }
 
     return EBUR128_SUCCESS;

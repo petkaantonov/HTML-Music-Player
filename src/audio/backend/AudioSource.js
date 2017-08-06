@@ -1,6 +1,5 @@
 import AudioProcessingPipeline from "audio/backend/AudioProcessingPipeline";
 import {Float32Array, performance} from "platform/platform";
-import {allocLoudnessAnalyzer, freeLoudnessAnalyzer} from "audio/backend/pool";
 import seeker from "audio/backend/seeker";
 import getCodecName from "audio/backend/sniffer";
 import getCodec from "audio/backend/codec";
@@ -8,6 +7,7 @@ import demuxer from "audio/backend/demuxer";
 import Crossfader from "audio/backend/Crossfader";
 import {fileReferenceToTrackUid} from "metadata/MetadataManagerBackend";
 import CancellableOperations from "utils/CancellationToken";
+import LoudnessAnalyzer from "audio/backend/LoudnessAnalyzer";
 
 export default class AudioSource extends CancellableOperations(null,
                                                                `bufferFillOperation`,
@@ -18,7 +18,7 @@ export default class AudioSource extends CancellableOperations(null,
         this.backend = backend;
         this.ended = false;
         this._decoder = null;
-        this._loudnessAnalyzer = null;
+        this._loudnessNormalizer = null;
         this._filePosition = 0;
         this._bufferFillCancellationToken = null;
         this._audioPipeline = null;
@@ -28,7 +28,6 @@ export default class AudioSource extends CancellableOperations(null,
         this.demuxData = null;
         this.fileView = null;
         this.fileReference = null;
-        this.trackInfo = null;
         this._destroyAfterBuffersFilledFlag = false;
     }
 
@@ -81,9 +80,9 @@ export default class AudioSource extends CancellableOperations(null,
             this._decoder = null;
         }
 
-        if (this._loudnessAnalyzer) {
-            freeLoudnessAnalyzer(this._loudnessAnalyzer);
-            this._loudnessAnalyzer = null;
+        if (this._loudnessNormalizer) {
+            this._loudnessNormalizer.destroy();
+            this._loudnessNormalizer = null;
         }
     }
 
@@ -107,8 +106,8 @@ export default class AudioSource extends CancellableOperations(null,
         const {sampleRate, channelCount} = this;
         let i = 0;
         const {crossfadeDuration, duration} = this;
-        this._loudnessAnalyzer.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization);
-        this._loudnessAnalyzer.setSilenceTrimmingEnabled(this.backend.silenceTrimming);
+        this._loudnessNormalizer.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization);
+        this._loudnessNormalizer.setSilenceTrimmingEnabled(this.backend.silenceTrimming);
         this._audioPipeline.setBufferTime(this.backend.bufferTime);
         const targetBufferLengthAudioFrames = this._audioPipeline.bufferAudioFrameCount;
         this._decoder.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
@@ -193,7 +192,7 @@ export default class AudioSource extends CancellableOperations(null,
 
     async load({fileReference, isPreloadForNextTrack, progress = 0}) {
         const cancellationToken = this.cancellationTokenForLoadOperation();
-        const {wasm, effects, bufferTime, metadataManager, loudnessNormalization} = this.backend;
+        const {wasm, effects, bufferTime, metadataManager} = this.backend;
         const fileView = await metadataManager.fileReferenceToFileView(fileReference);
         cancellationToken.check();
         this.fileReference = fileReference;
@@ -227,15 +226,6 @@ export default class AudioSource extends CancellableOperations(null,
         const trackUid = await fileReferenceToTrackUid(fileReference);
         cancellationToken.check();
 
-        const trackInfo = await metadataManager.getTrackInfoByTrackUid(trackUid);
-        cancellationToken.check();
-
-        if (trackInfo) {
-            this.trackInfo = trackInfo;
-        } else {
-            this.trackInfo = null;
-        }
-
         this.demuxData = demuxData;
         this._filePosition = this.demuxData.dataStart;
         const {sampleRate, channelCount, targetBufferLengthAudioFrames, duration,
@@ -245,7 +235,16 @@ export default class AudioSource extends CancellableOperations(null,
             targetBufferLengthAudioFrames
         });
         this._decoder.start(demuxData);
-        this._loudnessAnalyzer = allocLoudnessAnalyzer(wasm, channelCount, sampleRate, loudnessNormalization);
+        this._loudnessNormalizer = new LoudnessAnalyzer(wasm);
+
+        const loudnessAnalyzerSerializedState = await metadataManager.getLoudnessAnalyzerStateForTrack(trackUid);
+        cancellationToken.check();
+
+        if (loudnessAnalyzerSerializedState) {
+            this._loudnessNormalizer.initializeFromSerializedState(loudnessAnalyzerSerializedState);
+        } else {
+            this._loudnessNormalizer.initialize(channelCount, sampleRate);
+        }
 
         this._audioPipeline = new AudioProcessingPipeline(wasm, {
             sourceSampleRate: sampleRate,
@@ -253,7 +252,7 @@ export default class AudioSource extends CancellableOperations(null,
             sourceChannelCount: channelCount,
             destinationChannelCount: channelCount,
             decoder: this._decoder,
-            loudnessAnalyzer: this._loudnessAnalyzer,
+            loudnessNormalizer: this._loudnessNormalizer,
             bufferAudioFrameCount: targetBufferLengthAudioFrames,
             effects, bufferTime, duration, crossfader
         });

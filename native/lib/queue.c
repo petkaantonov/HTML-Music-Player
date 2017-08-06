@@ -124,15 +124,16 @@ void type ## _queue_free(type ## _queue* this) {   \
 
 #undef V
 
-#define V(type)                                                                     \
-type ## _queue* type ## _queue_init_with_values(type* values, uint32_t length) {    \
-    type ## _queue* queue = type ## _queue_init(length);                            \
-    if (!queue) {                                                                   \
-        return NULL;                                                                \
-    }                                                                               \
-    memmove(queue->values, values, length * sizeof(type));                          \
-    queue->length = length;                                                         \
-    return queue;                                                                   \
+#define V(type)                                                                                           \
+int type ## _queue_copy_values(type ## _queue* this, type* values, uint32_t length) {                     \
+    int err = _ ## type ## _queue_check_capacity(this, length);                                           \
+    if (err) {                                                                                            \
+        return err;                                                                                       \
+    }                                                                                                     \
+    type ## _queue_clear(this);                                                                           \
+    memmove(this->values, values, length * sizeof(type));                                                 \
+    this->length = length;                                                                                \
+    return 0;                                                                                             \
 }
     QUEUE_TYPES(V)
 #undef V

@@ -17,6 +17,8 @@ typedef struct {
     uint32_t channels;
     uint32_t frames_added;
     uint32_t history_length;
+    double sample_peak;
+    double integrated_loudness;
     double last_block_sum;
     double filter_state[5][5];
     uint8_t reserved[128];
@@ -33,12 +35,7 @@ EXPORT int loudness_analyzer_add_frames(LoudnessAnalyzer* this,
                                         uint32_t frame_count);
 EXPORT int loudness_analyzer_get_loudness_and_peak(LoudnessAnalyzer* this, double* gain, double* peak);
 EXPORT int loudness_analyzer_get_momentary_loudness(LoudnessAnalyzer* this, double* gain);
-EXPORT int loudness_analyzer_reinitialize(LoudnessAnalyzer* this,
-                                          uint32_t channel_count,
-                                          uint32_t sample_rate,
-                                          uint32_t max_history,
-                                          LoudnessAnalyzerSerializedState* state);
-EXPORT int loudness_analyzer_reset(LoudnessAnalyzer* this);
+EXPORT int loudness_analyzer_init_from_serialized_state(LoudnessAnalyzer* this, LoudnessAnalyzerSerializedState* state);
 EXPORT void loudness_analyzer_apply_gain(LoudnessAnalyzer* this,
                                                    double gain_to_apply,
                                                    double previously_applied_gain,
