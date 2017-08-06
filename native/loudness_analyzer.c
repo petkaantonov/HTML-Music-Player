@@ -125,7 +125,7 @@ EXPORT int loudness_analyzer_init_from_serialized_state(LoudnessAnalyzer* this, 
     this->frames_added = state->frames_added;
     this->max_history = state->max_history;
     memmove(&st->d->v, &state->filter_state, sizeof(st->d->v));
-    st->d->needed_frames = st->d->samples_in_100ms;
+    st->d->needed_frames = st->d->samples_in_100ms * 4;
     st->d->audio_data_index = 0;
     st->d->short_term_frame_counter = 0;
     st->d->last_block_sum = state->last_block_sum;

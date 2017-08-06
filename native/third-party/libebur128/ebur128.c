@@ -487,7 +487,9 @@ void ebur128_destroy(ebur128_state** st) {
   free((*st)->d->true_peak);
   free((*st)->d->prev_true_peak);
   queue_free((*st)->d->block_list);
+  (*st)->d->block_list = NULL;
   queue_free((*st)->d->st_block_list);
+  (*st)->d->st_block_list = NULL;
   ebur128_destroy_resampler(*st);
   free((*st)->d);
   free(*st);
@@ -934,9 +936,11 @@ static int ebur128_calc_relative_threshold(ebur128_state* st,
     }
   } else {
     double_queue* queue = st->d->block_list;
-    double out;
     for (uint32_t i = 0; i < queue->length; ++i) {
-      queue_get(queue, i, &out);
+      double out;
+      if (queue_get(queue, i, &out)) {
+        return EBUR128_ERROR_INVALID_CHANNEL_INDEX;
+      }
       ++*above_thresh_counter;
       *relative_threshold += out;
     }
@@ -997,7 +1001,9 @@ static int ebur128_gated_loudness(ebur128_state** sts, size_t size,
       double_queue* queue = sts[i]->d->block_list;
       for (uint32_t i = 0; i < queue->length; ++i) {
         double out;
-        queue_get(queue, i, &out);
+        if (queue_get(queue, i, &out)) {
+          return EBUR128_ERROR_INVALID_CHANNEL_INDEX;
+        }
         if (out >= relative_threshold) {
           ++above_thresh_counter;
           gated_loudness += out;
