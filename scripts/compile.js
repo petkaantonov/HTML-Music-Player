@@ -161,8 +161,7 @@ const wastfile = `build/${ENTRY_FILE_NAME}.wast`;
 const symbolFile = `build/${ENTRY_FILE_NAME}.sym`;
 const wasmfile = `wasm/${ENTRY_FILE_NAME}`;
 const wasmFileFullName = RELEASE ? `${wasmfile}.release.wasm` : `${wasmfile}.debug.wasm`;
-// Oz, O2, O3 are bugged with wasm backend
-const oLevelClang = RELEASE ? `-O1` : `-O0`;
+const oLevelClang = RELEASE ? `-O3` : `-O0`;
 const dDebug = RELEASE ? "0" : "1";
 const sourceMapFile = `build/${ENTRY_FILE_NAME}.sm`;
 const sourceMapUrl = `/${targetDir}/wasm/${ENTRY_FILE_NAME}.sm`;
