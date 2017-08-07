@@ -80,6 +80,10 @@ FILE* stderr = (FILE*)2;
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+#define CLZ(x) __builtin_clz(x)
+#define CTZ(x) __builtin_ctz(x)
+#define POPCNT(x) __builtin_popcount(x)
+
 #define DOUBLE_TO_I32(val) ((int32_t)((int64_t)(val)))
 #define DOUBLE_TO_U32(val) ((uint32_t)((uint64_t)(val)))
 
@@ -172,7 +176,6 @@ void* calloc(size_t, size_t);
 void free(void*);
 int fprintf(FILE*, const char*, ...);
 int printf(const char*, ...);
-int clz(uint32_t x);
 void* memmove(void*, const void*, size_t);
 void* memcpy(void*, const void*, size_t);
 void* memset(void*, int, size_t);

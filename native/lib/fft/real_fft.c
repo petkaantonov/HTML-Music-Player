@@ -2,7 +2,7 @@
 #include <math.h>
 
 static double* ensure_table(uint32_t N) {
-    int index = 31 - clz(N);
+    int index = 31 - CLZ(N);
     double* ret = tables[index][COS_INDEX];
 
     if (!ret) {
@@ -26,7 +26,7 @@ static double* ensure_table(uint32_t N) {
 }
 
 static double* get_aux(uint32_t N) {
-    int index = 31 - clz(N);
+    int index = 31 - CLZ(N);
     double* ret = AUX[index];
 
     if (!ret) {
@@ -51,7 +51,7 @@ static uint32_t reverse_bits(uint32_t v, uint32_t count) {
 
 static void reorder(double* array, uint32_t length) {
     uint32_t N = length >> 1;
-    uint32_t log2N = 31 - clz(N);
+    uint32_t log2N = 31 - CLZ(N);
 
     for (uint32_t i = 0; i < N; ++i) {
         uint32_t j = reverse_bits(i, log2N);
@@ -75,7 +75,7 @@ static int do_half(double* array, uint32_t length) {
     if (!ensure_table(N)) {
         return 0;
     }
-    int index = 31 - clz(N);
+    int index = 31 - CLZ(N);
     double* sin_table = tables[index][SIN_INDEX];
     double* cos_table = tables[index][COS_INDEX];
 
