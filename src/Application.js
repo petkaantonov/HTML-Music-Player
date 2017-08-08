@@ -9,6 +9,7 @@ import PlaylistModeManager from "player/PlaylistModeManager";
 import PlayerTimeManager from "player/PlayerTimeManager";
 import PlayerVolumeManager from "player/PlayerVolumeManager";
 import PlayerPictureManager from "player/PlayerPictureManager";
+import PlayerRatingManager from "player/PlayerRatingManager";
 import MediaSessionWrapper from "player/MediaSessionWrapper";
 import AudioManager from "audio/frontend/AudioManager";
 import LocalFileHandler from "platform/LocalFileHandler";
@@ -42,6 +43,7 @@ import {ITEM_HEIGHT} from "tracks/TrackView";
 import ZipperFrontend from "zip/ZipperFrontend";
 import {QUOTA_EXCEEDED_EVENT} from "platform/QuotaExceededEmitterTrait";
 import {DATABASE_CLOSED_EVENT} from "platform/DatabaseClosedEmitterTrait";
+
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
@@ -429,6 +431,15 @@ export default class Application {
             timeContainerDom: `.playback-status-wrapper`,
             timeProgressDom: `.js-track-progress-fill`,
             seekSlider: `.js-seek-slider`
+        }, d));
+
+        const playerRatingManager = this.playerRatingManager = withDeps({
+            page,
+            playlist,
+            rippler,
+            recognizerContext
+        }, d => new PlayerRatingManager({
+            target: ".js-favorite"
         }, d));
 
         const playerVolumeManager = this.playerVolumeManager = withDeps({

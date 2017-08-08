@@ -257,6 +257,7 @@ class Track extends EventEmitter {
             this._rating = value;
             this._metadataManager._rate(this, value);
         }
+        this.tagDataUpdated();
     }
 
     getRating() {
