@@ -4,6 +4,9 @@
 .visualizer-section-container {
     grid-area: visualizer;
     @include shadow-2dp();
+    border-radius: $subtle-radius;
+    background-color: #fff;
+    border: 1px solid #F4F4F4;
 }
 
 .visualizer {

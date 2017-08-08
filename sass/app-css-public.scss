@@ -22,20 +22,3 @@
 @import "permission-prompt";
 @import "chips";
 @import "preferences";
-
-.tracks-menu-module-container,
-.settings-menu-module-container,
-.selection-menu-module-container {
-    margin: 15px 0px;
-    padding-bottom: 10px;
-}
-
-.module-container {
-    border-radius: $subtle-radius;
-    background-color: #fff;
-    border: 1px solid #F4F4F4;
-}
-
-.app-bread-text {
-    font-size: $text-size;
-}
