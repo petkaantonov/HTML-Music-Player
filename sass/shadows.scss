@@ -89,31 +89,3 @@ $shadow-ambient-shadow-opacity: 0.12 !default;
 .depth-level-5 {
     @include shadow-24dp();
 }
-
-.shadow-2dp {
-  @include shadow-2dp();
-}
-
-.shadow-3dp {
-  @include shadow-3dp();
-}
-
-.shadow-4dp {
-  @include shadow-4dp();
-}
-
-.shadow-6dp {
-  @include shadow-6dp();
-}
-
-.shadow-8dp {
-  @include shadow-8dp();
-}
-
-.shadow-16dp {
-  @include shadow-16dp();
-}
-
-.shadow-24dp {
-  @include shadow-24dp();
-}

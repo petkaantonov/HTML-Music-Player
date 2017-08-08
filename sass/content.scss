@@ -4,6 +4,7 @@
 $tab-height: 32px;
 
 .content-section-container {
+    @include shadow-2dp();
     contain: content;
     grid-area: content-section;
     border-radius: $subtle-radius;

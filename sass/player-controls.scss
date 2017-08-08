@@ -25,6 +25,7 @@ $big-button-width: min($lower-height, 54px);
 }
 
 .player-controls {
+    @include shadow-2dp();
     font-size: $text-size;
     contain: content;
     color: #666;

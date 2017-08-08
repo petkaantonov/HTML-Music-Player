@@ -2,6 +2,7 @@
 
 .visualizer-section-container {
     grid-area: visualizer;
+    @include shadow-2dp();
 }
 
 .visualizer {
