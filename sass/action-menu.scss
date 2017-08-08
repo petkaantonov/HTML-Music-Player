@@ -1,4 +1,5 @@
 @import "variables";
+@import "shadows";
 
 .action-menu-submenu, .action-menu-root.action-menu-context-root {
     border-radius: 4px;
@@ -120,4 +121,32 @@
 .action-menu-submenu.transition-out.initial {
     opacity: 1;
     @include scale(1, 1);
+}
+
+
+.action-menu-level-1,
+.action-menu-context-root,
+.depth-level-1 {
+    @include shadow-4dp();
+}
+
+.action-menu-level-2,
+.depth-level-2 {
+    @include shadow-6dp();
+}
+
+.action-menu-level-3,
+.depth-level-3,
+.popup-container {
+    @include shadow-8dp();
+}
+
+.action-menu-level-4,
+.depth-level-4 {
+    @include shadow-16dp();
+}
+
+.action-menu-level-5,
+.depth-level-5 {
+    @include shadow-24dp();
 }

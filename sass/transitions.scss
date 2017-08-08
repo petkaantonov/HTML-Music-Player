@@ -11,9 +11,7 @@
 
 .scale-in {
     @include scale(1, 1);
-    @include transition(transform .4s cubic-bezier(.55, 0, .1, 1),
-                       -webkit-transform .4s cubic-bezier(.55, 0, .1, 1),
-                       -ms-transform .4s cubic-bezier(.55, 0, .1, 1));
+    @include transition(transform .4s cubic-bezier(.55, 0, .1, 1));
 }
 
 .scale-in.initial {
@@ -22,8 +20,6 @@
 
 .fade-scale-in {
     @include transition(transform .4s cubic-bezier(.55, 0, .1, 1),
-                        -webkit-transform .4s cubic-bezier(.55, 0, .1, 1),
-                        -ms-transform .4s cubic-bezier(.55, 0, .1, 1),
                         opacity .4s cubic-bezier(.55, 0, .1, 1));
     @include scale(1, 1);
     opacity: 1;
@@ -41,9 +37,7 @@
 
 .slide-out.fade-in {
     @include transition(opacity 0.3s cubic-bezier(.55, 0, .1, 1),
-                        transform 0.3s cubic-bezier(.55, 0, .1, 1),
-                        -webkit-transform 0.3s cubic-bezier(.55, 0, .1, 1),
-                        -ms-transform 0.3s cubic-bezier(.55, 0, .1, 1));
+                        transform 0.3s cubic-bezier(.55, 0, .1, 1));
 }
 
 .fade-in.initial {

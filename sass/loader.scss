@@ -78,10 +78,10 @@ $animation-duration: 0.85s;
   background-color: #dcdcdc;
   position: absolute;
   top: 0px;
-  @include prefix(transform-origin, 50% 50%, webkit ms moz o);
-  @include prefix(border-radius, 50%, webkit ms moz o);
-  @include prefix(animation-fill-mode, both, webkit ms moz o);
-  @include prefix(animation, bounce $animation-duration infinite 0s ease-in-out alternate, webkit ms moz o);
+  transform-origin: 50% 50%;
+  border-radius: 50%;
+  animation-fill-mode: both;
+  animation: bounce $animation-duration infinite 0s ease-in-out alternate;
   @include box-shadow(1px 1px 3px #333);
 }
 
@@ -91,20 +91,20 @@ $animation-duration: 0.85s;
 
 .loader-container .ball.ball2 {
     left: $ball-size + $ball-gap;
-    @include prefix(animation-delay, $animation-duration * 0.33, webkit ms moz o);
+    animation-delay: $animation-duration * 0.33;
 }
 
 .loader-container .ball.ball3 {
     left: ($ball-size + $ball-gap) * 2;
-    @include prefix(animation-delay, $animation-duration * 0.66, webkit ms moz o);
+    animation-delay: $animation-duration * 0.66;
 }
 
 @include keyframes('bounce') {
     0%, 50% {
-        @include prefix(transform, translateY(0px), webkit ms moz o);
+        transform: translateY(0px);
     }
 
     100% {
-        @include prefix(transform, translateY(-(1.75*$ball-size)), webkit ms moz o);
+        transform: translateY(-(1.75*$ball-size));
     }
 }

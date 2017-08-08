@@ -22,8 +22,8 @@
     text-transform: none;
     line-height: 1;
     font-size: 28px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-smoothing: antialiased;
+    osx-font-smoothing: grayscale;
 
     &.small-icomoon-icon {
         font-size: 18px;

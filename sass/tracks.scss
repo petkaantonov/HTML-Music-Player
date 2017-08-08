@@ -86,7 +86,7 @@ $material-icon-reorder-height: 26px;
     }
 
     &.transition {
-        @include transition-property(-webkit-transform, transform);
+        @include transition-property(transform);
         @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
         @include transition-duration(0.22s);
     }
@@ -173,7 +173,7 @@ $material-icon-reorder-height: 26px;
 
     overflow-x: hidden;
     overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
     will-change: transform;
     box-sizing: border-box;
 
@@ -182,7 +182,7 @@ $material-icon-reorder-height: 26px;
         overflow-y: hidden;
 
         .track-container {
-            @include transition-property(-webkit-transform, transform);
+            @include transition-property(transform);
             @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
             @include transition-duration(0.22s);
             will-change: transform;

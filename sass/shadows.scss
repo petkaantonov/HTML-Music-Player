@@ -62,30 +62,3 @@ $shadow-ambient-shadow-opacity: 0.12 !default;
               0 11px 15px -7px rgba(0, 0, 0, $shadow-ambient-shadow-opacity),
               0 24px 38px  3px rgba(0, 0, 0, $shadow-key-umbra-opacity));
 }
-
-.action-menu-level-1,
-.action-menu-context-root,
-.depth-level-1 {
-    @include shadow-4dp();
-}
-
-.action-menu-level-2,
-.depth-level-2 {
-    @include shadow-6dp();
-}
-
-.action-menu-level-3,
-.depth-level-3,
-.popup-container {
-    @include shadow-8dp();
-}
-
-.action-menu-level-4,
-.depth-level-4 {
-    @include shadow-16dp();
-}
-
-.action-menu-level-5,
-.depth-level-5 {
-    @include shadow-24dp();
-}

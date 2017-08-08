@@ -5,7 +5,6 @@
     position: absolute;
     top: 0;
     left: 0;
-    -webkit-pointer-events: none;
     pointer-events: none;
     @include translate3d(0,0,0);
     will-change: transform;
@@ -14,7 +13,6 @@
 }
 
 .ripple-node {
-    -webkit-pointer-events: none;
     pointer-events: none;
     position: absolute;
     top: 0;

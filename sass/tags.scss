@@ -1,8 +1,8 @@
 @import "variables";
 
 html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-smoothing: antialiased;
+    osx-font-smoothing: grayscale;
 }
 
 html, body {
@@ -33,7 +33,7 @@ body {
     contain: content;
     overflow-x: hidden;
     overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
     will-change: transform;
     box-sizing: border-box;
 }
