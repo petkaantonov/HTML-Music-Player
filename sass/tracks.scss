@@ -6,7 +6,16 @@ $select-control-width: 36px;
 $track-number-gutter: 6px;
 $drag-control-width: 44px;
 $track-number-width: 42px;
-$track-duration-width: 42px;
+$track-duration-width: 46px;
+
+$material-icon-menu-width: 16px;
+$material-icon-menu-height: 26px;
+
+$material-icon-checkbox-width: 22px;
+$material-icon-checkbox-height: 26px;
+
+$material-icon-reorder-width: 22px;
+$material-icon-reorder-height: 26px;
 
 .no-touch {
     .track-container {
@@ -63,14 +72,17 @@ $track-duration-width: 42px;
     background-color: #FFF;
     font-size: $text-size;
     color: $text-color;
-    justify-items: center;
-    align-items: center;
-
+    contain: content;
 
     z-index: 1;
     &.track-dragging {
         @include shadow-2dp();
         z-index: 2;
+    }
+
+    .grid-item {
+        contain: content;
+        display: block;
     }
 
     &.transition {
@@ -81,60 +93,55 @@ $track-duration-width: 42px;
 
     .track-number {
         grid-area: track-number;
-        contain: layout;
         justify-self: start;
+        align-self: center;
+        will-change: contents;
     }
 
     .track-title {
         grid-area: track-title;
-        contain: layout;
         font-size: 15px;
-        justify-self: stretch;
+        padding-top: 4px;
+        will-change: contents;
     }
 
     .track-artist {
         grid-area: track-artist;
-        contain: layout;
         font-size: 13px;
         color: $text-color-lighter;
-        justify-self: stretch;
+        padding-top: 2px;
+        will-change: contents;
     }
 
     .track-duration {
         grid-area: track-duration;
-        contain: layout;
+        padding-left: 4px;
+        align-self: center;
+        justify-self: center;
+        will-change: contents;
     }
 
     .track-menu-button {
         grid-area: menu-button;
-        contain: layout;
-        justify-self: stretch;
-        align-self: stretch;
-        padding: floor(($track-item-height - $large-material-icon-height) / 2)
-                 floor(($menu-button-width - $large-material-icon-width) / 2);
+        padding: floor(($track-item-height - $material-icon-menu-height) / 2)
+                 floor(($menu-button-width - $material-icon-menu-width) / 2);
     }
 
     .track-select-control {
         grid-area: select-control;
-        contain: layout;
-        justify-self: stretch;
-        align-self: stretch;
-        padding: floor(($track-item-height - $large-material-icon-height) / 2)
-                 floor(($select-control-width - $large-material-icon-width) / 2);
+        padding: floor(($track-item-height - $material-icon-checkbox-height) / 2)
+                 floor(($select-control-width - $material-icon-checkbox-width) / 2);
+        will-change: contents;
     }
 
     .track-drag-control {
         grid-area: drag-control;
-        contain: layout;
-        justify-self: stretch;
-        align-self: stretch;
-        padding: floor(($track-item-height - $large-material-icon-height) / 2)
-                 floor(($drag-control-width - $large-material-icon-width) / 2);
+        padding: floor(($track-item-height - $material-icon-reorder-height) / 2)
+                 floor(($drag-control-width - $material-icon-reorder-width) / 2);
     }
 
     .material-icons {
         color: $text-color-lighter;
-
         &.checked-checkbox {
             color: $primary-color-darker;
         }
@@ -163,7 +170,7 @@ $track-duration-width: 42px;
     left: 0px;
     width: 100%;
     height: 100%;
-    contain: layout;
+
     overflow-x: hidden;
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;

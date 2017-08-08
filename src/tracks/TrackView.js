@@ -3,20 +3,13 @@ import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 export const ITEM_HEIGHT = 44;
 
 const TEMPLATE = `
-    <div class="track-number js-track-number notextflow"></div>
-    <div class="track-title js-track-title notextflow"></div>
-    <div class="track-artist js-track-artist notextflow"></div>
-    <div class="track-duration js-track-duration notextflow"></div>
-
-    <div class="track-menu-button js-track-menu-button js-has-primary-action">
-        <div class='material-icons large-material-icon selection-menu-options'></div>
-    </div>
-    <div class="track-select-control js-track-select-button js-has-primary-action">
-        <div class='material-icons large-material-icon blank-checkbox js-track-selection-indicator'></div>
-    </div>
-    <div class="track-drag-control js-track-drag-button js-has-primary-action">
-        <div class='material-icons large-material-icon reorder'></div>
-    </div>
+    <div class="grid-item track-number js-track-number no-text-wrap"></div>
+    <div class="grid-item track-title js-track-title no-text-wrap"></div>
+    <div class="grid-item track-artist js-track-artist no-text-wrap"></div>
+    <div class="grid-item track-duration js-track-duration no-text-wrap"></div>
+    <div class="grid-item track-menu-button js-track-menu-button js-has-primary-action material-icons selection-menu-options"></div>
+    <div class="grid-item track-select-control js-track-select-button js-has-primary-action material-icons blank-checkbox js-track-selection-indicator"></div>
+    <div class="grid-item track-drag-control js-track-drag-button js-has-primary-action material-icons reorder">
 `;
 
 export default class TrackView {

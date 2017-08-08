@@ -44,6 +44,12 @@
     white-space: nowrap;
 }
 
+.no-text-wrap {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 .no-display {
     display: none !important;
 }
