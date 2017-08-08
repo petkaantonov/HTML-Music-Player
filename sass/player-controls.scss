@@ -124,7 +124,7 @@ $big-button-width: min($lower-height, 54px);
             width: $button-width;
             height: 100%;
             box-sizing: border-box;
-            padding: floor(($lower-height - $big-button-size) / 2)
+            padding: (floor(($lower-height - $big-button-size) / 2) - 1px)
                       floor(($button-width - $big-button-size) / 2);
             text-shadow: 1px 1px 1px #333;
 
