@@ -381,8 +381,8 @@ export default class TrackContainerController extends EventEmitter {
 
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
 
-                if (e.target.classList.contains("js-has-primary-action") ||
-                    e.target.closest(".js-has-primary-action")) {
+                if (e.target.classList.contains(`js-has-primary-action`) ||
+                    e.target.closest(`.js-has-primary-action`)) {
                     return;
                 }
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());

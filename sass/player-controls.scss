@@ -1,11 +1,8 @@
 @import "variables";
 
-.player-upper-container {
-    margin-top: 12px;
-}
-
 $button-size: 20px;
 $big-button-size: 26px;
+$track-time-container-height: 20px;
 
 $button-width: 34px;
 $volume-slider-width: 90px;
@@ -27,9 +24,20 @@ $big-button-width: min($lower-height, 54px);
     }
 }
 
-.coverart-and-controls-container {
-    background: linear-gradient(to bottom, #FFF 0%, #fafafa 100%);
+.player-controls-section {
+    font-size: $text-size;
+    margin-top: 12px;
+    contain: layout;
     color: #666;
+    border-bottom: 1px solid #fbfbfb;
+    @include border-right-radius($subtle-radius);
+    display: grid;
+    grid-template-columns: $picture-width $button-width $volume-slider-width 1fr $button-width $button-width $button-width 1fr $big-button-width 4px;
+    grid-template-rows: $track-time-container-height $upper-height $lower-height;
+    grid-template-areas:
+        "track-time-container track-time-container track-time-container track-time-container track-time-container track-time-container track-time-container track-time-container track-time-container track-time-container"
+        "picture track-status track-status track-status track-status track-status track-status track-status track-status track-status"
+        "picture mute-button volume-slider . previous-button favorite next-button . play-pause-button .";
 
     .grid-button-container {
         align-self: stretch;
@@ -73,7 +81,6 @@ $big-button-width: min($lower-height, 54px);
             text-shadow: 1px 1px 1px #111;
             color: #fcfcfc;
             font-weight: bold;
-            font-size: $text-size;
             line-height: 14px;
             text-align: center;
             white-space: nowrap;
@@ -205,16 +212,6 @@ $big-button-width: min($lower-height, 54px);
     .next-button-container {
         grid-area: next-button;
     }
-
-    border-bottom: 1px solid #fbfbfb;
-    @include border-right-radius($subtle-radius);
-    display: grid;
-    grid-template-columns: $picture-width $button-width $volume-slider-width 1fr $button-width $button-width $button-width 1fr $big-button-width 4px;
-    grid-template-rows: $upper-height $lower-height;
-    grid-template-areas:
-        "picture track-status track-status track-status track-status track-status track-status track-status track-status track-status"
-        "picture mute-button volume-slider . previous-button favorite next-button . play-pause-button .";
-}
 
 .playback-status-wrapper {
     width: 100%;

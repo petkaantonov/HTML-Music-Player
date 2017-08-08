@@ -425,10 +425,8 @@ export default class Application {
             rippler,
             globalEvents
         }, d => new PlayerTimeManager({
-            target: `.player-upper-container`,
-            currentTimeDom: `.current-time`,
-            totalTimeDom: `.total-time`,
-            timeContainerDom: `.playback-status-wrapper`,
+            currentTimeDom: `.js-current-time`,
+            totalTimeDom: `.js-total-time`,
             timeProgressDom: `.js-track-progress-fill`,
             seekSlider: `.js-seek-slider`
         }, d));
@@ -439,7 +437,7 @@ export default class Application {
             rippler,
             recognizerContext
         }, d => new PlayerRatingManager({
-            target: ".js-favorite"
+            target: `.js-favorite`
         }, d));
 
         const playerVolumeManager = this.playerVolumeManager = withDeps({

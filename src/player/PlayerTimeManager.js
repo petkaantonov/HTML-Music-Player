@@ -21,7 +21,6 @@ export default class PlayerTimeManager {
         this.globalEvents = deps.globalEvents;
         this.db = deps.db;
 
-        this._domNode = this.page.$(opts.target).eq(0);
         this.displayMode = DISPLAY_REMAINING;
         this._seekingFromSlider = false;
         this._seekingFromKeyboard = false;
@@ -33,10 +32,9 @@ export default class PlayerTimeManager {
         });
         this._displayedTimeRight = this._displayedTimeLeft = -1;
         this._transitionEnabled = false;
-        this._totalTimeDomNode = this.$().find(opts.totalTimeDom);
-        this._currentTimeDomNode = this.$().find(opts.currentTimeDom);
-        this._timeContainerDomNode = this.$().find(opts.timeContainerDom);
-        this._timeProgressDomNode = this.$().find(opts.timeProgressDom);
+        this._totalTimeDomNode = this.page.$(opts.totalTimeDom);
+        this._currentTimeDomNode = this.page.$(opts.currentTimeDom);
+        this._timeProgressDomNode = this.page.$(opts.timeProgressDom);
         this._updateProgress = this._updateProgress.bind(this);
         this.hidden = true;
         this.frameId = -1;
@@ -59,19 +57,7 @@ export default class PlayerTimeManager {
         this.$totalTime().addEventListener(`click`, this.containerClicked);
         this.recognizerContext.createTapRecognizer(this.containerClicked).recognizeBubbledOn(this.$totalTime());
 
-        this.fontSize = (13 * this.page.devicePixelRatio()) | 0;
-        this.timeDisplayWidth = 0;
-        this.timeDisplayHeight = 0;
-        this.currentTimeDisplayTextWidth = 0;
-        this.totalTimeDisplayTextWidth = 0;
-        this.timeDisplayTextHeight = this.fontSize - 2 * this.page.devicePixelRatio();
         this._hideTimerId = -1;
-
-        const currentTimeDom = this.$currentTime()[0];
-        const totalTimeDom = this.$totalTime()[0];
-
-        this.currentTimeCtx = currentTimeDom.getContext(`2d`);
-        this.totalTimeCtx = totalTimeDom.getContext(`2d`);
 
         if (TIME_DISPLAY_PREFERENCE_KEY in deps.dbValues) {
             const val = +deps.dbValues[TIME_DISPLAY_PREFERENCE_KEY];
@@ -80,17 +66,11 @@ export default class PlayerTimeManager {
             }
         }
 
-        this._updateDimensions();
         this._scheduleUpdate();
-
     }
 
     $timeProgress() {
         return this._timeProgressDomNode;
-    }
-
-    $timeContainer() {
-        return this._timeContainerDomNode;
     }
 
     $currentTime() {
@@ -99,10 +79,6 @@ export default class PlayerTimeManager {
 
     $totalTime() {
         return this._totalTimeDomNode;
-    }
-
-    $() {
-        return this._domNode;
     }
 
     startKeyboardSeeking() {
@@ -146,43 +122,9 @@ export default class PlayerTimeManager {
         this.setTimes(playedTime, totalTime);
     }
 
-    _updateDimensions() {
-        const currentTimeDom = this.$currentTime()[0];
-        const totalTimeDom = this.$totalTime()[0];
-        const width = currentTimeDom.clientWidth * this.page.devicePixelRatio() | 0;
-        const height = totalTimeDom.clientHeight * this.page.devicePixelRatio() | 0;
-
-        this.timeDisplayWidth = width;
-        this.timeDisplayHeight = height;
-        totalTimeDom.width = currentTimeDom.width = width;
-        totalTimeDom.height = currentTimeDom.height = height;
-
-        this.totalTimeCtx.font = this.currentTimeCtx.font = `${this.fontSize}px Droid Sans`;
-        this.totalTimeCtx.fillStyle = this.currentTimeCtx.fillStyle = `#7a7a7a`;
-        this.currentTimeDisplayTextWidth = this.currentTimeCtx.measureText(`00:00`).width;
-        this.totalTimeDisplayTextWidth = this.totalTimeCtx.measureText(
-                `${this.displayMode === DISPLAY_REMAINING ? `-` : ``}00:00`).width;
-    }
-
     _updateTimeText() {
-        const {timeDisplayTextHeight,
-               currentTimeDisplayTextWidth,
-               totalTimeDisplayTextWidth,
-               timeDisplayWidth,
-               timeDisplayHeight,
-               currentTimeCtx,
-               totalTimeCtx,
-               _displayedTimeRight,
-               _displayedTimeLeft} = this;
-
-        currentTimeCtx.clearRect(0, 0, timeDisplayWidth, timeDisplayHeight);
-        totalTimeCtx.clearRect(0, 0, timeDisplayWidth, timeDisplayHeight);
-
-        const textY = timeDisplayHeight - ((timeDisplayHeight - timeDisplayTextHeight) / 2);
-        const currentTimeTextX = (timeDisplayWidth - currentTimeDisplayTextWidth) / 2;
-        const totalTimeTextX = (timeDisplayWidth - totalTimeDisplayTextWidth) / 2;
-        currentTimeCtx.fillText(toTimeString(_displayedTimeLeft), currentTimeTextX | 0, textY | 0);
-        totalTimeCtx.fillText(toTimeString(_displayedTimeRight), totalTimeTextX | 0, textY | 0);
+        this.$currentTime().setText(toTimeString(this._displayedTimeLeft));
+        this.$totalTime().setText(toTimeString(this._displayedTimeRight));
     }
 
     setTimes(currentTime, totalTime) {
@@ -248,7 +190,6 @@ export default class PlayerTimeManager {
         } else {
             this.displayMode = DISPLAY_ELAPSED;
         }
-        this._updateDimensions();
         this.forceUpdate();
         this._persistDisplayMode();
     }
@@ -300,7 +241,6 @@ export default class PlayerTimeManager {
         this.hidden = false;
         this.$currentTime().parent().removeClass(`hidden`);
         this.$totalTime().parent().removeClass(`hidden`);
-        this._updateDimensions();
         this._updateTimeText();
     }
 

@@ -19,29 +19,6 @@
     }
 }
 
-#app-loader,
-.track-container,
-.visualizer-section-container,
-.coverart-and-controls-container,
-.queue-panel-container,
-.search-panel-container {
-    @include large-screen {
-        width: $large-screen-width - $total-app-border;
-    }
-
-    @include small-screen {
-        width: 100%;
-    }
-
-    @include ultra-small-screen {
-        width: 100%;
-    }
-
-    @include medium-small-screen {
-        width: 100%;
-    }
-}
-
 .snackbar-container {
     @include large-screen {
         max-width: $small-screen-width;

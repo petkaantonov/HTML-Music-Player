@@ -32,9 +32,9 @@ export default class PlayerRatingManager {
 
     _updateState(track) {
         if (track.isRated()) {
-            this.$().addClass("rated");
+            this.$().addClass(`rated`);
         } else {
-            this.$().removeClass("rated");
+            this.$().removeClass(`rated`);
         }
     }
 
