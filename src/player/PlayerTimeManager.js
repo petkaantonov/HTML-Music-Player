@@ -213,8 +213,8 @@ export default class PlayerTimeManager {
     _hide() {
         if (this.hidden) return;
         this.hidden = true;
-        this.$currentTime().parent().addClass(`hidden`);
-        this.$totalTime().parent().addClass(`hidden`);
+        this.$currentTime().addClass(`hidden`);
+        this.$totalTime().addClass(`hidden`);
     }
 
     _clearHideTimer() {
@@ -239,8 +239,8 @@ export default class PlayerTimeManager {
         this._clearHideTimer();
         if (!this.hidden) return;
         this.hidden = false;
-        this.$currentTime().parent().removeClass(`hidden`);
-        this.$totalTime().parent().removeClass(`hidden`);
+        this.$currentTime().removeClass(`hidden`);
+        this.$totalTime().removeClass(`hidden`);
         this._updateTimeText();
     }
 
