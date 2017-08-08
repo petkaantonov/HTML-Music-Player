@@ -185,6 +185,7 @@ $material-icon-reorder-height: 26px;
             @include transition-property(-webkit-transform, transform);
             @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
             @include transition-duration(0.22s);
+            will-change: transform;
 
             &.track-dragging {
                 @include transition-property(none);
