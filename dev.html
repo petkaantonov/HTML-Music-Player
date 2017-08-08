@@ -222,58 +222,49 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
             </div>
 
             <div class="coverart-and-controls-container shadow-2dp">
-                <div class="coverart-section-container division">
-                    <div class="module-container picture-module-container">
-                        <div class="picture-container">
-                            <img src="/dist/images/apple-touch-icon-180x180.png" />
+                <div class="picture-container">
+                    <img src="/dist/images/apple-touch-icon-180x180.png" />
+                </div>
+
+                <div class="track-status-container js-seek-slider">
+                    <div class="track-progress-fill js-track-progress-fill"></div>
+                    <div class="track-ticker-container js-track-ticker-container">
+                        <div class="track-ticker js-track-ticker"></div>
+                    </div>
+                </div>
+
+                <div class="mute-button-container js-mute grid-button-container">
+                    <span class="icon glyphicon glyphicon-volume-up"></span>
+                </div>
+
+                <div class="volume-slider-container grid-button-container">
+                    <div class="slider volume-slider js-volume-slider horizontal-slider">
+                        <div class="slider-knob"></div>
+                        <div class="slider-background">
+                            <div class="slider-fill"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="player-control-panel-container module-container">
-                    <div class="notextflow time-progress-container" id="track-progress-container">
-                        <div id="track-progress" class="time-progress"></div>
-                        <div class="track-display-container">
-                            <div class="track-display"></div>
+                <div class="favorite-container js-favorite grid-button-container">
+
+                </div>
+
+                <div class="previous-button-container disabled js-previous grid-button-container">
+                    <span class="icon glyphicon glyphicon-step-backward"></span>
+                </div>
+
+                <div class="play-pause-button-container disabled js-play-pause grid-button-container">
+                    <div class="play-pause-morph-icon-container">
+                        <div class="play-pause-morph-icon play">
+                            <span class="icon glyphicon glyphicon-play"></span>
+                            <span class="icon glyphicon glyphicon-pause"></span>
                         </div>
                     </div>
-                    <div class="smoothness-separator"></div>
-                    <div class="control-panel-lower-container">
-                        <div class="button-groups-container">
-                            <div class="app-player-controls volume-controls-container button-group">
-                                <div class="volume-mute volume-mute-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-volume-up"></span>
-                                </div>
+                </div>
 
-                                <div class="volume-slider-container button-group-item">
-                                    <div class="slider volume-slider horizontal-slider">
-                                        <div class="slider-knob"></div>
-                                        <div class="slider-background">
-                                            <div class="slider-fill"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div class="app-player-controls player-controls-container button-group">
-                                <div class="disabled previous-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-step-backward"></span>
-                                </div>
-                                <div class="disabled play-button button-group-button">
-                                    <div class="play-pause-morph-icon-container">
-                                        <div class="play-pause-morph-icon play">
-                                            <span class="icon glyphicon glyphicon-play"></span>
-                                            <span class="icon glyphicon glyphicon-pause"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="disabled next-button button-group-button">
-                                    <span class="icon glyphicon glyphicon-step-forward"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="next-button-container disabled js-next grid-button-container">
+                    <span class="icon glyphicon glyphicon-step-forward"></span>
                 </div>
             </div>
         </div>

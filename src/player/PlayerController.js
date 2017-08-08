@@ -55,12 +55,11 @@ export default class PlayerController extends EventEmitter {
 
         this._loadedTrack = null;
         this._tickCounter = new PlaythroughTickCounter(PLAYTHROUGH_COUNTER_THRESHOLD);
-        this._domNode = this.page.$(opts.target);
         this._mediaFocusAudioElement = null;
 
-        this._playButtonDomNode = this.$().find(opts.playButtonDom);
-        this._previousButtonDomNode = this.$().find(opts.previousButtonDom);
-        this._nextButtonDomNode = this.$().find(opts.nextButtonDom);
+        this._playPauseButtonDomNode = this.page.$(opts.playPauseButtonDom);
+        this._previousButtonDomNode = this.page.$(opts.previousButtonDom);
+        this._nextButtonDomNode = this.page.$(opts.nextButtonDom);
 
         this._progressLastPersisted = performance.now();
         this._lastPersistedProgressValue = -1;
@@ -69,10 +68,10 @@ export default class PlayerController extends EventEmitter {
         this._persistVolume = throttle(this._persistVolume, 500, this);
         this.nextTrackChanged = this.nextTrackChanged.bind(this);
 
-        this.$play().addEventListener(`click`, this.playButtonClicked.bind(this));
+        this.$playPause().addEventListener(`click`, this.playPauseButtonClicked.bind(this));
         this.$next().addEventListener(`click`, this.nextButtonClicked.bind(this));
         this.$previous().addEventListener(`click`, this.prevButtonClicked.bind(this));
-        this.recognizerContext.createTapRecognizer(this.playButtonClicked.bind(this)).recognizeBubbledOn(this.$play());
+        this.recognizerContext.createTapRecognizer(this.playPauseButtonClicked.bind(this)).recognizeBubbledOn(this.$playPause());
         this.recognizerContext.createTapRecognizer(this.nextButtonClicked.bind(this)).recognizeBubbledOn(this.$next());
         this.recognizerContext.createTapRecognizer(this.prevButtonClicked.bind(this)).recognizeBubbledOn(this.$previous());
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
@@ -119,15 +118,11 @@ export default class PlayerController extends EventEmitter {
     }
 
     $allButtons() {
-        return this.$play().add(this.$previous(), this.$next());
+        return this.$playPause().add(this.$previous(), this.$next());
     }
 
-    $() {
-        return this._domNode;
-    }
-
-    $play() {
-        return this._playButtonDomNode;
+    $playPause() {
+        return this._playPauseButtonDomNode;
     }
 
     $previous() {
@@ -179,7 +174,7 @@ export default class PlayerController extends EventEmitter {
         }
     }
 
-    playButtonClicked(e) {
+    playPauseButtonClicked(e) {
         this.rippler.rippleElement(e.currentTarget, e.clientX, e.clientY);
         this.togglePlayback();
     }
@@ -200,23 +195,23 @@ export default class PlayerController extends EventEmitter {
         }
 
         if (this.canPlayPause()) {
-            this.$play().removeClass(`disabled`);
+            this.$playPause().removeClass(`disabled`);
         }
 
         if (!this.isStopped) {
             if (this.isPlaying) {
-                this.$play().
+                this.$playPause().
                     find(`.play-pause-morph-icon`).
                     removeClass(`play`).
                     addClass(`pause`);
             } else if (this.isPaused) {
-                this.$play().
+                this.$playPause().
                     find(`.play-pause-morph-icon`).
                     removeClass(`pause`).
                     addClass(`play`);
             }
         } else {
-            this.$play().removeClass(`active`).
+            this.$playPause().removeClass(`active`).
                     find(`.play-pause-morph-icon`).
                     removeClass(`pause`).
                     addClass(`play`);

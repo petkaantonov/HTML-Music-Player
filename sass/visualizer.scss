@@ -1,20 +1,5 @@
 @import "variables";
 
-.picture-module-container {
-    display: inline-block;
-}
-
-.picture-container {
-    display: inline-block;
-    vertical-align: top;
-}
-
-.picture-container img {
-    border: none;
-    display: inline-block;
-    vertical-align: top;
-}
-
 .visualizer-container {
     height: $visualizer-height;
 }

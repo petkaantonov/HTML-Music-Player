@@ -14,8 +14,7 @@ export default class PlayerVolumeManager {
             target: opts.volumeSlider
         });
 
-        this._domNode = this.page.$(opts.target);
-        this._muteDom = this.$().find(opts.muteDom);
+        this._muteDom = this.page.$(opts.muteDom);
 
         this.slided = this.slided.bind(this);
         this.volumeChanged = this.volumeChanged.bind(this);
@@ -35,10 +34,6 @@ export default class PlayerVolumeManager {
 
     $mute() {
         return this._muteDom;
-    }
-
-    $() {
-        return this._domNode;
     }
 
     volumeChanged() {

@@ -351,12 +351,9 @@ export default class Application {
             metadataManager,
             audioManager
         }, d => new PlayerController({
-            target: `.app-player-controls`,
-            playButtonDom: `.play-button`,
-            pauseButtonDom: `.pause-button`,
-            previousButtonDom: `.previous-button`,
-            stopButtonDom: `.stop-button`,
-            nextButtonDom: `.next-button`
+            playPauseButtonDom: `.js-play-pause`,
+            previousButtonDom: `.js-previous`,
+            nextButtonDom: `.js-next`
         }, d));
 
         const search = this.search = withDeps({
@@ -427,11 +424,11 @@ export default class Application {
             globalEvents
         }, d => new PlayerTimeManager({
             target: `.player-upper-container`,
-            seekSlider: `.time-progress-container`,
             currentTimeDom: `.current-time`,
             totalTimeDom: `.total-time`,
             timeContainerDom: `.playback-status-wrapper`,
-            timeProgressDom: `.time-progress`
+            timeProgressDom: `.js-track-progress-fill`,
+            seekSlider: `.js-seek-slider`
         }, d));
 
         const playerVolumeManager = this.playerVolumeManager = withDeps({
@@ -441,9 +438,8 @@ export default class Application {
             sliderContext,
             rippler
         }, d => new PlayerVolumeManager({
-            target: `.volume-controls-container`,
-            volumeSlider: `.volume-slider`,
-            muteDom: `.volume-mute`
+            volumeSlider: `.js-volume-slider`,
+            muteDom: `.js-mute`
         }, d));
 
         const mediaSessionWrapper = this.mediaSessionWrapper = withDeps({
@@ -485,8 +481,8 @@ export default class Application {
             defaultTitle,
             globalEvents
         }, d => new TrackDisplay({
-            target: `.track-display-container`,
-            displayTarget: `.track-display`,
+            target: `.js-track-ticker-container`,
+            displayTarget: `.js-track-ticker`,
             delay: 3500,
             pixelsPerSecond: 22
         }, d));

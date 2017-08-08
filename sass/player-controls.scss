@@ -4,383 +4,203 @@
     margin-top: 12px;
 }
 
-.player-control-panel-container {
-    @include desktop {
-        width: $large-screen-width - $total-app-border - $desktop-picture-size;
-    }
-
-    @include non-desktop {
-        @include calc(width, "100% - #{$non-desktop-picture-size}");
-    }
-}
-
-.player-control-panel-container .button-groups-container {
-    @include desktop {
-        height: $player-panel-lower-container-height;
-        margin: #{$desktop-picture-size - $non-desktop-picture-size} 0 0 0;
-    }
-
-    @include non-desktop {
-        height: $player-panel-lower-container-height;
-    }
-}
-
-.player-control-panel-container .control-panel-lower-container {
-    @include desktop {
-        height: #{$player-panel-lower-container-height + $desktop-picture-size - $non-desktop-picture-size};
-    }
-
-    @include non-desktop {
-        height: $player-panel-lower-container-height;
-    }
-}
-
-.coverart-section-container {
-    @include desktop {
-        width: $desktop-picture-size;
-    }
-
-    @include non-desktop {
-        width: $non-desktop-picture-size;
-    }
-}
-
-$slider-width: 88px;
-$slider-margin: 6px;
-$button-width: 34px;
-$big-button-width: 54px;
-$big-button-size: 26px;
 $button-size: 20px;
-$player-controls-container-space: $big-button-width + $button-width * 2;
-$playlist-controls-container-space: $button-width;
-$volume-controls-container-space: $slider-width + 2px + $button-width + $slider-margin;
+$big-button-size: 26px;
 
-.picture-container,
-.picture-container img {
-    @include desktop {
-        height: $desktop-picture-size;
-        width: $desktop-picture-size;
-    }
+$button-width: 34px;
+$volume-slider-width: 90px;
 
-    @include non-desktop {
-        height: $non-desktop-picture-size;
-        width: $non-desktop-picture-size;
-    }
-}
-
-.button-group .button-group-button,
-.button-group .button-group-item {
-    width: $button-width;
-}
-
-.picture-container {
-    contain: strict;
-}
-
-.player-control-panel-container.module-container,
-.picture-module-container.module-container {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    box-sizing: border-box;
-    display: inline-block;
-    vertical-align: top;
-}
-
-.player-control-panel-container.module-container {
-    @include border-right-radius($subtle-radius);
-}
-
-.coverart-and-controls-container {
-    border-bottom: 1px solid #fbfbfb;
-    @include border-right-radius($subtle-radius);
-}
-
-.track-display-container {
-    z-index: 5;
-    position: relative;
-    height: $track-progress-height;
-    overflow: hidden;
-    white-space: nowrap;
-    background-color: transparent;
-    width: 97%;
-    margin: 0px auto;
-
-    .track-display {
-        margin-top: 7px;
-        cursor: default;
-        display: inline-block;
-        vertical-align: top;
-    }
-}
-
-
-#track-progress {
-    z-index: 3;
-    position: absolute;
-    left: 0;
-    @include translate3d(-100%, 0, 0);
-    will-change: transform;
-    height: $track-progress-height;
-    background: linear-gradient(to bottom, #dbf1fb 0%,#b8e4f6 100%);
-    width: 100%;
-    cursor: default;
-    border-radius: 2px;
-}
-
-#track-progress-container {
-    contain: strict;
-    text-shadow: 1px 1px 1px #111;
-    position: relative;
-    color: #fcfcfc;
-    font-weight: bold;
-    font-size: $text-size;
-    line-height: 14px;
-    height: $track-progress-height;
-    text-align: center;
-    width: 100%;
-    background: linear-gradient(to bottom, #FFF 0%,#F6F6F6 47%,#EDEDED 100%);
-    border-bottom: 1px solid #ccc;
-
-    border-top-right-radius: $subtle-radius;
-}
-;
-.smoothness-separator {
-    width: 100%;
-    height: 1px;
-    background-color: #eee;
-}
-
-#app-player-panel-container {
-    background-color: #FFFFFF;
-}
-
-.player-control-panel-container .button-groups-container {
-    font-size: 0;
-    position: relative;
-    border-bottom-right-radius: $subtle-radius;
-    contain: strict;
-}
-
-.player-control-panel-container .control-panel-lower-container {
-    display: inline-block;
-    vertical-align: top;
-    width: 100%;
-}
-
-.picture-module-container.module-container,
-.player-control-panel-container .control-panel-lower-container {
-    background: #FFF;
-    background: -moz-linear-gradient(top, #FAFAFA 0%, #FAFAFA 100%);
-    background: -webkit-linear-gradient(top, #FFF 0%,#FAFAFA 100%);
-    background: linear-gradient(to bottom, #FFF 0%,#FAFAFA 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#FAFAFA',GradientType=0 );
-}
-
-.button-group .button-group-button,
-.button-group .button-group-item,
-.button-group .button-group-button.just-deactivated {
-    background-color: transparent;
-    color: #666;
-}
-
-.button-group .button-group-button,
-.button-group .button-group-item {
-    display: inline-block;
-    font-size: $button-size;
-    line-height: $button-size;
-    vertical-align: top;
-    height: 100%;
-    box-sizing: border-box;
-    text-align: center;
-}
-
-.button-group .button-group-button.touch-hover {
-    background-color: $touch-hover-color !important;
-}
-
-.play-pause-morph-icon-container {
-    position: relative;
-    overflow: hidden;
-    display: inline-block;
-    vertical-align: top;
-    width: $big-button-width;
-    height: $big-button-width;
-    margin-top: floor(($player-panel-lower-container-height - $big-button-width) / 2);
-    border: 1px solid #333;
-    box-sizing: border-box;
-
-    border-radius: 50%;
-
-    .play-pause-morph-icon {
-        position: absolute;
-        left: floor(($big-button-width - $big-button-size) / 2);
-        top: floor(($big-button-width - $big-button-size) / 2) - 2px;
-        width: $big-button-size;
-        height: $big-button-size;
-        transition: transform 0.4s ease;
-        @include translateY(0);
-
-        .glyphicon-play {
-            @include translateY(0);
-        }
-
-        .glyphicon-pause {
-            @include translateY(-($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
-        }
-
-        &.pause {
-            @include translateY(($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
-        }
-
-        &.play {
-            @include translateY(0);
-        }
-    }
-
-    .icon {
-        position: absolute;
-        left: 0px;
-        margin: 0 !important;
-        padding: 0 !important;
-        top: 0;
-        left: 0;
-    }
-}
-
-.button-group .button-group-button {
-    cursor: default;
-}
-
-.button-group .button-group-button.disabled {
-    cursor: default;
-}
+$picture-width: 90px;
+$picture-height: $picture-width;
+$upper-height: 32px;
+$lower-height: $picture-height - $upper-height;
+$big-button-width: min($lower-height, 54px);
 
 .no-touch {
-    .button-group .button-group-button.disabled:hover,
-    .button-group .button-group-button.just-deactivated:hover {
-        background-color: transparent;
-        color: #666;
-    }
-
-    .app-playlist-mode:hover {
-        background-color: #CBDFED;
-    }
-
-    .button-group .button-group-button:hover {
+    .grid-button-container:hover {
         color: #000;
         text-shadow: 1px 1px 1px #aaa;
     }
 
-    .button-group .button-group-button.disabled:hover {
+    .grid-button-container.disabled:hover {
         text-shadow: none;
     }
+}
 
-    .button-group .button-group-button.active:hover {
-        color: #85C4FF;
+.coverart-and-controls-container {
+    background: #fff;
+    color: #666;
+
+    .picture-container,
+    .mute-button-container,
+    .volume-slider-container,
+    .favorite-container,
+    .previous-button-container,
+    .play-pause-button-container,
+    .next-button-container {
+        background: linear-gradient(to bottom, #FFF 0%, #fafafa 100%);
+        contain: strict;
     }
-}
 
+    .grid-button-container {
+        align-self: stretch;
+        justify-self: stretch;
 
-.button-group .button-group-button.active {
-    color: #85C4FF;
-    text-shadow: 1px 1px 0px #E0F0FF;
-}
-
-.button-group .button-group-button.disabled {
-    opacity: 0.3;
-}
-
-.button-group .button-group-button .icon,
-.button-group .button-group-item .icon {
-    vertical-align: top;
-}
-
-.button-group {
-    vertical-align: top;
-    display: inline-block;
-    border: 1px solid #E6E6E6;
-    border-radius: $subtle-radius;
-    height: 100%;
-    box-sizing: border-box;
-}
-
-.button-group {
-    .button-group-button {
         .icon {
-            margin-top: floor(($player-panel-lower-container-height - $button-size) / 2) - 4px;
+            display: block;
+            font-size: $button-size;
+            width: $button-size;
+            height: $button-size;
+            margin: floor(($lower-height - $button-size) / 2) - 2px auto;
+        }
+
+        .icon.glyphicon.glyphicon-volume-off {
+            color: #960707;
+        }
+
+        &.disabled {
+            opacity: 0.3;
         }
     }
-}
 
-.volume-controls-container.button-group {
-    position: absolute;
-    left: 0px;
-    border-radius: 0px;
-    border: none;
-    width: $volume-controls-container-space;
+    .picture-container {
+        grid-area: picture;
+        img {
+            height: $picture-height;
+            width: $picture-width;
+        }
 
-    .button-group-button {
-        border-right: none;
+    }
+
+    .track-status-container {
+        grid-area: track-status;
+        position: relative;
+        overflow: hidden;
+        border-top-right-radius: $subtle-radius;
+        background: linear-gradient(to bottom, #FFF 0%,#F6F6F6 47%,#EDEDED 100%);
+        border-bottom: 1px solid #eee;
+
+        .track-ticker-container {
+            text-shadow: 1px 1px 1px #111;
+            color: #fcfcfc;
+            font-weight: bold;
+            font-size: $text-size;
+            line-height: 14px;
+            text-align: center;
+            white-space: nowrap;
+            background-color: transparent;
+            margin: 0px auto;
+            width: 97%;
+
+            .track-ticker {
+                margin-top: 7px;
+                cursor: default;
+                display: inline-block;
+                vertical-align: top;
+            }
+        }
+
+        .track-progress-fill {
+            top: 0;
+            left: 0;
+            position: absolute;
+            @include translate3d(-100%, 0, 0);
+            will-change: transform;
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(to bottom, #dbf1fb 0%,#b8e4f6 100%);
+            cursor: default;
+            border-radius: 2px;
+        }
+    }
+
+    .mute-button-container {
+        grid-area: mute-button;
     }
 
     .volume-slider-container {
-        width: $slider-width + 2px;
-        height: 100%;
-        display: inline-block;
-        margin-left: $slider-margin;
-
-        .slider {
-            margin-top: floor(($player-panel-lower-container-height - $slider-input-area-size) / 2) - 3px;
+        grid-area: volume-slider;
+        padding-left: 10px;
+        .volume-slider {
+            margin-top: floor(($lower-height - $slider-input-area-size) / 2);
         }
     }
 
-    .icon.glyphicon.glyphicon-volume-off {
-        color: #960707;
+    .favorite-container {
+        grid-area: favorite;
     }
-}
 
-.player-controls-container.button-group {
-    position: absolute;
-    right: 0px;
-    border-radius: 0px;
-    border: none;
-    width: $player-controls-container-space;
-    height: 100%;
-    box-sizing: border-box;
+    .previous-button-container {
+        grid-area: previous-button;
+    }
 
-    .button-group-button {
-        height: 100%;
-        &.play-button {
+    .play-pause-button-container {
+        grid-area: play-pause-button;
+
+        .play-pause-morph-icon-container {
+            position: relative;
+            overflow: hidden;
             width: $big-button-width;
-            font-size: $big-button-size;
+            height: $big-button-width;
+            margin-top: floor(($lower-height - $big-button-width) / 2);
+            border: 1px solid #333;
+            box-sizing: border-box;
+
+            border-radius: 50%;
+
+            .play-pause-morph-icon {
+                position: absolute;
+                left: floor(($big-button-width - $big-button-size) / 2);
+                top: floor(($big-button-width - $big-button-size) / 2) - 2px;
+                width: $big-button-size;
+                height: $big-button-size;
+                transition: transform 0.4s ease;
+                @include translateY(0);
+
+                .glyphicon-play {
+                    @include translateY(0);
+                }
+
+                .glyphicon-pause {
+                    @include translateY(-($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
+                }
+
+                &.pause {
+                    @include translateY(($big-button-size + floor(($big-button-width - $big-button-size) / 2)));
+                }
+
+                &.play {
+                    @include translateY(0);
+                }
+            }
+
+            .icon {
+                font-size: $big-button-size;
+                width: $big-button-size;
+                height: $big-button-size;
+                position: absolute;
+                margin: 0 !important;
+                padding: 0 !important;
+                top: 0;
+                left: 0;
+
+            }
         }
+
     }
-}
 
-.playlist-controls-container.button-group {
-    display: none;
-    box-sizing: border-box;
-    position: absolute;
-    right: 0px;
-    border-radius: 0px;
-    border: none;
-    width: $playlist-controls-container-space;
-    height: 100%;
-
-    .button-group-button {
-        height: floor($player-panel-lower-container-height / 2);
-
-        .icon {
-            margin-top: floor((floor($player-panel-lower-container-height / 2) - $button-size) / 2);
-        }
+    .next-button-container {
+        grid-area: next-button;
     }
-}
 
-.playlist-controls-container.button-group,
-.playlist-controls-container.button-group .repeat-mode-button {
-    border-bottom-right-radius: $subtle-radius;
+    border-bottom: 1px solid #fbfbfb;
+    @include border-right-radius($subtle-radius);
+    display: grid;
+    grid-template-columns: $picture-width $button-width $volume-slider-width auto $button-width $big-button-width $button-width;
+    grid-template-rows: $upper-height $lower-height;
+    grid-template-areas:
+        "picture track-status track-status track-status track-status track-status track-status"
+        "picture mute-button volume-slider favorite previous-button play-pause-button next-button";
 }
 
 .playback-status-wrapper {
