@@ -12,6 +12,18 @@ html, body {
     box-sizing: border-box;
 }
 
+body {
+    font-family: "Droid Sans";
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    background-color: #F5F5F5;
+    background-image: url('../images/body-noise.png');
+    box-sizing: border-box;
+    padding-top: $toolbar-vertical-space;
+}
+
 .tracklist-transform-container {
     position: absolute;
     top: 0px;
@@ -26,43 +38,48 @@ html, body {
     box-sizing: border-box;
 }
 
-body {
-    font-family: "Droid Sans";
-    font-size: 12px;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    background-color: #F5F5F5;
-    background-image: url('../images/body-noise.png');
-}
-
-#wrapper {
-    width: 100%;
-    margin: 0;
-    display: block;
-}
-
-#app-container {
+.app-container {
     font-size: 0;
     display: none;
-}
-
-#app-container {
     opacity: initial;
-    will-change: none;
+    will-change: initial;
     @include transition-property(opacity);
     @include transition-timing-function(cubic-bezier(.55, 0, .1, 1));
     @include transition-duration(0.22s);
+
+    &.initial {
+        opacity: 0;
+        will-change: opacity;
+    }
+
+    margin: 0px auto;
+
+    grid-template-columns: 100%;
+    grid-template-rows: 6px $visualizer-height 12px 1fr 16px $player-controls-vertical-space;
+    grid-template-areas:
+            "."
+            "visualizer"
+            "."
+            "content-section"
+            "."
+            "player-controls-section";
+}
+
+.app-container {
+    height: calc(100% - 12px);
+}
+
+.app-container,
+.toolbar > .toolbar-items {
+    width: 100%;
+    @include large-screen {
+        width: $large-screen-width;
+    }
 }
 
 .visualizer-section-container,
 .content-section-container {
     contain: content;
-}
-
-#app-container.initial {
-    opacity: 0;
-    will-change: opacity;
 }
 
 .link-text {
@@ -106,13 +123,6 @@ table {
     border-spacing: 0px 0px;
     border-color: transparent;
     width: 100%;
-}
-
-.division {
-    font-size: 0;
-    vertical-align: top;
-    box-sizing: border-box;
-    display: inline-block;
 }
 
 .section-separator {

@@ -2,13 +2,8 @@
 
 $button-size: 20px;
 $big-button-size: 26px;
-$track-time-container-height: 20px;
-
 $button-width: 34px;
 $volume-slider-width: 90px;
-
-$picture-width: 90px;
-$picture-height: $picture-width;
 $upper-height: 32px;
 $lower-height: $picture-height - $upper-height;
 $big-button-width: min($lower-height, 54px);
@@ -25,7 +20,7 @@ $big-button-width: min($lower-height, 54px);
 }
 
 .player-controls-section {
-    margin-top: 12px;
+    grid-area: player-controls-section;
     contain: content;
 }
 

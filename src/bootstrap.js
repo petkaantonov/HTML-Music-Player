@@ -81,7 +81,7 @@ page.setTitle(defaultTitle);
 
         throw new Error(`missing features`);
     } else {
-        page.$(`#app-container`).show();
+        page.$(`.js-app-container`).show("grid");
     }
 
     const dbValues = await serviceWorkerManager.loadPreferences();

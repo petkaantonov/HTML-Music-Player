@@ -1,6 +1,47 @@
 @import "variables";
 
 .snackbar-container {
+    @include large-screen {
+        max-width: $small-screen-width;
+        min-width: $snackbar-container-min-width;
+    }
+
+    @include small-screen {
+        max-width: $small-screen-width;
+        min-width: $snackbar-container-min-width;
+    }
+
+    @include ultra-small-screen {
+        max-width: 100%;
+        min-width: 100%;
+    }
+
+    @include medium-small-screen {
+        max-width: 100%;
+        min-width: 100%;
+    }
+}
+
+.snackbar-container .snackbar-title {
+    @include large-screen {
+        max-width: $small-screen-width - $snackbar-action-width - $snackbar-gutter;
+    }
+
+    @include small-screen {
+        max-width: $small-screen-width - $snackbar-action-width - $snackbar-gutter;
+    }
+
+    @include ultra-small-screen {
+        @include calc(width, "100% - #{$snackbar-action-width + $snackbar-gutter}");
+    }
+
+    @include medium-small-screen {
+        @include calc(width, "100% - #{$snackbar-action-width + $snackbar-gutter}");
+    }
+}
+
+
+.snackbar-container {
     z-index: 100000;
     position: absolute;
     bottom: 0;

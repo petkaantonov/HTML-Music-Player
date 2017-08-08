@@ -15,10 +15,7 @@ import {generateSilentWavFile} from "platform/LocalFileHandler";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
 import {ALL_FILES_PERSISTED_EVENT} from "metadata/MetadataManagerFrontend";
 import PlaythroughTickCounter from "player/PlaythroughTickCounter";
-import {IMAGE_DIMENSIONS} from "player/PlayerPictureManager";
-import {TIMER_HEIGHT} from "player/PlayerTimeManager";
 import {SNACKBAR_HEIGHT} from "ui/Snackbar";
-
 
 export const PLAYBACK_RESUME_AFTER_IDLE_EVENT = `playbackResumeAfterIdle`;
 export const PLAYBACK_PAUSE_EVENT = `pause`;
@@ -28,7 +25,6 @@ export const VOLUME_CHANGE_EVENT = `volumeChange`;
 export const VOLUME_MUTE_EVENT = `muted`;
 export const NEW_TRACK_LOAD_EVENT = `newTrackLoad`;
 export const PROGRESS_EVENT = `progress`;
-export const PLAYER_CONTROLLER_HEIGHT = IMAGE_DIMENSIONS + TIMER_HEIGHT + SNACKBAR_HEIGHT + 12;
 
 const PLAYTHROUGH_COUNTER_THRESHOLD = 30;
 

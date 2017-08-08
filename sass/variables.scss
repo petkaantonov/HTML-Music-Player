@@ -76,6 +76,17 @@ $popup-gutter: 20px;
 $large-material-icon-height: 22px;
 $large-material-icon-width: 18px;
 
+$track-time-container-height: 20px;
+$picture-width: 90px;
+$picture-height: $picture-width;
+$player-controls-vertical-space: $picture-height + $track-time-container-height;
+
+$toolbar-height: 45px;
+$toolbar-bottom-margin: 10px;
+$toolbar-vertical-space: $toolbar-height + $toolbar-bottom-margin;
+
+$snackbar-vertical-space: 48px;
+
 
 @mixin css-filter($filter...) {
   -webkit-filter: $filter;

@@ -307,7 +307,7 @@ export default class Application {
             metadataManager,
             playedTrackOriginContext
         }, d => new PlaylistController({
-            target: `.playlist-list-container`,
+            target: `.js-playlist-list-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
 
@@ -374,7 +374,7 @@ export default class Application {
             menuContext,
             playedTrackOriginContext
         }, d => new SearchController({
-            target: `.search-list-container`,
+            target: `.js-search-list-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
 
@@ -397,9 +397,9 @@ export default class Application {
             itemHeight: ITEM_HEIGHT,
             tabHeight: TAB_HEIGHT,
             tabHolder: `#app-content-holder`,
-            playlistTab: `.playlist-tab`,
-            searchTab: `.search-tab`,
-            queueTab: `.queue-tab`,
+            playlistTab: `.js-playlist-tab-button`,
+            searchTab: `.js-search-tab-button`,
+            queueTab: `.js-queue-tab-button`,
             activeTabIndicator: `.active-tab-indicator`
         }, d));
 
@@ -537,7 +537,7 @@ export default class Application {
                         this.playlist.preferencesLoaded(),
                         this.search.preferencesLoaded()
                     ]);
-                    this.page.$(`#app-container`).removeClass(`initial`);
+                    this.page.$(`.js-app-container`).removeClass(`initial`);
                     this.globalEvents._triggerSizeChange();
                     console.log(`preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
                 });

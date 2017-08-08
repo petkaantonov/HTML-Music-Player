@@ -1,23 +1,9 @@
 @import "variables";
 
-.visualizer-container {
-    height: $visualizer-height;
-}
-
 .visualizer-section-container {
-    width: 100%;
-    margin-top: 2px;
-    margin-bottom: $module-gutter-height;
-    border-radius: 0;
+    grid-area: visualizer;
 }
 
 .visualizer {
-    height: $visualizer-height;
-    display: block;
-    @include translate3d(0, 0, 0);
-}
-
-.latency-input-row {
-    width: $ultra-small-screen-width - 22;
-    box-sizing: border-box;
+    height: 100%;
 }

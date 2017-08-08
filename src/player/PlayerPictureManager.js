@@ -8,7 +8,7 @@ import {Image, URL} from "platform/platform";
 import {TRACK_PLAYING_STATUS_CHANGE_EVENT} from "player/PlaylistController";
 
 export const IMAGE_CHANGE_EVENT = `imageChange`;
-export const IMAGE_DIMENSIONS = 90;
+const IMAGE_DIMENSIONS = 90;
 
 const requestReason = `PlayerPictureManager`;
 

@@ -2,7 +2,6 @@ import {noUndefinedGet, _call} from "util";
 import TabController from "ui/TabController";
 import withDeps from "ApplicationDependencies";
 import {SHUTDOWN_SAVE_PREFERENCES_EVENT} from "platform/GlobalEvents";
-import {PLAYER_CONTROLLER_HEIGHT} from "player/PlayerController";
 
 import {ITEMS_SELECTED_EVENT} from "ui/Selectable";
 import {LENGTH_CHANGE_EVENT} from "tracks/TrackContainerController";
@@ -54,7 +53,7 @@ export default class MainTabs {
         }, {
             id: QUEUE_TAB_ID,
             tab: opts.queueTab,
-            content: `.queue-list-container`
+            content: `.js-queue-list-container`
         }], {
             indicator: opts.activeTabIndicator
         }, d));
@@ -108,7 +107,6 @@ export default class MainTabs {
         this.playlist.on(LENGTH_CHANGE_EVENT, this.updatePlaylistContextMenuEnabledStates.bind(this));
         this.search.on(ITEMS_SELECTED_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
         this.search.on(LENGTH_CHANGE_EVENT, this.updateSearchContextMenuEnabledStates.bind(this));
-        this.globalEvents.on(`resize`, this.layoutChanged.bind(this));
         this.globalEvents.on(SHUTDOWN_SAVE_PREFERENCES_EVENT, this._shutdownSavePreferences.bind(this));
     }
 
@@ -154,22 +152,6 @@ export default class MainTabs {
                 this.page.warn(`no tab id ${tabId}`);
             }
         }.bind(this);
-    }
-
-    layoutChanged() {
-        const {page} = this;
-        const elems = this.tabController.$containers();
-
-        const visible = elems.filter(elem => page.$(elem).style().display !== `none`).get(0);
-
-        const rect = visible.getBoundingClientRect();
-        const USED_HEIGHT = rect.top + PLAYER_CONTROLLER_HEIGHT - this.itemHeight / 4;
-
-        let height = page.height() - USED_HEIGHT;
-        height = Math.max(height - this.itemHeight / 2, this.itemHeight + this.itemHeight / 2);
-
-        elems.setStyle(`height`, `${height}px`);
-        this.tabHolder.setStyle(`height`, `${height + this.tabHeight}px`);
     }
 
     updatePlaylistContextMenuEnabledStates() {
