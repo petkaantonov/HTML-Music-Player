@@ -1,25 +1,71 @@
 @import "variables";
 @import "shadows";
 
+$menu-button-width: 36px;
+$select-control-width: 36px;
+$track-number-gutter: 6px;
+$drag-control-width: 44px;
+$track-number-width: 42px;
+$track-duration-width: 42px;
+
+.no-touch {
+    .track-container {
+        grid-template-columns: 26px $track-number-width 1fr $track-duration-width 26px;
+        grid-template-areas:
+                ". track-number track-title track-duration ."
+                ". track-number track-artist track-duration .";
+
+        .track-menu-button,
+        .track-select-control,
+        .track-drag-control {
+            display: none;
+        }
+    }
+}
+
+.has-touch {
+    .draggable {
+        .track-container {
+            grid-template-columns: $menu-button-width $select-control-width $track-number-gutter $track-number-width 1fr $track-duration-width $drag-control-width;
+            grid-template-areas:
+                    "menu-button select-control . track-number track-title track-duration drag-control"
+                    "menu-button select-control . track-number track-artist track-duration drag-control";
+
+            .track-drag-control {
+                display: block;
+            }
+        }
+    }
+
+    .track-container {
+        grid-template-columns: $menu-button-width $select-control-width $track-number-gutter $track-number-width 1fr $track-duration-width 4px;
+        grid-template-areas:
+                "menu-button select-control . track-number track-title track-duration ."
+                "menu-button select-control . track-number track-artist track-duration .";
+
+        .track-drag-control {
+            display: none;
+        }
+    }
+}
 
 .track-container {
-    $track-duration-margin: 6px;
-    left: 0px;
-    contain: strict;
+    display: grid;
+    height: $track-item-height;
+    grid-template-rows: 1fr 1fr;
     position: absolute;
     box-sizing: border-box;
-    height: $track-item-height;
-    font-size: 0;
+    width: 100%;
+    overflow: hidden;
+    contain: strict;
     border-bottom: 1px solid #EEE;
     border-top: 1px solid #F6F6F6;
     background-color: #FFF;
-    overflow: hidden;
+    font-size: $text-size;
+    color: $text-color;
+    justify-items: center;
+    align-items: center;
 
-    div {
-        vertical-align: top;
-        display: inline-block;
-        box-sizing: border-box;
-    }
 
     z-index: 1;
     &.track-dragging {
@@ -33,125 +79,66 @@
         @include transition-duration(0.22s);
     }
 
-    .track-left-controls {
-        $track-controls-room: $track-left-controls-width;
-        width: $track-left-controls-width;
-        padding: 0px;
-        height: 100%;
-        text-align: center;
-
-        .material-icons {
-            margin-top: 10px;
-            color: $text-color-lighter;
-            &.blank-checkbox {
-                color: $text-color-lighter;
-            }
-
-            &.checked-checkbox {
-                color: $primary-color-darker;
-            }
-        }
-
-        .track-control-select {
-            width: $track-control-select-width;
-        }
-
-        .track-control-menu {
-            width: $track-control-menu-width;
-
-        }
-
-        .track-control-select,
-        .track-control-menu {
-            height: 100%;
-            text-align: center;
-        }
-    }
-
-    .track {
-        &.draggable {
-            .track-right-controls {
-                padding-left: $track-controls-gutter;
-                height: 100%;
-                width: $track-right-controls-width;
-
-
-                .material-icons {
-                    color: $text-color-lighter;
-                    margin-top: 10px;
-                }
-            }
-
-            .track-data {
-                @include calc(width, "100% - #{$track-right-controls-width + $track-left-controls-width}");
-            }
-        }
-
-        &.not-draggable {
-            .track-right-controls {
-                display: none;
-            }
-
-            .track-data {
-                @include calc(width, "100% - #{$track-left-controls-width + 5px}");
-            }
-        }
-
-        color: $text-color;
-        width: 100%;
-        height: 100%;
-    }
-
-    .track-duration-container {
-        width: $track-duration-width;
-        text-align: center;
-        margin-left: $track-duration-margin;
-    }
-
-    .track-number-container {
-        width: $track-number-width;
-    }
-
-    .track-duration-container,
-    .track-number-container {
-        padding-top: 15px;
-        height: 100%;
-    }
-
-    .track-duration,
     .track-number {
-        font-size: $text-size;
-        display: block;
-        contain: strict;
-        height: 20px;
+        grid-area: track-number;
+        contain: layout;
+        justify-self: start;
     }
 
-    .track-info {
-        @include calc(width, "100% - #{$track-duration-width + $track-number-width + $track-duration-margin}");
-        height: 100%;
-        overflow: hidden;
-        padding: 4px 0px 4px 6px;
-
-        .track-title,
-        .track-artist {
-            contain: strict;
-            display: block;
-        }
-
-        .track-title {
-            height: 18px;
-            font-size: 15px;
-        }
-
-        .track-artist {
-            height: 15px;
-            font-size: 13px;
-            color: $text-color-lighter;
-            margin-top: 2px;
-        }
+    .track-title {
+        grid-area: track-title;
+        contain: layout;
+        font-size: 15px;
+        justify-self: stretch;
     }
 
+    .track-artist {
+        grid-area: track-artist;
+        contain: layout;
+        font-size: 13px;
+        color: $text-color-lighter;
+        justify-self: stretch;
+    }
 
+    .track-duration {
+        grid-area: track-duration;
+        contain: layout;
+    }
+
+    .track-menu-button {
+        grid-area: menu-button;
+        contain: layout;
+        justify-self: stretch;
+        align-self: stretch;
+        padding: floor(($track-item-height - $large-material-icon-height) / 2)
+                 floor(($menu-button-width - $large-material-icon-width) / 2);
+    }
+
+    .track-select-control {
+        grid-area: select-control;
+        contain: layout;
+        justify-self: stretch;
+        align-self: stretch;
+        padding: floor(($track-item-height - $large-material-icon-height) / 2)
+                 floor(($select-control-width - $large-material-icon-width) / 2);
+    }
+
+    .track-drag-control {
+        grid-area: drag-control;
+        contain: layout;
+        justify-self: stretch;
+        align-self: stretch;
+        padding: floor(($track-item-height - $large-material-icon-height) / 2)
+                 floor(($drag-control-width - $large-material-icon-width) / 2);
+    }
+
+    .material-icons {
+        color: $text-color-lighter;
+
+        &.checked-checkbox {
+            color: $primary-color-darker;
+        }
+    }
 
     &.track-active {
         background: linear-gradient(to bottom, #f2f9fe 0%,#d6f0fd 100%);
@@ -159,39 +146,16 @@
     }
 
     &.track-playing {
-        .track {
-            color: $secondary-color;
-        }
+        color: $secondary-color;
         border-bottom: 1px solid $secondary-color;
     }
 
     &.track-error {
-        .track {
-            color: $error-color;
-        }
+        color: $error-color;
         border-bottom: 1px solid $error-color;
     }
 }
 
-.no-touch {
-    .track-container {
-        $left-padding: $track-left-controls-width/2;
-        padding-left: $left-padding;
-        .track {
-            .track-data {
-                @include calc(width, "100% - #{$left-padding}");
-            }
-        }
-
-        .track-left-controls {
-            display: none;
-        }
-
-        .track-right-controls {
-            display: none;
-        }
-    }
-}
 
 .tracklist-transform-container {
     position: absolute;

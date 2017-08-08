@@ -73,6 +73,9 @@ $line-height: $slider-input-area-size;
 $popup-gutter: 20px;
 
 
+$large-material-icon-height: 22px;
+$large-material-icon-width: 18px;
+
 
 @mixin css-filter($filter...) {
   -webkit-filter: $filter;

@@ -2,33 +2,22 @@ import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 
 export const ITEM_HEIGHT = 44;
 
-const TEMPLATE = `<div class='track not-draggable'>
-    <div class='track-left-controls'>
-        <div class='track-control-menu'>
-            <div class='material-icons large-material-icon selection-menu-options'></div>
-        </div>
-        <div class='track-control-select'>
-            <div class='material-icons large-material-icon blank-checkbox track-selection-indicator'></div>
-        </div>
+const TEMPLATE = `
+    <div class="track-number js-track-number notextflow"></div>
+    <div class="track-title js-track-title notextflow"></div>
+    <div class="track-artist js-track-artist notextflow"></div>
+    <div class="track-duration js-track-duration notextflow"></div>
+
+    <div class="track-menu-button js-track-menu-button js-has-primary-action">
+        <div class='material-icons large-material-icon selection-menu-options'></div>
     </div>
-    <div class='track-data'>
-        <div class='track-number-container'>
-            <div class='track-number notextflow'></div>
-        </div>
-        <div class='track-info'>
-            <div class='track-title notextflow'></div>
-            <div class='track-artist notextflow'></div>
-        </div>
-        <div class='track-duration-container'>
-            <div class='track-duration notextflow'></div>
-        </div>
+    <div class="track-select-control js-track-select-button js-has-primary-action">
+        <div class='material-icons large-material-icon blank-checkbox js-track-selection-indicator'></div>
     </div>
-    <div class='track-right-controls track-control-reorder'>
+    <div class="track-drag-control js-track-drag-button js-has-primary-action">
         <div class='material-icons large-material-icon reorder'></div>
     </div>
-</div>`;
-
-const DRAGGABLE_TEMPLATE = TEMPLATE.replace(`not-draggable`, `draggable`);
+`;
 
 export default class TrackView {
     constructor(track, index, opts) {
@@ -71,15 +60,15 @@ export default class TrackView {
     }
 
     $trackNumber() {
-        return this.$().findOneUnsafe(`.track-number`);
+        return this.$().findOneUnsafe(`.js-track-number`);
     }
 
     $trackDuration() {
-        return this.$().findOneUnsafe(`.track-duration`);
+        return this.$().findOneUnsafe(`.js-track-duration`);
     }
 
     $trackSelectionIndicator() {
-        return this.$().findOneUnsafe(`.track-selection-indicator`);
+        return this.$().findOneUnsafe(`.js-track-selection-indicator`);
     }
 
     track() {
@@ -94,8 +83,8 @@ export default class TrackView {
         if (this._shouldUpdateDom()) return;
 
         this._domNode = recycledDomNode || this.page().createElement(`div`, {
-            class: `track-container`
-        }).setHtml(this.controller().supportsDragging() ? DRAGGABLE_TEMPLATE : TEMPLATE);
+            class: `track-container js-track-container`
+        }).setHtml(TEMPLATE);
 
         if (this.selectable().contains(this)) {
             this.selected();
@@ -167,8 +156,8 @@ export default class TrackView {
     _renderTrackInfo() {
         const {artist, title} = this._track;
 
-        this.$().findOneUnsafe(`.track-title`).setText(title);
-        this.$().findOneUnsafe(`.track-artist`).setText(artist);
+        this.$().findOneUnsafe(`.js-track-title`).setText(title);
+        this.$().findOneUnsafe(`.js-track-artist`).setText(artist);
     }
 
     _renderTrackNumber() {

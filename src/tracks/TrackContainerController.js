@@ -314,9 +314,9 @@ export default class TrackContainerController extends EventEmitter {
 
     _beforeDragStartCommitDelay($target) {
         if (!this.env.hasTouch()) {
-            return $target.closest(`.track-container`).length > 0;
+            return $target.closest(`.js-track-container`).length > 0;
         }
-        const isControl = $target.closest(`.track-control-reorder`).length > 0;
+        const isControl = $target.closest(`.js-track-drag-button`).length > 0;
         if (!isControl) {
             return false;
         }
@@ -348,13 +348,13 @@ export default class TrackContainerController extends EventEmitter {
                 e.preventDefault();
                 e.stopPropagation();
             }
-        }, `.track-container`));
+        }, `.js-track-container`));
 
         this.$().addEventListener(`mousedown`, page.delegatedEventHandler((e) => {
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
             if (!trackView) return;
             this._selectable.trackViewMouseDown(e, trackView);
-        }, `.track-container`));
+        }, `.js-track-container`));
 
         this.$().addEventListener(`dblclick`, page.delegatedEventHandler((e) => {
             const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
@@ -363,7 +363,7 @@ export default class TrackContainerController extends EventEmitter {
                 trackView,
                 origin: this.getPlayedTrackOrigin()
             });
-        }, `.track-container`));
+        }, `.js-track-container`));
 
         if (env.hasTouch()) {
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
@@ -377,23 +377,29 @@ export default class TrackContainerController extends EventEmitter {
                     this._selectable.setPriorityTrackView(trackView);
                 }
                 rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY);
-            }, `.track-control-select`)).recognizeBubbledOn(this.$());
+            }, `.js-track-select-button`)).recognizeBubbledOn(this.$());
 
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
+
+                if (e.target.classList.contains("js-has-primary-action") ||
+                    e.target.closest(".js-has-primary-action")) {
+                    return;
+                }
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
                 if (!trackView) return;
+
                 this.changeTrackExplicitly(trackView.track(), {
                     trackView,
                     origin: this.getPlayedTrackOrigin()
                 });
-            }, `.track-data`)).recognizeBubbledOn(this.$());
+            }, `.js-track-container`)).recognizeBubbledOn(this.$());
 
             this.recognizerContext.createTapRecognizer(page.delegatedEventHandler((e) => {
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
                 if (!trackView) return;
                 rippler.rippleElement(e.delegateTarget, e.clientX, e.clientY);
                 this.openSingleTrackMenu(trackView, e.delegateTarget, e);
-            }, `.track-control-menu`)).recognizeBubbledOn(this.$());
+            }, `.js-track-menu-button`)).recognizeBubbledOn(this.$());
         }
 
         if (this.supportsDragging()) {
