@@ -209,11 +209,11 @@ $big-button-width: min($lower-height, 54px);
     border-bottom: 1px solid #fbfbfb;
     @include border-right-radius($subtle-radius);
     display: grid;
-    grid-template-columns: $picture-width $button-width $volume-slider-width auto $button-width $big-button-width $button-width;
+    grid-template-columns: $picture-width $button-width $volume-slider-width 1fr $button-width $button-width $button-width 1fr $big-button-width 4px;
     grid-template-rows: $upper-height $lower-height;
     grid-template-areas:
-        "picture track-status track-status track-status track-status track-status track-status"
-        "picture mute-button volume-slider favorite previous-button play-pause-button next-button";
+        "picture track-status track-status track-status track-status track-status track-status track-status track-status track-status"
+        "picture mute-button volume-slider . previous-button favorite next-button . play-pause-button .";
 }
 
 .playback-status-wrapper {
