@@ -1,208 +1,107 @@
 @import "variables";
-@import "shadows";
 
-#app-container, .toolbar > .toolbar-items {
-    box-sizing: border-box;
-    margin: 0px auto;
-}
-
-.toolbar {
-    background-color: #fff;
-    height: $toolbar-height;
+.toolbar-border {
+    grid-area: toolbar-border;
     width: 100%;
-    position: absolute;
-    z-index: 940;
-    top: 0px;
-    left: 0px;
-    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
-}
-
-.toolbar > .toolbar-border {
-    width: 100%;
-    height: 3px;
-    position: absolute;
-    left: 0px;
-    bottom: -3px;
+    height: 100%;
     background: linear-gradient(to bottom, rgba(228,228,228,1) 0%,rgba(244,244,244,1) 100%);
 }
 
-.no-touch {
-    .toolbar-submenu {
-        .toolbar-submenu-item:hover {
-            background-color: #e6e6e6;
-        }
-    }
-
-    .toolbar-items .toolbar-item:hover {
-        color: #85C4FF;
-    }
-
-    .toolbar-items .toolbar-item.just-deactivated:hover {
-        color: #474747;
-        background-color: transparent;
-    }
-}
-
-.toolbar > .toolbar-items {
+.toolbar {
+    font-size: $text-size;
+    width: 100%;
     height: 100%;
-    font-size: 0;
+    grid-area: toolbar;
+    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
     position: relative;
     z-index: 940;
-    .toolbar-submenu {
-        box-sizing: border-box;
-        padding: 10px 0;
+
+    .toolbar-items {
         position: absolute;
-        top: 98%;
-        left: 8px;
-        z-index: 941;
-        background: #fff;
-        @include shadow-3dp();
-        color: #343434;
-        display: none;
-        @include scale-gpu(1, 0);
-        @include transition-transform(0.25s cubic-bezier(.55, 0, .1, 1));
-        @include transform-origin(top left 0);
+        width: 100%;
+        height: 100%;
 
-        &.shown {
-            display: block;
-            will-change: transform;
-            &.transition-in {
-                @include scale-gpu(1, 1);
+        .toolbar-item {
+            @include no-text-wrap();
+            contain: strict;
+
+            &.active {
+                color: #85C4FF;
+            }
+
+            &.disabled {
+                opacity: 0.4;
+                cursor: default;
+                color: #474747;
             }
         }
 
-        .toolbar-submenu-item {
-            min-width: 192px;
-            height: 48px;
-            box-sizing: border-box;
-            outline: none;
+        &.main-toolbar {
+            display: grid;
+            grid-template-columns: 50px 1fr 50px 50px;
+            grid-template-rows: 1fr;
+            grid-template-areas: "main-menu . shuffle-mode repeat-mode";
 
-            .toolbar-submenu-icon {
-                box-sizing: border-box;
-                vertical-align: top;
-                display: inline-block;
-                height: 100%;
-                width: 48px;
-                text-align: center;
-
-                .icon.material-icons {
-                    font-size: 32px;
-                    line-height: 48px;
-                }
-
-                .icon.icomoon-icon {
-                    font-size: 36px;
-                    line-height: 48px;
-                    margin-left: 8px;
-                }
+            .toolbar-item-main-menu {
+                grid-area: main-menu;
+                padding: 10px 13px;
             }
 
-            .toolbar-submenu-text {
-                font-size: 16px;
-                box-sizing: border-box;
-                vertical-align: top;
-                display: inline-block;
-                @include calc(width, "100% - 48px");
-                line-height: 48px;
-                padding: 0 16px;
+            .toolbar-item-shuffle-mode {
+                grid-area: shuffle-mode;
+                padding: 10px 13px;
+            }
+
+            .toolbar-item-repeat-mode {
+                grid-area: repeat-mode;
+                padding: 10px 13px;
             }
         }
+
+        &.selection-toolbar {
+            display: grid;
+            grid-template-columns: 50px 70px 1fr 50px 50px;
+            grid-template-rows: 1fr;
+            grid-template-areas: "close selected-text selection-count select-all selection-menu";
+
+            .toolbar-item-unselect-all {
+                grid-area: close;
+                padding: 10px 13px;
+            }
+
+            .toolbar-item-selected-text {
+                grid-area: selected-text;
+                padding-left: 5px;
+                span {
+                    line-height: $toolbar-height;
+                }
+            }
+
+            .toolbar-item-selected-count {
+                grid-area: selection-count;
+                .small-chip {
+                    line-height: $toolbar-height;
+                }
+            }
+
+            .toolbar-item-select-all {
+                grid-area: select-all;
+                padding: 10px 13px;
+            }
+
+            .toolbar-item-selection-menu {
+                grid-area: selection-menu;
+                padding: 10px 13px;
+            }
+        }
+
     }
 }
 
-.toolbar-items .toolbar-text,
-.toolbar-items .toolbar-item {
-    display: inline-block;
-    height: 100%;
-    box-sizing: border-box;
-    outline: none;
-    position: relative;
-}
-
-.toolbar-items .toolbar-item {
-    width: 50px;
-    border-right: 1px solid #EBEBEB;
-    font-size: 18px;
-    line-height: 18px;
-    text-align: center;
-    color: #474747;
-    vertical-align: top;
-    contain: content;
-}
-
-.toolbar-items .toolbar-text {
-    margin-left: 10px;
-    font-size: $text-size;
-    line-height: 14px;
-    padding: 15px 0px;
-    text-align: left;
-    color: $text-color;
-    box-sizing: border-box;
-    vertical-align: middle;
-}
-
-
-.toolbar-items .toolbar-item.toolbar-item-active {
-    color: #85C4FF;
-}
-
-.toolbar-items .toolbar-item:focus {
-    border-bottom: 3px solid #85C4FF;
-}
-
-.toolbar-items .toolbar-item.touch-hover {
-    background-color: $touch-hover-color !important;
-}
-
-.toolbar-items .toolbar-item.active {
-    color: #85C4FF;
-}
-
-.toolbar-items .toolbar-item.disabled {
-    opacity: 0.4;
-    background-color: transparent;
-    cursor: default;
-    color: #474747;
-}
-
-.toolbar-items .toolbar-item.just-deactivated {
-    color: #474747;
-    background-color: transparent;
-}
-
-.toolbar-item > .icon {
-    margin-top: 13px;
-}
-
-.toolbar-item > .icomoon-icon.icomoon-audio-folder {
-    margin-top: 7px;
-}
-
-.toolbar-item > .icomoon-icon.icomoon-audio-files {
-    margin-top: 10px;
-}
-
-.toolbar-item > .icomoon-icon.icomoon-crossfade {
-    margin-top: 11px;
-}
-
-.toolbar-item > .icon.material-icons {
-    margin-top: 12px;
-}
-
-.toolbar-items-section-1,
-.toolbar-items-section-2,
-.toolbar-items-section-3 {
-    height: 100%;
-    float: left;
-}
-
-.toolbar-items-section-2 {
-    float: right;
-}
-
-.toolbar-items-section-1 .toolbar-item:first-child,
-.toolbar-items-section-2 .toolbar-item:first-child,
-.toolbar-items-section-3 .toolbar-item:first-child {
-    border-left: 1px solid #EBEBEB;
+.no-touch {
+    .toolbar-items {
+        &:hover {
+            color: #85C4FF;
+        }
+    }
 }

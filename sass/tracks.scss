@@ -11,10 +11,10 @@ $track-duration-width: 46px;
 $material-icon-menu-width: 16px;
 $material-icon-menu-height: 26px;
 
-$material-icon-checkbox-width: 22px;
+$material-icon-checkbox-width: 24px;
 $material-icon-checkbox-height: 26px;
 
-$material-icon-reorder-width: 22px;
+$material-icon-reorder-width: 24px;
 $material-icon-reorder-height: 26px;
 
 .no-touch {
@@ -72,7 +72,6 @@ $material-icon-reorder-height: 26px;
     background-color: #FFF;
     font-size: $text-size;
     color: $text-color;
-    contain: content;
 
     z-index: 1;
     &.track-dragging {
@@ -81,8 +80,9 @@ $material-icon-reorder-height: 26px;
     }
 
     .grid-item {
-        contain: content;
+        contain: strict;
         display: block;
+        @include no-text-wrap();
     }
 
     &.transition {
@@ -96,6 +96,7 @@ $material-icon-reorder-height: 26px;
         justify-self: start;
         align-self: center;
         will-change: contents;
+        contain: content;
     }
 
     .track-title {
@@ -119,6 +120,7 @@ $material-icon-reorder-height: 26px;
         align-self: center;
         justify-self: center;
         will-change: contents;
+        contain: content;
     }
 
     .track-menu-button {

@@ -21,7 +21,6 @@ body {
     background-color: #F5F5F5;
     background-image: url('../images/body-noise.png');
     box-sizing: border-box;
-    padding-top: $toolbar-vertical-space;
 }
 
 .app-container {
@@ -46,8 +45,10 @@ body {
 .no-touch {
     .app-container {
 
-        grid-template-rows: 6px $visualizer-height 12px 1fr 16px $player-controls-vertical-space;
+        grid-template-rows: $toolbar-height 3px 6px $visualizer-height 12px 1fr 16px $player-controls-vertical-space;
         grid-template-areas:
+                "toolbar"
+                "toolbar-border"
                 "."
                 "visualizer"
                 "."
@@ -59,8 +60,10 @@ body {
 
 .has-touch {
     .app-container {
-        grid-template-rows: 12px 1fr 16px $player-controls-vertical-space;
+        grid-template-rows: $toolbar-height 3px 12px 1fr 16px $player-controls-vertical-space;
         grid-template-areas:
+                "toolbar"
+                "toolbar-border"
                 "."
                 "track-controls-section"
                 "."
@@ -68,8 +71,7 @@ body {
     }
 }
 
-.app-container,
-.toolbar > .toolbar-items {
+.app-container {
     width: 100%;
     @include large-screen {
         width: $large-screen-width;

@@ -26,7 +26,7 @@ export default class ToolbarManager extends EventEmitter {
             throw new Error(`opts.activeToolbar not found: ${opts.activeToolbar}`);
         }
         this._toolbars.forEach(_.hide);
-        this._toolbars[activeToolbarIndex].show();
+        this._toolbars[activeToolbarIndex].show("grid");
         this._activeToolbarIndex = activeToolbarIndex;
         this._globalEvents.on(`resize`, this._resize.bind(this));
         this._currentActivation = null;
@@ -42,7 +42,7 @@ export default class ToolbarManager extends EventEmitter {
             this._currentActivation = null;
         }
         const currentlyActiveIndex = this._activeToolbarIndex;
-        const toolbar = this._toolbars[index].show();
+        const toolbar = this._toolbars[index].show("grid");
         const currentToolbar = this._toolbars[currentlyActiveIndex];
 
         let promises;

@@ -89,10 +89,10 @@ export default class Application {
         this.timers = timers;
         this.serviceWorkerManager = serviceWorkerManager;
 
-        const toolbars = [`#main-toolbar`];
+        const toolbars = [`.js-main-toolbar`];
 
         if (env.hasTouch()) {
-            toolbars.push(`#selection-toolbar`);
+            toolbars.push(`.js-selection-toolbar`);
         }
 
         const recognizerContext = this.recognizerContext = withDeps({
@@ -125,7 +125,7 @@ export default class Application {
             page, globalEvents
         }, d => new ToolbarManager({
             toolbars,
-            activeToolbar: `#main-toolbar`
+            activeToolbar: `.js-main-toolbar`
         }, d));
 
         /* eslint-disable no-unused-vars */
@@ -178,10 +178,10 @@ export default class Application {
         const selectionStatus = this.selectionStatus = withDeps({
             page, recognizerContext, rippler
         }, d => new SelectionStatus({
-            countDisplay: `#selected-items-count`,
-            closeButton: `#unselect-all-menu-button`,
-            menuButton: `#show-selection-menu-button`,
-            selectAllButton: `#select-all-menu-button`
+            countDisplay: `.js-selected-items-count`,
+            closeButton: `.js-unselect-all-menu-button`,
+            menuButton: `.js-show-selection-menu-button`,
+            selectAllButton: `.js-select-all-menu-button`
         }, d));
 
         if (env.hasTouch()) {
@@ -233,7 +233,7 @@ export default class Application {
         const mainMenu = this.mainMenu = withDeps({
             menuContext, env
         }, d => new MainMenu({
-            target: `#main-menu`
+            target: `.js-main-menu`
         }, d));
 
         const popupContext = this.popupContext = withDeps({
@@ -512,9 +512,7 @@ export default class Application {
             page,
             recognizerContext,
             rippler
-        }, d => new PlaylistModeManager({
-            target: `#main-toolbar .toolbar-items-section-2`
-        }, d));
+        }, d => new PlaylistModeManager(d));
         /* eslint-enable no-unused-vars */
 
         this.page.addDocumentListener(`keydown`, this.documentKeydowned.bind(this), true);

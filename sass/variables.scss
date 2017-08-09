@@ -69,9 +69,6 @@ $picture-height: $picture-width;
 $player-controls-vertical-space: $picture-height + $track-time-container-height;
 
 $toolbar-height: 45px;
-$toolbar-bottom-margin: 10px;
-$toolbar-vertical-space: $toolbar-height + $toolbar-bottom-margin;
-
 $snackbar-vertical-space: 48px;
 
 
@@ -261,4 +258,10 @@ $snackbar-vertical-space: 48px;
 
 @mixin calc($property, $expression) {
   #{$property}: calc(#{$expression});
+}
+
+@mixin no-text-wrap() {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }

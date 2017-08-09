@@ -6,15 +6,13 @@ import {MODE_CHANGE_EVENT,
 import {ABOVE_TOOLBAR_Z_INDEX} from "ui/ToolbarManager";
 
 export default class PlaylistModeManager {
-    constructor(opts, deps) {
-        opts = noUndefinedGet(opts);
+    constructor(deps) {
         this.page = deps.page;
         this.recognizerContext = deps.recognizerContext;
         this.rippler = deps.rippler;
         this.playlist = deps.playlist;
-        this._domNode = this.page.$(opts.target).eq(0);
-        this._shuffleButton = this.$().find(`.shuffle-mode-button`);
-        this._repeatButton = this.$().find(`.repeat-mode-button`);
+        this._shuffleButton = this.page.$(`.js-shuffle-mode`);
+        this._repeatButton = this.page.$(`.js-repeat-mode`);
 
 
         this.shuffleClicked = this.shuffleClicked.bind(this);
@@ -28,10 +26,6 @@ export default class PlaylistModeManager {
         this.recognizerContext.createTapRecognizer(this.shuffleClicked).recognizeBubbledOn(this.$shuffle());
         this.recognizerContext.createTapRecognizer(this.repeatClicked).recognizeBubbledOn(this.$repeat());
         this.update();
-    }
-
-    $() {
-        return this._domNode;
     }
 
     $allButtons() {

@@ -3,10 +3,10 @@ import {VIEW_UPDATE_EVENT} from "metadata/MetadataManagerFrontend";
 export const ITEM_HEIGHT = 44;
 
 const TEMPLATE = `
-    <div class="grid-item track-number js-track-number no-text-wrap"></div>
-    <div class="grid-item track-title js-track-title no-text-wrap"></div>
-    <div class="grid-item track-artist js-track-artist no-text-wrap"></div>
-    <div class="grid-item track-duration js-track-duration no-text-wrap"></div>
+    <div class="grid-item track-number js-track-number"></div>
+    <div class="grid-item track-title js-track-title"></div>
+    <div class="grid-item track-artist js-track-artist"></div>
+    <div class="grid-item track-duration js-track-duration"></div>
     <div class="grid-item track-menu-button js-track-menu-button js-has-primary-action material-icons selection-menu-options"></div>
     <div class="grid-item track-select-control js-track-select-button js-has-primary-action material-icons blank-checkbox js-track-selection-indicator"></div>
     <div class="grid-item track-drag-control js-track-drag-button js-has-primary-action material-icons reorder">

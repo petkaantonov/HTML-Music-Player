@@ -7,6 +7,12 @@
     border-radius: $subtle-radius;
     background-color: #fff;
     border: 1px solid #F4F4F4;
+
+    .visualizer {
+        height: 100%;
+        width: 100%;
+        display: block;
+    }
 }
 
 .no-touch {
@@ -22,6 +28,3 @@
 }
 
 
-.visualizer {
-    height: 100%;
-}

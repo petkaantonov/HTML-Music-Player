@@ -72,51 +72,6 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
     <span id="close-log">Close</span>
     <pre id="ui-log"></pre>
 </div>
-<div class="toolbar" id="main-toolbar">
-    <div class="toolbar-items">
-        <div class="toolbar-items-section-1">
-            <div class="toolbar-item" tabindex="0" id="main-menu">
-                <span class="icon material-icons large-material-icon menu"></span>
-            </div>
-        </div>
-
-        <div class="toolbar-items-section-2">
-            <div class="toolbar-item shuffle-mode-button" tabindex="0" id="shuffle-mode">
-                <span class="icon material-icons large-material-icon shuffle-mode"></span>
-            </div>
-            <div class="toolbar-item repeat-mode-button" tabindex="0" id="repeat-mode">
-                <span class="icon material-icons large-material-icon repeat-mode"></span>
-            </div>
-        </div>
-    </div>
-    <div class="toolbar-border"></div>
-</div>
-
-<div class="toolbar" id="selection-toolbar" style="display: none;">
-    <div class="toolbar-items">
-        <div class="toolbar-items-section-1">
-            <div class="toolbar-item" tabindex="0" id="unselect-all-menu-button">
-                <span class="icon material-icons large-material-icon close"></span>
-            </div>
-            <div class="toolbar-text">
-                <span>Selected</span>
-                <span class="small-chip" id="selected-items-count">0</span>
-            </div>
-        </div>
-
-        <div class="toolbar-items-section-2">
-            <div class="toolbar-item" tabindex="0" id="select-all-menu-button">
-                <span class="icon material-icons large-material-icon select_all"></span>
-            </div>
-            <div class="toolbar-item" tabindex="0" id="show-selection-menu-button">
-                <span class="icon material-icons large-material-icon selection-menu-options"></span>
-            </div>
-
-        </div>
-    </div>
-    <div class="toolbar-border"></div>
-</div>
-
 <div id="app-loader">
     <div id="app-loading-container">
         <div id="app-load-text">
@@ -140,9 +95,30 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
     </div>
 </div>
 
-
 <section class="js-app-container app-container initial">
-    <section class="visualizer-section-container" style="display: none;">
+    <section class="toolbar">
+        <div class="toolbar-items main-toolbar js-main-toolbar">
+            <div class="toolbar-item toolbar-item-main-menu material-icons menu js-main-menu"></div>
+            <div class="toolbar-item toolbar-item-shuffle-mode material-icons shuffle-mode js-shuffle-mode"></div>
+            <div class="toolbar-item toolbar-item-repeat-mode material-icons repeat-mode js-repeat-mode"></div>
+        </div>
+
+        <div class="toolbar-items selection-toolbar js-selection-toolbar">
+            <div class="toolbar-item toolbar-item-unselect-all material-icons close js-unselect-all-menu-button"></div>
+            <div class="toolbar-item toolbar-item-selected-text">
+                <span>Selected</span>
+            </div>
+            <div class="toolbar-item toolbar-item-selected-count">
+                <span class="small-chip js-selected-items-count">0</span>
+            </div>
+            <div class="toolbar-item toolbar-item-select-all material-icons select_all js-select-all-menu-button"></div>
+            <div class="toolbar-item toolbar-item-selection-menu material-icons selection-menu-options js-show-selection-menu-button"></div>
+        </div>
+    </section>
+
+    <section class="toolbar-border"></section>
+
+    <section class="visualizer-section-container">
         <canvas id="visualizer" class="visualizer"></canvas>
     </section>
 
