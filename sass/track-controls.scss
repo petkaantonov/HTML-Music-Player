@@ -3,6 +3,12 @@
 
 $tab-height: 32px;
 
+.no-touch {
+    .tab-button:hover {
+        color: $secondary-color;
+    }
+}
+
 .track-controls-section {
     font-size: $text-size;
     @include shadow-2dp();

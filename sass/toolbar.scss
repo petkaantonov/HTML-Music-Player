@@ -1,10 +1,39 @@
 @import "variables";
 
+$toolbar-content-gradient: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
+$toolbar-border-gradient: linear-gradient(to bottom, rgba(228,228,228,1) 0%,rgba(244,244,244,1) 100%);
+
+@include large-screen {
+    body:before {
+        position: absolute;
+        width: 100%;
+        height: $toolbar-height;
+        content: " ";
+        background: $toolbar-content-gradient;
+        z-index: 1;
+        left: 0px;
+        top: 0px;
+    }
+
+    body:after {
+        position: absolute;
+        left: 0px;
+        top: $toolbar-height;
+        width: 100%;
+        height: $toolbar-border-height;
+        content: " ";
+        z-index: 1;
+        background: $toolbar-border-gradient;
+    }
+}
+
 .toolbar-border {
     grid-area: toolbar-border;
     width: 100%;
     height: 100%;
-    background: linear-gradient(to bottom, rgba(228,228,228,1) 0%,rgba(244,244,244,1) 100%);
+    background: $toolbar-border-gradient;
+    position: relative;
+    z-index: $toolbar-z-index;
 }
 
 .toolbar {
@@ -12,9 +41,9 @@
     width: 100%;
     height: 100%;
     grid-area: toolbar;
-    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
+    background: $toolbar-content-gradient;
     position: relative;
-    z-index: 940;
+    z-index: $toolbar-z-index;
 
     .toolbar-items {
         position: absolute;
@@ -26,13 +55,19 @@
             contain: strict;
 
             &.active {
-                color: #85C4FF;
+                color: $primary-color-lighter;
             }
 
             &.disabled {
                 opacity: 0.4;
                 cursor: default;
                 color: #474747;
+            }
+
+            &.material-icons {
+                padding: 10px 12px;
+                border-right: 1px solid #EBEBEB;
+                border-left: 1px solid #EBEBEB;
             }
         }
 
@@ -44,29 +79,28 @@
 
             .toolbar-item-main-menu {
                 grid-area: main-menu;
-                padding: 10px 13px;
             }
 
             .toolbar-item-shuffle-mode {
                 grid-area: shuffle-mode;
-                padding: 10px 13px;
+                padding-left: 13px;
+                padding-right: 12px;
+                border-right: none;
             }
 
             .toolbar-item-repeat-mode {
                 grid-area: repeat-mode;
-                padding: 10px 13px;
             }
         }
 
         &.selection-toolbar {
-            display: grid;
+            display: none;
             grid-template-columns: 50px 70px 1fr 50px 50px;
             grid-template-rows: 1fr;
             grid-template-areas: "close selected-text selection-count select-all selection-menu";
 
             .toolbar-item-unselect-all {
                 grid-area: close;
-                padding: 10px 13px;
             }
 
             .toolbar-item-selected-text {
@@ -86,12 +120,13 @@
 
             .toolbar-item-select-all {
                 grid-area: select-all;
-                padding: 10px 13px;
+                padding-left: 13px;
+                padding-right: 12px;
+                border-right: none;
             }
 
             .toolbar-item-selection-menu {
                 grid-area: selection-menu;
-                padding: 10px 13px;
             }
         }
 
@@ -100,8 +135,8 @@
 
 .no-touch {
     .toolbar-items {
-        &:hover {
-            color: #85C4FF;
+        .toolbar-item.material-icons:hover {
+            color: $primary-color-lighter;
         }
     }
 }

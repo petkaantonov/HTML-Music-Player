@@ -1,4 +1,5 @@
 $primary-color: #B3DAFF;
+$primary-color-lighter: #85C4FF;
 $primary-color-darker: #6BC5E1;
 $secondary-color: #BE7306;
 $tertiary-color: #1C6E1C;
@@ -15,12 +16,12 @@ $unfocused-form-color: #aaa;
 $total-app-border: 4px;
 $subtle-radius: 4px;
 
-$large-screen-width: 768px;
+$large-screen-width: 640px;
 $small-screen-width: 568px;
 $medium-small-screen-width: 400px;
 $ultra-small-screen-width: 320px;
 
-$large-screen-height: 768px;
+$large-screen-height: 640px;
 $small-screen-height: 500px;
 $medium-small-screen-height: 400px;
 $ultra-small-screen-height: 320px;
@@ -69,6 +70,9 @@ $picture-height: $picture-width;
 $player-controls-vertical-space: $picture-height + $track-time-container-height;
 
 $toolbar-height: 45px;
+$toolbar-border-height: 3px;
+$toolbar-z-index: 940;
+
 $snackbar-vertical-space: 48px;
 
 
