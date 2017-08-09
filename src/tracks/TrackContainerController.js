@@ -141,7 +141,7 @@ export default class TrackContainerController extends EventEmitter {
             usesTrackViewIndex: opts.playedTrackOriginUsesTrackViewIndex
         });
         this._domNode = this.page.$(opts.target);
-        this._trackContainer = this.$().find(`.tracklist-transform-container`);
+        this._trackContainer = this.$().find(`.js-tracklist`);
         this._trackViews = [];
         this._singleTrackViewSelected = null;
         this._singleTrackMenu = this.env.hasTouch() ? this.createSingleTrackMenu() : null;
@@ -404,10 +404,10 @@ export default class TrackContainerController extends EventEmitter {
 
         if (this.supportsDragging()) {
             this._draggable.on(`dragStart`, () => {
-                this.$().find(`.tracklist-transform-container`).addClass(`tracks-dragging`);
+                this.$().find(`.js-tracklist`).addClass(`tracks-dragging`);
             });
             this._draggable.on(`dragEnd`, () => {
-                this.$().find(`.tracklist-transform-container`).removeClass(`tracks-dragging`);
+                this.$().find(`.js-tracklist`).removeClass(`tracks-dragging`);
             });
         }
     }

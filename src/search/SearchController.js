@@ -16,10 +16,7 @@ const MAX_SEARCH_HISTORY_ENTRIES = 100;
 const SEARCH_HISTORY_KEY = `search-history`;
 const SEARCH_QUERY_KEY = `search-query`;
 
-const noSearchResultsTemplate = `
-  <div class="status-info-text search-text-container">
-     <p>No tracks in your media library match the query <em class='search-query'></em>. Try online search.</p>
-</div>`;
+const noSearchResultsTemplate = `<p>No tracks in your media library match the query <em class='search-query'></em>. Try online search.</p>`;
 
 class SearchHistoryEntry {
     constructor(page, query) {
@@ -172,7 +169,7 @@ export default class SearchController extends TrackContainerController {
         this.$().find(`.search-next-tab-focus`).addEventListener(`focus`, this._searchNextTabFocused.bind(this));
 
 
-        this.$().find(`.search-empty`).setHtml(noSearchResultsTemplate);
+        this.$().find(`.js-search-empty`).setHtml(noSearchResultsTemplate);
         this._preferencesLoaded = this.loadPreferences();
 
     }
@@ -575,10 +572,10 @@ export default class SearchController extends TrackContainerController {
         if (normalized.length <= 1) {
             this.clear();
             this._playlist.invalidateNextPlaylistTrackFromOrigin(this.getPlayedTrackOrigin());
-            this.$().find(`.search-empty .search-text-container`).hide();
+            this.$().find(`.js-search-empty .search-text-container`).hide();
             return;
         } else {
-            this.$().find(`.search-empty .search-text-container`).show();
+            this.$().find(`.js-search-empty .search-text-container`).show();
         }
 
         if (this._session) {
@@ -624,13 +621,13 @@ export default class SearchController extends TrackContainerController {
     }
 
     listBecameEmpty() {
-        this.$().find(`.search-empty`).show();
-        this.$().find(`.tracklist-transform-container`).hide();
+        this.$().find(`.js-search-empty`).show();
+        this.$().find(`.js-tracklist`).hide();
     }
 
     listBecameNonEmpty() {
-        this.$().find(`.search-empty`).hide();
-        this.$().find(`.tracklist-transform-container`).show();
+        this.$().find(`.js-search-empty`).hide();
+        this.$().find(`.js-tracklist`).show();
     }
 
     /* eslint-disable class-methods-use-this */

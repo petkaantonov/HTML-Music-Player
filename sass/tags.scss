@@ -24,20 +24,6 @@ body {
     padding-top: $toolbar-vertical-space;
 }
 
-.tracklist-transform-container {
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    width: 100%;
-    height: 100%;
-    contain: content;
-    overflow-x: hidden;
-    overflow-y: scroll;
-    overflow-scrolling: touch;
-    will-change: transform;
-    box-sizing: border-box;
-}
-
 .app-container {
     font-size: 0;
     display: none;
@@ -65,7 +51,7 @@ body {
                 "."
                 "visualizer"
                 "."
-                "content-section"
+                "track-controls-section"
                 "."
                 "player-controls-section";
     }
@@ -76,7 +62,7 @@ body {
         grid-template-rows: 12px 1fr 16px $player-controls-vertical-space;
         grid-template-areas:
                 "."
-                "content-section"
+                "track-controls-section"
                 "."
                 "player-controls-section";
     }
@@ -88,11 +74,6 @@ body {
     @include large-screen {
         width: $large-screen-width;
     }
-}
-
-.visualizer-section-container,
-.content-section-container {
-    contain: content;
 }
 
 .link-text {
@@ -109,6 +90,10 @@ a.link-text {
     outline: none;
 }
 
+p {
+    margin: 0;
+}
+
 sup {
     font-size: 10px;
 }
@@ -116,6 +101,10 @@ sup {
 ul, ul li, ol, ol li {
     margin: 0;
     padding: 0;
+}
+
+datalist {
+    display: none;
 }
 
 input[type="radio"] {

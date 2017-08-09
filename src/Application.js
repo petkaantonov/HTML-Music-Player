@@ -307,7 +307,7 @@ export default class Application {
             metadataManager,
             playedTrackOriginContext
         }, d => new PlaylistController({
-            target: `.js-playlist-list-container`,
+            target: `.js-playlist-pane-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
 
@@ -374,7 +374,7 @@ export default class Application {
             menuContext,
             playedTrackOriginContext
         }, d => new SearchController({
-            target: `.js-search-list-container`,
+            target: `.js-search-pane-container`,
             itemHeight: ITEM_HEIGHT
         }, d));
 

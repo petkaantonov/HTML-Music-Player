@@ -34,10 +34,7 @@ const MAX_HISTORY = 25;
 
 const dummyTrack = {};
 
-const playlistEmptyTemplate = `<div class='status-info-header'>Playlist empty</div>
-  <div class="status-info-text">
-     <p>There <span class="media-library-size"></span> available in your media library.</p>
-</div>`;
+const playlistEmptyTemplate = `<p>Playlist empty. There <span class="media-library-size"></span> available in your media library.</p>`;
 
 class PlaylistTrack {
     constructor(track, trackView, origin, {
@@ -162,7 +159,7 @@ export default class PlaylistController extends TrackContainerController {
 
         this._pendingTrackRemovals = [];
 
-        this.$().find(`.playlist-empty`).setHtml(playlistEmptyTemplate);
+        this.$().find(`.js-playlist-empty`).setHtml(playlistEmptyTemplate);
         this._mediaLibrarySizeUpdated(this.metadataManager.getMediaLibrarySize());
         this._preferencesLoaded = this.loadPreferences();
 
@@ -240,13 +237,13 @@ export default class PlaylistController extends TrackContainerController {
     }
 
     listBecameNonEmpty() {
-        this.$().find(`.playlist-empty`).hide();
-        this.$().find(`.tracklist-transform-container`).show();
+        this.$().find(`.js-playlist-empty`).hide();
+        this.$().find(`.js-tracklist`).show();
     }
 
     listBecameEmpty() {
-        this.$().find(`.playlist-empty`).show();
-        this.$().find(`.tracklist-transform-container`).hide();
+        this.$().find(`.js-playlist-empty`).show();
+        this.$().find(`.js-tracklist`).hide();
     }
 
     playFirst() {
@@ -480,7 +477,7 @@ export default class PlaylistController extends TrackContainerController {
 
     _mediaLibrarySizeUpdated(count) {
         const text = count === 1 ? `is 1 track` : `are ${count} tracks`;
-        this.$().find(`.playlist-empty .media-library-size`).setText(text);
+        this.$().find(`.js-playlist-empty .media-library-size`).setText(text);
     }
 
     _removePendingTracks() {

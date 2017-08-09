@@ -53,7 +53,7 @@ export default class MainTabs {
         }, {
             id: QUEUE_TAB_ID,
             tab: opts.queueTab,
-            content: `.js-queue-list-container`
+            content: `.js-queue-pane-container`
         }], {
             indicator: opts.activeTabIndicator
         }, d));

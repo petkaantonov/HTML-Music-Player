@@ -147,7 +147,7 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
         <canvas id="visualizer" class="visualizer"></canvas>
     </section>
 
-    <section class="content-section-container">
+    <section class="track-controls-section">
         <div class="tab-button playlist-tab-button js-playlist-tab-button">
             <span class="icon material-icons playlist"></span>
             <span class="tab-button-text">Playlist</span>
@@ -165,44 +165,41 @@ function(){this.media=g});a.onloadcssdefined=h;h(function(){a.media!==g&&(a.medi
             <div class="active-tab-indicator js-active-tab-indicator"></div>
         </div>
 
-        <div class="content">
-            <section class="list-container js-playlist-list-container playlist-list-container">
-                <div class='playlist-empty status-info-container'></div>
-                <div class="tracklist-transform-container draggable"></div>
+        <div class="pane-content">
+            <section class="pane-container js-playlist-pane-container playlist-pane-container">
+                <div class='js-playlist-empty empty-list-explanation'></div>
+                <div class="js-tracklist tracklist draggable"></div>
             </section>
 
-            <section class="list-container js-search-list-container search-list-container">
-                <div class="search-panel-container">
+            <section class="pane-container js-search-pane-container search-pane-container">
+                <div class="search-input-container">
                     <datalist id="search-history-id" class="search-history"></datalist>
-                    <div class="search-input-container">
-                        <div class="search-input-icon">
-                            <label class="icon material-icons search" for="search-input-box-id"></label>
-                        </div>
-                        <input type="search"
-                            id="search-input-box-id"
-                            class="search-input-box textbox"
-                            list="search-history-id"
-                            incremental="incremental"
-                            inputmode="latin"
-                            autocapitalize="none"
-                            autocomplete="off"
-                            autocorrect="off"
-                            spellcheck="false"
-                            maxlength="64"
-                            mozactionhint="search"
-                            value="">
-                        <div class="search-next-tab-focus" tabindex="0"></div>
-                        <div class='search-empty status-info-container'></div>
-                    </div>
+                    <input type="search"
+                        id="search-input-box-id"
+                        class="search-input-box textbox"
+                        list="search-history-id"
+                        incremental="incremental"
+                        inputmode="latin"
+                        autocapitalize="none"
+                        autocomplete="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        maxlength="64"
+                        mozactionhint="search"
+                        value="">
+                    <div class="search-next-tab-focus" tabindex="0"></div>
                 </div>
-                <div class="tracklist-transform-container"></div>
+                <div class="search-results-container">
+                    <div class='js-search-empty empty-list-explanation'></div>
+                    <div class="js-tracklist tracklist"></div>
+                </div>
             </section>
 
-            <section class="list-container js-queue-list-container queue-list-container">
+            <section class="pane-container js-queue-pane-container queue-pane-container">
                 <div class="queue-panel-container">
                     Queue panel
                 </div>
-                <div class="tracklist-transform-container"></div>
+                <div class="js-tracklist tracklist"></div>
             </section>
         </div>
     </section>
