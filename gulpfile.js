@@ -216,9 +216,7 @@ function bundleServiceWorker() {
 function bundleSass() {
     mkdirp("dist/css");
     return pump([gulp.src("sass/**/*.scss"),
-                    sourcemaps.init({loadMaps: true}),
                     sass({outputStyle: "compressed", recursive: true}),
-                    sourcemaps.write("."),
                     gulp.dest("dist/css")]).then(function() {
             var criticalCss = fs.readFileSync("dist/css/critical.css", "utf8").replace(/\.\.\/(.+?)\//g, "dist/$1/");
             criticalCss = '<style type="text/css">' + criticalCss + '</style>';
