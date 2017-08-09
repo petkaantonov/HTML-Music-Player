@@ -93,10 +93,18 @@ $material-icon-reorder-height: 26px;
 
     .track-number {
         grid-area: track-number;
-        justify-self: start;
-        align-self: center;
+        text-align: left;
         will-change: contents;
-        contain: content;
+        line-height: $track-item-height;
+    }
+
+
+    .track-duration {
+        padding-left: 4px;
+        grid-area: track-duration;
+        text-align: center;
+        will-change: contents;
+        line-height: $track-item-height;
     }
 
     .track-title {
@@ -114,14 +122,6 @@ $material-icon-reorder-height: 26px;
         will-change: contents;
     }
 
-    .track-duration {
-        grid-area: track-duration;
-        padding-left: 4px;
-        align-self: center;
-        justify-self: center;
-        will-change: contents;
-        contain: content;
-    }
 
     .track-menu-button {
         grid-area: menu-button;
