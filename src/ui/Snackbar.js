@@ -1,6 +1,17 @@
 import EventEmitter from "events";
-import {delay, noop, noUndefinedGet} from "util";
+import {delay, noop, noUndefinedGet, animationPromisify} from "util";
 import {performance} from "platform/platform";
+import {DECELERATE_CUBIC} from "ui/animation/easing";
+
+
+const DURATION = 470;
+
+const animationOptions = {
+    duration: DURATION,
+    easing: DECELERATE_CUBIC,
+    noComposite: true,
+    fill: "both"
+};
 
 const NO_TAG = {};
 export const NO_OUTCOME = -1;
@@ -10,6 +21,13 @@ export const TIMED_OUT = 2;
 export const SNACKBAR_HEIGHT = 48;
 export const SNACKBAR_WILL_SHOW_EVENT = `snackbarWillShow`;
 export const SNACKBAR_DID_HIDE_EVENT = `snackbarDidHide`;
+
+const TEMPLATE = `
+    <div class="js-snackbar snackbar no-action">
+        <div class="snackbar-title single-line js-snackbar-title">hello</div>
+        <div class="snackbar-action js-snackbar-action"></div
+    </div>
+`;
 
 class SnackbarInstance extends EventEmitter {
     constructor(snackbar, message, opts) {
@@ -28,17 +46,12 @@ class SnackbarInstance extends EventEmitter {
         this._startedShowing = this._visible ? performance.now() : -1;
         this._initialShowing = performance.now();
         this._isHovering = false;
-
-        this._actionDom = null;
-        this._titleDom = null;
         this._domNode = null;
-
         this._visibilityChanged = this._visibilityChanged.bind(this);
         this._clicked = this._clicked.bind(this);
         this._timeoutChecker = this._timeoutChecker.bind(this);
         this._mouseEntered = this._mouseEntered.bind(this);
         this._mouseLeft = this._mouseLeft.bind(this);
-        this._resized = this._resized.bind(this);
     }
 
     show() {
@@ -48,40 +61,14 @@ class SnackbarInstance extends EventEmitter {
         this.$().addEventListener(`click`, this._clicked);
         this.$().addEventListener(`mouseenter`, this._mouseEntered);
         this.$().addEventListener(`mouseleave`, this._mouseLeft);
-        this._snackbar.globalEvents.on(`resize`, this._resized);
         this._snackbar.globalEvents.on(`visibilityChange`, this._visibilityChanged);
 
         snackbar.recognizerContext.createTapRecognizer(this._clicked).recognizeBubbledOn(this.$());
         this._checkerTimerId = this.page().setTimeout(this._timeoutChecker, this.visibilityTime);
-
-        if (this._snackbar.transitionInClass) {
-            this.$().addClass([this._snackbar.transitionInClass, `initial`]);
-            this.$().setStyle(`willChange`, `transform`);
-            this.$().appendTo(`body`);
-            this._resized();
-            this.$().detach();
-            this.$().appendTo(`body`);
-            this.$().forceReflow();
-            this._snackbar.beforeTransitionIn(this.$());
-            this.page().changeDom(() => {
-                this.$().removeClass(`initial`);
-                this.page().setTimeout(() => {
-                    this.$().setStyle(`willChange`, ``);
-                }, 500);
-            });
-        } else {
-            this.$().appendTo(`body`);
-            this._resized();
-        }
-    }
-
-    _resized() {
-        const box = this.$()[0].getBoundingClientRect();
-        const maxWidth = this.page().width();
-        this.$().setStyles({
-            left: `${Math.max(0, maxWidth - box.width) / 2}px`,
-            height: `${box.height}px`
-        });
+        this.$().animate([
+            {transform: "translateY(100%)"},
+            {transform: "translateY(0%)"}
+        ], animationOptions)
     }
 
     $() {
@@ -89,11 +76,11 @@ class SnackbarInstance extends EventEmitter {
     }
 
     $action() {
-        return this._actionDom;
+        return this.$().find(".js-snackbar-action");
     }
 
     $title() {
-        return this._titleDom;
+        return this.$().find(".js-snackbar-title");
     }
 
     _clearTimer() {
@@ -102,35 +89,20 @@ class SnackbarInstance extends EventEmitter {
     }
 
     _initDom(message, opts) {
-        let action = this.page().$();
-        if (opts.action) {
-            action = this.page().createElement(`div`, {class: this._snackbar.actionClass});
+        this._snackbar.$().setHtml(TEMPLATE);
+        this._domNode = this._snackbar.$().find(".js-snackbar");
 
-            const actionTextContainer = this.page().createElement(`div`, {
-                class: this._snackbar.textContainerClass
-            });
-            const actionText = this.page().createElement(`div`, {
-                class: this._snackbar.textClass
-            });
-
-            actionTextContainer.append(actionText);
-            actionText.setText(`${opts.action}`).appendTo(actionTextContainer);
-            action.append(actionTextContainer);
-
-            this._actionDom = action;
+        if (!opts.action) {
+            this.$action().remove();
+        } else {
+            this.$().removeClass("no-action");
+            this.$action().setText(`${opts.action}`);
         }
 
-        const title = this.page().createElement(`div`, {
-            class: this._snackbar.titleClass
-        }).setText(message);
-
-        this._titleDom = title;
-
-        const snackbar = this.page().createElement(`div`, {
-            class: this._snackbar.containerClass
-        }).append(title).append(action);
-
-        this._domNode = snackbar;
+        if (opts.multiLine) {
+            this.$title().removeClass(".single-line");
+        }
+        this.$title().setText(message);
     }
 
     finished() {
@@ -203,21 +175,10 @@ class SnackbarInstance extends EventEmitter {
         if (this._exiting) return;
         this._exiting = true;
         this._removeListeners();
-        if (this._snackbar.transitionOutClass) {
-            this.$().detach();
-            if (this._snackbar.transitionInClass) {
-                this.$().removeClass([this._snackbar.transitionInClass, `initial`]);
-            }
-            this.$().setStyle(`willChange`, `transform`);
-            this.$().addClass([this._snackbar.transitionOutClass, `initial`]);
-            this.$().appendTo(`body`);
-            this.$().forceReflow();
-            this._snackbar.beforeTransitionOut(this.$());
-            this.page().changeDom(() => {
-                this.$().removeClass(`initial`);
-            });
-        }
-
+        await animationPromisify(this.$().animate([
+            {transform: "translateY(0%)"},
+            {transform: "translateY(100%)"}
+        ], animationOptions));
         await delay(this.outcome !== ACTION_CLICKED ? this._snackbar.nextDelay : 0);
         this.emit(`hide`, this);
         this._destroy();
@@ -225,7 +186,6 @@ class SnackbarInstance extends EventEmitter {
 
     _removeListeners() {
         this.$().removeEventListener(`click`, this._clicked);
-        this._snackbar.globalEvents.removeListener(`resize`, this._resized);
         this._snackbar.globalEvents.removeListener(`visibilityChange`, this._visibilityChanged);
         this._clearTimer();
     }
@@ -248,15 +208,7 @@ export default class Snackbar extends EventEmitter {
         this.globalEvents = deps.globalEvents;
         this.recognizerContext = deps.recognizerContext;
 
-        this.containerClass = opts.containerClass;
-        this.actionClass = opts.actionClass;
-        this.titleClass = opts.titleClass;
-        this.textContainerClass = opts.textContainerClass;
-        this.textClass = opts.textClass;
-        this.transitionInClass = opts.transitionInClass;
-        this.transitionOutClass = opts.transitionOutClass;
-        this.beforeTransitionIn = opts.beforeTransitionIn || noop;
-        this.beforeTransitionOut = opts.beforeTransitionOut || noop;
+        this._domNode = this.page.$(opts.target);
         this.nextDelay = opts.nextDelay;
         this.visibilityTime = opts.visibilityTime;
         this.initialUndismissableWindow = opts.initialUndismissableWindow;
@@ -270,8 +222,13 @@ export default class Snackbar extends EventEmitter {
         this._next = this._next.bind(this);
     }
 
+    $() {
+        return this._domNode;
+    }
+
     _snackbarWillShow() {
         this.emit(SNACKBAR_WILL_SHOW_EVENT);
+        this.$().show("grid");
     }
 
     _next() {
@@ -283,6 +240,7 @@ export default class Snackbar extends EventEmitter {
                 this._currentInstance.show();
             } else {
                 this.emit(SNACKBAR_DID_HIDE_EVENT);
+                this.$().hide();
             }
         }, this.nextDelay);
     }
@@ -303,8 +261,6 @@ export default class Snackbar extends EventEmitter {
             this._currentInstance._hide();
         }
     }
-
-
 
     async show(message, opts) {
         const {tag} = opts;

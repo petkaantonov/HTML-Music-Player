@@ -1,117 +1,67 @@
 @import "variables";
 
 .snackbar-container {
-    @include large-screen {
-        max-width: $small-screen-width;
-        min-width: $snackbar-container-min-width;
-    }
-
-    @include small-screen {
-        max-width: $small-screen-width;
-        min-width: $snackbar-container-min-width;
-    }
-
-    @include ultra-small-screen {
-        max-width: 100%;
-        min-width: 100%;
-    }
-
-    @include medium-small-screen {
-        max-width: 100%;
-        min-width: 100%;
-    }
-}
-
-.snackbar-container .snackbar-title {
-    @include large-screen {
-        max-width: $small-screen-width - $snackbar-action-width - $snackbar-gutter;
-    }
-
-    @include small-screen {
-        max-width: $small-screen-width - $snackbar-action-width - $snackbar-gutter;
-    }
-
-    @include ultra-small-screen {
-        @include calc(width, "100% - #{$snackbar-action-width + $snackbar-gutter}");
-    }
-
-    @include medium-small-screen {
-        @include calc(width, "100% - #{$snackbar-action-width + $snackbar-gutter}");
-    }
-}
-
-
-.snackbar-container {
-    z-index: 100000;
     position: absolute;
-    bottom: 0;
-    left: 0;
-    @include translate3d(0, 0, 0);
-    margin: 0;
-    border-radius: 3px;
-    border-bottom-right-radius: 0px;
-    border-bottom-left-radius: 0px;
-    background-color: #323232;
-    padding: 0;
-    font-size: 0;
-}
+    width: 100%;
+    height: $snackbar-vertical-space;
+    left: 0px;
+    bottom: 0px;
+    display: none;
+    grid-template-rows: 1fr;
+    grid-template-columns: 100%;
+    grid-template-areas: "snackbar";
+    z-index: $snackbar-z-index;
+    font-size: $text-size-bigger;
+    contain: strict;
 
-.snackbar-container .snackbar-title {
-    display: inline-block;
-    vertical-align: top;
-    font-size: 15px;
-    color: #fcfcfc;
-    padding: 14px 0px 14px 24px;
-}
+    @include large-screen {
+        grid-template-columns: 1fr $small-screen-width 1fr;
+        grid-template-areas: ". snackbar .";
+    }
 
-.snackbar-container .snackbar-action {
-    min-width: 58px;
-    padding: 14px 24px 14px 48px;
-    overflow: hidden;
-    white-space: nowrap;
-    max-width: $snackbar-action-width;
-    display: inline-block;
-    height: 100%;
-    vertical-align: top;
-    font-size: 15px;
-    text-transform: uppercase;
-    color: #EED202;
-    cursor: pointer;
-    box-sizing: border-box;
-}
+    .snackbar {
+        grid-area: snackbar;
+        display: grid;
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr 140px;
+        grid-template-areas: "title action";
+        border-radius: 3px;
+        border-bottom-right-radius: 0px;
+        border-bottom-left-radius: 0px;
+        background-color: #323232;
 
-.snackbar-container .snackbar-action .text-container {
-    display: table;
-    height: 100%;
-}
 
-.snackbar-container .snackbar-action .text-container .text {
-    display: table-cell;
-    vertical-align: middle;
-}
+        &.no-action {
+            grid-template-areas: "title title";
+        }
 
-.snackbar-container.transition-in,
-.snackbar-container.transition-out {
-    @include transition-transform-filter-separate(0.33s cubic-bezier(.55, 0, .1, 1),
-                                                  0.47s cubic-bezier(0.4, 0, 0.2, 1));
-}
+        .snackbar-title {
+            grid-area: title;
 
-.snackbar-container.transition-in {
-    @include translate3d(0, 0, 0);
-    @include css-filter(opacity(100%));
-}
+            contain: strict;
+            overflow: hidden;
+            line-height: floor($snackbar-vertical-space / 2) - 4px;
+            color: #fcfcfc;
+            padding: 4px 6px;
+            word-wrap: break-word;
 
-.snackbar-container.transition-in.initial {
-    @include translate3d(0, 100%, 0);
-    @include css-filter(opacity(0%));
-}
+            &.single-line {
+                @include no-text-wrap();
+                line-height: $snackbar-vertical-space;
+                padding: 0px 6px;
+            }
+        }
 
-.snackbar-container.transition-out {
-    @include translate3d(0, 100%, 0);
-    @include css-filter(opacity(0%));
-}
+        .snackbar-action {
+            grid-area: action;
 
-.snackbar-container.transition-out.initial {
-    @include translate3d(0, 0, 0);
-    @include css-filter(opacity(100%));
+            @include no-text-wrap();
+            line-height: $snackbar-vertical-space;
+            text-transform: uppercase;
+            color: #EED202;
+            cursor: pointer;
+            text-align: center;
+            contain: strict;
+        }
+    }
 }

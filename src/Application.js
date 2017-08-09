@@ -106,18 +106,10 @@ export default class Application {
             recognizerContext,
             globalEvents
         }, d => new Snackbar({
-            transitionInClass: `transition-in`,
-            transitionOutClass: `transition-out`,
-            containerClass: `snackbar-container`,
-            actionClass: `snackbar-action`,
-            titleClass: `snackbar-title`,
-            textContainerClass: `text-container`,
-            textClass: `text`,
+            target: `.js-snackbar-container`,
             nextDelay: 400,
             visibilityTime: 4400,
             initialUndismissableWindow: 500,
-            beforeTransitionIn: null,
-            beforeTransitionOut: null,
             maxLength: 3
         }, d));
 
