@@ -53,20 +53,33 @@ body {
     }
 
     margin: 0px auto;
-
+    height: calc(100% - 12px);
     grid-template-columns: 100%;
-    grid-template-rows: 6px $visualizer-height 12px 1fr 16px $player-controls-vertical-space;
-    grid-template-areas:
-            "."
-            "visualizer"
-            "."
-            "content-section"
-            "."
-            "player-controls-section";
 }
 
-.app-container {
-    height: calc(100% - 12px);
+.no-touch {
+    .app-container {
+
+        grid-template-rows: 6px $visualizer-height 12px 1fr 16px $player-controls-vertical-space;
+        grid-template-areas:
+                "."
+                "visualizer"
+                "."
+                "content-section"
+                "."
+                "player-controls-section";
+    }
+}
+
+.has-touch {
+    .app-container {
+        grid-template-rows: 12px 1fr 16px $player-controls-vertical-space;
+        grid-template-areas:
+                "."
+                "content-section"
+                "."
+                "player-controls-section";
+    }
 }
 
 .app-container,

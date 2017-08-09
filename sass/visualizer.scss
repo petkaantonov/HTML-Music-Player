@@ -9,6 +9,19 @@
     border: 1px solid #F4F4F4;
 }
 
+.no-touch {
+    .visualizer-section-container {
+        display: block;
+    }
+}
+
+.has-touch {
+    .visualizer-section-container {
+        display: none;
+    }
+}
+
+
 .visualizer {
     height: 100%;
 }

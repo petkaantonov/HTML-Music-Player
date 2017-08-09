@@ -118,7 +118,7 @@ $big-button-width: min($lower-height, 54px);
 
     .volume-slider-container {
         grid-area: volume-slider;
-        contain: content;
+        contain: layout;
         padding: 0px 5px;
         .volume-slider {
             margin-top: floor(($lower-height - $slider-input-area-size) / 2);

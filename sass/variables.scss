@@ -238,9 +238,6 @@ $snackbar-vertical-space: 48px;
   transition: transform $transformt, filter $filtert;
 }
 
-// User select
-// For selecting text on the page
-
 @mixin user-select($select) {
   user-select: $select;
 }
