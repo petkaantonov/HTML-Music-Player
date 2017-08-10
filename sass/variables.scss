@@ -6,10 +6,12 @@ $tertiary-color: #1C6E1C;
 $error-color: #a94442;
 
 $text-color: #333;
+$text-color-slightly-lighter: #444;
 $text-color-lighter: #777;
 $text-size: 14px;
 $text-size-bigger: 16px;
 $text-size-biggest: 18px;
+$text-size-header-1: 20px;
 
 $unfocused-form-color: #aaa;
 
@@ -76,6 +78,7 @@ $toolbar-z-index: 940;
 $snackbar-vertical-space: 48px;
 $snackbar-z-index: 950;
 
+$popup-z-index: 960;
 
 @mixin css-filter($filter...) {
   filter: $filter;
@@ -270,3 +273,20 @@ $snackbar-z-index: 950;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
+@mixin material-icons() {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  font-smoothing: antialiased;
+}
+

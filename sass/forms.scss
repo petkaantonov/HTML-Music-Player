@@ -20,129 +20,201 @@
   }
 }
 
-.settings-container {
-  box-sizing: border-box;
-  font-size: 0;
-  div {
-      box-sizing: border-box;
+input[type=checkbox] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  @include material-icons();
+  color: $text-color;
+  display: block;
+  text-align: center;
+  font-size: 32px;
+  margin: 0;
+  padding: 0;
+
+  &:before {
+    content: "\e835";
   }
 
-  width: 100%;
-
-  .inline-label {
-    font-size: $text-size;
-    display: inline-block;
+  &:checked:before {
+    color: $primary-color-darker;
+    content: "\e834";
   }
+}
 
-  .section-container {
-      width: 100%;
-      padding: 5px 10px;
-  }
+$section-header-height: 60px;
+$section-text-height: 36px;
+$section-column-width: 86px;
 
-  .fixed-width-small-label {
-    width: 46px;
-    max-width: 46px;
-    display: inline-block;
-  }
+$equalizer-slider-vertical-space: 120px;
+$equalizer-slider-height: $equalizer-slider-vertical-space - $section-text-height;
 
-  .inline-separator {
-    display: inline-block;
-    margin: 0px 36px;
-    width: 1px;
-    height: 1px;
-  }
+@mixin two-item-section-grid() {
+    grid-template-rows: $section-header-height $section-text-height $section-text-height;
+    grid-template-columns: $section-column-width 1fr $section-column-width;
+    grid-auto-columns: $section-column-width 1fr;
+    grid-auto-rows: $section-text-height;
+    grid-template-areas:
+      "header header header"
+      "upper-left upper-middle upper-middle"
+      "lower-left lower-middle lower-right";
+}
 
-  .pull-right {
-    float: right;
-    display: inline-block;
-  }
+@mixin one-item-headerless-section-grid() {
+    grid-template-rows: 1fr;
+    grid-template-columns: $section-column-width 1fr;
+    grid-template-areas: "left middle";
+}
 
-  p {
-    font-size: $text-size;
-    margin: 0px;
-    &.inline {
-      display: inline-block;
+@mixin header-text() {
+    line-height: $section-header-height;
+    font-weight: bold;
+}
+
+.one-item-headerless-section {
+    display: grid;
+    @include one-item-headerless-section-grid();
+
+    .toggle-checkbox {
+      grid-area: left;
+      line-height: $section-text-height;
+      contain: strict;
     }
-  }
 
-  .inputs-container {
-    min-height: $slider-input-area-size;
-    margin: 12px 0px;
-    $label-width: 72px;
-    $line-height: $slider-input-area-size;
+    .toggle-checkbox-label {
+      grid-area: middle;
+      line-height: $section-text-height;
+      contain: strict;
+    }
+}
 
+.two-item-section {
+    display: grid;
+    @include two-item-section-grid();
 
-    .label, .checkbox-container, .slider, .slider-value-indicator {
-        font-size: $text-size;
-        display: inline-block;
-        vertical-align: top;
-        min-height: $slider-input-area-size;
-        line-height: $line-height;
+    .section-header {
+      grid-area: header;
+      @include header-text();
     }
 
-    .slider-value-indicator {
-      width: $label-width;
+    .toggle-checkbox {
+      grid-area: upper-left;
+      line-height: $section-text-height;
+      contain: strict;
+    }
+
+    .toggle-checkbox-label {
+      grid-area: upper-middle;
+      line-height: $section-text-height;
+      contain: strict;
+    }
+
+    .slider-label {
+      grid-area: lower-left;
+      line-height: $section-text-height;
       text-align: center;
+      contain: strict;
     }
 
-    .slider {
-        @include calc(width, "100% - #{$label-width * 2}");
-
-        &.unlabeled-slider {
-          @include calc(width, "100% - #{$label-width}");
-        }
+    .slider-input {
+      grid-area: lower-middle;
+      padding-top: 2px;
+      contain: layout;
     }
 
-    .label {
-        text-align: left;
-        width: $label-width;
+    .slider-value {
+      grid-area: lower-right;
+      text-align: center;
+      line-height: $section-text-height;
+      contain: strict;
+    }
+}
 
-        label {
-            font-weight: normal;
-        }
+.album-preference-container {
+    margin-top: 10px;
+}
 
-        &.subtitle {
-          font-weight: bold;
-        }
+.section-separator {
+    width: 100%;
+    height: 1px;
+    margin: 10px 0px;
+}
 
-        &.wide-label {
-            @include calc(width, "100% - #{$label-width}");
-            text-align: left;
-        }
+.equalizer-section {
+    display: grid;
+    grid-template-rows: $section-header-height ($equalizer-slider-vertical-space * 2) 15px $section-text-height;
+    grid-template-columns: $section-column-width 1fr;
+    grid-template-areas:
+      "header header"
+      "equalizer equalizer"
+      ". ."
+      "preset-label preset-input";
 
-        &.overhead-label {
-            display: block;
-            width: 100%;
-        }
+    .input-label {
+        grid-area: preset-label;
+        line-height: $section-text-height;
+        contain: strict;
     }
 
-    .checkbox-container {
-        width: $label-width;
-
-        .checkbox {
-            width: $slider-input-area-size - 12px;
-            height: $slider-input-area-size - 12px;
-            line-height: $slider-input-area-size - 12px;
-            margin: 6px;
-            padding: 0;
-            box-sizing: border-box;
-            display: block;
-        }
+    .input-control {
+        grid-area: preset-input;
+        line-height: $section-text-height;
+        width: 100%;
+        height:  $section-text-height;
+        box-sizing: border-box;
+        contain: strict;
     }
 
-    .select-container {
-        display: inline-block;
-        vertical-align: top;
-        @include calc(width, "100% - #{$label-width}");
-        height: $slider-input-area-size;
-        line-height: $line-height;
+    .section-header {
+        grid-area: header;
+        @include header-text();
+    }
 
-        select {
-            height: $slider-input-area-size;
-            line-height: $line-height;
-            width: 100%;
-            font-size: $text-size;
+    .equalizer {
+        $slider-width: 72px;
+
+        grid-area: equalizer;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-rows: $equalizer-slider-height $section-text-height $equalizer-slider-height $section-text-height;
+        grid-template-columns: 1fr $slider-width 1fr $slider-width 1fr $slider-width 1fr $slider-width 1fr $slider-width 1fr;
+        grid-template-areas:
+          ". slider-input-70 . slider-input-180 . slider-input-320 . slider-input-600 . slider-input-1000 ."
+          ". band-label-70 . band-label-180 . band-label-320 . band-label-600 . band-label-1000 ."
+          ". slider-input-3000 . slider-input-6000 . slider-input-12000 . slider-input-14000 . slider-input-16000 ."
+          ". band-label-3000 . band-label-6000 . band-label-12000 . band-label-14000 . band-label-16000 .";
+
+        .slider-input-70 { grid-area: slider-input-70; }
+        .slider-input-180 { grid-area: slider-input-180; }
+        .slider-input-320 { grid-area: slider-input-320; }
+        .slider-input-600 { grid-area: slider-input-600; }
+        .slider-input-1000 { grid-area: slider-input-1000; }
+        .slider-input-3000 { grid-area: slider-input-3000; }
+        .slider-input-6000 { grid-area: slider-input-6000; }
+        .slider-input-12000 { grid-area: slider-input-12000; }
+        .slider-input-14000 { grid-area: slider-input-14000; }
+        .slider-input-16000 { grid-area: slider-input-16000; }
+        .band-label-70 { grid-area: band-label-70; }
+        .band-label-180 { grid-area: band-label-180; }
+        .band-label-320 { grid-area: band-label-320; }
+        .band-label-600 { grid-area: band-label-600; }
+        .band-label-1000 { grid-area: band-label-1000; }
+        .band-label-3000 { grid-area: band-label-3000; }
+        .band-label-6000 { grid-area: band-label-6000; }
+        .band-label-12000 { grid-area: band-label-12000; }
+        .band-label-14000 { grid-area: band-label-14000; }
+        .band-label-16000 { grid-area: band-label-16000; }
+
+        .band-label {
+          text-align: center;
+          line-height: $section-text-height;
+          contain: strict;
+        }
+
+        .slider-input {
+          padding: 0px floor(($slider-width - $slider-input-area-size) / 2);
+          contain: layout;
         }
     }
-  }
 }

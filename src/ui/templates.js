@@ -37,15 +37,13 @@ export class SingleSelectableValue {
                 : Object.keys(valueTextMap).map(key => `<option value="${key}">${valueTextMap[key]}</option>`).join(`\n`);
 
 
-        const html = `<div class="inputs-container">
-            <div class="label">${label}</div>
-            <div class="select-container">
-                <select class="${selectClass}">
-                    ${values}
-                </select>
-            </div>
-        </div>`;
-        this.$().setHtml(html);
+        const html = `
+            <label class="input-label">${label}</label>
+            <select class="input-control ${selectClass}">
+                ${values}
+            </select>
+        `;
+        this.$().appendHtml(html);
 
         this._selectNode = this.$().find(`.${selectClass}`);
         this.$select().addEventListener(`change`, () => {
@@ -96,16 +94,12 @@ export class ToggleableValue {
         const checkboxId = `${checkboxLabelSlug}-label-id`;
         const labelClass = `${checkboxLabelSlug}-label`;
 
-        const html = `<div class='inputs-container'>
-            <div class='checkbox-container'>
-                <input type='checkbox' class='${checkboxClass} checkbox' id='${checkboxId}'>
-            </div>
-            <div class='${labelClass} label wide-label'>
-                <label for='${checkboxId}'>${checkboxLabel}</label>
-            </div>
-        </div>`;
+        const html = `
+            <input type='checkbox' class='${checkboxClass} toggle-checkbox checkbox' id='${checkboxId}'>
+            <label class="${labelClass} toggle-checkbox-label" for='${checkboxId}'>${checkboxLabel}</label>
+        `
 
-        this.$().setHtml(html);
+        this.$().appendHtml(html);
 
         this._checkboxNode = this.$().find(`.${checkboxClass}`);
         this.$checkbox().addEventListener(`change`, () => {
@@ -179,30 +173,24 @@ export class ToggleableSlideableValue {
         const sliderClass = `${checkboxLabelSlug}-slider`;
         const sliderValueClass = `${checkboxLabelSlug}-slider-value`;
 
-
-
         const html = `
-        <div class='inputs-container'>
-            <div class='checkbox-container'>
-                <input type='checkbox' class='${checkboxClass} checkbox' id='${checkboxId}'>
-            </div>
-            <div class='${labelClass} label wide-label'>
-                <label for='${checkboxId}'>${checkboxLabel}</label>
-            </div>
-        </div>
+            <input type='checkbox' class='${checkboxClass} toggle-checkbox checkbox' id='${checkboxId}'>
+            <label class="${labelClass} toggle-checkbox-label" for='${checkboxId}'>${checkboxLabel}</label>
+            <label class="slider-label">${sliderLabel}</label>
 
-        <div class='inputs-container'>
-            <div class='label'>${sliderLabel}</div>
-            <div class='${sliderClass} slider horizontal-slider'>
-                <div class='slider-knob'></div>
-                <div class='slider-background'>
-                    <div class='slider-fill'></div>
+            <div class="slider-input">
+                <div class='${sliderClass} slider horizontal-slider'>
+                    <div class='slider-knob'></div>
+                    <div class='slider-background'>
+                        <div class='slider-fill'></div>
+                    </div>
                 </div>
             </div>
-            <div class='${sliderValueClass} slider-value-indicator'></div>
-        </div>`;
 
-        this.$().setHtml(html);
+            <div class="slider-value ${sliderValueClass}"></div>
+        `;
+
+        this.$().appendHtml(html);
 
         this._checkboxNode = this.$().find(`.${checkboxClass}`);
         this._sliderValueNode = this.$().find(`.${sliderValueClass}`);

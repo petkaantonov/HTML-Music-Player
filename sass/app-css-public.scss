@@ -1,21 +1,25 @@
 @import "variables";
+@import "shadows";
+
 @import "fonts";
 @import "glyphicons";
 @import "icomoon";
+
 @import "gestures";
+@import "action-menu";
+
 @import "track-controls";
 @import "player-controls";
-@import "action-menu";
-@import "shadows";
+@import "tracks";
+
 @import "snackbar";
 @import "popup";
-@import "equalizer";
-@import "tracks";
+@import "forms";
+
 @import "visualizer";
 @import "slider";
-@import "forms";
 @import "ripple";
 @import "track-rating";
+
 @import "permission-prompt";
 @import "chips";
-@import "preferences";

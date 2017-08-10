@@ -2,6 +2,18 @@ import EventEmitter from "events";
 import {toFunction, noop, noUndefinedGet, _equals, _, _call} from "util";
 import {isTouchEvent, preventDefaultHandler} from "platform/dom/Page";
 
+const TEMPLATE = `
+    <section class="popup-header js-popup-header">
+        <header class="header-text js-header-text"></header>
+        <div class="header-border"></div>
+        <div class="close-button js-close-button glyphicon glyphicon-remove"></div>
+    </section>
+    <section class="popup-body js-popup-body"></section>
+    <section class="popup-footer js-popup-footer"></section>
+    <section class="last-focus-item js-last-focus-item" tabindex="0"></section>
+`;
+
+
 class PopupButton {
     constructor(popup, opts) {
         opts = noUndefinedGet(opts);
@@ -10,10 +22,7 @@ class PopupButton {
         this._action = opts.action;
         this._text = opts.text;
         this._enabled = true;
-        this._domNode = this.page().createElement(`div`).addClass(popup.popupButtonClass).
-                                setProperty(`tabIndex`, 0).
-                                setText(this._text);
-
+        this._domNode = this.page().createElement("div").addClass("popup-button").setProperty("tabindex", 0).setText(this._text);
         this._clicked = this._clicked.bind(this);
         this._tapRecognizer = this._popup.recognizerContext.createTapRecognizer(this._clicked);
 
@@ -34,22 +43,18 @@ class PopupButton {
         return this._domNode;
     }
 
-    setWidth(width) {
-        this.$().setStyle(`width`, `${width}px`);
-    }
-
     disable() {
         if (!this._enabled) return;
         this._enabled = false;
         this.$().blur().setProperty(`tabIndex`, -1);
-        this.$().addClass(this._popup.buttonDisabledClass);
+        this.$().addClass("disabled");
     }
 
     enable() {
         if (this._enabled) return;
         this._enabled = true;
         this.$().setProperty(`tabIndex`, 0);
-        this.$().removeClass(this._popup.buttonDisabledClass);
+        this.$().removeClass("disabled");
     }
 
     _clicked(e) {
@@ -76,18 +81,9 @@ export default class Popup extends EventEmitter {
         this.rippler = deps.rippler;
         this.beforeTransitionIn = opts.beforeTransitionIn || noop;
         this.beforeTransitionOut = opts.beforeTransitionOut || noop;
-        this.containerClass = opts.containerClass;
-        this.headerClass = opts.headerClass;
-        this.footerClass = opts.footerClass;
-        this.bodyClass = opts.bodyClass;
-        this.bodyContentClass = opts.bodyContentClass;
-        this.closerContainerClass = opts.closerContainerClass;
-        this.popupButtonClass = opts.popupButtonClass;
-        this.buttonDisabledClass = opts.buttonDisabledClass;
 
         this.body = toFunction(opts.body || ``);
         this.title = toFunction(opts.title || ``);
-        this.closer = toFunction(opts.closer || ``);
         this._x = -1;
         this._y = -1;
         this._rect = null;
@@ -114,8 +110,6 @@ export default class Popup extends EventEmitter {
         this.closerClicked = this.closerClicked.bind(this);
 
         this.closerTapRecognizer = this.recognizerContext.createTapRecognizer(this.closerClicked);
-        this.headerTouchedRecognizer = this.recognizerContext.createTouchdownRecognizer(this.headerMouseDowned);
-        this.popupDragRecognizer = this.recognizerContext.createDragRecognizer(this.mousemoved, this.draggingEnd);
 
         this.globalEvents.on(`resize`, this._reLayout);
 
@@ -128,8 +122,28 @@ export default class Popup extends EventEmitter {
         return this._popupDom;
     }
 
+    $body() {
+        return this.$().findOne(".js-popup-body");
+    }
+
+    $closer() {
+        return this.$().findOne(".js-close-button");
+    }
+
+    $headerText() {
+        return this.$().findOne(".js-header-text");
+    }
+
     $footer() {
-        return this.$().find(`.${this.footerClass}`);
+        return this.$().findOne(`.js-popup-footer`);
+    }
+
+    $header() {
+        return this.$().findOne(".js-popup-header");
+    }
+
+    $lastFocusItem() {
+        return this.$().findOne(".js-last-focus-item");
     }
 
     isMobile() {
@@ -163,49 +177,27 @@ export default class Popup extends EventEmitter {
 
     _initDom() {
         if (this._popupDom !== this.page.NULL()) {
-            this.$().show();
+            this.$().show("grid");
             return;
         }
 
-        const ret = this.page.createElement(`div`).
-           addClass(this.containerClass).
-           setStyle(`position`, `absolute`).
-           setProperty(`tabIndex`, -1).
-           appendTo(`body`);
+        this._popupDom = this.page.createElement(`div`).
+            addClass("popup-container").
+            setProperty(`tabIndex`, -1).
+            appendTo(`body`).setHtml(TEMPLATE);
 
-        const lastFocusItem = this.page.createElement(`div`).addClass(`last-focus-item`).setProperty(`tabIndex`, 0);
-        const headerText = this.page.createElement(`h2`).setText(`${this.title()}`);
-        const header = this.page.createElement(`div`).addClass(this.headerClass);
+        this.$headerText().setText(`${this.title()}`);
+        this.$body().setHtml(`${this.body()}`);
+        this._footerButtons.map(_.$).forEach(_call.appendTo(this.$footer()));
 
-        const body = this.page.createElement(`div`).addClass([this.bodyClass]);
-        const bodyContent = this.page.createElement(`div`).addClass(this.bodyContentClass).setHtml(`${this.body()}`);
-        const closer = this.page.createElement(`div`).addClass(this.closerContainerClass).setHtml(`${this.closer()}`);
-
-        headerText.appendTo(header);
-        closer.appendTo(header);
-        header.appendTo(ret);
-        bodyContent.appendTo(body);
-        body.appendTo(ret);
-
-        if (this._footerButtons.length > 0) {
-            const footer = this.page.createElement(`div`).addClass(this.footerClass);
-            this._footerButtons.map(_.$).forEach(_call.appendTo(footer));
-            footer.appendTo(ret);
-        } else {
-            ret.addClass(`no-footer`);
-        }
-        lastFocusItem.appendTo(ret);
-
-        closer.addEventListener(`click`, this.closerClicked);
-        header.addEventListener(`mousedown`, this.headerMouseDowned);
-        this.closerTapRecognizer.recognizeBubbledOn(closer);
-        this.headerTouchedRecognizer.recognizeBubbledOn(header);
+        this.$closer().addEventListener(`click`, this.closerClicked);
+        this.$header().addEventListener(`mousedown`, this.headerMouseDowned);
+        this.closerTapRecognizer.recognizeBubbledOn(this.$closer());
 
         this._contentScroller = this.scrollerContext.createContentScroller({
-            target: body,
-            contentContainer: bodyContent
+            target: this.$(),
+            contentContainer: this.$body()
         });
-        this._popupDom = ret;
     }
 
 
@@ -232,41 +224,29 @@ export default class Popup extends EventEmitter {
     _elementFocused(e) {
         if (this._shown) {
             const $target = this.page.$(e.target);
-            if ($target.closest(this.$()).length === 0 || $target.hasClass(`last-focus-item`)) {
+            if ($target.closest(this.$()).length === 0 ||
+                $target.is(this.$lastFocusItem())) {
                 e.stopPropagation();
                 this.$().focus();
             } else {
-                const body = this.$().find(`.popup-body`);
-                if ($target.closest(body).length !== 0) {
+                if ($target.closest(this.$body()).length !== 0) {
                     this._contentScroller.scrollIntoViewIfNotVisible(e.target);
                 }
             }
         }
     }
 
-    _updateFooterButtonWidths() {
-        if (this._footerButtons.length > 0) {
-            const footerWidth = this.$footer().innerWidth();
-            const buttonWidth = (footerWidth / this._footerButtons.length) | 0;
-            this._footerButtons.forEach(_call.setWidth(buttonWidth));
-        }
-    }
-
     _updateLayout() {
-        this._setMinimumNecessaryDimensions();
         this._updateRect();
         this.position();
-        this._updateFooterButtonWidths();
         this._contentScroller.resize();
     }
 
     _reLayout() {
         if (!this._shown) return;
-        this.page.changeDom(() => {
-            this._viewPort = this._getViewPort();
-            this._updateLayout();
-            this.emit(`layoutUpdate`);
-        });
+        this._viewPort = this._getViewPort();
+        this._updateLayout();
+        this.emit(`layoutUpdate`);
     }
 
     position() {
@@ -317,22 +297,6 @@ export default class Popup extends EventEmitter {
         }
     }
 
-    _setMinimumNecessaryDimensions() {
-        if (this.isMobile()) {
-            this.$().setStyles({
-                height: `${this._viewPort.height}px`,
-                width: `${this._viewPort.width}px`
-            });
-        } else {
-            const headerHeight = this.$().find(`.popup-header`).outerHeight();
-            const footerHeight = this.$().find(`.popup-footer`).outerHeight();
-            const contentHeight = this.$().find(`.popup-body-content`)[0].offsetHeight + 2;
-            const height = `${Math.min(this._viewPort.height, contentHeight + footerHeight + headerHeight)}px`;
-            const width = `auto`;
-            this.$().setStyles({width, height});
-        }
-    }
-
     _updateRect() {
         this._rect = this._popupDom[0].getBoundingClientRect();
     }
@@ -376,7 +340,7 @@ export default class Popup extends EventEmitter {
 
     headerMouseDowned(e) {
         if (this.isMobile() || !this._shown || this._dragging || (isTouchEvent(e) && e.isFirst === false)) return;
-        if (this.page.$(e.target).closest(`.${this.closerContainerClass}`).length > 0) return;
+        if (this.page.$(e.target).closest(this.$closer()).length > 0) return;
         this._dragging = true;
         this._anchorDistanceX = e.clientX - this._x;
         this._anchorDistanceY = e.clientY - this._y;
@@ -385,7 +349,6 @@ export default class Popup extends EventEmitter {
 
         this.page.addDocumentListener(`mouseup`, this.draggingEnd);
         this.page.addDocumentListener(`mousemove`, this.mousemoved);
-        this.popupDragRecognizer.recognizeCapturedOn(this.page.document());
 
         this.$().
             setStyles({left: `0px`, top: `0px`, willChange: `transform`}).
@@ -397,7 +360,6 @@ export default class Popup extends EventEmitter {
         this._dragging = false;
         this.page.removeDocumentListener(`mouseup`, this.draggingEnd);
         this.page.removeDocumentListener(`mousemove`, this.mousemoved);
-        this.popupDragRecognizer.unrecognizeCapturedOn(this.page.document());
 
         this.$().setStyles({left: `${this._x}px`, top: `${this._y}px`, willChange: ``}).
                 setTransform(`none`);

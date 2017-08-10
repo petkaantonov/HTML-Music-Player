@@ -11,27 +11,29 @@ import {equalizerPresets, formatFreq, STORAGE_KEY,
         MIN_BASS_BOOST_EFFECT_SIZE, MAX_BASS_BOOST_EFFECT_SIZE,
         CROSSFADE_MIN_DURATION, CROSSFADE_MAX_DURATION} from "preferences/EffectPreferences";
 import {_, _set} from "util";
-const ALL_SLIDERS_ON_SAME_ROW_THRESHOLD = 620;
 
-const equalizerBandGroups = [];
-const groupSize = 5;
-let cur = 0;
-while (cur < equalizerBands.length) {
-    const equalizerBandGroup = equalizerBands.slice(cur, cur + groupSize);
-    equalizerBandGroups.push(equalizerBandGroup);
-    cur += groupSize;
-}
+const TEMPLATE = `
+            <section class="js-noise-sharpening-container two-item-section">
+                <header class="section-header">Noise sharpening</header>
+            </section>
+            <div class="section-separator"></div>
 
-let sliderContainerHtml = `<div class='inputs-container'>
-    <div class='label wide-label subtitle'>Equalizer</div>
-</div>`;
+            <section class="js-bass-boost-container two-item-section">
+                <header class="section-header">Bass boost</header>
+            </section>
+            <div class="section-separator"></div>
 
-sliderContainerHtml += `<div class='equalizer-sliders-container row'>${
-    equalizerBandGroups.map(bands => `<div class='equalizer-band-group-container col-lg-6'>${
-                bands.map((band) => {
-                    const sliderId = `equalizer-band-${band[0]}-slider`;
-                    return `<div class='equalizer-band-configurator-container'>
-                            <div class='equalizer-slider-container'>
+            <section class="js-crossfade-container two-item-section">
+                <header class="section-header">Crossfading</header>
+            </section>
+            <section class="one-item-headerless-section js-album-preference-container album-preference-container"></section>
+            <div class="section-separator"></div>
+
+            <section class="js-equalizer-container equalizer-section">
+                 <header class="section-header">Equalizer</header>
+                 <div class="equalizer">${equalizerBands.map(band => {
+                        const sliderId = `equalizer-band-${band[0]}-slider`;
+                        return `<div class="slider-input slider-input-${band[0]}">
                                 <div class='${sliderId} slider equalizer-slider vertical-slider'>
                                     <div class='slider-knob'></div>
                                     <div class='slider-background'>
@@ -39,35 +41,8 @@ sliderContainerHtml += `<div class='equalizer-sliders-container row'>${
                                     </div>
                                 </div>
                             </div>
-                            <div class='equalizer-band-label-container'>
-                                <div class='notextflow band-frequency-label'>${formatFreq(band[0])}</div>
-                            </div>
-                        </div>`;
-                }).join(``)
-        }</div>`).join(``)}</div>`;
-
-
-const TEMPLATE = `<div class='settings-container equalizer-popup-content-container'>
-                <div class="inputs-container">
-                    <div class="label wide-label subtitle">Noise sharpening</div>
-                </div>
-                <div class='section-container noise-sharpening-container'></div>
-                <div class='section-separator'></div>
-                <div class="inputs-container">
-                    <div class="label wide-label subtitle">Bass boost</div>
-                </div>
-                <div class='section-container bass-boost-container'></div>
-                <div class='section-separator'></div>
-                <div class="inputs-container">
-                    <div class="label wide-label subtitle">Crossfading</div>
-                </div>
-                <div class="crossfade-container"></div>
-                <div class='section-container album-preference-container'></div>
-                <div class='section-separator'></div>
-                <div class='section-container'>${sliderContainerHtml}</div>
-                <div class='section-container preset-selector-container'></div>
-            </div>`;
-
+                            <div class="band-label-${band[0]} band-label">${formatFreq(band[0])}</div>`;}).join("")}</div>
+            </section>`;
 
 class EqualizerUiBinding {
     constructor(effectsManager) {
@@ -103,27 +78,14 @@ class EqualizerUiBinding {
             valueTextMap: equalizerPresetKeys,
             onValueChange: this.equalizerPresetChanged.bind(this)
         });
-        this._presetSelector.renderTo(this.$().find(`.preset-selector-container`));
+        this._presetSelector.renderTo(this.$().find(`.js-equalizer-container`));
     }
 
     $() {
         return this._effectsManager.$();
     }
 
-    $equalizerSlidersContainer() {
-        return this.$().find(`.equalizer-sliders-container`);
-    }
-
-    $equalizerSliderContainers() {
-        return this.$equalizerSlidersContainer().find(`.equalizer-band-configurator-container`);
-    }
-
     layoutUpdated() {
-        const widthAvailable = this.$equalizerSlidersContainer().innerWidth();
-        const slidersPerRow = widthAvailable >= ALL_SLIDERS_ON_SAME_ROW_THRESHOLD ? this._equalizerSliders.length
-                                                                                  : this._equalizerSliders.length / 2;
-        const sliderContainerWidth = (widthAvailable / slidersPerRow) | 0;
-        this.$equalizerSliderContainers().mapToArray(_.style).forEach(_set.width(`${sliderContainerWidth}px`));
         this._equalizerSliders.forEach(_.forceRelayout);
     }
 
@@ -161,7 +123,7 @@ class EffectManager extends AbstractUiBindingManager {
         this.
             addBinding(new EqualizerUiBinding(this)).
             addBinding(new ToggleableSlideableValuePreferenceUiBinding(
-                this.$().find(`.noise-sharpening-container`),
+                this.$().find(`.js-noise-sharpening-container`),
                 new ToggleableSlideableValue({
                     checkboxLabel: `Enable noise sharpening`,
                     sliderLabel: `Strength`,
@@ -174,7 +136,7 @@ class EffectManager extends AbstractUiBindingManager {
                 this
             )).
             addBinding(new ToggleableSlideableValuePreferenceUiBinding(
-                this.$().find(`.bass-boost-container`),
+                this.$().find(`.js-bass-boost-container`),
                 new ToggleableSlideableValue({
                     checkboxLabel: `Enable bass boost`,
                     sliderLabel: `Strength`,
@@ -186,14 +148,8 @@ class EffectManager extends AbstractUiBindingManager {
                 `bassBoostEnabled`,
                 this
             )).
-            addBinding(new ToggleableValuePreferenceUiBinding(
-                this.$().find(`.album-preference-container`),
-                new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
-                `shouldAlbumNotCrossfade`,
-                this
-            )).
             addBinding(new ToggleableSlideableValuePreferenceUiBinding(
-                this.$().find(`.crossfade-container`),
+                this.$().find(`.js-crossfade-container`),
                 new ToggleableSlideableValue({
                     checkboxLabel: `Enable crossfading`,
                     sliderLabel: `Duration`,
@@ -203,6 +159,12 @@ class EffectManager extends AbstractUiBindingManager {
                 }, {sliderContext}),
                 `crossfadeDuration`,
                 `crossfadeEnabled`,
+                this
+            )).
+            addBinding(new ToggleableValuePreferenceUiBinding(
+                this.$().find(`.js-album-preference-container`),
+                new ToggleableValue({checkboxLabel: `Don't crossfade between consecutive tracks of the same album`}),
+                `shouldAlbumNotCrossfade`,
                 this
             ));
         this.update();
@@ -220,7 +182,7 @@ export default class EffectPreferencesBindingContext extends AbstractPreferences
     }
 
     _createManager() {
-        return new EffectManager(`.equalizer-popup-content-container`, this);
+        return new EffectManager(this.popup().$body(), this);
     }
 
     getNoiseSharpeningEffectSize() {

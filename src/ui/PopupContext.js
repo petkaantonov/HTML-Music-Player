@@ -80,14 +80,6 @@ export default class PopupContext {
         this.rippler = deps.rippler;
 
         this.popupZIndex = opts.zIndex;
-        this.containerClass = opts.containerClass;
-        this.headerClass = opts.headerClass;
-        this.footerClass = opts.footerClass;
-        this.bodyClass = opts.bodyClass;
-        this.bodyContentClass = opts.bodyContentClass;
-        this.closerContainerClass = opts.closerContainerClass;
-        this.popupButtonClass = opts.popupButtonClass;
-        this.buttonDisabledClass = opts.buttonDisabledClass;
 
         this.shownPopups = [];
         this.popups = [];
@@ -203,23 +195,12 @@ export default class PopupContext {
     }
 
     makePopup(title, body, footerButtons) {
-        const {containerClass, headerClass, footerClass, bodyClass,
-                bodyContentClass, closerContainerClass, popupButtonClass, buttonDisabledClass,
-                page, env, globalEvents, recognizerContext, scrollerContext, rippler} = this;
+        const {page, env, globalEvents, recognizerContext, scrollerContext, rippler} = this;
         const popup = withDeps({env, page, globalEvents, recognizerContext, scrollerContext, rippler}, deps => new Popup({
-            containerClass,
-            headerClass,
-            footerClass,
-            bodyClass,
-            bodyContentClass,
-            closerContainerClass,
-            popupButtonClass,
-            buttonDisabledClass,
             zIndex: this.popupZIndex,
             footerButtons,
             title,
             body,
-            closer: `<span class="icon glyphicon glyphicon-remove"></span>`,
             beforeTransitionIn: this.getTransitionInHandler(),
             beforeTransitionOut: this.getTransitionOutHandler()
         }, deps));

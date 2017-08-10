@@ -1,28 +1,35 @@
 @import "variables";
 
-$header-height: 38px;
-$header-margin: 25px;
-$header-size: $header-height + $header-margin;
-$footer-height: 50px;
-$footer-margin: 10px;
-$footer-size: $footer-margin + $footer-height;
-$footer-header-size: $footer-size + $header-size;
-
 $popup-container-border: 2px;
+$popup-body-background-color: rgba(248,248,248,1);
+$popup-footer-height: 50px;
 
 .popup-container {
+    font-size: $text-size;
+    contain: strict;
     outline: none;
+    display: grid;
+    grid-template-rows: 64px 1fr 14px $popup-footer-height;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "popup-header"
+        "popup-body"
+        "."
+        "popup-footer";
+
+    position: absolute;
     box-sizing: border-box;
     border-radius: 4px;
-    background-color: #fcfcfc;
+    background-color: $popup-body-background-color;
     border: none;
     top: 0px;
     left: 0px;
-    z-index: 960;
+    z-index: $popup-z-index;
 
-    height: 100%;
-    max-width: 100%;
     max-height: 100%;
+    max-width: 100%;
+    height: 100%;
+    width: 100%;
 
     @include desktop {
         border: ($popup-container-border / 2) solid #F4F4F4;
@@ -39,43 +46,78 @@ $popup-container-border: 2px;
         height: 1px;
         outline: none;
     }
-}
 
-.popup-body {
-    margin: 0;
-    padding: 0 10px;
-    overflow: hidden;
-    box-sizing: border-box;
-    position: relative;
-    font-size: 15px;
-    contain: content;
-    overflow-x: hidden;
-    overflow-y: scroll;
-    overflow-scrolling: touch;
-    will-change: transform;
-}
+    .popup-header {
+        grid-area: popup-header;
+        position: relative;
+        background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, $popup-body-background-color 100%);
+        display: grid;
+        grid-template-rows: 1fr 3px 25px;
+        grid-template-columns: 1fr 38px;
+        grid-template-areas:
+            "header-text close-button"
+            "header-border header-border"
+            ". .";
 
-.popup-body {
+        .header-border {
+            grid-area: header-border;
+            height: 3px;
+            background: linear-gradient(to bottom, #E4E4E4 0%,#F4F4F4 100%);
+        }
 
-    @include calc(max-width, "100% - #{$popup-container-border}");
-    @include calc(max-height, "100% - #{$footer-header-size}");
-    @include calc(height, "100% - #{$footer-header-size}");
+        .header-text {
+            grid-area: header-text;
+            font-size: $text-size-header-1;
+            text-align: center;
+            color: $text-color-slightly-lighter;
+            padding-top: 4px;
+            contain: strict;
+        }
 
-    @include desktop {
-        max-height: $large-screen-height - $footer-header-size;
-        max-width: $large-screen-width - $popup-container-border;
-        height: auto;
+        .close-button {
+            grid-area: close-button;
+            padding: 10px 12px;
+            border-left: 1px solid #EBEBEB;
+            contain: strict;
+        }
     }
-}
 
-.popup-container.no-footer {
     .popup-body {
-        @include calc(max-height, "100% - #{$header-size}");
-        @include calc(height, "100% - #{$header-size}");
+        grid-area: popup-body;
 
-        @include desktop {
-            max-height: $large-screen-height - $header-size;
-            height: auto;
+        background-color: $popup-body-background-color;
+        overflow: hidden;
+        padding: 0 16px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+        contain: strict;
+    }
+
+
+    .popup-footer {
+        grid-area: popup-footer;
+
+        background: linear-gradient(to bottom, $popup-body-background-color 0%, rgba(255, 255, 255, 1) 100%);
+        display: grid;
+
+        grid-template-rows: 1fr;
+        grid-auto-flow: column;
+
+
+        .popup-button {
+            text-align: center;
+            line-height: $popup-footer-height;
+            text-transform: uppercase;
+            color: $secondary-color;
+            contain: strict;
+
+            &.disabled {
+                opacity: 0.3;
+            }
+
+            &:focus {
+                border-bottom: 3px solid $secondary-color;
+            }
         }
     }
 }
@@ -88,101 +130,16 @@ $popup-container-border: 2px;
     top: 0px;
     left: 0px;
     position: absolute;
-    z-index: 950;
+    z-index: $popup-z-index - 1;
     opacity: 0;
 }
 
-.popup-header {
-    font-size: 0;
-    position: relative;
-    background-color: #fff;
-    height: $header-height;
-    width: 100%;
-    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%,rgba(248,248,248,1) 100%);
-    text-align: center;
-    margin-bottom: $header-margin;
-}
-
-.popup-footer {
-    font-size: 0;
-    position: relative;
-    background-color: #fff;
-    height: $footer-height;
-    width: 100%;
-    margin-top: $footer-margin;
-    box-sizing: border-box;
-    background: rgb(252, 252, 252);
-
-    .popup-button {
-        $padding: 10px;
-        $margin: 22px;
-
-        outline: none;
-        box-sizing: border-box;
-        font-size: $text-size;
-        vertical-align: top;
-        display: inline-block;
-        height: $footer-height;
-        text-transform: uppercase;
-        line-height: $footer-height - $padding * 2;
-        padding: $padding $margin;
-        color: $secondary-color;
-        text-align: center;
-
-        &.popup-button-disabled {
-            opacity: 0.3;
-        }
-
-        &:focus {
-            border-bottom: 3px solid $secondary-color;
-        }
-    }
-}
-
-.popup-header::after {
-    content: " ";
-    width: 100%;
-    height: 3px;
-    position: absolute;
-    left: 0px;
-    bottom: -3px;
-    background: linear-gradient(to bottom, #E4E4E4 0%,#F4F4F4 100%);
-}
-
-.popup-header h2 {
-    display: inline-block;
-    font-weight: normal;
-    text-align: center;
-    margin: 5px 0px;
-    padding: 0;
-    font-size: 20px;
-    vertical-align: top;
-    color: #444;
-}
-
-.popup-closer-container {
-    height: 100%;
-    width: 36px;
-    position: absolute;
-    right: 0px;
-    top: 0px;
-    border-left: 1px solid #EBEBEB;
-}
-
-.popup-closer-container .icon {
-    text-align: center;
-    font-size: 15px;
-    line-height: 15px;
-    margin-top: 10px;
-    color: #6f6f6f;
-}
 
 .no-touch {
-    .popup-closer-container:hover .icon {
-        color: #8B0000;
-    }
-
-    .popup-closer-container:hover {
-        background: linear-gradient(to bottom, #F9F9F9 0%, #FBEEEE 100%);
+    .popup-header {
+        .close-button:hover {
+            background: linear-gradient(to bottom, #F9F9F9 0%, #FBEEEE 100%);
+            color: #8B0000;
+        }
     }
 }

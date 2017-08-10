@@ -490,6 +490,13 @@ export class DomWrapper {
         return this;
     }
 
+    appendHtml(html) {
+        for (let i = 0; i < this._length; ++i) {
+            this[i].insertAdjacentHTML("beforeend", html);
+        }
+        return this;
+    }
+
     append(val) {
         const frag = new DomWrapper(val, null, this._page)._toFragment();
 
