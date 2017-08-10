@@ -512,28 +512,6 @@ export default class Application {
         this.player.on(PLAYBACK_STOP_EVENT, this.playerStopped.bind(this));
         this.serviceWorkerManager.on(UPDATE_AVAILABLE_EVENT, this._updateAvailable.bind(this));
 
-        this.page.changeDom(() => {
-            page.$(`#app-loader`).remove();
-            this.page.setTimeout(() => {
-                mainTabs.tabController.activateTabById(this.dbValues[VISIBLE_TAB_PREFERENCE_KEY]);
-                this.visualizerCanvas.initialize();
-                this.globalEvents._triggerSizeChange();
-                const preferenceLoadStart = performance.now();
-                console.log(`bootstrap time:`, preferenceLoadStart - bootstrapStart, `ms`);
-                this.page.changeDom(async () => {
-                    this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
-                    await Promise.all([
-                        this.player.preferencesLoaded(),
-                        this.playlist.preferencesLoaded(),
-                        this.search.preferencesLoaded()
-                    ]);
-                    this.page.$(`.js-app-container`).removeClass(`initial`);
-                    this.globalEvents._triggerSizeChange();
-                    console.log(`preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
-                });
-            }, 10);
-        });
-
         this.tickLongTimers = this.tickLongTimers.bind(this);
         this.tickLongTimers();
 
@@ -545,6 +523,24 @@ export default class Application {
         this.metadataManager.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
         this.search.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
         db.on(DATABASE_CLOSED_EVENT, this._databaseClosed);
+
+        (async () => {
+            this.page.$(`#app-loader`).remove();
+            this.mainTabs.tabController.activateTabById(this.dbValues[VISIBLE_TAB_PREFERENCE_KEY]);
+            this.visualizerCanvas.initialize();
+            this.globalEvents._triggerSizeChange();
+
+            const preferenceLoadStart = performance.now();
+            console.log(`bootstrap time:`, preferenceLoadStart - bootstrapStart, `ms`);
+            await Promise.all([
+                this.player.preferencesLoaded(),
+                this.playlist.preferencesLoaded(),
+                this.search.preferencesLoaded()
+            ]);
+            this.page.clearTimeout(loadingIndicatorShowerTimeoutId);
+            this.page.$(`.js-app-container`).removeClass(`initial`);
+            console.log(`preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
+        })();
     }
 
     tickLongTimers() {

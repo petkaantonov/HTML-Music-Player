@@ -146,10 +146,12 @@ export default class MainTabs {
                     this.playlistContextMenu.hide(true);
                     this.searchContextMenu.hide(true);
                     this.selectionStatus.setSelectionCount(0, 0, false);
-                } else if (methodName === `tabDidShow`) {
-                    this._persistActiveTabId();
                 }
                 this.page.warn(`no tab id ${tabId}`);
+            }
+
+            if (methodName === "tabDidShow") {
+                this._persistActiveTabId();
             }
         }.bind(this);
     }
