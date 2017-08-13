@@ -176,8 +176,8 @@ export class ToggleableSlideableValue {
         const html = `
             <input type='checkbox' class='${checkboxClass} toggle-checkbox checkbox' id='${checkboxId}'>
             <label class="${labelClass} toggle-checkbox-label" for='${checkboxId}'>${checkboxLabel}</label>
-            <label class="slider-label">${sliderLabel}</label>
 
+            <label class="slider-label">${sliderLabel}</label>
             <div class="slider-input">
                 <div class='${sliderClass} slider horizontal-slider'>
                     <div class='slider-knob'></div>
@@ -286,21 +286,23 @@ export class SlideableValue {
         const sliderClass = `${labelSlug}-slider`;
         const sliderValueClass = `${labelSlug}-slider-value`;
 
-        const html = `
 
-        <div class='inputs-container'>
-            <div class='label'>${sliderLabel}</div>
-            <div class='${sliderClass} slider horizontal-slider'>
-                <div class='slider-knob'></div>
-                <div class='slider-background'>
-                    <div class='slider-fill'></div>
+
+        const html = `
+            <label class="slider-label">${sliderLabel}</label>
+            <div class="slider-input">
+                <div class='${sliderClass} slider horizontal-slider'>
+                    <div class='slider-knob'></div>
+                    <div class='slider-background'>
+                        <div class='slider-fill'></div>
+                    </div>
                 </div>
             </div>
-            <div class='${sliderValueClass} slider-value-indicator'></div>
-        </div>`;
 
-        this.$().setHtml(html);
+            <div class="slider-value ${sliderValueClass}"></div>
+        `;
 
+        this.$().appendHtml(html);
 
         this._sliderValueNode = this.$().find(`.${sliderValueClass}`);
         this._sliderNode = this.$().find(`.${sliderClass}`);

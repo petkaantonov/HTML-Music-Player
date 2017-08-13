@@ -1,45 +1,45 @@
 @import "variables";
 
 .textbox {
-  border: none;
-  padding: 5px 0;
-  margin: 0;
-  background: none;
-  text-align: left;
-  outline: none;
-  display: inline-block;
-  box-sizing: border-box;
-  font-family: "Droid Sans";
-  border-bottom: 2px solid $unfocused-form-color;
-  color: $unfocused-form-color;
-
-  &:focus {
+    border: none;
+    padding: 5px 0;
+    margin: 0;
+    background: none;
+    text-align: left;
     outline: none;
-    color: #333;
-    border-color: $primary-color;
-  }
+    display: inline-block;
+    box-sizing: border-box;
+    font-family: "Droid Sans";
+    border-bottom: 2px solid $unfocused-form-color;
+    color: $unfocused-form-color;
+
+    &:focus {
+        outline: none;
+        color: #333;
+        border-color: $primary-color;
+    }
 }
 
 input[type=checkbox] {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  @include material-icons();
-  color: $text-color;
-  display: block;
-  text-align: center;
-  font-size: 32px;
-  margin: 0;
-  padding: 0;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    @include material-icons();
+    color: $text-color;
+    display: block;
+    text-align: center;
+    font-size: 32px;
+    margin: 0;
+    padding: 0;
 
-  &:before {
-    content: "\e835";
-  }
+    &:before {
+        content: "\e835";
+    }
 
-  &:checked:before {
-    color: $primary-color-darker;
-    content: "\e834";
-  }
+    &:checked:before {
+        color: $primary-color-darker;
+        content: "\e834";
+    }
 }
 
 $section-header-height: 60px;
@@ -49,85 +49,100 @@ $section-column-width: 86px;
 $equalizer-slider-vertical-space: 120px;
 $equalizer-slider-height: $equalizer-slider-vertical-space - $section-text-height;
 
-@mixin two-item-section-grid() {
-    grid-template-rows: $section-header-height $section-text-height $section-text-height;
-    grid-template-columns: $section-column-width 1fr $section-column-width;
-    grid-auto-columns: $section-column-width 1fr;
-    grid-auto-rows: $section-text-height;
-    grid-template-areas:
-      "header header header"
-      "upper-left upper-middle upper-middle"
-      "lower-left lower-middle lower-right";
-}
-
-@mixin one-item-headerless-section-grid() {
-    grid-template-rows: 1fr;
-    grid-template-columns: $section-column-width 1fr;
-    grid-template-areas: "left middle";
-}
-
-@mixin header-text() {
-    line-height: $section-header-height;
-    font-weight: bold;
-}
-
-.one-item-headerless-section {
-    display: grid;
-    @include one-item-headerless-section-grid();
-
-    .toggle-checkbox {
-      grid-area: left;
-      line-height: $section-text-height;
-      contain: strict;
-    }
-
-    .toggle-checkbox-label {
-      grid-area: middle;
-      line-height: $section-text-height;
-      contain: strict;
-    }
-}
-
-.two-item-section {
-    display: grid;
-    @include two-item-section-grid();
-
-    .section-header {
-      grid-area: header;
-      @include header-text();
-    }
-
-    .toggle-checkbox {
-      grid-area: upper-left;
-      line-height: $section-text-height;
-      contain: strict;
-    }
-
-    .toggle-checkbox-label {
-      grid-area: upper-middle;
-      line-height: $section-text-height;
-      contain: strict;
-    }
-
+@mixin section-slider($label-area, $slider-area, $value-area) {
     .slider-label {
-      grid-area: lower-left;
+      grid-area: $label-area;
       line-height: $section-text-height;
       text-align: center;
       contain: strict;
     }
 
     .slider-input {
-      grid-area: lower-middle;
+      grid-area: $slider-area;
       padding-top: 2px;
       contain: layout;
     }
 
     .slider-value {
-      grid-area: lower-right;
+      grid-area: $value-area;
       text-align: center;
       line-height: $section-text-height;
       contain: strict;
     }
+}
+
+@mixin section-checkbox($checkbox-area, $label-area) {
+    .toggle-checkbox {
+        grid-area: $checkbox-area;
+        line-height: $section-text-height;
+        contain: strict;
+    }
+
+    .toggle-checkbox-label {
+        grid-area: $label-area;
+        line-height: $section-text-height;
+        contain: strict;
+    }
+}
+
+@mixin section-header($area) {
+    .section-header {
+        grid-area: $area;
+    }
+}
+
+@mixin section-selectable($label-area, $input-area) {
+    .input-label {
+        grid-area: $label-area;
+        line-height: $section-text-height;
+        contain: strict;
+    }
+
+    .input-control {
+        grid-area: $input-area;
+        line-height: $section-text-height;
+        width: 100%;
+        height:  $section-text-height;
+        box-sizing: border-box;
+        contain: strict;
+    }
+}
+
+.one-item-section, .one-item-headerless-section {
+    display: grid;
+    grid-template-columns: $section-column-width 1fr $section-column-width;
+    @include section-slider(left, middle, right);
+    @include section-checkbox(left, middle / middle / right / right);
+}
+
+
+.one-item-headerless-section {
+    grid-template-rows: $section-text-height;
+    grid-template-areas: "left middle right";
+}
+
+.one-item-section {
+    grid-template-rows: $section-header-height $section-text-height;
+    grid-template-areas:
+        "header header header"
+        "left middle right";
+
+    @include section-header(header);
+}
+
+
+.two-item-section {
+    display: grid;
+    grid-template-rows: $section-header-height $section-text-height $section-text-height;
+    grid-template-columns: $section-column-width 1fr $section-column-width;
+    grid-template-areas:
+      "header header header"
+      "upper-left upper-middle upper-middle"
+      "lower-left lower-middle lower-right";
+
+    @include section-header(header);
+    @include section-checkbox(upper-left, upper-middle);
+    @include section-slider(lower-left, lower-middle, lower-right);
 }
 
 .album-preference-container {
@@ -140,6 +155,43 @@ $equalizer-slider-height: $equalizer-slider-vertical-space - $section-text-heigh
     margin: 10px 0px;
 }
 
+.section-header {
+    line-height: $section-header-height;
+    font-weight: bold;
+}
+
+.section-paragraph {
+    margin-top: 6px;
+}
+
+.decoding-latency {
+    display: grid;
+    grid-template-rows: $section-text-height;
+    grid-template-columns: 200px 1fr 72px 12px 40px 12px 72px;
+    grid-template-areas: "avg-label . avg-value . max-label . max-value";
+    line-height: $section-text-height;
+
+    .decoding-latency-label {
+        grid-area: avg-label;
+        contain: strict;
+    }
+
+    .decoding-latency-avg {
+        grid-area: avg-value;
+        contain: strict;
+    }
+
+    .decoding-latency-max-label {
+        grid-area: max-label;
+        contain: strict;
+    }
+
+    .decoding-latency-max {
+        grid-area: max-value;
+        contain: strict;
+    }
+}
+
 .equalizer-section {
     display: grid;
     grid-template-rows: $section-header-height ($equalizer-slider-vertical-space * 2) 15px $section-text-height;
@@ -150,25 +202,8 @@ $equalizer-slider-height: $equalizer-slider-vertical-space - $section-text-heigh
       ". ."
       "preset-label preset-input";
 
-    .input-label {
-        grid-area: preset-label;
-        line-height: $section-text-height;
-        contain: strict;
-    }
-
-    .input-control {
-        grid-area: preset-input;
-        line-height: $section-text-height;
-        width: 100%;
-        height:  $section-text-height;
-        box-sizing: border-box;
-        contain: strict;
-    }
-
-    .section-header {
-        grid-area: header;
-        @include header-text();
-    }
+    @include section-selectable(preset-label, preset-input);
+    @include section-header(header);
 
     .equalizer {
         $slider-width: 72px;

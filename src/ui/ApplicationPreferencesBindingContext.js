@@ -5,47 +5,42 @@ import {STORAGE_KEY, Preferences,
         minBufferLengthValue, maxBufferLengthValue} from "preferences/ApplicationPreferences";
 import AbstractPreferencesBindingContext from "ui/AbstractPreferencesBindingContext";
 
-const TEMPLATE = `<div class='settings-container preferences-popup-content-container'>
-    <div class="inputs-container">
-        <div class="label wide-label subtitle">Playback</div>
-    </div>
-    <div class='section-container show-album-art-container'></div>
-    <p>
-        Shows album art related to the currently playing track. Disabling may reduce network usage.
+const TEMPLATE = `
+
+    <header class="section-header">Playback</header>
+
+    <section class="js-show-album-art-container one-item-headerless-section"></section>
+    <p class="section-paragraph">Shows album art related to the currently playing track. Disabling may reduce network usage.</p>
+    <div class="section-separator"></div>
+
+    <section class="js-normalize-loudness-container one-item-headerless-section"></section>
+    <p class="section-paragraph">Audio volume is adjusted in real-time to match reference levels. Disabling may improve performance.</p>
+    <div class="section-separator"></div>
+
+    <section class="js-trim-silence-container one-item-headerless-section"></section>
+    <p class="section-paragraph">Silent parts of audio are fast-forwarded instead of played. Disabling may improve performance.</p>
+    <div class="section-separator"></div>
+
+
+    <header class="section-header">Buffering</header>
+    <p class="section-paragraph">
+        Increase this value if you are experiencing audio drop outs.
+        Bigger values mean longer reaction times to seeking, changing tracks and effect changes.
     </p>
-    <div class='section-container normalize-loudness-container'></div>
-    <p>
-        Audio volume is adjusted in real-time to match reference levels. Disabling may improve performance.
-    </p>
-    <div class='section-container trim-silence-container'></div>
-    <p>
-        Silent parts of audio are fast-forwarded instead of played. Disabling may improve performance.
-    </p>
-    <div class="inputs-container">
-        <div class="label wide-label subtitle">Buffering</div>
-    </div>
-        <p>
-            Increase this value if you are experiencing audio drop outs.
-            Bigger values mean longer reaction times to seeking, changing tracks and effect changes.
-        </p>
-    <div class='section-container buffer-length-container'></div>
-    <div class="clearfix">
-        <span class="inline-label">Current decoding latency</span>
-        <div class="inline-label pull-right">
-            <span class="decoding-latency-avg fixed-width-small-label">N/A</span>
-            <span class="inline-separator"> </span>
-            Max: <span class="decoding-latency-max fixed-width-small-label">N/A</span>
-        </div>
-    </div>
-    <div class='section-separator'></div>
-    <div class="inputs-container">
-        <div class="label wide-label subtitle">Network</div>
-    </div>
-    <div class='section-container offline-use-container'></div>
-    <p>
-        Automatically prepare any online streamed audio to be played offline later on. Disabling may reduce network usage.
-    </p>
-</div>`;
+    <section class="one-item-headerless-section js-buffer-length-container">
+    </section>
+    <section class="decoding-latency">
+        <label class="decoding-latency-label">Current decoding latency</label>
+        <span class="decoding-latency-avg js-decoding-latency-avg">N/A</span>
+        <label class="decoding-latency-max-label">Max:</label>
+        <span class="decoding-latency-max js-decoding-latency-max">N/A</span>
+    </section>
+
+    <div class="section-separator"></div>
+    <header class="section-header">Network</header>
+    <section class="js-offline-use-container one-item-headerless-section"></section>
+    <p class="section-paragraph">Automatically prepare any online streamed audio to be played offline later on. Disabling may reduce network usage.</p>
+`
 
 class PreferencesManager extends AbstractUiBindingManager {
     constructor(rootSelector, bindingContext) {
@@ -53,25 +48,25 @@ class PreferencesManager extends AbstractUiBindingManager {
 
         this.
         addBinding(new ToggleableValuePreferenceUiBinding(
-            this.$().find(`.show-album-art-container`),
+            this.$().find(`.js-show-album-art-container`),
             new ToggleableValue({checkboxLabel: `Show album art`}),
             `enableAlbumArt`,
             this
         )).
         addBinding(new ToggleableValuePreferenceUiBinding(
-            this.$().find(`.normalize-loudness-container`),
+            this.$().find(`.js-normalize-loudness-container`),
             new ToggleableValue({checkboxLabel: `Normalize loudness`}),
             `enableLoudnessNormalization`,
             this
         )).
         addBinding(new ToggleableValuePreferenceUiBinding(
-            this.$().find(`.trim-silence-container`),
+            this.$().find(`.js-trim-silence-container`),
             new ToggleableValue({checkboxLabel: `Skip silence`}),
             `enableSilenceTrimming`,
             this
         )).
         addBinding(new SlideableValuePreferenceUiBinding(
-            this.$().find(`.buffer-length-container`),
+            this.$().find(`.js-buffer-length-container`),
             new SlideableValue({
                 sliderLabel: `Duration`,
                 valueFormatter: value => `${value.toFixed(0)}ms`,
@@ -84,7 +79,7 @@ class PreferencesManager extends AbstractUiBindingManager {
             this
         )).
         addBinding(new ToggleableValuePreferenceUiBinding(
-            this.$().find(`.offline-use-container`),
+            this.$().find(`.js-offline-use-container`),
             new ToggleableValue({checkboxLabel: `Download tracks for offline use`}),
             `enableOffline`,
             this
@@ -93,8 +88,8 @@ class PreferencesManager extends AbstractUiBindingManager {
         bindingContext.on(`newDecodingLatencyValue`, () => {
             const avg = bindingContext.getDecodingLatencyAvg();
             const max = bindingContext.getDecodingLatencyMax();
-            this.$().find(`.decoding-latency-avg`).setText(`${avg.toFixed(0)}ms`);
-            this.$().find(`.decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
+            this.$().find(`.js-decoding-latency-avg`).setText(`${avg.toFixed(0)}ms`);
+            this.$().find(`.js-decoding-latency-max`).setText(`${max.toFixed(0)}ms`);
         });
     }
 }
