@@ -12,7 +12,7 @@ $tab-height: 32px;
 .track-controls-section {
     font-size: $text-size;
     @include shadow-2dp();
-    contain: content;
+    contain: strict;
     grid-area: track-controls-section;
     border-radius: $subtle-radius;
     overflow: hidden;
@@ -25,7 +25,7 @@ $tab-height: 32px;
         "pane-content pane-content pane-content";
 
     .tab-button {
-        contain: content;
+        contain: strict;
         text-align: center;
         font-size: 15px;
         color: $text-color;
@@ -61,7 +61,7 @@ $tab-height: 32px;
         background: linear-gradient(to bottom, rgba(228,228,228,1) 0%,rgba(244,244,244,1) 100%);
         grid-area: active-tab-indicator-container;
         position: relative;
-        contain: content;
+        contain: strict;
 
         .active-tab-indicator {
             background-color: $secondary-color;
@@ -70,6 +70,7 @@ $tab-height: 32px;
             height: 100%;
             position: absolute;
             z-index: 3;
+            contain: strict;
         }
     }
 
@@ -92,7 +93,7 @@ $tab-height: 32px;
             .tracklist {
                 width: 100%;
                 height: 100%;
-                contain: content;
+                contain: strict;
                 overflow-x: hidden;
                 overflow-y: scroll;
                 will-change: transform;

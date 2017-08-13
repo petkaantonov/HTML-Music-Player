@@ -61,7 +61,7 @@ $big-button-width: min($lower-height, 54px);
 
     .picture-container {
         grid-area: picture;
-        contain: content;
+        contain: strict;
         img {
             height: $picture-height;
             width: $picture-width;
@@ -71,7 +71,7 @@ $big-button-width: min($lower-height, 54px);
 
     .track-status-container {
         grid-area: track-status;
-        contain: content;
+        contain: strict;
         position: relative;
         overflow: hidden;
         border-top-right-radius: $subtle-radius;
@@ -112,7 +112,7 @@ $big-button-width: min($lower-height, 54px);
     }
 
     .mute-button-container {
-        contain: content;
+        contain: strict;
         grid-area: mute-button;
     }
 
@@ -127,9 +127,7 @@ $big-button-width: min($lower-height, 54px);
 
     .favorite-container {
         grid-area: favorite;
-        align-self: stretch;
-        justify-self: center;
-        contain: content;
+        contain: strict;
 
         .favorite-icon-container {
             width: $button-width;
@@ -157,12 +155,12 @@ $big-button-width: min($lower-height, 54px);
 
     .previous-button-container {
         grid-area: previous-button;
-        contain: content;
+        contain: strict;
     }
 
     .play-pause-button-container {
         grid-area: play-pause-button;
-        contain: content;
+        contain: strict;
 
         .play-pause-morph-icon-container {
             position: relative;
