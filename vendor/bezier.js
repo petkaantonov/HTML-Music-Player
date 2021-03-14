@@ -27,33 +27,34 @@
  * JavaScript port of Webkit implementation of CSS cubic-bezier(p1x.p1y,p2x,p2y) by http://mck.me
  * http://svn.webkit.org/repository/webkit/trunk/Source/WebCore/platform/graphics/UnitBezier.h
  */
-var unitBezier = (function() {'use strict';
-    const solveEpsilon = function(duration) {
-        return (1000 / 60 / duration) / 4;
+var unitBezier = (function () {
+    "use strict";
+    const solveEpsilon = function (duration) {
+        return 1000 / 60 / duration / 4;
     };
 
-    return function(p1x, p1y, p2x, p2y) {
+    return function (p1x, p1y, p2x, p2y) {
         const cx = 3.0 * p1x;
         const bx = 3.0 * (p2x - p1x) - cx;
-        const ax = 1.0 - cx -bx;
+        const ax = 1.0 - cx - bx;
         const cy = 3.0 * p1y;
         const by = 3.0 * (p2y - p1y) - cy;
         const ay = 1.0 - cy - by;
 
-        const sampleCurveX = function(t) {
+        const sampleCurveX = function (t) {
             // `ax t^3 + bx t^2 + cx t' expanded using Horner's rule.
             return ((ax * t + bx) * t + cx) * t;
         };
 
-        const sampleCurveY = function(t) {
+        const sampleCurveY = function (t) {
             return ((ay * t + by) * t + cy) * t;
         };
 
-        const sampleCurveDerivativeX = function(t) {
+        const sampleCurveDerivativeX = function (t) {
             return (3.0 * ax * t + 2.0 * bx) * t + cx;
         };
 
-        const solveCurveX = function(x, epsilon) {
+        const solveCurveX = function (x, epsilon) {
             var t0;
             var t1;
             var t2;
@@ -64,7 +65,7 @@ var unitBezier = (function() {'use strict';
             // First try a few iterations of Newton's method -- normally very fast.
             for (t2 = x, i = 0; i < 8; i++) {
                 x2 = sampleCurveX(t2) - x;
-                if (Math.abs (x2) < epsilon) {
+                if (Math.abs(x2) < epsilon) {
                     return t2;
                 }
                 d2 = sampleCurveDerivativeX(t2);
@@ -103,17 +104,17 @@ var unitBezier = (function() {'use strict';
             return t2;
         };
 
-        const solve = function(x, epsilon) {
+        const solve = function (x, epsilon) {
             return sampleCurveY(solveCurveX(x, epsilon));
         };
         return {
-            duration: function(x, duration) {
+            duration: function (x, duration) {
                 return solve(x, solveEpsilon(duration));
             },
 
-            motion: function(x, epsilon) {
+            motion: function (x, epsilon) {
                 return solve(x, epsilon);
-            }
+            },
         };
     };
 })();

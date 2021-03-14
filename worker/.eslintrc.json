@@ -1,0 +1,6 @@
+{
+    "env": { "worker": true, "es6": true },
+    "parserOptions": {
+        "project": "./worker/tsconfig.json"
+    }
+}

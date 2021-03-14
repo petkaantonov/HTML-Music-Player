@@ -1,0 +1,15 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+    
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+        "editor.formatOnSave": true,
+        "eslint.alwaysShowStatus": true,
+        "eslint.format.enable": true,
+        "eslint.validate": ["typescript", "javascript"]
+    }
+}
