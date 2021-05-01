@@ -1,0 +1,15 @@
+{
+    "name": "zipper-worker",
+    "license": "MIT",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "fp-ts": "*",
+        "io-ts": "*",
+        "shared": "workspace:*",
+        "vendor": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "15.0.1"
+    }
+}

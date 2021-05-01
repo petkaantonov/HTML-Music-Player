@@ -1,41 +1,27 @@
 {
     "compilerOptions": {
-        "baseUrl": "./src",
-        "rootDir": "./src",
-        "paths": {
-            "ua-parser-js": ["../node_modules/ua-parser-js/dist/ua-parser.min"],
-            "io-ts": ["../node_modules/io-ts/lib/index"],
-            "fp-ts": ["../node_modules/fp-ts/lib/index"],
-            "jdenticon": ["../node_modules/jdenticon/types/module"],
-            "base64-js": ["../node_modules/base64-js/index"],
-            "deep-equal": ["../node_modules/deep-equal/index"],
-            "eventsjs": ["../vendor/events"],
-            "bezier": ["../vendor/bezier"],
-            "keyboard": ["../vendor/keyboard"],
-        },
-        "lib": ["ESNext", "DOM"],
-        "target": "ESNext",
-        "strictNullChecks": true,
+
+        "target": "ES2020",
+        "lib": ["ES2020"],
+        "module": "CommonJS",
+        "allowSyntheticDefaultImports": true,
+        "alwaysStrict": true,
         "esModuleInterop": true,
-        "noImplicitAny": true,
-        "allowUnreachableCode": false,
-        "strict": true,
-        "strictBindCallApply": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "strictFunctionTypes": true,
-        "strictPropertyInitialization": true,
+        "forceConsistentCasingInFileNames": true,
         "noEmitOnError": true,
-        "noUncheckedIndexedAccess": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
-        "alwaysStrict": true,
-        "noFallthroughCasesInSwitch": true,
-        "composite": true,
-        "declaration": true,
-        "typeRoots": ["./node_modules/@types"]
+        "resolveJsonModule": true,
+        "sourceMap": true,
+        "strict": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+        "isolatedModules": true
     },
-    
-    "include": ["src/**/*.ts", "src/**/*.tsx", "vendor/**/*.js"],
-    "exclude": ["**/node_modules", "**/.*/"],
-}
+    "exclude": [
+        "./dist/**/*",
+    ]
+} 

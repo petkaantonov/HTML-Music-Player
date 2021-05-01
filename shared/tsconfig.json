@@ -1,0 +1,26 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+      "paths": {
+        "shared/*": [
+          "src/*"
+        ],
+        "vendor/*": [
+          "../vendor/src/*"
+        ],
+      },
+      "lib": [
+        "ESNext",
+        "WebWorker",
+        "DOM"
+      ],
+      "target": "ESNext",
+      "baseUrl": "./"
+    },
+    "include": [
+      "src",
+      "scripts",
+      "test",
+      "../vendor"
+    ]
+  }

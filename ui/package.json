@@ -1,0 +1,35 @@
+{
+    "name": "ui",
+    "license": "MIT",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "build": "node esbuild.js"
+    },
+    "dependencies": {
+        "@types/deep-equal": "*",
+        "@types/jdenticon": "*",
+        "@types/wicg-mediasession": "*",
+        "base64-js": "*",
+        "deep-equal": "*",
+        "jdenticon": "*",
+        "shared": "workspace:*",
+        "ua-parser-js": "*",
+        "vendor": "workspace:*"
+    },
+    "devDependencies": {
+        "@esbuild-plugins/tsconfig-paths": "*",
+        "@types/node": "15.0.1",
+        "@types/ua-parser-js": "*",
+        "@yarnpkg/esbuild-plugin-pnp": "*",
+        "esbuild": "*",
+        "esbuild-plugin-sass": "*",
+        "eslint": "*",
+        "fast-glob": "*",
+        "fp-ts": "*",
+        "io-ts": "*",
+        "prettier": "*",
+        "recursive-copy": "*",
+        "typescript": "*"
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "ui/*": [
+        "src/*"
+      ],
+      "vendor/*": [
+        "../vendor/src/*"
+      ],
+      "shared/*": [
+        "../shared/src/*"
+      ]
+    },
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "target": "ESNext",
+    "baseUrl": "./"
+  },
+  "include": [
+    "src",
+    "scripts",
+    "test",
+    "../vendor",
+    "../shared"
+  ]
+}

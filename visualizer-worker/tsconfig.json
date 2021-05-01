@@ -1,0 +1,29 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+      "paths": {
+        "visualizer-worker/*": [
+          "src/*"
+        ],
+        "vendor/*": [
+          "../vendor/src/*"
+        ],
+        "shared/*": [
+          "../shared/src/*"
+        ]
+      },
+      "lib": [
+        "ESNext",
+        "WebWorker"
+      ],
+      "target": "ESNext",
+      "baseUrl": "./"
+    },
+    "include": [
+      "src",
+      "scripts",
+      "test",
+      "../vendor",
+      "../shared"
+    ]
+  }

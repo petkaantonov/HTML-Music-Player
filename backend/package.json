@@ -1,0 +1,22 @@
+{
+    "name": "backend",
+    "license": "MIT",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "@swc-node/register": "*",
+        "@types/node": "*",
+        "express": "*",
+        "fp-ts": "*",
+        "io-ts": "*",
+        "morgan": "*",
+        "node-fetch": "^2.6.1",
+        "shared": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/express": "*",
+        "@types/morgan": "*",
+        "@types/node-fetch": "^2",
+        "typescript": "*"
+    }
+}

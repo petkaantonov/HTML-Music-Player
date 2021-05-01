@@ -1,13 +1,53 @@
 {
     // http://eslint.org/docs/rules/
     "root": true,
-    "plugins": ["@typescript-eslint", "prettier", "import", "simple-import-sort"],
-    "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+    "env": { "browser": true, "es6": true, "node": true },
+    "plugins": [ "prettier"],
+    "extends": ["eslint:recommended"],
     "ignorePatterns": ["node_modules/**", "*.d.ts"],
+    "overrides": [
+        {
+            "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+            "files": ["**/*.ts"],
+            "plugins": ["@typescript-eslint", "prettier", "import", "simple-import-sort"],
+            "parserOptions": {
+                "parser": "@typescript-eslint/parser",
+                "project": "./tsconfig.json",
+                "sourceType": "module"
+            },
+            "rules": {
+                "@typescript-eslint/ban-ts-comment": "off",
+                "@typescript-eslint/explicit-member-accessibility": [
+                "error",
+                {
+                    "accessibility": "no-public"
+                }
+                ],
+                "@typescript-eslint/naming-convention": [
+                "error",
+                {
+                    "selector": "interface",
+                    "format": ["PascalCase"]
+                }
+                ],
+                "@typescript-eslint/no-floating-promises": "error",
+                "@typescript-eslint/no-inferrable-types": "off",
+                "@typescript-eslint/parser": "off",
+                "@typescript-eslint/promise-function-async": "off",
+                "@typescript-eslint/explicit-module-boundary-types": 0,
+                "@typescript-eslint/no-invalid-this": 2,
+                "@typescript-eslint/no-non-null-assertion": 0,
+                "@typescript-eslint/no-redeclare": 0,
+                "@typescript-eslint/ban-types": 0,
+                "@typescript-eslint/no-explicit-any": 0,
+                "@typescript-eslint/no-unused-vars": 0,
+                "@typescript-eslint/no-empty-interface": 0
+            }
+        }
+    ],
     "parserOptions": {
-        "parser": "@typescript-eslint/parser",
-        "project": "./tsconfig.json",
-        "sourceType": "module"
+        "ecmaVersion": 2020,
+        "sourceType": "script"
     },
     "rules": {
         "eqeqeq": "error",
@@ -25,32 +65,6 @@
         "prettier/prettier": "error",
         "simple-import-sort/imports": ["warn"],
         "simple-import-sort/exports": ["warn"],
-        "sort-keys": "off",
-        "@typescript-eslint/ban-ts-comment": "off",
-        "@typescript-eslint/explicit-member-accessibility": [
-        "error",
-        {
-            "accessibility": "no-public"
-        }
-        ],
-        "@typescript-eslint/naming-convention": [
-        "error",
-        {
-            "selector": "interface",
-            "format": ["PascalCase"]
-        }
-        ],
-        "@typescript-eslint/no-floating-promises": "error",
-        "@typescript-eslint/no-inferrable-types": "off",
-        "@typescript-eslint/parser": "off",
-        "@typescript-eslint/promise-function-async": "off",
-        "@typescript-eslint/explicit-module-boundary-types": 0,
-        "@typescript-eslint/no-invalid-this": 2,
-        "@typescript-eslint/no-non-null-assertion": 0,
-        "@typescript-eslint/no-redeclare": 0,
-        "@typescript-eslint/ban-types": 0,
-        "@typescript-eslint/no-explicit-any": 0,
-        "@typescript-eslint/no-unused-vars": 0,
-        "@typescript-eslint/no-empty-interface": 0
+        "sort-keys": "off"
     }
 }

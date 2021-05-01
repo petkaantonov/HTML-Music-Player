@@ -1,0 +1,17 @@
+{
+    "name": "visualizer-worker",
+    "license": "MIT",
+    "version": "0.0.1",
+    "private": true,
+    "devDependencies": {
+        "@types/node": "15.0.1",
+        "eslint": "7.25.0",
+        "prettier": "2.2.1"
+    },
+    "dependencies": {
+        "fp-ts": "*",
+        "io-ts": "*",
+        "shared": "workspace:*",
+        "vendor": "workspace:*"
+    }
+}
