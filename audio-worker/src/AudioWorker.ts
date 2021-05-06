@@ -2,6 +2,16 @@ import TagDatabase from "shared/idb/TagDatabase";
 import Timers from "shared/platform/Timers";
 import { setIsDevelopment, setTimers } from "shared/util";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
+import ChannelMixer from "shared/worker/ChannelMixer";
+import Resampler from "shared/worker/Resampler";
+
+if (ChannelMixer) {
+    Math.random();
+}
+
+if (Resampler) {
+    Math.random();
+}
 
 import AudioPlayerBackend from "./AudioPlayerBackend";
 

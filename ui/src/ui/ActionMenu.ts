@@ -142,11 +142,11 @@ function positionInDimension(
     };
 }
 
-export class MenuItemClickEvent extends Event {
+export interface MenuItemClickEvent extends Event {}
+export class MenuItemClickEvent {
     defaultPrevented: boolean;
     ripplePrevented: boolean;
     constructor() {
-        super(`MenuItemClickEvent`);
         this.defaultPrevented = false;
         this.ripplePrevented = false;
     }

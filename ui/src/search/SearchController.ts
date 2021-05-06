@@ -144,6 +144,7 @@ class SearchFrontend extends WorkerFrontend<SearchWorkerResult> {
     receiveMessageFromBackend(r: SearchWorkerResult) {
         switch (r.type) {
             case "searchResults":
+                // eslint-disable-next-line no-case-declarations
                 const session = this.searchController.getSession();
                 if (session) {
                     session._messaged(r);

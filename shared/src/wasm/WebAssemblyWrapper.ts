@@ -380,7 +380,6 @@ export default class WebAssemblyWrapper {
                 }
 
                 const kind = requiredImportObj.env![name];
-
                 if (kind === "function") {
                     if (typeof value !== "function") {
                         throw new Error(
@@ -388,7 +387,7 @@ export default class WebAssemblyWrapper {
                         );
                     }
                 } else {
-                    throw new Error("unsupported import type");
+                    throw new Error("unsupported import type '" + name);
                 }
 
                 target[name] = value;
@@ -441,6 +440,11 @@ export default class WebAssemblyWrapper {
                     this._name
                 }'`
             );
+        }
+
+        for (const e of err) {
+            // eslint-disable-next-line no-console
+            console.error(e);
         }
 
         this._ready = this._init(this._module, this._opts, importsObj);

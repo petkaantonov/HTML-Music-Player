@@ -278,20 +278,22 @@ export function createFs(wasm: WebAssemblyWrapper) {
         fread(ptr: number, size: number, count: number, handle: number) {
             return withHandle(handle, fhandle => fhandle._fread(wasm, ptr, size, count));
         },
-        freopen(fileNamePtr: number, flagsStrPtr: number, handle: number) {
+        /*freopen(fileNamePtr: number, flagsStrPtr: number, handle: number) {
             return withHandle(handle, () => {
                 handles.delete(handle);
                 return fopen(fileNamePtr, flagsStrPtr, handle);
             });
-        },
+        },*/
         fwrite(ptr: number, size: number, count: number, handle: number) {
             return withHandle(handle, fhandle => fhandle._fwrite(wasm, ptr, size, count));
         },
+        /*
         remove(fileNamePtr: number) {
             const fileName = wasm.convertCharPToAsciiString(fileNamePtr);
             fs.delete(fileName);
             return 0;
         },
+        */
         js_fseek(handle: number, offset: number, whence: SeekOrigin) {
             return withHandle(handle, fhandle => fhandle._fseek(offset, whence));
         },
@@ -308,8 +310,10 @@ export function createFs(wasm: WebAssemblyWrapper) {
             }
             return -1;
         },
+        /*
         js_utime() {
             return 0;
         },
+        */
     };
 }

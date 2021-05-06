@@ -119,7 +119,7 @@ export default abstract class AbstractPreferencesBindingContext<
         void this._popup.open();
     };
 
-    popupOpened() {
+    popupOpened = () => {
         if (!this._uiBindingManager) {
             this._uiBindingManager = this._createManager();
             this._uiBindingManager.on(`update`, this.savePreferences.bind(this));
@@ -128,13 +128,13 @@ export default abstract class AbstractPreferencesBindingContext<
         }
         this._uiBindingManager.uiWillBecomeActive();
         this._uiBindingManager.setUnchangedPreferences();
-    }
+    };
 
-    layoutUpdated() {
+    layoutUpdated = () => {
         if (this._uiBindingManager) {
             this._uiBindingManager.layoutUpdated();
         }
-    }
+    };
 
     page() {
         return this._page;
