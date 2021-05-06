@@ -1,8 +1,7 @@
-import deepEqual from "deep-equal";
 import { Type } from "io-ts";
 import { ApplicationPreferences, EffectPreferences } from "shared/preferences";
 import { typedKeys } from "shared/types/helpers";
-import { titleCase } from "shared/util";
+import { deepEqual, titleCase } from "shared/util";
 
 export abstract class AbstractPreferenceManager<T extends ApplicationPreferences | EffectPreferences> {
     private __codec: Type<T>;
@@ -36,6 +35,6 @@ export abstract class AbstractPreferenceManager<T extends ApplicationPreferences
     }
 
     equals(vals: T | null): boolean {
-        return deepEqual(this.toJSON(), vals, { strict: true });
+        return deepEqual(this.toJSON(), vals);
     }
 }

@@ -1,5 +1,6 @@
 import { either, isLeft } from "fp-ts/lib/Either";
 import * as io from "io-ts";
+import reporter from "io-ts-reporters";
 
 type IfEquals<X, Y, A = X, B = never> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? A : B;
 
@@ -38,7 +39,8 @@ export type RemoveFirst<K extends any[]> = K extends [any, ...infer R] ? R : [];
 export function decode<T>(decoder: io.Decoder<any, T>, value: any): T {
     const result = decoder.decode(value);
     if (isLeft(result)) {
-        throw new TypeError("type error");
+        const formatted = reporter.report(result, { truncateLongTypes: false });
+        throw new Error(formatted.join("\n"));
     }
     return result.right;
 }

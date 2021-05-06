@@ -10,7 +10,7 @@
         ]
       },
       "lib": [
-        "ESNext",
+        "ESNext"
       ],
       "target": "ESNext",
       "baseUrl": "./"

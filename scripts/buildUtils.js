@@ -12,16 +12,19 @@ exports.gitRevisionSync = () => {
     return cp.execSync("git rev-parse HEAD", {encoding: "utf-8"}).trim()
 };
 
-exports.copyWithReplacements = async function({src, values, dst}) {
-    src = path.join(process.cwd(), src)
-    dst = path.join(process.cwd(), dst)
+exports.performReplacements = function (contents, values) {
     const rvar = /\$([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
-    const contents = (await fs.readFile(src, "utf-8")).replace(rvar, (_m, valName) => {
+    return contents.replace(rvar, (_m, valName) => {
         if (values[valName] === undefined) {
             throw new Error("$" + valName + " in " + src + " not defined")
         }
         return values[valName]
     });
+}
+exports.copyWithReplacements = async function({src, values, dst}) {
+    src = path.join(process.cwd(), src)
+    dst = path.join(process.cwd(), dst)
+    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values)
     await fs.writeFile(dst, contents, "utf-8")
 };
 

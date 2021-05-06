@@ -8,6 +8,10 @@ import { CancellationError, CancellationToken } from "shared/utils/CancellationT
 let isDevelopment: boolean = true;
 let timers: Timers | null = null;
 
+export const deepEqual = function (a: any, b: any) {
+    return JSON.stringify(a) === JSON.stringify(b);
+};
+
 export const setIsDevelopment = function (isIt: boolean) {
     isDevelopment = isIt;
 };
@@ -833,7 +837,7 @@ export function roundSampleTime(sample: number, sampleRate: number) {
 }
 
 export function toCorsUrl(url: string) {
-    return `${self.location.origin}/cors?url=${encodeURIComponent(url)}`;
+    return `/api/cors?url=${encodeURIComponent(url)}`;
 }
 
 export function ajaxGet<T>(

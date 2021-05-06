@@ -1,6 +1,6 @@
-import deepEqual from "deep-equal";
-import { Preferences } from "shared/src/preferences";
+import { Preferences } from "shared/preferences";
 import { EventEmitterInterface } from "shared/types/helpers";
+import { deepEqual } from "shared/util";
 import { DomWrapper, DomWrapperSelector } from "ui/platform/dom/Page";
 import { AbstractPreferenceManager } from "ui/preferences/PreferenceCreator";
 import { UiBinding } from "ui/preferences/uibinders";

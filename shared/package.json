@@ -6,6 +6,7 @@
     "dependencies": {
         "fp-ts": "*",
         "io-ts": "*",
+        "io-ts-reporters": "*",
         "shared": "workspace:*",
         "vendor": "workspace:*"
     },

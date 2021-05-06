@@ -1,18 +1,30 @@
 const pnpPlugin = require("@yarnpkg/esbuild-plugin-pnp");
 const tsConfigPathsPlugin = require("@esbuild-plugins/tsconfig-paths");
 const sassPlugin = require("esbuild-plugin-sass");
-const { gitRevisionSync, copyWithReplacements, vendorResolverPlugin } = require("../scripts/buildUtils");
+const {
+    gitRevisionSync,
+    copyWithReplacements,
+    vendorResolverPlugin,
+    performReplacements,
+} = require("../scripts/buildUtils");
 const esbuild = require("esbuild");
 const copy = require("recursive-copy");
 const fs = require("fs/promises");
 const path = require("path");
 const fg = require("fast-glob");
+const isWatch = !!process.argv.includes("--watch");
+const forceProduction = !!process.argv.includes("--production");
+const forceDevelopment = !!process.argv.includes("--development");
 
-const buildType = process.env.NODE_ENV || "production";
+const buildType = forceProduction
+    ? "production"
+    : forceDevelopment
+    ? "development"
+    : process.env.NODE_ENV || (isWatch ? "development" : "production");
 const isDevelopment = buildType === "development";
 const isProduction = buildType === "production";
 const revision = gitRevisionSync();
-const urlBase = "http://localhost";
+const urlBase = "http://localhost:8140";
 
 function resolveWebPath(assetPath) {
     const distPath = path.join(process.cwd(), "../dist");
@@ -89,6 +101,7 @@ function bundleJs(entry, outfile) {
         entryPoints: [entry],
         loader,
         bundle: true,
+        logLevel: "error",
         assetNames: "assets/[name]-[hash]",
         minify: true,
         sourcemap: isDevelopment,
@@ -100,6 +113,23 @@ function bundleJs(entry, outfile) {
     });
 }
 
+async function inlineJs(entry, replacements) {
+    let contents = await fs.readFile(entry, "utf-8");
+    if (replacements) {
+        contents = performReplacements(contents, replacements);
+    }
+    const result = await esbuild.transform(contents, {
+        target,
+        minify: true,
+    });
+    return `data:text/javascript;base64,${Buffer.from(result.code, "utf-8").toString("base64")}`;
+}
+
+async function inlineCss(entry) {
+    const contents = await fs.readFile(entry, "utf-8");
+    return `data:text/css;base64,${Buffer.from(contents, "utf-8").toString("base64")}`;
+}
+
 const criticalCssP = bundleSass("sass/critical.scss", outputAssets.criticalCss);
 const regularCssP = bundleSass("sass/app-css-public.scss", outputAssets.appCss);
 const uibuildP = bundleJs("src/bootstrap.ts", outputAssets.appJs);
@@ -109,6 +139,8 @@ const visualizerWorkerP = bundleJs("../visualizer-worker/src/VisualizerWorker.ts
 const zipperWorkerP = bundleJs("../zipper-worker/src/ZipperWorker.ts", outputAssets.zipperWorker);
 const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutput);
 const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3Codec);
+const uiLogP = inlineJs("src/uilog.js");
+const cssLoadJs = inlineJs("src/cssload.js", { APP_CSS_PATH: resolveWebPath(outputAssets.appCss) });
 
 (async () => {
     await uibuildP;
@@ -154,13 +186,15 @@ const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3C
             src: "src/index_base.html",
             dst: outputAssets.index,
             values: {
+                UI_LOG_JS: await uiLogP,
+                CSS_LOAD_JS: await cssLoadJs,
                 VERSION: revision,
                 IS_DEVELOPMENT: isDevelopment,
                 IMAGE_PATH: resolveWebPath("../dist/assets/images"),
                 MANIFEST_PATH: resolveWebPath("../dist/assets"),
                 APP_CSS_PATH: resolveWebPath(outputAssets.appCss),
                 APP_JS_PATH: resolveWebPath(outputAssets.appJs),
-                CRITICAL_CSS: await fs.readFile(outputAssets.criticalCss, "utf-8"),
+                CRITICAL_CSS: await inlineCss(outputAssets.criticalCss),
             },
         }),
         fs.writeFile(
@@ -169,4 +203,7 @@ const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3C
             "utf-8"
         ),
     ]);
+
+    // eslint-disable-next-line no-console
+    console.log("built ui", revision, buildType);
 })();

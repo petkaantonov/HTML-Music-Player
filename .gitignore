@@ -10,3 +10,5 @@ dist/**
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+backend/dist/**
+backend/dist

@@ -4,14 +4,14 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "build": "node esbuild.js"
+        "build": "node esbuild.js",
+        "build-dev": "node esbuild.js --development",
+        "watch": "node esbuild.js --watch"
     },
     "dependencies": {
-        "@types/deep-equal": "*",
         "@types/jdenticon": "*",
         "@types/wicg-mediasession": "*",
         "base64-js": "*",
-        "deep-equal": "*",
         "jdenticon": "*",
         "shared": "workspace:*",
         "ua-parser-js": "*",

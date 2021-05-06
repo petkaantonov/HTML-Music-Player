@@ -15,15 +15,18 @@
     "shared"
   ],
   "scripts": {
+    "dev": "./scripts/dev-env.sh",
     "compile-audio": "node -r @swc-node/register scripts/compile.ts native/main.c --name audio",
     "compile-zipper": "node -r @swc-node/register scripts/compile.ts native/zip.c --name zipper"
   },
   "devDependencies": {
     "@swc-node/register": "*",
+    "@types/concurrently": "^6",
     "@types/minimist": "1.2.1",
     "@types/node": "*",
     "@typescript-eslint/eslint-plugin": "*",
     "@typescript-eslint/parser": "*",
+    "concurrently": "^6.0.2",
     "eslint": "*",
     "eslint-plugin-import": "*",
     "eslint-plugin-prettier": "*",
@@ -35,7 +38,7 @@
     "typescript": "*"
   },
   "resolutions": {
-    "morgan": "1.10.0",
+    "io-ts-reporters": "*",
     "@types/express": "4.17.11",
     "express": "4.17.1",
     "@types/node": "15.0.1",
