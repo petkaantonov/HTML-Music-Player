@@ -429,10 +429,10 @@ export default class PlaylistController extends TrackContainerController<"playli
         return null;
     }
 
-    _mediaLibrarySizeUpdated(count: number) {
+    _mediaLibrarySizeUpdated = (count: number) => {
         const text = count === 1 ? `is 1 track` : `are ${count} tracks`;
         this.$().find(`.js-playlist-empty .media-library-size`).setText(text);
-    }
+    };
 
     _removePendingTracks() {
         const tracksToRemove = new Set<Track>(this._pendingTrackRemovals);

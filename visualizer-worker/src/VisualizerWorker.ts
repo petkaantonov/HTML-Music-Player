@@ -1,5 +1,4 @@
-import Timers from "shared/platform/Timers";
-import { setIsDevelopment, setTimers } from "shared/util";
+import { setIsDevelopment } from "shared/util";
 
 import AudioVisualizerBackend from "./AudioVisualizerBackend";
 
@@ -18,14 +17,14 @@ export const uiLog = function (...args: string[]) {
     });
 };
 
-self.addEventListener("error", uiLog as any);
+self.addEventListener("error", event => {
+    uiLog(event.error.stack ? event.error.stack : event.error.message);
+});
 self.addEventListener(`unhandledrejection`, event => {
     uiLog(event.reason.name, event.reason.message);
 });
 
 void (async () => {
-    const timers = new Timers();
-    setTimers(timers);
     setIsDevelopment(isDevelopment);
     new AudioVisualizerBackend().start();
 })();

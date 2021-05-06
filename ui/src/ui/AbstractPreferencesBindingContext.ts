@@ -205,16 +205,16 @@ export default abstract class AbstractPreferencesBindingContext<
         }
     }
 
-    async setPreferenceDeferred<Key extends keyof P>(key: Key, value: P[Key]) {
+    setPreferenceDeferred = async <Key extends keyof P>(key: Key, value: P[Key]) => {
         this.setPreference(key, value);
-    }
+    };
 
-    _shutdownSavePreferences(preferences: PreferenceArray) {
+    _shutdownSavePreferences = (preferences: PreferenceArray) => {
         preferences.push({
             key: this._preferenceCategoryKey,
             value: this.preferencesManager().toJSON(),
         });
-    }
+    };
 
     _persistPreferences() {
         void this._db.set(this._preferenceCategoryKey, this.preferencesManager().toJSON());

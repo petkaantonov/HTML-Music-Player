@@ -791,7 +791,7 @@ __metadata:
     io-ts-reporters: "*"
     node-fetch: 3.0.0-beta.9
     shared: "workspace:*"
-    source-map-support: ^0.5.19
+    source-map-support: "*"
     typescript: "*"
   languageName: unknown
   linkType: soft
@@ -2139,7 +2139,7 @@ fsevents@~2.3.1:
   languageName: node
   linkType: hard
 
-"io-ts-reporters@npm:*":
+"io-ts-reporters@npm:1.2.2":
   version: 1.2.2
   resolution: "io-ts-reporters@npm:1.2.2"
   peerDependencies:
@@ -3661,7 +3661,7 @@ fsevents@~2.3.1:
   languageName: node
   linkType: hard
 
-"source-map-support@npm:^0.5.19":
+"source-map-support@npm:0.5.19":
   version: 0.5.19
   resolution: "source-map-support@npm:0.5.19"
   dependencies:

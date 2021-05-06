@@ -377,7 +377,7 @@ export default abstract class TrackContainerController<T extends TrackOriginName
         this._keyboardShortcutContext = this.keyboardShortcuts.createContext();
 
         if (!this.length) {
-            this.listBecameEmpty();
+            setTimeout(() => this.listBecameEmpty());
         }
         this._preferencesLoaded = Promise.resolve();
         this._trackViewOptions = new TrackViewOptions(

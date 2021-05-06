@@ -19,12 +19,12 @@ type Deps = SelectDeps<"page">;
 export default class WorkerWrapper {
     _page: Page;
     _worker: Worker;
-    _frontendNamesToChannels: Map<string, ChannelPromise | string>;
+    _frontendNamesToChannels: Map<string, ChannelPromise | string | undefined>;
     _channelsToFrontends: Map<string, WorkerFrontend<any>>;
     constructor(src: string, deps: Deps) {
         this._page = deps.page;
         this._worker = new Worker(src);
-        this._frontendNamesToChannels = new Map<FrontendName, ChannelPromise | string>();
+        this._frontendNamesToChannels = new Map<FrontendName, ChannelPromise | string | undefined>();
         this._channelsToFrontends = new Map<string, WorkerFrontend<any>>();
         this._worker.addEventListener(`error`, (event: ErrorEvent) => {
             uiLog(event.message, event.filename, event.lineno + "", event.colno + "");
@@ -48,7 +48,7 @@ export default class WorkerWrapper {
                         const call = decode(ReadyCall, event.data);
                         const name = call.frontendName;
                         const promise = this._frontendNamesToChannels.get(name)!;
-                        if (typeof promise !== "string") {
+                        if (promise && typeof promise !== "string") {
                             promise.resolve(call.channel);
                         }
                         this._frontendNamesToChannels.set(name, call.channel);

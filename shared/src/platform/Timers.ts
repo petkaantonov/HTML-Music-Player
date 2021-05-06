@@ -18,7 +18,7 @@ export default class Timers {
     }
 
     _setTimeout(fn: AnyFunction, time: number) {
-        let id = -1;
+        let id: any = -1;
         let called = false;
         const callback = () => {
             if (called) {
@@ -28,7 +28,7 @@ export default class Timers {
             this.clearTimeout(id);
             fn();
         };
-        id = window.setTimeout(callback, time);
+        id = setTimeout(callback, time);
         const deadline = Date.now() + time;
         this._timers.set(id, { callback, deadline });
         this._earliestDeadline = Math.min(this._earliestDeadline, deadline);
@@ -39,22 +39,22 @@ export default class Timers {
         if (+time >= 100) {
             return this._setTimeout(fn, +time);
         } else {
-            return window.setTimeout(fn, time);
+            return setTimeout(fn, time);
         }
     }
 
     clearTimeout(id: number) {
         this._timers.delete(id);
-        return window.clearTimeout(id);
+        return clearTimeout(id);
     }
 
     setInterval(fn: AnyFunction, time: number) {
-        return window.setInterval(fn, time);
+        return setInterval(fn, time);
     }
 
     clearInterval(id: number) {
         this._timers.delete(id);
-        return window.clearInterval(id);
+        return clearInterval(id);
     }
 
     tick() {

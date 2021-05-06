@@ -21,7 +21,9 @@ const uiLog = function (...args: string[]) {
     });
 };
 
-self.addEventListener("error", uiLog as any);
+self.addEventListener("error", event => {
+    uiLog(event.error.stack ? event.error.stack : event.error.message);
+});
 self.addEventListener(`unhandledrejection`, event => {
     uiLog(event.reason.name, event.reason.message);
 });

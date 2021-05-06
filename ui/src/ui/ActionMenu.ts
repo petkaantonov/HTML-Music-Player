@@ -596,7 +596,7 @@ export class ActionMenuItem {
 }
 
 function isContent(spec: MenuItemSpec): spec is Content {
-    return `children` in spec;
+    return `content` in spec;
 }
 
 function createMenuItem<T extends ActionMenu>(root: T, spec: MenuItemSpec, level: number): ActionMenuItem {
