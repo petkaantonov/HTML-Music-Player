@@ -22,6 +22,7 @@
         "@types/node": "15.0.1",
         "@types/ua-parser-js": "*",
         "@yarnpkg/esbuild-plugin-pnp": "*",
+        "chokidar": "^3.5.1",
         "esbuild": "*",
         "esbuild-plugin-sass": "*",
         "eslint": "*",

@@ -1,45 +1,123 @@
-const fs = require("fs/promises")
-const path = require("path")
-const util = require('util');
-const cp = require("child_process")
+/* eslint-disable no-console */
+const fs = require("fs/promises");
+const path = require("path");
+const util = require("util");
+const cp = require("child_process");
+const chokidar = require("chokidar");
 const exec = util.promisify(cp.exec);
 
+exports.logResult = result => {
+    for (const error of result.errors) {
+        console.error(error.message);
+    }
+    for (const warning of result.warnings) {
+        if (warning.text !== "Unsupported source map comment") {
+            console.warn(warning.text, warning.location);
+        }
+    }
+};
+
+exports.watch = async (build, entry, onRebuild) => {
+    function getInputs(result) {
+        return Array.from(
+            new Set(
+                Object.keys(result.metafile.inputs)
+                    .filter(v => !v.startsWith("pnp:"))
+                    .concat(entry)
+            )
+        );
+    }
+
+    const now = Date.now();
+    const result = await build();
+    console.log("built", entry, Date.now() - now, "ms");
+    let awaitingBuildP = null;
+    let watchedPaths = getInputs(result);
+    const watcher = chokidar.watch(watchedPaths, {
+        persistent: true,
+        ignoreInitial: true,
+    });
+    watcher.on("all", async eventName => {
+        console.log("rebuilding", entry);
+        if (awaitingBuildP) {
+            await awaitingBuildP;
+        }
+        const now = Date.now();
+        awaitingBuildP = build();
+        const result = await awaitingBuildP;
+        console.log("rebuilt", entry, Date.now() - now, "ms");
+        if (!result.errors.length) {
+            const newWatchedPaths = getInputs(result);
+            const diff = exports.diffPaths(watchedPaths, newWatchedPaths);
+            if (diff.pathsToRemove.length) watcher.unwatch(diff.pathsToRemove);
+            if (diff.pathsToAdd.length) watcher.add(diff.pathsToAdd);
+            watchedPaths = newWatchedPaths;
+            if (onRebuild) {
+                onRebuild();
+            }
+        }
+    });
+    if (!result.errors.length && onRebuild) {
+        onRebuild();
+    }
+};
+
+exports.diffPaths = (oldPaths, newPaths) => {
+    const pathsToRemove = [];
+    const pathsToAdd = [];
+
+    const oldPathsSet = new Set(oldPaths);
+    const newPathsSet = new Set(newPaths);
+
+    for (const oldPath of oldPaths) {
+        if (!newPathsSet.has(oldPath)) {
+            pathsToRemove.push(oldPath);
+        }
+    }
+    for (const newPath of newPaths) {
+        if (!oldPathsSet.has(newPath)) {
+            pathsToAdd.push(newPath);
+        }
+    }
+    return { pathsToRemove, pathsToAdd };
+};
+
 exports.gitRevision = () => {
-    return exec("git rev-parse HEAD").then(v => v.stdout.trim())
+    return exec("git rev-parse HEAD").then(v => v.stdout.trim());
 };
 
 exports.gitRevisionSync = () => {
-    return cp.execSync("git rev-parse HEAD", {encoding: "utf-8"}).trim()
+    return cp.execSync("git rev-parse HEAD", { encoding: "utf-8" }).trim();
 };
 
 exports.performReplacements = function (contents, values) {
     const rvar = /\$([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
     return contents.replace(rvar, (_m, valName) => {
         if (values[valName] === undefined) {
-            throw new Error("$" + valName + " in " + src + " not defined")
+            throw new Error("$" + valName + " is not defined");
         }
-        return values[valName]
+        return values[valName];
     });
-}
-exports.copyWithReplacements = async function({src, values, dst}) {
-    src = path.join(process.cwd(), src)
-    dst = path.join(process.cwd(), dst)
-    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values)
-    await fs.writeFile(dst, contents, "utf-8")
+};
+exports.copyWithReplacements = async function ({ src, values, dst }) {
+    src = path.join(process.cwd(), src);
+    dst = path.join(process.cwd(), dst);
+    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values);
+    await fs.writeFile(dst, contents, "utf-8");
 };
 
-exports.vendorResolverPlugin = function() {
-    const expr = /vendor\/(.+)/
+exports.vendorResolverPlugin = function () {
+    const expr = /vendor\/(.+)/;
     return {
         name: "vendor-resolver-plugin",
-        setup: function({onResolve}) {
-            onResolve({filter: expr}, async (args) => {
-                const name = expr.exec(args.path)[1]
-                const fullPath = path.join(process.cwd(), "../vendor", "src", name + ".js")
+        setup: function ({ onResolve }) {
+            onResolve({ filter: expr }, async args => {
+                const name = expr.exec(args.path)[1];
+                const fullPath = path.join(process.cwd(), "../vendor", "src", name + ".js");
                 return {
-                    path: fullPath
-                }
-            })
-        }
-    }
+                    path: fullPath,
+                };
+            });
+        },
+    };
 };

@@ -30,6 +30,7 @@ const bundleP = esbuild.build({
     define,
     outfile: "dist/index.js",
     plugins: [tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()],
+    watch: isWatch,
 });
 
 (async () => {

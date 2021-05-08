@@ -26,6 +26,7 @@
     "@types/node": "*",
     "@typescript-eslint/eslint-plugin": "*",
     "@typescript-eslint/parser": "*",
+    "chokidar": "^3.5.1",
     "concurrently": "^6.0.2",
     "eslint": "*",
     "eslint-plugin-import": "*",

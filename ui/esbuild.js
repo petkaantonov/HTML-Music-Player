@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const pnpPlugin = require("@yarnpkg/esbuild-plugin-pnp");
 const tsConfigPathsPlugin = require("@esbuild-plugins/tsconfig-paths");
 const sassPlugin = require("esbuild-plugin-sass");
@@ -6,6 +7,8 @@ const {
     copyWithReplacements,
     vendorResolverPlugin,
     performReplacements,
+    watch,
+    logResult,
 } = require("../scripts/buildUtils");
 const esbuild = require("esbuild");
 const copy = require("recursive-copy");
@@ -74,43 +77,68 @@ const define = {
     "process.env.REVISION": `"${revision}"`,
 };
 
-const imageAssetsP = fg(["images/**/*"]);
+function bundleSass(entry, outfile, onRebuild) {
+    async function build() {
+        const result = await esbuild.build({
+            target,
+            loader: {
+                ...loader,
+                ".png": "dataurl",
+                ".woff": "dataurl",
+                ".woff2": "dataurl",
+            },
+            entryPoints: [entry],
+            outfile,
+            plugins: [sassPlugin()],
+            minify: true,
+            bundle: true,
+            metafile: isWatch,
+            incremental: isWatch,
+        });
 
-function bundleSass(entry, outfile) {
-    return esbuild.build({
-        target,
-        loader: {
-            ...loader,
-            ".png": "dataurl",
-            ".woff": "dataurl",
-            ".woff2": "dataurl",
-        },
-        entryPoints: [entry],
-        outfile,
-        plugins: [sassPlugin()],
-        minify: true,
-        bundle: true,
-        metafile: false,
-    });
+        logResult(result);
+
+        return result;
+    }
+
+    if (isWatch) {
+        watch(build, entry, onRebuild);
+    } else {
+        return build();
+    }
 }
 
-function bundleJs(entry, outfile) {
+async function bundleJs(entry, outfile, onRebuild) {
     const plugins = [vendorResolverPlugin(), tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()];
-    return esbuild.build({
-        target,
-        entryPoints: [entry],
-        loader,
-        bundle: true,
-        logLevel: "error",
-        assetNames: "assets/[name]-[hash]",
-        minify: true,
-        sourcemap: isDevelopment,
-        metafile: false,
-        outfile,
-        plugins,
-        treeShaking: true,
-        define,
-    });
+
+    async function build() {
+        const result = await esbuild.build({
+            target,
+            entryPoints: [entry],
+            loader,
+            bundle: true,
+            logLevel: "silent",
+            assetNames: "assets/[name]-[hash]",
+            minify: true,
+            sourcemap: isDevelopment,
+            metafile: isWatch,
+            outfile,
+            plugins,
+            treeShaking: true,
+            define,
+            incremental: isWatch,
+        });
+
+        logResult(result);
+
+        return result;
+    }
+
+    if (isWatch) {
+        watch(build, entry, onRebuild);
+    } else {
+        return build();
+    }
 }
 
 async function inlineJs(entry, replacements) {
@@ -137,21 +165,75 @@ const generalWorkerP = bundleJs("../general-worker/src/GeneralWorker.ts", output
 const audioWorkerP = bundleJs("../audio-worker/src/AudioWorker.ts", outputAssets.audioWorker);
 const visualizerWorkerP = bundleJs("../visualizer-worker/src/VisualizerWorker.ts", outputAssets.visualizerWorker);
 const zipperWorkerP = bundleJs("../zipper-worker/src/ZipperWorker.ts", outputAssets.zipperWorker);
-const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutput);
+const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutput, async () => {
+    try {
+        fs.writeFile(
+            serviceWorkerOutput,
+            (await fs.readFile(serviceWorkerOutput, "utf-8")).replace(/^/, await getSwCode()),
+            "utf-8"
+        );
+    } catch (e) {
+        console.error(e.message);
+    }
+});
 const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3Codec);
-const uiLogP = inlineJs("src/uilog.js");
-const cssLoadJs = inlineJs("src/cssload.js", { APP_CSS_PATH: resolveWebPath(outputAssets.appCss) });
 
-(async () => {
-    await uibuildP;
-    await criticalCssP;
-    await regularCssP;
-    await swBuildP;
-    await generalWorkerP;
-    await audioWorkerP;
-    await visualizerWorkerP;
-    await zipperWorkerP;
-    await mp3CodecBuildP;
+if (!isWatch) {
+    const uiLogP = inlineJs("src/uilog.js");
+    const cssLoadJs = inlineJs("src/cssload.js", { APP_CSS_PATH: resolveWebPath(outputAssets.appCss) });
+
+    (async () => {
+        await uibuildP;
+        await criticalCssP;
+        await regularCssP;
+        await swBuildP;
+        await generalWorkerP;
+        await audioWorkerP;
+        await visualizerWorkerP;
+        await zipperWorkerP;
+        await mp3CodecBuildP;
+        await Promise.all([
+            copy("images", "../dist/assets/images", { overwrite: true }),
+            copy("wasm", "../dist/wasm", { overwrite: true }),
+            copyWithReplacements({
+                src: "sw/manifest.json",
+                dst: outputAssets.manifestJson,
+                values: {
+                    IMAGE_PATH: resolveWebPath("../dist/assets/images"),
+                },
+            }),
+            copyWithReplacements({
+                src: "sw/browserconfig.xml",
+                dst: outputAssets.browserConfig,
+                values: {
+                    IMAGE_PATH: resolveWebPath("../dist/assets/images"),
+                },
+            }),
+            copyWithReplacements({
+                src: "src/index_base.html",
+                dst: outputAssets.index,
+                values: {
+                    UI_LOG_JS: await uiLogP,
+                    CSS_LOAD_JS: await cssLoadJs,
+                    VERSION: revision,
+                    IS_DEVELOPMENT: isDevelopment,
+                    IMAGE_PATH: resolveWebPath("../dist/assets/images"),
+                    MANIFEST_PATH: resolveWebPath("../dist/assets"),
+                    APP_CSS_PATH: resolveWebPath(outputAssets.appCss),
+                    APP_JS_PATH: resolveWebPath(outputAssets.appJs),
+                    CRITICAL_CSS: await inlineCss(outputAssets.criticalCss),
+                },
+            }),
+        ]);
+
+        // eslint-disable-next-line no-console
+        console.log("built ui", revision, buildType);
+    })();
+}
+
+async function getSwCode() {
+    const revision = gitRevisionSync();
+    const imageAssetsP = fg(["images/**/*"]);
     const imageAssets = (await imageAssetsP).map(v => resolveWebPath("../dist/assets/images/" + path.basename(v)));
 
     const assets = Object.values(outputAssets)
@@ -165,45 +247,17 @@ const cssLoadJs = inlineJs("src/cssload.js", { APP_CSS_PATH: resolveWebPath(outp
         const revision = "${revision}";
     `;
 
-    await Promise.all([
-        copy("images", "../dist/assets/images", { overwrite: true }),
-        copy("wasm", "../dist/wasm", { overwrite: true }),
-        copyWithReplacements({
-            src: "sw/manifest.json",
-            dst: outputAssets.manifestJson,
-            values: {
-                IMAGE_PATH: resolveWebPath("../dist/assets/images"),
-            },
-        }),
-        copyWithReplacements({
-            src: "sw/browserconfig.xml",
-            dst: outputAssets.browserConfig,
-            values: {
-                IMAGE_PATH: resolveWebPath("../dist/assets/images"),
-            },
-        }),
-        copyWithReplacements({
-            src: "src/index_base.html",
-            dst: outputAssets.index,
-            values: {
-                UI_LOG_JS: await uiLogP,
-                CSS_LOAD_JS: await cssLoadJs,
-                VERSION: revision,
-                IS_DEVELOPMENT: isDevelopment,
-                IMAGE_PATH: resolveWebPath("../dist/assets/images"),
-                MANIFEST_PATH: resolveWebPath("../dist/assets"),
-                APP_CSS_PATH: resolveWebPath(outputAssets.appCss),
-                APP_JS_PATH: resolveWebPath(outputAssets.appJs),
-                CRITICAL_CSS: await inlineCss(outputAssets.criticalCss),
-            },
-        }),
+    return swCode;
+}
+
+/*, async result => {
+    try {
         fs.writeFile(
             serviceWorkerOutput,
-            (await fs.readFile(serviceWorkerOutput, "utf-8")).replace(/^/, swCode),
+            (await fs.readFile(serviceWorkerOutput, "utf-8")).replace(/^/, await getSwCode()),
             "utf-8"
-        ),
-    ]);
-
-    // eslint-disable-next-line no-console
-    console.log("built ui", revision, buildType);
-})();
+        );
+    } catch (e) {
+        console.error(e.message);
+    }
+});*/
