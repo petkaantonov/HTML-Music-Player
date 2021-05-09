@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-realpath() {
-    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+function abs_path {
+  (cd "$(dirname '$1')" &>/dev/null && printf "%s/%s" "$PWD" "${1##*/}")
 }
 
-SCRIPT_PATH=`realpath "$0"`
+SCRIPT_PATH=`abs_path "$0"`
 PROJECT_PATH=`dirname \`dirname "$SCRIPT_PATH"\``
 
 node "$PROJECT_PATH/ui/esbuild.js" --watch --workdir="$PROJECT_PATH/ui" &

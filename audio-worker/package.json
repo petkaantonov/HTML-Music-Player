@@ -3,6 +3,10 @@
     "license": "MIT",
     "version": "0.0.1",
     "private": true,
+    "scripts": {
+        "dev": "../scripts/dev-env.sh",
+        "watch": "../scripts/watch.sh"
+    },
     "dependencies": {
         "shared": "workspace:*",
         "vendor": "workspace:*"
