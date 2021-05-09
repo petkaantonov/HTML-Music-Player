@@ -12,3 +12,5 @@ dist/**
 !.yarn/versions
 backend/dist/**
 backend/dist
+*.code-workspace
+.vscode
