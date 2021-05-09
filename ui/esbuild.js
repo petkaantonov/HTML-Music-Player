@@ -1,4 +1,10 @@
 /* eslint-disable no-console */
+const forceWorkDir = [process.argv.find(v => v.startsWith("--workdir=/"))]
+    .filter(v => !!v)
+    .map(v => v.match(/--workdir=(.+)/)[1])[0];
+if (forceWorkDir) {
+    process.chdir(forceWorkDir);
+}
 const pnpPlugin = require("@yarnpkg/esbuild-plugin-pnp");
 const tsConfigPathsPlugin = require("@esbuild-plugins/tsconfig-paths");
 const sassPlugin = require("esbuild-plugin-sass");
@@ -16,6 +22,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const fg = require("fast-glob");
 const isWatch = !!process.argv.includes("--watch");
+
 const forceProduction = !!process.argv.includes("--production");
 const forceDevelopment = !!process.argv.includes("--development");
 

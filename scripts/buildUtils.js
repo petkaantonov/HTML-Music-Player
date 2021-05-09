@@ -28,9 +28,10 @@ exports.watch = async (build, entry, onRebuild) => {
         );
     }
 
+    const absEntry = path.join(process.cwd(), entry);
     const now = Date.now();
     const result = await build();
-    console.log("built", entry, Date.now() - now, "ms");
+    console.log("built", absEntry, Date.now() - now, "ms");
     let awaitingBuildP = null;
     let watchedPaths = getInputs(result);
     const watcher = chokidar.watch(watchedPaths, {
@@ -38,14 +39,14 @@ exports.watch = async (build, entry, onRebuild) => {
         ignoreInitial: true,
     });
     watcher.on("all", async eventName => {
-        console.log("rebuilding", entry);
+        console.log("rebuilding", absEntry);
         if (awaitingBuildP) {
             await awaitingBuildP;
         }
         const now = Date.now();
         awaitingBuildP = build();
         const result = await awaitingBuildP;
-        console.log("rebuilt", entry, Date.now() - now, "ms");
+        console.log("rebuilt", absEntry, Date.now() - now, "ms");
         if (!result.errors.length) {
             const newWatchedPaths = getInputs(result);
             const diff = exports.diffPaths(watchedPaths, newWatchedPaths);

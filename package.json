@@ -15,6 +15,7 @@
     "shared"
   ],
   "scripts": {
+    "watch": "./scripts/watch.sh",
     "dev": "./scripts/dev-env.sh",
     "compile-audio": "node -r @swc-node/register scripts/compile.ts native/main.c --name audio",
     "compile-zipper": "node -r @swc-node/register scripts/compile.ts native/zip.c --name zipper"

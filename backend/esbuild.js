@@ -1,6 +1,12 @@
+const forceWorkDir = [process.argv.find(v => v.startsWith("--workdir=/"))]
+    .filter(v => !!v)
+    .map(v => v.match(/--workdir=(.+)/)[1])[0];
+if (forceWorkDir) {
+    process.chdir(forceWorkDir);
+}
 const pnpPlugin = require("@yarnpkg/esbuild-plugin-pnp");
 const tsConfigPathsPlugin = require("@esbuild-plugins/tsconfig-paths");
-const { gitRevisionSync, copyWithReplacements, vendorResolverPlugin } = require("../scripts/buildUtils");
+const { gitRevisionSync, watch, logResult } = require("../scripts/buildUtils");
 const esbuild = require("esbuild");
 const target = "es2020";
 const revision = gitRevisionSync();
@@ -18,23 +24,33 @@ const define = {
     "process.env.REVISION": `"${revision}"`,
 };
 
-const bundleP = esbuild.build({
-    target,
-    platform: "node",
-    bundle: true,
-    logLevel: "error",
-    entryPoints: ["src/index.ts"],
-    sourcemap: true,
-    minify: true,
-    metafile: false,
-    define,
-    outfile: "dist/index.js",
-    plugins: [tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()],
-    watch: isWatch,
-});
+async function build() {
+    const result = await esbuild.build({
+        target,
+        platform: "node",
+        bundle: true,
+        logLevel: "error",
+        entryPoints: ["src/index.ts"],
+        sourcemap: true,
+        minify: true,
+        metafile: isWatch,
+        define,
+        outfile: "dist/index.js",
+        plugins: [tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()],
+        incremental: isWatch,
+    });
+
+    logResult(result);
+
+    return result;
+}
 
 (async () => {
-    await bundleP;
-    // eslint-disable-next-line no-console
-    console.log("built backend", revision, buildType);
+    if (isWatch) {
+        watch(build, "src/index.ts");
+    } else {
+        await build();
+        // eslint-disable-next-line no-console
+        console.log("built backend", revision, buildType);
+    }
 })();
