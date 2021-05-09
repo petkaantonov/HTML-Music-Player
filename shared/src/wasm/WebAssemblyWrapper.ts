@@ -359,7 +359,7 @@ export default class WebAssemblyWrapper {
 
         const stdenv: WasmEnv = Object.assign(
             {
-                initialize: (heapStart: number, debug: boolean) => {
+                initialize: (heapStart: number, debug: boolean, stackSize: number) => {
                     if (this._initialized) {
                         throw new Error("already initialized");
                     }
@@ -438,14 +438,6 @@ export default class WebAssemblyWrapper {
                 `The imports ${requiredButNotProvided.join(`, `)} are required by module '${
                     this._name
                 }' but were not provided`
-            );
-        }
-
-        if (providedButNotRequired.length) {
-            err.push(
-                `The imports ${providedButNotRequired.join(`, `)} were provided but are not required by module '${
-                    this._name
-                }'`
             );
         }
 

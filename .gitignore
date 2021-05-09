@@ -14,3 +14,5 @@ backend/dist/**
 backend/dist
 *.code-workspace
 .vscode
+build
+wasm

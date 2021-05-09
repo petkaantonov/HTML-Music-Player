@@ -5,15 +5,14 @@
 #include "resampler.c"
 #include "channel_mixer.c"
 #include "mp3_decoder.c"
-#include "effects.c"
 #include "fingerprinter.c"
 #include "loudness_analyzer.c"
 
-extern void initialize(int, int, int);
+void initialize(int, int, int);
 static uintptr_t heapStart;
 static int errNo;
 
-int main() {
+EXPORT int _start() {
     // Sanity checks
     uint8_t bytes[10];
     for (int i = 0; i < 10; ++i) {
@@ -28,6 +27,7 @@ int main() {
     int dummy;
     heapStart = (uintptr_t)(&dummy) + (uintptr_t)(4);
     initialize(heapStart, DEBUG, STACK_SIZE);
+    return 0;
 }
 
 EXPORT int* __errno_location() {

@@ -67,7 +67,7 @@ EXPORT mz_zip_error zipper_finish_writing(Zipper* zipper);
 EXPORT mz_zip_error zipper_get_data(Zipper* zipper, uint8_t** data_ptr_result, uint32_t* data_length_result);
 static void zipper_clear_data(Zipper* zipper);
 
-int main() {
+EXPORT int _start() {
     // Sanity checks
     uint8_t bytes[10];
     for (int i = 0; i < 10; ++i) {
@@ -82,6 +82,7 @@ int main() {
     int dummy;
     heapStart = (uintptr_t)(&dummy) + (uintptr_t)(4);
     initialize(heapStart, DEBUG, STACK_SIZE);
+    return 0;
 }
 
 EXPORT int* __errno_location() {

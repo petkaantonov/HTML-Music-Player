@@ -2245,28 +2245,28 @@ static int mp3_decode_main(
     if (s->error_protection)
         get_bits(&s->gb, 16);
 
-        nb_frames = mp_decode_layer3(s);
+    nb_frames = mp_decode_layer3(s);
 
-        s->last_buf_size=0;
-        if(s->in_gb.buffer){
-            align_get_bits(&s->gb);
-            i= (s->gb.size_in_bits - get_bits_count(&s->gb))>>3;
-            if(i >= 0 && i <= BACKSTEP_SIZE){
-                libc_memmove(s->last_buf, s->gb.buffer + (get_bits_count(&s->gb)>>3), i);
-                s->last_buf_size=i;
-            }
-            s->gb= s->in_gb;
-        }
-
+    s->last_buf_size=0;
+    if(s->in_gb.buffer){
         align_get_bits(&s->gb);
         i= (s->gb.size_in_bits - get_bits_count(&s->gb))>>3;
-
-        if(i<0 || i > BACKSTEP_SIZE || nb_frames<0){
-            i = buf_size - HEADER_SIZE;
-            if (BACKSTEP_SIZE < i) i = BACKSTEP_SIZE;
+        if(i >= 0 && i <= BACKSTEP_SIZE){
+            libc_memmove(s->last_buf, s->gb.buffer + (get_bits_count(&s->gb)>>3), i);
+            s->last_buf_size=i;
         }
-        libc_memcpy(s->last_buf + s->last_buf_size, s->gb.buffer + buf_size - HEADER_SIZE - i, i);
-        s->last_buf_size += i;
+        s->gb= s->in_gb;
+    }
+
+    align_get_bits(&s->gb);
+    i= (s->gb.size_in_bits - get_bits_count(&s->gb))>>3;
+
+    if(i<0 || i > BACKSTEP_SIZE || nb_frames<0){
+        i = buf_size - HEADER_SIZE;
+        if (BACKSTEP_SIZE < i) i = BACKSTEP_SIZE;
+    }
+    libc_memcpy(s->last_buf + s->last_buf_size, s->gb.buffer + buf_size - HEADER_SIZE - i, i);
+    s->last_buf_size += i;
 
     /* apply the synthesis filter */
     for(ch=0;ch<s->nb_channels;ch++) {

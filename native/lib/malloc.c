@@ -853,7 +853,7 @@ extern "C" {
   maximum supported value of n differs across systems, but is in all
   cases less than the maximum representable value of a size_t.
 */
-DLMALLOC_EXPORT void* dlmalloc(size_t);
+DLMALLOC_EXPORT void* dlmalloc(unsigned long);
 
 /*
   free(void* p)
@@ -869,7 +869,7 @@ DLMALLOC_EXPORT void  dlfree(void*);
   Returns a pointer to n_elements * element_size bytes, with all locations
   set to zero.
 */
-DLMALLOC_EXPORT void* dlcalloc(size_t, size_t);
+DLMALLOC_EXPORT void* dlcalloc(unsigned long, unsigned long);
 
 /*
   realloc(void* p, size_t n)
@@ -893,7 +893,7 @@ DLMALLOC_EXPORT void* dlcalloc(size_t, size_t);
   The old unix realloc convention of allowing the last-free'd chunk
   to be used as an argument to realloc is not supported.
 */
-void* dlrealloc(void*, size_t);
+void* dlrealloc(void*, unsigned long);
 
 /*
   realloc_in_place(void* p, size_t n)
@@ -4554,7 +4554,7 @@ static void* tmalloc_small(mstate m, size_t nb) {
 
 #if !ONLY_MSPACES
 
-void* dlmalloc(size_t bytes) {
+void* dlmalloc(unsigned long bytes) {
   /*
      Basic algorithm:
      If a small request (< 256 bytes minus per-chunk overhead):
@@ -4801,7 +4801,7 @@ void dlfree(void* mem) {
 #endif /* FOOTERS */
 }
 
-void* dlcalloc(size_t n_elements, size_t elem_size) {
+void* dlcalloc(unsigned long n_elements, unsigned long elem_size) {
   void* mem;
   size_t req = 0;
   if (n_elements != 0) {
@@ -5195,7 +5195,7 @@ static void internal_inspect_all(mstate m,
 
 #if !ONLY_MSPACES
 
-void* dlrealloc(void* oldmem, size_t bytes) {
+void* dlrealloc(void* oldmem, unsigned long bytes) {
   void* mem = 0;
   if (oldmem == 0) {
     mem = dlmalloc(bytes);

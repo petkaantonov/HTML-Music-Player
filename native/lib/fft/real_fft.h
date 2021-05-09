@@ -4,10 +4,10 @@
 #define COS_INDEX 0
 #define SIN_INDEX 1
 
-static const uint32_t MAX_SIZE = 32768;
-static const uint32_t MAX_SIZE_LOG2 = 15;
-static double* tables[MAX_SIZE_LOG2][2];
-static double* AUX[MAX_SIZE_LOG2];
+#define FFT_MAX_SIZE 32768
+#define FFT_MAX_SIZE_LOG2 15
+static double* tables[FFT_MAX_SIZE_LOG2][2];
+static double* AUX[FFT_MAX_SIZE_LOG2];
 
 int real_fft_forward(double* array, uint32_t length);
 

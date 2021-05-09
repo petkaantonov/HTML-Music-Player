@@ -8,12 +8,8 @@ unset NODE_OPTIONS
 unset INIT_CWD
 unset npm_lifecycle_event
 
-function abs_path {
-  (cd "$(dirname '$1')" &>/dev/null && printf "%s/%s" "$PWD" "${1##*/}")
-}
-
-SCRIPT_PATH=`abs_path "$0"`
-PROJECT_PATH=`dirname \`dirname "$SCRIPT_PATH"\``
+SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+PROJECT_PATH=`dirname "$SCRIPT_PATH"`
 
 NODE_OPTIONS="--require $PROJECT_PATH/.pnp.cjs" node "$PROJECT_PATH/ui/esbuild.js" --development --workdir="$PROJECT_PATH/ui" &
 NODE_OPTIONS="--require $PROJECT_PATH/.pnp.cjs" node "$PROJECT_PATH/backend/esbuild.js" --development --workdir="$PROJECT_PATH/backend" &

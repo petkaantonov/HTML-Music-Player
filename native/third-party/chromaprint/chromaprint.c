@@ -29,9 +29,9 @@ static void chromaprint_initialize() {
     }
     initialized = true;
 
-    for (uint32_t i = NOTE_FREQUENCY_START; i < NOTE_FREQUENCY_END; ++i) {
-        double octave = log(((double)i * (double)SAMPLE_RATE / (double)FRAMES) / (double)BASE) / LN2;
-        uint32_t note = (uint32_t)((double)NOTES * (octave - floor(octave)));
+    for (uint32_t i = CP_NOTE_FREQUENCY_START; i < CP_NOTE_FREQUENCY_END; ++i) {
+        double octave = log(((double)i * (double)CP_SAMPLE_RATE / (double)CP_FRAMES) / (double)CP_BASE) / CP_LN2;
+        uint32_t note = (uint32_t)((double)CP_NOTES * (octave - floor(octave)));
         BINS_TO_NOTES[i] = note;
     }
 
@@ -63,23 +63,23 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, float* src, u
     int32_t len = (int32_t)length;
     uint32_t src_offset = 0;
 
-    if (len < TMP_SIZE) {
+    if (len < CP_TMP_SIZE) {
         return CHROMAPRINT_ERROR_INSUFFICIENT_LENGTH;
     }
 
     if (this->tmp_length > 0) {
         int32_t tmp_offset = 0;
-        assert(this->tmp_length < FRAMES);
-        memmove((void*)(&TMP2[this->tmp_length]), (void*)src, 2 * OVERLAP * sizeof(float));
+        assert(this->tmp_length < CP_FRAMES);
+        memmove((void*)(&TMP2[this->tmp_length]), (void*)src, 2 * CP_OVERLAP * sizeof(float));
 
         while (this->tmp_length > 0) {
-            if (this->frames_processed + FRAMES - 1 >= FRAMES_NEEDED_TOTAL) {
+            if (this->frames_processed + CP_FRAMES - 1 >= CP_FRAMES_NEEDED_TOTAL) {
                 return CHROMAPRINT_SUCCESS;
             }
             chromaprint_process_frames(this, &TMP2[tmp_offset]);
-            this->tmp_length -= OVERLAP;
-            tmp_offset += OVERLAP;
-            assert_lt(tmp_offset, FRAMES + OVERLAP);
+            this->tmp_length -= CP_OVERLAP;
+            tmp_offset += CP_OVERLAP;
+            assert_lt(tmp_offset, CP_FRAMES + CP_OVERLAP);
         }
 
         int spilled = -this->tmp_length;
@@ -90,13 +90,13 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, float* src, u
     }
 
     while (len > 0) {
-        if (len >= FRAMES) {
-            if (this->frames_processed + FRAMES - 1 >= FRAMES_NEEDED_TOTAL) {
+        if (len >= CP_FRAMES) {
+            if (this->frames_processed + CP_FRAMES - 1 >= CP_FRAMES_NEEDED_TOTAL) {
                 break;
             }
             chromaprint_process_frames(this, &src[src_offset]);
-            len -= OVERLAP;
-            src_offset += OVERLAP;
+            len -= CP_OVERLAP;
+            src_offset += CP_OVERLAP;
         } else {
             memmove((void*)TMP2, (void*)&src[src_offset], len * sizeof(float));
             this->tmp_length = len;
@@ -107,11 +107,11 @@ EXPORT ChromaprintError chromaprint_add_samples(Chromaprint* this, float* src, u
 }
 
 EXPORT uint32_t chromaprint_needs_samples(Chromaprint* this) {
-    return this->frames_processed + FRAMES - 1 < FRAMES_NEEDED_TOTAL;
+    return this->frames_processed + CP_FRAMES - 1 < CP_FRAMES_NEEDED_TOTAL;
 }
 
 EXPORT int chromaprint_can_calculate(Chromaprint* this) {
-    return this->frames_processed > SAMPLE_RATE * 7;
+    return this->frames_processed > CP_SAMPLE_RATE * 7;
 }
 
 EXPORT ChromaprintError chromaprint_calculate_fingerprint(Chromaprint* this, char** base64_string_result) {
@@ -125,10 +125,10 @@ EXPORT ChromaprintError chromaprint_calculate_fingerprint(Chromaprint* this, cha
 }
 
 static void chromaprint_process_frames(Chromaprint* this, float* src) {
-    hanning_window(src, FRAMES, BUFFER);
-    real_fft_forward(BUFFER, FRAMES);
+    hanning_window(src, CP_FRAMES, BUFFER);
+    real_fft_forward(BUFFER, CP_FRAMES);
     chromaprint_chroma(this);
-    this->frames_processed += OVERLAP;
+    this->frames_processed += CP_OVERLAP;
 }
 
 static void chromaprint_transform_image(Chromaprint* this) {
@@ -168,7 +168,7 @@ static ChromaprintError chromaprint_get_fingerprint(Chromaprint* this) {
         return CHROMAPRINT_ERROR_INSUFFICIENT_LENGTH;
     }
     uint32_t* fingerprint = (uint32_t*)BUFFER;
-    assert_lt(length * sizeof(int32_t), sizeof(float) * FRAMES);
+    assert_lt(length * sizeof(int32_t), sizeof(float) * CP_FRAMES);
 
     for (uint32_t i = 0; i < length; ++i) {
         uint32_t value = 0;
@@ -278,7 +278,7 @@ static ChromaprintError chromaprint_compressed(Chromaprint* this) {
 
     uint8_t* ret = (uint8_t*) fingerprint;
     uint32_t len = (uint32_t)length;
-    ret[0] = ALGORITHM & 0xFF;
+    ret[0] = CP_ALGORITHM & 0xFF;
     ret[1] = (len >> 16) & 0xFF;
     ret[2] = (len >> 8) & 0xFF;
     ret[3] = (len >> 0) & 0xFF;
@@ -294,7 +294,7 @@ static char* chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t leng
     uint32_t new_length = ((length * 4 + 2) / 3);
     char* ret = (char*)BITS;
     assert_not_equals((uintptr_t)ret, (uintptr_t)bytes);
-    assert_lt(new_length, BITS_SIZE);
+    assert_lt(new_length, CP_BITS_SIZE);
 
     uint32_t input_index = 0;
     uint32_t output_index = 0;
@@ -324,15 +324,15 @@ static char* chromaprint_base64_encode_fingerprint(uint8_t* bytes, uint32_t leng
 
 
 static void chromaprint_chroma(Chromaprint* this) {
-    uint32_t note_buffer_offset = this->note_buffer_index * NOTES;
-    for (uint32_t i = 0; i < NOTES; ++i) {
+    uint32_t note_buffer_offset = this->note_buffer_index * CP_NOTES;
+    for (uint32_t i = 0; i < CP_NOTES; ++i) {
         NOTE_BUFFER[note_buffer_offset + i] = 0.0;
     }
 
-    for (uint32_t i = NOTE_FREQUENCY_START; i < NOTE_FREQUENCY_END; ++i) {
+    for (uint32_t i = CP_NOTE_FREQUENCY_START; i < CP_NOTE_FREQUENCY_END; ++i) {
         uint32_t note = BINS_TO_NOTES[i];
         double re = BUFFER[i];
-        double im = BUFFER[i + IM_OFFSET];
+        double im = BUFFER[i + CP_IM_OFFSET];
         double energy = re * re + im * im;
         NOTE_BUFFER[note_buffer_offset + note] += energy;
     }
@@ -341,14 +341,14 @@ static void chromaprint_chroma(Chromaprint* this) {
 
     if (this->coeff >= 5) {
         uint32_t offset = (this->note_buffer_index + 3) & 7;
-        double TMP[NOTES];
+        double TMP[CP_NOTES];
 
         double sum = 0.0;
-        for (uint32_t i = 0; i < NOTES; ++i) {
+        for (uint32_t i = 0; i < CP_NOTES; ++i) {
             TMP[i] = 0.0;
 
             for (uint32_t j = 0; j < 5; ++j) {
-                uint32_t note_index = (((offset + j) & 7) * NOTES) + i;
+                uint32_t note_index = (((offset + j) & 7) * CP_NOTES) + i;
                 double value = NOTE_BUFFER[note_index] * COEFFS[j];
                 TMP[i] += value;
             }
@@ -359,13 +359,13 @@ static void chromaprint_chroma(Chromaprint* this) {
         sum = sqrt(sum);
 
         uint32_t row = this->row;
-        uint32_t j = row * NOTES;
+        uint32_t j = row * CP_NOTES;
         if (sum < 0.01) {
-            for (uint32_t i = 0; i < NOTES; ++i) {
+            for (uint32_t i = 0; i < CP_NOTES; ++i) {
                 IMAGE[j++] = 0.0;
             }
         } else {
-            for (uint32_t i = 0; i < NOTES; ++i) {
+            for (uint32_t i = 0; i < CP_NOTES; ++i) {
                 IMAGE[j] = TMP[i] / sum;
                 j++;
             }

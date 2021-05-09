@@ -13,35 +13,34 @@ typedef enum {
 
 static bool initialized = false;
 static uint32_t instance_in_use = 0;
-static const double LN2 = 0.6931471805599453;
-static const uint32_t DURATION = 120;
-static const uint32_t SAMPLE_RATE = 11025;
-static const uint32_t OVERLAP = 1365;
-static const uint32_t FRAMES = 4096;
-// log(FRAMES) / LN2
-static const uint32_t FRAMES_LOG2 = 12;
-static const uint32_t IM_OFFSET = FRAMES / 2;
-static const uint32_t NOTES = 12;
-static const uint32_t FRAMES_NEEDED_TOTAL = SAMPLE_RATE * DURATION;
-static const uint32_t ROWS = 967;
+#define CP_LN2 0.6931471805599453
+#define CP_DURATION 120
+#define CP_SAMPLE_RATE 11025
+#define CP_OVERLAP 1365
+#define CP_FRAMES 4096
+#define CP_FRAMES_LOG2 12
+#define CP_IM_OFFSET (CP_FRAMES / 2)
+#define CP_NOTES 12
+#define CP_FRAMES_NEEDED_TOTAL (CP_SAMPLE_RATE * CP_DURATION)
+#define CP_ROWS 967
 static const double COEFFS[] = {0.25, 0.75, 1.0, 0.75, 0.25};
-static const uint32_t NOTE_FREQUENCY_START = 10;
-static const uint32_t NOTE_FREQUENCY_END = 1308;
-static const uint32_t REFERENCE_FREQUENCY = 440;
-static const uint32_t WIDTH = 16;
-static const double BASE = (double) REFERENCE_FREQUENCY / (double) WIDTH;
-static const uint32_t ALGORITHM = 1;
-static const uint32_t TMP_SIZE = FRAMES * 2;
-static const uint32_t BITS_SIZE = ROWS * 33;
+#define CP_NOTE_FREQUENCY_START 10
+#define CP_NOTE_FREQUENCY_END 1308
+#define CP_REFERENCE_FREQUENCY 440
+#define CP_WIDTH 16
+#define CP_BASE ((double) CP_REFERENCE_FREQUENCY / (double) CP_WIDTH)
+#define CP_ALGORITHM 1
+#define CP_TMP_SIZE (CP_FRAMES * 2)
+#define CP_BITS_SIZE (CP_ROWS * 33)
 
 static const char* BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 static bool critical = false;
-static float TMP2[TMP_SIZE];
-static double BUFFER[FRAMES];
-static double IMAGE[ROWS * NOTES];
-static double NOTE_BUFFER[8 * NOTES];
-static uint8_t BITS[BITS_SIZE];
-static uint32_t BINS_TO_NOTES[NOTE_FREQUENCY_END];
+static float TMP2[CP_TMP_SIZE];
+static double BUFFER[CP_FRAMES];
+static double IMAGE[CP_ROWS * CP_NOTES];
+static double NOTE_BUFFER[8 * CP_NOTES];
+static uint8_t BITS[CP_BITS_SIZE];
+static uint32_t BINS_TO_NOTES[CP_NOTE_FREQUENCY_END];
 
 typedef struct {
     uint32_t frames_processed;

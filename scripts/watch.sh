@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 
-function abs_path {
-  (cd "$(dirname '$1')" &>/dev/null && printf "%s/%s" "$PWD" "${1##*/}")
-}
-
-SCRIPT_PATH=`abs_path "$0"`
-PROJECT_PATH=`dirname \`dirname "$SCRIPT_PATH"\``
+SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+PROJECT_PATH=`dirname "$SCRIPT_PATH"`
 
 node "$PROJECT_PATH/ui/esbuild.js" --watch --workdir="$PROJECT_PATH/ui" &
 node "$PROJECT_PATH/backend/esbuild.js" --watch --workdir="$PROJECT_PATH/backend" &

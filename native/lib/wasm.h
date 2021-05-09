@@ -171,21 +171,21 @@ extern void* sbrk(intptr_t);
 extern int brk(void*);
 extern void a_crash();
 void* alloc(size_t);
-void* realloc(void*, size_t);
-void* calloc(size_t, size_t);
+void* realloc(void*, unsigned long);
+void* calloc(unsigned long, unsigned long);
 void free(void*);
 int fprintf(FILE*, const char*, ...);
 int printf(const char*, ...);
-void* memmove(void*, const void*, size_t);
-void* memcpy(void*, const void*, size_t);
-void* memset(void*, int, size_t);
-int memcmp(const void *str1, const void *str2, size_t n);
+void* memmove(void*, const void*, unsigned long);
+void* memcpy(void*, const void*, unsigned long);
+void* memset(void*, int, unsigned long);
+int memcmp(const void *str1, const void *str2, unsigned long n);
 
 void abort();
-size_t strlen(const char*);
+unsigned long strlen(const char*);
 extern double performance_now(void);
 extern double math_random(void);
-extern void qsort(void*, size_t, size_t, int (*compar)(const void*, const void*));
+extern void qsort(void*, unsigned long, unsigned long, int (*compar)(const void*, const void*));
 
 #ifndef WASM_NO_FS
 
