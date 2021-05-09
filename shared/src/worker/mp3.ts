@@ -362,13 +362,13 @@ function afterInitialized(wasm: WebAssemblyWrapper, exports: WebAssembly.Exports
             name: `mp3_get_info`,
             unsafeJsStack: true,
         },
-        `integer`,
-        `integer-retval`,
-        `integer-retval`,
-        `integer-retval`,
-        `integer-retval`,
-        `integer-retval`,
-        `integer-retval`
+        `pointer`,
+        `integers-retval`,
+        `integers-retval`,
+        `integers-retval`,
+        `integers-retval`,
+        `integers-retval`,
+        `integers-retval`
     );
     Mp3Context.prototype.mp3_create_ctx = exports.mp3_create_ctx as Mp3Context["mp3_create_ctx"];
     Mp3Context.prototype.mp3_reset_ctx = exports.mp3_reset_ctx as Mp3Context["mp3_reset_ctx"];

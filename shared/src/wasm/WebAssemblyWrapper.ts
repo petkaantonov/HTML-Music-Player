@@ -17,41 +17,45 @@ interface WasmEnv {
     initialize: (heapStart: number, debug: boolean) => void;
 }
 
-export const WASM_TYPE_INTEGER = "integer";
+export const WASM_TYPE_INTEGER_SIGNED = "integers";
+export const WASM_TYPE_INTEGER_UNSIGNED = "integeru";
+export const WASM_TYPE_POINTER = "pointer";
 export const WASM_TYPE_BOOLEAN = "boolean";
 export const WASM_TYPE_STRING = "string";
+export const WASM_TYPE_BIGINT_SIGNED = "bigints";
+export const WASM_TYPE_BIGINT_UNSIGNED = "bigintu";
 export const WASM_TYPE_STRING_RETVAL = "string-retval";
-export const WASM_TYPE_INTEGER_RETVAL = "integer-retval";
+export const WASM_TYPE_POINTER_RETVAL = "pointer-retval";
+export const WASM_TYPE_INTEGER_SIGNED_RETVAL = "integers-retval";
+export const WASM_TYPE_INTEGER_UNSIGNED_RETVAL = "integeru-retval";
 export const WASM_TYPE_BOOLEAN_RETVAL = "boolean-retval";
-export const WASM_TYPE_I64_AS_DOUBLE_RETVAL = "i64-as-double-retval";
-export const WASM_TYPE_I64_AS_STRUCT_RETVAL = "i64-as-struct-retval";
+export const WASM_TYPE_BIGINT_SIGNED_RETVAL = "bigints-retval";
+export const WASM_TYPE_BIGINT_UNSIGNED_RETVAL = "bigintu-retval";
 export const WASM_TYPE_DOUBLE_RETVAL = "double-retval";
 export const WASM_TYPE_DOUBLE = "double";
 
-const WASM_TYPE_I64_AS_DOUBLE = "i64-as-double";
-const WASM_TYPE_I64_AS_STRUCT = "i64-as-struct";
-
 const WasmDirectType = io.union([
-    io.literal(WASM_TYPE_INTEGER),
+    io.literal(WASM_TYPE_POINTER),
+    io.literal(WASM_TYPE_INTEGER_SIGNED),
+    io.literal(WASM_TYPE_INTEGER_UNSIGNED),
     io.literal(WASM_TYPE_BOOLEAN),
     io.literal(WASM_TYPE_STRING),
     io.literal(WASM_TYPE_DOUBLE),
-    io.literal(WASM_TYPE_I64_AS_DOUBLE),
-    io.literal(WASM_TYPE_I64_AS_STRUCT),
+    io.literal(WASM_TYPE_BIGINT_SIGNED),
+    io.literal(WASM_TYPE_BIGINT_UNSIGNED),
 ]);
 type WasmDirectType = io.TypeOf<typeof WasmDirectType>;
 
 export const WasmType = io.union([
-    io.literal(WASM_TYPE_INTEGER),
-    io.literal(WASM_TYPE_BOOLEAN),
-    io.literal(WASM_TYPE_STRING),
-    io.literal(WASM_TYPE_DOUBLE),
+    WasmDirectType,
+    io.literal(WASM_TYPE_POINTER_RETVAL),
     io.literal(WASM_TYPE_DOUBLE_RETVAL),
-    io.literal(WASM_TYPE_INTEGER_RETVAL),
+    io.literal(WASM_TYPE_INTEGER_SIGNED_RETVAL),
+    io.literal(WASM_TYPE_INTEGER_UNSIGNED_RETVAL),
     io.literal(WASM_TYPE_BOOLEAN_RETVAL),
     io.literal(WASM_TYPE_STRING_RETVAL),
-    io.literal(WASM_TYPE_I64_AS_DOUBLE_RETVAL),
-    io.literal(WASM_TYPE_I64_AS_STRUCT_RETVAL),
+    io.literal(WASM_TYPE_BIGINT_SIGNED_RETVAL),
+    io.literal(WASM_TYPE_BIGINT_UNSIGNED_RETVAL),
 ]);
 export type WasmType = io.TypeOf<typeof WasmType>;
 
@@ -79,15 +83,21 @@ export class MissingImportError extends Error {
 
 const getSize = function (type: WasmType) {
     switch (type) {
-        case `integer`:
+        case `integers`:
+        case `integeru`:
+        case "pointer":
+        case "pointer-retval":
         case `boolean`:
         case `string`:
         case `string-retval`:
         case `boolean-retval`:
-        case `integer-retval`:
+        case `integers-retval`:
+        case `integeru-retval`:
             return 4;
-        case `i64-as-double-retval`:
-        case `i64-as-struct-retval`:
+        case `bigints-retval`:
+        case `bigints`:
+        case `bigintu-retval`:
+        case `bigintu`:
         case `double-retval`:
         case `double`:
             return 8;
@@ -167,21 +177,18 @@ const createFunctionWrapper = function <T extends WasmType[]>(
                 switch (directType) {
                     case "string":
                         return `${thisObj}.convertCharPToAsciiString(${thisObj}.u32(convertedArg${index}))`;
-
-                    case "integer":
-                        return `${thisObj}.u32(convertedArg${index})`;
-
+                    case "integers":
+                        return `${thisObj}.i32(convertedArg${index})`;
+                    case "integeru":
+                    case "pointer":
                     case "boolean":
-                        return `!!${thisObj}.u32(convertedArg${index})`;
-
+                        return `${thisObj}.u32(convertedArg${index})`;
                     case "double":
                         return `${thisObj}.f64(convertedArg${index})`;
-
-                    case "i64-as-double":
-                        return `${thisObj}.i64AsDouble(convertedArg${index})`;
-
-                    case "i64-as-struct":
-                        return `${thisObj}.i64AsStruct(convertedArg${index})`;
+                    case "bigints":
+                        return `${thisObj}.i64(convertedArg${index})`;
+                    case "bigintu":
+                        return `${thisObj}.u64(convertedArg${index})`;
                     default:
                         throw new Error("unknown type" + type);
                 }
@@ -504,6 +511,14 @@ export default class WebAssemblyWrapper {
 
     setI32(ptr: number, value: number) {
         return this._view!.setInt32(ptr, value, true);
+    }
+
+    i64(ptr: number) {
+        return this._view!.getBigInt64(ptr, true);
+    }
+
+    u64(ptr: number) {
+        return this._view!.getBigUint64(ptr, true);
     }
 
     u32(ptr: number) {

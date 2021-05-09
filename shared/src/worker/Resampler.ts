@@ -126,12 +126,12 @@ function afterInitialized(wasm: WebAssemblyWrapper, exports: WebAssembly.Exports
             name: `resampler_resample`,
             unsafeJsStack: true,
         },
-        `integer`,
-        `integer`,
-        `integer`,
-        `integer-retval`,
-        `integer-retval`,
-        `integer-retval`
+        `pointer`,
+        `pointer`,
+        `integeru`,
+        `pointer-retval`,
+        `integeru-retval`,
+        `integeru-retval`
     );
 
     Resampler.prototype.resampler_get_length = exports.resampler_get_length as any;

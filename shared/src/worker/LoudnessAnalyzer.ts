@@ -279,17 +279,17 @@ function afterInitialized(wasm: WebAssemblyWrapper, exports: WebAssembly.Exports
             name: `loudness_analyzer_init`,
             unsafeJsStack: true,
         },
-        `integer`,
-        `integer`,
-        `integer`,
-        `integer-retval`
+        `integeru`,
+        `integeru`,
+        `integeru`,
+        `pointer-retval`
     );
     LoudnessAnalyzer.prototype.loudness_analyzer_get_loudness_and_peak = wasm.createFunctionWrapper(
         {
             name: `loudness_analyzer_get_loudness_and_peak`,
             unsafeJsStack: true,
         },
-        `integer`,
+        `pointer`,
         `double-retval`,
         `double-retval`
     );
@@ -298,7 +298,7 @@ function afterInitialized(wasm: WebAssemblyWrapper, exports: WebAssembly.Exports
             name: `loudness_analyzer_get_momentary_loudness`,
             unsafeJsStack: true,
         },
-        `integer`,
+        `pointer`,
         `double-retval`
     );
     LoudnessAnalyzer.prototype.loudness_analyzer_destroy = exports.loudness_analyzer_destroy as any;

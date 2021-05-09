@@ -323,55 +323,55 @@ moduleEvents.on(`zip_afterInitialized`, (wasm: WebAssemblyWrapper, exports: WebA
         {
             name: `zipper_prepare_file_for_reading`,
         },
-        `integer`,
+        `pointer`,
         `string`
     );
     Zipper.prototype.zipper_populate_file_infos = wasm.createFunctionWrapper(
         {
             name: `zipper_populate_file_infos`,
         },
-        `integer`,
-        `integer-retval`
+        `pointer`,
+        `integeru-retval`
     );
     Zipper.prototype.zipper_get_nth_file_info_fields = wasm.createFunctionWrapper(
         {
             name: `zipper_get_nth_file_info_fields`,
         },
-        `integer`,
-        `integer`,
+        `pointer`,
+        `integeru`,
         `boolean-retval`,
         `boolean-retval`,
         `string-retval`,
         `double-retval`,
         `double-retval`,
-        `integer-retval`,
-        `integer-retval`
+        `integeru-retval`,
+        `pointer-retval`
     );
     Zipper.prototype.zipper_extract_file = wasm.createFunctionWrapper(
         {
             name: `zipper_extract_file`,
         },
-        `integer`,
-        `integer`
+        `pointer`,
+        `pointer`
     );
 
     Zipper.prototype.zipper_add_file_to_archive = wasm.createFunctionWrapper(
         {
             name: `zipper_add_file_to_archive`,
         },
-        `integer`,
+        `pointer`,
         `string`,
         `string`,
-        `integer`
+        `integeru`
     );
 
     Zipper.prototype.zipper_get_data = wasm.createFunctionWrapper(
         {
             name: `zipper_get_data`,
         },
-        `integer`,
-        `integer-retval`,
-        `integer-retval`
+        `pointer`,
+        `pointer-retval`,
+        `integeru-retval`
     );
     Zipper.prototype.init_zipper = exports.init_zipper as any;
     Zipper.prototype.zipper_error_string = exports.zipper_error_string as any;

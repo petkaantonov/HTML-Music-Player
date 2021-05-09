@@ -86,7 +86,7 @@ moduleEvents.on(`general_afterInitialized`, (wasm: WebAssemblyWrapper, exports: 
             name: `chromaprint_calculate_fingerprint`,
             unsafeJsStack: true,
         },
-        `integer`,
+        `pointer`,
         `string-retval`
     );
 });
