@@ -5195,7 +5195,7 @@ static void internal_inspect_all(mstate m,
 
 #if !ONLY_MSPACES
 
-void* dlrealloc(void* oldmem, unsigned long bytes) {
+EXPORT void* dlrealloc(void* oldmem, unsigned long bytes) {
   void* mem = 0;
   if (oldmem == 0) {
     mem = dlmalloc(bytes);

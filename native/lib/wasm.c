@@ -26,6 +26,59 @@ unsigned long strlen(const char* str) {
     return (s - str);
 }
 
+static const uint8_t qsort_tmp[8 * 1024];
+
+void qswap(void* a, void* b, unsigned long itemByteLength) {
+  memcpy(qsort_tmp, a, itemByteLength);
+  memcpy(a, b, itemByteLength);
+  memcpy(b, qsort_tmp, itemByteLength);
+}
+
+void* partition(void* begin, void* end, unsigned long itemByteLength, int (*compar)(const void*, const void*)) {
+    void* pivot = end;
+    void* i = begin;
+    
+    for (void* j = begin; j <= end; j = j + itemByteLength) {
+      if (compar(j, pivot) < 0) {
+        qswap(i, j, itemByteLength);
+        i = i + itemByteLength;
+      }
+    }
+    qswap(i, end, itemByteLength);
+    return i;
+}
+
+void qsort_impl(void* begin, void* end, unsigned long itemByteLength, int (*compar)(const void*, const void*)) {
+  if (begin >= end) {
+    return;
+  }
+  void* p = partition(begin, end, itemByteLength, compar);
+  qsort_impl(begin, p - itemByteLength, itemByteLength, compar);
+  qsort_impl(p + itemByteLength, end, itemByteLength, compar);
+}
+
+void qsort(void* begin, unsigned long length, unsigned long itemByteLength, int (*compar)(const void*, const void*)) {
+  if (length < 2) {
+    return;
+  }
+  void* end = begin + ((length - 1) * itemByteLength);
+  qsort_impl(begin, end, itemByteLength, compar);
+}
+
+double floor(double d) {
+  return __builtin_floor(d);
+}
+double ceil(double d) {
+  return __builtin_ceil(d);
+}
+
+double fabs(double d) {
+  return __builtin_fabs(d);
+}
+
+double sqrt(double d) {
+  return __builtin_sqrt(d);
+}
 
 #ifdef DEBUG
 

@@ -4,7 +4,6 @@ export interface StdLib {
     brk: (addr: number) => number;
     sbrk: (addr: number) => number;
     abort: () => void;
-    qsort: (ptr: number, length: number, itemByteLength: number, comparerFuncTableIndex: number) => void;
 }
 
 export default function createStdlib(wasm: WebAssemblyWrapper): StdLib {
@@ -45,34 +44,6 @@ export default function createStdlib(wasm: WebAssemblyWrapper): StdLib {
 
         abort() {
             throw new Error(`abort called`);
-        },
-
-        qsort(ptr: number, length: number, itemByteLength: number, comparerFuncTableIndex: number) {
-            const comparer = wasm.table(comparerFuncTableIndex);
-
-            if (!comparer) {
-                throw new Error("no function at func table index " + comparerFuncTableIndex);
-            }
-
-            let tmp = 0;
-            try {
-                tmp = wasm.malloc(length * itemByteLength);
-                wasm.memcpy(tmp, ptr, length * itemByteLength);
-                const array = new Uint32Array(length);
-                for (let i = 0; i < length; ++i) {
-                    array[i] = ptr + i * itemByteLength;
-                }
-                array.sort(comparer as (a: number, b: number) => number);
-                for (let i = 0; i < length; ++i) {
-                    const offset = array[i]! - ptr;
-                    const value = tmp + offset;
-                    wasm.memcpy(ptr + i * itemByteLength, value, itemByteLength);
-                }
-            } finally {
-                if (tmp) {
-                    wasm.free(tmp);
-                }
-            }
         },
     };
 }

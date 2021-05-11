@@ -167,6 +167,11 @@ int utime(const char *path, const struct utimbuf *times) {
 }
 #endif
 
+double floor(double);
+double ceil(double);
+double fabs(double);
+double sqrt(double);
+
 extern void* sbrk(intptr_t);
 extern int brk(void*);
 extern void a_crash();
@@ -185,7 +190,7 @@ void abort();
 unsigned long strlen(const char*);
 extern double performance_now(void);
 extern double math_random(void);
-extern void qsort(void*, unsigned long, unsigned long, int (*compar)(const void*, const void*));
+void qsort(void*, unsigned long, unsigned long, int (*compar)(const void*, const void*));
 
 #ifndef WASM_NO_FS
 

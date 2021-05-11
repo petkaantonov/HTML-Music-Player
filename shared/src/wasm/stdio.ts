@@ -27,6 +27,18 @@ export interface Stdio {
     printf: (a: number, b: number) => number;
 }
 
+function trunc(n: number) {
+    return n < 0 ? Math.ceil(n) : Math.floor(n);
+}
+
+function frac(n: number) {
+    return n - Math.trunc(n);
+}
+
+function modf(n: number) {
+    return [trunc(n), frac(n)];
+}
+
 function format(wasm: WebAssemblyWrapper, formatStringPtr: number, argvPtr: number) {
     const formatString = wasm.convertCharPToAsciiString(formatStringPtr);
     if (argvPtr) {
@@ -85,7 +97,7 @@ function format(wasm: WebAssemblyWrapper, formatStringPtr: number, argvPtr: numb
             } else if (printFSizeMap[specifier] === f64) {
                 const alignedOffset = (offset + 7) & ~7;
                 const value = wasm.f64(alignedOffset);
-                const [frac] = wasm.cmath!.modf(value);
+                const [, frac] = modf(value);
                 if (frac === 0) {
                     ret += value.toFixed(1);
                 } else {

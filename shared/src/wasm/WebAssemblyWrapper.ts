@@ -272,7 +272,6 @@ export default class WebAssemblyWrapper {
     _exportsProxy: null | Record<string, WebAssembly.ExportValue>;
     _imports: null;
     _mem: WebAssembly.Memory | null;
-    _table: WebAssembly.Table | null;
     _view: DataView | null;
     _name: WebAssemblyWrapperName;
     _jsStackMemorySize: number;
@@ -306,7 +305,6 @@ export default class WebAssemblyWrapper {
         this.cmath = null;
         this._imports = null;
         this._mem = null;
-        this._table = null;
         this._view = null;
         this._name = name;
         this._jsStackMemorySize = 0;
@@ -661,10 +659,9 @@ export default class WebAssemblyWrapper {
         };
 
         this._mem = this._getMemory();
-        this._table = this._getTable();
         this._refreshMemoryView();
         this.__errno_location = this._exportsProxy.__errno_location as () => number;
-        this._main = this._exportsProxy.main;
+        this._main = this._exportsProxy._start;
         this._main();
         this._jsStackMemorySize = jsMemoryInitialSize;
         this._jsStackMemoryStart = this.malloc(((this._jsStackMemorySize + 7) & ~7) + 8);
@@ -775,13 +772,6 @@ export default class WebAssemblyWrapper {
 
     table(index: number) {
         return (this._exports!.table as WebAssembly.Table).get(index);
-    }
-
-    _getTable() {
-        if (!this._exports!.table) {
-            throw new InvalidModuleError(`Expected table to be exported but it wasn't`);
-        }
-        return this._exports!.table as WebAssembly.Table;
     }
 
     _getMemory(): WebAssembly.Memory {

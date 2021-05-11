@@ -150,7 +150,7 @@ async function checkCMake() {
     const clangFlags = `${RELEASE ? "" : ""}`;
 
     await exec(
-        `${clang} -std=c11 --no-standard-libraries -nostdlib++ -nostdinc -nostdlib ${clangFlags} -fvisibility=hidden -Wall -Inative/third-party -Inative/lib -Inative/lib/include -DDEBUG=${dDebug} -DSTACK_SIZE=${STACK_SIZE} -emit-llvm --target=wasm32 ${oLevelClang} "${source}" -c -o "${bcfile}"`
+        `${clang} -std=c11 -fno-builtin  --no-standard-libraries -nostdlib++ -nostdinc -nostdlib ${clangFlags} -fvisibility=hidden -Wall -Inative/third-party -Inative/lib -Inative/lib/include -DDEBUG=${dDebug} -DSTACK_SIZE=${STACK_SIZE} -emit-llvm --target=wasm32 ${oLevelClang} "${source}" -c -o "${bcfile}"`
     );
     await exec(`${llc} ${RELEASE ? "-O3" : ""} -filetype=obj -o "${ofile}" "${bcfile}"`);
     await exec(

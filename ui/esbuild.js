@@ -86,7 +86,7 @@ const define = {
     "process.env.REVISION": `"${revision}"`,
 };
 
-function bundleSass(entry, outfile, onRebuild) {
+async function bundleSass(entry, outfile, onRebuild) {
     async function build() {
         const result = await esbuild.build({
             target,
@@ -113,7 +113,11 @@ function bundleSass(entry, outfile, onRebuild) {
     if (isWatch) {
         watch(build, entry, onRebuild);
     } else {
-        return build();
+        const ret = await build();
+        if (onRebuild && !ret.errors.length) {
+            await onRebuild();
+        }
+        return ret;
     }
 }
 
@@ -146,7 +150,11 @@ async function bundleJs(entry, outfile, onRebuild) {
     if (isWatch) {
         watch(build, entry, onRebuild);
     } else {
-        return build();
+        const ret = await build();
+        if (onRebuild && !ret.errors.length) {
+            await onRebuild();
+        }
+        return ret;
     }
 }
 

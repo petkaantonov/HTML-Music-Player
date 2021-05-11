@@ -67,6 +67,12 @@ EXPORT mz_zip_error zipper_finish_writing(Zipper* zipper);
 EXPORT mz_zip_error zipper_get_data(Zipper* zipper, uint8_t** data_ptr_result, uint32_t* data_length_result);
 static void zipper_clear_data(Zipper* zipper);
 
+static int dddcmp(const void *p1, const void *p2) {
+  const double* d1 = (const double*) p1;
+  const double* d2 = (const double*) p2;
+  return (*d1 > *d2) - (*d1 < *d2);
+}
+
 EXPORT int _start() {
     // Sanity checks
     uint8_t bytes[10];

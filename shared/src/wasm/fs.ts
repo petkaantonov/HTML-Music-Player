@@ -283,11 +283,10 @@ export function createFs(wasm: WebAssemblyWrapper) {
                 handles.delete(handle);
                 return fopen(fileNamePtr, flagsStrPtr, handle);
             });
-        },*/
+        },
         fwrite(ptr: number, size: number, count: number, handle: number) {
             return withHandle(handle, fhandle => fhandle._fwrite(wasm, ptr, size, count));
         },
-        /*
         remove(fileNamePtr: number) {
             const fileName = wasm.convertCharPToAsciiString(fileNamePtr);
             fs.delete(fileName);
