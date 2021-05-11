@@ -33,7 +33,7 @@ void (async () => {
     setTimers(timers);
     setIsDevelopment(isDevelopment);
 
-    const request = new Request(process.env.AUDIO_WASM_PATH!, {
+    const request = new Request(process.env.GENERAL_WASM_PATH!, {
         cache: env.isDevelopment() ? `no-store` : `default`,
     });
     const response = await fetch(request);

@@ -145,19 +145,16 @@ async function checkCMake() {
     const wasmfile = `ui/wasm/${
         RELEASE ? `${ENTRY_FILE_NAME}.production.wasm` : `${ENTRY_FILE_NAME}.development.wasm`
     }`;
-    const oLevelClang = RELEASE ? `-O3` : `-O0`;
+    const oLevelClang = RELEASE ? `-Ofast` : `-O0`;
     const dDebug = RELEASE ? "0" : "1";
-    // const sourceMapFile = `build/${ENTRY_FILE_NAME}.sm`;
-    // const sourceMapUrl = `/dist/wasm/${ENTRY_FILE_NAME}.sm`;
     const clangFlags = `${RELEASE ? "" : ""}`;
 
     await exec(
-        `${clang} -std=c11 --no-standard-libraries -nostdlib++ -nostdinc -nostdlib ${clangFlags} -fvisibility=hidden -Wall -Inative/third-party -Inative/lib -Inative/lib/include -DDEBUG=${dDebug} -DSTACK_SIZE=${STACK_SIZE} -emit-llvm --target=wasm32 ${oLevelClang} "${source}" -c -o "${bcfile}"`,
-        { doErr: true, doOut: true }
+        `${clang} -std=c11 --no-standard-libraries -nostdlib++ -nostdinc -nostdlib ${clangFlags} -fvisibility=hidden -Wall -Inative/third-party -Inative/lib -Inative/lib/include -DDEBUG=${dDebug} -DSTACK_SIZE=${STACK_SIZE} -emit-llvm --target=wasm32 ${oLevelClang} "${source}" -c -o "${bcfile}"`
     );
     await exec(`${llc} ${RELEASE ? "-O3" : ""} -filetype=obj -o "${ofile}" "${bcfile}"`);
     await exec(
-        `${wasmld} --unresolved-symbols=import-functions -z stack-size=${STACK_SIZE} --export-dynamic --initial-memory=${INITIAL_MEMORY} -o ${wasmfile} ${ofile}`
+        `${wasmld} --unresolved-symbols=import-functions -z stack-size=${STACK_SIZE} --export-dynamic --strip-all --initial-memory=${INITIAL_MEMORY} -o ${wasmfile} ${ofile}`
     );
 
     if (RELEASE) {
