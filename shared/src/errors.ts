@@ -22,6 +22,8 @@ export class DatabaseClosedError extends Error {
     }
 }
 
+export const ERROR_YOUTUBE_ERROR = 1;
+
 export const ERROR_INVALID_RESPONSE_SYNTAX = -1;
 export const ERROR_UNKNOWN_FORMAT = 1;
 export const ERROR_MISSING_PARAMETER = 2;

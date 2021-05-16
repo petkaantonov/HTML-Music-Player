@@ -41,21 +41,27 @@ exports.watch = async (build, entry, onRebuild) => {
     watcher.on("all", async eventName => {
         console.log("rebuilding", absEntry);
         if (awaitingBuildP) {
-            await awaitingBuildP;
+            try {
+                await awaitingBuildP;
+            } catch {}
         }
         const now = Date.now();
         awaitingBuildP = build();
-        const result = await awaitingBuildP;
-        console.log("rebuilt", absEntry, Date.now() - now, "ms");
-        if (!result.errors.length) {
-            const newWatchedPaths = getInputs(result);
-            const diff = exports.diffPaths(watchedPaths, newWatchedPaths);
-            if (diff.pathsToRemove.length) watcher.unwatch(diff.pathsToRemove);
-            if (diff.pathsToAdd.length) watcher.add(diff.pathsToAdd);
-            watchedPaths = newWatchedPaths;
-            if (onRebuild) {
-                onRebuild();
+        try {
+            const result = await awaitingBuildP;
+            console.log("rebuilt", absEntry, Date.now() - now, "ms");
+            if (!result.errors.length) {
+                const newWatchedPaths = getInputs(result);
+                const diff = exports.diffPaths(watchedPaths, newWatchedPaths);
+                if (diff.pathsToRemove.length) watcher.unwatch(diff.pathsToRemove);
+                if (diff.pathsToAdd.length) watcher.add(diff.pathsToAdd);
+                watchedPaths = newWatchedPaths;
+                if (onRebuild) {
+                    onRebuild();
+                }
             }
+        } catch (e) {
+            console.error(e.message);
         }
     });
     if (!result.errors.length && onRebuild) {
@@ -103,7 +109,7 @@ exports.performReplacements = function (contents, values) {
 exports.copyWithReplacements = async function ({ src, values, dst }) {
     src = path.join(process.cwd(), src);
     dst = path.join(process.cwd(), dst);
-    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values);
+    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values || {});
     await fs.writeFile(dst, contents, "utf-8");
 };
 

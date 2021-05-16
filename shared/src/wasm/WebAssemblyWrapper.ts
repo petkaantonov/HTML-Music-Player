@@ -357,7 +357,7 @@ export default class WebAssemblyWrapper {
 
         const stdenv: WasmEnv = Object.assign(
             {
-                initialize: (heapStart: number, debug: boolean, stackSize: number) => {
+                initialize: (heapStart: number, debug: boolean, _stackSize: number) => {
                     if (this._initialized) {
                         throw new Error("already initialized");
                     }

@@ -119,7 +119,7 @@ export type SerializedPlaylistTrack = io.TypeOf<typeof SerializedPlaylistTrack>;
 export const StoredKVValues = io.partial({
     volume: NumberValueBetween(0, 1),
     muted: io.boolean,
-    currentPlaylistTrack: SerializedPlaylistTrack,
+    currentPlaylistTrack: io.union([SerializedPlaylistTrack, io.null]),
     currentTrackProgress: NumberValueBetween(0, 1),
     playlistContents: io.array(IoArrayBuffer),
     playlistHistory: io.array(SerializedPlaylistTrack),

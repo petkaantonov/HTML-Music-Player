@@ -1,4 +1,4 @@
-import jdenticon from "jdenticon";
+import jdenticon from "jdenticon/standalone";
 import { ALBUM_ART_PREFERENCE_SMALLEST } from "shared/src/metadata";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { hexString } from "shared/util";

@@ -6,7 +6,7 @@ if (forceWorkDir) {
 }
 const pnpPlugin = require("@yarnpkg/esbuild-plugin-pnp");
 const tsConfigPathsPlugin = require("@esbuild-plugins/tsconfig-paths");
-const { gitRevisionSync, watch, logResult } = require("../scripts/buildUtils");
+const { gitRevisionSync, watch, logResult, copyWithReplacements } = require("../scripts/buildUtils");
 const esbuild = require("esbuild");
 const target = "es2020";
 const revision = gitRevisionSync();
@@ -22,6 +22,7 @@ const buildType = forceProduction
 
 const define = {
     "process.env.REVISION": `"${revision}"`,
+    "process.env.SERVER_ENV": `"${buildType}"`,
 };
 
 async function build() {
@@ -32,7 +33,7 @@ async function build() {
         logLevel: "error",
         entryPoints: ["src/index.ts"],
         sourcemap: true,
-        minify: true,
+        minify: buildType === "production",
         metafile: isWatch,
         define,
         outfile: "dist/index.js",
@@ -46,6 +47,9 @@ async function build() {
 }
 
 (async () => {
+    if (buildType === "development") {
+        await copyWithReplacements({ src: "cookies.txt", dst: "dist/cookies.txt" });
+    }
     if (isWatch) {
         watch(build, "src/index.ts");
     } else {

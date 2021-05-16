@@ -25,7 +25,6 @@ export default class PlaylistModeManager {
         this.playlist = deps.playlist;
         this._shuffleButton = this.page.$(`.js-shuffle-mode`);
         this._repeatButton = this.page.$(`.js-repeat-mode`);
-
         this.playlist.on("playlistModeChanged", this.update);
         this.$shuffle().addEventListener(`click`, this.shuffleClicked);
         this.$repeat().addEventListener(`click`, this.repeatClicked);

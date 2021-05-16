@@ -66,69 +66,72 @@ class GrowingAudioFileReadable extends Readable {
             this.push(null);
             return;
         }
-        var howMuchToRead = (+size) > 0 ? +size : this._bytesRemaining();
+        var howMuchToRead = +size > 0 ? +size : this._bytesRemaining();
         howMuchToRead = Math.min(this._bytesRemaining(), howMuchToRead);
         var self = this;
-        this._getCurrentFileSizeAsync().then(function fileSizeRetrieved(currentFileSize) {
-            if (currentFileSize < 0) {
-                self.push(null);
-                return;
-            }
-            var position = self.offset + self.bytesRead;
-            var canRead = self.youtubeDl.isAudioFileFinished() || (position + howMuchToRead) <= currentFileSize;
-
-            if (self.youtubeDl.isAudioFileFinished()) {
-                self.length = Math.min(self.offset + self.desiredLength, self._getMaximumFileSize()) - self.offset;
-                howMuchToRead = (+size) > 0 ? +size : self._bytesRemaining();
-                howMuchToRead = Math.min(self._bytesRemaining(), howMuchToRead);
-            }
-
-            if (!canRead) {
-                var fileSizeGrowthNeeded = (position + howMuchToRead) - currentFileSize;
-                return Promise.delay((fileSizeGrowthNeeded / EXPECTED_BYTES_WRITTEN_PER_MILLISECOND) | 0).then(() => {
-                    return self._getCurrentFileSizeAsync().then(fileSizeRetrieved);
-                });
-            } else {
-                if (!self.handle) {
-                    if (self.closedFromOutside) {
-                        self.push(null);
-                        return;
-                    }
-                    self.handle = fs.openAsync(self.youtubeDl.getAudioFilePath(), "r");
+        this._getCurrentFileSizeAsync()
+            .then(function fileSizeRetrieved(currentFileSize) {
+                if (currentFileSize < 0) {
+                    self.push(null);
+                    return;
                 }
-                return self.handle.then(handle => {
-                    if (self.closedFromOutside || !self.handle) {
-                        self.push(null);
-                        return;
+                var position = self.offset + self.bytesRead;
+                var canRead = self.youtubeDl.isAudioFileFinished() || position + howMuchToRead <= currentFileSize;
+
+                if (self.youtubeDl.isAudioFileFinished()) {
+                    self.length = Math.min(self.offset + self.desiredLength, self._getMaximumFileSize()) - self.offset;
+                    howMuchToRead = +size > 0 ? +size : self._bytesRemaining();
+                    howMuchToRead = Math.min(self._bytesRemaining(), howMuchToRead);
+                }
+
+                if (!canRead) {
+                    var fileSizeGrowthNeeded = position + howMuchToRead - currentFileSize;
+                    return Promise.delay((fileSizeGrowthNeeded / EXPECTED_BYTES_WRITTEN_PER_MILLISECOND) | 0).then(
+                        () => {
+                            return self._getCurrentFileSizeAsync().then(fileSizeRetrieved);
+                        }
+                    );
+                } else {
+                    if (!self.handle) {
+                        if (self.closedFromOutside) {
+                            self.push(null);
+                            return;
+                        }
+                        self.handle = fs.openAsync(self.youtubeDl.getAudioFilePath(), "r");
                     }
-                    var buf = Buffer.allocUnsafe(howMuchToRead);
-                    var offset = 0;
-                    return (function readLoop(bytesRead) {
-                        position += bytesRead;
-                        self.bytesRead += bytesRead;
-                        offset += bytesRead;
-                        howMuchToRead -= bytesRead;
+                    return self.handle.then(handle => {
                         if (self.closedFromOutside || !self.handle) {
                             self.push(null);
                             return;
                         }
-
-                        if (howMuchToRead > 0) {
-                            return fs.readAsync(handle, buf, offset, howMuchToRead, position).then(readLoop);
-                        } else {
-                            self.push(buf);
-                            if (self._bytesRemaining() <= 0) {
+                        var buf = Buffer.allocUnsafe(howMuchToRead);
+                        var offset = 0;
+                        return (function readLoop(bytesRead) {
+                            position += bytesRead;
+                            self.bytesRead += bytesRead;
+                            offset += bytesRead;
+                            howMuchToRead -= bytesRead;
+                            if (self.closedFromOutside || !self.handle) {
                                 self.push(null);
+                                return;
                             }
-                        }
-                    })(0);
 
-                });
-            }
-        }).catch(e => {
-            this.abort();
-            this.emit("error", e);
-        });
+                            if (howMuchToRead > 0) {
+                                return fs.readAsync(handle, buf, offset, howMuchToRead, position).then(readLoop);
+                            } else {
+                                self.push(buf);
+                                if (self._bytesRemaining() <= 0) {
+                                    self.push(null);
+                                }
+                            }
+                        })(0);
+                    });
+                }
+            })
+            .catch(e => {
+                this.abort();
+                this.emit("error", e);
+            });
     }
 
     abort() {
@@ -160,7 +163,7 @@ class YoutubeDl extends EventEmitter {
             realSize: -1,
             predictedSize: 0,
             bitRate: 0,
-            handle: this.getHandle()
+            handle: this.getHandle(),
         };
     }
 
@@ -199,7 +202,7 @@ class YoutubeDl extends EventEmitter {
                 var stream = fs.createWriteStream(null, {
                     flags: "a",
                     fd: handle,
-                    autoClose: false
+                    autoClose: false,
                 });
                 return stream.endAsync(message).thenReturn(handle);
             }
@@ -244,7 +247,7 @@ class YoutubeDl extends EventEmitter {
     // Client starting the download process, returns a handle for the client from which .streamAudio() can immediately
     // be used to start streaming the audio.
     start() {
-        if (this.handle || this.aborted) return;
+        if (this.handle || this.aborted) return;
         this.started = Date.now();
         return mkdirpAsync(this.getDataDir()).then(() => {
             if (this.aborted) {
@@ -286,82 +289,89 @@ class YoutubeDl extends EventEmitter {
                     "pipe:0",
                     "-vn",
                     "-acodec",
-                    "libmp3lame",
+                    "libshine",
                     "-b:a",
-                    (OUTPUT_BITRATE / 1000) + "k",
-                    "file:" + this.getAudioFileName()].join(" ");
+                    OUTPUT_BITRATE / 1000 + "k",
+                    "file:" + this.getAudioFileName(),
+                ].join(" ");
 
                 this.emit("downloadStart");
                 this.handle = spawn("sh", ["-c", shellCommand], {
-                    cwd: cwd
+                    cwd: cwd,
                 });
 
-                this.handle.stderr.on("data", (data) => {
+                this.handle.stderr.on("data", data => {
                     stderr += data;
                     this.log(data);
                     // TODO: Use streaming parser to detect when info is ready.
                     if (!this.infoRetrieved && stderr.indexOf("[download] Destination:") >= 0) {
                         this.infoRetrieved = true;
-                        resolve(fs.readFileAsync(this.getInfoFilePath(), "utf8").then(result => {
-                            if (this.aborted) {
-                                return this.getDummyData();
-                            }
-                            result = JSON.parse(result);
-                            var self = this;
-                            function statLoop() {
-                                return fs.statAsync(self.getAudioFilePath()).catch(e => {
-                                    if (self.aborted) {
-                                        return {size: 0};
-                                    }
-                                    if (e && e.code === "ENOENT") {
-                                        return Promise.delay(10).then(statLoop);
-                                    }
-                                    throw e;
-                                });
-                            }
-
-                            return Promise.delay(10).then(statLoop).then(() => {
+                        resolve(
+                            fs.readFileAsync(this.getInfoFilePath(), "utf8").then(result => {
                                 if (this.aborted) {
                                     return this.getDummyData();
                                 }
+                                result = JSON.parse(result);
+                                var self = this;
+                                function statLoop() {
+                                    return fs.statAsync(self.getAudioFilePath()).catch(e => {
+                                        if (self.aborted) {
+                                            return { size: 0 };
+                                        }
+                                        if (e && e.code === "ENOENT") {
+                                            return Promise.delay(10).then(statLoop);
+                                        }
+                                        throw e;
+                                    });
+                                }
 
-                                var bitRate = OUTPUT_BITRATE;
-                                var predictedSize = (bitRate * result.duration) / 8;
+                                return Promise.delay(10)
+                                    .then(statLoop)
+                                    .then(() => {
+                                        if (this.aborted) {
+                                            return this.getDummyData();
+                                        }
 
-                                this.audioFileData = {
-                                    duration: result.duration,
-                                    title: result.title,
-                                    predictedSize: predictedSize,
-                                    realSize: -1,
-                                    bitRate: bitRate,
-                                    handle: this.getHandle()
-                                };
+                                        var bitRate = OUTPUT_BITRATE;
+                                        var predictedSize = (bitRate * result.duration) / 8;
 
-                                return this.audioFileData;
-                            });
-                        }));
+                                        this.audioFileData = {
+                                            duration: result.duration,
+                                            title: result.title,
+                                            predictedSize: predictedSize,
+                                            realSize: -1,
+                                            bitRate: bitRate,
+                                            handle: this.getHandle(),
+                                        };
+
+                                        return this.audioFileData;
+                                    });
+                            })
+                        );
                     }
                 });
 
-                this.handle.on("exit", (code) => {
+                this.handle.on("exit", code => {
                     this.emit("downloadEnd");
-                    var success = (+code) === 0;
+                    var success = +code === 0;
                     this.handle = null;
                     this.log("exited with code " + code);
                     if (!success) {
                         reject(new Error(stderr));
                     } else if (!this.aborted) {
-                        fs.statAsync(this.getAudioFilePath()).then(stat => {
-                            if (this.audioFileData) {
-                                this.audioFileData.realSize = stat.size;
-                            }
-                        }).catch(() => {});
+                        fs.statAsync(this.getAudioFilePath())
+                            .then(stat => {
+                                if (this.audioFileData) {
+                                    this.audioFileData.realSize = stat.size;
+                                }
+                            })
+                            .catch(() => {});
                     }
                     this.closeLogFile();
                 });
 
-                this.handle.on("error", (error) => {
-                    this.log(error && error.stack || error + "");
+                this.handle.on("error", error => {
+                    this.log((error && error.stack) || error + "");
                 });
             });
         });
@@ -379,7 +389,7 @@ class YoutubeDl extends EventEmitter {
         if (this.audioFileData.realSize >= 0) {
             return this.audioFileData.realSize;
         } else {
-            return this.audioFileData.predictedSize + (overEstimate ? OUTPUT_BITRATE / 8 * 5 : 0);
+            return this.audioFileData.predictedSize + (overEstimate ? (OUTPUT_BITRATE / 8) * 5 : 0);
         }
     }
 

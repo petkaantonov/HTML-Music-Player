@@ -66,7 +66,7 @@ export default class PlayerVolumeManager {
         this.player.toggleMute();
     };
 
-    muteChanged(muted: boolean) {
+    muteChanged = (muted: boolean) => {
         const elems = this.volumeSlider.$().add(this.volumeSlider.$fill(), this.volumeSlider.$knob());
         if (muted) {
             this.$mute().find(`.glyphicon`).removeClass(`glyphicon-volume-up`).addClass(`glyphicon-volume-off`);
@@ -75,5 +75,5 @@ export default class PlayerVolumeManager {
             this.$mute().find(`.glyphicon`).addClass(`glyphicon-volume-up`).removeClass(`glyphicon-volume-off`);
             elems.removeClass(`slider-inactive`);
         }
-    }
+    };
 }

@@ -73,7 +73,7 @@ export interface Deps {
     keyboardShortcuts?: KeyboardShortcuts;
     menuContext?: MenuContext;
     fileInputContext?: FileInputContext;
-    scrollerContext?: any;
+    scrollerContext?: ScrollerContext;
     mainMenu?: MainMenu;
     popupContext?: PopupContext;
     gestureEducator?: GestureEducator;
@@ -102,7 +102,7 @@ export type SelectDeps<T extends keyof Deps> = Pick<Required<Deps>, T>;
 
 const TAB_HEIGHT = 32;
 const POPUP_ZINDEX = 960;
-// Const DEFAULT_IMAGE_SRC = `/dist/images/apple-touch-icon-180x180.png`;
+const DEFAULT_IMAGE_SRC = `${process.env.IMAGE_PATH}/apple-touch-icon-180x180.png`;
 
 const MAIN_TOOLBAR_INDEX = 0;
 const SELECTION_TOOLBAR_INDEX = 1;
@@ -247,9 +247,9 @@ export default class Application {
             }
         );
 
-        /* Const gestureScreenFlasher = new GestureScreenFlasher({
+        const gestureScreenFlasher = new GestureScreenFlasher({
             page,
-        });*/
+        });
 
         const rippler = new Rippler(
             {
@@ -312,11 +312,11 @@ export default class Application {
             }
         );
 
-        /* Const fileInputContext = new FileInputContext({
+        const fileInputContext = new FileInputContext({
             page,
             recognizerContext,
             rippler,
-        });*/
+        });
 
         const scrollerContext = new ScrollerContext(
             {
@@ -506,16 +506,15 @@ export default class Application {
             }
         );
 
-        /*
-        Const playerPictureManager = new PlayerPictureManager(
+        new PlaylistModeManager({ page, playlist, recognizerContext, rippler });
+
+        const playerPictureManager = new PlayerPictureManager(
             {
                 target: `.picture-container`,
                 defaultImageSrc: DEFAULT_IMAGE_SRC,
-                enabledMediaMatcher: null,
             },
             {
                 page,
-                player,
                 playlist,
                 applicationPreferencesBindingContext,
                 metadataManager,
@@ -539,7 +538,76 @@ export default class Application {
                 rippler,
                 globalEvents,
             }
-        );*/
+        );
+
+        new DefaultShortcuts({
+            page,
+            recognizerContext,
+            player,
+            playlist,
+            keyboardShortcuts,
+            playerTimeManager,
+            rippler,
+            gestureScreenFlasher,
+        });
+
+        new MediaSessionWrapper({
+            player,
+            playlist,
+            page,
+            env,
+            playerPictureManager,
+            globalEvents,
+        });
+
+        new PlayerRatingManager(
+            { target: ".js-favorite" },
+            {
+                page,
+                playlist,
+                rippler,
+                recognizerContext,
+            }
+        );
+
+        new PlayerVolumeManager(
+            {
+                volumeSlider: `.js-volume-slider`,
+                muteDom: `.js-mute`,
+            },
+            {
+                page,
+                player,
+                recognizerContext,
+                sliderContext,
+                rippler,
+            }
+        );
+
+        new LocalFileHandler({
+            page,
+            fileInputContext,
+            env,
+            playlist,
+            metadataManager,
+            zipper,
+            mainMenu,
+        });
+
+        new TrackDisplay(
+            {
+                target: `.js-track-ticker-container`,
+                displayTarget: `.js-track-ticker`,
+                delay: 3500,
+                pixelsPerSecond: 22,
+            },
+            {
+                playlist,
+                page,
+                defaultTitle,
+                globalEvents,
+            }
+        );
 
         const visualizerCanvas = new VisualizerCanvas(
             {

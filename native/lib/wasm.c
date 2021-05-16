@@ -80,6 +80,19 @@ double sqrt(double d) {
   return __builtin_sqrt(d);
 }
 
+void* memmove(void* a, const void* b, unsigned long c) {
+  return __builtin_memmove(a, b, c);
+}
+void* memcpy(void* a, const void* b, unsigned long c) {
+  return __builtin_memcpy(a, b, c);
+}
+void* memset(void* a, int b, unsigned long c) {
+  return __builtin_memset(a, b, c);
+}
+int memcmp(const void *str1, const void *str2, unsigned long n) {
+  return __builtin_memcmp(str1, str2, n);
+}
+
 #ifdef DEBUG
 
 

@@ -355,6 +355,7 @@ export default class PlaylistController extends TrackContainerController<"playli
             return;
         }
         const oldMode = this._mode;
+
         if (mode === oldMode) {
             return false;
         }
@@ -506,12 +507,12 @@ export default class PlaylistController extends TrackContainerController<"playli
         }
     }
 
-    _persistPlaylist() {
+    _persistPlaylist = () => {
         if (this.metadataManager.areAllFilesPersisted()) {
             const trackUids = this._trackViews.map(v => v.track().uid());
             void this.db.set("playlistContents", trackUids);
         }
-    }
+    };
 
     _lengthChanged = () => {
         this._persistPlaylist();

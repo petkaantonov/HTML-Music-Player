@@ -1,6 +1,14 @@
+import {
+    downloadYtId,
+    TooManyConcurrentDownloadsError,
+    YoutubeNotAvailableError,
+    YoutubeWrongCredentialsError,
+} from "backend/ytdl";
 import fastify, { FastifyReply, FastifyRequest } from "fastify";
 import * as io from "io-ts";
+import { Readable } from "node:stream";
 import fetch from "node-fetch";
+import { CorsUrl, CspReport, YtId } from "shared/src/types";
 import { decode } from "shared/src/types/helpers";
 import sourceMapSupport from "source-map-support";
 
@@ -40,35 +48,12 @@ function f<ParamsT, BodyT, QueryParamsT>(
             res
         );
         if (result) {
-            await res.status(200).send(result);
+            await res.status(result.statusCode ?? 200).send(result);
         }
     };
 }
 
 const port = decode(io.number, parseInt(process.env.SERVER_PORT || "8137", 10));
-
-interface CorsUrlBrand {
-    readonly CorsUrl: unique symbol;
-}
-
-const corsUrls = ["https://api.acoustId.org/v2/lookup", "https://coverartarchive.org/", "https://coverartpics"];
-
-const CorsUrl = io.brand(
-    io.string,
-    (s: string): s is io.Branded<string, CorsUrlBrand> => corsUrls.some(cu => s.startsWith(cu)),
-    "CorsUrl"
-);
-type CorsUrl = io.TypeOf<typeof CorsUrl>;
-
-const CspReport = io.type({
-    "csp-report": io.partial({
-        "document-uri": io.string,
-        referrer: io.string,
-        "blocked-uri": io.string,
-        "violated-directive": io.string,
-        "original-policy": io.string,
-    }),
-});
 
 app.addContentTypeParser("text/json", { parseAs: "string" }, app.getDefaultJsonParser("ignore", "ignore"));
 app.addContentTypeParser("application/csp-report", { parseAs: "string" }, app.getDefaultJsonParser("ignore", "ignore"));
@@ -120,6 +105,66 @@ app.get(
             headers["set-cookie"] = undefined;
             headers["set-cookie2"] = undefined;
             await res.headers(headers).status(foreignResponse.status).send(foreignResponse.body);
+        }
+    })
+);
+
+app.get(
+    "/download/:ytid",
+    f({ params: io.type({ ytid: YtId }) }, async ({ params }, req, res) => {
+        try {
+            let aborted = false;
+
+            const download = downloadYtId(params.ytid, app.log);
+            req.raw.on("close", () => {
+                if (!aborted) {
+                    aborted = true;
+                    // eslint-disable-next-line @typescript-eslint/no-empty-function
+                    void download.abort(new Error("client closed connection")).catch(() => {});
+                }
+            });
+            const fileName = download.fileName();
+            const fileType = download.fileType();
+            let stream: Readable | undefined;
+            try {
+                stream = await download.start();
+            } catch (e) {
+                if (e instanceof YoutubeNotAvailableError) {
+                    return {
+                        statusCode: 404,
+                        status: "error",
+                        error: {
+                            code: 404,
+                            message: e.message,
+                        },
+                    };
+                } else if (e instanceof YoutubeWrongCredentialsError) {
+                    return {
+                        statusCode: 401,
+                        status: "error",
+                        error: {
+                            code: 401,
+                            message: e.message,
+                        },
+                    };
+                } else {
+                    throw e;
+                }
+            }
+            await res.header("Content-Disposition", `inline; filename="${fileName}"`).type(fileType).send(stream);
+            return undefined;
+        } catch (e) {
+            if (e instanceof TooManyConcurrentDownloadsError) {
+                return {
+                    statusCode: 429,
+                    status: "error",
+                    error: {
+                        code: 429,
+                        message: "Too many concurrent downloads, try again later",
+                    },
+                };
+            }
+            throw e;
         }
     })
 );
