@@ -17,18 +17,29 @@ exports.logResult = result => {
     }
 };
 
-exports.watch = async (build, entry, onRebuild) => {
+const rpnp = /^pnp:/;
+exports.watch = async (build, entry, project, onRebuild) => {
+    const absEntry = path.join(process.cwd(), entry);
+    const projectPath = path.join(path.dirname(__dirname), project);
     function getInputs(result) {
-        return Array.from(
-            new Set(
-                Object.keys(result.metafile.inputs)
-                    .filter(v => !v.startsWith("pnp:"))
-                    .concat(entry)
-            )
-        );
+        const values = Object.keys(result.metafile.inputs);
+        const ret = [];
+        for (let val of values) {
+            if (val.startsWith("pnp:")) {
+                val = val.replace(rpnp, "");
+                if (!val.includes(".yarn")) {
+                    ret.push(val);
+                }
+            } else {
+                if (!path.isAbsolute(val)) {
+                    val = path.join(projectPath, val);
+                }
+                ret.push(val);
+            }
+        }
+        return Array.from(new Set(ret));
     }
 
-    const absEntry = path.join(process.cwd(), entry);
     const now = Date.now();
     const result = await build();
     console.log("built", absEntry, Date.now() - now, "ms");

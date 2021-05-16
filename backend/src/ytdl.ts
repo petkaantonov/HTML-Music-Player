@@ -104,6 +104,7 @@ class FdReadable extends Readable {
         } catch (e) {
             callback(e);
         }
+        this.ytdl.deleteFile();
     }
 }
 
@@ -168,8 +169,8 @@ class YtDownload {
         -vn
         -acodec
         libmp3lame
-        -qscale:a
-        0
+        -b:a
+        192k
         "${this.audioFilePath}"
         `
             .trim()
@@ -281,8 +282,7 @@ class YtDownload {
             this.log("download successful");
         }
         this.aborted = true;
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        fs.unlink(this.audioFilePath).catch(() => {});
+
         if (this.ytdlHandle) {
             this.ytdlHandle.kill("SIGKILL");
             this.ytdlHandle = null;
@@ -302,6 +302,10 @@ class YtDownload {
             } catch (e) {}
             this.fileStream = null;
         }
+    }
+    deleteFile() {
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        fs.unlink(this.audioFilePath).catch(() => {});
     }
 }
 

@@ -209,7 +209,7 @@ export default class PlayerController extends EventEmitter {
 
     playPauseButtonClicked = (e: MouseEvent | GestureObject) => {
         this.rippler.rippleElement(e.currentTarget as HTMLElement, e.clientX, e.clientY);
-        this.togglePlayback();
+        this.togglePlayback(true);
     };
 
     canPlayPause() {
@@ -291,20 +291,20 @@ export default class PlayerController extends EventEmitter {
         this.audioManager.pause();
     }
 
-    play() {
+    play(userAction: boolean) {
         if (this.isStopped) {
             if (!this.playlist.next(true)) {
                 return;
             }
         }
-        this.audioManager.resume();
+        this.audioManager.resume(userAction);
     }
 
-    togglePlayback() {
+    togglePlayback(userAction: boolean) {
         if (this.isPlaying) {
             this.pause();
         } else {
-            this.play();
+            this.play(userAction);
         }
     }
 
@@ -418,7 +418,6 @@ export default class PlayerController extends EventEmitter {
         if (this.dbValues.muted !== undefined && this.dbValues.muted) {
             this.toggleMute();
         }
-
         if (this.dbValues.currentPlaylistTrack) {
             let progress = 0;
             if (this.dbValues.currentTrackProgress !== undefined) {

@@ -12,7 +12,12 @@ interface CorsUrlBrand {
     readonly CorsUrl: unique symbol;
 }
 
-const corsUrls = ["https://api.acoustId.org/v2/lookup", "https://coverartarchive.org/", "https://coverartpics"];
+const corsUrls = [
+    "https://api.acoustId.org/v2/lookup",
+    "https://coverartarchive.org/",
+    "https://coverartpics",
+    "http://coverartarchive.org",
+];
 
 export const CorsUrl = io.brand(
     io.string,

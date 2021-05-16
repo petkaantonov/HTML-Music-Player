@@ -369,6 +369,7 @@ export default abstract class TrackContainerController<T extends TrackOriginName
             itemList: this._trackViews,
             contentContainer: this.$trackContainer(),
             minPrerenderedItems: 2,
+            itemHeight: opts.itemHeight,
             maxPrerenderedItems: 4,
         });
 

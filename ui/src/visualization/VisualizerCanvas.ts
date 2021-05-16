@@ -470,7 +470,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
     /* eslint-enable class-methods-use-this */
 
     needsToDraw() {
-        return this.needToDraw || (this.isEnabled() && this.isSupported());
+        return this.needToDraw || (this.isEnabled() && this.isSupported() && this.player.isPlaying);
     }
 
     shouldHideWhenNothingToDraw() {
@@ -488,6 +488,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
     };
 
     playerStarted = () => {
+        this.needToDraw = true;
         this.page.cancelAnimationFrame(this.emptyBinDrawerFrameId);
         this.emptyBinDrawerFrameId = -1;
     };
@@ -504,6 +505,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
             return;
         }
         this.shown = true;
+        this.needToDraw = true;
         this.page.$(this.canvas).closest(this.sectionContainerSelector).show("block");
         this.binSizeMediaMatchChanged();
     }

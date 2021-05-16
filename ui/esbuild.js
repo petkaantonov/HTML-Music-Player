@@ -87,7 +87,7 @@ const define = {
     "process.env.REVISION": `"${revision}"`,
 };
 
-async function bundleSass(entry, outfile, onRebuild) {
+async function bundleSass(entry, outfile, project, onRebuild) {
     async function build() {
         const result = await esbuild.build({
             target,
@@ -112,7 +112,7 @@ async function bundleSass(entry, outfile, onRebuild) {
     }
 
     if (isWatch) {
-        watch(build, entry, onRebuild);
+        watch(build, entry, project, onRebuild);
     } else {
         const ret = await build();
         if (onRebuild && !ret.errors.length) {
@@ -122,7 +122,7 @@ async function bundleSass(entry, outfile, onRebuild) {
     }
 }
 
-async function bundleJs(entry, outfile, onRebuild) {
+async function bundleJs(entry, outfile, project, onRebuild) {
     const plugins = [vendorResolverPlugin(), tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()];
 
     async function build() {
@@ -149,7 +149,7 @@ async function bundleJs(entry, outfile, onRebuild) {
     }
 
     if (isWatch) {
-        watch(build, entry, onRebuild);
+        watch(build, entry, project, onRebuild);
     } else {
         const ret = await build();
         if (onRebuild && !ret.errors.length) {
@@ -176,14 +176,18 @@ async function inlineCss(entry) {
     return `data:text/css;base64,${Buffer.from(contents, "utf-8").toString("base64")}`;
 }
 
-const criticalCssP = bundleSass("sass/critical.scss", outputAssets.criticalCss);
-const regularCssP = bundleSass("sass/app-css-public.scss", outputAssets.appCss);
-const uibuildP = bundleJs("src/bootstrap.ts", outputAssets.appJs);
-const generalWorkerP = bundleJs("../general-worker/src/GeneralWorker.ts", outputAssets.generalWorker);
-const audioWorkerP = bundleJs("../audio-worker/src/AudioWorker.ts", outputAssets.audioWorker);
-const visualizerWorkerP = bundleJs("../visualizer-worker/src/VisualizerWorker.ts", outputAssets.visualizerWorker);
-const zipperWorkerP = bundleJs("../zipper-worker/src/ZipperWorker.ts", outputAssets.zipperWorker);
-const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutput, async () => {
+const criticalCssP = bundleSass("sass/critical.scss", outputAssets.criticalCss, "ui");
+const regularCssP = bundleSass("sass/app-css-public.scss", outputAssets.appCss, "ui");
+const uibuildP = bundleJs("src/bootstrap.ts", outputAssets.appJs, "ui");
+const generalWorkerP = bundleJs("../general-worker/src/GeneralWorker.ts", outputAssets.generalWorker, "general-worker");
+const audioWorkerP = bundleJs("../audio-worker/src/AudioWorker.ts", outputAssets.audioWorker, "audio-worker");
+const visualizerWorkerP = bundleJs(
+    "../visualizer-worker/src/VisualizerWorker.ts",
+    outputAssets.visualizerWorker,
+    "visualizer-worker"
+);
+const zipperWorkerP = bundleJs("../zipper-worker/src/ZipperWorker.ts", outputAssets.zipperWorker, "zipper-worker");
+const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutput, "service-worker", async () => {
     try {
         fs.writeFile(
             serviceWorkerOutput,
@@ -194,7 +198,7 @@ const swBuildP = bundleJs("../service-worker/src/sw_base.ts", serviceWorkerOutpu
         console.error(e.message);
     }
 });
-const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3Codec);
+const mp3CodecBuildP = bundleJs("../shared/src/worker/mp3.ts", outputAssets.mp3Codec, "shared");
 
 if (!isWatch) {
     const uiLogP = inlineJs("src/uilog.js");

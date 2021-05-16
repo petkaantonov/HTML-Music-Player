@@ -81,7 +81,7 @@ export default class FloatingActionButtonManager {
     _buttonClicked = () => {
         switch (this._currentState) {
             case PLAY_BUTTON_STATE:
-                this._playerController.play();
+                this._playerController.play(true);
                 break;
 
             case PAUSE_BUTTON_STATE:

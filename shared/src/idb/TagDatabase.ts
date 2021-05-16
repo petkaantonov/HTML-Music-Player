@@ -1,6 +1,6 @@
 import { AcoustIdApiError, CONSTRAINT_ERROR, DatabaseClosedError, FileReferenceDeletedError } from "shared/errors";
 import { applyStoreSpec, getIndexedDbStorageInfo, iDbPromisify, iDbPromisifyCursor } from "shared/idb/indexedDbUtil";
-import { FileReference } from "shared/metadata";
+import { FileReference, TrackInfo } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import { typedKeys } from "shared/types/helpers";
 
@@ -22,6 +22,12 @@ const TRACK_SEARCH_INDEX_OBJECT_STORE_NAME = `trackSearchIndex2`;
 const PAYLOAD_TYPE_INDEXED_DB_FILE = `indexedDBFile`;
 
 const LOUDNESS_ANALYZER_SERIALIZED_STATE_STORE_NAME = `loudnessInfo`;
+
+interface PayloadEntry {
+    payloadType: "indexedDBFile";
+    file: File;
+    trackUid: ArrayBuffer;
+}
 
 interface HasTrackUid {
     trackUid: ArrayBuffer;
@@ -235,9 +241,13 @@ export default class TagDatabase {
         return iDbPromisify(store.count());
     }
 
-    async _primaryOrUniqueKeyInArrayQuery(storeName: string, listOfPrimaryKeys: ArrayBuffer[], missing: ArrayBuffer[]) {
+    async _primaryOrUniqueKeyInArrayQuery<T>(
+        storeName: string,
+        listOfPrimaryKeys: ArrayBuffer[],
+        missing: ArrayBuffer[]
+    ): Promise<T[]> {
         this._checkClosed();
-        const ret = new Array(listOfPrimaryKeys.length);
+        const ret: T[] = new Array(listOfPrimaryKeys.length);
         ret.length = 0;
         listOfPrimaryKeys.sort(indexedDBCmp);
         let i = 0;
@@ -288,13 +298,17 @@ export default class TagDatabase {
 
     async trackUidsToFiles(trackUids: ArrayBuffer[], missing: ArrayBuffer[]) {
         this._checkClosed();
-        const result = await this._primaryOrUniqueKeyInArrayQuery(TRACK_PAYLOAD_OBJECT_STORE_NAME, trackUids, missing);
+        const result = await this._primaryOrUniqueKeyInArrayQuery<PayloadEntry>(
+            TRACK_PAYLOAD_OBJECT_STORE_NAME,
+            trackUids,
+            missing
+        );
         return result.map(obj => obj.file);
     }
 
-    trackUidsToTrackInfos(trackUids: ArrayBuffer[], missing: ArrayBuffer[]) {
+    trackUidsToTrackInfos(trackUids: ArrayBuffer[], missing: ArrayBuffer[]): Promise<TrackInfo[]> {
         this._checkClosed();
-        return this._primaryOrUniqueKeyInArrayQuery(TRACK_INFO_OBJECT_STORE_NAME, trackUids, missing);
+        return this._primaryOrUniqueKeyInArrayQuery<TrackInfo>(TRACK_INFO_OBJECT_STORE_NAME, trackUids, missing);
     }
 
     async getTrackInfoByTrackUid(trackUid: ArrayBuffer) {

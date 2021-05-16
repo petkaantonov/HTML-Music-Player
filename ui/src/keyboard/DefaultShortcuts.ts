@@ -123,7 +123,7 @@ export default class DefaultShortcuts {
     }
 
     shortcutPlay() {
-        this.player.play();
+        this.player.play(true);
     }
 
     shortcutStop() {
@@ -147,7 +147,7 @@ export default class DefaultShortcuts {
     }
 
     shortcutTogglePlayback() {
-        this.player.togglePlayback();
+        this.player.togglePlayback(true);
     }
 
     shortcutToggleMute() {

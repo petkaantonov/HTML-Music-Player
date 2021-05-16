@@ -1,10 +1,10 @@
-import SortedSet from "shared/SortedSet";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { buildConsecutiveRanges, indexMapper, TRACK_SORTER } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page from "ui/platform/dom/Page";
 import TrackView from "ui/tracks/TrackView";
 import EventEmitter from "vendor/events";
+import { SortedSet } from "vendor/sortedset";
 
 type Deps = SelectDeps<"page">;
 
@@ -42,7 +42,7 @@ export default class Selectable extends EventEmitter {
         this._lastStart = null;
         this._lastEnd = null;
         this._prioritySelection = null;
-        this._selection = new SortedSet(TRACK_SORTER);
+        this._selection = new SortedSet<TrackView>(TRACK_SORTER);
     }
 
     trackViewMouseDown(e: MouseEvent, trackView: TrackView) {
@@ -101,8 +101,9 @@ export default class Selectable extends EventEmitter {
 
     _clearSelection() {
         this._prioritySelection = null;
-        for (const trackView of this._selection) {
-            trackView.unselected();
+        const it = this._selection.iterator();
+        while (it.next()) {
+            it.value.unselected();
         }
         this._selection.clear();
     }

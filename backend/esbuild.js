@@ -51,7 +51,7 @@ async function build() {
         await copyWithReplacements({ src: "cookies.txt", dst: "dist/cookies.txt" });
     }
     if (isWatch) {
-        watch(build, "src/index.ts");
+        watch(build, "src/index.ts", "backend");
     } else {
         await build();
         // eslint-disable-next-line no-console

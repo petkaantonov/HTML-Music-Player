@@ -184,6 +184,7 @@ export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisuali
                 // TODO: This happens when fps is too high yet worker is too
                 // Slow.
             }
+
             void this._requestBinsAndAnimationFrame();
         } else {
             this._requestAnimationFrame();

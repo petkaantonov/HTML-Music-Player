@@ -1015,7 +1015,7 @@ export class ButtonMenu extends EventEmitter {
         if (prevented) return;
         this._shown = true;
         this.$().removeClass([`transition-out`, `transition-in`, `initial`]).appendTo(`body`);
-        const coords = this.getCoords();
+        const coords = this.getCoords(e);
         this._x = coords.x;
         this._y = coords.y;
         this._xMax = this.page().width();

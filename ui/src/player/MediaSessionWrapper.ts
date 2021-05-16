@@ -163,7 +163,7 @@ export default class MediaSessionWrapper {
     };
 
     _actionPlay = () => {
-        this.player.play();
+        this.player.play(true);
     };
 
     _actionPause = () => {
