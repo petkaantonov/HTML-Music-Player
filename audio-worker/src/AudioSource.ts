@@ -125,7 +125,7 @@ export default class AudioSource extends CancellableOperations(
             totalBuffersToFillHint: totalBuffersToFill,
         }
     ) {
-        if (this.ended) {
+        if (this.ended || this._destroyed) {
             return;
         }
 
@@ -140,6 +140,7 @@ export default class AudioSource extends CancellableOperations(
         const { crossfadeDuration, duration } = this;
         this._loudnessNormalizer!.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization!);
         this._loudnessNormalizer!.setSilenceTrimmingEnabled(this.backend.silenceTrimming!);
+
         this._audioPipeline!.setBufferTime(this.backend.bufferTime);
         const targetBufferLengthAudioFrames = this._audioPipeline!.bufferAudioFrameCount;
         this._decoder!.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;

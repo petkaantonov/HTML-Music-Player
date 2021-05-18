@@ -6,9 +6,17 @@ import {
 } from "backend/ytdl";
 import fastify, { FastifyReply, FastifyRequest } from "fastify";
 import * as io from "io-ts";
+import LRU from "lru-cache";
 import { Readable } from "node:stream";
 import fetch from "node-fetch";
-import { CorsUrl, CspReport, YtId } from "shared/src/types";
+import {
+    CorsUrl,
+    CspReport,
+    YtId,
+    YtQuery,
+    YtSearchResultsResponse,
+    YtSearchResultSuggestions,
+} from "shared/src/types";
 import { decode } from "shared/src/types/helpers";
 import sourceMapSupport from "source-map-support";
 
@@ -110,8 +118,74 @@ app.get(
 );
 
 app.get(
+    "/search/suggestions",
+    f({ query: io.type({ query: YtQuery }) }, async ({ query }, _req, res) => {
+        void res.header("Access-Control-Allow-Origin", "*");
+        const callbackName = "cbname";
+        const url = `https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&hl=fi&gl=fi&sugexp=ytpbte,eaqrw=1,eba=1,ttt=1,tbt=1&gs_rn=64&gs_ri=youtube&authuser=0&ds=yt&q=${encodeURIComponent(
+            query.query
+        )}&callback=${encodeURIComponent(callbackName)}`;
+        const response = await fetch(url);
+        const result = await response.text();
+        const searchString = `${callbackName}([`;
+        const index = result.indexOf(searchString);
+        if (index >= 0) {
+            const dataStart = index + searchString.length - 1;
+            const dataEnd = result.indexOf("])", index) + 1;
+            const [, suggestions] = JSON.parse(result.slice(dataStart, dataEnd));
+            return decode(YtSearchResultSuggestions, { results: suggestions.map((s: any) => s[0]) });
+        } else {
+            app.log.error("youtube suggestions format changed");
+            return decode(YtSearchResultSuggestions, { results: [] });
+        }
+    })
+);
+
+const searchCache = new LRU<string, YtSearchResultsResponse>({ max: 10000 });
+app.get(
+    "/search",
+    f({ query: io.type({ query: YtQuery }) }, async ({ query }, _req, res) => {
+        void res.header("Access-Control-Allow-Origin", "*");
+        const cached = searchCache.get(query.query);
+        if (cached) {
+            return cached;
+        }
+        const encoded = encodeURIComponent(query.query).replace(/%20/g, "+");
+        const url = `https://www.youtube.com/results?search_query=${encoded}`;
+        const response = await fetch(url);
+        const result = await response.text();
+        const initialData = "var ytInitialData = {";
+        const initialDataIndex = result.indexOf(initialData);
+        if (initialDataIndex >= 0) {
+            const dataStart = initialDataIndex + initialData.length - 1;
+            const dataEnd = result.indexOf("};", initialDataIndex) + 1;
+            const json = result.slice(dataStart, dataEnd);
+            const videos = JSON.parse(json)
+                .contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents[0].itemSectionRenderer.contents.filter(
+                    (v: any) => !!v.videoRenderer
+                )
+                .map((v: any) => v.videoRenderer);
+
+            const ret = decode(YtSearchResultsResponse, {
+                results: videos.map((video: any) => ({
+                    id: video.videoId,
+                    title: video.title.runs[0].text,
+                    thumbnail: [video.thumbnail.thumbnails[0].url],
+                })),
+            });
+            searchCache.set(query.query, ret);
+            return ret;
+        } else {
+            app.log.error("youtube search results format changed");
+            return decode(YtSearchResultsResponse, { results: [] });
+        }
+    })
+);
+
+app.get(
     "/download/:ytid",
     f({ params: io.type({ ytid: YtId }) }, async ({ params }, req, res) => {
+        void res.header("Access-Control-Allow-Origin", "*");
         try {
             let aborted = false;
 

@@ -1,5 +1,16 @@
 import * as io from "io-ts";
 
+interface YtQueryBrand {
+    readonly YtQuery: unique symbol;
+}
+
+export const YtQuery = io.brand(
+    io.string,
+    (s: string): s is io.Branded<string, YtQueryBrand> => s.length < 100,
+    "YtQuery"
+);
+export type YtQuery = io.TypeOf<typeof YtQuery>;
+
 interface YtIdBrand {
     readonly YtId: unique symbol;
 }
@@ -35,3 +46,21 @@ export const CspReport = io.type({
         "original-policy": io.string,
     }),
 });
+
+export const YtSearchResultsResponse = io.type({
+    results: io.array(
+        io.type({
+            id: YtId,
+            title: io.string,
+            thumbnail: io.string,
+        })
+    ),
+});
+
+export type YtSearchResultsResponse = io.TypeOf<typeof YtSearchResultsResponse>;
+
+export const YtSearchResultSuggestions = io.type({
+    results: io.array(io.string),
+});
+
+export type YtSearchResultSuggestions = io.TypeOf<typeof YtSearchResultSuggestions>;

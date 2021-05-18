@@ -14,11 +14,13 @@
         "fp-ts": "*",
         "io-ts": "*",
         "io-ts-reporters": "*",
+        "lru-cache": "*",
         "node-fetch": "3.0.0-beta.9",
         "shared": "workspace:*",
         "source-map-support": "*"
     },
     "devDependencies": {
+        "@types/lru-cache": "*",
         "@esbuild-plugins/tsconfig-paths": "*",
         "@swc-node/register": "*",
         "@types/node": "*",
