@@ -201,6 +201,7 @@ export default class WebGl2dImageRenderer {
 
         this.sampler = gl.getUniformLocation(program, `sTexture`);
         this.positionAttribute = gl.getAttribLocation(program, `aPosition`);
+
         this.alphaAttribute = gl.getAttribLocation(program, `aAlpha`);
         this.texResolution = gl.getUniformLocation(program, `uTexResolution`);
         this.canvasResolution = gl.getUniformLocation(program, `uCanvasResolution`);

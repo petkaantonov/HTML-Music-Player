@@ -19,6 +19,7 @@ import EventEmitter from "vendor/events";
 
 const SHADOW_BLUR = 2;
 const SHADOW_COLOR = `rgb(11,32,53)`;
+const MAX_CANVAS_WIDTH = 638;
 
 class TransitionInfo {
     duration: number;
@@ -81,6 +82,7 @@ class GraphicsSource {
         const binHeightPixels = visualizerCanvas.binHeightSourcePixels();
         const capWidthPixels = (16 * page.devicePixelRatio() + 2 + binWidthPixels) | 0;
         let totalWidth = binsNeeded * binWidthPixels + capWidthPixels;
+
         const canvasWidth = Math.min(Math.pow(2, Math.ceil(Math.log(totalWidth) * Math.LOG2E)), 1024);
 
         let rows = 1;
@@ -92,6 +94,7 @@ class GraphicsSource {
         const canvasHeight = Math.pow(2, Math.ceil(Math.log(binHeightPixels * rows) * Math.LOG2E));
 
         const canvas = document.createElement(`canvas`);
+
         canvas.height = canvasHeight;
         canvas.width = canvasWidth;
 
@@ -278,7 +281,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
     }
 
     async initialize() {
-        const width = (this.canvas.clientWidth * this.page.devicePixelRatio()) | 0 || 120;
+        const width = (Math.min(this.canvas.clientWidth, MAX_CANVAS_WIDTH) * this.page.devicePixelRatio()) | 0 || 120;
         const height = (this.canvas.clientHeight * this.page.devicePixelRatio()) | 0 || 50;
         this.width = width;
         this.height = height;
@@ -389,11 +392,10 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
     binSizeMediaMatchChanged = () => {
         this.applyVisibility();
         if (!this.shown) return;
-        const width = (this.canvas.clientWidth * this.page.devicePixelRatio()) | 0;
+        const width = (Math.min(MAX_CANVAS_WIDTH, this.canvas.clientWidth) * this.page.devicePixelRatio()) | 0;
         if (width !== this.width) {
             this.width = width;
             this.canvas.width = width;
-
             this.currentCapPositions = new Float64Array(this.getNumBins());
             this.emptyBins = new Float64Array(this.getNumBins());
             this.transitionInfoArray = new Array(this.getNumBins());
@@ -438,7 +440,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
     }
 
     getMaxBins() {
-        return Math.floor((762 * this.page.devicePixelRatio()) / (this.binWidth + this.gapWidth));
+        return Math.floor((MAX_CANVAS_WIDTH * this.page.devicePixelRatio()) / (this.binWidth + this.gapWidth));
     }
 
     getNumBins() {

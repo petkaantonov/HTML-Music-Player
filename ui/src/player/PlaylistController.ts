@@ -668,6 +668,7 @@ export default class PlaylistController extends TrackContainerController<"playli
         trackChangeKind: TrackChangeKind,
         { isUserInitiatedSkip = false, progress = 0 }: { isUserInitiatedSkip?: boolean; progress?: number } = {
             isUserInitiatedSkip: false,
+
             progress: 0,
         }
     ): void {
