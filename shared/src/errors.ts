@@ -289,3 +289,24 @@ export class AudioError extends Error {
 }
 
 export class TrackWasRemovedError extends Error {}
+
+export interface HttpErrorJson {
+    statusCode: number;
+    status: "error";
+    error: {
+        code: number;
+        message: string;
+    };
+}
+
+export class HttpError extends Error implements HttpErrorJson {
+    statusCode: number;
+    status: "error";
+    error: { code: number; message: string };
+    constructor(json: HttpErrorJson) {
+        super(json.error.message);
+        this.statusCode = json.statusCode;
+        this.status = json.status;
+        this.error = json.error;
+    }
+}

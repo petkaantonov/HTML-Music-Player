@@ -1,16 +1,23 @@
 import { spawn } from "child_process";
+import fg from "fast-glob";
 import { FastifyLoggerInstance } from "fastify";
+import { constants } from "fs";
 import * as fs from "fs/promises";
 import { ChildProcess } from "node:child_process";
 import { ReadableOptions } from "node:stream";
-import * as os from "os";
 import { join } from "path";
 import { YtId } from "shared/src/types";
 import { Readable } from "stream";
 
+const FS_CACHE_MAX_SIZE = 1024 * 1024 * 1024;
 export const MAX_TIMEOUT_SECONDS = 20;
-const MAX_CONCURRENT_DOWNLOADS = 1;
+export const EXTENSION = "mp3";
+export const BITRATE = 192000;
+// 1 background downloader, 1 active stream, 1 passive stream (crossfading)
+const MAX_CONCURRENT_DOWNLOADS = 3;
 const currentDownloads: YtDownload[] = [];
+const CACHE_DIR = "/opt/ytdl/cache";
+const pathsAwaitingHandle: string[] = [];
 
 class FdReadable extends Readable {
     private ytdl: YtDownload;
@@ -104,7 +111,7 @@ class FdReadable extends Readable {
         } catch (e) {
             callback(e);
         }
-        this.ytdl.deleteFile();
+        void this.ytdl.deleteFile();
     }
 }
 
@@ -124,7 +131,7 @@ class YtDownload {
         this.ytid = ytid;
         this.ytdlHandle = null;
         this.logger = logger;
-        this.audioFilePath = join(os.tmpdir(), `tmp-${Date.now()}-${this.fileName()}`);
+        this.audioFilePath = join(CACHE_DIR, `${this.fileName()}`);
     }
 
     private removeFromCurrentDownloads() {
@@ -150,10 +157,8 @@ class YtDownload {
         --no-mtime
         -o
         -
-        --cookies
-        ${process.env.SERVER_ENV === "development" ? "/opt/server/cookies.txt" : "TODO"}
         --cache-dir
-        /opt/ytdl/cache
+        ${CACHE_DIR}
         --no-call-home
         --no-check-certificate
         --user-agent
@@ -170,7 +175,7 @@ class YtDownload {
         -acodec
         libmp3lame
         -b:a
-        192k
+        ${(BITRATE / 1000).toFixed(0)}k
         "${this.audioFilePath}"
         `
             .trim()
@@ -211,6 +216,10 @@ class YtDownload {
         try {
             const handle = await fs.open(this.audioFilePath, "r");
             this.audioFileHandle = handle;
+            const index = pathsAwaitingHandle.indexOf(this.audioFilePath);
+            if (index >= 0) {
+                pathsAwaitingHandle.splice(index, 1);
+            }
             // eslint-disable-next-line no-empty
         } catch {}
         return this.audioFileHandle || null;
@@ -240,12 +249,8 @@ class YtDownload {
         });
     }
 
-    async start(): Promise<Readable> {
-        if (this.ytdlHandle) {
-            throw new Error("start called twice");
-        }
-        const ret = this.stream();
-
+    private startYtDl() {
+        pathsAwaitingHandle.push(this.audioFilePath);
         this.ytdlHandle = spawn("sh", ["-c", this.getYtDlCommand()], {
             stdio: ["pipe", "pipe", "pipe"],
         });
@@ -267,10 +272,39 @@ class YtDownload {
         this.ytdlHandle.on("error", e => {
             void this.abort(e);
         });
+    }
+
+    async start(): Promise<Readable> {
+        if (this.ytdlHandle) {
+            throw new Error("start called twice");
+        }
+        const ret = this.stream();
+        let fileWillExist = false;
+        try {
+            if (pathsAwaitingHandle.includes(this.audioFilePath)) {
+                fileWillExist = true;
+            } else {
+                await fs.access(this.audioFilePath, constants.R_OK);
+                await fs.utimes(this.audioFilePath, new Date(), new Date());
+                fileWillExist = true;
+            }
+            // eslint-disable-next-line no-empty
+        } catch {}
+
+        if (!fileWillExist) {
+            this.startYtDl();
+        } else {
+            this.finished = true;
+        }
+
         return ret;
     }
 
     async abort(error?: Error) {
+        const index = pathsAwaitingHandle.indexOf(this.audioFilePath);
+        if (index >= 0) {
+            pathsAwaitingHandle.splice(index, 1);
+        }
         this.removeFromCurrentDownloads();
         if (this.aborted) {
             return;
@@ -303,9 +337,44 @@ class YtDownload {
             this.fileStream = null;
         }
     }
-    deleteFile() {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        fs.unlink(this.audioFilePath).catch(() => {});
+    async deleteFile() {
+        const files = await fg(CACHE_DIR + "/*.mp3", {
+            absolute: true,
+            onlyFiles: true,
+            stats: true,
+            suppressErrors: true,
+        });
+
+        let totalSize = 0;
+        for (const file of files) {
+            totalSize += file.stats!.size;
+        }
+
+        if (totalSize > FS_CACHE_MAX_SIZE) {
+            this.log(`total size ${totalSize} exceeds maximum ${FS_CACHE_MAX_SIZE}, pruning`);
+            files.sort((a, b) => {
+                const atime = a.stats!.atimeMs;
+                const btime = b.stats!.atimeMs;
+                return atime - btime;
+            });
+            const filesToRemove = [];
+            for (const file of files) {
+                if (totalSize < FS_CACHE_MAX_SIZE / 2) {
+                    break;
+                }
+                filesToRemove.push(file);
+                totalSize -= file.stats!.size;
+            }
+            this.log(
+                `removing ${filesToRemove}, most recently used ${filesToRemove[
+                    filesToRemove.length - 1
+                ].stats?.atime.toISOString()}`
+            );
+            for (const file of filesToRemove) {
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
+                fs.unlink(file.path).catch(() => {});
+            }
+        }
     }
 }
 

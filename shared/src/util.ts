@@ -3,6 +3,8 @@ import Timers from "shared/platform/Timers";
 import { AnyFunction, typedKeys } from "shared/types/helpers";
 import { CancellationError, CancellationToken } from "shared/utils/CancellationToken";
 
+import { SlicedStreamedFile } from "./platform/StreamedFile";
+
 /* eslint-disable no-invalid-this */
 
 let isDevelopment: boolean = true;
@@ -398,7 +400,13 @@ export const checkSize = function (expectedSize: number, resultSize: number) {
     return null;
 };
 
-export const readAsArrayBuffer = function (file: Blob /* , cancellationToken*/): Promise<ArrayBuffer> {
+export const readAsArrayBuffer = function (
+    file: Blob | SlicedStreamedFile /* , cancellationToken*/
+): Promise<ArrayBuffer> {
+    if (file instanceof SlicedStreamedFile) {
+        return file.readAsArrayBuffer();
+    }
+
     const expectedSize = file.size;
 
     return new Promise((resolve, reject) => {

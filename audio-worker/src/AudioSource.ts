@@ -138,6 +138,10 @@ export default class AudioSource extends CancellableOperations(
         const { sampleRate, channelCount } = this;
         let i = 0;
         const { crossfadeDuration, duration } = this;
+        if (!this._loudnessNormalizer) {
+            console.log(this);
+            debugger;
+        }
         this._loudnessNormalizer!.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization!);
         this._loudnessNormalizer!.setSilenceTrimmingEnabled(this.backend.silenceTrimming!);
 

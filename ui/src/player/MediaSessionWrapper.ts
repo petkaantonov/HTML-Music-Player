@@ -55,6 +55,8 @@ export default class MediaSessionWrapper {
             this._mediaSession = this.page.window().navigator.mediaSession!;
             this._mediaSession.playbackState = "none";
             this._mediaSession.metadata = new MediaMetadata();
+            this.player.on("playbackProgressed", this.playbackProgressed);
+            this.player.on("newTrackLoaded", this.trackChanged);
             this._mediaSession.setActionHandler("play", this._actionPlay);
             this._mediaSession.setActionHandler("pause", this._actionPause);
             this._mediaSession.setActionHandler("stop", this._actionStop);
@@ -116,6 +118,23 @@ export default class MediaSessionWrapper {
         this._mediaSession!.playbackState = value;
     }
 
+    playbackProgressed = (currentTime: number, totalTime: number) => {
+        this._mediaSession!.setPositionState?.({
+            duration: totalTime,
+            playbackRate: 1,
+            position: currentTime,
+        });
+    };
+
+    trackChanged = () => {
+        const duration = Math.max(this.player.getProbableDuration() || 0, 0);
+        this._mediaSession!.setPositionState?.({
+            duration,
+            playbackRate: 1,
+            position: 0,
+        });
+    };
+
     _ensureSessionMetadata = () => {
         if (!this._mediaSession!.metadata) {
             this._mediaSession!.metadata = new MediaMetadata();
@@ -128,6 +147,7 @@ export default class MediaSessionWrapper {
     };
 
     _disableMediaSession = () => {
+        this._mediaSession!.setPositionState?.();
         this._mediaSession!.metadata = null;
     };
 

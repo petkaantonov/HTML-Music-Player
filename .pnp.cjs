@@ -1076,6 +1076,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@types/source-map-support", "npm:0.5.3"],
             ["@yarnpkg/esbuild-plugin-pnp", "virtual:93b36166c6e57acd847623d7ee49370f62c07d93945b963c9ec902d1cdae2bfe60ed6f719a108d6b0465851e99d579ad9ee7fd3f172e95528823af91aee7346c#npm:1.0.0-rc.2"],
             ["esbuild", "npm:0.11.17"],
+            ["fast-glob", "npm:3.2.5"],
             ["fastify", "npm:3.15.1"],
             ["fp-ts", "npm:2.10.5"],
             ["io-ts", "virtual:d10100d960b1b73f8c74718d4637dfe2c18d098bafef09afa646f6b4f65cd1a5ad77d7941e2a1def095bb77eb2ac82d00bec47774003ea2f130a251bc51e4c5b#npm:2.2.16"],

@@ -1,5 +1,5 @@
 import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
-import { TimeDisplayPreference } from "shared/src/preferences";
+import { PreferenceArray, TimeDisplayPreference } from "shared/src/preferences";
 import { toTimeString } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapper, DomWrapperSelector } from "ui/platform/dom/Page";

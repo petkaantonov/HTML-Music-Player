@@ -1,18 +1,20 @@
 import { readAsArrayBuffer } from "shared/util";
 import { CancellationToken } from "shared/utils/CancellationToken";
 
+import HttpStreamedFile from "./StreamedFile";
+
 function isRetryable(e: Error) {
     return e && e.name === `NotReadableError`;
 }
 
 export default class FileView {
-    file: File;
+    file: File | HttpStreamedFile;
     dataview: DataView | null;
     buffer: Uint8Array | null;
     start: number;
     end: number;
     _readInProgress: boolean;
-    constructor(file: File) {
+    constructor(file: File | HttpStreamedFile) {
         this.file = file;
         this.dataview = null;
         this.buffer = null;
