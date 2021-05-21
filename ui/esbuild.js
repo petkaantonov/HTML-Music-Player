@@ -123,7 +123,11 @@ async function bundleSass(entry, outfile, project, onRebuild) {
 }
 
 async function bundleJs(entry, outfile, project, onRebuild) {
-    const plugins = [vendorResolverPlugin(), tsConfigPathsPlugin.default({}), pnpPlugin.pnpPlugin()];
+    const plugins = [
+        vendorResolverPlugin(path.dirname(__dirname), path.join("vendor", "src")),
+        tsConfigPathsPlugin.default({}),
+        pnpPlugin.pnpPlugin(),
+    ];
 
     async function build() {
         const result = await esbuild.build({

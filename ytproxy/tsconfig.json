@@ -1,0 +1,28 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+      "paths": {
+        "ytproxy/*": [
+          "src/*"
+        ],
+        "vendor/*": [
+          "vendor/*"
+        ],
+        "shared/*": [
+          "../shared/src/*"
+        ]
+      },
+      "lib": [
+        "ESNext"
+      ],
+      "target": "ESNext",
+      "baseUrl": "./"
+    },
+    "include": [
+      "src",
+      "vendor",
+      "scripts",
+      "test",
+      "../shared"
+    ]
+  }

@@ -5,5 +5,6 @@ PROJECT_PATH=`dirname "$SCRIPT_PATH"`
 
 node "$PROJECT_PATH/ui/esbuild.js" --watch --workdir="$PROJECT_PATH/ui" &
 node "$PROJECT_PATH/backend/esbuild.js" --watch --workdir="$PROJECT_PATH/backend" &
+node "$PROJECT_PATH/ytproxy/esbuild.js" --watch --workdir="$PROJECT_PATH/ytproxy" &
 
 wait

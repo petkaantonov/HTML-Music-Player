@@ -55,6 +55,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         "reference": "workspace:visualizer-worker"
       },
       {
+        "name": "ytproxy",
+        "reference": "workspace:ytproxy"
+      },
+      {
         "name": "zipper-worker",
         "reference": "workspace:zipper-worker"
       }
@@ -71,6 +75,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
       ["ui", ["workspace:ui"]],
       ["vendor", ["workspace:vendor"]],
       ["visualizer-worker", ["workspace:visualizer-worker"]],
+      ["ytproxy", ["workspace:ytproxy"]],
       ["zipper-worker", ["workspace:zipper-worker"]]
     ],
     "fallbackPool": [
@@ -5103,6 +5108,32 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["yocto-queue", "npm:0.1.0"]
           ],
           "linkType": "HARD",
+        }]
+      ]],
+      ["ytproxy", [
+        ["workspace:ytproxy", {
+          "packageLocation": "./ytproxy/",
+          "packageDependencies": [
+            ["ytproxy", "workspace:ytproxy"],
+            ["@esbuild-plugins/tsconfig-paths", "virtual:93b36166c6e57acd847623d7ee49370f62c07d93945b963c9ec902d1cdae2bfe60ed6f719a108d6b0465851e99d579ad9ee7fd3f172e95528823af91aee7346c#npm:0.0.4"],
+            ["@swc-node/register", "npm:1.2.1"],
+            ["@types/lru-cache", "npm:5.1.0"],
+            ["@types/node", "npm:15.0.1"],
+            ["@types/source-map-support", "npm:0.5.3"],
+            ["@yarnpkg/esbuild-plugin-pnp", "virtual:93b36166c6e57acd847623d7ee49370f62c07d93945b963c9ec902d1cdae2bfe60ed6f719a108d6b0465851e99d579ad9ee7fd3f172e95528823af91aee7346c#npm:1.0.0-rc.2"],
+            ["esbuild", "npm:0.11.17"],
+            ["fast-glob", "npm:3.2.5"],
+            ["fastify", "npm:3.15.1"],
+            ["fp-ts", "npm:2.10.5"],
+            ["io-ts", "virtual:d10100d960b1b73f8c74718d4637dfe2c18d098bafef09afa646f6b4f65cd1a5ad77d7941e2a1def095bb77eb2ac82d00bec47774003ea2f130a251bc51e4c5b#npm:2.2.16"],
+            ["io-ts-reporters", "virtual:d10100d960b1b73f8c74718d4637dfe2c18d098bafef09afa646f6b4f65cd1a5ad77d7941e2a1def095bb77eb2ac82d00bec47774003ea2f130a251bc51e4c5b#npm:1.2.2"],
+            ["lru-cache", "npm:6.0.0"],
+            ["node-fetch", "npm:3.0.0-beta.9"],
+            ["shared", "workspace:shared"],
+            ["source-map-support", "npm:0.5.19"],
+            ["typescript", "patch:typescript@npm%3A4.2.4#~builtin<compat/typescript>::version=4.2.4&hash=ea7f47"]
+          ],
+          "linkType": "SOFT",
         }]
       ]],
       ["zipper-worker", [

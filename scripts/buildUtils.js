@@ -117,21 +117,22 @@ exports.performReplacements = function (contents, values) {
         return values[valName];
     });
 };
-exports.copyWithReplacements = async function ({ src, values, dst }) {
+exports.copyWithReplacements = async function ({ src, binary, values, dst }) {
     src = path.join(process.cwd(), src);
     dst = path.join(process.cwd(), dst);
-    const contents = exports.performReplacements(await fs.readFile(src, "utf-8"), values || {});
-    await fs.writeFile(dst, contents, "utf-8");
+    const fileContents = await fs.readFile(src, binary ? null : "utf-8");
+    const contents = values ? exports.performReplacements(fileContents, values) : fileContents;
+    await fs.writeFile(dst, contents, binary ? null : "utf-8");
 };
 
-exports.vendorResolverPlugin = function () {
+exports.vendorResolverPlugin = function (basePath, vendorPath) {
     const expr = /vendor\/(.+)/;
     return {
         name: "vendor-resolver-plugin",
         setup: function ({ onResolve }) {
             onResolve({ filter: expr }, async args => {
                 const name = expr.exec(args.path)[1];
-                const fullPath = path.join(process.cwd(), "../vendor", "src", name + ".js");
+                const fullPath = path.join(basePath, vendorPath || "vendor", name + ".js");
                 return {
                     path: fullPath,
                 };

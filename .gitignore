@@ -10,11 +10,14 @@ dist/**
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-backend/dist/**
-backend/dist
+*/dist/**
+*/dist
 *.code-workspace
 .vscode
 build
 wasm/*
 cookies.txt
 .secrets
+.DS_Store
+
+npm install @ffmpeg/ffmpeg

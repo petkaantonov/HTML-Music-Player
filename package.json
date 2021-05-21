@@ -12,7 +12,8 @@
     "ui",
     "vendor",
     "backend",
-    "shared"
+    "shared",
+    "ytproxy"
   ],
   "scripts": {
     "watch": "./scripts/watch.sh",
