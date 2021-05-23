@@ -17,20 +17,20 @@ const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
     length: number;
-    startTime: number;
-    endTime: number;
+    startFrames: number;
+    endFrames: number;
     channelData: ChannelData | null;
     loudnessInfo: LoudnessInfo;
     constructor(
         length: number,
-        startTime: number,
-        endTime: number,
+        startFrames: number,
+        endFrames: number,
         channelData: ChannelData | null,
         loudnessInfo: LoudnessInfo
     ) {
         this.length = length;
-        this.startTime = startTime;
-        this.endTime = endTime;
+        this.startFrames = startFrames;
+        this.endFrames = endFrames;
         this.channelData = channelData;
         this.loudnessInfo = loudnessInfo;
     }
@@ -301,12 +301,10 @@ export default class AudioProcessingPipeline {
         }
 
         const length = finalAudioFrameLength + paddingFrameLength;
-        const startTime = Math.round((startAudioFrame / sourceSampleRate) * 1e9) / 1e9;
-        const endTime = Math.round((startTime + length / destinationSampleRate) * 1e9) / 1e9;
         this._filledBufferDescriptor = new FilledBufferDescriptor(
             length,
-            startTime,
-            endTime,
+            startAudioFrame,
+            startAudioFrame + length,
             channelData,
             loudnessInfo
         );

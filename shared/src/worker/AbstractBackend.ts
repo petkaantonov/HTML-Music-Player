@@ -52,7 +52,8 @@ export const callMainWindow = function <T extends keyof MainWindowCalls>(
     });
 };
 
-function postMessage(message: FrontendWorkerMessageType, transferList?: ArrayBuffer[]) {
+function postMessage(message: FrontendWorkerMessageType, transferList?: Transferable[]) {
+    //@ts-ignore
     self.postMessage(message, { transfer: transferList });
 }
 
@@ -74,7 +75,7 @@ export default abstract class AbstractBackend<ActionType, F extends FrontendName
         (this.actions as any)[action]!.apply(this, [...args, transferList]);
     }
 
-    postMessageToFrontend(args: any[], transferList?: ArrayBuffer[]) {
+    postMessageToFrontend(args: any[], transferList?: Transferable[]) {
         postMessage({ type: "backendCall", channel: this._channel, args, transferList }, transferList);
     }
 

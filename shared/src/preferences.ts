@@ -2,6 +2,7 @@ import * as io from "io-ts";
 
 import { DEFAULT_BUFFER_LENGTH_SECONDS, MAX_BUFFER_LENGTH_SECONDS, MIN_BUFFER_LENGTH_SECONDS } from "./audio";
 import { ioTypeFromClass, NumberValueBetween, typedKeys } from "./types/helpers";
+import { EffectSpecList } from "./worker/Effects";
 
 export interface Preference {
     key: keyof StoredKVValues;
@@ -135,7 +136,7 @@ export const StoredKVValues = io.partial({
 });
 export type StoredKVValues = io.TypeOf<typeof StoredKVValues>;
 
-export interface AudioPlayerEffects {
+export interface AudioPlayerEffects extends EffectSpecList {
     0: {
         name: "noise-sharpening";
         effectSize: number;

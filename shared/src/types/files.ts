@@ -12,6 +12,8 @@ export const supportedAudioFileMimeMap: Record<string, CodecName> = {
     "audio/mpeg": `mp3`,
 };
 
+export const fileExtensionToMime: Map<string, string> = new Map([["mp3", "audio/mp3"]]);
+
 export const supportedOtherFileMimeMap = {
     "application/zip": `zip`,
 };

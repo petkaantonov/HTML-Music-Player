@@ -61,6 +61,7 @@ class FHandle {
             const length = (this._size * 1.5) | 0;
             this._writePtr = wasm.malloc(length);
             this._writeLength = length;
+            //@ts-ignore
             const reader = new FileReaderSync();
             const src = reader.readAsArrayBuffer(file);
             const dst = wasm.u8view(this._writePtr, this._size);
@@ -160,6 +161,7 @@ class FHandle {
         }
         const slicedBlob = file.slice(fileStart, fileStart + lengthToRead, file.type);
         try {
+            //@ts-ignore
             const reader = new FileReaderSync();
             const src = reader.readAsArrayBuffer(slicedBlob);
             const dst = wasm.u8view(targetPtr, lengthToRead);

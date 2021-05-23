@@ -69,10 +69,6 @@ export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisuali
         return Math.floor(this._workerFps);
     }
 
-    _getAudioLatency() {
-        return this.audioManager.getAudioLatency();
-    }
-
     _adjustFrameRate() {
         const { targetFps, actualFps } = this;
 
@@ -132,7 +128,8 @@ export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisuali
         if (!this._requestAnimationFrame()) {
             return;
         }
-
+        return;
+        /*
         if (this.visualizerCanvas!.needsToDraw() && !this._awaitingBins) {
             const { actualFps } = this;
             const offsetSeconds =
@@ -158,6 +155,7 @@ export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisuali
             const fps = 1000 / (performance.now() - now);
             this._workerFps = this._workerFps * (1 - ALPHA) + fps * ALPHA;
         }
+        */
     }
 
     _receivedFrame = (now: number) => {

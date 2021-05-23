@@ -1,5 +1,4 @@
 import TagDatabase from "shared/idb/TagDatabase";
-import Timers from "shared/platform/Timers";
 import { setIsDevelopment, setTimers } from "shared/util";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
 
@@ -29,7 +28,12 @@ self.addEventListener(`unhandledrejection`, event => {
 });
 
 void (async () => {
-    const timers = new Timers();
+    const timers = {
+        setTimeout: self.setTimeout.bind(self),
+        clearTimeout: self.clearTimeout.bind(self),
+        setInterval: self.setInterval.bind(self),
+        clearInterval: self.clearInterval.bind(self),
+    };
     setTimers(timers);
     setIsDevelopment(isDevelopment);
 

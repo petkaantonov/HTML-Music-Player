@@ -128,7 +128,8 @@ app.addHook("onRequest", async (req, reply) => {
         "X-Permitted-Cross-Domain-Policies": "none",
         "X-Download-Options": "noopen",
         "X-DNS-Prefetch-Control": "off",
-        "Expect-CT": "max-age=06",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Cross-Origin-Opener-Policy": "same-origin",
     });
 });
 

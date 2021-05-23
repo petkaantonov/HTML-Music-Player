@@ -1,21 +1,17 @@
 import {
     AudioConfig,
     AudioPlayerBackendActions,
-    BufferDescriptor,
-    BufferFilledResult,
-    ChannelData,
+    AudioWorkletMessage,
+    MAX_SUSTAINED_AUDIO_SECONDS,
     MIN_SUSTAINED_AUDIO_SECONDS,
     SUSTAINED_BUFFERED_AUDIO_RATIO,
-    TrackArgs,
-    WEB_AUDIO_BLOCK_SIZE,
 } from "shared/audio";
-import { ChannelCount, FileReference, ITrack } from "shared/metadata";
+import { ChannelCount, ITrack } from "shared/metadata";
 import Timers from "shared/platform/Timers";
-import { AudioPlayerResult, FADE_MINIMUM_VOLUME, StateModificationAction } from "shared/src/audio";
-import { decode, EventEmitterInterface, PromiseResolve } from "shared/types/helpers";
-import { roundSampleTime } from "shared/util";
+import { AudioPlayerResult, FADE_MINIMUM_VOLUME } from "shared/src/audio";
+import { HEADER_BYTES } from "shared/src/worker/CircularAudioBuffer";
+import { assertNever, decode, EventEmitterInterface } from "shared/types/helpers";
 import { SelectDeps } from "ui/Application";
-import SourceDescriptor, { AudioBufferSourceNodeExt } from "ui/audio/SourceDescriptor";
 import { cancelAndHold } from "ui/platform/audio";
 import Page from "ui/platform/dom/Page";
 import PlaylistController from "ui/player/PlaylistController";
@@ -25,10 +21,6 @@ import WorkerFrontend from "ui/WorkerFrontend";
 
 const CURVE_LENGTH = 8;
 const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
-const SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS = 20;
-const MAX_DIFFERENT_AUDIO_BUFFER_KEYS = 10;
-const SEEK_FADE_TIME = 0.2;
-const TRACK_CHANGE_FADE_TIME = 0.2;
 const PAUSE_RESUME_FADE_TIME = 0.4;
 const MUTE_UNMUTE_FADE_TIME = 0.4;
 const VOLUME_RATIO = 2;
@@ -52,19 +44,6 @@ function getFadeInCurve() {
     return getCurve(FADE_MINIMUM_VOLUME, 1);
 }
 
-function audioBufferCacheKey(channelCount: number, sampleRate: number) {
-    return `${channelCount}-${sampleRate}`;
-}
-
-function lruCmp(a: LruCacheValue, b: LruCacheValue) {
-    return b.lastUsed - a.lastUsed;
-}
-
-interface LruCacheValue {
-    lastUsed: number;
-    key: string;
-}
-
 type Deps = SelectDeps<
     | "audioWorker"
     | "playlist"
@@ -80,54 +59,19 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     effectPreferencesBindingContext: EffectPreferencesBindingContext;
     applicationPreferencesBindingContext: ApplicationPreferencesBindingContext;
     timers: Timers;
-    private _audioContext: AudioContext | null = null;
-    private _unprimedAudioContext: AudioContext | null = null;
-    private _silentBuffer: AudioBuffer | null = null;
-    private _outputSampleRate: number = -1;
-    private _outputChannelCount: number = -1;
-    private _scheduleAheadTime: number = -1;
+    private _audioContext: AudioContext;
     private _volumeValue: number = 0.15;
     private _mutedValue: boolean = false;
     private _paused: boolean = true;
-    private _preloadingTrack: ITrack | null = null;
-    private _bufferFrameCount: number = 0;
-    private _playedAudioBuffersNeededForVisualization: number = 0;
-    private _loadingNext: boolean = false;
-    private _sourceStopped: boolean = true;
-    private _fadeInOutNode: GainNode | null = null;
-    private _volumeNode: GainNode | null = null;
+    private _fadeInOutNode: GainNode;
+    private _volumeNode: GainNode;
     private _currentTime: number = 0;
-    private _baseTime: number = 0;
     private _duration: number = 0;
     private _fadeOutEnded: number = 0;
     private _fadeInStarted: number = 0;
     private _fadeInStartedWithLength: number = 0;
-    private _lastBufferLoadedHandled: boolean = false;
-    private _endedEmitted: boolean = false;
-    private _previousAudioContextTime: number = -1;
-    private _previousHighResTime: number = -1;
-    private _previousCombinedTime: number = -1;
-    private _timeUpdateEmittedCurrentTime: number = -1;
-    private _timeUpdateEmittedDuration: number = -1;
-    private _waitingUserGesturePromise: null | Promise<void> = null;
-    private _waitingUserGesturePromiseResolve: null | PromiseResolve<void> = null;
-    private _preloadedNextTrackArgs: TrackArgs | null = null;
-    private _sourceDescriptorQueue: SourceDescriptor[] = [];
-    private _playedSourceDescriptors: SourceDescriptor[] = [];
-    private _backgroundSourceDescriptors: SourceDescriptor[] = [];
-    private _audioBufferTime: number = -1;
-    private _audioBufferCache: Map<string, AudioBuffer[]> = new Map();
-    private _audioBufferCacheKeys: LruCacheValue[] = [];
-    private _suspensionTimeoutMs: number = SUSPEND_AUDIO_CONTEXT_AFTER_SECONDS * 1000;
-    private _currentStateModificationAction: StateModificationAction | null = null;
-    private _targetBufferLengthSeconds: number = -1;
-    private _sustainedBufferedAudioSeconds: number = -1;
-    private _sustainedBufferCount: number = -1;
-    private _minBuffersToRequest: number = -1;
-    private _suspensionTimerStartedTime: number = performance.now();
-    private _suspensionTimeoutId: number;
-    private _baseLatency: number;
-    private _outputLatency: number;
+    private _suspensionTimeoutId: number = -1;
+    private _ignoreNextTrackLoads: boolean = false;
 
     constructor(deps: Deps) {
         super("audio", deps.audioWorker);
@@ -136,35 +80,117 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         this.effectPreferencesBindingContext = deps.effectPreferencesBindingContext;
         this.applicationPreferencesBindingContext = deps.applicationPreferencesBindingContext;
         this.timers = deps.timers;
-
-        this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
-        this.page.setInterval(this._timeUpdate, 100);
         this.effectPreferencesBindingContext.on(`change`, this._effectPreferencesChanged);
         this.applicationPreferencesBindingContext.on(`change`, this._applicationPreferencesChanged);
-        this.page.addDocumentListener(`touchend`, this._touchended, { capture: true });
-        this.page.addDocumentListener("click", this._touchended, { capture: true });
-        const audioContext = new AudioContext();
-        this._baseLatency = audioContext.baseLatency || 0;
-        this._outputLatency = audioContext.outputLatency || 0;
-        const channelCount = decode(ChannelCount, audioContext.destination.channelCount);
-        const { sampleRate } = audioContext;
-        this._setAudioOutputParameters({ channelCount, sampleRate });
-        this._setBufferSize(
-            this.applicationPreferencesBindingContext.preferencesManager().get("bufferLengthMilliSeconds")
-        );
+        this._audioContext = new AudioContext({ latencyHint: `playback` });
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        void this._audioContext.suspend().catch(_e => {});
+        this._volumeNode = this._audioContext.createGain();
+        this._fadeInOutNode = this._audioContext.createGain();
+        this._fadeInOutNode.connect(this._volumeNode);
+        this._volumeNode.connect(this._audioContext.destination);
+        this._fadeOutEnded = 0;
+        this._fadeInStarted = 0;
+        this._fadeInStartedWithLength = 0;
+        this._volumeChanged(this._mutedValue, this._mutedValue);
         void this._initBackend();
     }
 
-    isSeekable() {
-        return !this._lastBufferLoadedHandled && !this._loadingNext;
+    get audioContextState() {
+        return this._audioContext.state;
     }
+
+    get outputLatency() {
+        return this._audioContext.outputLatency;
+    }
+
+    get baseLatency() {
+        return this._audioContext.baseLatency;
+    }
+
+    get sampleRate() {
+        return this._audioContext.sampleRate;
+    }
+
+    get totalLatency() {
+        return this.baseLatency + this.outputLatency;
+    }
+
+    get channelCount() {
+        return decode(ChannelCount, this._audioContext.destination.channelCount);
+    }
+
+    get bufferLengthSeconds() {
+        return this.applicationPreferencesBindingContext.preferencesManager().get("bufferLengthMilliSeconds") / 1000;
+    }
+
+    get totalSustainedAudioSeconds() {
+        return Math.max(MIN_SUSTAINED_AUDIO_SECONDS, this.bufferLengthSeconds * SUSTAINED_BUFFERED_AUDIO_RATIO);
+    }
+
+    get crossfadeDuration() {
+        return this.effectPreferencesBindingContext.getCrossfadeDuration();
+    }
+
+    private _handleAudioWorkletMessage = (e: MessageEvent<any>) => {
+        const message = decode(AudioWorkletMessage, e.data);
+        switch (message.type) {
+            case "timeupdate":
+                this.postMessageToAudioBackend("timeUpdate");
+                break;
+        }
+    };
 
     isPaused() {
         return this._paused;
     }
 
-    resume(userAction: boolean) {
-        this._resume(userAction, true);
+    private _suspendAudioContext = async () => {
+        if (this._audioContext.state === "suspended") {
+            return;
+        }
+        console.log("suspending audiocontext");
+        return this._audioContext.suspend();
+    };
+
+    private _resumeAudioContext = async () => {
+        if (this._audioContext.state === "running") {
+            return;
+        }
+        await this._audioContext.resume();
+        console.log("resumed audiocontext");
+        this.emit("audioContextDidReset");
+    };
+
+    private _startSuspensionTimeout() {
+        if (this._suspensionTimeoutId === -1) {
+            this._suspensionTimeoutId = this.page.setTimeout(() => {
+                this._suspensionTimeoutId = -1;
+                void this._suspendAudioContext();
+            }, 5000);
+        }
+    }
+
+    private _stopSuspensionTimeout() {
+        if (this._suspensionTimeoutId > -1) {
+            this.page.clearTimeout(this._suspensionTimeoutId);
+        }
+    }
+
+    async resume(clearBuffers: boolean = false) {
+        if (!this.isPaused()) {
+            return;
+        }
+        console.log("resume called, clearBuffers=", clearBuffers);
+        await this._resumeAudioContext();
+        if (this.audioContextState !== "running") {
+            throw new Error("invalid resume() not from user action");
+        }
+        this._paused = false;
+        this.postMessageToAudioBackend("resume", { clearBuffers });
+        this.emit("playbackStateChanged");
+        this._stopSuspensionTimeout();
+        console.log("resumed");
     }
 
     pause() {
@@ -173,11 +199,12 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         }
         this._paused = true;
         this.emit("playbackStateChanged");
-        if (this._maybeFadeOut(PAUSE_RESUME_FADE_TIME)) {
-            this._stopSources(this._fadeOutEnded);
-        } else {
-            this._stopSources();
-        }
+        this.postMessageToAudioBackend("pause", { fadeOutDelay: PAUSE_RESUME_FADE_TIME });
+        this._startSuspensionTimeout();
+    }
+
+    getSampleRate() {
+        return this._audioContext.sampleRate;
     }
 
     getVolume() {
@@ -199,37 +226,41 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         this._volumeChanged(prev, muted);
     }
 
-    getAudioLatency() {
-        return this._baseLatency + this._outputLatency;
-    }
-
-    loadTrack(track: ITrack, _isUserInitiatedSkip: boolean, initialProgress: number = 0, resumeAfterLoad: boolean) {
-        this.playlist.removeListener("playlistNextTrackChanged", this._nextTrackChangedWhilePreloading);
-        const { _preloadingTrack } = this;
-        this._preloadingTrack = null;
-
-        if (track === _preloadingTrack && this._hasPreloadedNextTrack()) {
-            const args = this._preloadedNextTrackArgs;
-            this._preloadedNextTrackArgs = null;
-            this._applyTrackInfo(args!);
-        } else {
-            this._load(track.getFileReference(), false, initialProgress, resumeAfterLoad);
-        }
-    }
-
-    setCurrentTime(time: number) {
-        if (!this.isSeekable()) {
+    async loadTrack(track: ITrack, initialProgress: number = 0, resume: boolean) {
+        console.log(
+            "loadTrack, resume=",
+            resume,
+            "ignored=",
+            this._ignoreNextTrackLoads,
+            "initialProgress=",
+            initialProgress
+        );
+        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+        if (this._ignoreNextTrackLoads) {
             return;
         }
-        time = Math.max(0, time);
-        time = Math.min(this._getMaximumSeekTime(this._duration), time);
+        if (resume && this.isPaused()) {
+            await this.resume(true);
+        }
+        if (resume && this.audioContextState !== "running") {
+            // TODO await for user interaction.
+            throw new Error("wanted resume without user interaction");
+        }
+        this.postMessageToAudioBackend("load", {
+            fileReference: track.getFileReference(),
+            progress: initialProgress,
+            resumeAfterInitialization: resume,
+        });
+    }
 
-        this._currentTime = time;
-        this._baseTime = this._currentTime - this._getCurrentAudioBufferBaseTimeDelta();
-        this._timeUpdate();
-        time = this._currentTime;
-        const bufferFillCount = this._getSustainedBufferCount();
-        this.postMessageToAudioBackend(`seek`, undefined, { bufferFillCount, time });
+    async setCurrentTime(time: number) {
+        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+        time = Math.max(0, time);
+        time = Math.max(0, Math.min(this._duration - 0.2, time));
+        if (this._duration > 0 && this.isPaused()) {
+            await this.resume(true);
+        }
+        this.postMessageToAudioBackend("seek", { time, resumeAfterInitialization: true });
     }
 
     getCurrentTime() {
@@ -240,236 +271,46 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         return this._duration;
     }
 
-    receiveMessageFromBackend(result: AudioPlayerResult, transferList: ArrayBuffer[]) {
+    _sendNextTrackToBackend = () => {
+        console.log("next track sent to backend for preloading");
+        const next = this.playlist.getNextTrack();
+        this.postMessageToAudioBackend("nextTrackResponse", {
+            fileReference: next ? next.fileReference : undefined,
+        });
+    };
+
+    receiveMessageFromBackend(result: AudioPlayerResult) {
         switch (result.type) {
-            case "bufferFilled":
-                void this._bufferFilled(result, transferList);
+            case "timeupdate":
+                this._emitPlaybackProgress(result.currentTime, result.totalTime);
                 break;
             case "error":
+                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
                 this._error(result);
                 break;
-            case "idle":
-                this._idle();
-                break;
-        }
-    }
-
-    getSamplesScheduledAtOffsetRelativeToNow(channelData: ChannelData, offsetSeconds: number = 0) {
-        const ret = {
-            sampleRate: 44100,
-            channelCount: decode(ChannelCount, channelData.length),
-            channelDataFilled: false,
-        };
-
-        if (this._sourceStopped || !this._audioContext) {
-            return ret;
-        }
-        const timestamp = this._audioContext.getOutputTimestamp();
-        let currentTime = timestamp.contextTime!;
-        const hr = timestamp.performanceTime!;
-        const prevHr = this._previousHighResTime;
-
-        // Workaround for bad values from polyfill
-        if (currentTime === this._previousAudioContextTime) {
-            const reallyElapsed = Math.round((hr - prevHr) * 1000) / 1e6;
-            currentTime += reallyElapsed;
-            this._previousCombinedTime = currentTime;
-        } else {
-            this._previousAudioContextTime = currentTime;
-            this._previousHighResTime = hr;
-        }
-
-        if (currentTime < this._previousCombinedTime) {
-            currentTime = this._previousCombinedTime + Math.round((hr - prevHr) * 1000) / 1e6;
-        }
-
-        if (!this._sourceDescriptorQueue.length) {
-            return ret;
-        }
-
-        const targetStartTime = currentTime + offsetSeconds;
-        if (targetStartTime < 0) {
-            return ret;
-        }
-
-        const [nextSourceDescriptor] = this._sourceDescriptorQueue;
-        const { sampleRate, channelCount } = nextSourceDescriptor!;
-        const duration = channelData[0]!.length / sampleRate;
-        let lowerBoundSourceDescriptor, upperBoundSourceDescriptor;
-
-        // Assume `duration` is always less than bufferDuration. Which it is.
-        if (duration > this._getBufferDuration()) {
-            // eslint-disable-next-line no-console
-            console.warn(`duration > this._getBufferDuration() ${duration} ${this._getBufferDuration()}`);
-            return ret;
-        }
-
-        for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
-            const sourceDescriptor = this._playedSourceDescriptors[i]!;
-            if (sourceDescriptor.started <= targetStartTime && targetStartTime <= sourceDescriptor.stopped) {
-                lowerBoundSourceDescriptor = sourceDescriptor;
-
-                if (targetStartTime + duration <= sourceDescriptor.stopped) {
-                    upperBoundSourceDescriptor = sourceDescriptor;
-                } else if (i + 1 < this._playedSourceDescriptors.length) {
-                    upperBoundSourceDescriptor = this._playedSourceDescriptors[i + 1];
+            case "preloadedTrackStartedPlaying":
+                console.log("preloaded track started playing");
+                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                this._ignoreNextTrackLoads = true;
+                try {
+                    this.emit("preloadedTrackPlaybackStarted");
+                } finally {
+                    this._ignoreNextTrackLoads = false;
                 }
                 break;
-            }
-        }
-
-        if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
-            for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
-                const sourceDescriptor = this._sourceDescriptorQueue[i]!;
-                if (
-                    !lowerBoundSourceDescriptor &&
-                    sourceDescriptor.started <= targetStartTime &&
-                    targetStartTime <= sourceDescriptor.stopped
-                ) {
-                    lowerBoundSourceDescriptor = sourceDescriptor;
-                    if (targetStartTime + duration <= sourceDescriptor.stopped) {
-                        upperBoundSourceDescriptor = lowerBoundSourceDescriptor;
-                    } else if (i + 1 < this._sourceDescriptorQueue.length) {
-                        upperBoundSourceDescriptor = this._sourceDescriptorQueue[i + 1];
-                    } else {
-                        return ret;
-                    }
-                    break;
+            case "nextTrackRequest":
+                {
+                    this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                    this._sendNextTrackToBackend();
+                    this.playlist.on("playlistNextTrackChanged", this._sendNextTrackToBackend);
                 }
-
-                if (lowerBoundSourceDescriptor && !upperBoundSourceDescriptor) {
-                    upperBoundSourceDescriptor = this._sourceDescriptorQueue[i];
-                    break;
-                }
-            }
-        }
-
-        if (!lowerBoundSourceDescriptor || !upperBoundSourceDescriptor) {
-            return ret;
-        }
-
-        ret.sampleRate = sampleRate;
-        ret.channelCount = channelCount;
-
-        const length = (duration * sampleRate) | 0;
-        const bufferLength = (lowerBoundSourceDescriptor.duration * sampleRate) | 0;
-        let offset;
-        if (lowerBoundSourceDescriptor === upperBoundSourceDescriptor) {
-            offset = ((targetStartTime - lowerBoundSourceDescriptor.started) * sampleRate) | 0;
-            const { audioBuffer } = lowerBoundSourceDescriptor;
-
-            for (let ch = 0; ch < channelData.length; ++ch) {
-                audioBuffer.copyFromChannel(channelData[ch], ch, offset);
-            }
-        } else {
-            offset =
-                ((lowerBoundSourceDescriptor.duration - (lowerBoundSourceDescriptor.stopped - targetStartTime)) *
-                    sampleRate) |
-                0;
-            let { audioBuffer } = lowerBoundSourceDescriptor;
-
-            for (let ch = 0; ch < channelData.length; ++ch) {
-                audioBuffer.copyFromChannel(channelData[ch], ch, offset);
-            }
-            ({ audioBuffer } = upperBoundSourceDescriptor);
-            const samplesCopied = bufferLength - offset;
-            const remainingLength = length - samplesCopied;
-            for (let ch = 0; ch < channelData.length; ++ch) {
-                const dst = new Float32Array(channelData[ch]!.buffer, samplesCopied * 4, remainingLength);
-                audioBuffer.copyFromChannel(dst, ch, 0);
-            }
-        }
-
-        ret.channelDataFilled = true;
-        return ret;
-    }
-
-    createAudioBuffer(channelCount: ChannelCount, length: number, sampleRate: number): AudioBuffer {
-        const key = audioBufferCacheKey(channelCount, sampleRate);
-        const { _audioBufferCacheKeys, _audioBufferCache } = this;
-        const lastUsed = performance.now();
-        let keyExists = false;
-
-        for (let i = 0; i < _audioBufferCacheKeys.length; ++i) {
-            if (_audioBufferCacheKeys[i]!.key === key) {
-                _audioBufferCacheKeys[i]!.lastUsed = lastUsed;
-                keyExists = true;
                 break;
-            }
+            case "stop":
+                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                break;
+            default:
+                assertNever(result);
         }
-
-        if (!keyExists) {
-            const entry = { key, lastUsed };
-            if (_audioBufferCacheKeys.length >= MAX_DIFFERENT_AUDIO_BUFFER_KEYS) {
-                _audioBufferCacheKeys.sort(lruCmp);
-                const removedKey = _audioBufferCacheKeys.pop()!.key;
-                _audioBufferCache.delete(removedKey);
-            }
-            _audioBufferCacheKeys.push(entry);
-            _audioBufferCache.set(key, []);
-        }
-
-        const audioBuffers = _audioBufferCache.get(key)!;
-        if (!audioBuffers.length) {
-            return this._audioContext!.createBuffer(channelCount, length, sampleRate);
-        } else {
-            while (audioBuffers.length > 0) {
-                const audioBuffer = audioBuffers.pop()!;
-                if (audioBuffer.length === length) {
-                    return audioBuffer;
-                }
-            }
-            return this._audioContext!.createBuffer(channelCount, length, sampleRate);
-        }
-    }
-
-    freeAudioBuffer(audioBuffer: AudioBuffer) {
-        const { numberOfChannels, sampleRate } = audioBuffer;
-        const key = audioBufferCacheKey(numberOfChannels, sampleRate);
-        this._audioBufferCache.get(key)!.push(audioBuffer);
-    }
-
-    _getCrossfadeDuration() {
-        return this.effectPreferencesBindingContext.getCrossfadeDuration();
-    }
-
-    _getSustainedBufferCount() {
-        return this._sustainedBufferCount;
-    }
-
-    _getMinBuffersToRequest() {
-        return this._minBuffersToRequest;
-    }
-
-    _getScheduleAheadTime() {
-        return this._scheduleAheadTime;
-    }
-
-    _getMaximumSeekTime(duration: number) {
-        return Math.max(0, duration - (this._audioBufferTime + 2048 / this._audioContext!.sampleRate));
-    }
-
-    _getBufferDuration() {
-        return this._audioBufferTime;
-    }
-
-    _lastBufferLoaded(descriptor: BufferDescriptor) {
-        if (!this._lastBufferLoadedHandled) {
-            this._lastBufferLoadedHandled = true;
-            if (descriptor.endTime < this._duration - this._getBufferDuration() - this._getCrossfadeDuration()) {
-                this._duration = descriptor.endTime;
-                this._emitPlaybackProgress(this._currentTime, this._duration);
-            }
-
-            if (this.playlist.getNextTrack() && !this._isPreloadingNextTrack()) {
-                this.playlist.on("playlistNextTrackChanged", this._nextTrackChangedWhilePreloading);
-                this._updatePreloadTrack();
-            }
-        }
-    }
-
-    _hasPreloadedNextTrack() {
-        return this._preloadedNextTrackArgs !== null;
     }
 
     _volume() {
@@ -498,306 +339,93 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         }
     }
 
-    _updatePreloadTrack() {
-        this._preloadingTrack = this.playlist.getNextTrack();
-        if (this._preloadingTrack) {
-            this._load(this._preloadingTrack.getFileReference(), true);
-        }
-    }
-
-    _nextTrackChangedWhilePreloading = () => {
-        this._updatePreloadTrack();
-    };
-
-    _bufferFrameCountForSampleRate(sampleRate: number) {
-        return this._targetBufferLengthSeconds * sampleRate;
-    }
-
-    _isPreloadingNextTrack() {
-        return !!this._preloadingTrack;
-    }
-
     _effectPreferencesChanged = async () => {
         await this.ready();
         void this._updateBackendConfig({
             effects: this.effectPreferencesBindingContext.getAudioPlayerEffects(),
-            crossfadeDuration: this._getCrossfadeDuration(),
+            crossfadeDuration: this.crossfadeDuration,
         });
     };
 
     _applicationPreferencesChanged = async () => {
         await this.ready();
         const preferences = this.applicationPreferencesBindingContext.preferencesManager();
-        void this._setBufferSize(preferences.get("bufferLengthMilliSeconds"));
+
         void this._updateBackendConfig({
             loudnessNormalization: preferences.get("enableLoudnessNormalization"),
             silenceTrimming: preferences.get("enableSilenceTrimming"),
+            bufferTime: this.bufferLengthSeconds,
+            sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
         });
-    };
-
-    _touchended = async () => {
-        if (this._unprimedAudioContext) {
-            const audioCtx = this._unprimedAudioContext;
-            try {
-                await audioCtx.resume();
-            } catch (e) {
-                // Noop
-            }
-
-            const source = audioCtx.createBufferSource();
-            source.buffer = this._silentBuffer;
-            source.connect(audioCtx.destination);
-            source.start(0);
-            this._unprimedAudioContext = null;
-        }
-        if (this._waitingUserGesturePromiseResolve) {
-            const resolve = this._waitingUserGesturePromiseResolve;
-            this._waitingUserGesturePromiseResolve = null;
-            this._waitingUserGesturePromise = null;
-            this._resetAudioContext();
-            resolve();
-        }
     };
 
     async _updateBackendConfig(config: AudioConfig) {
         await this.ready();
-        this.postMessageToAudioBackend("audioConfiguration", undefined, config);
+        this.postMessageToAudioBackend("audioConfigurationChange", config);
     }
 
     async _initBackend() {
+        const { channelCount, sampleRate } = this;
+        const sab = new SharedArrayBuffer(
+            Float32Array.BYTES_PER_ELEMENT * channelCount * sampleRate * MAX_SUSTAINED_AUDIO_SECONDS + HEADER_BYTES
+        );
+        const backgroundSab = new SharedArrayBuffer(
+            Float32Array.BYTES_PER_ELEMENT * channelCount * sampleRate * MAX_SUSTAINED_AUDIO_SECONDS + HEADER_BYTES
+        );
+
+        this.addReadyPromise(
+            this._audioContext.audioWorklet.addModule(process.env.AUDIO_WORKLET_PATH!).then(() => {
+                const nodeOpts = {
+                    numberOfInputs: 0,
+                    numberOfOutputs: 1,
+                    outputChannelCount: [channelCount],
+                };
+                const primaryWorkletNode = new AudioWorkletNode(this._audioContext, "sink-worklet", nodeOpts);
+                const secondaryWorkletNode = new AudioWorkletNode(this._audioContext, "sink-worklet", nodeOpts);
+                primaryWorkletNode.connect(this._fadeInOutNode);
+                secondaryWorkletNode.connect(this._fadeInOutNode);
+                secondaryWorkletNode.port.postMessage({
+                    type: "init",
+                    sab: backgroundSab,
+                    channelCount,
+                    sampleRate,
+                    background: true,
+                });
+                primaryWorkletNode.port.postMessage({
+                    type: "init",
+                    sab,
+                    sampleRate,
+                    channelCount,
+                });
+                primaryWorkletNode.port.onmessage = this._handleAudioWorkletMessage;
+                secondaryWorkletNode.port.onmessage = this._handleAudioWorkletMessage;
+            })
+        );
         await this.ready();
         const preferences = this.applicationPreferencesBindingContext.preferencesManager();
-        void this._updateBackendConfig({
+        this.postMessageToAudioBackend("initialAudioConfiguration", {
             loudnessNormalization: preferences.get("enableLoudnessNormalization"),
             silenceTrimming: preferences.get("enableSilenceTrimming"),
             effects: this.effectPreferencesBindingContext.getAudioPlayerEffects(),
-            crossfadeDuration: this._getCrossfadeDuration(),
+            crossfadeDuration: this.crossfadeDuration,
+            sab,
+            baseLatency: this.baseLatency,
+            outputLatency: this.outputLatency,
+            backgroundSab,
+            channelCount: this.channelCount,
+            sampleRate: this.sampleRate,
+            sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
+            bufferTime: this.bufferLengthSeconds,
         });
-    }
-
-    _resetAudioContext() {
-        const oldAudioContextTime = this._audioContext ? this._audioContext.currentTime : 0;
-
-        if (this._audioContext) {
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            void this._audioContext.close().catch(_e => {});
-        }
-
-        const audioContext = (this._audioContext = new AudioContext({ latencyHint: `playback` }));
-        this._unprimedAudioContext = this._audioContext;
-        this._baseLatency = audioContext.baseLatency || 0;
-        this._outputLatency = audioContext.outputLatency || 0;
-
-        const channelCount = decode(ChannelCount, audioContext.destination.channelCount);
-        const { sampleRate } = audioContext;
-
-        if (this._setAudioOutputParameters({ channelCount, sampleRate })) {
-            this._setBufferSize(
-                this.applicationPreferencesBindingContext.preferencesManager().get("bufferLengthMilliSeconds")
-            );
-        }
-
-        this._volumeNode = audioContext.createGain();
-        this._fadeInOutNode = audioContext.createGain();
-        this._fadeInOutNode.connect(this._volumeNode);
-        this._volumeNode.connect(audioContext.destination);
-
-        this._previousAudioContextTime = -1;
-        this._previousHighResTime = -1;
-        this._previousCombinedTime = -1;
-        this._fadeOutEnded = 0;
-        this._fadeInStarted = 0;
-        this._fadeInStartedWithLength = 0;
-
-        const timeDiff = audioContext.currentTime - oldAudioContextTime;
-
-        const sourceDescriptors = this._sourceDescriptorQueue;
-
-        let lowestOriginalTime = Infinity;
-        for (let i = 0; i < sourceDescriptors.length; ++i) {
-            const sourceDescriptor = sourceDescriptors[i]!;
-            if (sourceDescriptor.started !== -1) {
-                lowestOriginalTime = Math.min(sourceDescriptor.started, lowestOriginalTime, sourceDescriptor.stopped);
-            }
-        }
-
-        for (let i = 0; i < sourceDescriptors.length; ++i) {
-            sourceDescriptors[i]!.readjustTime(timeDiff, lowestOriginalTime);
-        }
-
-        for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
-            this._playedSourceDescriptors[i]!.started = this._playedSourceDescriptors[i]!.stopped = -1;
-        }
-
-        this.emit("audioContextDidReset");
-        this._volumeChanged(this._mutedValue, this._mutedValue);
-    }
-
-    _setAudioOutputParameters({ sampleRate, channelCount }: { sampleRate: number; channelCount: ChannelCount }) {
-        let changed = false;
-        if (this._outputSampleRate !== sampleRate) {
-            this._outputSampleRate = sampleRate;
-            changed = true;
-        }
-        if (this._outputChannelCount !== channelCount) {
-            this._outputChannelCount = channelCount;
-            changed = true;
-        }
-        this._scheduleAheadTime = Math.max(
-            this._scheduleAheadTime,
-            roundSampleTime(WEB_AUDIO_BLOCK_SIZE * 8, sampleRate) / sampleRate
-        );
-        return changed;
-    }
-
-    _setBufferSize(bufferLengthMilliSecondsPreference: number) {
-        if (this._targetBufferLengthSeconds / 1000 === bufferLengthMilliSecondsPreference) {
-            return;
-        }
-        const sampleRate = this._outputSampleRate;
-        const channelCount = this._outputChannelCount;
-        this._targetBufferLengthSeconds = bufferLengthMilliSecondsPreference / 1000;
-        this._sustainedBufferedAudioSeconds = Math.max(
-            MIN_SUSTAINED_AUDIO_SECONDS,
-            this._targetBufferLengthSeconds * SUSTAINED_BUFFERED_AUDIO_RATIO
-        );
-        this._sustainedBufferCount = Math.ceil(this._sustainedBufferedAudioSeconds / this._targetBufferLengthSeconds);
-        this._minBuffersToRequest = Math.ceil(this._sustainedBufferCount / 4);
-        this._bufferFrameCount = this._bufferFrameCountForSampleRate(this._outputSampleRate);
-        this._audioBufferTime = this._bufferFrameCount / this._outputSampleRate;
-        this._playedAudioBuffersNeededForVisualization = Math.ceil(this.getAudioLatency() / this._audioBufferTime) + 1;
-
-        if (!this._silentBuffer && this._audioContext) {
-            this._silentBuffer = this._audioContext.createBuffer(channelCount, this._bufferFrameCount, sampleRate);
-        }
-        void this._updateBackendConfig({ bufferTime: this._audioBufferTime });
-    }
-
-    _suspend = () => {
-        if (!this._audioContext) {
-            return;
-        }
-        if (this._audioContext.state === `suspended`) return Promise.resolve();
-
-        if (!this._currentStateModificationAction) {
-            this._currentStateModificationAction = {
-                type: `suspend`,
-                promise: (async () => {
-                    try {
-                        if (this._audioContext) {
-                            await Promise.resolve(this._audioContext.suspend());
-                        }
-                    } finally {
-                        this._currentStateModificationAction = null;
-                    }
-                })(),
-            };
-            return this._currentStateModificationAction.promise;
-        } else if (this._currentStateModificationAction.type === `resume`) {
-            this._currentStateModificationAction.promise = (async () => {
-                try {
-                    try {
-                        await this._currentStateModificationAction!.promise;
-                    } finally {
-                        await this._suspend();
-                    }
-                } finally {
-                    this._currentStateModificationAction = null;
-                }
-            })();
-        }
-        return this._currentStateModificationAction.promise;
-    };
-
-    _clearSuspensionTimer() {
-        this._suspensionTimerStartedTime = -1;
-        this.page.clearTimeout(this._suspensionTimeoutId);
-        this._suspensionTimeoutId = -1;
+        console.log("audio player backend initialized channelCount=", channelCount, "sampleRate=", sampleRate);
     }
 
     _getAudioContextCurrentTime() {
         return this._audioContext!.currentTime;
     }
 
-    _getCurrentAudioBufferBaseTimeDelta(now?: number) {
-        const sourceDescriptor = this._sourceDescriptorQueue[0];
-        if (!sourceDescriptor) return 0;
-        if (now === undefined) now = this._getAudioContextCurrentTime();
-        const { started } = sourceDescriptor;
-        if (now < started || started > sourceDescriptor.started + sourceDescriptor.duration) {
-            return 0;
-        }
-
-        if (this._paused || this._sourceStopped) return 0;
-        return Math.min(now - started + sourceDescriptor.playedSoFar, this._getBufferDuration());
-    }
-
-    _load(
-        fileReference: FileReference,
-        isPreloadForNextTrack: boolean,
-        progress: number = 0,
-        resumeAfterLoad: boolean = false
-    ) {
-        this._loadingNext = true;
-        this._preloadedNextTrackArgs = null;
-        if (!isPreloadForNextTrack) {
-            this._endedEmitted = false;
-        }
-        const bufferFillCount = this._getSustainedBufferCount();
-        this.postMessageToAudioBackend("load", undefined, {
-            fileReference,
-            isPreloadForNextTrack,
-            bufferFillCount,
-            progress,
-            resumeAfterLoad,
-        });
-    }
-
-    _isAudioContextRunning() {
-        if (!this._audioContext) {
-            return false;
-        }
-        return this._audioContext.state === "running";
-    }
-
-    _checkAudioContextStaleness(userAction: boolean) {
-        if (!this._audioContext) {
-            if (userAction) {
-                this._resetAudioContext();
-            }
-            return;
-        }
-        if (this._audioContext.state === `running`) {
-            if (
-                userAction &&
-                this._suspensionTimerStartedTime !== -1 &&
-                performance.now() - this._suspensionTimerStartedTime > this._suspensionTimeoutMs
-            ) {
-                this._suspensionTimerStartedTime = -1;
-                this._resetAudioContext();
-            }
-            return;
-        }
-
-        if (userAction) {
-            // Reset AudioContext as it's probably ruined despite of suspension efforts.
-            if (!this._currentStateModificationAction) {
-                this._resetAudioContext();
-            } else if (this._currentStateModificationAction.type === `suspend`) {
-                this._currentStateModificationAction = null;
-                this._resetAudioContext();
-            }
-        }
-    }
-
-    _startSuspensionTimer() {
-        this._clearSuspensionTimer();
-        this._suspensionTimerStartedTime = performance.now();
-        this._suspensionTimeoutId = this.page.setTimeout(this._suspend, this._suspensionTimeoutMs);
-    }
-
     _getAudioContextTimeScheduledAhead() {
-        return this._getScheduleAheadTime() + this._getAudioContextCurrentTime();
+        return this._getAudioContextCurrentTime();
     }
 
     _muteRequested() {
@@ -817,67 +445,14 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         }
     }
 
-    _timeUpdate = () => {
-        if (this._loadingNext) return;
-        const currentBufferPlayedSoFar = this._getCurrentAudioBufferBaseTimeDelta();
-        const currentTime = this._baseTime + currentBufferPlayedSoFar;
-        this._currentTime = Math.min(this._duration, currentTime);
-        this._emitPlaybackProgress(this._currentTime, this._duration);
-        if (currentTime > 0 && this._duration > 0 && currentTime >= this._duration - this._getCrossfadeDuration()) {
-            this._ended();
-        }
-    };
-
     _emitPlaybackProgress(currentTime: number, duration: number) {
-        if (this._timeUpdateEmittedCurrentTime === currentTime && this._timeUpdateEmittedDuration === duration) {
-            return;
-        }
-        this._timeUpdateEmittedDuration = duration;
-        this._timeUpdateEmittedCurrentTime = currentTime;
+        this._duration = duration;
+        this._currentTime = currentTime;
         this.emit("playbackProgressed", currentTime, duration);
     }
 
-    _ended = () => {
-        if (this._endedEmitted || this._loadingNext) return;
-        this._endedEmitted = true;
-        this.playlist.removeListener("playlistNextTrackChanged", this._nextTrackChangedWhilePreloading);
-        this._currentTime = this._duration;
-        this._emitPlaybackProgress(this._currentTime, this._duration);
-        this._startSuspensionTimer();
-        this.emit("playbackEnded");
-    };
-
     _decodingLatency(decodingLatency: number) {
         this.applicationPreferencesBindingContext.decodingLatencyValue(decodingLatency);
-    }
-
-    _requestMoreBuffers() {
-        if (this._sourceDescriptorQueue.length < this._getSustainedBufferCount()) {
-            const bufferFillCount = this._getSustainedBufferCount() - this._sourceDescriptorQueue.length;
-            if (bufferFillCount >= this._getMinBuffersToRequest()) {
-                this.postMessageToAudioBackend("fillBuffers", undefined, { bufferFillCount });
-            }
-        }
-    }
-
-    _seekCompleted(scheduledStartTime: number) {
-        this._maybeFadeIn(SEEK_FADE_TIME, scheduledStartTime);
-    }
-
-    _firstBufferFromDifferentTrackLoaded(scheduledStartTime: number) {
-        this._maybeFadeIn(TRACK_CHANGE_FADE_TIME, scheduledStartTime);
-    }
-
-    _applySeekInfo(baseTime: number) {
-        this._baseTime = baseTime;
-        this._lastBufferLoadedHandled = false;
-        this._endedEmitted = false;
-        this._timeUpdate();
-    }
-
-    _applyTrackInfo({ demuxData, baseTime }: TrackArgs) {
-        this._duration = demuxData.duration;
-        this._applySeekInfo(baseTime);
     }
 
     _maybeFadeOut(time: number, ctxTime: number = this._getAudioContextCurrentTime()) {
@@ -922,387 +497,22 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         return false;
     }
 
-    _lastSourceEnds() {
-        if (this._sourceStopped) throw new Error(`sources are stopped`);
-        if (this._sourceDescriptorQueue.length === 0) return this._getAudioContextCurrentTime();
-        const sourceDescriptor = this._sourceDescriptorQueue[this._sourceDescriptorQueue.length - 1]!;
-        return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
-    }
-
-    _lastBackgroundSourceEnds() {
-        if (!this._backgroundSourceDescriptors.length) {
-            return this._lastSourceEnds();
-        }
-        const sourceDescriptor = this._backgroundSourceDescriptors[this._backgroundSourceDescriptors.length - 1]!;
-        return sourceDescriptor.started + sourceDescriptor.getRemainingDuration();
-    }
-
-    _resume(userAction: boolean, startStoppedSources: boolean = true) {
-        if (!this.isPaused()) {
-            return;
-        }
-        this._checkAudioContextStaleness(userAction);
-
-        if (!this._audioContext) {
-            return;
-        }
-        this._paused = false;
-        this.emit("playbackStateChanged");
-
-        if (startStoppedSources && this._sourceDescriptorQueue.length > 0 && this._sourceStopped) {
-            this._clearSuspensionTimer();
-            const scheduledStartTime = Math.max(this._getAudioContextTimeScheduledAhead(), this._fadeOutEnded);
-            this._startSources(scheduledStartTime);
-            this._maybeFadeIn(SEEK_FADE_TIME, scheduledStartTime);
-        }
-        this._emitPlaybackProgress(this._currentTime, this._duration);
-    }
-
-    _startSource(sourceDescriptor: SourceDescriptor, when: number) {
-        const { audioBuffer } = sourceDescriptor;
-        const duration = sourceDescriptor.getRemainingDuration();
-        const src = this._audioContext!.createBufferSource();
-        let endedEmitted = false;
-        sourceDescriptor.source = src;
-        sourceDescriptor.started = when;
-        sourceDescriptor.stopped = when + duration;
-        src.buffer = audioBuffer;
-        src.connect(this._fadeInOutNode!);
-        src.start(when, sourceDescriptor.playedSoFar);
-        src.stop(when + duration);
-        src.onended = () => {
-            if (endedEmitted) return;
-            endedEmitted = true;
-            src.onended = null;
-            this._sourceEnded(sourceDescriptor, src);
-        };
-
-        return when + duration;
-    }
-
-    _startSources(when: number) {
-        if (this._paused) return;
-        if (!this._sourceStopped) throw new Error(`sources are not stopped`);
-        this._sourceStopped = false;
-        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
-            when = this._startSource(this._sourceDescriptorQueue[i]!, when);
-        }
-    }
-
-    _stopBackgroundSources() {
-        for (let i = 0; i < this._backgroundSourceDescriptors.length; ++i) {
-            this._backgroundSourceDescriptors[i]!.destroy();
-        }
-        this._backgroundSourceDescriptors.length = 0;
-    }
-
-    _stopSources(
-        when: number = this._getAudioContextCurrentTime(),
-        destroyDescriptorsThatWillNeverPlay: boolean = false
-    ) {
-        if (this._sourceStopped) return;
-        this._startSuspensionTimer();
-
-        this._sourceStopped = true;
-
-        this._stopBackgroundSources();
-
-        for (let i = 0; i < this._sourceDescriptorQueue.length; ++i) {
-            const sourceDescriptor = this._sourceDescriptorQueue[i]!;
-            if (
-                destroyDescriptorsThatWillNeverPlay &&
-                (sourceDescriptor.started === -1 || sourceDescriptor.started > when)
-            ) {
-                for (let j = i; j < this._sourceDescriptorQueue.length; ++j) {
-                    this._sourceDescriptorQueue[j]!.destroy(when);
-                }
-                this._sourceDescriptorQueue.length = i;
-                return;
-            }
-            const src = sourceDescriptor.source;
-            if (!src) continue;
-            if (when >= sourceDescriptor.started && when < sourceDescriptor.started + sourceDescriptor.duration) {
-                sourceDescriptor.playedSoFar = when - sourceDescriptor.started;
-            }
-            src.onended = null;
-            try {
-                src.stop(when);
-            } catch (e) {
-                // NOOP
-            }
-        }
-    }
-
-    _sourceEnded = (descriptor: SourceDescriptor, source: AudioBufferSourceNodeExt) => {
-        if (descriptor.isInBackground()) {
-            const index = this._backgroundSourceDescriptors.indexOf(descriptor);
-            if (index >= 0) {
-                this._backgroundSourceDescriptors.splice(index, 1);
-            }
-            descriptor.destroy();
-            return;
-        }
-        const duration = (descriptor && descriptor.duration) || -1;
-        const wasLastBuffer = !!(descriptor && descriptor.isLastForTrack);
-        try {
-            if (!descriptor) {
-                uiLog(
-                    new Date().toISOString(),
-                    `!descriptor`,
-                    `ended emitted`,
-                    this._endedEmitted + "",
-                    `length`,
-                    this._sourceDescriptorQueue.length + ""
-                );
-                return;
-            }
-
-            const { length } = this._sourceDescriptorQueue;
-            let sourceDescriptor = null;
-            if (length > 0 && this._sourceDescriptorQueue[0] === descriptor) {
-                sourceDescriptor = this._sourceDescriptorQueue.shift();
-            } else {
-                for (let i = 0; i < this._playedSourceDescriptors.length; ++i) {
-                    if (this._playedSourceDescriptors[i] === descriptor) {
-                        for (let j = i; j < this._playedSourceDescriptors.length; ++j) {
-                            this._playedSourceDescriptors[j]!.destroy();
-                        }
-                        this._playedSourceDescriptors.length = i;
-                        return;
-                    }
-                }
-            }
-
-            if (!sourceDescriptor) {
-                uiLog(
-                    new Date().toISOString(),
-                    `!sourceDescriptor`,
-                    `ended emitted`,
-                    this._endedEmitted + "",
-                    `prelen`,
-                    length + "",
-                    `postlen`,
-                    this._sourceDescriptorQueue.length + "",
-                    `referencedStart`,
-                    descriptor.startTime + "",
-                    `referencedEnd`,
-                    descriptor.endTime + ""
-                );
-                sourceDescriptor = descriptor;
-            }
-
-            if (sourceDescriptor !== descriptor) {
-                sourceDescriptor = descriptor;
-                uiLog(
-                    new Date().toISOString(),
-                    `sourceDescriptor !== descriptor`,
-                    `ended emitted`,
-                    this._endedEmitted + "",
-                    `prelen`,
-                    length + "",
-                    `postlen`,
-                    this._sourceDescriptorQueue.length + "",
-                    `queuedStart`,
-                    sourceDescriptor.startTime + "",
-                    `queuedEnd`,
-                    sourceDescriptor.endTime + "",
-                    `referencedStart`,
-                    descriptor.startTime + "",
-                    `referencedEnd`,
-                    descriptor.endTime + ""
-                );
-            }
-            source.descriptor = null;
-            source.onended = null;
-            sourceDescriptor.source = null;
-            this._playedSourceDescriptors.push(sourceDescriptor);
-            while (this._playedSourceDescriptors.length > this._playedAudioBuffersNeededForVisualization) {
-                this._playedSourceDescriptors.shift()!.destroy();
-            }
-        } finally {
-            this._sourceEndedUpdate(duration, wasLastBuffer);
-        }
-    };
-
-    _sourceEndedUpdate(sourceDuration: number, wasLastBuffer: boolean) {
-        try {
-            if (sourceDuration !== -1 && !this._endedEmitted) {
-                this._baseTime += sourceDuration;
-            }
-            if (this._baseTime >= this._duration || (wasLastBuffer && this._sourceDescriptorQueue.length === 0)) {
-                this._ended();
-            }
-        } finally {
-            this._ping();
-            if (!this._endedEmitted) {
-                this._requestMoreBuffers();
-            }
-            if (this._timeUpdate) {
-                this._timeUpdate();
-            }
-        }
-    }
-
-    _ping() {
-        this.timers.tick();
-        this.postMessageToAudioBackend("ping");
-    }
-
     _error({ message }: { message: string }) {
         this.emit("errored", { message });
     }
 
-    _waitUserGestureResetedAudioContext() {
-        if (this._waitingUserGesturePromise) {
-            return this._waitingUserGesturePromise;
-        }
-        this._waitingUserGesturePromise = new Promise(res => {
-            this._waitingUserGesturePromiseResolve = res;
-        });
-        return this._waitingUserGesturePromise;
-    }
-
-    async _bufferFilled({ descriptor, bufferFillType, extraData }: BufferFilledResult, transferList: ArrayBuffer[]) {
-        if (!descriptor) {
-            return;
-        }
-
-        if (!this._isAudioContextRunning()) {
-            await this._waitUserGestureResetedAudioContext();
-        }
-        const { loudnessInfo } = descriptor;
-
-        this._decodingLatency(descriptor.decodingLatency);
-
-        if (descriptor.isBackgroundBuffer) {
-            if (!this._paused) {
-                const sourceDescriptor = new SourceDescriptor(this, transferList, descriptor);
-                sourceDescriptor.setBackground();
-                this._startSource(sourceDescriptor, this._lastBackgroundSourceEnds());
-                this._backgroundSourceDescriptors.push(sourceDescriptor);
-            }
-
-            this._lastBufferLoaded(descriptor);
-            return;
-        }
-
-        const skipBuffer = loudnessInfo.isEntirelySilent;
-        let currentSourcesShouldBeStopped = false;
-        let scheduledStartTime = 0;
-        const afterScheduleKnownCallbacks: (
-            | AudioPlayerFrontend["_seekCompleted"]
-            | AudioPlayerFrontend["_firstBufferFromDifferentTrackLoaded"]
-        )[] = [];
-
-        if (bufferFillType === "BUFFER_FILL_TYPE_FIRST_SEEK_BUFFER") {
-            const { baseTime } = extraData!;
-
-            currentSourcesShouldBeStopped = true;
-            this._applySeekInfo(baseTime!);
-            afterScheduleKnownCallbacks.push(this._seekCompleted);
-            if (SEEK_FADE_TIME > 0) {
-                scheduledStartTime = this._fadeOutEnded;
-            }
-        } else if (bufferFillType === "BUFFER_FILL_TYPE_FIRST_LOAD_BUFFER") {
-            const { demuxData, isPreloadForNextTrack, baseTime, resumeAfterLoad } = extraData!;
-            this._loadingNext = false;
-            if (isPreloadForNextTrack) {
-                this._preloadedNextTrackArgs = { demuxData, baseTime: baseTime! };
-            } else {
-                currentSourcesShouldBeStopped = true;
-                this._applyTrackInfo({ demuxData, baseTime: baseTime! });
-                afterScheduleKnownCallbacks.push(this._firstBufferFromDifferentTrackLoaded);
-
-                if (resumeAfterLoad) {
-                    this._resume(false, false);
-                }
-
-                if (TRACK_CHANGE_FADE_TIME > 0) {
-                    scheduledStartTime = this._fadeOutEnded;
-                }
-            }
-        }
-
-        this._clearSuspensionTimer();
-        this._checkAudioContextStaleness(false);
-
-        let sourceDescriptor: SourceDescriptor | undefined;
-
-        if (!skipBuffer) {
-            if (transferList.length !== descriptor.channelCount) {
-                throw new Error(
-                    `transferList.length (${transferList.length}) !== channelCount (${descriptor.channelCount})`
-                );
-            }
-
-            sourceDescriptor = new SourceDescriptor(this, transferList, descriptor);
-        }
-
-        if (currentSourcesShouldBeStopped) {
-            scheduledStartTime = Math.max(scheduledStartTime, this._getAudioContextTimeScheduledAhead());
-            if (!this._sourceStopped) {
-                this._stopSources(scheduledStartTime, true);
-            }
-
-            this._playedSourceDescriptors.push(...this._sourceDescriptorQueue);
-            this._sourceDescriptorQueue.length = 0;
-
-            if (!skipBuffer) {
-                this._sourceDescriptorQueue.push(sourceDescriptor!);
-                if (this._sourceStopped) {
-                    this._startSources(scheduledStartTime);
-                } else {
-                    this._startSource(sourceDescriptor!, scheduledStartTime);
-                }
-            }
-        } else if (this._sourceStopped) {
-            scheduledStartTime = Math.max(scheduledStartTime, this._getAudioContextTimeScheduledAhead());
-            if (!skipBuffer) {
-                this._sourceDescriptorQueue.push(sourceDescriptor!);
-                if (!this._paused) {
-                    this._startSources(scheduledStartTime);
-                }
-            }
-        } else {
-            scheduledStartTime = Math.max(scheduledStartTime, this._lastSourceEnds());
-            if (!skipBuffer) {
-                this._sourceDescriptorQueue.push(sourceDescriptor!);
-                this._startSource(sourceDescriptor!, scheduledStartTime);
-            }
-        }
-
-        for (let i = 0; i < afterScheduleKnownCallbacks.length; ++i) {
-            afterScheduleKnownCallbacks[i]!.call(this, scheduledStartTime);
-        }
-
-        if (descriptor.isLastBuffer) {
-            this._lastBufferLoaded(descriptor);
-        }
-
-        if (skipBuffer) {
-            this._sourceEndedUpdate(descriptor.length / descriptor.sampleRate, descriptor.isLastBuffer);
-        }
-    }
-
-    _idle() {
-        if (this._audioContext) {
-            this._requestMoreBuffers();
-        }
-    }
-
     postMessageToAudioBackend = <T extends string & keyof AudioPlayerBackendActions<unknown>>(
         action: T,
-        transferList?: ArrayBuffer[],
         ...args: Parameters<AudioPlayerBackendActions<unknown>[T]>
     ) => {
-        this.postMessageToBackend(action, args, transferList);
+        this.postMessageToBackend(action, args);
     };
 }
 
 interface AudioPlayerEventsMap {
     playbackStateChanged: () => void;
     playbackProgressed: (currentTime: number, duration: number) => void;
-    playbackEnded: () => void;
+    preloadedTrackPlaybackStarted: () => void;
     errored: (error: { message: string }) => void;
     audioContextDidReset: () => void;
 }

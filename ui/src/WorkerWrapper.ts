@@ -123,11 +123,11 @@ export default class WorkerWrapper {
         }
     }
 
-    postMessage(message: BackendWorkerMessageType, transferList?: ArrayBuffer[]) {
+    postMessage(message: BackendWorkerMessageType, transferList?: Transferable[]) {
         this._worker.postMessage({ ...message, transferList }, { transfer: transferList });
     }
 
-    postBackendMessage(channel: string, action: string, args: any[], transferList?: ArrayBuffer[]) {
+    postBackendMessage(channel: string, action: string, args: any[], transferList?: Transferable[]) {
         this.postMessage({ type: "frontendCall", channel, args, action }, transferList);
     }
 }

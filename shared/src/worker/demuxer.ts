@@ -1,6 +1,6 @@
 import { Mp3SeekTableI, TrackMetadata } from "shared/metadata";
-import FileView from "src/platform/FileView";
-import { CancellationToken } from "src/utils/CancellationToken";
+import FileView from "shared/platform/FileView";
+import { CancellationToken } from "shared/utils/CancellationToken";
 
 export const MINIMUM_DURATION = 3;
 

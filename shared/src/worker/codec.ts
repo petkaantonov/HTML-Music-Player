@@ -23,6 +23,7 @@ const codecs = new Map<CodecName, ContextType>([[`mp3`, Mp3Context]]);
 let expectedCodec: ExpectedCodec | null = null;
 const loadCodec = function (name: CodecName): ExpectedCodec {
     expectedCodec = null;
+    //@ts-ignore
     importScripts(codecPaths[name]!);
     expectedCodec = (expectedCodec as unknown) as ExpectedCodec | null;
     if (!expectedCodec || expectedCodec.name !== name) {

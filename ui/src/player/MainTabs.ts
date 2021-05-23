@@ -1,5 +1,6 @@
 import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
 import { PreferenceArray, TabId } from "shared/src/preferences";
+import { AnyFunction } from "shared/src/types/helpers";
 import KeyboardShortcuts from "ui/keyboard/KeyboardShortcuts";
 import Page, { DomWrapper } from "ui/platform/dom/Page";
 import Env from "ui/platform/Env";

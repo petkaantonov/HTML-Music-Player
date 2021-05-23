@@ -47,7 +47,7 @@ export class CancellationToken<T extends object | (() => number)> {
 
     check() {
         if (this.isCancelled()) {
-            throw new CancellationError(`aborted`);
+            throw new CancellationError(`CancellationToken ${this._fieldName} signaled`);
         }
     }
 }

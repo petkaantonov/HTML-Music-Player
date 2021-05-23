@@ -80,3 +80,8 @@ export const NumberValueBetween = (min: number, max: number) => {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 export function assertNever(_a: never) {}
+export function assertTrue(cond: boolean, msg: string) {
+    if (!cond) {
+        throw new Error(msg);
+    }
+}

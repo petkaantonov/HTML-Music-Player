@@ -53,7 +53,7 @@
         "eqeqeq": "error",
         "max-classes-per-file": "off",
         "no-case-declarations": "off",
-        "no-console": "warn",
+        "no-console": "off",
         "no-duplicate-imports": "error",
         "no-empty": "off",
         "no-irregular-whitespace": "error",

@@ -105,7 +105,7 @@ export default class PlayerController extends EventEmitter {
         this.metadataManager.on("allFilesPersisted", this._persistTrack);
         this.audioManager.on("playbackStateChanged", this._playbackStateChanged);
         this.audioManager.on("playbackProgressed", this._playbackProgressed);
-        this.audioManager.on("playbackEnded", this._trackFinished);
+        this.audioManager.on("preloadedTrackPlaybackStarted", this._trackFinished);
         this.audioManager.on("errored", this._errored);
         this.audioManager.on("audioContextDidReset", this._audioContextReseted);
 
@@ -181,12 +181,7 @@ export default class PlayerController extends EventEmitter {
         }
         this._tickCounter.reset();
         this._loadedTrack = track;
-        this.audioManager.loadTrack(
-            track,
-            isUserInitiatedSkip,
-            initialProgress,
-            resumeIfPaused && (this.isPaused || this.isStopped)
-        );
+        this.audioManager.loadTrack(track, initialProgress, resumeIfPaused && (this.isPaused || this.isStopped));
         this.emit("newTrackLoaded", track);
         this._persistTrack();
     };
@@ -209,7 +204,7 @@ export default class PlayerController extends EventEmitter {
 
     playPauseButtonClicked = (e: MouseEvent | GestureObject) => {
         this.rippler.rippleElement(e.currentTarget as HTMLElement, e.clientX, e.clientY);
-        this.togglePlayback(true);
+        this.togglePlayback("originalEvent" in e ? e.originalEvent : e);
     };
 
     canPlayPause() {
@@ -260,7 +255,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     setProgress(p: number) {
-        if (this.isStopped || !this.audioManager.isSeekable()) return;
+        if (this.isStopped) return;
         p = Math.min(Math.max(p, 0), 1);
         const duration = this.audioManager.getDuration();
         if (!duration) return;
@@ -268,7 +263,7 @@ export default class PlayerController extends EventEmitter {
     }
 
     seek(seconds: number) {
-        if (this.isStopped || !this.audioManager.isSeekable()) return;
+        if (this.isStopped) return;
         const maxSeek = this.audioManager.getDuration();
         if (!isFinite(maxSeek)) return;
         seconds = Math.max(0, Math.min(seconds, maxSeek));
@@ -291,20 +286,23 @@ export default class PlayerController extends EventEmitter {
         this.audioManager.pause();
     }
 
-    play(userAction: boolean) {
+    play(e: Event) {
+        if (!e.isTrusted && e.type !== "click") {
+            throw new Error("play() must be called from trusted user event");
+        }
         if (this.isStopped) {
             if (!this.playlist.next(true)) {
                 return;
             }
         }
-        this.audioManager.resume(userAction);
+        this.audioManager.resume();
     }
 
-    togglePlayback(userAction: boolean) {
+    togglePlayback(e: Event) {
         if (this.isPlaying) {
             this.pause();
         } else {
-            this.play(userAction);
+            this.play(e);
         }
     }
 

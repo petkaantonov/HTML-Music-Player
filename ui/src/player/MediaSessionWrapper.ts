@@ -183,7 +183,7 @@ export default class MediaSessionWrapper {
     };
 
     _actionPlay = () => {
-        this.player.play(true);
+        this.player.play({ isTrusted: true } as Event);
     };
 
     _actionPause = () => {

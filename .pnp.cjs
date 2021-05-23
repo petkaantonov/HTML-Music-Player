@@ -1051,6 +1051,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["audio-worker", "workspace:audio-worker"],
             ["@types/node", "npm:15.0.1"],
             ["shared", "workspace:shared"],
+            ["typescript", "patch:typescript@npm%3A4.2.4#~builtin<compat/typescript>::version=4.2.4&hash=ea7f47"],
             ["vendor", "workspace:vendor"]
           ],
           "linkType": "SOFT",
