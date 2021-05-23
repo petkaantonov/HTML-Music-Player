@@ -3197,6 +3197,17 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["m3u8stream", [
+        ["npm:0.8.3", {
+          "packageLocation": "./.yarn/cache/m3u8stream-npm-0.8.3-d7ad9ac45c-00ea2a2274.zip/node_modules/m3u8stream/",
+          "packageDependencies": [
+            ["m3u8stream", "npm:0.8.3"],
+            ["miniget", "npm:4.2.0"],
+            ["sax", "npm:1.2.4"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["make-fetch-happen", [
         ["npm:8.0.14", {
           "packageLocation": "./.yarn/cache/make-fetch-happen-npm-8.0.14-fa5d78adad-326fefde1a.zip/node_modules/make-fetch-happen/",
@@ -3259,6 +3270,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["micromatch", "npm:4.0.4"],
             ["braces", "npm:3.0.2"],
             ["picomatch", "npm:2.2.3"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
+      ["miniget", [
+        ["npm:4.2.0", {
+          "packageLocation": "./.yarn/cache/miniget-npm-4.2.0-471ebc3926-c971005b8a.zip/node_modules/miniget/",
+          "packageDependencies": [
+            ["miniget", "npm:4.2.0"]
           ],
           "linkType": "HARD",
         }]
@@ -4231,6 +4251,15 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["sax", [
+        ["npm:1.2.4", {
+          "packageLocation": "./.yarn/cache/sax-npm-1.2.4-178f05f12f-d3df7d32b8.zip/node_modules/sax/",
+          "packageDependencies": [
+            ["sax", "npm:1.2.4"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["secure-json-parse", [
         ["npm:2.4.0", {
           "packageLocation": "./.yarn/cache/secure-json-parse-npm-2.4.0-161f104c50-efaafcaa08.zip/node_modules/secure-json-parse/",
@@ -5110,6 +5139,18 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
           "linkType": "HARD",
         }]
       ]],
+      ["ytdl-core", [
+        ["npm:4.8.0", {
+          "packageLocation": "./.yarn/cache/ytdl-core-npm-4.8.0-67a8c1a5ac-34c490a766.zip/node_modules/ytdl-core/",
+          "packageDependencies": [
+            ["ytdl-core", "npm:4.8.0"],
+            ["m3u8stream", "npm:0.8.3"],
+            ["miniget", "npm:4.2.0"],
+            ["sax", "npm:1.2.4"]
+          ],
+          "linkType": "HARD",
+        }]
+      ]],
       ["ytproxy", [
         ["workspace:ytproxy", {
           "packageLocation": "./ytproxy/",
@@ -5131,7 +5172,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["node-fetch", "npm:3.0.0-beta.9"],
             ["shared", "workspace:shared"],
             ["source-map-support", "npm:0.5.19"],
-            ["typescript", "patch:typescript@npm%3A4.2.4#~builtin<compat/typescript>::version=4.2.4&hash=ea7f47"]
+            ["typescript", "patch:typescript@npm%3A4.2.4#~builtin<compat/typescript>::version=4.2.4&hash=ea7f47"],
+            ["ytdl-core", "npm:4.8.0"]
           ],
           "linkType": "SOFT",
         }]

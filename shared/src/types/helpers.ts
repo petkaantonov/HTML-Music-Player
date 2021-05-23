@@ -77,3 +77,6 @@ export const NumberValueBetween = (min: number, max: number) => {
         Number
     );
 };
+
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+export function assertNever(_a: never) {}

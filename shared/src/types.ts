@@ -52,6 +52,7 @@ export const YtVideoSearchResult = io.type({
     id: YtId,
     bitrate: io.number,
     extension: io.string,
+    size: io.number,
     title: io.string,
     duration: io.number,
     thumbnail: io.union([io.string, io.null]),

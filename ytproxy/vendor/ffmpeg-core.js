@@ -6193,7 +6193,6 @@ var createFFmpegCore = (function () {
         };
 
         function callMain(args) {
-            process.stdout.write("calling main", args)
             var entryFunction = Module["_main"];
             args = args || [];
             var argc = args.length + 1;

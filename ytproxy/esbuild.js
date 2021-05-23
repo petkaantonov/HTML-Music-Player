@@ -30,6 +30,7 @@ const define = {
     "process.env.REVISION": `"${revision}"`,
     "process.env.SERVER_ENV": `"${buildType}"`,
     "process.env.WORKER_PATH": `"./worker.js"`,
+    "process.env.PORTS_TO_TRY": JSON.stringify([8143, 19232, 24233, 38500, 46211]),
 };
 
 async function bundleJs(entry, outfile, onRebuild) {

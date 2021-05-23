@@ -1,13 +1,14 @@
-import { spawn } from "child_process";
 import fg from "fast-glob";
 import { FastifyLoggerInstance } from "fastify";
 import { constants } from "fs";
 import * as fs from "fs/promises";
-import { ChildProcess } from "node:child_process";
 import { ReadableOptions } from "node:stream";
 import { join } from "path";
 import { YtId } from "shared/src/types";
 import { Readable } from "stream";
+import YoutubeDL from "ytdl-core";
+
+import FfmpegHandle from "./FfmpegHandle";
 
 const FS_CACHE_MAX_SIZE = 1024 * 1024 * 1024;
 export const MAX_TIMEOUT_SECONDS = 20;
@@ -16,7 +17,7 @@ export const BITRATE = 192000;
 // 1 background downloader, 1 active stream, 1 passive stream (crossfading)
 const MAX_CONCURRENT_DOWNLOADS = 3;
 const currentDownloads: YtDownload[] = [];
-const CACHE_DIR = "/opt/ytdl/cache";
+let CACHE_DIR: string | undefined;
 const pathsAwaitingHandle: string[] = [];
 
 class FdReadable extends Readable {
@@ -82,10 +83,7 @@ class FdReadable extends Readable {
                 if (bytesRead! > 0) {
                     this.lastReceivedData = Date.now();
                     this.pointer = this.pointer + bytesRead!;
-                    if (!this.push(buffer.slice(0, bytesRead!))) {
-                        this.error = new Error("client abort");
-                        this.destroy(this.error);
-                    }
+                    this.push(buffer.slice(0, bytesRead!));
                     break;
                 } else if (this.ytdl.isFinished()) {
                     this.push(null);
@@ -119,7 +117,7 @@ class YtDownload {
     private ytid: YtId;
     private aborted: boolean = false;
     private finished: boolean = false;
-    private ytdlHandle: ChildProcess | null;
+    private ytdlHandle: FfmpegHandle | null;
     private audioFilePath: string;
     private audioFileHandle: any | null = null;
     private logger: FastifyLoggerInstance;
@@ -131,7 +129,7 @@ class YtDownload {
         this.ytid = ytid;
         this.ytdlHandle = null;
         this.logger = logger;
-        this.audioFilePath = join(CACHE_DIR, `${this.fileName()}`);
+        this.audioFilePath = join(CACHE_DIR!, `${this.fileName()}`);
     }
 
     private removeFromCurrentDownloads() {
@@ -139,50 +137,6 @@ class YtDownload {
         if (i >= 0) {
             currentDownloads.splice(i, 1);
         }
-    }
-
-    private getYtDlCommand(): string {
-        return `
-        youtube-dl
-        --ignore-config
-        --no-color
-        --abort-on-error
-        --socket-timeout
-        20
-        --limit-rate
-        512K
-        --abort-on-unavailable-fragment
-        --buffer-size
-        64K
-        --no-mtime
-        -o
-        -
-        --cache-dir
-        ${CACHE_DIR}
-        --no-call-home
-        --no-check-certificate
-        --user-agent
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:88.0) Gecko/20100101 Firefox/88.0"
-        --format
-        bestaudio/best
-        "https://www.youtube.com/watch?v=${this.ytid}"
-        |
-        /usr/bin/ffmpeg
-        -y
-        -i
-        pipe:0
-        -vn
-        -acodec
-        libmp3lame
-        -b:a
-        ${(BITRATE / 1000).toFixed(0)}k
-        "${this.audioFilePath}"
-        `
-            .trim()
-            .split("\n")
-            .map(v => v.trim())
-            .filter(Boolean)
-            .join(" ");
     }
 
     getError() {
@@ -251,26 +205,46 @@ class YtDownload {
 
     private startYtDl() {
         pathsAwaitingHandle.push(this.audioFilePath);
-        this.ytdlHandle = spawn("sh", ["-c", this.getYtDlCommand()], {
-            stdio: ["pipe", "pipe", "pipe"],
+        this.ytdlHandle = FfmpegHandle.create({ filename: this.fileName(), bitrate: BITRATE });
+
+        this.ytdlHandle.on("setupDataSource", () => {
+            const ytdl = YoutubeDL("http://www.youtube.com/watch?v=" + this.ytid, {
+                highWaterMark: 262144,
+                dlChunkSize: 3145728,
+                quality: "highestaudio",
+                filter: "audio",
+            });
+
+            ytdl.on("error", e => {
+                void this.abort(e);
+            });
+
+            ytdl.on("data", (buffer: Buffer) => {
+                if (this.ytdlHandle) {
+                    this.ytdlHandle.onDataSourceData(new Uint8Array(buffer.buffer));
+                }
+            });
+            ytdl.on("end", () => {
+                if (this.ytdlHandle) {
+                    this.ytdlHandle!.onDataSourceEnd();
+                }
+            });
         });
-        this.ytdlHandle.stdout!.on("data", data => {
+
+        this.ytdlHandle.on("stdout", message => {
             if (process.env.SERVER_ENV === "development") {
-                this.log(`${data}`);
+                this.log(message);
             }
         });
-        this.ytdlHandle.stderr!.on("data", data => {
-            const strData = `${data}`;
-            this.log(strData, "error");
-            this.stderr.push(strData);
+        this.ytdlHandle.on("stderr", message => {
+            this.log(message, "error");
+            this.stderr.push(message);
         });
+
         this.ytdlHandle.on("exit", code => {
             this.finished = true;
             this.ytdlHandle = null;
             void this.abort(code ? new Error("non 0 code") : undefined);
-        });
-        this.ytdlHandle.on("error", e => {
-            void this.abort(e);
         });
     }
 
@@ -318,7 +292,8 @@ class YtDownload {
         this.aborted = true;
 
         if (this.ytdlHandle) {
-            this.ytdlHandle.kill("SIGKILL");
+            this.ytdlHandle.removeAllListeners();
+            this.ytdlHandle.kill();
             this.ytdlHandle = null;
         }
         if (this.audioFileHandle) {
@@ -338,7 +313,7 @@ class YtDownload {
         }
     }
     async deleteFile() {
-        const files = await fg(CACHE_DIR + "/*.mp3", {
+        const files = await fg(CACHE_DIR! + "/*.mp3", {
             absolute: true,
             onlyFiles: true,
             stats: true,
@@ -410,7 +385,21 @@ export class YoutubeWrongCredentialsError extends SpecificYoutubeError {}
 
 export class TooManyConcurrentDownloadsError extends Error {}
 
+export function setDirectories({
+    audioCacheDir,
+    audioCacheMemDir,
+}: {
+    audioCacheDir: string;
+    audioCacheMemDir: string;
+}) {
+    FfmpegHandle.setDirectories({ audioCacheDir, audioCacheMemDir });
+    CACHE_DIR = audioCacheDir;
+}
+
 export function downloadYtId(ytId: YtId, logger: FastifyLoggerInstance): YtDownload {
+    if (!CACHE_DIR) {
+        throw new Error("setDirectories() not called");
+    }
     if (currentDownloads.length >= MAX_CONCURRENT_DOWNLOADS) {
         throw new TooManyConcurrentDownloadsError();
     }
