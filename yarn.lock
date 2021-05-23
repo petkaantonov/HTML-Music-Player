@@ -766,6 +766,7 @@ __metadata:
   dependencies:
     "@types/node": 15.0.1
     shared: "workspace:*"
+    typescript: "*"
     vendor: "workspace:*"
   languageName: unknown
   linkType: soft

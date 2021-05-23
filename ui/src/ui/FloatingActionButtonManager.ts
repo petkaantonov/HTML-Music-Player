@@ -6,6 +6,7 @@ import LocalFileHandler from "ui/platform/LocalFileHandler";
 import PlayerController from "ui/player/PlayerController";
 import PlaylistController from "ui/player/PlaylistController";
 
+import GestureObject from "./gestures/GestureObject";
 import GestureRecognizerContext from "./gestures/GestureRecognizerContext";
 import Snackbar from "./Snackbar";
 
@@ -78,10 +79,10 @@ export default class FloatingActionButtonManager {
         this._stateChanged();
     }
 
-    _buttonClicked = () => {
+    _buttonClicked = (e: MouseEvent | GestureObject) => {
         switch (this._currentState) {
             case PLAY_BUTTON_STATE:
-                this._playerController.play(true);
+                this._playerController.play("originalEvent" in e ? e.originalEvent : e);
                 break;
 
             case PAUSE_BUTTON_STATE:

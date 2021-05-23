@@ -1,6 +1,5 @@
 import TagDatabase from "shared/idb/TagDatabase";
-import Timers from "shared/platform/Timers";
-import { setIsDevelopment, setTimers } from "shared/util";
+import { setIsDevelopment } from "shared/util";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
 import ChannelMixer from "shared/worker/ChannelMixer";
 import Resampler from "shared/worker/Resampler";
@@ -38,8 +37,6 @@ self.addEventListener(`unhandledrejection`, event => {
 });
 
 void (async () => {
-    const timers = new Timers();
-    setTimers(timers);
     setIsDevelopment(isDevelopment);
 
     const request = new Request(process.env.AUDIO_WASM_PATH!, {
@@ -55,5 +52,5 @@ void (async () => {
     const mainWasmModule = new WebAssemblyWrapper(module, `audio`);
     await mainWasmModule.start();
 
-    new AudioPlayerBackend(mainWasmModule, timers, db).start();
+    new AudioPlayerBackend(mainWasmModule, db).start();
 })();

@@ -1,4 +1,5 @@
 import { HttpError, HttpErrorJson } from "shared/errors";
+import { fileExtensionToMime } from "shared/types/files";
 import { PromiseReject, PromiseResolve } from "shared/types/helpers";
 import { delay, slugTitle } from "shared/util";
 
@@ -42,7 +43,10 @@ export default class HttpStreamedFile {
     private _json: Json;
     private _error: any = null;
 
+    readonly type: string;
+
     constructor({ title, extension, expectedSize, url }: Json) {
+        this.type = fileExtensionToMime.get(extension) || "application/octet-stream";
         this._fileName = `${slugTitle(title)}.${extension}`;
         this._expectedSize = expectedSize;
         this._url = url;
@@ -55,6 +59,10 @@ export default class HttpStreamedFile {
 
     get size() {
         return this._expectedSize;
+    }
+
+    get name() {
+        return this._fileName;
     }
 
     toJSON(): Json {

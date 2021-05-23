@@ -1,5 +1,4 @@
 import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
-import Timers from "shared/src/platform/Timers";
 import { setIsDevelopment, setTimers } from "shared/util";
 import Application from "ui/Application";
 import Page from "ui/platform/dom/Page";
@@ -15,9 +14,21 @@ declare global {
     const uiLog: (...args: string[]) => void;
 }
 
+(window as any).fromFrames = function (f: number) {
+    const secs = f / 48000;
+    const mins = Math.floor(secs / 60);
+    const secs2 = secs % 60;
+    return `${mins}:${secs2}`;
+};
+
 const defaultTitle = `Soita`;
 const TOO_LONG_TO_LOAD_MS = 300;
-const timers = new Timers();
+const timers = {
+    setTimeout: window.setTimeout.bind(window),
+    clearTimeout: window.clearTimeout.bind(window),
+    setInterval: window.setInterval.bind(window),
+    clearInterval: window.clearInterval.bind(window),
+};
 setTimers(timers);
 const page = new Page(document, window, timers);
 const ready = page.ready();

@@ -5,13 +5,15 @@
     "private": true,
     "scripts": {
         "dev": "../scripts/dev-env.sh",
-        "watch": "../scripts/watch.sh"
+        "watch": "../scripts/watch.sh",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "shared": "workspace:*",
         "vendor": "workspace:*"
     },
     "devDependencies": {
-        "@types/node": "15.0.1"
+        "@types/node": "15.0.1",
+        "typescript": "*"
     }
 }

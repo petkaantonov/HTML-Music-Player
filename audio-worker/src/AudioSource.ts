@@ -1,6 +1,7 @@
-import { BufferDescriptor, ChannelData, LoadOpts } from "shared/audio";
+import { BufferDescriptor, ChannelData } from "shared/audio";
 import { CodecName, FileReference, fileReferenceToTrackUid, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
+import { PromiseResolve } from "shared/src/types/helpers";
 import CancellableOperations, { CancellationToken } from "shared/utils/CancellationToken";
 import AudioProcessingPipeline from "shared/worker/AudioProcessingPipeline";
 import getCodec, { Decoder } from "shared/worker/codec";
@@ -14,6 +15,7 @@ import seeker from "./seeker";
 
 interface SeekResult {
     baseTime: number;
+    baseFrame: number;
     cancellationToken: CancellationToken<AudioSource>;
 }
 
@@ -21,7 +23,7 @@ type BufferFilledCallback = (desc: BufferDescriptor, data: ChannelData) => void;
 
 interface BufferFillOpts {
     cancellationToken: null | CancellationToken<AudioSource>;
-    totalBuffersToFillHint: number;
+    totalBuffersToFillHint?: number;
 }
 
 export default class AudioSource extends CancellableOperations(
@@ -32,17 +34,20 @@ export default class AudioSource extends CancellableOperations(
 ) {
     backend: AudioPlayerBackend;
     ended: boolean;
-    _decoder: Decoder | null;
-    _loudnessNormalizer: LoudnessAnalyzer | null;
-    _filePosition: number;
-    _bufferFillCancellationToken: CancellationToken<AudioSource> | null;
-    _audioPipeline: AudioProcessingPipeline | null;
-    _crossfader: Crossfader;
+    private _decoder: Decoder | null;
+    private _loudnessNormalizer: LoudnessAnalyzer | null;
+    private _filePosition: number;
+    private _bufferFillCancellationToken: CancellationToken<AudioSource> | null;
+    private _audioPipeline: AudioProcessingPipeline | null;
+    private _crossfader: Crossfader;
+    private _initialized: boolean = false;
     codecName: CodecName;
-    _destroyed: boolean;
+    private _destroyed: boolean;
     demuxData: null | TrackMetadata;
     fileView: null | FileView;
     fileReference: null | FileReference;
+    private inProgressBufferFilledCallbacks: PromiseResolve<void>[] = [];
+    private endedCallbacks: PromiseResolve<void>[] = [];
     _destroyAfterBuffersFilledFlag: boolean;
     constructor(backend: AudioPlayerBackend) {
         super();
@@ -62,9 +67,17 @@ export default class AudioSource extends CancellableOperations(
         this._destroyAfterBuffersFilledFlag = false;
     }
 
+    get destroyed() {
+        return this._destroyed;
+    }
+
+    get initialized() {
+        return this._initialized;
+    }
+
     get duration() {
         if (!this.demuxData) {
-            throw new Error(`no demuxData set`);
+            return 0;
         }
         return this.demuxData.duration;
     }
@@ -91,9 +104,21 @@ export default class AudioSource extends CancellableOperations(
         return this._crossfader.getDuration();
     }
 
+    async waitEnded() {
+        if (this.ended) {
+            return;
+        }
+        return new Promise(resolve => {
+            this.endedCallbacks.push(resolve);
+        });
+    }
+
     async destroyAfterBuffersFilled() {
         if (this.isBufferFillingInProgress()) {
-            this._destroyAfterBuffersFilledFlag = true;
+            await new Promise(resolve => {
+                this.inProgressBufferFilledCallbacks.push(resolve);
+                this._destroyAfterBuffersFilledFlag = true;
+            });
         } else {
             await this.destroy();
         }
@@ -138,10 +163,6 @@ export default class AudioSource extends CancellableOperations(
         const { sampleRate, channelCount } = this;
         let i = 0;
         const { crossfadeDuration, duration } = this;
-        if (!this._loudnessNormalizer) {
-            console.log(this);
-            debugger;
-        }
         this._loudnessNormalizer!.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization!);
         this._loudnessNormalizer!.setSilenceTrimmingEnabled(this.backend.silenceTrimming!);
 
@@ -164,36 +185,33 @@ export default class AudioSource extends CancellableOperations(
                     break;
                 }
 
-                const { startTime, endTime, loudnessInfo } = bufferDescriptor;
-                let isBackgroundBuffer = false;
-                let isLastBuffer = false;
+                const { startFrames, endFrames, loudnessInfo } = bufferDescriptor;
+                let isFadeoutBuffer = false;
 
                 if (crossfadeDuration > 0) {
-                    const fadeOutStartTime = duration - crossfadeDuration;
-                    if (startTime > fadeOutStartTime) {
-                        isBackgroundBuffer = true;
-                    } else if (endTime >= fadeOutStartTime) {
-                        isLastBuffer = true;
+                    const fadeOutStartFrame = (duration - crossfadeDuration) * sampleRate;
+                    if (startFrames > fadeOutStartFrame) {
+                        isFadeoutBuffer = true;
+                    } else if (endFrames >= fadeOutStartFrame) {
                         totalBuffersToFill += Math.ceil(crossfadeDuration / this._audioPipeline!.bufferTime);
                     }
-                } else {
-                    isLastBuffer = this.ended;
                 }
-
+                const isLastBuffer = this.ended;
                 const decodingLatency = performance.now() - now;
                 const descriptor = {
                     length: Math.min(bufferDescriptor.length, targetBufferLengthAudioFrames),
-                    startTime,
-                    endTime,
+                    startFrames,
+                    endFrames,
                     loudnessInfo,
                     sampleRate,
                     channelCount,
                     decodingLatency,
-                    isBackgroundBuffer,
+                    isFadeoutBuffer,
                     isLastBuffer,
                 };
 
                 callback(descriptor, destinationBuffers);
+
                 i++;
                 if (this.ended) {
                     break;
@@ -211,6 +229,17 @@ export default class AudioSource extends CancellableOperations(
             this._bufferFillCancellationToken = null;
             if (this._destroyAfterBuffersFilledFlag) {
                 await this.destroy();
+            }
+            for (const callback of this.inProgressBufferFilledCallbacks) {
+                callback();
+            }
+            this.inProgressBufferFilledCallbacks = [];
+
+            if (this.ended) {
+                for (const callback of this.endedCallbacks) {
+                    callback();
+                }
+                this.endedCallbacks = [];
             }
         }
     }
@@ -234,8 +263,14 @@ export default class AudioSource extends CancellableOperations(
     async load({
         fileReference,
         isPreloadForNextTrack,
+        crossfadeDuration,
         progress = 0,
-    }: Pick<LoadOpts, "fileReference" | "isPreloadForNextTrack" | "progress">) {
+    }: {
+        fileReference: FileReference;
+        isPreloadForNextTrack: boolean;
+        crossfadeDuration: number;
+        progress: number;
+    }) {
         const cancellationToken = this.cancellationTokenForLoadOperation<AudioSource>();
         const { wasm, effects, bufferTime, tagDatabase } = this.backend;
         const fileView = await tagDatabase.fileReferenceToFileView(fileReference);
@@ -257,7 +292,7 @@ export default class AudioSource extends CancellableOperations(
             throw new Error(`Not decoder found for the codec: ${codecName}`);
         }
 
-        this._crossfader.setDuration(this.backend.crossfadeDuration!);
+        this._crossfader.setDuration(crossfadeDuration);
         this._crossfader.setFadeInEnabled(isPreloadForNextTrack);
         this._crossfader.setFadeOutEnabled(true);
 
@@ -306,12 +341,13 @@ export default class AudioSource extends CancellableOperations(
 
         if (progress > 0) {
             const time = progress * demuxData.duration;
-            const { baseTime } = await this._seek(time, cancellationToken);
+            const { baseFrame } = await this._seek(time, cancellationToken);
             cancellationToken.check();
-            return { baseTime, demuxData, cancellationToken };
+            this._initialized = true;
+            return { baseFrame, demuxData, cancellationToken };
         }
-
-        return { baseTime: 0, demuxData, cancellationToken };
+        this._initialized = true;
+        return { baseFrame: 0, demuxData, cancellationToken };
     }
 
     async _decodeNextBuffer(
@@ -338,6 +374,9 @@ export default class AudioSource extends CancellableOperations(
 
         this._filePosition += bytesRead;
         this.ended = this._filePosition >= this.demuxData!.dataEnd;
+        if (this.ended) {
+            console.log("ended from file position");
+        }
         if (!this._audioPipeline!.hasFilledBuffer) {
             this.ended = true;
             this._filePosition = this.demuxData!.dataEnd;
@@ -368,6 +407,6 @@ export default class AudioSource extends CancellableOperations(
         this._crossfader.setDuration(this.backend.crossfadeDuration!);
         this._crossfader.setFadeInEnabled(false);
         this._crossfader.setFadeOutEnabled(true);
-        return { baseTime: seekerResult.time, cancellationToken };
+        return { baseFrame: seekerResult.currentFrame, baseTime: seekerResult.time, cancellationToken };
     }
 }
