@@ -256,9 +256,12 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     async setCurrentTime(time: number) {
-        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
         time = Math.max(0, time);
         time = Math.max(0, Math.min(this._duration - 0.2, time));
+        if (!isFinite(time)) {
+            return;
+        }
+        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
         this.postMessageToAudioBackend("seek", { time, resumeAfterInitialization: false });
     }
 
