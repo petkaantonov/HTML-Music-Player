@@ -1,6 +1,12 @@
 import { Class } from "shared/types/helpers";
 
-export class CancellationError extends Error {}
+export class CancellationError extends Error {
+    readonly reason: string;
+    constructor(msg: string, reason: string | undefined) {
+        super(msg);
+        this.reason = reason || "unknown";
+    }
+}
 
 export interface CancellationTokenOpts {
     cancellationToken: CancellationToken<any>;
@@ -9,12 +15,14 @@ export interface CancellationTokenOpts {
 export class CancellationToken<T extends object | (() => number)> {
     _idProvider: T;
     _fieldName: keyof T | undefined;
+    _reasonFieldName: keyof T | undefined;
     _currentId: number;
     _signalPromiseResolve: null | ((value: unknown) => void);
     _signalPromise: Promise<unknown>;
-    constructor(idProvider: T, fieldName?: keyof T) {
+    constructor(idProvider: T, fieldName?: keyof T, reasonFieldName?: keyof T) {
         this._idProvider = idProvider;
         this._fieldName = fieldName || undefined;
+        this._reasonFieldName = reasonFieldName || undefined;
         this._currentId = this._getId();
         this._signalPromiseResolve = null;
         this._signalPromise = new Promise(resolve => {
@@ -28,6 +36,13 @@ export class CancellationToken<T extends object | (() => number)> {
         } else {
             return (this._idProvider[this._fieldName!] as unknown) as number;
         }
+    }
+
+    getReason() {
+        if (typeof this._idProvider !== "function") {
+            return (this._idProvider[this._reasonFieldName!] as unknown) as string;
+        }
+        return undefined;
     }
 
     isCancelled() {
@@ -47,7 +62,7 @@ export class CancellationToken<T extends object | (() => number)> {
 
     check() {
         if (this.isCancelled()) {
-            throw new CancellationError(`CancellationToken ${this._fieldName} signaled`);
+            throw new CancellationError(`CancellationToken ${this._fieldName} signaled`, this.getReason());
         }
     }
 }
@@ -58,7 +73,7 @@ type MapCancellationTokenForOperationName<T extends object> = {
     >() => CancellationToken<M>;
 };
 type MapCancelAllOperationName<T> = {
-    [K in keyof T as `cancelAll${Capitalize<string & K>}s`]: () => void;
+    [K in keyof T as `cancelAll${Capitalize<string & K>}s`]: (reason: string) => void;
 };
 type MapFieldNames<T> = {
     [K in keyof T as `__${string & K}CancelId`]: number;
@@ -78,7 +93,9 @@ export default function CancellableOperations(SuperClass: Class<any> | null, ...
     const superCall = SuperClass ? `super();\n` : ``;
     const extendsClause = SuperClass ? ` extends ${superClassName}` : ``;
 
-    const operationNameFields = operationNames.map(operationName => `this.__${operationName}CancelId = 0;`).join(`\n`);
+    const operationNameFields = operationNames
+        .map(operationName => `this.__${operationName}CancelId = 0; this.__${operationName}CancelReason = "";`)
+        .join(`\n`);
 
     const methods = operationNames
         .map(operationName => {
@@ -88,10 +105,11 @@ export default function CancellableOperations(SuperClass: Class<any> | null, ...
             return `
             cancellationTokenFor${camelCase}() {
                 this.__${operationName}CancelId++;
-                return new CancellationToken(this, "__${operationName}CancelId");
+                return new CancellationToken(this, "__${operationName}CancelId", "__${operationName}CancelReason");
             }
 
-            cancelAll${camelCase}s() {
+            cancelAll${camelCase}s(reason) {
+                this.__${operationName}CancelReason = reason;
                 this.__${operationName}CancelId++;
             }
         `;

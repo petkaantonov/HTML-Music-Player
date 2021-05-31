@@ -127,7 +127,7 @@ export default class AudioSource extends CancellableOperations(
         if (this._destroyed) return;
         this._destroyed = true;
         const bufferOperationCancellationAcknowledged = this.bufferOperationCancellationAcknowledged();
-        this.cancelAllOperations();
+        this.cancelAllOperations("destroy called");
         await bufferOperationCancellationAcknowledged;
 
         if (this._decoder) {
@@ -247,10 +247,10 @@ export default class AudioSource extends CancellableOperations(
         }
     }
 
-    cancelAllOperations() {
-        this.cancelAllSeekOperations();
-        this.cancelAllBufferFillOperations();
-        this.cancelAllLoadOperations();
+    cancelAllOperations(reason: string) {
+        this.cancelAllSeekOperations(reason);
+        this.cancelAllBufferFillOperations(reason);
+        this.cancelAllLoadOperations(reason);
     }
 
     bufferOperationCancellationAcknowledged() {
