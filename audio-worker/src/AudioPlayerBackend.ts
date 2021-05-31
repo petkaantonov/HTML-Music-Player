@@ -123,6 +123,7 @@ class AudioData {
     ) {
         if (clear !== "no-clear") {
             if (clear === "clear-and-set-offset") {
+                this.cab.printValues();
                 this.data = [];
                 this.cab.clear();
                 console.log("cleared with", "seekOffset=", seekOffset, "frameIndex=", this.clearedFrameIndex);
@@ -143,7 +144,7 @@ class AudioData {
             });
             this.writeToAudioBuffer();
         } else {
-            this.clearedFrameIndex = this.clearedFrameIndex - bufferDescriptor.length;
+            this.clearedFrameIndex -= bufferDescriptor.length;
             if (this.clearedFrameIndex < 0) {
                 this.clearedFrameIndex += MAX_FRAME;
             }
@@ -315,6 +316,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
     async _requestNextTrackIfNeeded() {
         if (!this._preloadingAudioSource) {
+            console.log("posting next track request");
             this._preloadingAudioSource = new AudioSource(this);
             const ret = new Promise(resolve => {
                 this.nextTrackResponseCallbacks.push(resolve);
@@ -330,10 +332,8 @@ export default class AudioPlayerBackend extends AbstractBackend<
         if (totalTime > 0 && totalTime > currentTime) {
             const remaining = totalTime - currentTime;
             if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
-                console.log("posting next track request, because remaining=", remaining);
                 void this._requestNextTrackIfNeeded();
             }
-
             if (remaining <= this.crossfadeDuration) {
                 this._checkSwap();
             }
@@ -447,7 +447,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             );
         } catch (e) {
             this.setSwapTargets("no-swap", "preload failed or cancelled");
-            if (this._checkError(e)) {
+            if (!this._checkError(e).canceled) {
                 await audioSource.destroy();
                 this._preloadingAudioSource = null;
                 this.postMessageToAudioPlayer({ type: "stop", reason: "preload-error" });
@@ -490,15 +490,15 @@ export default class AudioPlayerBackend extends AbstractBackend<
         this.swapTargets = swapTargets;
     }
 
-    async _cancelLoadingBuffers() {
+    async _cancelLoadingBuffers(reason: string) {
         this.setSwapTargets("no-swap", "cancelLoadingBuffers()");
         if (!this._mainAudioSource) return;
         const waitFor: Promise<unknown>[] = [];
         waitFor.push(this._mainAudioSource.bufferOperationCancellationAcknowledged());
-        this._mainAudioSource.cancelAllOperations();
+        this._mainAudioSource.cancelAllOperations(reason);
         if (this._preloadingAudioSource) {
             waitFor.push(this._preloadingAudioSource.bufferOperationCancellationAcknowledged());
-            this._preloadingAudioSource.cancelAllOperations();
+            this._preloadingAudioSource.cancelAllOperations(reason);
             await this._preloadingAudioSource.destroy();
             this._preloadingAudioSource = null;
             this.passiveData!.pause(0.2 * this.sampleRate);
@@ -507,8 +507,14 @@ export default class AudioPlayerBackend extends AbstractBackend<
     }
 
     _seek = async ({ time, resumeAfterInitialization }: SeekOpts) => {
-        if (!this._mainAudioSource || !this._mainAudioSource.initialized || this._mainAudioSource.duration <= 0) return;
-        await this._cancelLoadingBuffers();
+        if (!this._mainAudioSource || !this._mainAudioSource.initialized) {
+            return;
+        }
+        const duration = this._mainAudioSource.duration;
+        if (duration - this.crossfadeDuration < 0) {
+            return;
+        }
+        await this._cancelLoadingBuffers("Seek invalidated buffers");
 
         try {
             this._postUiTimeUpdate(time, this._mainAudioSource.duration);
@@ -518,7 +524,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             let { baseTime } = seekResult;
             cancellationToken.check();
             const duration = this._mainAudioSource.duration;
-            baseTime = Math.max(0, Math.min(duration, baseTime));
+            baseTime = Math.max(0, Math.min(duration - this.crossfadeDuration, baseTime));
             const baseFrame = Math.round(baseTime * this.sampleRate);
             this.seekFrameOffset = baseFrame;
             this._postUiTimeUpdate(baseTime, duration);
@@ -555,62 +561,86 @@ export default class AudioPlayerBackend extends AbstractBackend<
         const sampleRate = this.sampleRate;
         let initialBufferLoaded = false;
         let canceled: boolean = false;
+        let cancelReason: string | undefined = undefined;
         try {
-            console.log("started buffer fill loop, source=", source, "opts=", JSON.stringify(initialBufferOptions));
-            while (!audioSource.ended && !audioSource.destroyed) {
-                if (!audioSource.isBufferFillingInProgress()) {
-                    const minimumNeeded =
-                        !initialBufferLoaded && initialBufferOptions.overrideNeededBuffers
-                            ? Math.round(this.sustainedAudioSeconds / this.bufferTime)
-                            : 0;
+            const audioSourceString =
+                audioSource === this._preloadingAudioSource
+                    ? "preloadingAudioSource"
+                    : audioSource === this._mainAudioSource
+                    ? "mainAudioSource"
+                    : "noSource";
+            console.log(
+                "started buffer fill loop, source=",
+                source,
+                "opts=",
+                JSON.stringify(initialBufferOptions),
+                ", audioSource=",
+                audioSourceString,
+                ", audioSource.ended=",
+                audioSource.ended,
+                ", audioSource.destroyed=",
+                audioSource.destroyed,
+                ", audioSource.isBufferFillingInProgress()=",
+                audioSource.isBufferFillingInProgress()
+            );
+            while (!audioSource.ended && !audioSource.destroyed && !audioSource.isBufferFillingInProgress()) {
+                const minimumNeeded =
+                    !initialBufferLoaded && initialBufferOptions.overrideNeededBuffers
+                        ? Math.round(this.sustainedAudioSeconds / this.bufferTime)
+                        : 0;
 
-                    const neededCount = Math.max(
-                        minimumNeeded,
-                        Math.round(
-                            (this.sustainedAudioSeconds - targetData.getQueuedAndBufferedSeconds(sampleRate)) /
-                                this.bufferTime
-                        )
-                    );
+                const neededCount = Math.max(
+                    minimumNeeded,
+                    Math.round(
+                        (this.sustainedAudioSeconds - targetData.getQueuedAndBufferedSeconds(sampleRate)) /
+                            this.bufferTime
+                    )
+                );
 
-                    if (neededCount > 0) {
-                        const playSilence = this._config!.silenceTrimming
-                            ? audioSource === this._preloadingAudioSource
-                            : true;
-                        await audioSource.fillBuffers(
-                            neededCount,
-                            (bufferDescriptor: BufferDescriptor, channelData: ChannelData) => {
-                                cancellationToken.check();
-                                targetData.addData(
-                                    bufferDescriptor,
-                                    channelData,
-                                    !initialBufferLoaded ? initialBufferOptions.clear : "no-clear",
-                                    audioSource === this._mainAudioSource ? this.seekFrameOffset : 0,
-                                    playSilence
-                                );
-                                if (!initialBufferLoaded && initialBufferOptions.resumeAfterLoad) {
-                                    this._doResume(false);
-                                }
-                                initialBufferLoaded = true;
-                            },
-                            {
-                                cancellationToken,
-                                fadeInSeconds:
-                                    // Worklet will always auto fade in when resuming.
-                                    initialBufferLoaded || initialBufferOptions.resumeAfterLoad
-                                        ? 0
-                                        : initialBufferOptions.fadeInSeconds,
+                !initialBufferLoaded && console.log("neededCount=", neededCount);
+
+                if (neededCount > 0) {
+                    const playSilence = this._config!.silenceTrimming
+                        ? audioSource === this._preloadingAudioSource
+                        : true;
+                    !initialBufferLoaded && console.log("requested fillBuffers playSilence=", playSilence);
+                    await audioSource.fillBuffers(
+                        neededCount,
+                        (bufferDescriptor: BufferDescriptor, channelData: ChannelData) => {
+                            cancellationToken.check();
+                            !initialBufferLoaded &&
+                                console.log("initial buffer callback, data=", JSON.stringify(bufferDescriptor));
+                            targetData.addData(
+                                bufferDescriptor,
+                                channelData,
+                                !initialBufferLoaded ? initialBufferOptions.clear : "no-clear",
+                                audioSource === this._mainAudioSource ? this.seekFrameOffset : 0,
+                                playSilence
+                            );
+                            if (!initialBufferLoaded && initialBufferOptions.resumeAfterLoad) {
+                                this._doResume(false);
                             }
-                        );
-                        cancellationToken.check();
-                    }
-                    await this.waitNextTimeUpdate();
+                            initialBufferLoaded = true;
+                        },
+                        {
+                            cancellationToken,
+                            fadeInSeconds:
+                                // Worklet will always auto fade in when resuming.
+                                initialBufferLoaded || initialBufferOptions.resumeAfterLoad
+                                    ? 0
+                                    : initialBufferOptions.fadeInSeconds,
+                        }
+                    );
                     cancellationToken.check();
                 }
+                !initialBufferLoaded && console.log("filled initial buffers neededCount=", neededCount);
+                await this.waitNextTimeUpdate();
+                cancellationToken.check();
             }
         } catch (e) {
-            canceled = !this._checkError(e);
+            ({ canceled, reason: cancelReason } = this._checkError(e));
         } finally {
-            const actualSource =
+            const audioSourceString =
                 audioSource === this._preloadingAudioSource
                     ? "preloadingAudioSource"
                     : audioSource === this._mainAudioSource
@@ -619,14 +649,16 @@ export default class AudioPlayerBackend extends AbstractBackend<
             console.log(
                 "ended buffer fill loop source=",
                 source,
-                ", actualSource=",
-                actualSource,
+                ", audioSourceString=",
+                audioSourceString,
                 ", ended=",
                 audioSource.ended,
                 ", destroyed=",
                 audioSource.destroyed,
                 ", canceled=",
-                canceled
+                canceled,
+                ", cancelReason=",
+                cancelReason
             );
             if (!canceled) {
                 if (audioSource === this._preloadingAudioSource) {
@@ -644,7 +676,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
     _load = async ({ fileReference, progress = 0, resumeAfterInitialization }: LoadOpts) => {
         console.log("load called, resume=", resumeAfterInitialization);
-        await this._cancelLoadingBuffers();
+        await this._cancelLoadingBuffers("Load invalidates buffers");
         const audioSource = new AudioSource(this);
         if (this._mainAudioSource) {
             console.log("load called, destroying previous main audio source");
@@ -680,12 +712,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
     };
 
-    _checkError(e: Error) {
+    _checkError(e: Error): { canceled: boolean; reason?: string } {
         if (!(e instanceof CancellationError)) {
             this._sendError(e);
-            return true;
+            return { canceled: false };
         }
-        return false;
+        return { canceled: true, reason: e.reason };
     }
 
     _sendError(error: Error) {

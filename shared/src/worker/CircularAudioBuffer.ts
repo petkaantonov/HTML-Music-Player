@@ -20,10 +20,10 @@ export const HEADER_BYTES = HEADER.length * 4;
 
 export class CircularAudioBufferSignals {
     protected sab: SharedArrayBuffer;
-    private pausePtr: Int32Array;
-    private pauseRequestedPtr: Int32Array;
-    private framePtr: Int32Array;
-    private isBackgroundPtr: Int32Array;
+    protected pausePtr: Int32Array;
+    protected pauseRequestedPtr: Int32Array;
+    protected framePtr: Int32Array;
+    protected isBackgroundPtr: Int32Array;
 
     constructor(sab: SharedArrayBuffer) {
         this.sab = sab;
@@ -107,6 +107,27 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
         }
     }
 
+    printValues() {
+        console.log(
+            "read ptr",
+            Atomics.load(this.readPtr, 0),
+            "write ptr",
+            Atomics.load(this.writePtr, 0),
+            "writer clearing",
+            Atomics.load(this.writerClearing, 0),
+            "reader processing",
+            Atomics.load(this.readerProcessingSamples, 0),
+            "frame index",
+            Atomics.load(this.framePtr, 0),
+            "pause ptr",
+            Atomics.load(this.pausePtr, 0),
+            "pause requested",
+            Atomics.load(this.pauseRequestedPtr, 0),
+            "is background",
+            Atomics.load(this.isBackgroundPtr, 0)
+        );
+    }
+
     getSabRef() {
         return this.sab;
     }
@@ -131,7 +152,7 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
 
     clear() {
         Atomics.store(this.writerClearing, 0, 1);
-        Atomics.wait(this.readerProcessingSamples, 0, 1);
+        Atomics.wait(this.readerProcessingSamples, 0, 1, 100);
         const readIndex = Atomics.load(this.readPtr, 0);
         Atomics.store(this.writePtr, 0, readIndex);
         Atomics.store(this.writerClearing, 0, 0);
@@ -191,6 +212,7 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
             writeIndex >= readIndex ? writeIndex - readIndex : this.capacity - readIndex + writeIndex;
         const readableLength = Math.min(neededLength, absReadableLength);
 
+        let ret: number;
         if (readableLength > 0) {
             const readableFrames = readableLength / channelCount;
             const firstLength = Math.min(this.capacity - readIndex, readableLength);
@@ -209,11 +231,14 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
                 }
             }
             Atomics.store(this.readPtr, 0, (readIndex + readableLength) % this.capacity);
-            Atomics.store(this.readerProcessingSamples, 0, 0);
-            Atomics.notify(this.readerProcessingSamples, 0, 1);
-            return readableFrames;
+
+            ret = readableFrames;
         } else {
-            return 0;
+            ret = 0;
         }
+
+        Atomics.store(this.readerProcessingSamples, 0, 0);
+        Atomics.notify(this.readerProcessingSamples, 0, 1);
+        return ret;
     }
 }
