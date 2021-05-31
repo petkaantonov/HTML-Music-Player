@@ -422,13 +422,7 @@ export default class PlayerController extends EventEmitter {
                 progress = this.dbValues.currentTrackProgress;
             }
 
-            const validTrackFound = await this.playlist.restoreSerializedPlaylistTrack(
-                this.dbValues.currentPlaylistTrack,
-                progress
-            );
-            if (validTrackFound) {
-                this.pause();
-            }
+            await this.playlist.restoreSerializedPlaylistTrack(this.dbValues.currentPlaylistTrack, progress);
         }
     }
 
