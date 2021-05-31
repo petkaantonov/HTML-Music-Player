@@ -118,11 +118,6 @@ export default class PopupContext {
         this.blocker = this.page.NULL();
         this.animation = null;
 
-        this.closeTopPopup = this.closeTopPopup.bind(this);
-        this.popupOpened = this.popupOpened.bind(this);
-        this.popupClosed = this.popupClosed.bind(this);
-        this.closePopups = this.closePopups.bind(this);
-
         this.globalEvents.on(`clear`, this.closeTopPopup);
         this.globalEvents.on(`backbuttonPress`, this.closeTopPopup);
         this.globalEvents.on("shutdownSavePreferences", this._shutdownSavePreferences);
