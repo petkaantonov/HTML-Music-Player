@@ -15,7 +15,6 @@ import seeker from "./seeker";
 
 interface SeekResult {
     baseTime: number;
-    baseFrame: number;
     cancellationToken: CancellationToken<AudioSource>;
 }
 
@@ -341,10 +340,11 @@ export default class AudioSource extends CancellableOperations(
 
         if (progress > 0) {
             const time = progress * demuxData.duration;
-            const { baseFrame } = await this._seek(time, cancellationToken);
+            let { baseTime } = await this._seek(time, cancellationToken);
+            baseTime = Math.min(demuxData.duration, Math.max(0, baseTime));
             cancellationToken.check();
             this._initialized = true;
-            return { baseFrame, demuxData, cancellationToken };
+            return { baseFrame: Math.round(baseTime * this.backend.sampleRate), demuxData, cancellationToken };
         }
         this._initialized = true;
         return { baseFrame: 0, demuxData, cancellationToken };
@@ -407,6 +407,9 @@ export default class AudioSource extends CancellableOperations(
         this._crossfader.setDuration(this.backend.crossfadeDuration!);
         this._crossfader.setFadeInEnabled(false);
         this._crossfader.setFadeOutEnabled(true);
-        return { baseFrame: seekerResult.currentFrame, baseTime: seekerResult.time, cancellationToken };
+        return {
+            baseTime: seekerResult.time,
+            cancellationToken,
+        };
     }
 }

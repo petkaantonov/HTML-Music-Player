@@ -259,10 +259,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
         time = Math.max(0, time);
         time = Math.max(0, Math.min(this._duration - 0.2, time));
-        if (this._duration > 0 && this.isPaused()) {
-            await this.resume(true);
-        }
-        this.postMessageToAudioBackend("seek", { time, resumeAfterInitialization: true });
+        this.postMessageToAudioBackend("seek", { time, resumeAfterInitialization: false });
     }
 
     getCurrentTime() {

@@ -13,7 +13,6 @@ import LoudnessAnalyzer, { defaultLoudnessInfo, LoudnessInfo } from "./LoudnessA
 import Resampler from "./Resampler";
 
 const FLOAT_BYTE_LENGTH = 4;
-const WEB_AUDIO_BLOCK_SIZE = 128;
 
 class FilledBufferDescriptor {
     length: number;
@@ -261,17 +260,10 @@ export default class AudioProcessingPipeline {
         }
 
         const finalAudioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
-        let paddingFrameLength = 0;
         const src = this._wasm.f32view(samplePtr, byteLength / FLOAT_BYTE_LENGTH);
 
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
-            if (finalAudioFrameLength < this.bufferAudioFrameCount) {
-                paddingFrameLength =
-                    Math.ceil(finalAudioFrameLength / WEB_AUDIO_BLOCK_SIZE) * WEB_AUDIO_BLOCK_SIZE -
-                    finalAudioFrameLength;
-            }
-
             if (destinationChannelCount === 2) {
                 const dst0 = channelData[0]!;
                 const dst1 = channelData[1]!;
@@ -280,31 +272,20 @@ export default class AudioProcessingPipeline {
                     dst0[i] = src[i * 2]!;
                     dst1[i] = src[i * 2 + 1]!;
                 }
-
-                for (let i = 0; i < paddingFrameLength; ++i) {
-                    const j = i + finalAudioFrameLength;
-                    dst0[j] = dst1[j] = 0.0;
-                }
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch]!;
                     for (let i = 0; i < finalAudioFrameLength; ++i) {
                         dst[i] = src[i * destinationChannelCount + ch]!;
                     }
-
-                    for (let i = 0; i < paddingFrameLength; ++i) {
-                        const j = i + finalAudioFrameLength;
-                        dst[j] = 0.0;
-                    }
                 }
             }
         }
 
-        const length = finalAudioFrameLength + paddingFrameLength;
         this._filledBufferDescriptor = new FilledBufferDescriptor(
-            length,
+            finalAudioFrameLength,
             startAudioFrame,
-            startAudioFrame + length,
+            startAudioFrame + finalAudioFrameLength,
             channelData,
             loudnessInfo
         );
