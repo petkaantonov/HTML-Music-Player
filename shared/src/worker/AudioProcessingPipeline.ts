@@ -1,5 +1,5 @@
 import { CancellationToken } from "shared//utils/CancellationToken";
-import { ChannelData } from "shared/audio";
+import { ChannelData, CURVE_LENGTH, getCurve } from "shared/audio";
 import { TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
@@ -12,6 +12,7 @@ import Fingerprinter from "./Fingerprinter";
 import LoudnessAnalyzer, { defaultLoudnessInfo, LoudnessInfo } from "./LoudnessAnalyzer";
 import Resampler from "./Resampler";
 
+const FADE_IN_CURVE = getCurve(new Float32Array(CURVE_LENGTH + 1), 0.2, 1);
 const FLOAT_BYTE_LENGTH = 4;
 
 class FilledBufferDescriptor {
@@ -138,6 +139,7 @@ export default class AudioProcessingPipeline {
         filePosition: number,
         metadata: TrackMetadata,
         cancellationToken: CancellationToken<any>,
+        fadeInSeconds: number,
         outputSpec: { channelData: ChannelData } | null = null,
         paddingFactorHint: number = 1
     ) {
@@ -152,7 +154,16 @@ export default class AudioProcessingPipeline {
         const bytesToRead = bufferTime * sourceSampleRate * Math.ceil(metadata.maxByteSizePerAudioFrame);
         const currentAudioFrame = this.decoder.getCurrentAudioFrame();
         const onFlush = (samplePtr: number, byteLength: number) => {
-            this._processSamples(samplePtr, byteLength, outputSpec, currentAudioFrame);
+            const samplesProcessed = this._processSamples(
+                samplePtr,
+                byteLength,
+                outputSpec,
+                currentAudioFrame,
+                fadeInSeconds
+            );
+            if (fadeInSeconds > 0) {
+                fadeInSeconds = Math.max(0, fadeInSeconds - samplesProcessed / this.destinationSampleRate);
+            }
         };
 
         let currentFilePosition = filePosition + totalBytesRead;
@@ -195,7 +206,8 @@ export default class AudioProcessingPipeline {
         samplePtr: number,
         byteLength: number,
         outputSpec: { channelData: ChannelData } | null,
-        startAudioFrame: number
+        startAudioFrame: number,
+        fadeInSeconds: number
     ) {
         const {
             sourceSampleRate,
@@ -262,21 +274,28 @@ export default class AudioProcessingPipeline {
         const finalAudioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
         const src = this._wasm.f32view(samplePtr, byteLength / FLOAT_BYTE_LENGTH);
 
+        const fadeInFrames = Math.round(fadeInSeconds * destinationSampleRate);
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
-            if (destinationChannelCount === 2) {
-                const dst0 = channelData[0]!;
-                const dst1 = channelData[1]!;
-
-                for (let i = 0; i < finalAudioFrameLength; ++i) {
-                    dst0[i] = src[i * 2]!;
-                    dst1[i] = src[i * 2 + 1]!;
+            if (fadeInFrames > 0) {
+                console.log("fading in, fadeInFrames=", fadeInFrames);
+                for (let ch = 0; ch < destinationChannelCount; ++ch) {
+                    const dst = channelData[ch]!;
+                    for (let i = 0; i < finalAudioFrameLength; ++i) {
+                        let sample = src[i * destinationChannelCount + ch]!;
+                        if (i <= fadeInFrames) {
+                            const curveIndex = Math.min(CURVE_LENGTH, Math.round((i / fadeInFrames) * CURVE_LENGTH));
+                            sample *= FADE_IN_CURVE[curveIndex];
+                        }
+                        dst[i] = sample;
+                    }
                 }
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch]!;
                     for (let i = 0; i < finalAudioFrameLength; ++i) {
-                        dst[i] = src[i * destinationChannelCount + ch]!;
+                        const sample = src[i * destinationChannelCount + ch]!;
+                        dst[i] = sample;
                     }
                 }
             }
@@ -289,5 +308,6 @@ export default class AudioProcessingPipeline {
             channelData,
             loudnessInfo
         );
+        return finalAudioFrameLength;
     }
 }

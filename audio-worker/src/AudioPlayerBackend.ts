@@ -33,6 +33,13 @@ interface AudioDataItem {
     channelData: ChannelData;
 }
 
+interface InitialBufferOptions {
+    clear: AudioBufferClearOption;
+    resumeAfterLoad: boolean;
+    fadeInSeconds: number;
+    overrideNeededBuffers: boolean;
+}
+
 // TODO: Silence handling loudnessinfo entirelysilent
 class AudioData {
     private readonly cab: CircularAudioBuffer;
@@ -306,7 +313,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
     }
 
-    async _requestPreloadIfNeeded() {
+    async _requestNextTrackIfNeeded() {
         if (!this._preloadingAudioSource) {
             this._preloadingAudioSource = new AudioSource(this);
             const ret = new Promise(resolve => {
@@ -324,7 +331,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             const remaining = totalTime - currentTime;
             if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
                 console.log("posting next track request, because remaining=", remaining);
-                void this._requestPreloadIfNeeded();
+                void this._requestNextTrackIfNeeded();
             }
 
             if (remaining <= this.crossfadeDuration) {
@@ -430,8 +437,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 targetData,
                 audioSource,
                 cancellationToken,
-                crossfadeEnabled ? "clear-and-set-offset" : "only-set-offset",
-                false,
+                {
+                    clear: crossfadeEnabled ? "clear-and-set-offset" : "only-set-offset",
+                    overrideNeededBuffers: crossfadeEnabled,
+                    resumeAfterLoad: false,
+                    fadeInSeconds: 0,
+                },
                 "preload"
             );
         } catch (e) {
@@ -514,15 +525,19 @@ export default class AudioPlayerBackend extends AbstractBackend<
             console.log("seek initialized, baseFrame=", baseFrame, "duration=", duration, "baseTime=", baseTime);
             if (duration - baseTime <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
                 console.log("sekt past preload threshold, awaiting buffers");
-                await this._requestPreloadIfNeeded();
+                await this._requestNextTrackIfNeeded();
                 console.log("buffers awaited");
             }
             await this._fillBuffersLoop(
                 this.activeData!,
                 this._mainAudioSource,
                 cancellationToken,
-                "clear-and-set-offset",
-                resumeAfterInitialization,
+                {
+                    clear: "clear-and-set-offset",
+                    overrideNeededBuffers: true,
+                    resumeAfterLoad: resumeAfterInitialization,
+                    fadeInSeconds: 0.2,
+                },
                 "seek"
             );
         } catch (e) {
@@ -534,28 +549,21 @@ export default class AudioPlayerBackend extends AbstractBackend<
         targetData: AudioData,
         audioSource: AudioSource,
         cancellationToken: CancellationToken<any>,
-        clear: AudioBufferClearOption,
-        resumeAfterInitialization: boolean,
+        initialBufferOptions: InitialBufferOptions,
         source: string
     ) {
         const sampleRate = this.sampleRate;
-        let clearFirst: AudioBufferClearOption = clear;
+        let initialBufferLoaded = false;
         let canceled: boolean = false;
         try {
-            console.log(
-                "started buffer fill loop, source=",
-                source,
-                "clearFirst=",
-                clearFirst,
-                "resume=",
-                resumeAfterInitialization
-            );
+            console.log("started buffer fill loop, source=", source, "opts=", JSON.stringify(initialBufferOptions));
             while (!audioSource.ended && !audioSource.destroyed) {
                 if (!audioSource.isBufferFillingInProgress()) {
                     const minimumNeeded =
-                        clearFirst === "clear-and-set-offset"
+                        !initialBufferLoaded && initialBufferOptions.overrideNeededBuffers
                             ? Math.round(this.sustainedAudioSeconds / this.bufferTime)
                             : 0;
+
                     const neededCount = Math.max(
                         minimumNeeded,
                         Math.round(
@@ -575,16 +583,23 @@ export default class AudioPlayerBackend extends AbstractBackend<
                                 targetData.addData(
                                     bufferDescriptor,
                                     channelData,
-                                    clearFirst,
+                                    !initialBufferLoaded ? initialBufferOptions.clear : "no-clear",
                                     audioSource === this._mainAudioSource ? this.seekFrameOffset : 0,
                                     playSilence
                                 );
-                                if (clearFirst === "clear-and-set-offset" && resumeAfterInitialization) {
+                                if (!initialBufferLoaded && initialBufferOptions.resumeAfterLoad) {
                                     this._doResume(false);
                                 }
-                                clearFirst = "no-clear";
+                                initialBufferLoaded = true;
                             },
-                            { cancellationToken }
+                            {
+                                cancellationToken,
+                                fadeInSeconds:
+                                    // Worklet will always auto fade in when resuming.
+                                    initialBufferLoaded || initialBufferOptions.resumeAfterLoad
+                                        ? 0
+                                        : initialBufferOptions.fadeInSeconds,
+                            }
                         );
                         cancellationToken.check();
                     }
@@ -619,6 +634,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 }
                 if (audioSource === this._mainAudioSource) {
                     this._mainAudioSource = null;
+                    await this._requestNextTrackIfNeeded();
                     this._checkSwap();
                 }
                 await audioSource.destroy();
@@ -651,8 +667,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 targetData,
                 audioSource,
                 cancellationToken,
-                "clear-and-set-offset",
-                resumeAfterInitialization,
+                {
+                    clear: "clear-and-set-offset",
+                    overrideNeededBuffers: true,
+                    resumeAfterLoad: resumeAfterInitialization,
+                    fadeInSeconds: 0.2,
+                },
                 "load"
             );
         } catch (e) {

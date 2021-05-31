@@ -2,6 +2,8 @@ import {
     AudioConfig,
     AudioPlayerBackendActions,
     AudioWorkletMessage,
+    CURVE_LENGTH,
+    getCurve,
     MAX_SUSTAINED_AUDIO_SECONDS,
     MIN_SUSTAINED_AUDIO_SECONDS,
     SUSTAINED_BUFFERED_AUDIO_RATIO,
@@ -19,29 +21,17 @@ import ApplicationPreferencesBindingContext from "ui/ui/ApplicationPreferencesBi
 import EffectPreferencesBindingContext from "ui/ui/EffectPreferencesBindingContext";
 import WorkerFrontend from "ui/WorkerFrontend";
 
-const CURVE_LENGTH = 8;
 const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
 const PAUSE_RESUME_FADE_TIME = 0.4;
 const MUTE_UNMUTE_FADE_TIME = 0.4;
 const VOLUME_RATIO = 2;
 
-function getCurve(v0: number, v1: number) {
-    const t0 = 0;
-    const t1 = CURVE_LENGTH;
-    const ret = CURVE_HOLDER;
-    for (let t = t0; t <= t1; ++t) {
-        const value = v0 * Math.pow(v1 / v0, (t - t0) / (t1 - t0));
-        ret[t] = value;
-    }
-    return ret;
-}
-
 function getFadeOutCurve(startValue: number) {
-    return getCurve(startValue, FADE_MINIMUM_VOLUME);
+    return getCurve(CURVE_HOLDER, startValue, FADE_MINIMUM_VOLUME);
 }
 
 function getFadeInCurve() {
-    return getCurve(FADE_MINIMUM_VOLUME, 1);
+    return getCurve(CURVE_HOLDER, FADE_MINIMUM_VOLUME, 1);
 }
 
 type Deps = SelectDeps<
