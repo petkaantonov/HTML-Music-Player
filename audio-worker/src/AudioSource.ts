@@ -22,7 +22,7 @@ type BufferFilledCallback = (desc: BufferDescriptor, data: ChannelData) => void;
 
 interface BufferFillOpts {
     cancellationToken: null | CancellationToken<AudioSource>;
-    totalBuffersToFillHint?: number;
+    fadeInSeconds?: number;
 }
 
 export default class AudioSource extends CancellableOperations(
@@ -144,9 +144,9 @@ export default class AudioSource extends CancellableOperations(
     async fillBuffers(
         totalBuffersToFill: number,
         callback: BufferFilledCallback,
-        { cancellationToken = null, totalBuffersToFillHint = totalBuffersToFill }: BufferFillOpts = {
+        { cancellationToken = null, fadeInSeconds = 0 }: BufferFillOpts = {
             cancellationToken: null,
-            totalBuffersToFillHint: totalBuffersToFill,
+            fadeInSeconds: 0,
         }
     ) {
         if (this.ended || this._destroyed) {
@@ -171,12 +171,13 @@ export default class AudioSource extends CancellableOperations(
         try {
             while (i < totalBuffersToFill) {
                 const now = performance.now();
-                const buffersRemainingToDecodeHint = totalBuffersToFillHint - i;
+                const buffersRemainingToDecodeHint = totalBuffersToFill - i;
                 const destinationBuffers = this._getDestinationBuffers();
                 const bufferDescriptor = await this._decodeNextBuffer(
                     destinationBuffers,
                     this._bufferFillCancellationToken,
-                    buffersRemainingToDecodeHint
+                    buffersRemainingToDecodeHint,
+                    fadeInSeconds
                 );
 
                 if (!bufferDescriptor) {
@@ -184,7 +185,10 @@ export default class AudioSource extends CancellableOperations(
                     break;
                 }
 
-                const { startFrames, endFrames, loudnessInfo } = bufferDescriptor;
+                const { startFrames, endFrames, loudnessInfo, length } = bufferDescriptor;
+                if (fadeInSeconds > 0) {
+                    fadeInSeconds = Math.max(0, fadeInSeconds - length / this.backend.sampleRate);
+                }
                 let isFadeoutBuffer = false;
 
                 if (crossfadeDuration > 0) {
@@ -353,7 +357,8 @@ export default class AudioSource extends CancellableOperations(
     async _decodeNextBuffer(
         destinationBuffers: ChannelData,
         cancellationToken: CancellationToken<AudioSource>,
-        buffersRemainingToDecodeHint: number
+        buffersRemainingToDecodeHint: number,
+        fadeInSeconds: number
     ) {
         let bytesRead;
         try {
@@ -362,6 +367,7 @@ export default class AudioSource extends CancellableOperations(
                 this._filePosition,
                 this.demuxData!,
                 cancellationToken,
+                fadeInSeconds,
                 { channelData: destinationBuffers },
                 buffersRemainingToDecodeHint
             );

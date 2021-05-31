@@ -147,3 +147,14 @@ export const AudioPlayerResult = io.union([
     RequestNextTrackResult,
 ]);
 export type AudioPlayerResult = io.TypeOf<typeof AudioPlayerResult>;
+
+export const CURVE_LENGTH = 8;
+export function getCurve(ret: Float32Array, v0: number, v1: number) {
+    const t0 = 0;
+    const t1 = CURVE_LENGTH;
+    for (let t = t0; t <= t1; ++t) {
+        const value = v0 * Math.pow(v1 / v0, (t - t0) / (t1 - t0));
+        ret[t] = value;
+    }
+    return ret;
+}
