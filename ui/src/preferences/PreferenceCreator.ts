@@ -1,6 +1,6 @@
 import { Type } from "io-ts";
 import { ApplicationPreferences, EffectPreferences } from "shared/preferences";
-import { typedKeys } from "shared/types/helpers";
+import { decode, typedKeys } from "shared/types/helpers";
 import { deepEqual, titleCase } from "shared/util";
 
 export abstract class AbstractPreferenceManager<T extends ApplicationPreferences | EffectPreferences> {
@@ -24,7 +24,14 @@ export abstract class AbstractPreferenceManager<T extends ApplicationPreferences
     }
 
     toJSON(): T {
-        return this.__codec.encode((this as unknown) as T);
+        const keys = typedKeys(this);
+        const ret: Record<string, any> = {};
+        for (const key of keys) {
+            if (!key.startsWith("_")) {
+                ret[key] = this[key]!;
+            }
+        }
+        return decode(this.__codec, ret);
     }
 
     copyFrom(vals: T) {
