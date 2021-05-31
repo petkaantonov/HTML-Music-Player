@@ -83,16 +83,12 @@ export interface PauseOpts {
     fadeOutDelay: number;
 }
 
-export interface ResumeOpts {
-    clearBuffers: boolean;
-}
-
 export interface AudioPlayerBackendActions<T> {
     timeUpdate: (this: T) => void;
     initialAudioConfiguration: (this: T, args: Required<AudioConfig>) => void;
     audioConfigurationChange: (this: T, args: AudioConfig) => void;
     pause: (this: T, opts: PauseOpts) => void;
-    resume: (this: T, opts: ResumeOpts) => void;
+    resume: (this: T) => void;
     seek: (this: T, opts: SeekOpts) => Promise<void>;
     load: (this: T, opts: LoadOpts) => Promise<void>;
     nextTrackResponse: (this: T, opts: NextTrackResponseOpts) => Promise<void>;
