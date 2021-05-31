@@ -9,7 +9,6 @@ import {
     NextTrackResponseOpts,
     PauseOpts,
     PRELOAD_THRESHOLD_SECONDS,
-    ResumeOpts,
     SeekOpts,
 } from "shared/audio";
 import TagDatabase from "shared/idb/TagDatabase";
@@ -112,7 +111,8 @@ class AudioData {
         bufferDescriptor: BufferDescriptor,
         channelData: ChannelData,
         clear: AudioBufferClearOption,
-        seekOffset: number = 0
+        seekOffset: number = 0,
+        playSilence: boolean = true
     ) {
         if (clear !== "no-clear") {
             if (clear === "clear-and-set-offset") {
@@ -125,14 +125,19 @@ class AudioData {
             this.clearedFrameIndex = this.cab.getCurrentFrameNumber();
             this.seekFrameOffset = seekOffset;
         }
-        this.data.push({
-            samplesWritten: 0,
-            startFrames: bufferDescriptor.startFrames,
-            endFrames: bufferDescriptor.endFrames,
-            channelData,
-            length: bufferDescriptor.length,
-        });
-        this.writeToAudioBuffer();
+        const hasSound = playSilence || !bufferDescriptor.loudnessInfo.isEntirelySilent;
+        if (hasSound) {
+            this.data.push({
+                samplesWritten: 0,
+                startFrames: bufferDescriptor.startFrames,
+                endFrames: bufferDescriptor.endFrames,
+                channelData,
+                length: bufferDescriptor.length,
+            });
+            this.writeToAudioBuffer();
+        } else {
+            this.clearedFrameIndex = (this.clearedFrameIndex + bufferDescriptor.length) % MAX_FRAME;
+        }
     }
 
     getCurrentlyPlayedFrame() {
@@ -226,7 +231,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             nextTrackResponse: opts => this._preloadNextTrack(opts),
             nextTrackResponseUpdate: opts => this._preloadNextTrackUpdated(opts),
             pause: opts => this._pauseReceived(opts),
-            resume: opts => this._resumeReceived(opts),
+            resume: () => this._resumeReceived(),
         });
         this._wasm = wasm;
         this._tagdb = tagdb;
@@ -248,19 +253,16 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
     }
 
-    _doResume() {
+    _doResume(includePassive: boolean = true) {
         console.log("resuming activeData");
         this.activeData!.resume();
-        if (this.passiveData!.getQueuedAndBufferedSeconds(this.sampleRate) > 0) {
+        if (includePassive && this.passiveData!.getQueuedAndBufferedSeconds(this.sampleRate) > 0) {
             console.log("resuming passiveData");
             this.passiveData!.resume();
         }
     }
 
-    _resumeReceived({ clearBuffers }: ResumeOpts) {
-        if (clearBuffers) {
-            return;
-        }
+    _resumeReceived() {
         this._doResume();
     }
 
@@ -513,7 +515,10 @@ export default class AudioPlayerBackend extends AbstractBackend<
             );
             while (!audioSource.ended && !audioSource.destroyed) {
                 if (!audioSource.isBufferFillingInProgress()) {
-                    const minimumNeeded = clearFirst === "clear-and-set-offset" ? 1 : 0;
+                    const minimumNeeded =
+                        clearFirst === "clear-and-set-offset"
+                            ? Math.round(this.sustainedAudioSeconds / this.bufferTime)
+                            : 0;
                     const neededCount = Math.max(
                         minimumNeeded,
                         Math.round(
@@ -523,6 +528,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     );
 
                     if (neededCount > 0) {
+                        const playSilence = this._config!.silenceTrimming
+                            ? audioSource === this._preloadingAudioSource
+                            : true;
                         await audioSource.fillBuffers(
                             neededCount,
                             (bufferDescriptor: BufferDescriptor, channelData: ChannelData) => {
@@ -531,10 +539,11 @@ export default class AudioPlayerBackend extends AbstractBackend<
                                     bufferDescriptor,
                                     channelData,
                                     clearFirst,
-                                    audioSource === this._mainAudioSource ? this.seekFrameOffset : 0
+                                    audioSource === this._mainAudioSource ? this.seekFrameOffset : 0,
+                                    playSilence
                                 );
                                 if (clearFirst === "clear-and-set-offset" && resumeAfterInitialization) {
-                                    this._doResume();
+                                    this._doResume(false);
                                 }
                                 clearFirst = "no-clear";
                             },

@@ -177,17 +177,19 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         }
     }
 
-    async resume(clearBuffers: boolean = false) {
+    async resume(backendResumeHandled: boolean = false) {
         if (!this.isPaused()) {
             return;
         }
-        console.log("resume called, clearBuffers=", clearBuffers);
+        console.log("resume called, backendResumeHandled=", backendResumeHandled);
         await this._resumeAudioContext();
         if (this.audioContextState !== "running") {
             throw new Error("invalid resume() not from user action");
         }
         this._paused = false;
-        this.postMessageToAudioBackend("resume", { clearBuffers });
+        if (!backendResumeHandled) {
+            this.postMessageToAudioBackend("resume");
+        }
         this.emit("playbackStateChanged");
         this._stopSuspensionTimeout();
         console.log("resumed");
