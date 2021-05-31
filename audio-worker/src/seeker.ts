@@ -13,7 +13,6 @@ const seekMp3 = async <T extends object>(
     const frames = ((metadata.duration * metadata.sampleRate) / metadata.samplesPerFrame) | 0;
     let frame = ((time / metadata.duration) * frames) | 0;
     let currentTime = frame * (metadata.samplesPerFrame / metadata.sampleRate);
-    let currentFrame = frame * metadata.samplesPerFrame;
     // Target an earlier frame to build up the bit reservoir for the actual frame.
     let targetFrame = Math.max(0, frame - 9);
     // The frames are only decoded to build up the bit reservoir and should not be actually played back.
@@ -23,20 +22,17 @@ const seekMp3 = async <T extends object>(
 
     console.log("seek to", currentTime);
 
-    if (!metadata.vbr && !metadata.toc) {
+    if (!metadata.vbr) {
         offset = (metadata.dataStart + targetFrame * metadata.averageFrameSize) | 0;
-        console.log("brute force offset", offset);
     } else if (metadata.toc) {
         // Xing seek tables.
         frame = ((Math.round((frame / frames) * 100) / 100) * frames) | 0;
         currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
-        currentFrame = (frame + 1) * metadata.samplesPerFrame;
         samplesToSkip = metadata.samplesPerFrame;
         targetFrame = frame;
         const tocIndex = Math.min(99, Math.round((frame / frames) * 100) | 0);
         const offsetPercentage = metadata.toc[tocIndex]! / 256;
         offset = (metadata.dataStart + offsetPercentage * (metadata.dataEnd - metadata.dataStart)) | 0;
-        console.log("table offset", offset);
     } else {
         let table = metadata.seekTable;
         if (!table) {
@@ -53,7 +49,6 @@ const seekMp3 = async <T extends object>(
         if (table.isFromMetaData) {
             frame = table.closestFrameOf(frame);
             currentTime = (frame + 1) * (metadata.samplesPerFrame / metadata.sampleRate);
-            currentFrame = (frame + 1) * metadata.samplesPerFrame;
             samplesToSkip = metadata.samplesPerFrame;
             offset = table.offsetOfFrame(frame);
             targetFrame = frame;
@@ -67,7 +62,6 @@ const seekMp3 = async <T extends object>(
     }
 
     return {
-        currentFrame,
         time: currentTime,
         offset: Math.max(metadata.dataStart, Math.min(offset, metadata.dataEnd)),
         samplesToSkip,

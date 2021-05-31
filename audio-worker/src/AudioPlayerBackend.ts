@@ -136,7 +136,10 @@ class AudioData {
             });
             this.writeToAudioBuffer();
         } else {
-            this.clearedFrameIndex = (this.clearedFrameIndex + bufferDescriptor.length) % MAX_FRAME;
+            this.clearedFrameIndex = this.clearedFrameIndex - bufferDescriptor.length;
+            if (this.clearedFrameIndex < 0) {
+                this.clearedFrameIndex += MAX_FRAME;
+            }
         }
     }
 
@@ -220,6 +223,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
     private seekFrameOffset: number = 0;
     private lastCleanupCalled: number = 0;
     private swapTargets: SwapTargetType = "no-swap";
+    private nextTrackResponseCallbacks: PromiseResolve<void>[] = [];
 
     constructor(wasm: WebAssemblyWrapper, tagdb: TagDatabase) {
         super("audio", {
@@ -302,15 +306,25 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
     }
 
+    async _requestPreloadIfNeeded() {
+        if (!this._preloadingAudioSource) {
+            this._preloadingAudioSource = new AudioSource(this);
+            const ret = new Promise(resolve => {
+                this.nextTrackResponseCallbacks.push(resolve);
+            });
+            this.postMessageToAudioPlayer({ type: "nextTrackRequest" });
+            return ret;
+        }
+    }
+
     _sendTimeUpdate() {
         const { totalTime, currentTime } = this;
 
         if (totalTime > 0 && totalTime > currentTime) {
             const remaining = totalTime - currentTime;
-            if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS && !this._preloadingAudioSource) {
-                this._preloadingAudioSource = new AudioSource(this);
-                this.postMessageToAudioPlayer({ type: "nextTrackRequest" });
+            if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
                 console.log("posting next track request, because remaining=", remaining);
+                void this._requestPreloadIfNeeded();
             }
 
             if (remaining <= this.crossfadeDuration) {
@@ -354,6 +368,13 @@ export default class AudioPlayerBackend extends AbstractBackend<
         void this._preloadNextTrack(opts);
     };
 
+    _resolveNextTrackResponsePromises() {
+        for (const callback of this.nextTrackResponseCallbacks) {
+            callback();
+        }
+        this.nextTrackResponseCallbacks = [];
+    }
+
     _preloadNextTrack = async ({ fileReference }: NextTrackResponseOpts) => {
         if (
             !this._preloadingAudioSource ||
@@ -361,11 +382,13 @@ export default class AudioPlayerBackend extends AbstractBackend<
             this._preloadingAudioSource.destroyed ||
             this._preloadingAudioSource.initialized
         ) {
+            this._resolveNextTrackResponsePromises();
             console.log("preload path - should not happen");
             // Should not happen.
             return;
         }
         if (!fileReference) {
+            this._resolveNextTrackResponsePromises();
             console.log("preload path - no file given");
             this._preloadingAudioSource = null;
             return;
@@ -389,6 +412,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 progress: 0,
             });
             this.setSwapTargets(crossfadeEnabled ? "all" : "audio-sources", "preload initialized");
+            this._resolveNextTrackResponsePromises();
             console.log("preload initialized");
             cancellationToken.check();
             // Await for the audio queue.
@@ -464,22 +488,35 @@ export default class AudioPlayerBackend extends AbstractBackend<
         if (this._preloadingAudioSource) {
             waitFor.push(this._preloadingAudioSource.bufferOperationCancellationAcknowledged());
             this._preloadingAudioSource.cancelAllOperations();
+            await this._preloadingAudioSource.destroy();
+            this._preloadingAudioSource = null;
+            this.passiveData!.pause(0.2 * this.sampleRate);
         }
         await Promise.all(waitFor);
     }
 
     _seek = async ({ time, resumeAfterInitialization }: SeekOpts) => {
-        if (!this._mainAudioSource || !this._mainAudioSource.initialized) return;
+        if (!this._mainAudioSource || !this._mainAudioSource.initialized || this._mainAudioSource.duration <= 0) return;
         await this._cancelLoadingBuffers();
 
         try {
             this._postUiTimeUpdate(time, this._mainAudioSource.duration);
             console.log("begin seek initialization, time=", time);
-            const { baseFrame, baseTime, cancellationToken } = await this._mainAudioSource.seek({ time });
-            console.log("seek initialized, baseFrame=", baseFrame);
+            const seekResult = await this._mainAudioSource.seek({ time });
+            const { cancellationToken } = seekResult;
+            let { baseTime } = seekResult;
             cancellationToken.check();
+            const duration = this._mainAudioSource.duration;
+            baseTime = Math.max(0, Math.min(duration, baseTime));
+            const baseFrame = Math.round(baseTime * this.sampleRate);
             this.seekFrameOffset = baseFrame;
-            this._postUiTimeUpdate(baseTime, this._mainAudioSource.duration);
+            this._postUiTimeUpdate(baseTime, duration);
+            console.log("seek initialized, baseFrame=", baseFrame, "duration=", duration, "baseTime=", baseTime);
+            if (duration - baseTime <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
+                console.log("sekt past preload threshold, awaiting buffers");
+                await this._requestPreloadIfNeeded();
+                console.log("buffers awaited");
+            }
             await this._fillBuffersLoop(
                 this.activeData!,
                 this._mainAudioSource,
@@ -558,9 +595,17 @@ export default class AudioPlayerBackend extends AbstractBackend<
         } catch (e) {
             canceled = !this._checkError(e);
         } finally {
+            const actualSource =
+                audioSource === this._preloadingAudioSource
+                    ? "preloadingAudioSource"
+                    : audioSource === this._mainAudioSource
+                    ? "mainAudioSource"
+                    : "noSource";
             console.log(
                 "ended buffer fill loop source=",
                 source,
+                ", actualSource=",
+                actualSource,
                 ", ended=",
                 audioSource.ended,
                 ", destroyed=",
