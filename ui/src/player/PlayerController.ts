@@ -385,7 +385,7 @@ export default class PlayerController extends EventEmitter {
 
         const now = performance.now();
         if (
-            now - this._progressLastPersisted > 500 &&
+            (this._lastPersistedProgressValue === -1 || now - this._progressLastPersisted > 500) &&
             this._lastPersistedProgressValue !== this._getUnroundedProgress()
         ) {
             this._progressLastPersisted = now;
