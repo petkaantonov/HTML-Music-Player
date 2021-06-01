@@ -1,4 +1,5 @@
 /* eslint-disable no-case-declarations */
+import { setDebugConfig } from "shared/debug";
 import EventEmitter from "vendor/events";
 
 import {
@@ -32,6 +33,9 @@ self.onmessage = function (event: MessageEvent<BackendWorkerMessageType>) {
         case "frontendCall":
             const backend = channelsToBackends.get(data.channel)!;
             backend.receiveFrontendMessage(data.action, data.args, data.transferList);
+            break;
+        case "debugConfig":
+            setDebugConfig(data.value);
             break;
     }
 };
