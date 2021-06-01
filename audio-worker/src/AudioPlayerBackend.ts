@@ -319,7 +319,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 newPassive.setAsBackground();
             }
             this.postMessageToAudioPlayer({ type: "preloadedTrackStartedPlaying" });
+            return true;
         }
+        return false;
     }
 
     async _requestNextTrackIfNeeded() {
@@ -343,7 +345,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 void this._requestNextTrackIfNeeded();
             }
             if (remaining <= this.crossfadeDuration) {
-                this._checkSwap();
+                if (this._checkSwap()) {
+                    dbg("State", "swapped from time check", remaining, totalTime, currentTime, this.crossfadeDuration);
+                }
             }
         }
 
@@ -398,7 +402,16 @@ export default class AudioPlayerBackend extends AbstractBackend<
             this._preloadingAudioSource.initialized
         ) {
             this._resolveNextTrackResponsePromises();
-            dbg("Impossible", "preload path - should not happen");
+            const destroyed = this._preloadingAudioSource ? this._preloadingAudioSource.destroyed : null;
+            const initialized = this._preloadingAudioSource ? this._preloadingAudioSource.initialized : null;
+            dbg(
+                "Impossible",
+                "preload path - should not happen",
+                !!this._preloadingAudioSource,
+                !!this._mainAudioSource,
+                destroyed,
+                initialized
+            );
             // Should not happen.
             return;
         }
@@ -692,9 +705,10 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     this._preloadingAudioSource = null;
                 }
                 if (audioSource === this._mainAudioSource) {
-                    this._mainAudioSource = null;
                     await this._requestNextTrackIfNeeded();
-                    this._checkSwap();
+                    if (!this._checkSwap()) {
+                        this._mainAudioSource = null;
+                    }
                 }
                 await audioSource.destroy();
             }
