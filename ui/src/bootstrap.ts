@@ -53,7 +53,7 @@ page.setTitle(defaultTitle);
 void (async () => {
     await cssLoaded(Promise);
     // eslint-disable-next-line no-console
-    console.log(`css load time:`, performance.now() - CSS_LOAD_START, `ms`);
+    const cssLoadTime = performance.now() - CSS_LOAD_START;
     const [featureCheckResults] = await Promise.all([featureCheckResultsPromise, ready]);
     const featureMissing = featureCheckResults.some(v => !v.supported);
 
@@ -105,6 +105,7 @@ void (async () => {
             timers,
             serviceWorkerManager,
         },
-        loadingIndicatorShowerTimeoutId
+        loadingIndicatorShowerTimeoutId,
+        cssLoadTime
     );
 })();

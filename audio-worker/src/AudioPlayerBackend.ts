@@ -12,12 +12,14 @@ import {
     SeekOpts,
 } from "shared/audio";
 import TagDatabase from "shared/idb/TagDatabase";
+import { debugFor } from "shared/src/debug";
 import { PromiseResolve, typedKeys } from "shared/src/types/helpers";
 import CircularAudioBuffer from "shared/src/worker/CircularAudioBuffer";
 import { CancellationError, CancellationToken } from "shared/utils/CancellationToken";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
 import AbstractBackend from "shared/worker/AbstractBackend";
 import Effects from "shared/worker/Effects";
+const dbg = debugFor("AudioPlayerBackend");
 
 import AudioSource from "./AudioSource";
 
@@ -123,12 +125,18 @@ class AudioData {
     ) {
         if (clear !== "no-clear") {
             if (clear === "clear-and-set-offset") {
-                this.cab.printValues();
                 this.data = [];
                 this.cab.clear();
-                console.log("cleared with", "seekOffset=", seekOffset, "frameIndex=", this.clearedFrameIndex);
+                dbg(
+                    "BufferInitialization",
+                    "cleared with",
+                    "seekOffset=",
+                    seekOffset,
+                    "frameIndex=",
+                    this.clearedFrameIndex
+                );
             } else {
-                console.log("only set offsets", seekOffset);
+                dbg("BufferInitialization", "only set offsets, seekOffset=", seekOffset);
             }
             this.clearedFrameIndex = this.cab.getCurrentFrameNumber();
             this.seekFrameOffset = seekOffset;
@@ -258,18 +266,18 @@ export default class AudioPlayerBackend extends AbstractBackend<
         const sampleRate = this.sampleRate;
         const delayFrames = fadeOutDelay * sampleRate;
         this.activeData!.pause(delayFrames);
-        console.log("paused activeData, delayFrames=", delayFrames);
+        dbg("Action", "paused activeData, delayFrames=", delayFrames);
         if (this.passiveData!.getQueuedAndBufferedSeconds(sampleRate) > 0) {
-            console.log("paused passiveData, delayFrames=", delayFrames);
+            dbg("Action", "paused passiveData, delayFrames=", delayFrames);
             this.passiveData!.pause(delayFrames);
         }
     }
 
     _doResume(includePassive: boolean = true) {
-        console.log("resuming activeData");
+        dbg("Action", "resuming activeData");
         this.activeData!.resume();
         if (includePassive && this.passiveData!.getQueuedAndBufferedSeconds(this.sampleRate) > 0) {
-            console.log("resuming passiveData");
+            dbg("Action", "resuming passiveData");
             this.passiveData!.resume();
         }
     }
@@ -290,9 +298,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
     _checkSwap() {
         const swapTargets = this.swapTargets;
-        console.log("checked swapTargets=", swapTargets);
+        dbg("SwapTargets", "checked swapTargets=", swapTargets);
         if (swapTargets !== "no-swap") {
-            console.log("swapping targets and sources");
+            dbg("SwapTargets", "swapping targets and sources");
             this.setSwapTargets("no-swap", "checkSwap");
             this.seekFrameOffset = 0;
             this._mainAudioSource = this._preloadingAudioSource;
@@ -316,7 +324,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
     async _requestNextTrackIfNeeded() {
         if (!this._preloadingAudioSource) {
-            console.log("posting next track request");
+            dbg("Action", "posting next track request");
             this._preloadingAudioSource = new AudioSource(this);
             const ret = new Promise(resolve => {
                 this.nextTrackResponseCallbacks.push(resolve);
@@ -368,7 +376,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         if (!this._preloadingAudioSource) {
             return;
         }
-        console.log("updating preload track in backend");
+        dbg("Action", "updating preload track in backend");
         this.setSwapTargets("no-swap", "preload next track updated");
         await this._preloadingAudioSource.destroy();
         this._preloadingAudioSource = new AudioSource(this);
@@ -390,13 +398,13 @@ export default class AudioPlayerBackend extends AbstractBackend<
             this._preloadingAudioSource.initialized
         ) {
             this._resolveNextTrackResponsePromises();
-            console.log("preload path - should not happen");
+            dbg("Impossible", "preload path - should not happen");
             // Should not happen.
             return;
         }
         if (!fileReference) {
             this._resolveNextTrackResponsePromises();
-            console.log("preload path - no file given");
+            dbg("BufferInitialization", "preload path - no file given");
             this._preloadingAudioSource = null;
             return;
         }
@@ -406,7 +414,8 @@ export default class AudioPlayerBackend extends AbstractBackend<
         const audioSource = this._preloadingAudioSource;
         const targetData = crossfadeEnabled ? this.passiveData! : this.activeData!;
         try {
-            console.log(
+            dbg(
+                "BufferInitialization",
                 "started initializing preload, crossFadeDuration=",
                 crossfadeDuration,
                 "crossfadeEnabled",
@@ -420,18 +429,21 @@ export default class AudioPlayerBackend extends AbstractBackend<
             });
             this.setSwapTargets(crossfadeEnabled ? "all" : "audio-sources", "preload initialized");
             this._resolveNextTrackResponsePromises();
-            console.log("preload initialized");
+            dbg("BufferInitialization", "preload initialized");
             cancellationToken.check();
             // Await for the audio queue.
             if (!crossfadeEnabled) {
-                console.log("Gapless playback enabled - waiting for all buffers to be written");
+                dbg("BufferInitialization", "Gapless playback enabled - waiting for all buffers to be written");
                 await this._mainAudioSource!.waitEnded();
                 cancellationToken.check();
                 while (!targetData.allBuffersWritten()) {
                     await this.waitNextTimeUpdate();
                     cancellationToken.check();
                 }
-                console.log("Gapless playback enabled - all buffers written, writing preload track data");
+                dbg(
+                    "BufferInitialization",
+                    "Gapless playback enabled - all buffers written, writing preload track data"
+                );
             }
             await this._fillBuffersLoop(
                 targetData,
@@ -468,7 +480,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         this.activeData.pause(0);
 
         this._configUpdated();
-        console.log("backend initialized");
+        dbg("Initialization", "backend initialized");
     };
 
     _audioConfigurationChangeReceived = (config: AudioConfig) => {
@@ -486,7 +498,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
     };
 
     setSwapTargets(swapTargets: SwapTargetType, source: string) {
-        console.log("set swap target to", swapTargets, "source=", source);
+        dbg("SwapTargets", "set swap target to", swapTargets, "source=", source);
         this.swapTargets = swapTargets;
     }
 
@@ -518,7 +530,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
         try {
             this._postUiTimeUpdate(time, this._mainAudioSource.duration);
-            console.log("begin seek initialization, time=", time);
+            dbg("BufferInitialization", "begin seek initialization, time=", time);
             const seekResult = await this._mainAudioSource.seek({ time });
             const { cancellationToken } = seekResult;
             let { baseTime } = seekResult;
@@ -528,11 +540,19 @@ export default class AudioPlayerBackend extends AbstractBackend<
             const baseFrame = Math.round(baseTime * this.sampleRate);
             this.seekFrameOffset = baseFrame;
             this._postUiTimeUpdate(baseTime, duration);
-            console.log("seek initialized, baseFrame=", baseFrame, "duration=", duration, "baseTime=", baseTime);
+            dbg(
+                "BufferInitialization",
+                "seek initialized, baseFrame=",
+                baseFrame,
+                "duration=",
+                duration,
+                "baseTime=",
+                baseTime
+            );
             if (duration - baseTime <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
-                console.log("sekt past preload threshold, awaiting buffers");
+                dbg("BufferInitialization", "sekt past preload threshold, awaiting buffers");
                 await this._requestNextTrackIfNeeded();
-                console.log("buffers awaited");
+                dbg("BufferInitialization", "buffers awaited");
             }
             await this._fillBuffersLoop(
                 this.activeData!,
@@ -569,7 +589,8 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     : audioSource === this._mainAudioSource
                     ? "mainAudioSource"
                     : "noSource";
-            console.log(
+            dbg(
+                "BufferInitialization",
                 "started buffer fill loop, source=",
                 source,
                 "opts=",
@@ -597,19 +618,24 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     )
                 );
 
-                !initialBufferLoaded && console.log("neededCount=", neededCount);
+                !initialBufferLoaded && dbg("BufferInitialization", "neededCount=", neededCount);
 
                 if (neededCount > 0) {
                     const playSilence = this._config!.silenceTrimming
                         ? audioSource === this._preloadingAudioSource
                         : true;
-                    !initialBufferLoaded && console.log("requested fillBuffers playSilence=", playSilence);
+                    !initialBufferLoaded &&
+                        dbg("BufferInitialization", "requested fillBuffers playSilence=", playSilence);
                     await audioSource.fillBuffers(
                         neededCount,
                         (bufferDescriptor: BufferDescriptor, channelData: ChannelData) => {
                             cancellationToken.check();
                             !initialBufferLoaded &&
-                                console.log("initial buffer callback, data=", JSON.stringify(bufferDescriptor));
+                                dbg(
+                                    "BufferInitialization",
+                                    "initial buffer callback, data=",
+                                    JSON.stringify(bufferDescriptor)
+                                );
                             targetData.addData(
                                 bufferDescriptor,
                                 channelData,
@@ -633,7 +659,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     );
                     cancellationToken.check();
                 }
-                !initialBufferLoaded && console.log("filled initial buffers neededCount=", neededCount);
+                !initialBufferLoaded && dbg("BufferInitialization", "filled initial buffers neededCount=", neededCount);
                 await this.waitNextTimeUpdate();
                 cancellationToken.check();
             }
@@ -646,7 +672,8 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     : audioSource === this._mainAudioSource
                     ? "mainAudioSource"
                     : "noSource";
-            console.log(
+            dbg(
+                "AudioTermination",
                 "ended buffer fill loop source=",
                 source,
                 ", audioSourceString=",
@@ -675,11 +702,11 @@ export default class AudioPlayerBackend extends AbstractBackend<
     }
 
     _load = async ({ fileReference, progress = 0, resumeAfterInitialization }: LoadOpts) => {
-        console.log("load called, resume=", resumeAfterInitialization);
+        dbg("BufferInitialization", "load called, resume=", resumeAfterInitialization);
         await this._cancelLoadingBuffers("Load invalidates buffers");
         const audioSource = new AudioSource(this);
         if (this._mainAudioSource) {
-            console.log("load called, destroying previous main audio source");
+            dbg("BufferInitialization", "load called, destroying previous main audio source");
             await this._mainAudioSource.destroy();
         }
         this._mainAudioSource = audioSource;
@@ -691,7 +718,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 crossfadeDuration: this.crossfadeDuration,
                 progress,
             });
-            console.log("load initialized, baseFrame=", baseFrame);
+            dbg("BufferInitialization", "load initialized, baseFrame=", baseFrame);
             cancellationToken.check();
             this.seekFrameOffset = baseFrame;
             this._postUiTimeUpdate(baseFrame / this.sampleRate, audioSource.duration);
@@ -722,7 +749,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
     _sendError(error: Error) {
         this.postMessageToAudioPlayer({ type: `error`, message: error.message });
-        console.log(error);
+        dbg("Error", error);
     }
 
     postMessageToAudioPlayer(result: AudioPlayerResult) {

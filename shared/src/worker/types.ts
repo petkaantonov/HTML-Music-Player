@@ -97,6 +97,12 @@ export const ReadyCall = io.type({
 
 export type ReadyCall = io.TypeOf<typeof ReadyCall>;
 
+export const SetDebugConfig = io.type({
+    type: io.literal("debugConfig"),
+    value: io.record(io.string, io.array(io.string)),
+});
+export type SetDebugConfig = io.TypeOf<typeof SetDebugConfig>;
+
 export const FrontendCall = io.intersection([
     io.type({
         type: io.literal("frontendCall"),
@@ -125,7 +131,7 @@ export const BackendCall = io.intersection([
 export type BackendCall = io.TypeOf<typeof BackendCall>;
 
 export type FrontendWorkerMessageType = BackendCall | UiLogCall | ReadyCall | MainWindowCall;
-export type BackendWorkerMessageType = MainWindowCallResult | FrontendCall;
+export type BackendWorkerMessageType = MainWindowCallResult | FrontendCall | SetDebugConfig;
 
 export interface ResultPromise<T> {
     resolve: (d: T) => void;

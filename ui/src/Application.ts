@@ -1,4 +1,5 @@
 import { StoredKVValues } from "shared/preferences";
+import { debugFor, setDebugConfig } from "shared/src/debug";
 import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
 import Timers from "shared/src/platform/Timers";
 import AudioPlayerFrontend from "ui/audio/AudioPlayerFrontend";
@@ -44,7 +45,16 @@ import VisualizerCanvas from "ui/visualization/VisualizerCanvas";
 import WorkerWrapper from "ui/WorkerWrapper";
 import ZipperFrontend from "ui/zip/ZipperFrontend";
 
+const dbg = debugFor("Application");
+
 import AudioVisualizerFrontend from "../src/visualization/AudioVisualizerFrontend";
+
+const debugConfig = {
+    Application: "*",
+    AudioPlayerFrontend: "*",
+    AudioPlayerBackend: ["*", "!ContinuousBuffering"],
+    AudioProcessingPipeline: "*",
+};
 
 export interface Deps {
     page?: Page;
@@ -138,7 +148,8 @@ export default class Application {
             timers: Timers;
             serviceWorkerManager: ServiceWorkerManager;
         },
-        loadingIndicatorShowerTimeoutId: number
+        loadingIndicatorShowerTimeoutId: number,
+        cssLoadTime: number
     ) {
         const bootstrapStart = performance.now();
 
@@ -211,6 +222,11 @@ export default class Application {
         const visualizerWorker = new WorkerWrapper(process.env.VISUALIZER_WORKER_PATH!, {
             page,
         });
+
+        setDebugConfig(
+            debugConfig,
+            [generalWorker, audioWorker, zipperWorker, visualizerWorker].map(v => v.getWorker())
+        );
 
         const zipper = (this.zipper = new ZipperFrontend({
             zipperWorker,
@@ -652,19 +668,18 @@ export default class Application {
         db.on("databaseClosed", this._databaseClosed);
 
         void (async () => {
+            dbg("Performance", "css load time", cssLoadTime, "ms");
             page.$(`#app-loader`).remove();
             void mainTabs.tabController.activateTabById(dbValues.visibleTabId);
             void visualizerCanvas.initialize();
             globalEvents._triggerSizeChange();
 
             const preferenceLoadStart = performance.now();
-            // eslint-disable-next-line no-console
-            console.log(`bootstrap time:`, preferenceLoadStart - bootstrapStart, `ms`);
+            dbg("Performance", `bootstrap time:`, preferenceLoadStart - bootstrapStart, `ms`);
             await Promise.all([player.preferencesLoaded(), playlist.preferencesLoaded(), search.preferencesLoaded()]);
             page.clearTimeout(loadingIndicatorShowerTimeoutId);
             page.$(`.js-app-container`).removeClass(`initial`);
-            // eslint-disable-next-line no-console
-            console.log(`preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
+            dbg("Performance", `preferences loaded and rendered time:`, performance.now() - preferenceLoadStart, `ms`);
         })();
     }
 

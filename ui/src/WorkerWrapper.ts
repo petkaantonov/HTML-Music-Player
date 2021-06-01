@@ -130,4 +130,8 @@ export default class WorkerWrapper {
     postBackendMessage(channel: string, action: string, args: any[], transferList?: Transferable[]) {
         this.postMessage({ type: "frontendCall", channel, args, action }, transferList);
     }
+
+    getWorker() {
+        return this._worker;
+    }
 }

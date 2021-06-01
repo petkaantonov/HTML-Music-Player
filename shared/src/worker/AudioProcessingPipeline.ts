@@ -1,5 +1,6 @@
 import { CancellationToken } from "shared//utils/CancellationToken";
 import { ChannelData, CURVE_LENGTH, getCurve } from "shared/audio";
+import { debugFor } from "shared/debug";
 import { TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
@@ -11,6 +12,7 @@ import Effects from "./Effects";
 import Fingerprinter from "./Fingerprinter";
 import LoudnessAnalyzer, { defaultLoudnessInfo, LoudnessInfo } from "./LoudnessAnalyzer";
 import Resampler from "./Resampler";
+const dbg = debugFor("AudioProcessingPipeline");
 
 const FADE_IN_CURVE = getCurve(new Float32Array(CURVE_LENGTH + 1), 0.2, 1);
 const FLOAT_BYTE_LENGTH = 4;
@@ -278,7 +280,7 @@ export default class AudioProcessingPipeline {
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
             if (fadeInFrames > 0) {
-                console.log("fading in, fadeInFrames=", fadeInFrames);
+                dbg("AudioProcessing", "fading in, fadeInFrames=", fadeInFrames);
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch]!;
                     for (let i = 0; i < finalAudioFrameLength; ++i) {

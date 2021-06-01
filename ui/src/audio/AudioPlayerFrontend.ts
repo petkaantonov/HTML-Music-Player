@@ -8,6 +8,7 @@ import {
     MIN_SUSTAINED_AUDIO_SECONDS,
     SUSTAINED_BUFFERED_AUDIO_RATIO,
 } from "shared/audio";
+import { debugFor } from "shared/debug";
 import { ChannelCount, ITrack } from "shared/metadata";
 import Timers from "shared/platform/Timers";
 import { AudioPlayerResult, FADE_MINIMUM_VOLUME } from "shared/src/audio";
@@ -20,6 +21,8 @@ import PlaylistController from "ui/player/PlaylistController";
 import ApplicationPreferencesBindingContext from "ui/ui/ApplicationPreferencesBindingContext";
 import EffectPreferencesBindingContext from "ui/ui/EffectPreferencesBindingContext";
 import WorkerFrontend from "ui/WorkerFrontend";
+
+const dbg = debugFor("AudioPlayerFrontend");
 
 const CURVE_HOLDER = new Float32Array(CURVE_LENGTH + 1);
 const PAUSE_RESUME_FADE_TIME = 0.4;
@@ -139,7 +142,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         if (this._audioContext.state === "suspended") {
             return;
         }
-        console.log("suspending audiocontext");
+        dbg("AudioContext", "suspending audiocontext");
         return this._audioContext.suspend();
     };
 
@@ -148,7 +151,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
             return;
         }
         await this._audioContext.resume();
-        console.log("resumed audiocontext");
+        dbg("AudioContext", "resumed audiocontext");
         this.emit("audioContextDidReset");
     };
 
@@ -171,7 +174,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         if (!this.isPaused()) {
             return;
         }
-        console.log("resume called, backendResumeHandled=", backendResumeHandled);
+        dbg("Action", "resume called, backendResumeHandled=", backendResumeHandled);
         await this._resumeAudioContext();
         if (this.audioContextState !== "running") {
             throw new Error("invalid resume() not from user action");
@@ -182,7 +185,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         }
         this.emit("playbackStateChanged");
         this._stopSuspensionTimeout();
-        console.log("resumed");
+        dbg("Action", "resumed");
     }
 
     pause() {
@@ -219,7 +222,8 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     async loadTrack(track: ITrack, initialProgress: number = 0, resume: boolean) {
-        console.log(
+        dbg(
+            "Action",
             "loadTrack, resume=",
             resume,
             "ignored=",
@@ -264,7 +268,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     _sendNextTrackToBackend = () => {
-        console.log("next track sent to backend for preloading");
+        dbg("State", "next track sent to backend for preloading");
         const next = this.playlist.getNextTrack();
         this.postMessageToAudioBackend("nextTrackResponse", {
             fileReference: next ? next.fileReference : undefined,
@@ -281,7 +285,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
                 this._error(result);
                 break;
             case "preloadedTrackStartedPlaying":
-                console.log("preloaded track started playing");
+                dbg("State", "preloaded track started playing");
                 this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
                 this._ignoreNextTrackLoads = true;
                 try {
@@ -409,7 +413,13 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
             sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
             bufferTime: this.bufferLengthSeconds,
         });
-        console.log("audio player backend initialized channelCount=", channelCount, "sampleRate=", sampleRate);
+        dbg(
+            "Initialization",
+            "audio player backend initialized channelCount=",
+            channelCount,
+            "sampleRate=",
+            sampleRate
+        );
     }
 
     _getAudioContextCurrentTime() {
