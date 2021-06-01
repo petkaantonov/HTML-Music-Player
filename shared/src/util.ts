@@ -10,10 +10,6 @@ import { SlicedStreamedFile } from "./platform/StreamedFile";
 let isDevelopment: boolean = true;
 let timers: Timers | null = null;
 
-export const deepEqual = function (a: any, b: any) {
-    return JSON.stringify(a) === JSON.stringify(b);
-};
-
 export const setIsDevelopment = function (isIt: boolean) {
     isDevelopment = isIt;
 };
@@ -32,11 +28,38 @@ export const arrayEquals = function (arrayA: any[], arrayB: any[]) {
     if (arrayA === arrayB) return true;
     if (arrayA.length !== arrayB.length) return false;
     for (let i = 0; i < arrayA.length; ++i) {
-        if (arrayA[i] !== arrayB[i]) {
+        if (!deepEqual(arrayA[i], arrayB[i])) {
             return false;
         }
     }
     return true;
+};
+
+export const objectEquals = function (objA: object, objB: object) {
+    if (objA === objB) {
+        return true;
+    }
+    const aKeys = Object.keys(objA);
+    const bKeys = Object.keys(objB);
+    if (aKeys.length !== bKeys.length) {
+        return false;
+    }
+    for (let i = 0; i < aKeys.length; ++i) {
+        if (!deepEqual(aKeys[i], bKeys[i])) {
+            return false;
+        }
+    }
+    return true;
+};
+
+export const deepEqual = function (a: any, b: any) {
+    if (Array.isArray(a) && Array.isArray(b)) {
+        return arrayEquals(a, b);
+    }
+    if (a !== null && b !== null && typeof a === "object" && typeof b === "object") {
+        return objectEquals(a, b);
+    }
+    return a === b;
 };
 
 export const toFunction = function <T extends AnyFunction | any>(value: T): T extends AnyFunction ? T : () => T {
@@ -860,7 +883,7 @@ export function ajaxGet<T>(
 
         function error() {
             if (cancellationToken.isCancelled()) {
-                reject(new CancellationError());
+                reject(new CancellationError("canceled", cancellationToken.getReason()));
                 return;
             }
             reject(new HttpStatusError(408, `timeout`));
@@ -869,14 +892,14 @@ export function ajaxGet<T>(
         xhr.addEventListener(`progress`, () => {
             if (cancellationToken.isCancelled()) {
                 xhr.abort();
-                reject(new CancellationError());
+                reject(new CancellationError("canceled", cancellationToken.getReason()));
             }
         });
         xhr.addEventListener(
             `load`,
             () => {
                 if (cancellationToken.isCancelled()) {
-                    reject(new CancellationError());
+                    reject(new CancellationError("canceled", cancellationToken.getReason()));
                     return;
                 }
 
@@ -895,12 +918,12 @@ export function ajaxGet<T>(
         );
 
         xhr.addEventListener(`abort`, () => {
-            reject(new CancellationError());
+            reject(new CancellationError("canceled", cancellationToken.getReason()));
         });
         xhr.addEventListener(`timeout`, error);
         xhr.addEventListener(`error`, () => {
             if (cancellationToken.isCancelled()) {
-                reject(new CancellationError());
+                reject(new CancellationError("canceled", cancellationToken.getReason()));
                 return;
             }
             reject(new HttpStatusError(0, `network error`));
