@@ -15,6 +15,7 @@ export const MAX_SUSTAINED_AUDIO_SECONDS = SUSTAINED_BUFFERED_AUDIO_RATIO * MAX_
 export const MIN_SUSTAINED_AUDIO_SECONDS = 2;
 export const FADE_MINIMUM_VOLUME = 0.2;
 export const PRELOAD_THRESHOLD_SECONDS = 5;
+export const TIME_UPDATE_RESOLUTION = 0.1;
 
 export const AudioWorkletMessage = io.type({
     type: io.literal("timeupdate"),
@@ -68,8 +69,7 @@ export interface BufferDescriptor {
     sampleRate: number;
     channelCount: ChannelCount;
     decodingLatency: number;
-    isFadeoutBuffer: boolean;
-    isLastBuffer: boolean;
+    audioSourceId: number;
 }
 
 export interface BufferFillExtraData {
@@ -129,6 +129,13 @@ export const StopResult = io.type({
 
 export type StopResult = io.TypeOf<typeof StopResult>;
 
+export const DecodingLatencyValueResult = io.type({
+    type: io.literal("decodingLatencyValue"),
+    value: io.number,
+});
+
+export type DecodingLatencyValueResult = io.TypeOf<typeof DecodingLatencyValueResult>;
+
 export const RequestNextTrackResult = io.type({
     type: io.literal("nextTrackRequest"),
 });
@@ -145,6 +152,7 @@ export const AudioPlayerResult = io.union([
     ErrorResult,
     StopResult,
     RequestNextTrackResult,
+    DecodingLatencyValueResult,
 ]);
 export type AudioPlayerResult = io.TypeOf<typeof AudioPlayerResult>;
 

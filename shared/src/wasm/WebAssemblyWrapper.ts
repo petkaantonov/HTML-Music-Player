@@ -381,7 +381,7 @@ export default class WebAssemblyWrapper {
             importsObj.env,
             setterProxyHandlers((target: WasmEnv, name: string, value: any): boolean => {
                 if (typeof target[name] !== `undefined`) {
-                    throw new Error(`${name} has already been imported`);
+                    return true;
                 }
 
                 const kind = requiredImportObj.env![name];

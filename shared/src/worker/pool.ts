@@ -1,29 +1,49 @@
+import { ChannelCount } from "shared/metadata";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
-import Resampler from "shared/worker/Resampler";
+import Resampler, { ResamplerOpts } from "shared/worker/Resampler";
 
-import { ChannelCount } from "./ChannelMixer";
+import ChannelMixer from "./ChannelMixer";
 
-interface PoolEntry {
+interface ResamplerPoolEntry {
     allocationCount: number;
     instances: Resampler[];
 }
-const resamplers: Record<string, PoolEntry> = Object.create(null);
+interface ChannelMixerPoolEntry {
+    allocationCount: number;
+    instances: ChannelMixer[];
+}
+const resamplers: Record<string, ResamplerPoolEntry> = Object.create(null);
+const channelMixers: Record<string, ChannelMixerPoolEntry> = Object.create(null);
+
+export function allocChannelMixer(wasm: WebAssemblyWrapper, destinationChannelCount: number): ChannelMixer {
+    const key = `${destinationChannelCount}`;
+    let entry = channelMixers[key];
+    if (!entry) {
+        entry = channelMixers[key] = {
+            allocationCount: 1,
+            instances: [new ChannelMixer(wasm, { destinationChannelCount })],
+        };
+    }
+    if (entry.instances.length === 0) {
+        entry.instances.push(new ChannelMixer(wasm, { destinationChannelCount }));
+        entry.allocationCount++;
+    }
+    return entry.instances.shift()!;
+}
 
 export function allocResampler(
     wasm: WebAssemblyWrapper,
     channels: ChannelCount,
-    from: number,
-    to: number,
-    quality: number
-) {
-    const opts = {
-        nb_channels: channels,
-        in_rate: from,
-        out_rate: to,
-        quality,
+    sourceSampleRate: number,
+    destinationSampleRate: number
+): Resampler {
+    const opts: ResamplerOpts = {
+        channels,
+        sourceSampleRate,
+        destinationSampleRate,
     };
-    quality = quality || 0;
-    const key = `${channels} ${from} ${to} ${quality}`;
+
+    const key = Resampler.CacheKey(channels, sourceSampleRate, destinationSampleRate);
     let entry = resamplers[key];
     if (!entry) {
         entry = resamplers[key] = {
@@ -34,10 +54,6 @@ export function allocResampler(
     if (entry.instances.length === 0) {
         entry.instances.push(new Resampler(wasm, opts));
         entry.allocationCount++;
-        if (entry.allocationCount > 4) {
-            // eslint-disable-next-line no-console
-            console.log(`memory leak: ${entry.allocationCount} resamplers allocated with key: ${key}`);
-        }
     }
     const ret = entry.instances.shift()!;
     ret.reset();
@@ -45,7 +61,12 @@ export function allocResampler(
 }
 
 export function freeResampler(resampler: Resampler) {
-    const { nb_channels, in_rate, out_rate, quality } = resampler._passedArgs;
-    const key = `${nb_channels} ${in_rate} ${out_rate} ${quality}`;
+    const { channelCount, sourceSampleRate, destinationSampleRate } = resampler;
+    const key = Resampler.CacheKey(channelCount, sourceSampleRate, destinationSampleRate);
     resamplers[key]!.instances.push(resampler);
+}
+
+export function freeChannelMixer(cm: ChannelMixer) {
+    const key = `${cm.destinationChannelCount}`;
+    channelMixers[key]!.instances.push(cm);
 }

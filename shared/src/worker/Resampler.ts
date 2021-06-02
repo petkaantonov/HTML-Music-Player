@@ -1,31 +1,39 @@
+import { debugFor } from "shared/debug";
+import { ChannelCount } from "shared/metadata";
 import BufferAllocator from "shared/wasm/BufferAllocator";
 import WebAssemblyWrapper, { moduleEvents } from "shared/wasm/WebAssemblyWrapper";
-import { ChannelCount } from "shared/worker/ChannelMixer";
+const dbg = debugFor("Resampler");
 
 const FLOAT_BYTE_LENGTH = 4;
 
 const pointersToInstances: Map<number, Resampler> = new Map();
 
-interface ResamplerOpts {
-    nb_channels: ChannelCount;
-    in_rate: number;
-    out_rate: number;
-    quality?: number;
+export interface ResamplerOpts {
+    channels: number;
+    sourceSampleRate: number;
+    destinationSampleRate: number;
 }
 
 let id = 0;
 export default class Resampler extends BufferAllocator {
-    channelCount: number;
-    _passedArgs: Required<ResamplerOpts>;
+    readonly channelCount: number;
+    readonly sourceSampleRate: number;
+    readonly destinationSampleRate: number;
+    readonly quality: 3;
     _id: number;
     _ptr: number;
-    constructor(wasm: WebAssemblyWrapper, { nb_channels, in_rate, out_rate, quality }: ResamplerOpts) {
+    constructor(wasm: WebAssemblyWrapper, { channels, sourceSampleRate, destinationSampleRate }: ResamplerOpts) {
         super(wasm);
-        if (quality === undefined) quality = 0;
-        this.channelCount = nb_channels;
-        this._passedArgs = { nb_channels, in_rate, out_rate, quality };
+        this.channelCount = channels;
+        this.sourceSampleRate = sourceSampleRate;
+        this.destinationSampleRate = destinationSampleRate;
+        this.quality = 3;
         this._id = id++;
         this._ptr = 0;
+    }
+
+    static CacheKey(channelCount: number, sourceSampleRate: number, destinationSampleRate: number) {
+        return `${channelCount} ${sourceSampleRate} ${destinationSampleRate}`;
     }
 
     _byteLengthToAudioFrameCount(byteLength: number) {
@@ -36,15 +44,39 @@ export default class Resampler extends BufferAllocator {
         return audioFrameCount * this.channelCount * FLOAT_BYTE_LENGTH;
     }
 
-    resample(samplesPtr: number, byteLength: number) {
+    convertInDestinationSampleRate(frames: number) {
         if (this._ptr === 0) {
             throw new Error(`start() not called`);
         }
-        const [, outputSamplesPtr, , outputAudioFramesWritten] = this.resampler_resample(
+        return Math.ceil((this.destinationSampleRate / this.sourceSampleRate) * frames);
+    }
+
+    resample(samplesPtr: number, byteLength: number) {
+        const label = "resample";
+        if (this._ptr === 0) {
+            throw new Error(`start() not called`);
+        }
+        const inputFramesCount = this._byteLengthToAudioFrameCount(byteLength);
+        const [, outputSamplesPtr, inputFramesRead, outputAudioFramesWritten] = this.resampler_resample(
             this._ptr,
+            this.sourceSampleRate,
+            this.destinationSampleRate,
             samplesPtr,
-            this._byteLengthToAudioFrameCount(byteLength)
+            inputFramesCount,
+            false
         );
+        dbg(
+            label,
+            "inputFramesRead",
+            inputFramesRead,
+            "outputFramesWrote",
+            outputAudioFramesWritten,
+            "expectedRead",
+            inputFramesCount,
+            "expectedWritten",
+            this.convertInDestinationSampleRate(inputFramesCount)
+        );
+
         const err = this.get_error();
 
         if (err) {
@@ -83,8 +115,7 @@ export default class Resampler extends BufferAllocator {
         if (this._ptr !== 0) {
             throw new Error(`already started`);
         }
-        const { nb_channels, in_rate, out_rate, quality } = this._passedArgs;
-        this._ptr = this.resampler_create(nb_channels, in_rate, out_rate, quality);
+        this._ptr = this.resampler_create(this.channelCount, this.quality);
         if (!this._ptr) {
             throw new Error(`out of memory`);
         }
@@ -94,13 +125,18 @@ export default class Resampler extends BufferAllocator {
 
 export default interface Resampler {
     get_error: () => string | null;
-    resampler_get_length: (ptr: number, inputLengthAudioFrames: number) => number;
     resampler_resample: (
         ptr: number,
+        sourceSampleRate: number,
+        destinationSampleRate: number,
         inputSamplePtr: number,
-        inputLengthAudioFrames: number
+        inputLengthAudioFrames: number,
+        endOfInput: boolean,
+        outputSamplePtr?: number,
+        inputAudioFramesReadLength?: number,
+        outputAudioFramesWrittenLength?: number
     ) => [number, number, number, number];
-    resampler_create: (channels: ChannelCount, inRate: number, outRate: number, quality: number) => number;
+    resampler_create: (channels: ChannelCount, quality: 1 | 3) => number;
     resampler_destroy: (ptr: number) => void;
     resampler_reset: (ptr: number) => void;
 }
@@ -127,14 +163,15 @@ function afterInitialized(wasm: WebAssemblyWrapper, exports: WebAssembly.Exports
             unsafeJsStack: true,
         },
         `pointer`,
+        `integeru`,
+        `integeru`,
         `pointer`,
         `integeru`,
+        `boolean`,
         `pointer-retval`,
         `integeru-retval`,
         `integeru-retval`
     );
-
-    Resampler.prototype.resampler_get_length = exports.resampler_get_length as any;
     Resampler.prototype.resampler_create = exports.resampler_create as any;
     Resampler.prototype.resampler_destroy = exports.resampler_destroy as any;
     Resampler.prototype.resampler_reset = exports.resampler_reset as any;

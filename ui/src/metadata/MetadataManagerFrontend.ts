@@ -9,6 +9,7 @@ import {
 } from "shared/metadata";
 import { DatabaseClosedEmitterTrait, DatabaseEventsMap } from "shared/platform/DatabaseClosedEmitterTrait";
 import { QuotaExceededEmitterTrait, QuotaExceededEventsMap } from "shared/platform/QuotaExceededEmitterTrait";
+import { debugFor } from "shared/src/debug";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { delay, hexString, ownPropOr, toTimeString } from "shared/util";
 import { SelectDeps } from "ui/Application";
@@ -18,6 +19,7 @@ import PermissionPrompt from "ui/ui/PermissionPrompt";
 import WorkerFrontend from "ui/WorkerFrontend";
 import ZipperFrontend from "ui/zip/ZipperFrontend";
 import EventEmitter from "vendor/events";
+const dbg = debugFor("MetadataFrontend");
 
 export function timerTick(now: number) {
     for (const track of tracksWithWeightDeadline) {
@@ -483,6 +485,7 @@ export default class MetadataManagerFrontend extends WorkerFrontend<MetadataResu
     };
 
     mapTrackUidsToTracks = async (trackUids: ArrayBuffer[]) => {
+        const label = "mapTrackUidsToTracks";
         await this.ready();
         const tracks = new Array(trackUids.length);
         const trackUidsNeedingTrackInfo = [];
@@ -500,7 +503,7 @@ export default class MetadataManagerFrontend extends WorkerFrontend<MetadataResu
                 trackUidsNeedingTrackInfo.push(trackUid);
             }
         }
-
+        dbg(label, "needs info", trackUidsNeedingTrackInfo.length);
         void this._fetchTrackInfoForTracks(trackUidsNeedingTrackInfo);
         return tracks;
     };

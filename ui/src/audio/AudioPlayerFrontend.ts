@@ -277,6 +277,9 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
 
     receiveMessageFromBackend(result: AudioPlayerResult) {
         switch (result.type) {
+            case "decodingLatencyValue":
+                this.applicationPreferencesBindingContext.decodingLatencyValue(result.value);
+                break;
             case "timeupdate":
                 this._emitPlaybackProgress(result.currentTime, result.totalTime);
                 break;

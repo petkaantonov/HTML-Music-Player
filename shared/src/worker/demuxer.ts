@@ -1,6 +1,8 @@
+import { debugFor } from "shared/debug";
 import { Mp3SeekTableI, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import { CancellationToken } from "shared/utils/CancellationToken";
+const dbg = debugFor("demuxer");
 
 export const MINIMUM_DURATION = 3;
 
@@ -333,6 +335,7 @@ async function demuxMp3<T extends object>(
     maxSize?: number,
     cancellationToken?: CancellationToken<T>
 ): Promise<TrackMetadata | null> {
+    const label = "demuxMp3";
     const dataEnd = fileView.file.size;
 
     if (maxSize === undefined) {
@@ -368,6 +371,8 @@ async function demuxMp3<T extends object>(
     let headersFound = 0;
     let dataParsed = false;
 
+    dbg(label, "started demux, maxSize=", maxSize);
+
     while (!dataParsed) {
         const maxBytesToRead = Math.max(0, Math.min(max - fileOffset, BLOCK_SIZE / 2));
 
@@ -383,6 +388,7 @@ async function demuxMp3<T extends object>(
             if (probablyMp3Header(header)) {
                 if (headersFound > 4) {
                     dataParsed = true;
+                    dbg(label, "mp3 header");
                     break;
                 }
 
@@ -401,11 +407,13 @@ async function demuxMp3<T extends object>(
                 parsedMetadata = metadata;
                 // VBRI
             } else if (header === VBRI) {
+                dbg(label, "vbri header");
                 parseVbriHeader(parsedMetadata!, position, fileView);
                 dataParsed = true;
                 break;
                 // Xing | Info
             } else if (header === Xing || header === Info) {
+                dbg(label, "xing header");
                 parseXingHeader(parsedMetadata!, header, position, fileView);
                 dataParsed = true;
                 break;
@@ -426,6 +434,17 @@ async function demuxMp3<T extends object>(
 
     if (parsedMetadata.duration === 0) {
         const size = Math.max(0, parsedMetadata.dataEnd - parsedMetadata.dataStart);
+        dbg(
+            label,
+            "duration 0, vbr=",
+            !!parsedMetadata.vbr,
+            "noSeekTable=",
+            !!noSeekTable,
+            "size=",
+            size,
+            "metadata=",
+            JSON.stringify(parsedMetadata)
+        );
         if (!parsedMetadata.vbr) {
             parsedMetadata.duration = (size * 8) / parsedMetadata.bitRate;
             parsedMetadata.frames =
@@ -439,6 +458,7 @@ async function demuxMp3<T extends object>(
                 (parsedMetadata.frames * parsedMetadata.samplesPerFrame) / parsedMetadata.sampleRate;
         }
     }
+    dbg(label, "duration", parsedMetadata.duration);
 
     if (parsedMetadata.duration < MINIMUM_DURATION) {
         return null;

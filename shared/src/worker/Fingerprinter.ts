@@ -1,16 +1,14 @@
+import { ChannelCount } from "shared/metadata";
 import WebAssemblyWrapper, { moduleEvents } from "shared/wasm/WebAssemblyWrapper";
 
-import { ChannelCount } from "./ChannelMixer";
-
 const FLOAT_BYTE_LENGTH = 4;
-const FINGERPRINT_RESAMPLER_QUALITY = 0;
 const FINGERPRINT_SAMPLE_RATE = 11025;
 const FINGERPRINT_CHANNELS = 1;
 
 export default class Fingerprinter {
     _wasm: WebAssemblyWrapper;
     _ptr: number;
-    resamplerQuality: number;
+
     destinationChannelCount: ChannelCount;
     destinationSampleRate: number;
     constructor(wasm: WebAssemblyWrapper) {
@@ -19,7 +17,6 @@ export default class Fingerprinter {
         if (!this._ptr) {
             throw new Error(`malloc failed`);
         }
-        this.resamplerQuality = FINGERPRINT_RESAMPLER_QUALITY;
         this.destinationChannelCount = FINGERPRINT_CHANNELS;
         this.destinationSampleRate = FINGERPRINT_SAMPLE_RATE;
     }

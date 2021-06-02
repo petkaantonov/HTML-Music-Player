@@ -1,7 +1,10 @@
 import { CodecName, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
+import { debugFor } from "shared/src/debug";
 import { CancellationToken } from "shared/utils/CancellationToken";
 import { Mp3SeekTable } from "shared/worker/demuxer";
+
+const dbg = debugFor("seeker");
 
 const seekMp3 = async <T extends object>(
     time: number,
@@ -9,6 +12,7 @@ const seekMp3 = async <T extends object>(
     fileView: FileView,
     cancellationToken: CancellationToken<T>
 ) => {
+    const label = "seekMp3";
     time = Math.min(metadata.duration, Math.max(0, time));
     const frames = ((metadata.duration * metadata.sampleRate) / metadata.samplesPerFrame) | 0;
     let frame = ((time / metadata.duration) * frames) | 0;
@@ -20,7 +24,7 @@ const seekMp3 = async <T extends object>(
 
     let offset: number;
 
-    console.log("seek to", currentTime);
+    dbg(label, "seek to", currentTime);
 
     if (!metadata.vbr) {
         offset = (metadata.dataStart + targetFrame * metadata.averageFrameSize) | 0;
