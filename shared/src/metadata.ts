@@ -138,8 +138,8 @@ export type CodecName = "mp3" | "wav" | "aac" | "webm" | "ogg" | "unknown";
 
 export const codecPaths: Partial<Record<CodecName, string>> = { mp3: process.env.MP3_CODEC_PATH };
 
-export const ChannelCount = io.union([io.literal(1), io.literal(2), io.literal(3), io.literal(4), io.literal(5)]);
-export type ChannelCount = io.TypeOf<typeof ChannelCount>;
+export const ChannelCount = io.number;
+export type ChannelCount = number;
 
 interface CriticalDemuxData {
     duration: number;
@@ -211,7 +211,7 @@ export interface Mp3SeekTableI {
     frames: number;
     table: number[];
     lastFrameSize: number;
-    fillUntil: (time: number, metadata: TrackMetadata, fileView: FileView, t?: CancellationToken<any>) => void;
+    fillUntil: (time: number, metadata: TrackMetadata, fileView: FileView, t?: CancellationToken<any>) => Promise<void>;
     closestFrameOf: (f: number) => number;
     offsetOfFrame: (f: number) => number;
 }

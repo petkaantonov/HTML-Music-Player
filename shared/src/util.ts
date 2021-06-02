@@ -867,6 +867,10 @@ export function roundSampleTime(sample: number, sampleRate: number) {
     return sample;
 }
 
+export function closestPowerOf2(a: number) {
+    return Math.pow(2, Math.floor(Math.log(a) / Math.log(2)));
+}
+
 export function toCorsUrl(url: string) {
     return `/api/cors?url=${encodeURIComponent(url)}`;
 }

@@ -7,6 +7,7 @@ import {
     ALBUM_ART_PREFERENCE_ALL,
     ALBUM_ART_PREFERENCE_SMALLEST,
     AlbumArtPreference,
+    ChannelCount,
     CodecName,
     FileReference,
     fileReferenceToTrackUid,
@@ -18,23 +19,23 @@ import {
     TrackMetadata,
 } from "shared/metadata";
 import { DatabaseClosedResult } from "shared/platform/DatabaseClosedEmitterTrait";
+import { debugFor } from "shared/src/debug";
 import { LogFunction, RemoveFirst } from "shared/types/helpers";
-import { _, ajaxGet, delay, queryString, toCorsUrl, trackInfoFromFileName } from "shared/util";
+import { _, ajaxGet, delay, hexString, queryString, toCorsUrl, trackInfoFromFileName } from "shared/util";
 import { CancellationToken, CancellationTokenOpts } from "shared/utils/CancellationToken";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
 import AbstractBackend from "shared/worker/AbstractBackend";
 import AudioProcessingPipeline from "shared/worker/AudioProcessingPipeline";
-import ChannelMixer, { ChannelCount } from "shared/worker/ChannelMixer";
 import getCodec from "shared/worker/codec";
 import Fingerprinter from "shared/worker/Fingerprinter";
 import JobProcessor from "shared/worker/JobProcessor";
 import LoudnessAnalyzer from "shared/worker/LoudnessAnalyzer";
-import { allocResampler, freeResampler } from "shared/worker/pool";
 import getCodecName from "shared/worker/sniffer";
 
 import parseAcoustId, { AcoustIdResponse, CoverArtResponse, ParsedAcoustIdResult } from "./acoustId";
 import parseMp3Metadata from "./mp3_metadata";
 import SearchBackend from "./SearchBackend";
+const dbg = debugFor("MetadataBackend");
 
 const imageDescriptionWeights = {
     Front: 0,
@@ -239,6 +240,7 @@ export default class MetadataManagerBackend extends AbstractBackend<
             },
 
             async getTrackInfoBatch({ batch }) {
+                const label = "getTrackInfoBatch";
                 if (!this.canUseDatabase()) return;
                 const missing: ArrayBuffer[] = [];
                 const trackInfos = await this._tagdb.trackUidsToTrackInfos(batch, missing);
@@ -252,7 +254,13 @@ export default class MetadataManagerBackend extends AbstractBackend<
                     if (!trackInfo.hasInitialLoudnessInfo) {
                         this._loudnessAnalyzerStateSerializer.postJob(trackUid, trackUid);
                     }
+
+                    if (trackInfo.duration === 0) {
+                        missing.push(trackInfo.trackUid);
+                    }
                 }
+
+                dbg(label, "missing", missing.length);
 
                 for (let i = 0; i < missing.length; ++i) {
                     this.actions.parseMetadata.call(this, { fileReference: missing[i]! });
@@ -464,7 +472,8 @@ export default class MetadataManagerBackend extends AbstractBackend<
                         fileView,
                         filePosition,
                         demuxData as TrackMetadata,
-                        cancellationToken
+                        cancellationToken,
+                        0
                     );
                     audioPipeline.consumeFilledBuffer();
                     filePosition += bytesRead;
@@ -485,7 +494,7 @@ export default class MetadataManagerBackend extends AbstractBackend<
         trackUid: ArrayBuffer,
         fileReference: FileReference
     ) => {
-        let decoder, resampler, fingerprinter, channelMixer;
+        let decoder, fingerprinter, audioPipeline;
         const { _wasm: wasm } = this;
         try {
             const trackInfo = await this.getTrackInfoByTrackUid(trackUid);
@@ -527,27 +536,18 @@ export default class MetadataManagerBackend extends AbstractBackend<
                 decoder.start(demuxData as TrackMetadata);
 
                 fingerprinter = new Fingerprinter(wasm);
-                const { destinationChannelCount, destinationSampleRate, resamplerQuality } = fingerprinter;
-                resampler = allocResampler(
-                    wasm,
-                    destinationChannelCount,
-                    sourceSampleRate,
-                    destinationSampleRate,
-                    resamplerQuality
-                );
-                channelMixer = new ChannelMixer(wasm, { destinationChannelCount });
-                const audioPipeline = new AudioProcessingPipeline(wasm, {
+                const { destinationChannelCount, destinationSampleRate } = fingerprinter;
+                audioPipeline = new AudioProcessingPipeline(wasm, {
                     sourceSampleRate,
                     sourceChannelCount,
                     destinationSampleRate,
                     destinationChannelCount,
                     decoder,
-                    resampler,
-                    channelMixer,
+
                     fingerprinter,
                     bufferTime: BUFFER_DURATION,
                     duration,
-                    bufferAudioFrameCount: destinationSampleRate * BUFFER_DURATION,
+                    bufferAudioFrameCount: Math.round(destinationSampleRate * BUFFER_DURATION),
                 });
 
                 const fileStartPosition = dataStart;
@@ -559,7 +559,8 @@ export default class MetadataManagerBackend extends AbstractBackend<
                         fileView,
                         filePosition!,
                         demuxData as TrackMetadata,
-                        cancellationToken
+                        cancellationToken,
+                        0
                     );
                     audioPipeline.consumeFilledBuffer();
                     filePosition += bytesRead!;
@@ -574,9 +575,8 @@ export default class MetadataManagerBackend extends AbstractBackend<
             }
         } finally {
             if (decoder) decoder.destroy();
-            if (resampler) freeResampler(resampler);
             if (fingerprinter) fingerprinter.destroy();
-            if (channelMixer) channelMixer.destroy();
+            if (audioPipeline) audioPipeline.destroy();
         }
     };
 
@@ -647,6 +647,8 @@ export default class MetadataManagerBackend extends AbstractBackend<
     }
 
     _parseMetadataJob = async (_job: any, trackUid: ArrayBuffer, fileReference: FileReference) => {
+        const label = "parseMetadataJob";
+        dbg(label, "started for ", hexString(trackUid));
         try {
             await this._tagdb.ensureFileStored(trackUid, fileReference);
         } catch (e) {
@@ -657,7 +659,7 @@ export default class MetadataManagerBackend extends AbstractBackend<
         }
         let trackInfo = await this.getTrackInfoByTrackUid(trackUid);
 
-        if (trackInfo) {
+        if (trackInfo && trackInfo.duration > 0) {
             void this._searchBackend.addTrackToSearchIndexIfNotPresent(trackInfo);
             return trackInfo;
         }

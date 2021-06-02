@@ -1,11 +1,10 @@
+import { ChannelCount } from "shared/metadata";
 import BufferAllocator from "shared/wasm/BufferAllocator";
 import WebAssemblyWrapper, { moduleEvents } from "shared/wasm/WebAssemblyWrapper";
 
 const OUTPUT_PTR_OFFSET = 0;
 
 const pointersToInstances = new Map();
-
-export type ChannelCount = 1 | 2 | 3 | 4 | 5;
 
 interface Opts {
     destinationChannelCount: ChannelCount;

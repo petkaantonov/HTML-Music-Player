@@ -32,7 +32,7 @@ const TEMPLATE = `
     <section class="one-item-headerless-section js-buffer-length-container">
     </section>
     <section class="decoding-latency">
-        <label class="decoding-latency-label">Current decoding latency</label>
+        <label class="decoding-latency-label">Processing time</label>
         <span class="decoding-latency-avg js-decoding-latency-avg">N/A</span>
         <label class="decoding-latency-max-label">Max:</label>
         <span class="decoding-latency-max js-decoding-latency-max">N/A</span>

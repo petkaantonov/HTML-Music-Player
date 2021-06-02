@@ -538,7 +538,7 @@ const getMainFlags = function (fileView: FileView, offset: number) {
 };
 
 const getDemuxData = async function <T extends object>(fileView: FileView, cancellationToken?: CancellationToken<T>) {
-    const demuxData = await demux(`mp3`, fileView, true, 262144, cancellationToken);
+    const demuxData = await demux(`mp3`, fileView, false, 262144, cancellationToken);
     if (!demuxData) return null;
     return demuxData;
 };

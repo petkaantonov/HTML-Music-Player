@@ -1,19 +1,20 @@
 import { CancellationToken } from "shared//utils/CancellationToken";
 import { ChannelData, CURVE_LENGTH, getCurve } from "shared/audio";
 import { debugFor } from "shared/debug";
-import { TrackMetadata } from "shared/metadata";
+import { ChannelCount, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
-import ChannelMixer, { ChannelCount } from "shared/worker/ChannelMixer";
+import ChannelMixer from "shared/worker/ChannelMixer";
 
 import { Decoder } from "./codec";
 import Crossfader from "./Crossfader";
 import Effects from "./Effects";
 import Fingerprinter from "./Fingerprinter";
 import LoudnessAnalyzer, { defaultLoudnessInfo, LoudnessInfo } from "./LoudnessAnalyzer";
+import { allocChannelMixer, allocResampler, freeChannelMixer, freeResampler } from "./pool";
 import Resampler from "./Resampler";
 const dbg = debugFor("AudioProcessingPipeline");
-
+Error.stackTraceLimit = 100000;
 const FADE_IN_CURVE = getCurve(new Float32Array(CURVE_LENGTH + 1), 0.2, 1);
 const FLOAT_BYTE_LENGTH = 4;
 
@@ -44,9 +45,7 @@ interface AudioProcessingPipelineOpts {
     destinationSampleRate: number;
     destinationChannelCount: ChannelCount;
     decoder: Decoder;
-    channelMixer?: ChannelMixer;
     effects?: Effects;
-    resampler?: Resampler;
     fingerprinter?: Fingerprinter;
     loudnessAnalyzer?: LoudnessAnalyzer;
     loudnessNormalizer?: LoudnessAnalyzer;
@@ -71,7 +70,7 @@ export default class AudioProcessingPipeline {
     loudnessNormalizer?: LoudnessAnalyzer;
     fingerprinter?: Fingerprinter;
     bufferTime: number;
-    bufferAudioFrameCount: number;
+    targetDestinationBufferAudioFrameCount: number;
     totalDuration: number;
     crossfader?: Crossfader;
     constructor(
@@ -82,9 +81,7 @@ export default class AudioProcessingPipeline {
             destinationSampleRate,
             destinationChannelCount,
             decoder,
-            channelMixer,
             effects,
-            resampler,
             fingerprinter,
             loudnessAnalyzer,
             loudnessNormalizer,
@@ -102,29 +99,69 @@ export default class AudioProcessingPipeline {
         this.destinationSampleRate = destinationSampleRate;
         this.destinationChannelCount = destinationChannelCount;
         this.decoder = decoder;
-        this.channelMixer = channelMixer;
         this.effects = effects;
-        this.resampler = resampler;
         this.loudnessAnalyzer = loudnessAnalyzer;
         this.loudnessNormalizer = loudnessNormalizer;
         this.fingerprinter = fingerprinter;
         this.bufferTime = bufferTime;
-        this.bufferAudioFrameCount = bufferAudioFrameCount;
+        this.targetDestinationBufferAudioFrameCount = bufferAudioFrameCount;
         this.totalDuration = duration;
         this.crossfader = crossfader;
+        if (this.destinationChannelCount !== this.sourceChannelCount) {
+            this.channelMixer = allocChannelMixer(wasm, this.destinationChannelCount);
+        } else {
+            this.channelMixer = undefined;
+        }
+        if (this.destinationSampleRate !== this.sourceSampleRate) {
+            this.resampler = allocResampler(
+                wasm,
+                this.sourceChannelCount,
+                this.sourceSampleRate,
+                this.destinationSampleRate
+            );
+        } else {
+            this.resampler = undefined;
+        }
+        dbg(
+            "Initialization",
+            JSON.stringify({
+                sourceSampleRate,
+                sourceChannelCount,
+                destinationSampleRate,
+                destinationChannelCount,
+                bufferTime,
+                duration,
+            })
+        );
     }
 
     get hasFilledBuffer() {
         return !!this._filledBufferDescriptor;
     }
 
-    setBufferTime(bufferTime: number) {
+    get targetSourceBufferAudioFrameCount() {
+        const ratio = this.destinationSampleRate / this.sourceSampleRate;
+        return Math.floor(this.targetDestinationBufferAudioFrameCount / ratio);
+    }
+
+    setBufferTime(bufferTime: number, frameCount: number) {
         this.bufferTime = bufferTime;
-        this.bufferAudioFrameCount = (bufferTime * this.destinationSampleRate) | 0;
+        this.targetDestinationBufferAudioFrameCount = frameCount;
     }
 
     dropFilledBuffer() {
         this._filledBufferDescriptor = null;
+    }
+
+    destroy() {
+        if (this.resampler) {
+            freeResampler(this.resampler);
+            this.resampler = undefined;
+        }
+        if (this.channelMixer) {
+            freeChannelMixer(this.channelMixer);
+            this.channelMixer = undefined;
+        }
     }
 
     consumeFilledBuffer() {
@@ -152,19 +189,21 @@ export default class AudioProcessingPipeline {
         const dataEndFilePosition = metadata.dataEnd;
         let totalBytesRead = 0;
         let dataRemaining = dataEndFilePosition - (filePosition + totalBytesRead);
-        const { bufferTime, sourceSampleRate } = this;
-        const bytesToRead = bufferTime * sourceSampleRate * Math.ceil(metadata.maxByteSizePerAudioFrame);
-        const currentAudioFrame = this.decoder.getCurrentAudioFrame();
+        const bytesToRead = this.targetSourceBufferAudioFrameCount * Math.ceil(metadata.maxByteSizePerAudioFrame);
+        const currentAudioFrameSourceSampleRate = this.decoder.getCurrentAudioFrame();
         const onFlush = (samplePtr: number, byteLength: number) => {
-            const samplesProcessed = this._processSamples(
+            const samplesProcessedDestinationSampleRate = this._processSamples(
                 samplePtr,
                 byteLength,
                 outputSpec,
-                currentAudioFrame,
+                currentAudioFrameSourceSampleRate,
                 fadeInSeconds
             );
             if (fadeInSeconds > 0) {
-                fadeInSeconds = Math.max(0, fadeInSeconds - samplesProcessed / this.destinationSampleRate);
+                fadeInSeconds = Math.max(
+                    0,
+                    fadeInSeconds - samplesProcessedDestinationSampleRate / this.destinationSampleRate
+                );
             }
         };
 
@@ -208,7 +247,7 @@ export default class AudioProcessingPipeline {
         samplePtr: number,
         byteLength: number,
         outputSpec: { channelData: ChannelData } | null,
-        startAudioFrame: number,
+        startAudioFrameSourceSampleRate: number,
         fadeInSeconds: number
     ) {
         const {
@@ -224,21 +263,21 @@ export default class AudioProcessingPipeline {
             fingerprinter,
             crossfader,
         } = this;
-        const audioFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
+        const sourceFrameLength = byteLength / sourceChannelCount / FLOAT_BYTE_LENGTH;
         const metadata = {
             channelCount: sourceChannelCount,
             sampleRate: sourceSampleRate,
-            currentTime: startAudioFrame / sourceSampleRate,
+            currentTime: startAudioFrameSourceSampleRate / sourceSampleRate,
             duration: this.totalDuration,
         };
 
         if (loudnessAnalyzer) {
-            loudnessAnalyzer.addFrames(samplePtr, audioFrameLength);
+            loudnessAnalyzer.addFrames(samplePtr, sourceFrameLength);
         }
 
         let loudnessInfo = defaultLoudnessInfo;
         if (loudnessNormalizer) {
-            loudnessInfo = loudnessNormalizer.applyLoudnessNormalization(samplePtr, audioFrameLength);
+            loudnessInfo = loudnessNormalizer.applyLoudnessNormalization(samplePtr, sourceFrameLength);
         }
 
         if (effects) {
@@ -251,39 +290,34 @@ export default class AudioProcessingPipeline {
             crossfader.apply(samplePtr, byteLength, metadata);
         }
 
-        if (sourceChannelCount !== destinationChannelCount) {
-            if (!channelMixer) {
-                throw new Error(
-                    `source channel count ${sourceChannelCount} doesnt match destination channel count ${destinationChannelCount} but channelMixer not provided`
-                );
-            }
-            ({ samplePtr, byteLength } = channelMixer.mix(sourceChannelCount, samplePtr, byteLength));
+        let startAudioFrameDestinationSampleRate: number = startAudioFrameSourceSampleRate;
+        if (sourceSampleRate !== destinationSampleRate) {
+            ({ samplePtr, byteLength } = resampler!.resample(samplePtr, byteLength));
+            startAudioFrameDestinationSampleRate = resampler!.convertInDestinationSampleRate(
+                startAudioFrameSourceSampleRate
+            );
         }
 
-        if (sourceSampleRate !== destinationSampleRate) {
-            if (!resampler) {
-                throw new Error(
-                    `source sample rate ${sourceSampleRate} doesnt match destination sample rate ${destinationSampleRate} but resampler not provided`
-                );
-            }
-            ({ samplePtr, byteLength } = resampler.resample(samplePtr, byteLength));
+        if (sourceChannelCount !== destinationChannelCount) {
+            ({ samplePtr, byteLength } = channelMixer!.mix(sourceChannelCount, samplePtr, byteLength));
         }
 
         if (fingerprinter && fingerprinter.needFrames()) {
             fingerprinter.newFrames(samplePtr, byteLength);
         }
 
-        const finalAudioFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
+        const destinationFrameLength = byteLength / FLOAT_BYTE_LENGTH / destinationChannelCount;
         const src = this._wasm.f32view(samplePtr, byteLength / FLOAT_BYTE_LENGTH);
 
         const fadeInFrames = Math.round(fadeInSeconds * destinationSampleRate);
         const channelData = outputSpec ? outputSpec.channelData : null;
         if (channelData) {
+            dbg("Verbose", "sourceFrames=", sourceFrameLength, "destinationFrames=", destinationFrameLength);
             if (fadeInFrames > 0) {
                 dbg("AudioProcessing", "fading in, fadeInFrames=", fadeInFrames);
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch]!;
-                    for (let i = 0; i < finalAudioFrameLength; ++i) {
+                    for (let i = 0; i < destinationFrameLength; ++i) {
                         let sample = src[i * destinationChannelCount + ch]!;
                         if (i <= fadeInFrames) {
                             const curveIndex = Math.min(CURVE_LENGTH, Math.round((i / fadeInFrames) * CURVE_LENGTH));
@@ -295,7 +329,7 @@ export default class AudioProcessingPipeline {
             } else {
                 for (let ch = 0; ch < destinationChannelCount; ++ch) {
                     const dst = channelData[ch]!;
-                    for (let i = 0; i < finalAudioFrameLength; ++i) {
+                    for (let i = 0; i < destinationFrameLength; ++i) {
                         const sample = src[i * destinationChannelCount + ch]!;
                         dst[i] = sample;
                     }
@@ -304,12 +338,12 @@ export default class AudioProcessingPipeline {
         }
 
         this._filledBufferDescriptor = new FilledBufferDescriptor(
-            finalAudioFrameLength,
-            startAudioFrame,
-            startAudioFrame + finalAudioFrameLength,
+            destinationFrameLength,
+            startAudioFrameDestinationSampleRate,
+            startAudioFrameDestinationSampleRate + destinationFrameLength,
             channelData,
             loudnessInfo
         );
-        return finalAudioFrameLength;
+        return destinationFrameLength;
     }
 }

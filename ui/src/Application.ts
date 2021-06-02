@@ -50,10 +50,15 @@ const dbg = debugFor("Application");
 import AudioVisualizerFrontend from "../src/visualization/AudioVisualizerFrontend";
 
 const debugConfig = {
-    Application: "*",
-    AudioPlayerFrontend: "*",
-    AudioPlayerBackend: ["*", "!ContinuousBuffering"],
-    AudioProcessingPipeline: "*",
+    //Application: "*",
+    //AudioSource: ["*", "!Verbose"],
+    //AudioPlayerFrontend: "*",
+    //Resampler: "*",
+    //MetadataBackend: "*",
+    //MetadataFrontend: "*",
+    //demuxer: "*",
+    //AudioPlayerBackend: ["*", "!ContinuousBuffering", "!Canceled"],
+    //AudioProcessingPipeline: ["*", "!Verbose"],
 };
 
 export interface Deps {

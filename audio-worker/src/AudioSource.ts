@@ -1,6 +1,7 @@
 import { BufferDescriptor, ChannelData } from "shared/audio";
 import { CodecName, FileReference, fileReferenceToTrackUid, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
+import { debugFor } from "shared/src/debug";
 import { PromiseResolve } from "shared/src/types/helpers";
 import CancellableOperations, { CancellationToken } from "shared/utils/CancellationToken";
 import AudioProcessingPipeline from "shared/worker/AudioProcessingPipeline";
@@ -13,6 +14,8 @@ import getCodecName from "shared/worker/sniffer";
 import AudioPlayerBackend from "./AudioPlayerBackend";
 import seeker from "./seeker";
 
+const dbg = debugFor("AudioSource");
+
 interface SeekResult {
     baseTime: number;
     cancellationToken: CancellationToken<AudioSource>;
@@ -24,7 +27,7 @@ interface BufferFillOpts {
     cancellationToken: null | CancellationToken<AudioSource>;
     fadeInSeconds?: number;
 }
-
+let id = 0;
 export default class AudioSource extends CancellableOperations(
     null,
     `bufferFillOperation`,
@@ -33,6 +36,7 @@ export default class AudioSource extends CancellableOperations(
 ) {
     backend: AudioPlayerBackend;
     ended: boolean;
+    private readonly _id: number;
     private _decoder: Decoder | null;
     private _loudnessNormalizer: LoudnessAnalyzer | null;
     private _filePosition: number;
@@ -50,6 +54,7 @@ export default class AudioSource extends CancellableOperations(
     _destroyAfterBuffersFilledFlag: boolean;
     constructor(backend: AudioPlayerBackend) {
         super();
+        this._id = ++id;
         this.backend = backend;
         this.ended = false;
         this._decoder = null;
@@ -64,6 +69,10 @@ export default class AudioSource extends CancellableOperations(
         this.fileView = null;
         this.fileReference = null;
         this._destroyAfterBuffersFilledFlag = false;
+    }
+
+    get id() {
+        return this._id;
     }
 
     get destroyed() {
@@ -96,7 +105,7 @@ export default class AudioSource extends CancellableOperations(
     }
 
     get targetBufferLengthAudioFrames() {
-        return this.backend.bufferTime * this.sampleRate;
+        return this.backend.bufferFrameLength;
     }
 
     get crossfadeDuration() {
@@ -139,6 +148,18 @@ export default class AudioSource extends CancellableOperations(
             this._loudnessNormalizer.destroy();
             this._loudnessNormalizer = null;
         }
+
+        if (this._audioPipeline) {
+            this._audioPipeline.destroy();
+            this._audioPipeline = null;
+        }
+    }
+
+    callEndedCallbacks() {
+        for (const callback of this.endedCallbacks) {
+            callback();
+        }
+        this.endedCallbacks = [];
     }
 
     async fillBuffers(
@@ -150,6 +171,7 @@ export default class AudioSource extends CancellableOperations(
         }
     ) {
         if (this.ended || this._destroyed) {
+            this.callEndedCallbacks();
             return;
         }
 
@@ -165,9 +187,9 @@ export default class AudioSource extends CancellableOperations(
         this._loudnessNormalizer!.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization!);
         this._loudnessNormalizer!.setSilenceTrimmingEnabled(this.backend.silenceTrimming!);
 
-        this._audioPipeline!.setBufferTime(this.backend.bufferTime);
-        const targetBufferLengthAudioFrames = this._audioPipeline!.bufferAudioFrameCount;
-        this._decoder!.targetBufferLengthAudioFrames = targetBufferLengthAudioFrames;
+        this._audioPipeline!.setBufferTime(this.backend.bufferTime, this.backend.bufferFrameLength);
+        const targetSourceBufferLengthAudioFrames = this._audioPipeline!.targetSourceBufferAudioFrameCount;
+        this._decoder!.targetBufferLengthAudioFrames = targetSourceBufferLengthAudioFrames;
         try {
             while (i < totalBuffersToFill) {
                 const now = performance.now();
@@ -189,28 +211,24 @@ export default class AudioSource extends CancellableOperations(
                 if (fadeInSeconds > 0) {
                     fadeInSeconds = Math.max(0, fadeInSeconds - length / this.backend.sampleRate);
                 }
-                let isFadeoutBuffer = false;
 
                 if (crossfadeDuration > 0) {
                     const fadeOutStartFrame = (duration - crossfadeDuration) * sampleRate;
-                    if (startFrames > fadeOutStartFrame) {
-                        isFadeoutBuffer = true;
-                    } else if (endFrames >= fadeOutStartFrame) {
+                    if (endFrames >= fadeOutStartFrame) {
                         totalBuffersToFill += Math.ceil(crossfadeDuration / this._audioPipeline!.bufferTime);
                     }
                 }
-                const isLastBuffer = this.ended;
+
                 const decodingLatency = performance.now() - now;
                 const descriptor = {
-                    length: Math.min(bufferDescriptor.length, targetBufferLengthAudioFrames),
+                    length,
                     startFrames,
                     endFrames,
                     loudnessInfo,
                     sampleRate,
                     channelCount,
                     decodingLatency,
-                    isFadeoutBuffer,
-                    isLastBuffer,
+                    audioSourceId: this.id,
                 };
 
                 callback(descriptor, destinationBuffers);
@@ -239,10 +257,7 @@ export default class AudioSource extends CancellableOperations(
             this.inProgressBufferFilledCallbacks = [];
 
             if (this.ended) {
-                for (const callback of this.endedCallbacks) {
-                    callback();
-                }
-                this.endedCallbacks = [];
+                this.callEndedCallbacks();
             }
         }
     }
@@ -313,6 +328,12 @@ export default class AudioSource extends CancellableOperations(
         this._filePosition = this.demuxData!.dataStart;
         const { sampleRate, channelCount, targetBufferLengthAudioFrames, duration, _crossfader: crossfader } = this;
 
+        dbg(
+            "Load",
+            "creating decoder",
+            JSON.stringify({ sampleRate, channelCount, targetBufferLengthAudioFrames, duration })
+        );
+
         this._decoder = new DecoderContext(wasm, {
             targetBufferLengthAudioFrames,
         });
@@ -330,9 +351,9 @@ export default class AudioSource extends CancellableOperations(
 
         this._audioPipeline = new AudioProcessingPipeline(wasm, {
             sourceSampleRate: sampleRate,
-            destinationSampleRate: sampleRate,
+            destinationSampleRate: this.backend.sampleRate,
             sourceChannelCount: channelCount,
-            destinationChannelCount: channelCount,
+            destinationChannelCount: this.backend.channelCount,
             decoder: this._decoder,
             loudnessNormalizer: this._loudnessNormalizer,
             bufferAudioFrameCount: targetBufferLengthAudioFrames,
@@ -348,10 +369,15 @@ export default class AudioSource extends CancellableOperations(
             baseTime = Math.min(demuxData.duration, Math.max(0, baseTime));
             cancellationToken.check();
             this._initialized = true;
-            return { baseFrame: Math.round(baseTime * this.backend.sampleRate), demuxData, cancellationToken };
+            return {
+                baseTime,
+                baseFrame: Math.round(baseTime * this.backend.sampleRate),
+                demuxData,
+                cancellationToken,
+            };
         }
         this._initialized = true;
-        return { baseFrame: 0, demuxData, cancellationToken };
+        return { baseTime: 0, baseFrame: 0, demuxData, cancellationToken };
     }
 
     async _decodeNextBuffer(
@@ -381,7 +407,7 @@ export default class AudioSource extends CancellableOperations(
         this._filePosition += bytesRead;
         this.ended = this._filePosition >= this.demuxData!.dataEnd;
         if (this.ended) {
-            console.log("ended from file position");
+            dbg("decodeNextBuffer", "ended from file position");
         }
         if (!this._audioPipeline!.hasFilledBuffer) {
             this.ended = true;
@@ -397,6 +423,7 @@ export default class AudioSource extends CancellableOperations(
 
     _getDestinationBuffers() {
         const { channelCount, targetBufferLengthAudioFrames } = this;
+        dbg("Verbose", "creating destination buffers", JSON.stringify({ channelCount, targetBufferLengthAudioFrames }));
         const ret = new Array(channelCount);
         for (let ch = 0; ch < channelCount; ++ch) {
             ret[ch] = new Float32Array(targetBufferLengthAudioFrames);

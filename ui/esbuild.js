@@ -102,7 +102,7 @@ async function bundleSass(entry, outfile, project, onRebuild) {
             entryPoints: [entry],
             outfile,
             plugins: [sassPlugin()],
-            pure: ["console.log", "debugFor", "setDebugConfig", "dbg"],
+            pure: ["console.log", "debugFor", "setDebugConfig", "dbg", "JSON.stringify"],
             minify: isProduction,
             minifySyntax: isProduction,
             bundle: true,
