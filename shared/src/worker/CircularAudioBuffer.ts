@@ -81,13 +81,13 @@ export class CircularAudioBufferSignals {
 }
 
 export default class CircularAudioBuffer extends CircularAudioBufferSignals {
-    private readPtr: Int32Array;
-    private writePtr: Int32Array;
-    private writerClearing: Int32Array;
-    private readerProcessingSamples: Int32Array;
+    protected readPtr: Int32Array;
+    protected writePtr: Int32Array;
+    protected writerClearing: Int32Array;
+    protected readerProcessingSamples: Int32Array;
 
-    private data: Float32Array;
-    private capacity: number;
+    protected data: Float32Array;
+    protected capacity: number;
     private channels: number;
 
     constructor(sab: SharedArrayBuffer, channels: number) {
@@ -126,6 +126,10 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
             "is background",
             Atomics.load(this.isBackgroundPtr, 0)
         );
+    }
+
+    get channelCount() {
+        return this.channels;
     }
 
     getSabRef() {
@@ -196,14 +200,28 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
         return firstFrames + secondFrames;
     }
 
+    peekFrames(frameCount: number, sourceFrameOffset: number, destinationFrameOffset: number, input: Float32Array) {
+        const { channels: channelCount, data: audioBuffer } = this;
+        let readIndex = Atomics.load(this.readPtr, 0);
+        readIndex += sourceFrameOffset * channelCount;
+        const neededLength = frameCount * channelCount;
+        const firstLength = Math.min(audioBuffer.length - readIndex, neededLength);
+        const secondLength = neededLength - firstLength;
+        const dstIndex = destinationFrameOffset * channelCount;
+        if (firstLength > 0) {
+            for (let i = 0; i < firstLength; ++i) {
+                input[i + dstIndex] = audioBuffer[i + readIndex];
+            }
+        }
+        if (secondLength > 0) {
+            for (let i = 0; i < secondLength; ++i) {
+                input[i + firstLength + dstIndex] = audioBuffer[i];
+            }
+        }
+        return (firstLength + secondLength) / channelCount;
+    }
+
     read(channels: Float32Array[], frames: number): number {
-        if (channels.length !== this.channels) {
-            throw new Error(`wrong channels, expected ${this.channels} got ${channels.length}`);
-        }
-        if (Atomics.load(this.writerClearing, 0) === 1) {
-            return -1;
-        }
-        Atomics.store(this.readerProcessingSamples, 0, 1);
         const channelCount = channels.length;
         const readIndex = Atomics.load(this.readPtr, 0);
         const writeIndex = Atomics.load(this.writePtr, 0);
@@ -236,9 +254,6 @@ export default class CircularAudioBuffer extends CircularAudioBufferSignals {
         } else {
             ret = 0;
         }
-
-        Atomics.store(this.readerProcessingSamples, 0, 0);
-        Atomics.notify(this.readerProcessingSamples, 0, 1);
         return ret;
     }
 }
