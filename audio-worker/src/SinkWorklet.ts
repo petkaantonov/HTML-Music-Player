@@ -1,9 +1,10 @@
 import { CURVE_LENGTH, getCurve, MAX_FRAME, TIME_UPDATE_RESOLUTION, WEB_AUDIO_BLOCK_SIZE } from "shared/src/audio";
-import CircularAudioBuffer from "shared/worker/CircularAudioBuffer";
+import TimeStretcher from "shared/src/worker/TimeStretcher";
 
 const FADE_MINIMUM_VOLUME = 0.2;
 declare global {
     const currentFrame: number;
+    const sampleRate: number;
     function registerProcessor<T>(name: string, c: new (...args: any[]) => AudioWorkletProcessor<T>): void;
 
     interface Options<T> {
@@ -22,7 +23,7 @@ declare global {
 }
 
 class SinkWorklet extends AudioWorkletProcessor<{}> {
-    private cab: CircularAudioBuffer | null = null;
+    private cab: TimeStretcher | null = null;
     private resumeFadeInFrameCount: number = 0;
     private resumeFadeInCurve = getCurve(new Float32Array(CURVE_LENGTH + 1), FADE_MINIMUM_VOLUME, 1);
     private framesProcessedAfterPauseRequest: number = 0;
@@ -32,23 +33,29 @@ class SinkWorklet extends AudioWorkletProcessor<{}> {
     private pauseAfterFrames: number = 0;
     private pausedRequested: boolean = false;
     private frameNumber: number = 0;
-    private sampleRate: number = 0;
     private baseVolume: number = 1;
     private lastFramePosted: number = 0;
     private previousBlockWasPaused: boolean = true;
+    private playbackRate: number = 1;
 
     constructor() {
         super();
         this.port.onmessage = e => {
             if (e.data.type === "init") {
-                this.sampleRate = e.data.sampleRate;
-                this.resumeFadeInFrameCount = Math.round(0.2 * this.sampleRate);
-                this.cab = new CircularAudioBuffer(e.data.sab, e.data.channelCount);
+                this.resumeFadeInFrameCount = Math.round(0.2 * sampleRate);
+                this.cab = new TimeStretcher(e.data.sab, {
+                    channelCount: e.data.channelCount,
+                    sampleRate,
+                    playbackRate: this.playbackRate,
+                });
                 if (e.data.background) {
                     this.cab.setBackgrounded();
                 } else {
                     this.cab.unsetBackgrounded();
                 }
+            } else if (e.data.type === "setPlaybackRate") {
+                this.playbackRate = Math.round(Math.min(4, Math.max(0.5, e.data.playbackRate)) * 20) / 20;
+                this.cab!.updatePlaybackRate(this.playbackRate);
             }
         };
     }
@@ -62,10 +69,7 @@ class SinkWorklet extends AudioWorkletProcessor<{}> {
             return true;
         }
         const isBackgrounded = cab.isBackgrounded();
-        if (
-            !isBackgrounded &&
-            Math.abs(currentFrame - this.lastFramePosted) > TIME_UPDATE_RESOLUTION * this.sampleRate
-        ) {
+        if (!isBackgrounded && Math.abs(currentFrame - this.lastFramePosted) > TIME_UPDATE_RESOLUTION * sampleRate) {
             this.lastFramePosted = currentFrame;
             this.port.postMessage({
                 type: "timeupdate",
@@ -130,8 +134,7 @@ class SinkWorklet extends AudioWorkletProcessor<{}> {
         if (framesWritten < 0) {
             return true;
         }
-
-        this.frameNumber = (this.frameNumber + framesWritten) % MAX_FRAME;
+        this.frameNumber = (this.frameNumber + Math.round(framesWritten * this.playbackRate)) % MAX_FRAME;
         if (volume !== -1) {
             for (const channel of channels) {
                 for (let i = 0; i < framesWritten; ++i) {
