@@ -57,7 +57,7 @@ export class KeyboardShortcutContext {
                 ctrlModifiers = split.slice();
                 metaModifiers = split.slice();
                 ctrlModifiers[i] = `ctrl`;
-                metaModifiers[i] = `meta;`;
+                metaModifiers[i] = `meta`;
                 break;
             }
         }

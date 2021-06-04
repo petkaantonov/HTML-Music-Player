@@ -98,6 +98,7 @@ export default class DefaultShortcuts {
         this.keyboardShortcuts.defaultContext.addShortcut(`alt+r`, this.shortcutPlaylistRepeat);
         this.keyboardShortcuts.defaultContext.addShortcut(`ArrowLeft`, this.shortcutSeekBack);
         this.keyboardShortcuts.defaultContext.addShortcut(`ArrowRight`, this.shortcutSeekForward);
+        this.keyboardShortcuts.defaultContext.addShortcut(`mod+Backspace`, this.shortCutDelete);
 
         this.enableGestures();
         this.keyboardShortcuts.on(`disable`, this.disableGestures);
@@ -117,6 +118,10 @@ export default class DefaultShortcuts {
         this.player.setProgress(this.seekValueToCommit);
         this.seekValueToCommit = -1;
     }
+
+    shortCutDelete = () => {
+        this.playlist.removeSelected();
+    };
 
     shortcutPause() {
         this.player.pause();

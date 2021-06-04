@@ -9,7 +9,7 @@ import {
     SUSTAINED_BUFFERED_AUDIO_RATIO,
 } from "shared/audio";
 import { debugFor } from "shared/debug";
-import { ChannelCount, ITrack } from "shared/metadata";
+import { ITrack } from "shared/metadata";
 import Timers from "shared/platform/Timers";
 import { AudioPlayerResult, FADE_MINIMUM_VOLUME } from "shared/src/audio";
 import { HEADER_BYTES } from "shared/src/worker/CircularAudioBuffer";
@@ -110,7 +110,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     get channelCount() {
-        return decode(ChannelCount, this._audioContext.destination.channelCount);
+        return 2;
     }
 
     get bufferLengthSeconds() {
@@ -364,7 +364,8 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     async _initBackend() {
-        const { channelCount, sampleRate } = this;
+        const { sampleRate } = this;
+        const channelCount = 2;
         const sab = new SharedArrayBuffer(
             Float32Array.BYTES_PER_ELEMENT * channelCount * sampleRate * MAX_SUSTAINED_AUDIO_SECONDS + HEADER_BYTES
         );
@@ -411,7 +412,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
             baseLatency: this.baseLatency,
             outputLatency: this.outputLatency,
             backgroundSab,
-            channelCount: this.channelCount,
+            channelCount: channelCount,
             sampleRate: this.sampleRate,
             sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
             bufferTime: this.bufferLengthSeconds,

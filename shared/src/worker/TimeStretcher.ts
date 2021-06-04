@@ -51,7 +51,6 @@ export interface TimeStretcherOpts {
 }
 
 export default class TimeStretcher extends CircularAudioBuffer {
-    private sampleRate: number;
     private outputTime: number = 0;
     private playbackRate: number;
     private candidateFrames: number;
@@ -71,7 +70,6 @@ export default class TimeStretcher extends CircularAudioBuffer {
 
     constructor(sab: SharedArrayBuffer, { channelCount, sampleRate, playbackRate }: TimeStretcherOpts) {
         super(sab, channelCount);
-        this.sampleRate = sampleRate;
         this.playbackRate = playbackRate;
         this.candidateFrames = Math.round(SEARCH_INTERVAL_SECONDS * sampleRate);
         this.windowSize = Math.round(WINDOW_SIZE_SECONDS * sampleRate);
