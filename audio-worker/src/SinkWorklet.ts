@@ -1,7 +1,7 @@
 import { CURVE_LENGTH, getCurve, MAX_FRAME, TIME_UPDATE_RESOLUTION, WEB_AUDIO_BLOCK_SIZE } from "shared/src/audio";
 import TimeStretcher from "shared/src/worker/TimeStretcher";
 
-const FADE_MINIMUM_VOLUME = 0.2;
+const FADE_MINIMUM_VOLUME = 0.05;
 declare global {
     const currentFrame: number;
     const sampleRate: number;
@@ -33,7 +33,7 @@ class SinkWorklet extends AudioWorkletProcessor<{}> {
     private pauseAfterFrames: number = 0;
     private pausedRequested: boolean = false;
     private frameNumber: number = 0;
-    private baseVolume: number = 1;
+    private baseVolume: number = FADE_MINIMUM_VOLUME;
     private lastFramePosted: number = 0;
     private previousBlockWasPaused: boolean = true;
     private playbackRate: number = 1;
@@ -42,7 +42,7 @@ class SinkWorklet extends AudioWorkletProcessor<{}> {
         super();
         this.port.onmessage = e => {
             if (e.data.type === "init") {
-                this.resumeFadeInFrameCount = Math.round(0.2 * sampleRate);
+                this.resumeFadeInFrameCount = Math.round(0.3 * sampleRate);
                 this.cab = new TimeStretcher(e.data.sab, {
                     channelCount: e.data.channelCount,
                     sampleRate,
