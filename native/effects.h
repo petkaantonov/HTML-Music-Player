@@ -1,3 +1,5 @@
+#include <wasm.h>
+
 #ifndef EFFECTS_H
 #define EFFECTS_H
 
@@ -34,7 +36,8 @@ EXPORT void effects_crossfade_fade_out(double track_duration,
                                       uint32_t sample_rate,
                                       uint8_t channel_count,
                                       float* samples,
-                                      size_t byte_length);
+                                      uint32_t frames_needed,
+                                      uint32_t frames_requested);
 
 EXPORT void effects_equalizer_reset(void);
 EXPORT void effects_equalizer_apply(float* samples,

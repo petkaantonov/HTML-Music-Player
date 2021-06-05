@@ -111,6 +111,12 @@ export default class Resampler extends BufferAllocator {
         this.destroy();
     }
 
+    startIfNeeded() {
+        if (this._ptr === 0) {
+            this.start();
+        }
+    }
+
     start() {
         if (this._ptr !== 0) {
             throw new Error(`already started`);

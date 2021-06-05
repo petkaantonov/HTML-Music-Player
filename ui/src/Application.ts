@@ -51,6 +51,7 @@ import AudioVisualizerFrontend from "../src/visualization/AudioVisualizerFronten
 
 const debugConfig = {
     //Application: "*",
+    Crossfader: ["fadeout"],
     AudioSource: ["*", "!Verbose"],
     //AudioPlayerFrontend: "*",
     //Resampler: "*",
