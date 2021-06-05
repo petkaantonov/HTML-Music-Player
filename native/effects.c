@@ -86,12 +86,11 @@ EXPORT void effects_crossfade_fade_in(double track_current_time,
     const uint32_t buffer_frame_count = byte_length / sizeof(float) / channel_count;
     const uint32_t fade_frame_count = (uint32_t)((double)(fade_duration - track_current_time) * (double) sample_rate);
     const uint32_t total_frames_to_process = MIN(buffer_frame_count, fade_frame_count);
-
-    double vol;
+    double vol = get_fade_in_volume(0, track_current_time, fade_duration);
     for (int i = 0; i < total_frames_to_process; i++) {
         if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
             double t = track_current_time + ((double) i) / ((double) sample_rate);
-            vol = get_fade_in_volume(0.0, t, fade_duration);
+            vol = get_fade_in_volume(0, t, fade_duration);
         }
 
         for (int ch = 0; ch < channel_count; ++ch) {
@@ -106,29 +105,35 @@ EXPORT void effects_crossfade_fade_out(double track_current_time,
                                       uint32_t sample_rate,
                                       uint8_t channel_count,
                                       float* samples,
-                                      size_t byte_length) {
-    const uint32_t frame_count = byte_length / sizeof(float) / channel_count;
-    const double buffer_duration = (double)frame_count / (double)sample_rate;
+                                      uint32_t frames_needed,
+                                      uint32_t frames_requested) {
+    const double buffer_duration = (double)frames_needed / (double)sample_rate;
     const double fade_start_time = track_duration - fade_duration;
     if (fade_duration == 0.0 || track_current_time + buffer_duration < fade_start_time) {
         return;
     }
 
-    const uint32_t start_frame = (int)(MAX(fade_start_time - track_current_time, 0.0) * (double)sample_rate);
+    if (frames_needed > 0) {
+        double t = track_current_time - fade_start_time;
+        t = MAX(0, t);
+        double vol = get_fade_out_volume(0, t, fade_duration);
 
-    double t = (track_current_time + ((double) start_frame) / ((double) sample_rate)) - fade_start_time;
-    t = MAX(0, t);
-    double vol = get_fade_out_volume(0.0, t, fade_duration);
+        for (int i = 0; i < frames_needed; ++i) {
+            if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
+                double t = (track_current_time + ((double) i) / ((double) sample_rate)) - fade_start_time;
+                t = MAX(0, t);
+                vol = get_fade_out_volume(0, t, fade_duration);
+            }
 
-    for (int i = start_frame; i < frame_count; i++) {
-        if ((i & (EFFECT_BLOCK_SIZE - 1)) == 0) {
-            double t = (track_current_time + ((double) i) / ((double) sample_rate)) - fade_start_time;
-            t = MAX(0, t);
-            vol = get_fade_out_volume(0.0, t, fade_duration);
+            for (int ch = 0; ch < channel_count; ++ch) {
+                samples[i * channel_count + ch] *= vol;
+            }
         }
+    }
 
-        for (int ch = 0; ch < channel_count; ++ch) {
-            samples[i * channel_count + ch] *= vol;
+    for (int i = frames_needed; i < frames_requested; ++i) {
+       for (int ch = 0; ch < channel_count; ++ch) {
+            samples[i * channel_count + ch] = 0.f;
         }
     }
 }

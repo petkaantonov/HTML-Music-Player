@@ -1,6 +1,8 @@
+import { debugFor } from "shared/debug";
+import { ChannelCount } from "shared/metadata";
 import { CROSSFADE_MAX_DURATION } from "shared/preferences";
 import WebAssemblyWrapper, { moduleEvents } from "shared/wasm/WebAssemblyWrapper";
-import { ChannelCount } from "shared/worker/ChannelMixer";
+const dbg = debugFor("Crossfader");
 
 interface Params {
     channelCount: ChannelCount;
@@ -37,7 +39,20 @@ export default class Crossfader {
 
     apply(samplePtr: number, byteLength: number, { channelCount, duration, currentTime, sampleRate }: Params) {
         if (this._duration > 0) {
-            if (this._shouldApplyFadeIn) {
+            const framesRequested = byteLength / channelCount / 4;
+            const bufferDuration = framesRequested / sampleRate;
+
+            if (this._shouldApplyFadeIn && currentTime <= this._duration) {
+                dbg(
+                    "fadein",
+                    JSON.stringify({
+                        frames: framesRequested,
+                        channelCount,
+                        duration,
+                        currentTime,
+                        sampleRate,
+                    })
+                );
                 this.effects_crossfade_fade_in(
                     currentTime,
                     duration,
@@ -49,7 +64,23 @@ export default class Crossfader {
                 );
             }
 
-            if (this._shouldApplyFadeOut) {
+            if (this._shouldApplyFadeOut && currentTime + bufferDuration >= duration - this._duration) {
+                const framesRemaining = Math.min(
+                    byteLength / channelCount / 4,
+                    Math.floor(Math.max(0, duration - currentTime) * sampleRate)
+                );
+                const framesNeeded = Math.min(framesRemaining, framesRequested);
+
+                dbg(
+                    "fadeout",
+                    JSON.stringify({
+                        frames: framesRequested,
+                        channelCount,
+                        duration,
+                        currentTime,
+                        sampleRate,
+                    })
+                );
                 this.effects_crossfade_fade_out(
                     currentTime,
                     duration,
@@ -57,7 +88,8 @@ export default class Crossfader {
                     sampleRate,
                     channelCount,
                     samplePtr,
-                    byteLength
+                    framesNeeded,
+                    framesRequested
                 );
             }
         }
@@ -81,7 +113,8 @@ export default interface Crossfader {
         sampleRate: number,
         channelCount: ChannelCount,
         samplePtr: number,
-        byteLength: number
+        framesNeeded: number,
+        framesRequested: number
     ) => void;
 }
 
