@@ -43,6 +43,7 @@ interface InitialBufferOptions {
     resumeAfterLoad: boolean;
     fadeInSeconds: number;
     overrideNeededBuffers: boolean;
+    resetSeekOffset: boolean;
 }
 
 interface AudioSourceEventWaiter {
@@ -78,6 +79,10 @@ class AudioData {
 
     setAsBackground() {
         this.cab.setBackgrounded();
+    }
+
+    isPaused() {
+        return this.cab.isPaused();
     }
 
     pause(fadeOutDelayFrames: number) {
@@ -229,16 +234,13 @@ class AudioData {
         }
     }
 
-    allBuffersPlayedFor(audioSource: AudioSource) {
-        if (!this.data.length) {
-            return true;
-        }
-        if (this.data[0].audioSourceId !== audioSource.id) {
-            return true;
-        }
+    allBuffersPlayedFor(audioSource: AudioSource, frameOffset: number = 0) {
         this.cleanup();
+        const endPointFrame = this.getCurrentlyPlayedFrame() - frameOffset;
+
         for (let i = 0; i < this.data.length; ++i) {
-            if (this.data[i].audioSourceId === audioSource.id) {
+            const item = this.data[i];
+            if (item.audioSourceId === audioSource.id && item.endFrames > endPointFrame) {
                 return false;
             }
         }
@@ -382,6 +384,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
     private lastCleanupCalled: number = 0;
     private swapTargets: SwapTargetType = "no-swap";
     private nextTrackResponseCallbacks: PromiseResolve<void>[] = [];
+    private discardedAudioSources: AudioSource[] = [];
 
     constructor(wasm: WebAssemblyWrapper, tagdb: TagDatabase) {
         super("audio", {
@@ -445,6 +448,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
             dbg("SwapTargets", "swapping targets and sources");
             this.setSwapTargets("no-swap", "checkSwap");
             this.seekFrameOffset = 0;
+            if (this._mainAudioSource) {
+                this.discardedAudioSources.push(this._mainAudioSource);
+            }
             this._mainAudioSource = this._preloadingAudioSource;
             this._preloadingAudioSource = null;
 
@@ -487,10 +493,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
             if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
                 void this._requestNextTrackIfNeeded("sendTimeUpdate");
             }
-            if (this.crossfadeDuration > 0 && remaining - TIME_UPDATE_RESOLUTION <= this.crossfadeDuration) {
-                if (this._checkSwap()) {
-                    dbg("State", "swapped from time check", remaining, totalTime, currentTime, this.crossfadeDuration);
-                }
+
+            if (this.crossfadeDuration > 0 && remaining <= this.crossfadeDuration) {
+                this._checkSwap();
             }
         }
 
@@ -503,12 +508,24 @@ export default class AudioPlayerBackend extends AbstractBackend<
         });
     }
 
-    _timeUpdateReceived = () => {
-        this._sendTimeUpdate();
-        for (const callback of this._timeUpdatePromiseCallbacks) {
-            callback();
+    async _destroyAudioSource(audioSource: AudioSource) {
+        await audioSource.destroy();
+        for (let i = 0; i < this.discardedAudioSources.length; ++i) {
+            if (this.discardedAudioSources[i] === audioSource) {
+                this.discardedAudioSources.splice(i, 1);
+                i--;
+            }
         }
-        this._timeUpdatePromiseCallbacks = [];
+    }
+
+    _timeUpdateReceived = (resolveAwaiters: boolean = true) => {
+        this._sendTimeUpdate();
+        if (resolveAwaiters) {
+            for (const callback of this._timeUpdatePromiseCallbacks) {
+                callback();
+            }
+            this._timeUpdatePromiseCallbacks = [];
+        }
         const now = Date.now();
         if (now - this.lastCleanupCalled > this.bufferTime) {
             this.passiveData!.cleanup();
@@ -525,7 +542,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
         dbg("Action", "updating preload track in backend");
         this.setSwapTargets("no-swap", "preload next track updated");
-        await this._preloadingAudioSource.destroy();
+        this._destroyAudioSource(this._preloadingAudioSource);
         this._preloadingAudioSource = new AudioSource(this);
         void this._preloadNextTrack(opts);
     };
@@ -588,7 +605,6 @@ export default class AudioPlayerBackend extends AbstractBackend<
             dbg(label, "preload initialized");
             cancellationToken.check();
             // Await for the audio queue.
-
             if (!crossfadeEnabled) {
                 dbg(label, "Gapless playback enabled - waiting for main source to end");
                 await this._mainAudioSource!.waitEnded();
@@ -601,6 +617,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             } else {
                 this._resolveNextTrackResponsePromises();
             }
+
             await this._fillBuffersLoop(
                 targetData,
                 audioSource,
@@ -610,13 +627,14 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     overrideNeededBuffers: crossfadeEnabled,
                     resumeAfterLoad: false,
                     fadeInSeconds: 0,
+                    resetSeekOffset: crossfadeEnabled,
                 },
                 "preload"
             );
         } catch (e) {
             this.setSwapTargets("no-swap", "preload failed or cancelled");
             if (!this._checkError(e).canceled) {
-                await audioSource.destroy();
+                this._destroyAudioSource(audioSource);
                 this._preloadingAudioSource = null;
                 this.postMessageToAudioPlayer({ type: "stop", reason: "preload-error" });
             }
@@ -665,12 +683,13 @@ export default class AudioPlayerBackend extends AbstractBackend<
         waitFor.push(this._mainAudioSource.bufferOperationCancellationAcknowledged());
         this._mainAudioSource.cancelAllOperations(reason);
         if (this._preloadingAudioSource) {
-            waitFor.push(this._preloadingAudioSource.bufferOperationCancellationAcknowledged());
-            this._preloadingAudioSource.cancelAllOperations(reason);
-            await this._preloadingAudioSource.destroy();
+            waitFor.push(this._destroyAudioSource(this._preloadingAudioSource));
             this._preloadingAudioSource = null;
-            this.passiveData!.pause(0.2 * this.sampleRate);
         }
+        for (let i = 0; i < this.discardedAudioSources.length; ++i) {
+            waitFor.push(this.discardedAudioSources[i].destroy());
+        }
+        this.discardedAudioSources = [];
         await Promise.all(waitFor);
     }
 
@@ -679,12 +698,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
         if (!this._mainAudioSource || !this._mainAudioSource.initialized) {
             return;
         }
+
         const duration = this._mainAudioSource.duration;
         if (duration - this.crossfadeDuration < 0) {
             return;
         }
         await this._cancelLoadingBuffers("Seek invalidated buffers");
-
         try {
             time = Math.max(
                 0,
@@ -710,6 +729,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     overrideNeededBuffers: true,
                     resumeAfterLoad: resumeAfterInitialization,
                     fadeInSeconds: 0.2,
+                    resetSeekOffset: false,
                 },
                 "seek"
             );
@@ -776,9 +796,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 !initialBufferLoaded && dbg(label, "neededCount=", neededCount, "audioSource", audioSourceString);
 
                 if (neededCount > 0) {
-                    const playSilence = this._config!.silenceTrimming
-                        ? audioSource === this._preloadingAudioSource
-                        : true;
+                    const playSilence = !this._config!.silenceTrimming;
                     !initialBufferLoaded &&
                         dbg(label, "requested fillBuffers playSilence=", playSilence, "audioSource", audioSourceString);
                     await audioSource.fillBuffers(
@@ -795,12 +813,14 @@ export default class AudioPlayerBackend extends AbstractBackend<
                                     "audioSource",
                                     audioSourceString
                                 );
-
+                            if (!initialBufferLoaded && targetData === this.passiveData! && !targetData.isPaused()) {
+                                targetData.pause(0);
+                            }
                             targetData.addData(
                                 bufferDescriptor,
                                 channelData,
                                 !initialBufferLoaded ? initialBufferOptions.clear : "no-clear",
-                                this.seekFrameOffset,
+                                !initialBufferLoaded && initialBufferOptions.resetSeekOffset ? 0 : this.seekFrameOffset,
                                 playSilence
                             );
                             if (!initialBufferLoaded && initialBufferOptions.resumeAfterLoad) {
@@ -820,13 +840,13 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     );
                     cancellationToken.check();
                 }
-                this._timeUpdateReceived();
+                this._timeUpdateReceived(false);
                 cancellationToken.check();
                 if (audioSource.ended || audioSource.destroyed) {
                     if (!initialBufferLoaded) {
                         dbg(label, "initial buffer not loaded before ending", "audioSource", audioSourceString);
                         if (initialBufferOptions.clear) {
-                            targetData.clear(this.seekFrameOffset);
+                            targetData.clear(initialBufferOptions.resetSeekOffset ? 0 : this.seekFrameOffset);
                         }
                         if (initialBufferOptions.resumeAfterLoad) {
                             this._doResume(false);
@@ -869,34 +889,46 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     this._preloadingAudioSource = null;
                 }
                 if (audioSource === this._mainAudioSource) {
-                    const crossfadeEnabled = this.crossfadeDuration > 0;
+                    const crossfadeDuration = this.crossfadeDuration;
+                    const crossfadeEnabled = crossfadeDuration > 0;
                     await this._requestNextTrackIfNeeded(`audioSource ending (${audioSourceString})`);
-                    if (!crossfadeEnabled) {
+                    const preloadingAudioSource = this._preloadingAudioSource;
+                    if (!preloadingAudioSource) {
+                        if (this._mainAudioSource === audioSource) {
+                            this._mainAudioSource = null;
+                        }
+                    } else {
                         targetData.logDataFor(audioSource);
                         dbg(label, "awaiting all main buffers", "audioSource", audioSourceString);
-                        while (!targetData.allBuffersPlayedFor(audioSource)) {
+                        while (
+                            targetData === this.activeData &&
+                            !targetData.allBuffersPlayedFor(
+                                audioSource,
+                                Math.round(crossfadeDuration * this.sampleRate)
+                            )
+                        ) {
                             await this.waitNextTimeUpdate();
                         }
                         targetData.logDataFor(audioSource);
                         dbg(label, "awaited all main buffers", "audioSource", audioSourceString);
-                        if (
-                            this._preloadingAudioSource &&
-                            !targetData.hasWrittenSamplesFor(this._preloadingAudioSource)
-                        ) {
-                            dbg(label, "cannot swap because preloader doesn't have written any samples yet");
-                            await targetData.waitUntilWrittenSamplesFor(this._preloadingAudioSource);
-                            dbg(label, "waited samples written for preloader, swapping");
+                        if (preloadingAudioSource === this._preloadingAudioSource && targetData === this.activeData) {
+                            const preloaderData = crossfadeEnabled ? this.passiveData! : this.activeData!;
+                            if (!preloaderData.hasWrittenSamplesFor(this._preloadingAudioSource)) {
+                                dbg(label, "cannot swap because preloader doesn't have written any samples yet");
+                                await preloaderData.waitUntilWrittenSamplesFor(preloadingAudioSource);
+                                dbg(label, "waited samples written for preloader, swapping");
+                            }
                         }
 
-                        if (!this._checkSwap() && audioSource === this._mainAudioSource) {
-                            dbg(label, "performed swap immediately because preloader samples already buffered");
-                            this._mainAudioSource = null;
+                        if (preloadingAudioSource === this._preloadingAudioSource) {
+                            if (!this._checkSwap() && audioSource === this._mainAudioSource) {
+                                dbg(label, "performed swap immediately because preloader samples already buffered");
+                                this._mainAudioSource = null;
+                            }
                         }
-                    } else if (this._mainAudioSource === audioSource) {
-                        this._mainAudioSource = null;
                     }
                 }
-                await audioSource.destroy();
+                await this._destroyAudioSource(audioSource);
             }
         }
     }
@@ -908,7 +940,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         const audioSource = new AudioSource(this);
         if (this._mainAudioSource) {
             dbg(label, "load called, destroying previous main audio source");
-            await this._mainAudioSource.destroy();
+            await this._destroyAudioSource(this._mainAudioSource);
         }
         this._mainAudioSource = audioSource;
         const targetData = this.activeData!;
@@ -932,6 +964,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     overrideNeededBuffers: true,
                     resumeAfterLoad: resumeAfterInitialization,
                     fadeInSeconds: 0.2,
+                    resetSeekOffset: false,
                 },
                 "load"
             );
