@@ -52,13 +52,13 @@ import AudioVisualizerFrontend from "../src/visualization/AudioVisualizerFronten
 const debugConfig = {
     //Application: "*",
     //Crossfader: ["fadeout"],
-    //AudioSource: ["*", "!Verbose"],
-    //AudioPlayerFrontend: "*",
+    AudioSource: ["*", "!Verbose"],
+    AudioPlayerFrontend: "*",
     //Resampler: "*",
     //MetadataBackend: "*",
     //MetadataFrontend: "*",
     //demuxer: "*",
-    //AudioPlayerBackend: ["*", "!ContinuousBuffering", "!Canceled"],
+    AudioPlayerBackend: ["*", "!ContinuousBuffering", "!Canceled"],
     //AudioProcessingPipeline: ["*", "!Verbose"],
 };
 

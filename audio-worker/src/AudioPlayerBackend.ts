@@ -44,6 +44,7 @@ interface InitialBufferOptions {
     fadeInSeconds: number;
     overrideNeededBuffers: boolean;
     resetSeekOffset: boolean;
+    setSwapTargets?: SwapTargetType;
 }
 
 interface AudioSourceEventWaiter {
@@ -540,7 +541,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         if (!this._preloadingAudioSource) {
             return;
         }
-        dbg("Action", "updating preload track in backend");
+        dbg("preloadNextTrackUpdated", "updating preload track in backend");
         this.setSwapTargets("no-swap", "preload next track updated");
         this._destroyAudioSource(this._preloadingAudioSource);
         this._preloadingAudioSource = new AudioSource(this);
@@ -601,7 +602,6 @@ export default class AudioPlayerBackend extends AbstractBackend<
                 crossfadeDuration,
                 progress: 0,
             });
-            this.setSwapTargets(crossfadeEnabled ? "all" : "audio-sources", "preload initialized");
             dbg(label, "preload initialized");
             cancellationToken.check();
             // Await for the audio queue.
@@ -628,6 +628,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     resumeAfterLoad: false,
                     fadeInSeconds: 0,
                     resetSeekOffset: crossfadeEnabled,
+                    setSwapTargets: crossfadeEnabled ? "all" : "audio-sources",
                 },
                 "preload"
             );
@@ -816,6 +817,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
                             if (!initialBufferLoaded && targetData === this.passiveData! && !targetData.isPaused()) {
                                 targetData.pause(0);
                             }
+                            if (!initialBufferLoaded && initialBufferOptions.setSwapTargets) {
+                                this.setSwapTargets(initialBufferOptions.setSwapTargets, "initial buffer loaded");
+                            }
                             targetData.addData(
                                 bufferDescriptor,
                                 channelData,
@@ -850,6 +854,9 @@ export default class AudioPlayerBackend extends AbstractBackend<
                         }
                         if (initialBufferOptions.resumeAfterLoad) {
                             this._doResume(false);
+                        }
+                        if (initialBufferOptions.setSwapTargets) {
+                            this.setSwapTargets(initialBufferOptions.setSwapTargets, "no initial buffer");
                         }
                     }
                     dbg(label, "audioSource ended prematurely, breaking", "audioSource", audioSourceString);
@@ -892,39 +899,46 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     const crossfadeDuration = this.crossfadeDuration;
                     const crossfadeEnabled = crossfadeDuration > 0;
                     await this._requestNextTrackIfNeeded(`audioSource ending (${audioSourceString})`);
-                    const preloadingAudioSource = this._preloadingAudioSource;
-                    if (!preloadingAudioSource) {
-                        if (this._mainAudioSource === audioSource) {
-                            this._mainAudioSource = null;
-                        }
-                    } else {
-                        targetData.logDataFor(audioSource);
-                        dbg(label, "awaiting all main buffers", "audioSource", audioSourceString);
-                        while (
-                            targetData === this.activeData &&
-                            !targetData.allBuffersPlayedFor(
-                                audioSource,
-                                Math.round(crossfadeDuration * this.sampleRate)
-                            )
-                        ) {
-                            await this.waitNextTimeUpdate();
-                        }
-                        targetData.logDataFor(audioSource);
-                        dbg(label, "awaited all main buffers", "audioSource", audioSourceString);
-                        if (preloadingAudioSource === this._preloadingAudioSource && targetData === this.activeData) {
-                            const preloaderData = crossfadeEnabled ? this.passiveData! : this.activeData!;
-                            if (!preloaderData.hasWrittenSamplesFor(this._preloadingAudioSource)) {
-                                dbg(label, "cannot swap because preloader doesn't have written any samples yet");
-                                await preloaderData.waitUntilWrittenSamplesFor(preloadingAudioSource);
-                                dbg(label, "waited samples written for preloader, swapping");
+                    // eslint-disable-next-line no-constant-condition
+                    while (true) {
+                        if (!this._preloadingAudioSource) {
+                            if (this._mainAudioSource === audioSource) {
+                                this._mainAudioSource = null;
                             }
-                        }
+                            break;
+                        } else {
+                            targetData.logDataFor(audioSource);
+                            dbg(label, "awaiting all main buffers", "audioSource", audioSourceString);
+                            while (
+                                targetData === this.activeData &&
+                                !targetData.allBuffersPlayedFor(
+                                    audioSource,
+                                    Math.round(crossfadeDuration * this.sampleRate)
+                                )
+                            ) {
+                                await this.waitNextTimeUpdate();
+                            }
+                            targetData.logDataFor(audioSource);
+                            dbg(label, "awaited all main buffers", "audioSource", audioSourceString);
+                            const preloadingAudioSource = this._preloadingAudioSource;
+                            if (targetData === this.activeData) {
+                                const preloaderData = crossfadeEnabled ? this.passiveData! : this.activeData!;
+                                if (!preloaderData.hasWrittenSamplesFor(preloadingAudioSource)) {
+                                    dbg(label, "cannot swap because preloader doesn't have written any samples yet");
+                                    await preloaderData.waitUntilWrittenSamplesFor(preloadingAudioSource);
+                                    if (preloadingAudioSource !== this._preloadingAudioSource) {
+                                        dbg(label, "preloading audio source changed, restarting loop");
+                                        continue;
+                                    }
+                                    dbg(label, "waited samples written for preloader, swapping");
+                                }
+                            }
 
-                        if (preloadingAudioSource === this._preloadingAudioSource) {
                             if (!this._checkSwap() && audioSource === this._mainAudioSource) {
                                 dbg(label, "performed swap immediately because preloader samples already buffered");
                                 this._mainAudioSource = null;
                             }
+                            break;
                         }
                     }
                 }
