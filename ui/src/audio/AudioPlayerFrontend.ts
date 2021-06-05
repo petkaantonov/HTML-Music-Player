@@ -231,7 +231,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
             "initialProgress=",
             initialProgress
         );
-        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+        this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
         if (this._ignoreNextTrackLoads) {
             return;
         }
@@ -255,7 +255,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         if (!isFinite(time)) {
             return;
         }
-        this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+        this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
         this.postMessageToAudioBackend("seek", { time, resumeAfterInitialization: false });
     }
 
@@ -268,9 +268,17 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     }
 
     _sendNextTrackToBackend = () => {
-        dbg("State", "next track sent to backend for preloading");
+        dbg("sendNextTrackToBackend", "next track sent to backend for preloading");
         const next = this.playlist.getNextTrack();
         this.postMessageToAudioBackend("nextTrackResponse", {
+            fileReference: next ? next.fileReference : undefined,
+        });
+    };
+
+    _updateNextTrackToBackend = () => {
+        dbg("updateNextTrackToBackend", "next track updated to backend for preloading");
+        const next = this.playlist.getNextTrack();
+        this.postMessageToAudioBackend("nextTrackResponseUpdate", {
             fileReference: next ? next.fileReference : undefined,
         });
     };
@@ -284,12 +292,12 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
                 this._emitPlaybackProgress(result.currentTime, result.totalTime);
                 break;
             case "error":
-                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
                 this._error(result);
                 break;
             case "preloadedTrackStartedPlaying":
                 dbg("State", "preloaded track started playing");
-                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
                 this._ignoreNextTrackLoads = true;
                 try {
                     this.emit("preloadedTrackPlaybackStarted");
@@ -299,13 +307,13 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
                 break;
             case "nextTrackRequest":
                 {
-                    this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                    this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
                     this._sendNextTrackToBackend();
-                    this.playlist.on("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                    this.playlist.on("playlistNextTrackChanged", this._updateNextTrackToBackend);
                 }
                 break;
             case "stop":
-                this.playlist.removeListener("playlistNextTrackChanged", this._sendNextTrackToBackend);
+                this.playlist.removeListener("playlistNextTrackChanged", this._updateNextTrackToBackend);
                 break;
             default:
                 assertNever(result);
