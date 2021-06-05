@@ -1,4 +1,4 @@
-import { BufferDescriptor, ChannelData } from "shared/audio";
+import { BufferDescriptor, ChannelData, TIME_UPDATE_RESOLUTION } from "shared/audio";
 import { CodecName, FileReference, fileReferenceToTrackUid, TrackMetadata } from "shared/metadata";
 import FileView from "shared/platform/FileView";
 import { debugFor } from "shared/src/debug";
@@ -44,6 +44,7 @@ export default class AudioSource extends CancellableOperations(
     private _audioPipeline: AudioProcessingPipeline | null;
     private _crossfader: Crossfader;
     private _initialized: boolean = false;
+    private _lastFrame: number = 0;
     codecName: CodecName;
     private _destroyed: boolean;
     demuxData: null | TrackMetadata;
@@ -69,6 +70,10 @@ export default class AudioSource extends CancellableOperations(
         this.fileView = null;
         this.fileReference = null;
         this._destroyAfterBuffersFilledFlag = false;
+    }
+
+    get lastFrame() {
+        return this._lastFrame;
     }
 
     get id() {
@@ -183,7 +188,6 @@ export default class AudioSource extends CancellableOperations(
 
         const { sampleRate, channelCount } = this;
         let i = 0;
-        const { crossfadeDuration, duration } = this;
         this._loudnessNormalizer!.setLoudnessNormalizationEnabled(this.backend.loudnessNormalization!);
         this._loudnessNormalizer!.setSilenceTrimmingEnabled(this.backend.silenceTrimming!);
 
@@ -212,13 +216,6 @@ export default class AudioSource extends CancellableOperations(
                     fadeInSeconds = Math.max(0, fadeInSeconds - length / this.backend.sampleRate);
                 }
 
-                if (crossfadeDuration > 0) {
-                    const fadeOutStartFrame = (duration - crossfadeDuration) * sampleRate;
-                    if (endFrames >= fadeOutStartFrame) {
-                        totalBuffersToFill += Math.ceil(crossfadeDuration / this._audioPipeline!.bufferTime);
-                    }
-                }
-
                 const decodingLatency = performance.now() - now;
                 const descriptor = {
                     length,
@@ -232,7 +229,6 @@ export default class AudioSource extends CancellableOperations(
                 };
 
                 callback(descriptor, destinationBuffers);
-
                 i++;
                 if (this.ended) {
                     break;
@@ -362,11 +358,16 @@ export default class AudioSource extends CancellableOperations(
             duration,
             crossfader,
         });
+        this._lastFrame = Math.round(demuxData.duration * this.backend.sampleRate);
 
         if (progress > 0) {
             const time = progress * demuxData.duration;
             let { baseTime } = await this._seek(time, cancellationToken);
-            baseTime = Math.min(demuxData.duration, Math.max(0, baseTime));
+            cancellationToken.check();
+            baseTime = Math.min(
+                demuxData.duration - crossfadeDuration - TIME_UPDATE_RESOLUTION - this.backend.bufferTime,
+                Math.max(0, baseTime)
+            );
             cancellationToken.check();
             this._initialized = true;
             return {
@@ -397,6 +398,7 @@ export default class AudioSource extends CancellableOperations(
                 { channelData: destinationBuffers },
                 buffersRemainingToDecodeHint
             );
+            cancellationToken.check();
         } catch (e) {
             if (cancellationToken.isCancelled()) {
                 this._audioPipeline!.dropFilledBuffer();
@@ -433,6 +435,7 @@ export default class AudioSource extends CancellableOperations(
 
     async _seek(time: number, cancellationToken: CancellationToken<AudioSource>): Promise<SeekResult> {
         const seekerResult = await seeker(this.codecName, time, this.demuxData!, this.fileView!, cancellationToken);
+        cancellationToken.check();
         this._filePosition = seekerResult.offset;
         this._decoder!.applySeek(seekerResult);
         this.ended = false;
