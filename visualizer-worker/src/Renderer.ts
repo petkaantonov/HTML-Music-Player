@@ -204,15 +204,17 @@ export default class Renderer {
         if (WebGl2dImageRenderer.isSupported(this.canvas)) {
             try {
                 this.renderer = new WebGl2dImageRenderer(this.source.image, this);
+                this.renderer.init(this.width, this.height);
                 this.renderer.on("contextLost", this._WebGlContextLost);
                 this.renderer.on("contextRestored", this._WebGlContextRestored);
                 this.renderer.on("error", this._WebGlErrored);
-                this.renderer.init(this.width, this.height);
             } catch (e) {
                 this.renderer = new Default2dImageRenderer(this.source.image, this);
+                this.contextLost = false;
             }
         } else {
             this.renderer = new Default2dImageRenderer(this.source.image, this);
+            this.contextLost = false;
         }
     }
 
@@ -227,6 +229,7 @@ export default class Renderer {
     _WebGlErrored = () => {
         (this.renderer as WebGl2dImageRenderer).removeAllListeners();
         this.renderer = new Default2dImageRenderer(this.source.image, this);
+        this.contextLost = false;
     };
 
     setDimensions({ width, height }: DimensionOpts) {
