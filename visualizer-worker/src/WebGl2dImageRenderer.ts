@@ -113,6 +113,7 @@ export default class WebGl2dImageRenderer extends EventEmitter {
     }
 
     contextLost = (e: Event) => {
+        this.emit("contextLost");
         this.contextLostCallbackCheckedTimes = 0;
         this.contextLostCallbackCalled = true;
         e.preventDefault();
@@ -123,6 +124,7 @@ export default class WebGl2dImageRenderer extends EventEmitter {
         this.contextLostCallbackCalled = false;
         this.gl = getContext(this.renderer.canvas)!;
         this.init(this.width, this.height);
+        this.emit("contextRestored");
     };
 
     contextCreationErrored = () => {
@@ -377,4 +379,5 @@ export default class WebGl2dImageRenderer extends EventEmitter {
     }
 }
 
-export default interface WebGl2dImageRenderer extends EventEmitterInterface<{ error: () => void }> {}
+export default interface WebGl2dImageRenderer
+    extends EventEmitterInterface<{ error: () => void; contextLost: () => void; contextRestored: () => void }> {}

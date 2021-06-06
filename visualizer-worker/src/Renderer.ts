@@ -164,6 +164,7 @@ export default class Renderer {
     readonly ghostOpacity: number;
     readonly pixelRatio: number;
     readonly source: GraphicsSource;
+    private contextLost: boolean = false;
 
     constructor({
         canvas,
@@ -203,6 +204,8 @@ export default class Renderer {
         if (WebGl2dImageRenderer.isSupported(this.canvas)) {
             try {
                 this.renderer = new WebGl2dImageRenderer(this.source.image, this);
+                this.renderer.on("contextLost", this._WebGlContextLost);
+                this.renderer.on("contextRestored", this._WebGlContextRestored);
                 this.renderer.on("error", this._WebGlErrored);
                 this.renderer.init(this.width, this.height);
             } catch (e) {
@@ -213,8 +216,16 @@ export default class Renderer {
         }
     }
 
+    _WebGlContextLost = () => {
+        this.contextLost = true;
+    };
+
+    _WebGlContextRestored = () => {
+        this.contextLost = false;
+    };
+
     _WebGlErrored = () => {
-        (this.renderer as WebGl2dImageRenderer).removeAllListeners("error");
+        (this.renderer as WebGl2dImageRenderer).removeAllListeners();
         this.renderer = new Default2dImageRenderer(this.source.image, this);
     };
 
@@ -242,6 +253,9 @@ export default class Renderer {
     }
 
     drawBins(now: number, bins: Float64Array) {
+        if (this.contextLost) {
+            return false;
+        }
         this.renderer!.initScene();
 
         const { currentCapPositions, transitionInfoArray } = this;
