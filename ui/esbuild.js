@@ -61,6 +61,7 @@ const outputAssets = {
     generalWasm: `../dist/wasm/general.${buildType}.wasm`,
     generalWorker: "../dist/generalWorker.js",
     audioWorker: "../dist/audioWorker.js",
+    audioWorklet: "../dist/sinkWorklet.js",
     visualizerWorker: "../dist/visualizerWorker.js",
     zipperWorker: "../dist/zipperWorker.js",
     criticalCss: "../dist/critical.css",
@@ -76,6 +77,7 @@ const define = {
     "process.env.DEBUG": isDevelopment ? "true" : "false",
     "process.env.IMAGE_PATH": `"${resolveWebPath("../dist/assets/images")}"`,
     "process.env.GENERAL_WORKER_PATH": `"${resolveWebPath(outputAssets.generalWorker)}"`,
+    "process.env.AUDIO_WORKLET_PATH": `"${resolveWebPath(outputAssets.audioWorklet)}"`,
     "process.env.AUDIO_WORKER_PATH": `"${resolveWebPath(outputAssets.audioWorker)}"`,
     "process.env.VISUALIZER_WORKER_PATH": `"${resolveWebPath(outputAssets.visualizerWorker)}"`,
     "process.env.ZIPPER_WORKER_PATH": `"${resolveWebPath(outputAssets.zipperWorker)}"`,
@@ -189,6 +191,7 @@ const regularCssP = bundleSass("sass/app-css-public.scss", outputAssets.appCss, 
 const uibuildP = bundleJs("src/bootstrap.ts", outputAssets.appJs, "ui");
 const generalWorkerP = bundleJs("../general-worker/src/GeneralWorker.ts", outputAssets.generalWorker, "general-worker");
 const audioWorkerP = bundleJs("../audio-worker/src/AudioWorker.ts", outputAssets.audioWorker, "audio-worker");
+const audioWorkletP = bundleJs("../audio-worker/src/SinkWorklet.ts", outputAssets.audioWorklet, "audio-worker");
 
 const visualizerWorkerP = bundleJs(
     "../visualizer-worker/src/VisualizerWorker.ts",
@@ -220,6 +223,7 @@ if (!isWatch) {
         await swBuildP;
         await generalWorkerP;
         await audioWorkerP;
+        await audioWorkletP;
         await visualizerWorkerP;
         await zipperWorkerP;
         await mp3CodecBuildP;
