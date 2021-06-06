@@ -6,6 +6,7 @@ import {
     getCurve,
     MAX_SUSTAINED_AUDIO_SECONDS,
     MIN_SUSTAINED_AUDIO_SECONDS,
+    RENDERED_CHANNEL_COUNT,
     SUSTAINED_BUFFERED_AUDIO_RATIO,
 } from "shared/audio";
 import { debugFor } from "shared/debug";
@@ -65,6 +66,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
     private _fadeInStartedWithLength: number = 0;
     private _suspensionTimeoutId: number = -1;
     private _ignoreNextTrackLoads: boolean = false;
+    private _audioPlayerBackendPort: MessagePort | null = null;
 
     constructor(deps: Deps) {
         super("audio", deps.audioWorker);
@@ -89,16 +91,20 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
         void this._initBackend();
     }
 
+    get audioPlayerBackendPort() {
+        return this._audioPlayerBackendPort!;
+    }
+
     get audioContextState() {
         return this._audioContext.state;
     }
 
     get outputLatency() {
-        return this._audioContext.outputLatency;
+        return this._audioContext.outputLatency ?? 0;
     }
 
     get baseLatency() {
-        return this._audioContext.baseLatency;
+        return this._audioContext.baseLatency ?? 0;
     }
 
     get sampleRate() {
@@ -373,7 +379,7 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
 
     async _initBackend() {
         const { sampleRate } = this;
-        const channelCount = 2;
+        const channelCount = RENDERED_CHANNEL_COUNT;
         const sab = new SharedArrayBuffer(
             Float32Array.BYTES_PER_ELEMENT * channelCount * sampleRate * MAX_SUSTAINED_AUDIO_SECONDS + HEADER_BYTES
         );
@@ -409,22 +415,31 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
                 secondaryWorkletNode.port.onmessage = this._handleAudioWorkletMessage;
             })
         );
+        const msgChannel = new MessageChannel();
+        const visualizerPort = msgChannel.port1;
+        this._audioPlayerBackendPort = msgChannel.port2;
         await this.ready();
         const preferences = this.applicationPreferencesBindingContext.preferencesManager();
-        this.postMessageToAudioBackend("initialAudioConfiguration", {
-            loudnessNormalization: preferences.get("enableLoudnessNormalization"),
-            silenceTrimming: preferences.get("enableSilenceTrimming"),
-            effects: this.effectPreferencesBindingContext.getAudioPlayerEffects(),
-            crossfadeDuration: this.crossfadeDuration,
-            sab,
-            baseLatency: this.baseLatency,
-            outputLatency: this.outputLatency,
-            backgroundSab,
-            channelCount: channelCount,
-            sampleRate: this.sampleRate,
-            sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
-            bufferTime: this.bufferLengthSeconds,
-        });
+        this.postMessageToAudioBackend(
+            "initialAudioConfiguration",
+            {
+                loudnessNormalization: preferences.get("enableLoudnessNormalization"),
+                silenceTrimming: preferences.get("enableSilenceTrimming"),
+                effects: this.effectPreferencesBindingContext.getAudioPlayerEffects(),
+                crossfadeDuration: this.crossfadeDuration,
+                sab,
+                baseLatency: this.baseLatency,
+                outputLatency: this.outputLatency,
+                backgroundSab,
+                channelCount: channelCount,
+                sampleRate: this.sampleRate,
+                sustainedBufferedAudioSeconds: this.totalSustainedAudioSeconds,
+                bufferTime: this.bufferLengthSeconds,
+                visualizerPort,
+            },
+            [visualizerPort]
+        );
+
         dbg(
             "Initialization",
             "audio player backend initialized channelCount=",
@@ -517,9 +532,10 @@ export default class AudioPlayerFrontend extends WorkerFrontend<AudioPlayerResul
 
     postMessageToAudioBackend = <T extends string & keyof AudioPlayerBackendActions<unknown>>(
         action: T,
-        ...args: Parameters<AudioPlayerBackendActions<unknown>[T]>
+        opts?: Parameters<AudioPlayerBackendActions<unknown>[T]>[0],
+        transferList?: Transferable[]
     ) => {
-        this.postMessageToBackend(action, args);
+        this.postMessageToBackend(action, opts, transferList);
     };
 }
 

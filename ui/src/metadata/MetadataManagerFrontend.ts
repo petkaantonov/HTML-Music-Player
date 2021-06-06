@@ -10,7 +10,7 @@ import {
 import { DatabaseClosedEmitterTrait, DatabaseEventsMap } from "shared/platform/DatabaseClosedEmitterTrait";
 import { QuotaExceededEmitterTrait, QuotaExceededEventsMap } from "shared/platform/QuotaExceededEmitterTrait";
 import { debugFor } from "shared/src/debug";
-import { EventEmitterInterface } from "shared/types/helpers";
+import { EventEmitterInterface, PromiseResolve } from "shared/types/helpers";
 import { delay, hexString, ownPropOr, toTimeString } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page from "ui/platform/dom/Page";
@@ -405,6 +405,7 @@ export default class MetadataManagerFrontend extends WorkerFrontend<MetadataResu
     _persistentPermissionAsked: boolean;
     _mediaLibrarySize: number;
     _uidsToTrack: Map<string, Track>;
+    private mediaLibraryFetchedCallbacks: PromiseResolve<ArrayBuffer[]>[] = [];
 
     constructor(deps: Deps) {
         super("metadata", deps.generalWorker);
@@ -454,6 +455,12 @@ export default class MetadataManagerFrontend extends WorkerFrontend<MetadataResu
 
     receiveMessageFromBackend = (result: MetadataResult) => {
         switch (result.type) {
+            case "mediaLibraryFetched":
+                for (const callback of this.mediaLibraryFetchedCallbacks) {
+                    callback(result.trackUids);
+                }
+                this.mediaLibraryFetchedCallbacks = [];
+                break;
             case "acoustId":
                 return this._acoustIdDataFetched(result.trackInfo, result.trackInfoUpdated);
             case "albumArt":
@@ -625,6 +632,13 @@ export default class MetadataManagerFrontend extends WorkerFrontend<MetadataResu
                 await this._permissionPrompt.prompt(storage.persist.bind(storage));
             }
         }
+    };
+
+    fetchMediaLibrary = async (): Promise<ArrayBuffer[]> => {
+        return new Promise(resolve => {
+            this.mediaLibraryFetchedCallbacks.push(resolve);
+            this.postMessageToMetadataBackend("fetchMediaLibrary");
+        });
     };
 
     _fetchTrackInfoForTracks = async (trackUidsNeedingTrackInfo: ArrayBuffer[]) => {

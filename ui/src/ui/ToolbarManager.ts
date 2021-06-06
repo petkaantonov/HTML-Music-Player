@@ -1,8 +1,8 @@
+import { DECELERATE_CUBIC } from "shared/src/easing";
 import { animationPromisify } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapper } from "ui/platform/dom/Page";
 import GlobalEvents from "ui/platform/GlobalEvents";
-import { DECELERATE_CUBIC } from "ui/ui/animation/easing";
 import EventEmitter from "vendor/events";
 
 export const ABOVE_TOOLBAR_Z_INDEX = 942;

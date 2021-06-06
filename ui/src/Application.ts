@@ -26,7 +26,6 @@ import TrackDisplay from "ui/player/TrackDisplay";
 import SearchController from "ui/search/SearchController";
 import { PlayedTrackOriginContext } from "ui/tracks/TrackContainerController";
 import { ITEM_HEIGHT } from "ui/tracks/TrackView";
-import { ACCELERATE_CUBIC_INTERPOLATOR } from "ui/ui/animation/easing";
 import ApplicationPreferencesBindingContext from "ui/ui/ApplicationPreferencesBindingContext";
 import EffectPreferencesBindingContext from "ui/ui/EffectPreferencesBindingContext";
 import GestureRecognizerContext from "ui/ui/gestures/GestureRecognizerContext";
@@ -52,13 +51,15 @@ import AudioVisualizerFrontend from "../src/visualization/AudioVisualizerFronten
 const debugConfig = {
     //Application: "*",
     //Crossfader: ["fadeout"],
-    AudioSource: ["*", "!Verbose"],
-    AudioPlayerFrontend: "*",
+    //AudioSource: ["*", "!Verbose"],
+    // AudioPlayerFrontend: "*",
+    AudioVisualizerBackend: "*",
+    AudioVisualizerFrontend: "*",
     //Resampler: "*",
     //MetadataBackend: "*",
     //MetadataFrontend: "*",
     //demuxer: "*",
-    AudioPlayerBackend: ["*", "!ContinuousBuffering", "!Canceled"],
+    AudioPlayerBackend: ["visualizer"],
     //AudioProcessingPipeline: ["*", "!Verbose"],
 };
 
@@ -448,6 +449,15 @@ export default class Application {
                 minFrequency: 20,
                 bufferSize: 1024,
                 targetFps: 60,
+                capDropTime: 750,
+                interpolator: "ACCELERATE_CUBIC_INTERPOLATOR",
+                binWidth: 3,
+                gapWidth: 1,
+                capHeight: 1,
+                capSeparator: 2,
+                capStyle: `rgb(37,117,197)`,
+                ghostOpacity: 0.14,
+                pixelRatio: page.devicePixelRatio() || 1,
             },
             {
                 visualizerWorker,
@@ -634,29 +644,13 @@ export default class Application {
         const visualizerCanvas = new VisualizerCanvas(
             {
                 target: `#visualizer`,
-                binWidth: 3,
-                gapWidth: 1,
-                capHeight: 1,
-                capSeparator: 2,
-                capStyle: `rgb(37,117,197)`,
-                capDropTime: 750,
-                ghostOpacity: 0.14,
-                capInterpolator: ACCELERATE_CUBIC_INTERPOLATOR,
                 enabledMediaMatcher: matchMedia(`(min-height: 500px)`),
             },
             {
-                player,
                 page,
                 globalEvents,
-                recognizerContext,
-                snackbar,
-                env,
-                rippler,
-                menuContext,
-                sliderContext,
             }
         );
-        visualizer.setCanvas(visualizerCanvas);
 
         /* eslint-enable no-unused-vars */
         this.page.addDocumentListener(`keydown`, this.documentKeydowned, { capture: true });
@@ -674,10 +668,10 @@ export default class Application {
         db.on("databaseClosed", this._databaseClosed);
 
         void (async () => {
+            visualizer.initialize(visualizerCanvas);
             dbg("Performance", "css load time", cssLoadTime, "ms");
             page.$(`#app-loader`).remove();
             void mainTabs.tabController.activateTabById(dbValues.visibleTabId);
-            void visualizerCanvas.initialize();
             globalEvents._triggerSizeChange();
 
             const preferenceLoadStart = performance.now();

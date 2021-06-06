@@ -1,8 +1,8 @@
+import { DECELERATE_CUBIC } from "shared/src/easing";
 import { typedKeys } from "shared/types/helpers";
 import { animationPromisify } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page, { BaseKeyFrames, DomWrapper } from "ui/platform/dom/Page";
-import { DECELERATE_CUBIC } from "ui/ui/animation/easing";
 
 const fadeInAnimationOptions: KeyframeAnimationOptions = {
     fill: `both`,

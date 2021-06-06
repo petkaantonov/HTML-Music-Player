@@ -48,7 +48,7 @@ export default class Resampler extends BufferAllocator {
         if (this._ptr === 0) {
             throw new Error(`start() not called`);
         }
-        return Math.ceil((this.destinationSampleRate / this.sourceSampleRate) * frames);
+        return Math.floor((this.destinationSampleRate / this.sourceSampleRate) * frames);
     }
 
     resample(samplesPtr: number, byteLength: number) {

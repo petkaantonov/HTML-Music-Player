@@ -3,6 +3,7 @@ import * as io from "io-ts";
 import { ChannelCount, FileReference } from "./metadata";
 import { AudioPlayerEffects } from "./preferences";
 
+export const RENDERED_CHANNEL_COUNT = 2;
 export const FLOAT32_BYTES = 4;
 export const WEB_AUDIO_BLOCK_SIZE = 128;
 export const MAX_FRAME = 8388608 * WEB_AUDIO_BLOCK_SIZE;
@@ -42,6 +43,10 @@ export interface AudioConfig {
     backgroundSab?: SharedArrayBuffer;
     sampleRate?: number;
     channelCount?: number;
+}
+
+export interface AudioBackendInitOpts extends Required<AudioConfig> {
+    visualizerPort: MessagePort;
 }
 
 export type ChannelData = Float32Array[];
@@ -85,7 +90,7 @@ export interface PauseOpts {
 
 export interface AudioPlayerBackendActions<T> {
     timeUpdate: (this: T) => void;
-    initialAudioConfiguration: (this: T, args: Required<AudioConfig>) => void;
+    initialAudioConfiguration: (this: T, args: AudioBackendInitOpts) => void;
     audioConfigurationChange: (this: T, args: AudioConfig) => void;
     pause: (this: T, opts: PauseOpts) => void;
     resume: (this: T) => void;

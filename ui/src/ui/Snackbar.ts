@@ -1,10 +1,10 @@
 import * as io from "io-ts";
+import { DECELERATE_CUBIC } from "shared/src/easing";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { animationPromisify, delay } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapper, DomWrapperSelector } from "ui/platform/dom/Page";
 import GlobalEvents from "ui/platform/GlobalEvents";
-import { DECELERATE_CUBIC } from "ui/ui/animation/easing";
 import EventEmitter from "vendor/events";
 
 import GestureObject from "./gestures/GestureObject";

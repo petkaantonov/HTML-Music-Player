@@ -1,15 +1,15 @@
-import VisualizerCanvas from "./VisualizerCanvas";
+import Renderer from "./Renderer";
 
 export default class Default2dImageRenderer {
-    image: HTMLImageElement;
-    visualizerCanvas: VisualizerCanvas;
-    context: CanvasRenderingContext2D;
+    image: ImageBitmap;
+    renderer: Renderer;
+    context: OffscreenCanvasRenderingContext2D;
     width: number;
     height: number;
-    constructor(image: HTMLImageElement, visualizerCanvas: VisualizerCanvas) {
+    constructor(image: ImageBitmap, renderer: Renderer) {
         this.image = image;
-        this.visualizerCanvas = visualizerCanvas;
-        this.context = visualizerCanvas.canvas.getContext(`2d`, { alpha: false })!;
+        this.renderer = renderer;
+        this.context = renderer.canvas.getContext(`2d`, { alpha: false })!;
         this.width = this.height = 0;
     }
 
@@ -37,13 +37,13 @@ export default class Default2dImageRenderer {
     }
 
     drawCaps(bins: Float64Array) {
-        const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-        const { gapWidth, capSeparator, currentCapPositions } = this.visualizerCanvas;
-        const binSpace = this.visualizerCanvas.binWidth + gapWidth;
-        const capSourceX = this.visualizerCanvas.source!.capX - gapWidth;
-        const capSourceY = this.visualizerCanvas.source!.capY - gapWidth;
-        const capWidth = this.visualizerCanvas.binWidth + gapWidth * 2;
-        const capHeight = this.visualizerCanvas.capHeight + gapWidth * 2;
+        const highestBinHeight = this.renderer.getHighestBinHeight();
+        const { gapWidth, capSeparator, currentCapPositions } = this.renderer;
+        const binSpace = this.renderer.binWidth + gapWidth;
+        const capSourceX = this.renderer.source!.capX - gapWidth;
+        const capSourceY = this.renderer.source!.capY - gapWidth;
+        const capWidth = this.renderer.binWidth + gapWidth * 2;
+        const capHeight = this.renderer.capHeight + gapWidth * 2;
 
         for (let i = 0; i < bins.length; ++i) {
             const binValue = bins[i]!;
@@ -72,13 +72,13 @@ export default class Default2dImageRenderer {
     }
 
     drawBins(bins: Float64Array) {
-        const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-        const { binWidth, gapWidth } = this.visualizerCanvas;
+        const highestBinHeight = this.renderer.getHighestBinHeight();
+        const { binWidth, gapWidth } = this.renderer;
         const fullWidth = binWidth + gapWidth * 2;
         const width = binWidth + gapWidth;
         // TODO this is actually sourceRowHeight.
         // Var canvasHeight = this.height;
-        const sourceBinPositions = this.visualizerCanvas.source!.binPositions;
+        const sourceBinPositions = this.renderer.source!.binPositions;
 
         for (let i = 0; i < bins.length; ++i) {
             const binValue = bins[i]!;

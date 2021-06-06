@@ -1,4 +1,7 @@
-import VisualizerCanvas from "./VisualizerCanvas";
+import { EventEmitterInterface } from "shared/types/helpers";
+import EventEmitter from "vendor/events";
+
+import Renderer from "./Renderer";
 
 const VERTEX_SHADER_SOURCE = `
     precision mediump float;
@@ -33,29 +36,18 @@ const FRAGMENT_SHADER_SOURCE = `
     }
 `;
 
-function getContext(canvas: HTMLCanvasElement): WebGLRenderingContext {
-    let gl;
+function getContext(canvas: OffscreenCanvas): WebGLRenderingContext | null {
     try {
-        gl = canvas.getContext(`webgl`, { premultipliedAlpha: true, alpha: false });
+        return canvas.getContext(`webgl`, { premultipliedAlpha: true, alpha: false });
     } catch (e) {
-        gl = null;
+        return null;
     }
-
-    if (gl) return gl;
-
-    try {
-        gl = canvas.getContext(`experimental-webgl`, { premultipliedAlpha: true, alpha: false });
-    } catch (e) {
-        gl = null;
-    }
-
-    return gl as WebGLRenderingContext;
 }
 
-export default class WebGl2dImageRenderer {
-    visualizerCanvas: VisualizerCanvas;
+export default class WebGl2dImageRenderer extends EventEmitter {
+    renderer: Renderer;
     gl: WebGLRenderingContext;
-    image: HTMLImageElement;
+    image: ImageBitmap;
     vertexShader: null | WebGLShader;
     fragmentShader: null | WebGLShader;
     program: null | WebGLProgram;
@@ -82,9 +74,10 @@ export default class WebGl2dImageRenderer {
     capTexturePositionsPopulatedForLength: number;
     contextLostCallbackCheckedTimes: number;
 
-    constructor(image: HTMLImageElement, visualizerCanvas: VisualizerCanvas) {
-        this.visualizerCanvas = visualizerCanvas;
-        this.gl = getContext(visualizerCanvas.canvas);
+    constructor(image: ImageBitmap, renderer: Renderer) {
+        super();
+        this.renderer = renderer;
+        this.gl = getContext(renderer.canvas)!;
         this.image = image;
         this.vertexShader = null;
         this.fragmentShader = null;
@@ -114,10 +107,9 @@ export default class WebGl2dImageRenderer {
         this.capTexturePositionsPopulatedForLength = 0;
         this.contextLostCallbackCalled = false;
         this.contextLostCallbackCheckedTimes = 0;
-        this.visualizerCanvas.canvas.addEventListener(`webglcontextlost`, this.contextLost, false);
-        this.visualizerCanvas.canvas.addEventListener(`webglcontextrestored`, this.contextRestored, false);
-        this.visualizerCanvas.canvas.addEventListener(`webglcontextcreationerror`, this.contextCreationErrored, false);
-        this.visualizerCanvas.on(`canvasChange`, this.canvasChanged);
+        this.renderer.canvas.addEventListener(`webglcontextlost`, this.contextLost, false);
+        this.renderer.canvas.addEventListener(`webglcontextrestored`, this.contextRestored, false);
+        this.renderer.canvas.addEventListener(`webglcontextcreationerror`, this.contextCreationErrored, false);
     }
 
     contextLost = (e: Event) => {
@@ -129,38 +121,12 @@ export default class WebGl2dImageRenderer {
     contextRestored = () => {
         this.contextLostCallbackCheckedTimes = 0;
         this.contextLostCallbackCalled = false;
-        this.gl = getContext(this.visualizerCanvas.canvas);
+        this.gl = getContext(this.renderer.canvas)!;
         this.init(this.width, this.height);
     };
 
-    /* eslint-disable class-methods-use-this */
     contextCreationErrored = () => {
-        // Noop
-    };
-
-    usesHardwareAcceleration() {
-        return true;
-    }
-    /* eslint-enable class-methods-use-this*/
-
-    destroy() {
-        this.visualizerCanvas.canvas.removeEventListener(`webglcontextlost`, this.contextLost, false);
-        this.visualizerCanvas.canvas.removeEventListener(`webglcontextrestored`, this.contextRestored, false);
-        this.visualizerCanvas.canvas.removeEventListener(
-            `webglcontextcreationerror`,
-            this.contextCreationErrored,
-            false
-        );
-        this.visualizerCanvas.removeListener(`canvasChange`, this.canvasChanged);
-    }
-
-    canvasChanged = (newCanvas: HTMLCanvasElement, oldCanvas: HTMLCanvasElement) => {
-        oldCanvas.removeEventListener(`webglcontextlost`, this.contextLost, false);
-        oldCanvas.removeEventListener(`webglcontextrestored`, this.contextRestored, false);
-        oldCanvas.removeEventListener(`webglcontextcreationerror`, this.contextCreationErrored, false);
-        newCanvas.addEventListener(`webglcontextlost`, this.contextLost, false);
-        newCanvas.addEventListener(`webglcontextrestored`, this.contextRestored, false);
-        newCanvas.addEventListener(`webglcontextcreationerror`, this.contextCreationErrored, false);
+        this.emit("error");
     };
 
     init(_width: number, _height: number) {
@@ -242,16 +208,6 @@ export default class WebGl2dImageRenderer {
         this.setDimensions();
     }
 
-    reinitBrokenCanvas() {
-        this.visualizerCanvas.resetCanvas();
-        this.gl = getContext(this.visualizerCanvas.canvas);
-        if (!this.gl) {
-            this.visualizerCanvas.useSoftwareRendering();
-        } else {
-            this.init(this.width, this.height);
-        }
-    }
-
     initScene() {
         this.draws = 0;
         this.positionIndex = 0;
@@ -260,19 +216,8 @@ export default class WebGl2dImageRenderer {
 
     drawScene() {
         const { gl } = this;
-        if (!gl) {
-            this.reinitBrokenCanvas();
-            return;
-        }
 
         if (gl.isContextLost()) {
-            if (!this.contextLostCallbackCalled) {
-                this.contextLostCallbackCheckedTimes++;
-                if (this.contextLostCallbackCheckedTimes > 5) {
-                    this.contextLostCallbackCheckedTimes = 0;
-                    this.reinitBrokenCanvas();
-                }
-            }
             return;
         }
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -290,10 +235,10 @@ export default class WebGl2dImageRenderer {
 
     populateCapTexturePositions(bins: Float64Array) {
         if (this.capTexturePositionsPopulatedForLength !== bins.length) {
-            const capSourceX = this.visualizerCanvas.source!.capX - this.visualizerCanvas.gapWidth;
-            const capSourceY = this.visualizerCanvas.source!.capY - this.visualizerCanvas.gapWidth;
-            const capWidth = this.visualizerCanvas.binWidth + this.visualizerCanvas.gapWidth * 2;
-            const capHeight = this.visualizerCanvas.capHeight + this.visualizerCanvas.gapWidth * 2;
+            const capSourceX = this.renderer.source!.capX - this.renderer.gapWidth;
+            const capSourceY = this.renderer.source!.capY - this.renderer.gapWidth;
+            const capWidth = this.renderer.binWidth + this.renderer.gapWidth * 2;
+            const capHeight = this.renderer.capHeight + this.renderer.gapWidth * 2;
 
             this.capTexturePositionsPopulatedForLength = bins.length;
             const { positions } = this;
@@ -321,12 +266,12 @@ export default class WebGl2dImageRenderer {
     drawCaps(bins: Float64Array) {
         if (this.positionIndex !== 0) throw new Error(`caps must be drawn first`);
         this.populateCapTexturePositions(bins);
-        const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-        const { currentCapPositions, gapWidth, capSeparator, binWidth } = this.visualizerCanvas;
+        const highestBinHeight = this.renderer.getHighestBinHeight();
+        const { currentCapPositions, gapWidth, capSeparator, binWidth } = this.renderer;
         const { positions } = this;
         const binSpace = binWidth + gapWidth;
         const capWidth = binWidth + gapWidth * 2;
-        const capHeight = this.visualizerCanvas.capHeight + gapWidth * 2;
+        const capHeight = this.renderer.capHeight + gapWidth * 2;
 
         let j = 0;
         for (let i = 0; i < bins.length; ++i) {
@@ -366,11 +311,11 @@ export default class WebGl2dImageRenderer {
         const positions = this.positionsInt32View;
         let j = this.positionIndex / 2;
 
-        const highestBinHeight = this.visualizerCanvas.getHighestBinHeight();
-        const { binWidth, gapWidth } = this.visualizerCanvas;
+        const highestBinHeight = this.renderer.getHighestBinHeight();
+        const { binWidth, gapWidth } = this.renderer;
         const fullWidth = binWidth + gapWidth * 2;
         const width = binWidth + gapWidth;
-        const sourceBinPositions = this.visualizerCanvas.source!.binPositions;
+        const sourceBinPositions = this.renderer.source!.binPositions;
         // TODO: this is actually sourceRowHeight.
         const canvasHeight = this.height;
 
@@ -407,8 +352,8 @@ export default class WebGl2dImageRenderer {
     }
 
     positionCount() {
-        const numBins = this.visualizerCanvas.getMaxBins();
-        const objectsPerBin = this.visualizerCanvas.objectsPerBin();
+        const numBins = this.renderer.getMaxBins();
+        const objectsPerBin = this.renderer.objectsPerBin;
         return numBins * objectsPerBin * (3 + 3) * 2 * 2;
     }
 
@@ -427,7 +372,9 @@ export default class WebGl2dImageRenderer {
         this.gl.uniform2f(this.canvasResolution, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
     }
 
-    static isSupported() {
-        return !!getContext(document.createElement(`canvas`));
+    static isSupported(canvas: OffscreenCanvas) {
+        return !!getContext(canvas);
     }
 }
+
+export default interface WebGl2dImageRenderer extends EventEmitterInterface<{ error: () => void }> {}

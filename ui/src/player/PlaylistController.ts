@@ -138,7 +138,13 @@ export default class PlaylistController extends TrackContainerController<"playli
 
     async loadPreferences() {
         const persistedPlaylist = this.dbValues.playlistContents;
-        await this._loadPersistedPlaylist(persistedPlaylist);
+        if (process.env.NODE_ENV === "development" && (!persistedPlaylist || !persistedPlaylist.length)) {
+            await this.metadataManager.ready();
+            const mediaLib = await this.metadataManager.fetchMediaLibrary();
+            await this._loadPersistedPlaylist(mediaLib);
+        } else {
+            await this._loadPersistedPlaylist(persistedPlaylist);
+        }
         this.getPlayedTrackOrigin().originInitialTracksLoaded();
 
         const playlistHistory = this.dbValues.playlistHistory;

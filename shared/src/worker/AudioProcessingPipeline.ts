@@ -68,6 +68,7 @@ export default class AudioProcessingPipeline {
     resampler?: Resampler;
     loudnessAnalyzer?: LoudnessAnalyzer;
     loudnessNormalizer?: LoudnessAnalyzer;
+    previousEndFrame: number = -1;
     fingerprinter?: Fingerprinter;
     bufferTime: number;
     targetDestinationBufferAudioFrameCount: number;
@@ -162,6 +163,10 @@ export default class AudioProcessingPipeline {
             freeChannelMixer(this.channelMixer);
             this.channelMixer = undefined;
         }
+    }
+
+    applySeek() {
+        this.previousEndFrame = -1;
     }
 
     consumeFilledBuffer() {
@@ -293,9 +298,10 @@ export default class AudioProcessingPipeline {
         let startAudioFrameDestinationSampleRate: number = startAudioFrameSourceSampleRate;
         if (sourceSampleRate !== destinationSampleRate) {
             ({ samplePtr, byteLength } = resampler!.resample(samplePtr, byteLength));
-            startAudioFrameDestinationSampleRate = resampler!.convertInDestinationSampleRate(
-                startAudioFrameSourceSampleRate
-            );
+            startAudioFrameDestinationSampleRate =
+                this.previousEndFrame === -1
+                    ? resampler!.convertInDestinationSampleRate(startAudioFrameSourceSampleRate)
+                    : this.previousEndFrame;
         }
 
         if (sourceChannelCount !== destinationChannelCount) {
@@ -344,6 +350,7 @@ export default class AudioProcessingPipeline {
             channelData,
             loudnessInfo
         );
+        this.previousEndFrame = startAudioFrameDestinationSampleRate + destinationFrameLength;
         return destinationFrameLength;
     }
 }

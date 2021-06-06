@@ -45,6 +45,11 @@ export interface TrackMetadataResult extends BaseMetaDataResult {
     };
 }
 
+export interface MediaLibraryFetchedResult extends BaseMetaDataResult {
+    type: "mediaLibraryFetched";
+    trackUids: ArrayBuffer[];
+}
+
 export interface TrackInfoBatchResult extends BaseMetaDataResult {
     type: "trackInfoBatch";
     trackInfos: TrackInfo[];
@@ -84,6 +89,7 @@ export type MetadataResult =
     | UidsMappedToFilesResult
     | NewTrackFromTmpFileResult
     | FileReferenceUnavailableResult
+    | MediaLibraryFetchedResult
     | QuotaExceededResult
     | DatabaseClosedResult;
 
@@ -124,6 +130,7 @@ export interface AlbumArtOptions extends BaseMetadataOpts {
 }
 
 export interface MetadataManagerBackendActions<T> {
+    fetchMediaLibrary: (this: T) => void;
     setRating: (this: T, o: RatingOpts) => void;
     setSkipCounter: (this: T, o: CounterOpts) => void;
     setPlaythroughCounter: (this: T, o: CounterOpts) => void;

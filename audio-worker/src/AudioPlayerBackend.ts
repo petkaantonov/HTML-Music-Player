@@ -1,4 +1,5 @@
 import {
+    AudioBackendInitOpts,
     AudioConfig,
     AudioPlayerBackendActions,
     AudioPlayerResult,
@@ -9,15 +10,18 @@ import {
     NextTrackResponseOpts,
     PauseOpts,
     PRELOAD_THRESHOLD_SECONDS,
+    RENDERED_CHANNEL_COUNT,
     SeekOpts,
     TIME_UPDATE_RESOLUTION,
 } from "shared/audio";
 import TagDatabase from "shared/idb/TagDatabase";
 import { debugFor } from "shared/src/debug";
-import { PromiseResolve, typedKeys } from "shared/src/types/helpers";
+import { decode, PromiseResolve, typedKeys } from "shared/src/types/helpers";
 import { closestPowerOf2 } from "shared/src/util";
 import CircularAudioBuffer from "shared/src/worker/CircularAudioBuffer";
+import VisualizerBus from "shared/src/worker/VisualizerBus";
 import { CancellationError, CancellationToken } from "shared/utils/CancellationToken";
+import { AudioBackendMessage, VisualizerMessage } from "shared/visualizer";
 import WebAssemblyWrapper from "shared/wasm/WebAssemblyWrapper";
 import AbstractBackend from "shared/worker/AbstractBackend";
 import Effects from "shared/worker/Effects";
@@ -94,7 +98,7 @@ class AudioData {
         this.cab.unsetPaused();
     }
 
-    getSamplesAtRelativeFramesFromCurrent(offsetFrames: number, frameCount: number, channelData: ChannelData): void {
+    getSamplesAtRelativeFramesFromCurrent(offsetFrames: number, frameCount: number, output: Float32Array): number {
         let start = this.getCurrentlyPlayedFrame() + offsetFrames;
         const end = start + frameCount;
         const q = this.data;
@@ -104,24 +108,22 @@ class AudioData {
             if (descriptor.startFrames <= start && start <= descriptor.endFrames) {
                 const startOffset = start - descriptor.startFrames;
                 const length = Math.min(end - start, descriptor.length - startOffset);
-                for (let c = 0; c < channelData.length; ++c) {
+                for (let c = 0; c < RENDERED_CHANNEL_COUNT; ++c) {
                     const sourceChannel = q[i]!.channelData[c]!;
-                    const destinationChannel = channelData[c];
-                    destinationChannel.set(sourceChannel.subarray(startOffset, startOffset + length), dstOffset);
+                    for (let i = 0; i < length; ++i) {
+                        output[(i + dstOffset) * RENDERED_CHANNEL_COUNT + c] = sourceChannel[i + startOffset];
+                    }
                 }
+
                 start += length;
                 dstOffset += length;
                 if (end - start <= 0) {
-                    return;
+                    return dstOffset;
                 }
             }
         }
-        if (dstOffset < frameCount) {
-            for (let c = 0; c < channelData.length; ++c) {
-                channelData[c].fill(0, dstOffset);
-            }
-        }
-        return;
+
+        return dstOffset;
     }
 
     getQueuedAndBufferedSeconds(sampleRate: number) {
@@ -378,6 +380,8 @@ export default class AudioPlayerBackend extends AbstractBackend<
     private _tagdb: TagDatabase;
     private _timeUpdatePromiseCallbacks: PromiseResolve<void>[] = [];
 
+    private _visualizerPort: MessagePort | null = null;
+    private visualizerBus: VisualizerBus | null = null;
     private primaryData: AudioData | null = null;
     private secondaryData: AudioData | null = null;
     private activeData: AudioData | null = null;
@@ -417,6 +421,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             dbg("Action", "paused passiveData, delayFrames=", delayFrames);
             this.passiveData!.pause(delayFrames);
         }
+        this.postVisualizerMessage({ type: "pause" });
     }
 
     _doResume(includePassive: boolean = true) {
@@ -426,6 +431,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             dbg("Action", "resuming passiveData");
             this.passiveData!.resume();
         }
+        this.postVisualizerMessage({ type: "resume" });
     }
 
     _resumeReceived() {
@@ -642,7 +648,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
     };
 
-    _initialAudioConfigurationReceived = (config: Required<AudioConfig>) => {
+    _initialAudioConfigurationReceived = (config: AudioBackendInitOpts) => {
         this._config = config;
         this.primaryData = new AudioData(new CircularAudioBuffer(config.sab, config.channelCount), "foreground");
         this.secondaryData = new AudioData(
@@ -656,6 +662,35 @@ export default class AudioPlayerBackend extends AbstractBackend<
 
         this._configUpdated();
         dbg("Initialization", "backend initialized");
+        this._visualizerPort = config.visualizerPort;
+        this._visualizerPort.onmessage = this.receiveVisualizerMmessage;
+    };
+
+    postVisualizerMessage(msg: AudioBackendMessage) {
+        this._visualizerPort!.postMessage(msg);
+    }
+
+    receiveVisualizerMmessage = (e: MessageEvent<unknown>) => {
+        const message = decode(VisualizerMessage, e.data);
+        switch (message.type) {
+            case "initialize":
+                dbg("visualizer", "initialized visualizer");
+                this.visualizerBus = new VisualizerBus(message.sab);
+                break;
+            case "audioFramesForVisualizer": {
+                const framesIntoFuture = Math.round(message.latency * this.sampleRate);
+                let framesWritten = 0;
+                if (this.activeData && !this.activeData.isPaused()) {
+                    framesWritten = this.activeData.getSamplesAtRelativeFramesFromCurrent(
+                        framesIntoFuture,
+                        message.frames,
+                        this.visualizerBus!.getDataRefForFrameCount(message.frames)
+                    );
+                }
+                this.visualizerBus!.notifyFramesWritten(framesWritten);
+                break;
+            }
+        }
     };
 
     _audioConfigurationChangeReceived = (config: AudioConfig) => {

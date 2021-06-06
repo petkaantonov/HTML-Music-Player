@@ -75,8 +75,12 @@ export default abstract class AbstractBackend<ActionType, F extends FrontendName
         channelsToBackends.set(this._channel, this);
     }
 
-    receiveFrontendMessage(action: string, args: any[], transferList?: ArrayBuffer[]) {
-        (this.actions as any)[action]!.apply(this, [...args, transferList]);
+    receiveFrontendMessage(action: string, args: any[] | any, transferList?: ArrayBuffer[]) {
+        if (Array.isArray(args)) {
+            (this.actions as any)[action]!.apply(this, [...args, transferList]);
+        } else {
+            (this.actions as any)[action]!.call(this, args, transferList);
+        }
     }
 
     postMessageToFrontend(args: any[], transferList?: Transferable[]) {

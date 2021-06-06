@@ -1,3 +1,4 @@
+import { DECELERATE_CUBIC } from "shared/src/easing";
 import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
 import { PopupPreferenceKey, PreferenceArray, StoredKVValues } from "shared/src/preferences";
 import { animationPromisify } from "shared/util";
@@ -6,7 +7,6 @@ import KeyboardShortcuts from "ui/keyboard/KeyboardShortcuts";
 import Page, { BaseKeyFrames, DomWrapper } from "ui/platform/dom/Page";
 import Env from "ui/platform/Env";
 import GlobalEvents from "ui/platform/GlobalEvents";
-import { DECELERATE_CUBIC } from "ui/ui/animation/easing";
 import Popup, { PopupButtonOpts } from "ui/ui/Popup";
 
 import GestureRecognizerContext from "./gestures/GestureRecognizerContext";

@@ -1,7 +1,7 @@
+import { DECELERATE_QUINT, LINEAR } from "shared/src/easing";
 import { animationPromisify } from "shared/util";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapper, DomWrapperSelector } from "ui/platform/dom/Page";
-import { DECELERATE_QUINT, LINEAR } from "ui/ui/animation/easing";
 
 const BOUNDED_OPACITY_DURATION = 850;
 const BOUNDED_RADIUS_DURATION = 650;

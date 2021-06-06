@@ -1,9 +1,9 @@
+import { SWIFT_OUT } from "shared/src/easing";
 import { TabId } from "shared/src/preferences";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { _, _call, _equals, animationPromisify } from "shared/util";
 import Page, { DomWrapper } from "ui/platform/dom/Page";
 import GlobalEvents from "ui/platform/GlobalEvents";
-import { SWIFT_OUT } from "ui/ui/animation/easing";
 import EventEmitter from "vendor/events";
 
 import GestureObject from "./gestures/GestureObject";

@@ -193,6 +193,11 @@ export default class MetadataManagerBackend extends AbstractBackend<
 
     constructor(wasm: WebAssemblyWrapper, database: TagDatabase, searchBackend: SearchBackend, logFn: LogFunction) {
         super("metadata", {
+            async fetchMediaLibrary() {
+                if (!this.canUseDatabase()) return;
+                const trackUids = await this._tagdb.getMediaLibraryTrackUids();
+                this.postMessageToMetadataFrontend({ type: "mediaLibraryFetched", trackUids });
+            },
             setRating({ trackUid, rating }) {
                 if (!this.canUseDatabase()) return;
                 void this._tagdb.updateRating(trackUid, rating);

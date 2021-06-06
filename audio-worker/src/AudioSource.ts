@@ -438,6 +438,9 @@ export default class AudioSource extends CancellableOperations(
         cancellationToken.check();
         this._filePosition = seekerResult.offset;
         this._decoder!.applySeek(seekerResult);
+        if (this._audioPipeline) {
+            this._audioPipeline.applySeek();
+        }
         this.ended = false;
 
         this._crossfader.setDuration(this.backend.crossfadeDuration!);

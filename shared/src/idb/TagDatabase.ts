@@ -241,6 +241,13 @@ export default class TagDatabase {
         return iDbPromisify(store.count());
     }
 
+    async getMediaLibraryTrackUids(): Promise<ArrayBuffer[]> {
+        this._checkClosed();
+        const db = await this.db;
+        const store = db.transaction(TRACK_INFO_OBJECT_STORE_NAME, READ_ONLY).objectStore(TRACK_INFO_OBJECT_STORE_NAME);
+        return iDbPromisify(store.getAllKeys()) as any;
+    }
+
     async _primaryOrUniqueKeyInArrayQuery<T>(
         storeName: string,
         listOfPrimaryKeys: ArrayBuffer[],

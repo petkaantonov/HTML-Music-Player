@@ -42,10 +42,10 @@ export default abstract class WorkerFrontend<T extends ResultType> extends Event
         await Promise.all([this._readyPromise, ...this._additionalReadyPromises]);
     }
 
-    postMessageToBackend(action: string, args: any[], transferList?: Transferable[]) {
+    postMessageToBackend(action: string, opts: any, transferList?: Transferable[]) {
         if (!this._channel) {
             throw new Error(`attempting to send message before ready()`);
         }
-        this._workerWrapper.postBackendMessage(this._channel, action, args, transferList);
+        this._workerWrapper.postBackendMessage(this._channel, action, opts, transferList);
     }
 }

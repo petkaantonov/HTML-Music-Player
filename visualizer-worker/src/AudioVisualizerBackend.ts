@@ -1,6 +1,22 @@
 import realFft from "shared/realfft";
-import { AudioVisualizerBackendActions, AudioVisualizerResult } from "shared/visualizer";
+import { RENDERED_CHANNEL_COUNT } from "shared/src/audio";
+import { debugFor } from "shared/src/debug";
+import { decode } from "shared/src/types/helpers";
+import VisualizerBus, { HEADER_BYTES } from "shared/src/worker/VisualizerBus";
+import {
+    AudioBackendMessage,
+    AudioVisualizerBackendActions,
+    DimensionOpts,
+    VisibilityOpts,
+    VisualizerMessage,
+    VisualizerOpts,
+} from "shared/visualizer";
 import AbstractBackend from "shared/worker/AbstractBackend";
+
+import Renderer from "./Renderer";
+const dbg = debugFor("AudioVisualizerBackend");
+
+const cachedBins = new Float64Array(300);
 
 const weights = new Float32Array([
     0,
@@ -75,73 +91,232 @@ const weights = new Float32Array([
     0.34276778654645035,
 ]);
 
+// FPS
+// Dimensions
+// Latency
 export default class AudioVisualizerBackend extends AbstractBackend<
     AudioVisualizerBackendActions<AudioVisualizerBackend>,
     "visualizer"
 > {
-    _maxFrequency: number;
-    _minFrequency: number;
-    _bufferSize: number;
-    _baseSmoothingConstant: number;
-    _visualizerData: Float32Array | null;
-    _windowData: Float32Array | null;
+    private _frameSkip = 1;
+    private _numericFrameId = 0;
+    private audioPlayerBackendport: MessagePort | null = null;
+    private bus: VisualizerBus | null = null;
+    private renderer: Renderer | null = null;
+    private sampleRate: number = 0;
+    private _maxFrequency: number = 0;
+    private animationFrameRequested: boolean = false;
+    private paused: boolean = true;
+    private visible: boolean = false;
+    private lastRenderTime: number = 0;
+    private _minFrequency: number = 0;
+    private fps: number = 0;
+    private audioPlayerLatency: number = 0;
+    private _bufferSize: number = 0;
+    private _baseSmoothingConstant: number = 0;
+    private _visualizerData: Float32Array | null = null;
+    private _windowData: Float32Array | null = null;
+    private avgLatency: number = 0;
     constructor() {
         super("visualizer", {
-            configure({ maxFrequency, minFrequency, bufferSize, baseSmoothingConstant }) {
-                this._maxFrequency = maxFrequency;
-                this._minFrequency = minFrequency;
-                this._bufferSize = bufferSize;
-                this._baseSmoothingConstant = baseSmoothingConstant;
-
-                this._visualizerData = new Float32Array(this._bufferSize);
-                this._windowData = new Float32Array(this._bufferSize);
-                this._fillWindow();
-            },
-
-            getBins({ channelData, bins, frameDescriptor }) {
-                const channelDataF32 = channelData.map(v => new Float32Array(v));
-                const binsF64 = new Float64Array(bins);
-                const { channelCount, sampleRate } = frameDescriptor;
-                const { _visualizerData: visualizerData, _windowData: windowData, _bufferSize: bufferSize } = this;
-
-                if (channelCount === 2) {
-                    const [src0, src1] = channelDataF32;
-
-                    for (let i = 0; i < bufferSize; ++i) {
-                        visualizerData![i] = Math.fround((Math.fround(src0![i]! + src1![i]!) / 2) * windowData![i]!);
-                    }
-                } else if (channelCount === 1) {
-                    const [src] = channelDataF32;
-
-                    for (let i = 0; i < bufferSize; ++i) {
-                        visualizerData![i] = Math.fround(src![i]! * windowData![i]!);
-                    }
-                } else {
-                    return;
-                }
-
-                realFft(visualizerData!);
-                this._calculateBins(visualizerData!, binsF64, sampleRate);
-                const transferList: any[] = channelData.concat(bins as any);
-                this.postMessageToVisualizer(
-                    {
-                        type: "bins",
-                        bins,
-                        channelData,
-                    },
-                    transferList
-                );
-            },
+            setVisibility: (opts: VisibilityOpts) => this._setVisibility(opts),
+            setDimensions: (opts: DimensionOpts) => this._setDimensions(opts),
+            initialize: (opts: VisualizerOpts) => this._initialize(opts),
         });
-
-        this._maxFrequency = 0;
-        this._minFrequency = 0;
-        this._bufferSize = 0;
-        this._baseSmoothingConstant = 0;
-
-        this._visualizerData = null;
-        this._windowData = null;
     }
+
+    get bins(): number {
+        return this.renderer!.getNumBins();
+    }
+
+    _setVisibility(opts: VisibilityOpts) {
+        this.visible = opts.visible;
+        if (!this.animationFrameRequested && !this.paused && this.visible) {
+            this.animationFrameRequested = true;
+            requestAnimationFrame(this._animationFrameReceived);
+        }
+    }
+
+    _setDimensions(opts: DimensionOpts) {
+        this.renderer!.setDimensions(opts);
+    }
+
+    _initialize({
+        sampleRate,
+        canvas,
+        maxFrequency,
+        bufferSize,
+        minFrequency,
+        baseSmoothingConstant,
+        audioPlayerLatency,
+        interpolator,
+        capDropTime,
+        width,
+        height,
+        audioPlayerBackendPort,
+        binWidth,
+        gapWidth,
+        visible,
+        capHeight,
+        capSeparator,
+        capStyle,
+        ghostOpacity,
+        pixelRatio,
+    }: VisualizerOpts) {
+        const sab = new SharedArrayBuffer(HEADER_BYTES + RENDERED_CHANNEL_COUNT * bufferSize * 4);
+        this.visible = visible;
+        this._maxFrequency = maxFrequency;
+        this._bufferSize = bufferSize;
+        this._minFrequency = minFrequency;
+        this._baseSmoothingConstant = baseSmoothingConstant;
+        this.audioPlayerLatency = audioPlayerLatency;
+        this.sampleRate = sampleRate;
+        this.bus = new VisualizerBus(sab);
+        this.audioPlayerBackendport = audioPlayerBackendPort;
+        audioPlayerBackendPort.onmessage = this.receiveAudioBackendMessage;
+        this._visualizerData = new Float32Array(this._bufferSize);
+        this._windowData = new Float32Array(this._bufferSize);
+        this._fillWindow();
+        this.renderer = new Renderer({
+            canvas,
+            width,
+            height,
+            capDropTime,
+            interpolator,
+            binWidth,
+            gapWidth,
+            capHeight,
+            capSeparator,
+            capStyle,
+            ghostOpacity,
+            pixelRatio,
+        });
+        this.postAudioBackendMessage({
+            type: "initialize",
+            sab,
+        });
+        dbg(
+            "initialize",
+            JSON.stringify({
+                sampleRate,
+                canvas,
+                maxFrequency,
+                bufferSize,
+                minFrequency,
+                baseSmoothingConstant,
+                audioPlayerLatency,
+                interpolator,
+                capDropTime,
+                width,
+                height,
+                audioPlayerBackendPort,
+                binWidth,
+                gapWidth,
+                visible,
+                capHeight,
+                capSeparator,
+                capStyle,
+                ghostOpacity,
+                pixelRatio,
+            })
+        );
+    }
+
+    receiveAudioBackendMessage = (e: MessageEvent<any>) => {
+        const message = decode(AudioBackendMessage, e.data);
+        switch (message.type) {
+            case "resume":
+                this.paused = false;
+                if (!this.animationFrameRequested && this.visible) {
+                    this.animationFrameRequested = true;
+                    requestAnimationFrame(this._animationFrameReceived);
+                }
+                break;
+            case "pause":
+                this.paused = true;
+                break;
+        }
+    };
+
+    postAudioBackendMessage(message: VisualizerMessage) {
+        this.audioPlayerBackendport!.postMessage(message);
+    }
+
+    _getBins(frames: Float32Array) {
+        const { _visualizerData: visualizerData, _windowData: windowData } = this;
+
+        for (let i = 0; i < frames.length; ++i) {
+            visualizerData![i] = Math.fround(
+                (Math.fround(frames[i * RENDERED_CHANNEL_COUNT]! + frames[i * RENDERED_CHANNEL_COUNT + 1]!) / 2) *
+                    windowData![i]!
+            );
+        }
+        realFft(visualizerData!);
+        const binsF64 = cachedBins.subarray(0, this.bins);
+        this._calculateBins(visualizerData!, binsF64, this.sampleRate);
+        return binsF64;
+    }
+
+    _shouldSkipFrame() {
+        return (this._numericFrameId & (this._frameSkip - 1)) !== 0;
+    }
+
+    _adjustFrameRate() {
+        const { fps } = this;
+
+        if (fps > 60 * 1.1) {
+            if (fps / 2 > 0.8 * 60 && this._frameSkip < 8) {
+                this._frameSkip <<= 1;
+            }
+        } else if (fps < 60 * 0.8 && this._frameSkip > 1) {
+            this._frameSkip >>= 1;
+        }
+    }
+
+    _animationFrameReceived = () => {
+        this._numericFrameId++;
+        if (this._shouldSkipFrame()) {
+            if (!this.paused && this.visible) {
+                this.animationFrameRequested = true;
+                requestAnimationFrame(this._animationFrameReceived);
+            }
+            return;
+        }
+        const then = this.lastRenderTime;
+        const now = performance.now();
+        if (then !== 0) {
+            const elapsed = now - then;
+            const fps = 1000 / elapsed;
+            if (fps > 1) {
+                this.fps = this.fps * (1 - 0.1) + fps * 0.1;
+                this._adjustFrameRate();
+            }
+        }
+        this.animationFrameRequested = false;
+        this.bus!.resetFramesAvailable();
+        this.postAudioBackendMessage({
+            type: "audioFramesForVisualizer",
+            latency: this.audioPlayerLatency + this.avgLatency / 1000,
+            frames: this._bufferSize,
+        });
+        const frames = this.bus!.getFrames();
+        const afterFramesNow = performance.now();
+        const latency = afterFramesNow - now;
+        this.avgLatency = this.avgLatency * (1 - 0.1) + latency * 0.1;
+
+        let bins: Float64Array;
+        if (frames.length / RENDERED_CHANNEL_COUNT !== this._bufferSize) {
+            bins = cachedBins.subarray(0, this.bins).fill(0);
+        } else {
+            bins = this._getBins(frames);
+        }
+
+        if ((this.renderer!.drawBins(afterFramesNow, bins) || !this.paused) && this.visible) {
+            this.animationFrameRequested = true;
+            requestAnimationFrame(this._animationFrameReceived);
+        }
+        this.lastRenderTime = now;
+    };
 
     _fillWindow() {
         const window = this._windowData!;
@@ -208,9 +383,5 @@ export default class AudioVisualizerBackend extends AbstractBackend<
             bins[i] = maxPower;
             binFrequencyStart = binFrequencyEnd;
         }
-    }
-
-    postMessageToVisualizer(result: AudioVisualizerResult, transferList: ArrayBuffer[]) {
-        this.postMessageToFrontend([result], transferList);
     }
 }

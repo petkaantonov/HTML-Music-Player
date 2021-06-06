@@ -16,7 +16,7 @@ export function withHeaderDataZeroed(sab: SharedArrayBuffer) {
 // Writer (main thread) writes asynchronusly
 // Reader (Worker) reads synchronously, because ffmpeg only has synchronous implementation.
 export default class CircularBuffer {
-    private sab;
+    private sab: SharedArrayBuffer;
     private readPtr: Int32Array;
     private writePtr: Int32Array;
     private eof: Int32Array;

@@ -1,11 +1,12 @@
-import { ChannelData } from "shared/src/audio";
-import { PromiseResolve } from "shared/types/helpers";
-import { ALPHA, AudioVisualizerBackendActions, AudioVisualizerResult, FrameDescriptor } from "shared/visualizer";
+import { debugFor } from "shared/src/debug";
+import { InterpolatorName } from "shared/src/easing";
+import { AudioVisualizerBackendActions } from "shared/visualizer";
 import { SelectDeps } from "ui/Application";
 import AudioPlayerFrontend from "ui/audio/AudioPlayerFrontend";
 import Page from "ui/platform/dom/Page";
 import VisualizerCanvas from "ui/visualization/VisualizerCanvas";
 import WorkerFrontend from "ui/WorkerFrontend";
+const dbg = debugFor("AudioVisualizerFrontend");
 
 type Deps = SelectDeps<"page" | "audioManager" | "visualizerWorker">;
 interface Opts {
@@ -14,8 +15,17 @@ interface Opts {
     bufferSize: number;
     baseSmoothingConstant: number;
     targetFps: number;
+    capDropTime: number;
+    interpolator: InterpolatorName;
+    binWidth: number;
+    gapWidth: number;
+    capHeight: number;
+    capSeparator: number;
+    capStyle: string;
+    pixelRatio: number;
+    ghostOpacity?: number;
 }
-export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisualizerResult> {
+export default class AudioVisualizerFrontend extends WorkerFrontend<null> {
     page: Page;
     audioManager: AudioPlayerFrontend;
 
@@ -24,203 +34,132 @@ export default class AudioVisualizerFrontend extends WorkerFrontend<AudioVisuali
     readonly bufferSize: number;
     readonly baseSmoothingConstant: number;
     readonly targetFps: number;
-
-    private _frameSkip = 1;
-    private _channelData: ChannelData;
-    private _bins: null | Float64Array = null;
-    private _resolveGetBinsPromise: PromiseResolve<void> | null = null;
-    private _awaitingBins = false;
-    private _awaitingBackendResponse = false;
-    private _frameHandle = -1;
-    private _numericFrameId = 0;
-    private _lastRafArg = -1;
-    private _actualFps = 0;
-    private _workerFps = 0;
-    visualizerCanvas: VisualizerCanvas | null;
+    readonly capDropTime: number;
+    readonly interpolator: InterpolatorName;
+    readonly binWidth: number;
+    readonly gapWidth: number;
+    readonly capHeight: number;
+    readonly capSeparator: number;
+    readonly capStyle: string;
+    readonly pixelRatio: number;
+    readonly ghostOpacity?: number;
     constructor(opts: Opts, deps: Deps) {
         super("visualizer", deps.visualizerWorker);
         this.page = deps.page;
         this.audioManager = deps.audioManager;
-        this.visualizerCanvas = null;
 
         this.maxFrequency = opts.maxFrequency;
         this.minFrequency = opts.minFrequency;
         this.bufferSize = opts.bufferSize;
         this.baseSmoothingConstant = opts.baseSmoothingConstant;
         this.targetFps = opts.targetFps;
+        this.capDropTime = opts.capDropTime;
+        this.interpolator = opts.interpolator;
+        this.binWidth = opts.binWidth;
+        this.gapWidth = opts.gapWidth;
+        this.capHeight = opts.capHeight;
+        this.capSeparator = opts.capSeparator;
+        this.capStyle = opts.capStyle;
+        this.ghostOpacity = opts.ghostOpacity;
+        this.pixelRatio = opts.pixelRatio;
+    }
 
-        this._channelData = [new Float32Array(this.bufferSize), new Float32Array(this.bufferSize)];
-        void this._init();
+    receiveMessageFromBackend(_arg: any, _transferList?: ArrayBuffer[]): void {
+        throw new Error("Method not implemented.");
     }
 
     async ready() {
         await Promise.all([super.ready(), this.audioManager.ready()]);
     }
 
-    get canvasEnabled() {
-        return this.visualizerCanvas && this.visualizerCanvas.isEnabled();
-    }
-
-    get actualFps() {
-        return Math.ceil(this._actualFps);
-    }
-
-    get workerFps() {
-        return Math.floor(this._workerFps);
-    }
-
-    _adjustFrameRate() {
-        const { targetFps, actualFps } = this;
-
-        if (actualFps > targetFps * 1.1) {
-            if (actualFps / 2 > 0.8 * targetFps && this._frameSkip < 8) {
-                this._frameSkip <<= 1;
-            }
-        } else if (actualFps < targetFps * 0.8 && this._frameSkip > 1) {
-            this._frameSkip >>= 1;
-        }
-    }
-
-    _getBins(frameDescriptor: FrameDescriptor) {
-        if (this._awaitingBackendResponse) return Promise.resolve();
-        this._awaitingBackendResponse = true;
-        return new Promise(resolve => {
-            this._resolveGetBinsPromise = resolve;
-            const channelData = this._channelData.map(v => v.buffer);
-            const bins = this._bins!.buffer;
-            const transferList = channelData.concat(bins);
-            this.postMessageToVisualizerBackend("getBins", transferList, {
-                bins,
-                channelData,
-                frameDescriptor,
-                binCount: this.binCount(),
-            });
+    dimensionsChanged = (visualizerCanvas: VisualizerCanvas) => {
+        const { width, height } = visualizerCanvas;
+        this.postMessageToVisualizerBackend("setDimensions", undefined, {
+            width,
+            height,
         });
-    }
-
-    receiveMessageFromBackend(result: AudioVisualizerResult) {
-        const { channelData, bins } = result;
-        for (let i = 0; i < channelData.length; ++i) {
-            this._channelData[i] = new Float32Array(channelData[i]!);
-        }
-        this._bins = new Float64Array(bins);
-        if (this._resolveGetBinsPromise) {
-            this._resolveGetBinsPromise();
-        }
-        this._resolveGetBinsPromise = null;
-        this._awaitingBackendResponse = false;
-    }
-
-    _shouldSkipFrame() {
-        return (this._numericFrameId & (this._frameSkip - 1)) !== 0;
-    }
-
-    _requestAnimationFrame() {
-        if (!this.canvasEnabled) {
-            return false;
-        }
-        this._frameHandle = this.page.requestAnimationFrame(this._receivedFrame);
-        this._numericFrameId++;
-        return true;
-    }
-
-    async _requestBinsAndAnimationFrame() {
-        if (!this._requestAnimationFrame()) {
-            return;
-        }
-        return;
-        /*
-        if (this.visualizerCanvas!.needsToDraw() && !this._awaitingBins) {
-            const { actualFps } = this;
-            const offsetSeconds =
-                (actualFps > 0 ? 1000 / actualFps / 1000 : 1000 / this.targetFps) - this._getAudioLatency();
-
-            const frameDescriptor = this.audioManager.getSamplesScheduledAtOffsetRelativeToNow(
-                this._channelData,
-                offsetSeconds
-            );
-
-            if (!frameDescriptor.channelDataFilled) {
-                return;
-            }
-
-            const binCount = this.binCount();
-            if (!this._bins || this._bins.length !== binCount) {
-                this._bins = new Float64Array(binCount);
-            }
-
-            const now = performance.now();
-            this._awaitingBins = true;
-            await this._getBins(frameDescriptor);
-            const fps = 1000 / (performance.now() - now);
-            this._workerFps = this._workerFps * (1 - ALPHA) + fps * ALPHA;
-        }
-        */
-    }
-
-    _receivedFrame = (now: number) => {
-        if (!this._shouldSkipFrame()) {
-            const then = this._lastRafArg;
-            this._lastRafArg = now;
-            if (then !== -1) {
-                const elapsed = now - then;
-                const fps = 1000 / elapsed;
-                if (fps > 1) {
-                    this._actualFps = this._actualFps * (1 - ALPHA) + fps * ALPHA;
-                    this._adjustFrameRate();
-                }
-            }
-
-            if (this._awaitingBins) {
-                if (!this._awaitingBackendResponse) {
-                    this._awaitingBins = false;
-                    this.visualizerCanvas!.drawBins(now, this._bins!);
-                }
-            } else if (this.visualizerCanvas!.needsToDraw()) {
-                this.visualizerCanvas!.drawIdleBins(now);
-            } else {
-                // TODO: This happens when fps is too high yet worker is too
-                // Slow.
-            }
-
-            void this._requestBinsAndAnimationFrame();
-        } else {
-            this._requestAnimationFrame();
-        }
     };
 
-    setCanvas(visualizerCanvas: VisualizerCanvas) {
-        this.visualizerCanvas = visualizerCanvas;
-        // visualizerCanvas.on(CANVAS_ENABLED_STATE_CHANGE_EVENT, this._visualizerCanvasEnabledStateChanged);
-    }
-
-    _visualizerCanvasEnabledStateChanged = () => {
-        if (this.canvasEnabled) {
-            void this._requestBinsAndAnimationFrame();
-        } else {
-            this.page.cancelAnimationFrame(this._frameHandle);
-        }
+    visibilityChanged = (visualizerCanvas: VisualizerCanvas) => {
+        this.postMessageToVisualizerBackend("setVisibility", undefined, {
+            visible: visualizerCanvas.isVisible,
+        });
     };
 
-    async _init() {
-        await this.ready();
-        const { maxFrequency, minFrequency, bufferSize, baseSmoothingConstant } = this;
-        this.postMessageToVisualizerBackend("configure", undefined, {
+    async initialize(visualizerCanvas: VisualizerCanvas) {
+        await Promise.all([visualizerCanvas.initialize(), this.ready()]);
+        visualizerCanvas.on("dimensionChange", this.dimensionsChanged);
+        visualizerCanvas.on("visibilityChange", this.visibilityChanged);
+        const canvas = visualizerCanvas.canvas.transferControlToOffscreen();
+        const { width, height, isVisible } = visualizerCanvas;
+        const { sampleRate, audioPlayerBackendPort, totalLatency: audioPlayerLatency } = this.audioManager;
+        const {
             maxFrequency,
             minFrequency,
             bufferSize,
             baseSmoothingConstant,
+            interpolator,
+            capDropTime,
+            binWidth,
+            gapWidth,
+            capHeight,
+            capSeparator,
+            capStyle,
+            ghostOpacity,
+            pixelRatio,
+        } = this;
+        this.postMessageToVisualizerBackend("initialize", [canvas, audioPlayerBackendPort], {
+            maxFrequency,
+            minFrequency,
+            bufferSize,
+            baseSmoothingConstant,
+            audioPlayerBackendPort,
+            sampleRate,
+            audioPlayerLatency,
+            width,
+            height,
+            capDropTime,
+            interpolator,
+            canvas,
+            binWidth,
+            gapWidth,
+            capHeight,
+            capSeparator,
+            capStyle,
+            ghostOpacity,
+            pixelRatio,
+            visible: isVisible,
         });
-        void this._requestBinsAndAnimationFrame();
-    }
-
-    binCount() {
-        return this.visualizerCanvas!.getNumBins();
+        dbg(
+            "initialize",
+            JSON.stringify({
+                maxFrequency,
+                minFrequency,
+                bufferSize,
+                baseSmoothingConstant,
+                audioPlayerBackendPort,
+                sampleRate,
+                audioPlayerLatency,
+                width,
+                height,
+                capDropTime,
+                interpolator,
+                canvas,
+                binWidth,
+                gapWidth,
+                capHeight,
+                capSeparator,
+                capStyle,
+                ghostOpacity,
+                pixelRatio,
+                visible: isVisible,
+            })
+        );
     }
 
     postMessageToVisualizerBackend = <T extends string & keyof AudioVisualizerBackendActions<unknown>>(
         action: T,
-        transferList?: ArrayBuffer[],
+        transferList?: Transferable[],
         ...args: Parameters<AudioVisualizerBackendActions<unknown>[T]>
     ) => {
         this.postMessageToBackend(action, args, transferList);
