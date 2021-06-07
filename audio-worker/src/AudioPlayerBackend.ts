@@ -57,8 +57,7 @@ interface AudioSourceEventWaiter {
     resolve: PromiseResolve<void>;
 }
 
-// TODO: Silence handling loudnessinfo entirelysilent
-class AudioData {
+export class AudioData {
     private readonly cab: CircularAudioBuffer;
     private data: AudioDataItem[];
     private clearedFrameIndex: number = 0;
@@ -497,11 +496,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
         const { totalTime, currentTime } = this;
         if (totalTime > 0 && totalTime > currentTime) {
             const remaining = totalTime - currentTime;
-            if (remaining <= this.crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
+            const crossfadeDuration = this.getCrossfadeDuration(this._mainAudioSource!);
+            if (remaining <= crossfadeDuration + PRELOAD_THRESHOLD_SECONDS) {
                 void this._requestNextTrackIfNeeded("sendTimeUpdate");
             }
 
-            if (this.crossfadeDuration > 0 && remaining <= this.crossfadeDuration) {
+            if (crossfadeDuration > 0 && remaining <= crossfadeDuration) {
                 this._checkSwap();
             }
         }
@@ -590,10 +590,11 @@ export default class AudioPlayerBackend extends AbstractBackend<
             return;
         }
 
-        const crossfadeDuration = this.crossfadeDuration;
-        const crossfadeEnabled = crossfadeDuration > 0;
         const audioSource = this._preloadingAudioSource;
+        const crossfadeDuration = this.getCrossfadeDuration(audioSource);
+        const crossfadeEnabled = crossfadeDuration > 0;
         const targetData = crossfadeEnabled ? this.passiveData! : this.activeData!;
+        audioSource.targetData = targetData;
         try {
             dbg(
                 label,
@@ -605,7 +606,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             const { cancellationToken } = await audioSource.load({
                 fileReference,
                 isPreloadForNextTrack: true,
-                crossfadeDuration,
+                getCrossfadeDuration: this.getCrossfadeDuration,
                 progress: 0,
             });
             dbg(label, "preload initialized");
@@ -735,15 +736,17 @@ export default class AudioPlayerBackend extends AbstractBackend<
             return;
         }
 
-        const duration = this._mainAudioSource.duration;
-        if (duration - this.crossfadeDuration < 0) {
-            return;
-        }
         await this._cancelLoadingBuffers("Seek invalidated buffers");
         try {
             time = Math.max(
                 0,
-                Math.min(this.totalTime - this.crossfadeDuration - TIME_UPDATE_RESOLUTION - this.bufferTime, time)
+                Math.min(
+                    this.totalTime -
+                        this.getCrossfadeDuration(this._mainAudioSource) -
+                        TIME_UPDATE_RESOLUTION -
+                        this.bufferTime,
+                    time
+                )
             );
             this._postUiTimeUpdate(time, this._mainAudioSource.duration);
             dbg(label, "begin seek initialization, time=", time);
@@ -754,6 +757,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
             cancellationToken.check();
             const baseFrame = Math.round(baseTime * this.sampleRate);
             this.seekFrameOffset = baseFrame;
+            const duration = this._mainAudioSource.demuxData!.duration;
             this._postUiTimeUpdate(baseTime, duration);
             dbg(label, "seek initialized, baseFrame=", baseFrame, "duration=", duration, "baseTime=", baseTime);
             await this._fillBuffersLoop(
@@ -931,8 +935,7 @@ export default class AudioPlayerBackend extends AbstractBackend<
                     this._preloadingAudioSource = null;
                 }
                 if (audioSource === this._mainAudioSource) {
-                    const crossfadeDuration = this.crossfadeDuration;
-                    const crossfadeEnabled = crossfadeDuration > 0;
+                    const crossfadeDuration = this.getCrossfadeDuration(audioSource);
                     await this._requestNextTrackIfNeeded(`audioSource ending (${audioSourceString})`);
                     // eslint-disable-next-line no-constant-condition
                     while (true) {
@@ -956,17 +959,25 @@ export default class AudioPlayerBackend extends AbstractBackend<
                             targetData.logDataFor(audioSource);
                             dbg(label, "awaited all main buffers", "audioSource", audioSourceString);
                             const preloadingAudioSource = this._preloadingAudioSource;
-                            if (targetData === this.activeData) {
-                                const preloaderData = crossfadeEnabled ? this.passiveData! : this.activeData!;
-                                if (!preloaderData.hasWrittenSamplesFor(preloadingAudioSource)) {
-                                    dbg(label, "cannot swap because preloader doesn't have written any samples yet");
-                                    await preloaderData.waitUntilWrittenSamplesFor(preloadingAudioSource);
-                                    if (preloadingAudioSource !== this._preloadingAudioSource) {
-                                        dbg(label, "preloading audio source changed, restarting loop");
-                                        continue;
-                                    }
-                                    dbg(label, "waited samples written for preloader, swapping");
+                            while (!preloadingAudioSource.targetData) {
+                                await this.waitNextTimeUpdate();
+                            }
+                            if (preloadingAudioSource !== this._preloadingAudioSource) {
+                                dbg(label, "preloading audio source changed, restarting loop");
+                                continue;
+                            }
+                            const preloaderData = preloadingAudioSource.targetData;
+                            if (
+                                targetData === this.activeData &&
+                                !preloaderData.hasWrittenSamplesFor(preloadingAudioSource)
+                            ) {
+                                dbg(label, "cannot swap because preloader doesn't have written any samples yet");
+                                await preloaderData.waitUntilWrittenSamplesFor(preloadingAudioSource);
+                                if (preloadingAudioSource !== this._preloadingAudioSource) {
+                                    dbg(label, "preloading audio source changed, restarting loop");
+                                    continue;
                                 }
+                                dbg(label, "waited samples written for preloader, swapping");
                             }
 
                             if (!this._checkSwap() && audioSource === this._mainAudioSource) {
@@ -993,11 +1004,12 @@ export default class AudioPlayerBackend extends AbstractBackend<
         }
         this._mainAudioSource = audioSource;
         const targetData = this.activeData!;
+        audioSource.targetData = targetData;
         try {
             const { baseFrame, cancellationToken } = await audioSource.load({
                 fileReference,
                 isPreloadForNextTrack: false,
-                crossfadeDuration: this.crossfadeDuration,
+                getCrossfadeDuration: this.getCrossfadeDuration,
                 progress,
             });
             dbg(label, "load initialized, baseFrame=", baseFrame);
@@ -1077,9 +1089,19 @@ export default class AudioPlayerBackend extends AbstractBackend<
         return this._effects;
     }
 
-    get crossfadeDuration() {
-        return this._config!.crossfadeDuration!;
-    }
+    getCrossfadeDuration = (audioSource: AudioSource) => {
+        if (!audioSource.demuxData || !this._mainAudioSource || !this._mainAudioSource.demuxData) {
+            return 0;
+        }
+        const mainDuration = this._mainAudioSource.demuxData.duration;
+        const { duration } = audioSource.demuxData;
+        const { crossfadeDuration } = this._config!;
+        const extra = 3;
+        if (duration < crossfadeDuration + extra || mainDuration < crossfadeDuration + extra) {
+            return 0;
+        }
+        return crossfadeDuration;
+    };
 
     get sustainedAudioSeconds() {
         return this._config!.sustainedBufferedAudioSeconds;

@@ -11,7 +11,7 @@ import demuxer from "shared/worker/demuxer";
 import LoudnessAnalyzer from "shared/worker/LoudnessAnalyzer";
 import getCodecName from "shared/worker/sniffer";
 
-import AudioPlayerBackend from "./AudioPlayerBackend";
+import AudioPlayerBackend, { AudioData } from "./AudioPlayerBackend";
 import seeker from "./seeker";
 
 const dbg = debugFor("AudioSource");
@@ -45,6 +45,7 @@ export default class AudioSource extends CancellableOperations(
     private _crossfader: Crossfader;
     private _initialized: boolean = false;
     private _lastFrame: number = 0;
+    private _targetData: AudioData | null = null;
     codecName: CodecName;
     private _destroyed: boolean;
     demuxData: null | TrackMetadata;
@@ -70,6 +71,14 @@ export default class AudioSource extends CancellableOperations(
         this.fileView = null;
         this.fileReference = null;
         this._destroyAfterBuffersFilledFlag = false;
+    }
+
+    get targetData() {
+        return this._targetData!;
+    }
+
+    set targetData(targetData: AudioData) {
+        this._targetData = targetData;
     }
 
     get lastFrame() {
@@ -277,12 +286,12 @@ export default class AudioSource extends CancellableOperations(
     async load({
         fileReference,
         isPreloadForNextTrack,
-        crossfadeDuration,
+        getCrossfadeDuration,
         progress = 0,
     }: {
         fileReference: FileReference;
         isPreloadForNextTrack: boolean;
-        crossfadeDuration: number;
+        getCrossfadeDuration: (t: AudioSource) => number;
         progress: number;
     }) {
         const cancellationToken = this.cancellationTokenForLoadOperation<AudioSource>();
@@ -305,10 +314,6 @@ export default class AudioSource extends CancellableOperations(
         if (!DecoderContext) {
             throw new Error(`Not decoder found for the codec: ${codecName}`);
         }
-
-        this._crossfader.setDuration(crossfadeDuration);
-        this._crossfader.setFadeInEnabled(isPreloadForNextTrack);
-        this._crossfader.setFadeOutEnabled(true);
 
         const demuxData = await demuxer(codecName, fileView);
         cancellationToken.check();
@@ -359,6 +364,11 @@ export default class AudioSource extends CancellableOperations(
             crossfader,
         });
         this._lastFrame = Math.round(demuxData.duration * this.backend.sampleRate);
+
+        const crossfadeDuration = getCrossfadeDuration(this);
+        this._crossfader.setDuration(crossfadeDuration);
+        this._crossfader.setFadeInEnabled(isPreloadForNextTrack);
+        this._crossfader.setFadeOutEnabled(true);
 
         if (progress > 0) {
             const time = progress * demuxData.duration;
@@ -443,7 +453,7 @@ export default class AudioSource extends CancellableOperations(
         }
         this.ended = false;
 
-        this._crossfader.setDuration(this.backend.crossfadeDuration!);
+        this._crossfader.setDuration(this.backend.getCrossfadeDuration(this));
         this._crossfader.setFadeInEnabled(false);
         this._crossfader.setFadeOutEnabled(true);
         return {
