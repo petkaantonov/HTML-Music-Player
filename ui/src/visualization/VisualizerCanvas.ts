@@ -1,4 +1,5 @@
 import { EventEmitterInterface } from "shared/types/helpers";
+import { throttle } from "shared/util";
 import { MAX_CANVAS_WIDTH } from "shared/visualizer";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapperSelector } from "ui/platform/dom/Page";
@@ -54,7 +55,7 @@ export default class VisualizerCanvas extends EventEmitter implements Deps {
         this.height = height;
         this.canvas.width = width;
         this.canvas.height = height;
-        this.enabledMediaMatcher.onchange = this.enabledMediaMatchChanged;
+        this.enabledMediaMatcher.onchange = throttle(this.enabledMediaMatchChanged, 300);
         this.globalEvents.on(`resize`, this.binSizeMediaMatchChanged);
         this._visibilityChanged();
     }
