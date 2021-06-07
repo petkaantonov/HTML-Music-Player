@@ -399,7 +399,7 @@ export default abstract class TrackContainerController<T extends TrackOriginName
                     selectionProvider: this._draggableSelectionProvider.bind(this),
                     beforeDragStartCommitDelay: this._beforeDragStartCommitDelay.bind(this),
                     afterDragEnd: this._afterDragEnd.bind(this),
-                    commitDelay: this.env.hasTouch() ? 100 : 300,
+                    commitDelay: this.env.hasTouch() ? 50 : 100,
                 },
                 deps
             );
@@ -583,7 +583,6 @@ export default abstract class TrackContainerController<T extends TrackOriginName
             page.delegatedEventHandler<MouseEvent>(e => {
                 const trackView = this._fixedItemListScroller.itemByRect(e.delegateTarget.getBoundingClientRect());
                 if (!trackView) return;
-                if (this._draggable && this._draggable.recentlyStoppedDragging()) return;
                 this._selectable.trackViewClick(e, trackView);
             }, `.js-track-container`)
         );

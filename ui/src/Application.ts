@@ -1,7 +1,7 @@
+import { debugFor, setDebugConfig } from "shared/debug";
+import KeyValueDatabase from "shared/idb/KeyValueDatabase";
+import Timers from "shared/platform/Timers";
 import { StoredKVValues } from "shared/preferences";
-import { debugFor, setDebugConfig } from "shared/src/debug";
-import KeyValueDatabase from "shared/src/idb/KeyValueDatabase";
-import Timers from "shared/src/platform/Timers";
 import AudioPlayerFrontend from "ui/audio/AudioPlayerFrontend";
 import DefaultShortcuts from "ui/keyboard/DefaultShortcuts";
 import KeyboardShortcuts from "ui/keyboard/KeyboardShortcuts";
@@ -53,14 +53,15 @@ const debugConfig = {
     //Crossfader: ["fadeout"],
     //AudioSource: ["*", "!Verbose"],
     // AudioPlayerFrontend: "*",
-    AudioVisualizerBackend: "*",
-    AudioVisualizerFrontend: "*",
+    //AudioVisualizerBackend: "*",
+    //AudioVisualizerFrontend: "*",
     //Resampler: "*",
     //MetadataBackend: "*",
     //MetadataFrontend: "*",
     //demuxer: "*",
-    AudioPlayerBackend: ["visualizer"],
+    //AudioPlayerBackend: ["visualizer"],
     //AudioProcessingPipeline: ["*", "!Verbose"],
+    //DraggableSelection: "*",
 };
 
 export interface Deps {

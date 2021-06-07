@@ -1,3 +1,4 @@
+import { debugFor } from "shared/src/debug";
 import { EventEmitterInterface } from "shared/types/helpers";
 import { SelectDeps } from "ui/Application";
 import Page, { DomWrapper, isTouchEvent, preventDefaultHandler } from "ui/platform/dom/Page";
@@ -12,6 +13,7 @@ import DragRecognizer from "./gestures/DragRecognizer";
 import GestureObject from "./gestures/GestureObject";
 import GestureRecognizerContext from "./gestures/GestureRecognizerContext";
 import TouchdownRecognizer from "./gestures/TouchdownRecognizer";
+const dbg = debugFor("DraggableSelection");
 
 type Deps = SelectDeps<"page" | "recognizerContext" | "globalEvents" | "env">;
 interface Opts {
@@ -38,7 +40,6 @@ export default class DraggableSelection extends EventEmitter {
     private _selectionProvider: () => TrackView[];
     private _beforeDragStartCommitDelay: (target: DomWrapper) => boolean;
     private _afterDragEnd: () => void;
-    private _commitDelay: number;
     private _page: Page;
     private _recognizerContext: GestureRecognizerContext;
     private _globalEvents: GlobalEvents;
@@ -46,7 +47,6 @@ export default class DraggableSelection extends EventEmitter {
     private _selection: null | TrackView[];
     private _previousRawY: number;
     private _currentReferenceItemView: number;
-    private _dragStartCommitDelayId: number;
     private _holdingStartedY: number;
     private _draggableDirections: DraggableDirection;
     private _dragRecognizer: DragRecognizer;
@@ -54,7 +54,6 @@ export default class DraggableSelection extends EventEmitter {
     private _isDragging: boolean;
     private _dragStartCommitted: boolean;
     private _scrollIntervalId: number;
-    private _committedDragRecently: boolean;
     private _anchorY: number = -1;
 
     constructor(opts: Opts, deps: Deps) {
@@ -68,12 +67,10 @@ export default class DraggableSelection extends EventEmitter {
         this._selectionProvider = opts.selectionProvider;
         this._beforeDragStartCommitDelay = opts.beforeDragStartCommitDelay;
         this._afterDragEnd = opts.afterDragEnd;
-        this._commitDelay = opts.commitDelay;
 
         this._selection = null;
         this._previousRawY = -1;
         this._currentReferenceItemView = -1;
-        this._dragStartCommitDelayId = -1;
         this._holdingStartedY = -1;
         this._draggableDirections = { down: false, up: false };
         this._dragRecognizer = this._recognizerContext.createDragRecognizer(this._onTouchmove, this._onTouchend);
@@ -81,7 +78,6 @@ export default class DraggableSelection extends EventEmitter {
         this._isDragging = false;
         this._dragStartCommitted = false;
         this._scrollIntervalId = -1;
-        this._committedDragRecently = false;
     }
 
     get itemHeight() {
@@ -94,10 +90,6 @@ export default class DraggableSelection extends EventEmitter {
 
     hasTouch = () => {
         return this._env.hasTouch();
-    };
-
-    recentlyStoppedDragging = () => {
-        return this._committedDragRecently;
     };
 
     bindEvents = () => {
@@ -116,27 +108,6 @@ export default class DraggableSelection extends EventEmitter {
     _clearScrollInterval = () => {
         this._page.clearInterval(this._scrollIntervalId);
         this._scrollIntervalId = -1;
-    };
-
-    _checkIfDragShouldBeCommitted = () => {
-        const yMoved = Math.abs(this._holdingStartedY - this._previousRawY);
-        this._dragStartCommitDelayId = -1;
-        if (yMoved > this.itemHeight) {
-            this._onMouseRelease();
-        } else {
-            this._commitDragStart();
-        }
-    };
-
-    _startDragStartCommitDelay = () => {
-        this._committedDragRecently = false;
-        this._clearDragStartCommitDelay();
-        this._dragStartCommitDelayId = this._page.setTimeout(this._checkIfDragShouldBeCommitted, this._commitDelay);
-    };
-
-    _clearDragStartCommitDelay = () => {
-        this._page.clearTimeout(this._dragStartCommitDelayId);
-        this._dragStartCommitDelayId = -1;
     };
 
     _scroll = () => {
@@ -169,7 +140,6 @@ export default class DraggableSelection extends EventEmitter {
     };
 
     _onMouseRelease = () => {
-        this._clearDragStartCommitDelay();
         if (!this._isDragging) return;
         const dragStartWasCommitted = this._dragStartCommitted;
         this._dragStartCommitted = false;
@@ -196,13 +166,6 @@ export default class DraggableSelection extends EventEmitter {
         }
         this._selection = null;
         this.emit(`dragEnd`);
-
-        if (dragStartWasCommitted) {
-            this._committedDragRecently = true;
-            this._dragStartCommitDelayId = this._page.setTimeout(() => {
-                this._committedDragRecently = false;
-            }, 13);
-        }
         this._afterDragEnd();
     };
 
@@ -217,6 +180,7 @@ export default class DraggableSelection extends EventEmitter {
     };
 
     _onMovement = (e: MouseEvent | GestureObject) => {
+        const label = "onMovement";
         if (!isTouchEvent(e) && (e.buttons & 1) !== 1) {
             this._onMouseRelease();
             return;
@@ -227,8 +191,12 @@ export default class DraggableSelection extends EventEmitter {
         const { itemHeight } = this;
 
         if (!this._dragStartCommitted) {
-            this._anchorY = this.getScroller().mapYCoordinate(clientY) % itemHeight;
-            return;
+            if (Math.abs(clientY - this._holdingStartedY) > 2) {
+                this._anchorY = this.getScroller().mapYCoordinate(clientY) % itemHeight;
+                this._commitDragStart();
+            } else {
+                return;
+            }
         }
 
         if (this._scrollIntervalId === -1) {
@@ -247,6 +215,7 @@ export default class DraggableSelection extends EventEmitter {
             Selectable.moveSelectedItemViewsUpBy(itemViews, selection, distance);
             changed = true;
             referenceY = this._currentReferenceItemView * itemHeight;
+            dbg(label, "move up");
         } else if (y > referenceY + itemHeight && this._draggableDirections.down) {
             const distance = Math.floor((y - (referenceY + itemHeight)) / itemHeight) + 1;
             this._currentReferenceItemView = Math.min(
@@ -256,6 +225,7 @@ export default class DraggableSelection extends EventEmitter {
             Selectable.moveSelectedItemViewsDownBy(itemViews, selection, distance);
             changed = true;
             referenceY = this._currentReferenceItemView * itemHeight;
+            dbg(label, "move down");
         }
 
         for (let i = 0; i < selection.length; ++i) {
@@ -263,6 +233,7 @@ export default class DraggableSelection extends EventEmitter {
         }
 
         if (changed) {
+            dbg(label, "changed");
             this._determineDraggableDirections(selection);
             this._controller.trackIndexChanged();
         }
@@ -305,25 +276,28 @@ export default class DraggableSelection extends EventEmitter {
     };
 
     _onItemViewMouseDown = (e: MouseEvent | GestureObject) => {
+        const label = "mousedown";
         if (this._isDragging) {
+            dbg(label, "this.isDragging");
             return;
         }
         const $target = this._page.$(e.target as HTMLElement);
 
         if (!this._beforeDragStartCommitDelay($target)) {
+            dbg(label, "no commit");
             return;
         }
 
         const selection = this._selectionProvider();
 
         if (!selection.length) {
+            dbg(label, "no selection");
             return;
         }
 
         this._determineDraggableDirections(selection);
         this._selection = selection;
 
-        this._startDragStartCommitDelay();
         this._isDragging = true;
         this._previousRawY = e.clientY;
         this._holdingStartedY = e.clientY;
